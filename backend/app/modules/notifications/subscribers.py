@@ -14,15 +14,18 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.events as activity_events
 import modules.followers.events as followers_events
+import modules.notifications.constants as notifications_constants
 import modules.notifications.integration_service as notifications_integration
 import modules.notifications.schema as notifications_schema
 import modules.notifications.service as notifications_service
+import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
 ACTIVITY_NOTIFICATION_SUBSCRIBER_ID = "activity.notify_created"
 FOLLOWER_REQUESTED_NOTIFICATION_SUBSCRIBER_ID = "followers.notify_requested"
 FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID = "followers.notify_accepted"
+FOLLOWER_REQUEST_REMOVED_NOTIFICATION_SUBSCRIBER_ID = "followers.clear_request_notification"
 
 
 def _notify_and_push(
@@ -129,9 +132,34 @@ def notify_follower_accepted_for_event(event: Event) -> None:
         )
 
 
+def clear_follower_request_notification_for_event(event: Event) -> None:
+    """Take back the follow-request notification once the request is gone unaccepted.
+
+    Deleting is idempotent, so a redelivered event finds nothing left to delete.
+    """
+    payload = platform_event_versioning.parse_payload(followers_events.FollowerRequestRemovedPayload, event)
+    with core_database.SessionLocal() as db:
+        deleted = notifications_service.remove_follow_request_notifications(
+            payload.requester_user_id, payload.target_user_id, db
+        )
+    if not deleted:
+        return
+    websocket_integration.push_to_user(
+        payload.target_user_id, {"message": notifications_constants.NEW_FOLLOWER_REQUEST_REMOVED_WS_MESSAGE}
+    )
+    logger.debug(
+        "Removed follow-request notification",
+        extra=core_logger.context(
+            requester_user_id=payload.requester_user_id,
+            target_user_id=payload.target_user_id,
+        ),
+    )
+
+
 on_activity_created_notify = best_effort(notify_activity_created_for_event)
 on_follower_requested_notify = best_effort(notify_follower_requested_for_event)
 on_follower_accepted_notify = best_effort(notify_follower_accepted_for_event)
+on_follower_request_removed_clear = best_effort(clear_follower_request_notification_for_event)
 
 
 def register_notification_subscribers(events: EventBusProvider) -> None:
@@ -139,6 +167,7 @@ def register_notification_subscribers(events: EventBusProvider) -> None:
     events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_notify)
     events.subscribe(followers_events.FOLLOWER_REQUESTED, on_follower_requested_notify)
     events.subscribe(followers_events.FOLLOWER_ACCEPTED, on_follower_accepted_notify)
+    events.subscribe(followers_events.FOLLOWER_REQUEST_REMOVED, on_follower_request_removed_clear)
 
 
 def register_notification_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -157,4 +186,9 @@ def register_notification_durable_handlers(registry: JobHandlerRegistry) -> None
         followers_events.FOLLOWER_ACCEPTED,
         FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID,
         notify_follower_accepted_for_event,
+    )
+    registry.register(
+        followers_events.FOLLOWER_REQUEST_REMOVED,
+        FOLLOWER_REQUEST_REMOVED_NOTIFICATION_SUBSCRIBER_ID,
+        clear_follower_request_notification_for_event,
     )

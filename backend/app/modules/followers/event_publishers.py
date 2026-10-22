@@ -78,3 +78,37 @@ def publish_follower_accepted(
         commit=commit,
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_follower_request_removed(
+    requester_user_id: int,
+    target_user_id: int,
+    db: Session,
+    *,
+    commit: Callable[[], None],
+    source: str,
+) -> None:
+    """Publish ``follower.request_removed`` after a pending request is deleted unaccepted.
+
+    Args:
+        requester_user_id: The user whose follow request was removed.
+        target_user_id: The user the request was addressed to. Carried in the payload
+            (the subscriber clears their notification) and mirrored into the metadata
+            for correlation.
+        db: The producer's DB session (see :func:`publish_follower_requested`).
+        commit: Commit the deletion and outbox event together.
+        source: Origin label: the route that removed the request.
+    """
+    payload = followers_events.FollowerRequestRemovedPayload(
+        requester_user_id=requester_user_id,
+        target_user_id=target_user_id,
+    )
+    platform_publisher.publish_committing(
+        followers_events.FOLLOWER_REQUEST_REMOVED,
+        payload.model_dump(),
+        source=source,
+        metadata={core_event_metadata.META_USER_ID: target_user_id},
+        db=db,
+        commit=commit,
+        schema_version=payload.SCHEMA_VERSION,
+    )

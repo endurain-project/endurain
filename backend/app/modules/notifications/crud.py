@@ -253,6 +253,34 @@ def mark_all_notifications_as_read(
     db.flush()
 
 
+def delete_user_reference_notifications(
+    user_id: int,
+    notification_type: int,
+    referenced_user_id: int,
+    db: Session,
+) -> int:
+    """Stage deleting a user's notifications of one type that name another user.
+
+    Args:
+        user_id: The user who owns the notifications.
+        notification_type: The notification type to delete.
+        referenced_user_id: The user named in the notification options.
+        db: Database session.
+
+    Returns:
+        Number of notifications staged for deletion.
+    """
+    result = db.execute(
+        delete(notifications_models.Notification).where(
+            notifications_models.Notification.user_id == user_id,
+            notifications_models.Notification.type == notification_type,
+            notifications_models.Notification.options["user_id"].as_integer() == referenced_user_id,
+        )
+    )
+    db.flush()
+    return result.rowcount
+
+
 def delete_read_notifications_before(cutoff: datetime, limit: int, db: Session) -> int:
     """Stage deleting up to ``limit`` read notifications created before ``cutoff``.
 

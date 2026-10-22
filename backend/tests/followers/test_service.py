@@ -106,6 +106,29 @@ class TestDeleteRelationship:
         crud.delete_follower.assert_called_once_with(1, 2, db)
         db.commit.assert_called_once()
 
+    @pytest.mark.parametrize(
+        "status,published",
+        [("pending", True), ("accepted", False)],
+    )
+    def test_only_a_pending_request_publishes_its_removal(self, status, published):
+        from modules.followers.service import delete_relationship
+
+        db = MagicMock()
+        with (
+            patch("modules.followers.service.followers_crud") as crud,
+            patch("modules.followers.service.followers_event_publishers") as pub,
+        ):
+            crud.get_follower_for_user_id_and_target_user_id.return_value = MagicMock(status=status)
+            delete_relationship(2, 1, 1, db)
+
+        assert pub.publish_follower_request_removed.called is published
+        if published:
+            pub.publish_follower_request_removed.assert_called_once_with(
+                1, 2, db, commit=db.commit, source="api:delete_follow_relationship"
+            )
+        else:
+            db.commit.assert_called_once()
+
     def test_removing_a_follower_deletes_the_same_row(self):
         """Same row, opposite caller — the reason these are one operation."""
         from modules.followers.service import delete_relationship
@@ -142,6 +165,20 @@ class TestRejectFollowRequest:
 
         crud.delete_follower.assert_called_once_with(2, 1, db, status=FollowStatus.PENDING)
         db.commit.assert_called_once()
+
+    def test_publishes_the_removal(self):
+        from modules.followers.service import reject_follow_request
+
+        db = MagicMock()
+        with (
+            patch("modules.followers.service.followers_crud"),
+            patch("modules.followers.service.followers_event_publishers") as pub,
+        ):
+            reject_follow_request(1, 2, db)
+
+        pub.publish_follower_request_removed.assert_called_once_with(
+            2, 1, db, commit=db.commit, source="api:reject_follow_request"
+        )
 
 
 class TestListAcceptedFolloweeIds:

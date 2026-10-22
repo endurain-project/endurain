@@ -42,4 +42,12 @@ NOTIFICATION_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
             "a transient reaction with no independently reconcilable state."
         ),
     ),
+    DurableSubscriberNet(
+        notification_subscribers.FOLLOWER_REQUEST_REMOVED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The follow row is the source of truth; clearing its request notification is "
+            "an idempotent reaction with no independently reconcilable state."
+        ),
+    ),
 )

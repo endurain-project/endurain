@@ -189,7 +189,7 @@ def list_pending_requests(
 
 
 def reject_follow_request(requester_user_id: int, follower_id: int, db: Session) -> None:
-    """Decline a pending follow request addressed to the caller.
+    """Decline a pending follow request addressed to the caller and publish ``follower.request_removed``.
 
     Distinct from :func:`delete_relationship`, which severs an already-accepted
     relationship. Both delete the same row, but only one of them is a decision
@@ -206,7 +206,9 @@ def reject_follow_request(requester_user_id: int, follower_id: int, db: Session)
         NotFoundError: When no pending request from that user exists.
     """
     followers_crud.delete_follower(follower_id, requester_user_id, db, status=followers_constants.FollowStatus.PENDING)
-    db.commit()
+    followers_event_publishers.publish_follower_request_removed(
+        follower_id, requester_user_id, db, commit=db.commit, source="api:reject_follow_request"
+    )
     logger.info(
         "Follow request rejected",
         extra=core_logger.context(requester_user_id=requester_user_id, follower_id=follower_id),
@@ -226,6 +228,8 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
         requester_user_id: The authenticated caller, who must be one of the two.
         db: Database session.
 
+    Publishes ``follower.request_removed`` when the deleted row was still a pending request.
+
     Raises:
         AccessConcealedError: When the caller is not part of the relationship; answered as a
             missing relationship so it does not confirm one exists.
@@ -238,8 +242,16 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
             ),
         )
         raise core_exceptions.AccessConcealedError("Follow relationship not found")
+    # Read before the delete: only a request that was still pending has a notification to take back.
+    existing = followers_crud.get_follower_for_user_id_and_target_user_id(follower_id, followee_id, db)
+    was_pending = existing is not None and existing.status == followers_constants.FollowStatus.PENDING
     followers_crud.delete_follower(follower_id, followee_id, db)
-    db.commit()
+    if was_pending:
+        followers_event_publishers.publish_follower_request_removed(
+            follower_id, followee_id, db, commit=db.commit, source="api:delete_follow_relationship"
+        )
+    else:
+        db.commit()
     logger.info(
         "Deleted a follow relationship",
         extra=core_logger.context(

@@ -148,3 +148,32 @@ class TestRegisterFollowerNotificationConsumers:
             subscribers.FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID,
             subscribers.notify_follower_accepted_for_event,
         )
+
+
+class TestClearFollowerRequestNotification:
+    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_service")
+    def test_deletes_the_notification_and_tells_the_target(self, mock_notif, mock_db, mock_ws):
+        from modules.notifications.subscribers import clear_follower_request_notification_for_event
+
+        mock_notif.remove_follow_request_notifications.return_value = True
+        clear_follower_request_notification_for_event(
+            _event("follower.request_removed", {"requester_user_id": 1, "target_user_id": 2})
+        )
+
+        assert mock_notif.remove_follow_request_notifications.call_args.args[:2] == (1, 2)
+        mock_ws.push_to_user.assert_called_once_with(2, {"message": "NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION"})
+
+    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_service")
+    def test_stays_quiet_when_nothing_was_deleted(self, mock_notif, mock_db, mock_ws):
+        from modules.notifications.subscribers import clear_follower_request_notification_for_event
+
+        mock_notif.remove_follow_request_notifications.return_value = False
+        clear_follower_request_notification_for_event(
+            _event("follower.request_removed", {"requester_user_id": 1, "target_user_id": 2})
+        )
+
+        mock_ws.push_to_user.assert_not_called()

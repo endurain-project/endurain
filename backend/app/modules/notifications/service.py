@@ -318,3 +318,28 @@ def create_follow_accepted_notification(
         source_event_id,
         db,
     )
+
+
+def remove_follow_request_notifications(requester_user_id: int, target_user_id: int, db: Session) -> bool:
+    """Delete the "wants to follow you" notifications a removed follow request left behind.
+
+    Args:
+        requester_user_id: The user whose request was removed, named in the notifications.
+        target_user_id: The user who owns the notifications.
+        db: Database session.
+
+    Returns:
+        True when at least one notification was deleted.
+    """
+    deleted = notifications_crud.delete_user_reference_notifications(
+        target_user_id,
+        notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST,
+        requester_user_id,
+        db,
+    )
+    db.commit()
+    logger.info(
+        "Removed follow-request notifications",
+        extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id, deleted=deleted),
+    )
+    return deleted > 0
