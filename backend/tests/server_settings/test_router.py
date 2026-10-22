@@ -5,7 +5,7 @@ This module tests API endpoints for server settings management,
 including read, update, and file upload operations.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
@@ -19,7 +19,7 @@ import modules.server_settings.schema as server_settings_schema
 class TestReadServerSettings:
     """Test suite for read_server_settings endpoint."""
 
-    @patch("modules.server_settings.router.server_settings_utils.get_server_settings_for_admin")
+    @patch("modules.server_settings.router.server_settings_service.get_server_settings_for_admin")
     def test_read_server_settings_success(self, mock_get_settings, fast_api_client, fast_api_app):
         """Test successful retrieval of server settings."""
         # Arrange
@@ -61,14 +61,12 @@ class TestReadServerSettings:
         assert data["units"] == "metric"
         assert data["public_shareable_links"] is False
 
-    @patch("modules.server_settings.router.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.server_settings.router.server_settings_service.get_server_settings_for_admin")
     def test_read_server_settings_not_found(self, mock_get_settings, fast_api_client, fast_api_app):
         """Test retrieval when settings not found."""
         # Arrange
-        mock_get_settings.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server settings not found",
-        )
+        mock_get_settings.side_effect = core_exceptions.NotFoundError("Server settings not found")
+        core_exceptions.register_exception_handlers(fast_api_app)
 
         # Act
         response = fast_api_client.get(
@@ -83,7 +81,7 @@ class TestReadServerSettings:
 class TestListTileMapsTemplates:
     """Test suite for list_tile_maps_templates endpoint."""
 
-    @patch("modules.server_settings.router.server_settings_utils.get_tile_maps_templates")
+    @patch("modules.server_settings.router.server_settings_service.get_tile_maps_templates")
     def test_list_tile_maps_templates_success(self, mock_get_templates, fast_api_client, fast_api_app):
         """Test successful retrieval of tile map templates."""
         # Arrange
@@ -231,10 +229,7 @@ class TestEditServerSettings:
 class TestDeleteLoginPhoto:
     """Test suite for delete_login_photo endpoint."""
 
-    @patch(
-        "modules.server_settings.router.core_file_uploads.delete_files_by_pattern",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.server_settings.router.server_settings_service.delete_login_photo")
     def test_delete_login_photo_success(self, mock_delete, fast_api_client, fast_api_app):
         """Test successful deletion of login photo."""
         # Act
@@ -246,10 +241,7 @@ class TestDeleteLoginPhoto:
         # Assert
         assert response.status_code == 204
 
-    @patch(
-        "modules.server_settings.router.core_file_uploads.delete_files_by_pattern",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.server_settings.router.server_settings_service.delete_login_photo")
     def test_delete_login_photo_not_exists(self, mock_delete, fast_api_client, fast_api_app):
         """Test deletion when photo doesn't exist."""
         # Act

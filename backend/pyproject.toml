@@ -216,7 +216,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-# Docstring rules ("D") apply to the converted modules (activities, followers, gears, notifications). Everything
+# Docstring rules ("D") apply to the converted modules (activities, followers, gears, notifications, server_settings). Everything
 # below is outside them until converted: removing a module from this list is part of
 # converting it. ``tests/architecture/test_module_boundaries.py`` keeps the module entries
 # in step with UNCONVERTED_MODULES.
@@ -231,7 +231,6 @@ convention = "google"
 "app/modules/auth/**/*.py" = ["D"]
 "app/modules/garmin/**/*.py" = ["D"]
 "app/modules/health/**/*.py" = ["D"]
-"app/modules/server_settings/**/*.py" = ["D"]
 "app/modules/strava/**/*.py" = ["D"]
 "app/modules/users/**/*.py" = ["D"]
 "scripts/**/*.py" = ["D"]

@@ -22,7 +22,14 @@ import pathlib
 #: truth for every conformance test (``test_module_boundaries.py``,
 #: ``test_logging_rule.py``): converting a module is moving its name from
 #: ``UNCONVERTED_MODULES`` to here, in this one file.
-CONVERTED_MODULES: tuple[str, ...] = ("activities", "followers", "gears", "notifications", "websocket")
+CONVERTED_MODULES: tuple[str, ...] = (
+    "activities",
+    "followers",
+    "gears",
+    "notifications",
+    "server_settings",
+    "websocket",
+)
 
 #: Top-level modules still on the legacy layout. Listed explicitly, rather than
 #: left implicit as "everything not converted", so that
@@ -32,7 +39,6 @@ UNCONVERTED_MODULES: tuple[str, ...] = (
     "auth",
     "garmin",
     "health",
-    "server_settings",
     "strava",
     "users",
 )

@@ -13,7 +13,7 @@ import modules.auth._internal.services.step_up_service as step_up_service
 import modules.auth.password_policy as auth_password_policy
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.schema as auth_sessions_schema
-import modules.server_settings.utils as server_settings_utils
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
 
@@ -117,7 +117,7 @@ def change_own_password(
         db,
     )
 
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_utils.get_user_by_id_or_404(user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
     hashed_password = auth_password_policy.validate_and_hash_for_user(
@@ -161,7 +161,7 @@ def change_managed_user_password(
     Raises:
         HTTPException: If password persistence fails.
     """
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_utils.get_user_by_id_or_404(user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
     hashed_password = auth_password_policy.validate_and_hash_for_user(

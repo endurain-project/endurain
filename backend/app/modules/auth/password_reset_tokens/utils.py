@@ -23,7 +23,7 @@ import modules.auth.password_reset_tokens.event_publishers as password_reset_tok
 import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.token_hashing as token_hashing
-import modules.server_settings.utils as server_settings_utils
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
@@ -173,7 +173,7 @@ def use_password_reset_token(
             detail="Invalid or expired password reset token",
         )
 
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_utils.get_user_by_id_or_404(token_user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
     try:

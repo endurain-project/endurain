@@ -52,7 +52,7 @@ class TestUsePasswordResetToken:
         # Act
         with (
             patch(
-                "modules.auth.password_reset_tokens.utils.server_settings_utils.get_server_settings_or_404",
+                "modules.auth.password_reset_tokens.utils.server_settings_integration.get_server_settings",
                 return_value=mock_settings,
             ),
             patch(
@@ -143,7 +143,7 @@ class TestUsePasswordResetToken:
         # Act & Assert
         with (
             patch(
-                "modules.auth.password_reset_tokens.utils.server_settings_utils.get_server_settings_or_404",
+                "modules.auth.password_reset_tokens.utils.server_settings_integration.get_server_settings",
                 return_value=mock_settings,
             ),
             patch(
@@ -197,7 +197,7 @@ class TestUsePasswordResetToken:
         # Act & Assert
         with (
             patch(
-                "modules.auth.password_reset_tokens.utils.server_settings_utils.get_server_settings_or_404",
+                "modules.auth.password_reset_tokens.utils.server_settings_integration.get_server_settings",
                 return_value=mock_settings,
             ),
             patch(

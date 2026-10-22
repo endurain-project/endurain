@@ -162,3 +162,53 @@ class TestSendTestEmail:
             server_settings_service.send_test_email(self._admin(), mail)
 
         assert "status 535" in exc_info.value.detail
+
+
+class TestGetServerSettingsForPublic:
+    """Test suite for get_server_settings_for_public."""
+
+    @staticmethod
+    def _stored_settings() -> server_settings_schema.ServerSettingsRead:
+        return server_settings_schema.ServerSettingsRead(
+            id=1,
+            units=server_settings_schema.Units.METRIC,
+            public_shareable_links=False,
+            public_shareable_links_user_info=False,
+            login_photo_set=False,
+            currency=server_settings_schema.Currency.EURO,
+            num_records_per_page=25,
+            signup_enabled=False,
+            signup_require_admin_approval=True,
+            signup_require_email_verification=True,
+            sso_enabled=False,
+            local_login_enabled=True,
+            sso_auto_redirect=False,
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_attribution="Test",
+            map_background_color="#dddddd",
+            password_type="strict",
+            password_length_regular_users=8,
+            password_length_admin_users=12,
+            tileserver_api_key="encrypted",
+        )
+
+    @patch("modules.server_settings.service.core_config.settings")
+    @patch("modules.server_settings.service.server_settings_crud.get_server_settings")
+    def test_reflects_configured_schemes_sorted(self, mock_get, mock_config, mock_db):
+        """Test the redirect schemes mirror ALLOWED_REDIRECT_SCHEMES, sorted."""
+        mock_get.return_value = self._stored_settings()
+        mock_config.ALLOWED_REDIRECT_SCHEMES = {"gadgetbridge", "endurain"}
+
+        result = server_settings_service.get_server_settings_for_public(mock_db)
+
+        assert result.allowed_redirect_schemes == ["endurain", "gadgetbridge"]
+
+    @patch("modules.server_settings.service.server_settings_crud.get_server_settings")
+    def test_excludes_admin_only_fields(self, mock_get, mock_db):
+        """Test sign-up policy and the tile API key never reach the public shape."""
+        mock_get.return_value = self._stored_settings()
+
+        dumped = server_settings_service.get_server_settings_for_public(mock_db).model_dump()
+
+        assert "signup_require_admin_approval" not in dumped
+        assert "tileserver_api_key" not in dumped

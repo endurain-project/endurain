@@ -1,4 +1,5 @@
-import asyncio
+"""Admin routes for server settings, the login photo and the test email."""
+
 from collections.abc import Callable
 from typing import Annotated
 
@@ -13,21 +14,14 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
-import core.file_uploads as core_file_uploads
-import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
-import modules.server_settings.utils as server_settings_utils
 import modules.users.users.integration_service as users_integration
-
-logger = core_logger.get_logger(__name__)
 
 # Define the API router
 router = APIRouter()
@@ -48,15 +42,14 @@ def read_server_settings(
         Depends(core_database.get_db),
     ],
 ) -> server_settings_schema.ServerSettingsRead:
-    """
-    Get current server settings.
+    """Get current server settings.
 
     Requires admin authentication with server_settings:read scope.
 
     Returns:
         Current server settings configuration with decrypted API key.
     """
-    return server_settings_utils.get_server_settings_for_admin(db)
+    return server_settings_service.get_server_settings_for_admin(db)
 
 
 @router.get(
@@ -70,8 +63,7 @@ def list_tile_maps_templates(
         Security(auth_dependencies.check_scopes, scopes=["server_settings:read"]),
     ],
 ) -> list[server_settings_schema.TileMapsTemplate]:
-    """
-    Retrieve available tile map templates for server settings.
+    """Retrieve available tile map templates for server settings.
 
     This endpoint returns a list of all available tile map templates that can
     be used for configuring map display options in server settings.
@@ -83,7 +75,7 @@ def list_tile_maps_templates(
         HTTPException: If the user lacks the required 'server_settings:read'
         scope.
     """
-    return server_settings_utils.get_tile_maps_templates()
+    return server_settings_service.get_tile_maps_templates()
 
 
 @router.put(
@@ -91,6 +83,7 @@ def list_tile_maps_templates(
     response_model=server_settings_schema.ServerSettingsRead,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_server_settings(
     request: Request,
     server_settings_attributes: server_settings_schema.ServerSettingsEdit,
@@ -103,14 +96,14 @@ def edit_server_settings(
         Depends(core_database.get_db),
     ],
 ) -> server_settings_schema.ServerSettingsRead:
-    """
-    Update server settings.
+    """Update server settings.
 
     Requires admin authentication with server_settings:write scope.
 
     Args:
         request: FastAPI request object for accessing app state.
         server_settings_attributes: Settings to update.
+        db: Database session.
 
     Returns:
         Updated server settings configuration.
@@ -119,11 +112,7 @@ def edit_server_settings(
 
     # Update allowed tile domains in app.state if tileserver_url changed
     if server_settings_attributes.tileserver_url is not None:
-        try:
-            request.app.state.allowed_tile_domains = server_settings_utils.get_allowed_tile_domains(db)
-            logger.info(f"Updated allowed tile domains: {request.app.state.allowed_tile_domains}")
-        except Exception as e:
-            logger.error(f"Error updating tile domains in app.state: {e}", exc_info=e)
+        request.app.state.allowed_tile_domains = server_settings_service.get_allowed_tile_domains(db)
 
     return server_settings_updated
 
@@ -133,7 +122,9 @@ def edit_server_settings(
     response_model=dict[str, str],
     status_code=status.HTTP_201_CREATED,
 )
-async def upload_login_photo(
+@core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
+def upload_login_photo(
+    request: Request,
     file: UploadFile,
     _check_scopes: Annotated[
         Callable,
@@ -144,26 +135,19 @@ async def upload_login_photo(
         Depends(core_database.get_db),
     ],
 ) -> dict[str, str]:
-    """
-    Upload custom login page photo.
+    """Upload custom login page photo.
 
     Requires admin authentication with server_settings:write scope.
 
     Args:
+        request: The HTTP request object.
         file: Image file to upload.
+        db: Database session.
 
     Returns:
         Full file path where file was saved.
     """
-    # Save file using centralized file upload handler
-    await core_file_uploads.save_validated_upload(
-        file,
-        kind=core_file_uploads.UploadKind.IMAGE,
-        upload_dir=core_config.SERVER_IMAGES_DIR,
-        filename="login.png",
-    )
-
-    await asyncio.to_thread(server_settings_crud.update_server_settings_login_photo_set, True, db)
+    server_settings_service.upload_login_photo(file, db)
 
     return {"message": "Login photo uploaded successfully."}
 
@@ -173,7 +157,9 @@ async def upload_login_photo(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def delete_login_photo(
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_login_photo(
+    request: Request,
     _check_scopes: Annotated[
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["server_settings:write"]),
@@ -183,20 +169,15 @@ async def delete_login_photo(
         Depends(core_database.get_db),
     ],
 ) -> None:
-    """
-    Delete custom login page photo.
+    """Delete custom login page photo.
 
     Requires admin authentication with server_settings:write scope.
 
-    Returns:
-        Success confirmation message.
-
-    Raises:
-        HTTPException: If deletion fails.
+    Args:
+        request: The HTTP request object.
+        db: Database session.
     """
-    await core_file_uploads.delete_files_by_pattern(core_config.SERVER_IMAGES_DIR, "login.png")
-
-    await asyncio.to_thread(server_settings_crud.update_server_settings_login_photo_set, False, db)
+    server_settings_service.delete_login_photo(db)
 
 
 @router.get(
@@ -210,8 +191,7 @@ def read_email_status(
         Security(auth_dependencies.check_scopes, scopes=["server_settings:read"]),
     ],
 ) -> server_settings_schema.EmailStatus:
-    """
-    Get whether outgoing email is usable.
+    """Get whether outgoing email is usable.
 
     Requires admin authentication with server_settings:read scope.
 
@@ -243,15 +223,16 @@ def send_test_email(
         Depends(core_database.get_db),
     ],
 ) -> dict[str, str]:
-    """
-    Send a test email to the requesting admin.
+    """Send a test email to the requesting admin.
 
     Requires admin authentication with server_settings:write scope. The recipient
     is always the caller's own email address.
 
     Args:
         request: The HTTP request object.
+        token_user_id: The requesting admin's user ID, from the access token.
         mail: The platform mail provider.
+        db: Database session.
 
     Returns:
         A confirmation message naming the recipient address.

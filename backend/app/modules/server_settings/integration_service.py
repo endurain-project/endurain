@@ -16,13 +16,45 @@ import core.cryptography as core_cryptography
 import core.logger as core_logger
 import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.crud as server_settings_crud
+import modules.server_settings.schema as server_settings_schema
+import modules.server_settings.service as server_settings_service
 
 logger = core_logger.get_logger(__name__)
 
 
-def public_shareable_links_enabled(db: Session) -> bool:
+def get_server_settings(db: Session) -> server_settings_schema.ServerSettingsRead:
+    """Return the server settings (the tile API key stays encrypted).
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The server settings.
+
+    Raises:
+        NotFoundError: If the settings row does not exist.
     """
-    Return whether the server allows unauthenticated shareable links.
+    return server_settings_service.get_server_settings(db)
+
+
+def get_allowed_tile_domains(db: Session) -> list[str]:
+    """Return the tile domains the CSP ``img-src`` directive allows.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The built-in provider domains plus the configured custom tile server's
+        domain; only the built-in ones when the settings cannot be read.
+
+    Raises:
+        None.
+    """
+    return server_settings_service.get_allowed_tile_domains(db)
+
+
+def public_shareable_links_enabled(db: Session) -> bool:
+    """Return whether the server allows unauthenticated shareable links.
 
     Args:
         db: Database session.
@@ -42,8 +74,7 @@ def public_shareable_links_enabled(db: Session) -> bool:
 
 
 def get_tile_server_settings(db: Session) -> server_settings_contracts.TileServerSettings:
-    """
-    Return the configured map-tile source, with the API key decrypted.
+    """Return the configured map-tile source, with the API key decrypted.
 
     Args:
         db: Database session.

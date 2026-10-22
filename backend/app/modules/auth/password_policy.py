@@ -11,12 +11,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import modules.auth.identity_service as auth_identity_service
-    import modules.server_settings.models as server_settings_models
     import modules.server_settings.schema as server_settings_schema
 
 
 def resolve_password_min_length(
-    server_settings: server_settings_models.ServerSettings | server_settings_schema.ServerSettingsRead,
+    server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,
 ) -> int:
     """
@@ -36,7 +35,7 @@ def resolve_password_min_length(
 
 def validate_and_hash_for_user(
     identity_service: auth_identity_service.IdentityService,
-    server_settings: server_settings_models.ServerSettings | server_settings_schema.ServerSettingsRead,
+    server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,
     password: str,
 ) -> str:

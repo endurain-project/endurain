@@ -738,7 +738,7 @@ the conformance test's allowlist.
 
 ### Pilot status and what the next conversion owns
 
-`activities`, `followers`, `gears`, `notifications` and `websocket` are the only modules converted so far. The
+`activities`, `followers`, `gears`, `notifications`, `server_settings` and `websocket` are the only modules converted so far. The
 remaining modules are listed in `UNCONVERTED_MODULES` so that
 `TestModuleInventory` keeps them visible rather than silently exempt, and are
 converted one at a time with the `convert-module` skill. The items below need

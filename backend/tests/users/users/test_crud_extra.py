@@ -301,7 +301,7 @@ class TestGetUserById:
         mock_settings.public_shareable_links_user_info = True
 
         with patch(
-            "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+            "modules.users.users.crud.server_settings_integration.get_server_settings", return_value=mock_settings
         ):
             result = get_user_by_id(1, mock_db, public_check=True)
 
@@ -319,7 +319,7 @@ class TestGetUserById:
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_user
 
         with patch(
-            "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+            "modules.users.users.crud.server_settings_integration.get_server_settings", return_value=mock_settings
         ):
             result = get_user_by_id(1, mock_db, public_check=True)
 
@@ -399,7 +399,7 @@ class TestCreateUser:
 
         with (
             patch(
-                "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+                "modules.users.users.crud.server_settings_integration.get_server_settings", return_value=mock_settings
             ),
             patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value=mock_hashed),
             patch("modules.users.users.crud.users_models.Users", return_value=mock_db_user),
@@ -435,7 +435,7 @@ class TestCreateUser:
 
         with (
             patch(
-                "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+                "modules.users.users.crud.server_settings_integration.get_server_settings", return_value=mock_settings
             ),
             patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
             patch("modules.users.users.crud.users_models.Users", return_value=MagicMock()),
@@ -470,7 +470,7 @@ class TestCreateUser:
 
         with (
             patch(
-                "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+                "modules.users.users.crud.server_settings_integration.get_server_settings", return_value=mock_settings
             ),
             patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
             patch("modules.users.users.crud.users_models.Users", return_value=MagicMock()),

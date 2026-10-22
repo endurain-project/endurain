@@ -1,3 +1,5 @@
+"""Unauthenticated routes exposing the public subset of server settings."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -5,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.utils as server_settings_utils
+import modules.server_settings.service as server_settings_service
 
 # Define the API router
 router = APIRouter()
@@ -20,8 +22,7 @@ def read_public_server_settings(
         Depends(core_database.get_db),
     ],
 ) -> server_settings_schema.ServerSettingsReadPublic:
-    """
-    Get public server settings (unauthenticated).
+    """Get public server settings (unauthenticated).
 
     Protection Mechanisms:
     - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
@@ -33,7 +34,7 @@ def read_public_server_settings(
     Returns:
         Public subset of server configuration.
     """
-    return server_settings_utils.get_server_settings_for_public(db)
+    return server_settings_service.get_server_settings_for_public(db)
 
 
 @router.get(
@@ -44,8 +45,7 @@ def list_tile_maps_templates(
     request: Request,
     response: Response,
 ) -> list[server_settings_schema.TileMapsTemplate]:
-    """
-    Retrieve available tile map templates for server settings (unauthenticated).
+    """Retrieve available tile map templates for server settings (unauthenticated).
 
     Protection Mechanisms:
     - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
@@ -56,4 +56,4 @@ def list_tile_maps_templates(
     Returns:
         List of tile map template configurations available for the server.
     """
-    return server_settings_utils.get_tile_maps_templates()
+    return server_settings_service.get_tile_maps_templates()

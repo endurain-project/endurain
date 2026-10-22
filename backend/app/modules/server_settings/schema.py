@@ -1,3 +1,5 @@
+"""Request and response shapes for server settings."""
+
 import re
 from enum import Enum
 
@@ -8,11 +10,9 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
-    computed_field,
     field_validator,
 )
 
-import core.config as core_config
 import core.sanitization as core_sanitization
 
 # Default allowed tile domains for map tiles
@@ -23,8 +23,7 @@ DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
 
 
 class Units(Enum):
-    """
-    An enumeration representing measurement units.
+    """An enumeration representing measurement units.
 
     Attributes:
         METRIC: Metric system (e.g., meters, kilograms).
@@ -36,8 +35,7 @@ class Units(Enum):
 
 
 class Currency(Enum):
-    """
-    An enumeration representing supported currencies.
+    """An enumeration representing supported currencies.
 
     Attributes:
         EURO: Represents the Euro currency.
@@ -51,8 +49,7 @@ class Currency(Enum):
 
 
 class PasswordType(Enum):
-    """
-    An enumeration representing password policy types.
+    """An enumeration representing password policy types.
 
     Attributes:
         STRICT (str): Strict password policy.
@@ -64,8 +61,7 @@ class PasswordType(Enum):
 
 
 class ServerSettingsBase(BaseModel):
-    """
-    Pydantic model for server settings configuration.
+    """Pydantic model for server settings configuration.
 
     This model defines all configurable server settings for the Endurain application,
     including units, currency, authentication methods, map configuration, and password policies.
@@ -161,8 +157,7 @@ class ServerSettingsBase(BaseModel):
     @field_validator("tileserver_url")
     @classmethod
     def validate_tileserver_url(cls, value: str) -> str:
-        """
-        Validate tile server URL for security and correctness.
+        """Validate tile server URL for security and correctness.
 
         Args:
             value: Tile server URL template.
@@ -216,8 +211,7 @@ class ServerSettingsBase(BaseModel):
     @field_validator("tileserver_attribution")
     @classmethod
     def validate_attribution(cls, value: str) -> str:
-        """
-        Sanitize tileserver attribution to prevent XSS.
+        """Sanitize tileserver attribution to prevent XSS.
 
         Args:
             value: Raw attribution string.
@@ -229,8 +223,7 @@ class ServerSettingsBase(BaseModel):
 
 
 class ServerSettings(ServerSettingsBase):
-    """
-    Internal complete server settings schema with identifier.
+    """Internal complete server settings schema with identifier.
 
     Extends ServerSettingsBase by adding the id field for internal
     operations. Not typically used for API responses.
@@ -249,8 +242,7 @@ class ServerSettings(ServerSettingsBase):
 
 
 class ServerSettingsEdit(ServerSettings):
-    """
-    Edit schema for server settings updates.
+    """Edit schema for server settings updates.
 
     Extends ServerSettings with signup requirement fields.
 
@@ -272,8 +264,7 @@ class ServerSettingsEdit(ServerSettings):
 
 
 class ServerSettingsRead(ServerSettingsEdit):
-    """
-    Complete server settings response schema for API responses.
+    """Complete server settings response schema for API responses.
 
     Read-only view of all server settings including administrative
     signup configuration. Used for authenticated endpoints returning
@@ -282,8 +273,7 @@ class ServerSettingsRead(ServerSettingsEdit):
 
 
 class ServerSettingsReadPublic(ServerSettingsBase):
-    """
-    Public-facing schema for unauthenticated server settings access.
+    """Public-facing schema for unauthenticated server settings access.
 
     Provides only public-safe server settings, excluding sensitive
     configuration like signup requirements. Used for the public API
@@ -298,16 +288,14 @@ class ServerSettingsReadPublic(ServerSettingsBase):
             as the backend.
     """
 
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def allowed_redirect_schemes(self) -> list[str]:
-        """Return the configured custom redirect schemes, sorted."""
-        return sorted(core_config.settings.ALLOWED_REDIRECT_SCHEMES)
+    allowed_redirect_schemes: list[str] = Field(
+        ...,
+        description="Custom URI schemes SSO redirects may target",
+    )
 
 
 class TileMapsTemplate(BaseModel):
-    """
-    Schema representing available tile map templates.
+    """Schema representing available tile map templates.
 
     Attributes:
         name: Human-readable name of the tile map template.

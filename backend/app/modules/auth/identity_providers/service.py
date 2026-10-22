@@ -35,8 +35,8 @@ import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
+import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.utils as server_settings_utils
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
@@ -1581,7 +1581,7 @@ class IdentityProviderService:
             currency=server_settings_schema.Currency.EURO,
         )
 
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
+        server_settings = server_settings_integration.get_server_settings(db)
 
         # Build a real identity service to satisfy the create_signup_user
         # signature. SSO accounts opt out of local-credential persistence

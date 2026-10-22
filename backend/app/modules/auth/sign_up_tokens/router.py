@@ -19,7 +19,7 @@ import modules.auth.identity_service as auth_identity_service
 import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.notifications.integration_service as notifications_integration
-import modules.server_settings.utils as server_settings_utils
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
@@ -62,7 +62,7 @@ async def signup(
         HTTPException: 403 if sign-up is disabled.
     """
     # Get server settings to check if signup is enabled
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    server_settings = server_settings_integration.get_server_settings(db)
 
     # Check if signup is enabled
     if not server_settings.signup_enabled:
@@ -127,7 +127,7 @@ def verify_email(
         HTTPException: 412 if email verification is not enabled.
     """
     # Get server settings
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    server_settings = server_settings_integration.get_server_settings(db)
     if not server_settings.signup_require_email_verification:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,

@@ -5,40 +5,38 @@ This module tests public API endpoints for server settings,
 accessible without authentication.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from fastapi import HTTPException, status
-
-import modules.server_settings.models as server_settings_models
+import core.exceptions as core_exceptions
 import modules.server_settings.schema as server_settings_schema
 
 
 class TestReadPublicServerSettings:
     """Test suite for read_public_server_settings endpoint."""
 
-    @patch("modules.server_settings.public_router.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.server_settings.public_router.server_settings_service.get_server_settings_for_public")
     def test_read_public_server_settings_success(self, mock_get_settings, fast_api_client_public, fast_api_app):
         """Test successful retrieval of public server settings."""
         # Arrange
-        mock_settings = MagicMock(spec=server_settings_models.ServerSettings)
-        mock_settings.id = 1
-        mock_settings.units = "metric"
-        mock_settings.public_shareable_links = False
-        mock_settings.public_shareable_links_user_info = False
-        mock_settings.login_photo_set = False
-        mock_settings.currency = "euro"
-        mock_settings.num_records_per_page = 25
-        mock_settings.signup_enabled = False
-        mock_settings.sso_enabled = False
-        mock_settings.local_login_enabled = True
-        mock_settings.sso_auto_redirect = False
-        mock_settings.tileserver_url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        mock_settings.tileserver_attribution = "&copy; OpenStreetMap"
-        mock_settings.map_background_color = "#dddddd"
-        mock_settings.password_type = "strict"
-        mock_settings.password_length_regular_users = 8
-        mock_settings.password_length_admin_users = 12
-        mock_settings.tileserver_regenerate_thumbnails_on_change = False
+        mock_settings = server_settings_schema.ServerSettingsReadPublic(
+            units=server_settings_schema.Units.METRIC,
+            public_shareable_links=False,
+            public_shareable_links_user_info=False,
+            login_photo_set=False,
+            currency=server_settings_schema.Currency.EURO,
+            num_records_per_page=25,
+            signup_enabled=False,
+            sso_enabled=False,
+            local_login_enabled=True,
+            sso_auto_redirect=False,
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_attribution="&copy; OpenStreetMap",
+            map_background_color="#dddddd",
+            password_type="strict",
+            password_length_regular_users=8,
+            password_length_admin_users=12,
+            allowed_redirect_schemes=["endurain"],
+        )
 
         mock_get_settings.return_value = mock_settings
 
@@ -55,14 +53,14 @@ class TestReadPublicServerSettings:
         assert "signup_require_email_verification" not in data
         assert data["allowed_redirect_schemes"] == ["endurain"]
 
-    @patch("modules.server_settings.public_router.server_settings_utils.get_server_settings_or_404")
-    def test_read_public_server_settings_not_found(self, mock_get_settings, fast_api_client_public, fast_api_app):
+    @patch("modules.server_settings.public_router.server_settings_service.get_server_settings_for_public")
+    def test_read_public_server_settings_not_found(
+        self, mock_get_settings, fast_api_client_public, fast_api_app_public
+    ):
         """Test retrieval when settings not found."""
         # Arrange
-        mock_get_settings.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server settings not found",
-        )
+        mock_get_settings.side_effect = core_exceptions.NotFoundError("Server settings not found")
+        core_exceptions.register_exception_handlers(fast_api_app_public)
 
         # Act
         response = fast_api_client_public.get("/server_settings/public")
@@ -71,29 +69,10 @@ class TestReadPublicServerSettings:
         assert response.status_code == 404
 
 
-class TestAllowedRedirectSchemes:
-    """Test suite for the allowed_redirect_schemes field of the public schema."""
-
-    def test_reflects_configured_schemes_sorted(self):
-        """Test the field mirrors ALLOWED_REDIRECT_SCHEMES, sorted."""
-        # Arrange
-        schema = server_settings_schema.ServerSettingsReadPublic.model_construct()
-
-        # Act
-        with patch(
-            "modules.server_settings.schema.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            {"gadgetbridge", "endurain"},
-        ):
-            schemes = schema.allowed_redirect_schemes
-
-        # Assert
-        assert schemes == ["endurain", "gadgetbridge"]
-
-
 class TestListTileMapsTemplatesPublic:
     """Test suite for list_tile_maps_templates public endpoint."""
 
-    @patch("modules.server_settings.public_router.server_settings_utils.get_tile_maps_templates")
+    @patch("modules.server_settings.public_router.server_settings_service.get_tile_maps_templates")
     def test_list_tile_maps_templates_public_success(self, mock_get_templates, fast_api_client_public, fast_api_app):
         """Test successful retrieval of tile map templates (public)."""
         # Arrange
@@ -129,7 +108,7 @@ class TestListTileMapsTemplatesPublic:
         assert data[0]["template_id"] == "openstreetmap"
         assert data[1]["template_id"] == "alidade_smooth"
 
-    @patch("modules.server_settings.public_router.server_settings_utils.get_tile_maps_templates")
+    @patch("modules.server_settings.public_router.server_settings_service.get_tile_maps_templates")
     def test_list_tile_maps_templates_public_empty(self, mock_get_templates, fast_api_client_public, fast_api_app):
         """Test retrieval when no templates available."""
         # Arrange

@@ -1,3 +1,5 @@
+"""ORM model for the singleton server settings row."""
+
 from sqlalchemy import CheckConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -5,8 +7,7 @@ from core.database import Base
 
 
 class ServerSettings(Base):
-    """
-    Server-wide configuration settings.
+    """Server-wide configuration settings.
 
     Attributes:
         id: Primary key (always 1, singleton pattern).

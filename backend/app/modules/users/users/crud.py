@@ -24,8 +24,8 @@ import core.sanitization as core_sanitization
 import modules.activities.activity.integration_service as activity_integration
 import modules.auth.password_policy as auth_password_policy
 import modules.health.health_weight.utils as health_weight_utils
+import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.utils as server_settings_utils
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.signing as users_signing
@@ -431,7 +431,7 @@ def get_user_by_id(user_id: int, db: Session, public_check: bool = False) -> use
     """
     if public_check:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
+        server_settings = server_settings_integration.get_server_settings(db)
 
         # Return None if public sharable links are disabled
         if not server_settings.public_shareable_links or not server_settings.public_shareable_links_user_info:
@@ -487,7 +487,7 @@ def create_user(
         user.email = user.email.lower()
 
         # Get server settings to determine password policy
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
+        server_settings = server_settings_integration.get_server_settings(db)
 
         # Normalize access_type to string value
         access_type_value = users_schema.normalize_access_type(user.access_type)

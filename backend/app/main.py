@@ -53,8 +53,8 @@ import modules.auth.utils as auth_utils
 import modules.garmin.health_utils as garmin_health_utils
 import modules.garmin.provider_registry as garmin_provider_registry
 import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
+import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.utils as server_settings_utils
 import modules.strava.provider_registry as strava_provider_registry
 import modules.strava.scheduled_jobs as strava_scheduled_jobs
 from api import router as api_router
@@ -158,7 +158,7 @@ def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
     """
     with SessionLocal() as db:
         try:
-            fastapi_app.state.allowed_tile_domains = server_settings_utils.get_allowed_tile_domains(db)
+            fastapi_app.state.allowed_tile_domains = server_settings_integration.get_allowed_tile_domains(db)
             allowed_tile_domains = fastapi_app.state.allowed_tile_domains
             logger.info(f"Allowed tile domains: {allowed_tile_domains}", extra=core_logger.context(console=True))
         except Exception as err:
