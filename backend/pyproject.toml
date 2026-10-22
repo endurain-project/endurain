@@ -60,6 +60,7 @@ distributed = [
 [dependency-groups]
 typecheck = [
     "mypy>=2.3.1",
+    "ty>=0.0.83",
     "types-requests",
     "types-psutil",
     "types-qrcode",
@@ -128,6 +129,7 @@ lint-check = "ruff check ."
 format-check = "ruff format --check ."
 test = "pytest"
 typecheck = "mypy"
+typecheck-ty = "ty check"
 validate = ["lint", "format", "test", "typecheck"]
 check = ["lint-check", "format-check", "test", "typecheck"]
 
@@ -185,6 +187,28 @@ module = [
     "botocore.*",
 ]
 ignore_missing_imports = true
+
+[tool.ty.environment]
+python-version = "3.13"
+root = ["app"]
+
+[tool.ty.src]
+include = ["app"]
+exclude = ["tests/", "alembic/"]
+
+[tool.ty.analysis]
+allowed-unresolved-imports = [
+    "apscheduler.**",
+    "staticmap",
+    "fitdecode",
+    "garminconnect",
+    "geopy.**",
+    "tcxreader",
+    "user_agents",
+    "safeuploads.**",
+    "boto3",
+    "botocore.**",
+]
 
 [tool.ruff]
 target-version = "py313"
