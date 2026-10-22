@@ -390,11 +390,11 @@ def _sniff_image_type(data: bytes) -> str | None:
 def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProvider, db: Session) -> None:
     """Save the custom login page photo and mark it as set.
 
-    The settings row is locked from before the blob is written until the flag is
-    committed, so a concurrent upload or delete cannot interleave with this one. The
-    blob is written before the flag: a blob without the flag is invisible, whereas a
-    flag without a blob would point the login page at nothing. The stored content
-    type is the one detected from the bytes, not the one the client claimed.
+    The blob is written before the settings row is locked, so storage latency never
+    holds the lock. A blob without the flag is invisible, whereas a flag without a
+    blob would point the login page at nothing, so the flag is committed last. The
+    stored content type is the one detected from the bytes, not the one the client
+    claimed.
 
     Args:
         file: The uploaded image.
@@ -411,13 +411,13 @@ def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProv
     media_type = _sniff_image_type(data)
     if media_type is None:
         raise core_exceptions.UnsupportedMediaTypeError("Login photo must be a PNG, JPEG, GIF or WebP image")
-    server_settings_crud.set_login_photo(True, db)
     storage.save(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA,
         server_settings_constants.LOGIN_PHOTO_STORAGE_KEY,
         data,
         media_type,
     )
+    server_settings_crud.set_login_photo(True, db)
     db.commit()
     logger.info("Login photo uploaded")
 
@@ -425,9 +425,10 @@ def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProv
 def delete_login_photo(storage: platform_providers.StorageProvider, db: Session) -> None:
     """Remove the custom login page photo and mark it as unset.
 
-    The settings row stays locked until the blob is deleted, so a concurrent upload
-    cannot land between the two steps and lose its blob. If the delete fails the flag
-    change is rolled back, leaving the photo set and its blob in place.
+    The flag is cleared and committed first, so the photo stops being served at once
+    and the settings row is not locked while storage is called. The blob is deleted
+    afterwards; if that fails it is an unreferenced leftover that the next upload
+    overwrites.
 
     Args:
         storage: The platform storage provider.
@@ -437,22 +438,31 @@ def delete_login_photo(storage: platform_providers.StorageProvider, db: Session)
         ServiceUnavailableError: If the settings row does not exist.
     """
     server_settings_crud.set_login_photo(False, db)
-    storage.delete(
-        server_settings_constants.LOGIN_PHOTO_STORAGE_AREA, server_settings_constants.LOGIN_PHOTO_STORAGE_KEY
-    )
     db.commit()
+    try:
+        storage.delete(
+            server_settings_constants.LOGIN_PHOTO_STORAGE_AREA, server_settings_constants.LOGIN_PHOTO_STORAGE_KEY
+        )
+    except Exception:
+        logger.warning("Login photo blob could not be deleted; it is no longer served", exc_info=True)
     logger.info("Login photo deleted")
 
 
-def read_login_photo(storage: platform_providers.StorageProvider) -> tuple[bytes, str] | None:
+def read_login_photo(storage: platform_providers.StorageProvider, db: Session) -> tuple[bytes, str] | None:
     """Return the custom login page photo.
+
+    The settings flag is checked first, so a server without a custom photo never
+    calls storage for the unauthenticated login-page request.
 
     Args:
         storage: The platform storage provider.
+        db: Database session.
 
     Returns:
-        The image bytes and their media type, or None when no photo is stored.
+        The image bytes and their media type, or None when no photo is set or stored.
     """
+    if not get_server_settings(db).login_photo_set:
+        return None
     data = storage.get(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA, server_settings_constants.LOGIN_PHOTO_STORAGE_KEY
     )

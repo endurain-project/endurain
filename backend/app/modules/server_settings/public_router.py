@@ -72,6 +72,10 @@ def read_login_photo(
         platform_providers.StorageProvider,
         Depends(core_dependencies.get_storage),
     ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
 ) -> Response:
     """Serve the custom login page photo (unauthenticated).
 
@@ -82,6 +86,7 @@ def read_login_photo(
     Args:
         request: The HTTP request, for its ``If-None-Match`` header.
         storage: The platform storage provider.
+        db: Database session.
 
     Returns:
         The image bytes, or a 304 when the client's copy is current.
@@ -89,7 +94,7 @@ def read_login_photo(
     Raises:
         NotFoundError: 404 when no custom photo is stored.
     """
-    photo = server_settings_service.read_login_photo(storage)
+    photo = server_settings_service.read_login_photo(storage, db)
     if photo is None:
         raise core_exceptions.NotFoundError("Login photo not found")
     data, media_type = photo

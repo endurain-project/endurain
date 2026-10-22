@@ -246,7 +246,7 @@ class TestLoginPhoto:
 
         storage.save.assert_not_called()
 
-    def test_delete_removes_the_blob_before_releasing_the_lock(self):
+    def test_delete_clears_the_flag_before_removing_the_blob(self):
         calls = []
         storage = MagicMock()
         storage.delete.side_effect = lambda *a: calls.append("delete")
@@ -256,14 +256,35 @@ class TestLoginPhoto:
         with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
             server_settings_service.delete_login_photo(storage, db)
 
-        assert calls == ["delete", "commit"]
+        assert calls == ["commit", "delete"]
         storage.delete.assert_called_once_with("server_images", "login.png")
+
+    def test_delete_survives_a_storage_failure(self):
+        storage = MagicMock()
+        storage.delete.side_effect = RuntimeError("storage down")
+        db = MagicMock()
+
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
+            server_settings_service.delete_login_photo(storage, db)
+
+        db.commit.assert_called_once()
+
+    def test_read_returns_none_when_not_set_without_calling_storage(self):
+        storage = MagicMock()
+
+        with patch.object(
+            server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=False)
+        ):
+            assert server_settings_service.read_login_photo(storage, MagicMock()) is None
+
+        storage.get.assert_not_called()
 
     def test_read_returns_none_when_missing(self):
         storage = MagicMock()
         storage.get.return_value = None
 
-        assert server_settings_service.read_login_photo(storage) is None
+        with patch.object(server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=True)):
+            assert server_settings_service.read_login_photo(storage, MagicMock()) is None
 
     @pytest.mark.parametrize(
         "data,media_type",
@@ -273,7 +294,8 @@ class TestLoginPhoto:
         storage = MagicMock()
         storage.get.return_value = data
 
-        assert server_settings_service.read_login_photo(storage) == (data, media_type)
+        with patch.object(server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=True)):
+            assert server_settings_service.read_login_photo(storage, MagicMock()) == (data, media_type)
 
 
 class TestEmailStatus:
