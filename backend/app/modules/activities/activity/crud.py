@@ -1228,7 +1228,7 @@ def update_activity_location(
 
     Returns:
         True when the location was written, False when the activity was not found
-        or already has a location.
+        or already has a city or town. A stored country alone can still be filled in.
     """
     result = cast(
         "CursorResult[Any]",
@@ -1238,7 +1238,6 @@ def update_activity_location(
                 activity_models.Activity.id == activity_id,
                 activity_models.Activity.city.is_(None),
                 activity_models.Activity.town.is_(None),
-                activity_models.Activity.country.is_(None),
             )
             .values(city=city, town=town, country=country)
         ),
@@ -1256,9 +1255,10 @@ def get_activities_missing_location(
 ) -> list[activity_contracts.ActivityLocationRef]:
     """Return references to activities whose location is unresolved and due a lookup.
 
-    Rows where ``city``, ``town`` and ``country`` are all NULL and whose
-    ``location_next_lookup_at`` is unset or not after ``due_at`` — candidates for
-    the reverse-geocoding backfill. Ordered by id and paged via ``after_id``.
+    Rows where ``city`` and ``town`` are both NULL (the country may already be
+    stored) and whose ``location_next_lookup_at`` is unset or not after
+    ``due_at``. A village that was dropped on the first lookup can be filled
+    later. Ordered by id and paged via ``after_id``.
 
     Args:
         db: Database session.
@@ -1274,7 +1274,6 @@ def get_activities_missing_location(
         .where(
             activity_models.Activity.city.is_(None),
             activity_models.Activity.town.is_(None),
-            activity_models.Activity.country.is_(None),
             or_(
                 activity_models.Activity.location_next_lookup_at.is_(None),
                 activity_models.Activity.location_next_lookup_at <= due_at,

@@ -162,6 +162,11 @@ def backfill_missing_activity_locations(
             if location is None or not (location.city or location.town or location.country):
                 unresolved.append(ref.id)
                 continue
+            # Country alone is not a settlement. Defer so a village that Nominatim
+            # did not name is not looked up on every pass.
+            if not (location.city or location.town):
+                unresolved.append(ref.id)
+                continue
             if activity_integration.set_activity_location(
                 ref.id,
                 location.city,

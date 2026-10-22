@@ -14,6 +14,7 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
+import modules.activities.activity_file_import.device_name as activity_file_import_device_name
 import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
 import modules.activities.computation as activities_computation
 
@@ -591,9 +592,11 @@ def parse_gpx_file(
             # this only applies when it has none (a track-less/indoor export).
             default_timezone,
         )
+        device_creator: str | None = None
 
         with Path(file).open("r", encoding="utf-8") as gpx_file:
             gpx = gpxpy.parse(gpx_file)
+            device_creator = gpx.creator
 
             if not gpx.tracks:
                 raise core_exceptions.InvalidInputError("Invalid GPX file - no tracks found in the GPX file")
@@ -640,6 +643,11 @@ def parse_gpx_file(
         _compute_derived_metrics(state)
 
         activity = _build_activity_schema(state, user_id)
+        manufacturer, model = activity_file_import_device_name.split_device_name(device_creator)
+        if manufacturer or model:
+            activity = activity.model_copy(
+                update={"tracker_manufacturer": manufacturer, "tracker_model": model}
+            )
 
         smoothed_ele_waypoints = activities_computation.smooth_elevation_stream(state.ele_waypoints)
         laps = []

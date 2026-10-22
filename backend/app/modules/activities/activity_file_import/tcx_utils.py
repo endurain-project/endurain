@@ -10,6 +10,7 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
+import modules.activities.activity_file_import.device_name as activity_file_import_device_name
 import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
 import modules.activities.computation as activities_computation
 
@@ -492,6 +493,13 @@ def parse_tcx_file(
             elevation_loss=elevation_loss,
             timer_time=moving_time,
         )
+        manufacturer, model = activity_file_import_device_name.split_device_name(
+            activity_file_import_device_name.tcx_creator_name(file)
+        )
+        if manufacturer or model:
+            activity = activity.model_copy(
+                update={"tracker_manufacturer": manufacturer, "tracker_model": model}
+            )
 
         waypoints_combined = {
             **waypoints,
