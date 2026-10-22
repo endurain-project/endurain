@@ -3908,6 +3908,7 @@ export interface paths {
          *     Args:
          *         request: The HTTP request, for its ``If-None-Match`` header.
          *         storage: The platform storage provider.
+         *         db: Database session.
          *
          *     Returns:
          *         The image bytes, or a 304 when the client's copy is current.
