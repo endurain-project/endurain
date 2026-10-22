@@ -1,28 +1,31 @@
+"""WebSocket routes: the ticket that authenticates a connection, and the connection itself."""
+
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, WebSocketException, status
+from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketException, status
+from starlette.concurrency import run_in_threadpool
 
-import core.logger as core_logger
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
+import modules.websocket.dependencies as websocket_dependencies
 import modules.websocket.manager as websocket_manager
-import modules.websocket.ticket_store as ws_ticket_store
+import modules.websocket.service as websocket_service
+import modules.websocket.ticket_store as websocket_ticket_store
 
-logger = core_logger.get_logger(__name__)
-
-# Define the API router
 router = APIRouter()
 
 
 @router.post("/ticket", response_model=dict[str, str], status_code=201)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def issue_ws_ticket(
+    request: Request,
     user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     ticket_store: Annotated[
-        ws_ticket_store.WsTicketStore,
-        Depends(ws_ticket_store.get_ws_ticket_store),
+        websocket_ticket_store.WsTicketStore,
+        Depends(websocket_dependencies.get_ws_ticket_store),
     ],
 ) -> dict[str, str]:
-    """
-    Issue a short-lived WebSocket authentication ticket.
+    """Issue a short-lived WebSocket authentication ticket.
 
     Returns a single-use opaque ticket valid for 30 seconds,
     bound to the authenticated user. Use the ticket as the
@@ -30,6 +33,7 @@ def issue_ws_ticket(
     endpoint, so the real access token never appears in a URL.
 
     Args:
+        request: The request, which the rate limiter keys on.
         user_id: Authenticated user ID from auth dependency.
         ticket_store: WsTicketStore for issuing tickets.
 
@@ -45,21 +49,20 @@ async def websocket_endpoint(
     websocket: WebSocket,
     ticket: Annotated[str, Query(alias="ticket")],
     ticket_store: Annotated[
-        ws_ticket_store.WsTicketStore,
-        Depends(ws_ticket_store.get_ws_ticket_store),
+        websocket_ticket_store.WsTicketStore,
+        Depends(websocket_dependencies.get_ws_ticket_store),
     ],
     manager: Annotated[
         websocket_manager.WebSocketManager,
         Depends(websocket_manager.get_websocket_manager),
     ],
 ) -> None:
-    """
-    Handle WebSocket connections for real-time notifications.
+    """Handle WebSocket connections for real-time hints.
 
-    Validates the short-lived ticket before accepting the
-    connection, then establishes an authenticated WebSocket
-    for real-time notifications, MFA requests, and activity
-    updates. The ticket is consumed on first use (single-use).
+    Validates the short-lived ticket before accepting the connection, then serves an
+    authenticated WebSocket that receives "something changed, refetch" hints. The ticket
+    is consumed on first use (single-use). The ticket lookup goes to the shared state, so
+    it runs off the event loop.
 
     Args:
         websocket: The WebSocket connection instance.
@@ -67,24 +70,11 @@ async def websocket_endpoint(
         ticket_store: WsTicketStore for ticket validation.
         manager: Manager for WebSocket connections.
     """
-    user_id = ticket_store.consume_ticket(ticket)
+    user_id = await run_in_threadpool(ticket_store.consume_ticket, ticket)
     if user_id is None:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION,
             reason="Invalid or expired ticket",
         )
 
-    await manager.connect(user_id, websocket)
-
-    try:
-        while True:
-            try:
-                # Keep connection alive, handle incoming messages
-                await websocket.receive_json()
-            except ValueError:
-                # Log malformed JSON, keep connection alive
-                logger.warning(f"Received malformed JSON from user {user_id}")
-    except WebSocketDisconnect:
-        pass
-    finally:
-        manager.disconnect(user_id, websocket)
+    await websocket_service.serve_connection(websocket, user_id, manager)

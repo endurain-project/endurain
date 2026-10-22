@@ -3,7 +3,6 @@ from datetime import UTC, datetime, timedelta
 import garminconnect
 from sqlalchemy.orm import Session
 
-import core.async_bridge as core_async_bridge
 import core.logger as core_logger
 import modules.garmin.utils as garmin_utils
 import modules.health.health_sleep.crud as health_sleep_crud
@@ -528,8 +527,6 @@ def get_user_garminconnect_health_by_dates(
             user_integrations_crud.unlink_garminconnect_account(user_id, db)
             notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
             db.commit()
-            core_async_bridge.dispatch(
-                websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
-            )
+            websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
         except Exception as err:
             logger.error(f"Error in get_user_garminconnect_health_by_dates: {err}", exc_info=err)

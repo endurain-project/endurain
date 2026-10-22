@@ -12,7 +12,6 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-import core.async_bridge as core_async_bridge
 import core.database as core_database
 import core.mail as core_mail
 import core.rate_limit as core_rate_limit
@@ -153,10 +152,10 @@ async def verify_email(
         )
         await run_in_threadpool(db.commit)
         for notification, ws_message in notifications:
-            core_async_bridge.dispatch(
-                websocket_integration.push_to_user(
-                    notification.user_id, {"message": ws_message, "notification_id": notification.id}
-                )
+            await run_in_threadpool(
+                websocket_integration.push_to_user,
+                notification.user_id,
+                {"message": ws_message, "notification_id": notification.id},
             )
 
     # Return appropriate response based on server configuration

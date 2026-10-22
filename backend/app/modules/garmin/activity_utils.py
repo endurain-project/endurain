@@ -5,7 +5,6 @@ from datetime import datetime
 import garminconnect
 from sqlalchemy.orm import Session
 
-import core.async_bridge as core_async_bridge
 import core.file_uploads as file_uploads
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
@@ -25,7 +24,7 @@ def _unlink_expired_account(user_id: int) -> None:
     """Unlink an account whose Garmin Connect token expired and tell the user.
 
     The notification row is written in the same short session as the unlink; the
-    live push is handed to the main loop, since this runs on a worker thread.
+    live push is published after the commit.
 
     Args:
         user_id: The user whose account to unlink.
@@ -34,9 +33,7 @@ def _unlink_expired_account(user_id: int) -> None:
         user_integrations_crud.unlink_garminconnect_account(user_id, db)
         notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
         db.commit()
-    core_async_bridge.dispatch(
-        websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
-    )
+    websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
 
 
 def _download_and_ingest_activity(

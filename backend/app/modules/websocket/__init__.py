@@ -1,8 +1,1 @@
-"""WebSocket module for real-time notifications and communication."""
-
-from .manager import WebSocketManager, get_websocket_manager
-
-__all__ = [
-    "WebSocketManager",
-    "get_websocket_manager",
-]
+"""WebSocket module: authenticated live connections and cross-process delivery of hints."""

@@ -1,46 +1,33 @@
 """Tests for websocket.integration_service module."""
 
-from unittest.mock import AsyncMock, patch
+import pytest
+from jasil.testing import capture_hints, install_test_platform
 
 import modules.websocket.integration_service as websocket_integration
-import modules.websocket.manager as websocket_manager
 
 
-async def _push(manager, user_id=1):
-    with patch.object(websocket_manager, "get_websocket_manager", return_value=manager):
-        return await websocket_integration.push_to_user(user_id, {"message": "hi"})
+@pytest.fixture
+def hints(tmp_path):
+    import jasil.testing as jasil_testing
+
+    platform = install_test_platform(tmp_path)
+    yield capture_hints(platform)
+    jasil_testing.reset_all()
 
 
-async def test_a_user_without_a_connection_gets_no_push():
-    assert await _push(websocket_manager.WebSocketManager()) is False
+def test_a_push_is_published_for_the_user_key(hints):
+    websocket_integration.push_to_user(7, {"message": "NEW", "notification_id": 3})
+
+    assert hints == [("user:7", {"message": "NEW", "notification_id": 3})]
 
 
-async def test_every_connection_of_the_user_receives_the_push():
-    manager = websocket_manager.WebSocketManager()
-    first, second = AsyncMock(), AsyncMock()
-    await manager.connect(1, first)
-    await manager.connect(1, second)
+def test_a_push_the_channel_refuses_is_logged_not_raised(hints):
+    websocket_integration.push_to_user(7, {"message": object()})
 
-    assert await _push(manager) is True
-    first.send_json.assert_awaited_once_with({"message": "hi"})
-    second.send_json.assert_awaited_once_with({"message": "hi"})
+    assert hints == []
 
 
-async def test_one_broken_connection_does_not_stop_the_others():
-    manager = websocket_manager.WebSocketManager()
-    broken, healthy = AsyncMock(), AsyncMock()
-    broken.send_json.side_effect = RuntimeError("closed")
-    await manager.connect(1, broken)
-    await manager.connect(1, healthy)
+def test_an_oversized_push_is_dropped_not_raised(hints):
+    websocket_integration.push_to_user(7, {"message": "x" * 10_000})
 
-    assert await _push(manager) is True
-    healthy.send_json.assert_awaited_once_with({"message": "hi"})
-
-
-async def test_the_push_fails_when_every_send_fails():
-    manager = websocket_manager.WebSocketManager()
-    broken = AsyncMock()
-    broken.send_json.side_effect = RuntimeError("closed")
-    await manager.connect(1, broken)
-
-    assert await _push(manager) is False
+    assert hints == []

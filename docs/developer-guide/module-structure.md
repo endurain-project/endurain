@@ -738,7 +738,7 @@ the conformance test's allowlist.
 
 ### Pilot status and what the next conversion owns
 
-`activities`, `followers`, `gears` and `notifications` are the only modules converted so far. The
+`activities`, `followers`, `gears`, `notifications` and `websocket` are the only modules converted so far. The
 remaining modules are listed in `UNCONVERTED_MODULES` so that
 `TestModuleInventory` keeps them visible rather than silently exempt, and are
 converted one at a time with the `convert-module` skill. The items below need
@@ -754,6 +754,9 @@ limitations rather than half-done:
   installs the activities answers. A `layers` contract (core, identity, followers/gears/health,
   activities, providers) can then state the module-level direction once. The remaining edge that
   closes a cycle lives in `users`.
+- **Unused websocket manager in `users_profile`.** `ImportService` and the import route still take a
+  `WebSocketManager` they no longer use, which reaches past the `websocket` surface. Both edges are
+  recorded in `_INBOUND_EXCEPTIONS` and go away with the `users` conversion.
 - **Layer rules for unconverted modules.** `TestLayerRules` covers converted
   modules only. An unconverted module is outside it until converted, and the
   `auth-boundary` contract is the one generic rule over every module:

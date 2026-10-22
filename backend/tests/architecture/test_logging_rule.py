@@ -60,6 +60,8 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "activities/activity_file_import/tcx_utils.py": "Parser anomalies the file itself carries.",
     "activities/activity_ingestion/background.py": "Owns the in-process pool, whose failures nothing else would see.",
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
+    "websocket/manager.py": "Owns the connection registry; an eviction and a failed send have no caller to report to.",
+    "websocket/ticket_store.py": "Reports a storage outage and an unreadable ticket value it cannot attribute to a request.",
 }
 
 #: Modules whose ``console=True`` records are operator-facing: bulk-import progress and migrations.

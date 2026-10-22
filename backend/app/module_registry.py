@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from jasil.jobs.reconciliation import DurableSubscriberNet
 from jasil.jobs.registry import JobHandlerRegistry
-from jasil.providers import EventBusProvider
+from jasil.providers import EventBusProvider, RealtimeProvider
 
 import core.config as core_config
 import core.logger as core_logger
@@ -38,6 +38,7 @@ import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
+import modules.websocket.subscriber_registry as websocket_subscriber_registry
 
 logger = core_logger.get_logger(__name__)
 
@@ -115,6 +116,7 @@ class _DeferredSubscriptions:
 
 
 RegisterBus = Callable[[EventBusProvider], None]
+RegisterRealtime = Callable[[RealtimeProvider], None]
 RegisterDurable = Callable[[JobHandlerRegistry], None]
 RecurringJobs = Callable[[], tuple[core_scheduler.ScheduledJob, ...]]
 
@@ -134,6 +136,7 @@ class RuntimeModule:
 
     name: str
     register_bus: RegisterBus | None = None
+    register_realtime: RegisterRealtime | None = None
     register_durable: RegisterDurable | None = None
     nets: tuple[DurableSubscriberNet, ...] = ()
     recurring_jobs: RecurringJobs | None = None
@@ -215,6 +218,10 @@ MODULES: tuple[RuntimeModule, ...] = (
         nets=notifications_subscriber_registry.NOTIFICATION_DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=notifications_scheduled_jobs.recurring_jobs,
     ),
+    RuntimeModule(
+        name="websocket",
+        register_realtime=websocket_subscriber_registry.register_realtime_subscribers,
+    ),
 )
 
 
@@ -270,6 +277,16 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     for module in MODULES:
         if module.register_bus is not None:
             module.register_bus(target)  # type: ignore[arg-type]
+
+
+def register_realtime_subscribers(realtime: RealtimeProvider) -> None:
+    """Subscribe the process to the realtime hint channel from every installed module.
+
+    Only the API calls this: the worker holds no sockets and just publishes.
+    """
+    for module in MODULES:
+        if module.register_realtime is not None:
+            module.register_realtime(realtime)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:

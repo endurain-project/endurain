@@ -9,7 +9,6 @@ from jasil.providers import EventBusProvider
 from jasil.subscribers import best_effort
 from sqlalchemy.orm import Session
 
-import core.async_bridge as core_async_bridge
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -59,12 +58,7 @@ def _notify_and_push(
             extra=core_logger.context(event_id=event.event_id, event_type=event.event_type),
         )
         return False
-    core_async_bridge.dispatch(
-        websocket_integration.push_to_user(
-            recipient_user_id,
-            {"message": ws_message, "notification_id": notification.id},
-        )
-    )
+    websocket_integration.push_to_user(recipient_user_id, {"message": ws_message, "notification_id": notification.id})
     return True
 
 

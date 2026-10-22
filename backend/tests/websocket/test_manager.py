@@ -42,7 +42,7 @@ class TestWebSocketManager:
         assert manager.active_connections[user_id] == [mock_websocket]
 
         # Verify logging
-        mock_log.debug.assert_called_once_with(f"WebSocket connected for user {user_id}")
+        mock_log.debug.assert_called_once_with("WebSocket connected", extra={"user_id": user_id})
 
     async def test_connect_multiple_users(self, manager):
         """Test connecting multiple WebSocket connections."""
@@ -71,7 +71,7 @@ class TestWebSocketManager:
 
         # Verify logging
         assert len(mock_log.method_calls) == 2  # connect + disconnect
-        mock_log.debug.assert_any_call(f"WebSocket disconnected for user {user_id}")
+        mock_log.debug.assert_any_call("WebSocket disconnected", extra={"user_id": user_id})
 
     @patch("modules.websocket.manager.logger")
     def test_disconnect_nonexistent_user(self, mock_log, manager):

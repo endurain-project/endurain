@@ -1,3 +1,5 @@
+"""The process-local registry of open websocket connections, and bounded sends to them."""
+
 import asyncio
 from collections.abc import Sequence
 from functools import lru_cache
@@ -18,8 +20,7 @@ MAX_CONNECTIONS_PER_USER = 5
 
 
 async def send_json_to_all(websockets: Sequence[WebSocket], message: dict) -> list[tuple[WebSocket, BaseException]]:
-    """
-    Send a JSON message to several connections, isolating each one's failure.
+    """Send a JSON message to several connections, isolating each one's failure.
 
     The sends run concurrently and each is bounded by ``SEND_TIMEOUT_SECONDS``, so a
     closed or stalled connection neither blocks nor hides the healthy ones.
@@ -43,8 +44,7 @@ async def send_json_to_all(websockets: Sequence[WebSocket], message: dict) -> li
 
 
 class WebSocketManager:
-    """
-    Manage active WebSocket connections per user.
+    """Manage active WebSocket connections per user.
 
     Maintains a registry of authenticated WebSocket connections
     indexed by user ID, enabling message broadcasting and
@@ -61,8 +61,7 @@ class WebSocketManager:
         self.active_connections: dict[int, list[WebSocket]] = {}
 
     async def connect(self, user_id: int, websocket: WebSocket) -> None:
-        """
-        Accept and register a new WebSocket connection.
+        """Accept and register a new WebSocket connection.
 
         Args:
             user_id: The user's unique identifier.
@@ -77,12 +76,13 @@ class WebSocketManager:
             try:
                 await asyncio.wait_for(stale.close(code=1008), timeout=SEND_TIMEOUT_SECONDS)
             except Exception:
-                logger.debug(f"WebSocket eviction close failed for user {user_id}", exc_info=True)
-        logger.debug(f"WebSocket connected for user {user_id}")
+                logger.debug(
+                    "WebSocket eviction close failed", exc_info=True, extra=core_logger.context(user_id=user_id)
+                )
+        logger.debug("WebSocket connected", extra=core_logger.context(user_id=user_id))
 
     def disconnect(self, user_id: int, websocket: WebSocket) -> None:
-        """
-        Remove one WebSocket connection of a user, leaving the others registered.
+        """Remove one WebSocket connection of a user, leaving the others registered.
 
         Args:
             user_id: The user's unique identifier.
@@ -94,11 +94,10 @@ class WebSocketManager:
         connections.remove(websocket)
         if not connections:
             del self.active_connections[user_id]
-        logger.debug(f"WebSocket disconnected for user {user_id}")
+        logger.debug("WebSocket disconnected", extra=core_logger.context(user_id=user_id))
 
     async def send_message(self, user_id: int, message: dict) -> None:
-        """
-        Send a JSON message to every connection of a specific user.
+        """Send a JSON message to every connection of a specific user.
 
         A connection that fails is logged and skipped; the others still receive it.
 
@@ -108,12 +107,11 @@ class WebSocketManager:
         """
         failures = await send_json_to_all(self.get_connections(user_id), message)
         for _, failure in failures:
-            logger.debug(f"WebSocket send failed for user {user_id}", exc_info=failure)
+            logger.debug("WebSocket send failed", exc_info=failure, extra=core_logger.context(user_id=user_id))
         self.discard_failed(failures)
 
     async def broadcast(self, message: dict) -> None:
-        """
-        Send a JSON message to all connected users, skipping connections that fail.
+        """Send a JSON message to all connected users, skipping connections that fail.
 
         Args:
             message: JSON-serializable data to broadcast.
@@ -125,8 +123,7 @@ class WebSocketManager:
         self.discard_failed(failures)
 
     def discard_failed(self, failures: Sequence[tuple[WebSocket, BaseException]]) -> None:
-        """
-        Unregister connections whose send failed at the transport.
+        """Unregister connections whose send failed at the transport.
 
         A stalled or closed connection would otherwise cost every later push another
         timeout. A payload that cannot be serialized says nothing about the connection,
@@ -143,8 +140,7 @@ class WebSocketManager:
                     self.disconnect(user_id, websocket)
 
     def get_connections(self, user_id: int) -> list[WebSocket]:
-        """
-        Retrieve a user's WebSocket connections.
+        """Retrieve a user's WebSocket connections.
 
         Args:
             user_id: The user's unique identifier.
@@ -157,8 +153,7 @@ class WebSocketManager:
 
 @lru_cache(maxsize=1)
 def get_websocket_manager() -> WebSocketManager:
-    """
-    Get the singleton WebSocket manager instance.
+    """Get the singleton WebSocket manager instance.
 
     Returns:
         The shared WebSocketManager instance.

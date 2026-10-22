@@ -11,7 +11,6 @@ from modules.websocket.ticket_store import (
     WsTicketStore,
     WsTicketStoreProtocol,
     WsTicketStoreUnavailableError,
-    get_ws_ticket_store,
 )
 
 
@@ -94,11 +93,3 @@ class TestWsTicketStoreUnavailable:
         state.get_and_delete.side_effect = StateBackendUnavailableError("down")
         with pytest.raises(WsTicketStoreUnavailableError):
             WsTicketStore(state=state).consume_ticket("some-ticket")
-
-
-class TestGetWsTicketStore:
-    """get_ws_ticket_store: returns the module singleton."""
-
-    def test_returns_singleton(self):
-        assert get_ws_ticket_store() is get_ws_ticket_store()
-        assert isinstance(get_ws_ticket_store(), WsTicketStoreProtocol)

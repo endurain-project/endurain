@@ -230,7 +230,13 @@ def _is_route(node: ast.AsyncFunctionDef) -> bool:
     """Return whether a function carries an ``@router.<method>(...)`` decorator."""
     for decorator in node.decorator_list:
         call = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(call, ast.Attribute) and isinstance(call.value, ast.Name) and "router" in call.value.id:
+        if (
+            isinstance(call, ast.Attribute)
+            and isinstance(call.value, ast.Name)
+            and "router" in call.value.id
+            # A WebSocket endpoint is a coroutine by Starlette's contract; it has no sync form.
+            and call.attr != "websocket"
+        ):
             return True
     return False
 

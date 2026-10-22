@@ -43,6 +43,7 @@ class _Process:
     label: str
     popen: subprocess.Popen
     log_path: Path
+    port: int | None = None
 
 
 def _free_port() -> int:
@@ -139,7 +140,7 @@ class Cluster:
 
     # -- processes -----------------------------------------------------------
 
-    def _spawn(self, label: str, argv: list[str], env: dict[str, str]) -> _Process:
+    def _spawn(self, label: str, argv: list[str], env: dict[str, str], *, port: int | None = None) -> _Process:
         log_path = self._dir / f"{label}.log"
         popen = subprocess.Popen(  # noqa: S603 - fixed argv built from this repo's own entry points
             argv,
@@ -149,7 +150,7 @@ class Cluster:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-        process = _Process(label, popen, log_path)
+        process = _Process(label, popen, log_path, port)
         self._processes.append(process)
         return process
 
@@ -160,6 +161,7 @@ class Cluster:
             f"api{self._apis}",
             [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port)],
             self.env(distributed=distributed, port=port),
+            port=port,
         )
         self._apis += 1
         assert self.wait_for(lambda: _STARTUP_MARKER in process.log_path.read_text(), timeout), (

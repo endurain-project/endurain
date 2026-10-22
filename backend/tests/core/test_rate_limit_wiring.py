@@ -46,6 +46,7 @@ import modules.notifications.router as notifications_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users_profile.router as users_profile_router
+import modules.websocket.router as websocket_router
 
 
 def _registered_limits(func) -> list[str]:
@@ -141,6 +142,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(activity_router.edit_activity, core_rate_limit.WRITE, id="activity-edit"),
     pytest.param(activity_router.edit_activities, core_rate_limit.WRITE, id="activity-bulk-edit"),
     pytest.param(activity_router.delete_activity, core_rate_limit.WRITE, id="activity-delete"),
+    pytest.param(websocket_router.issue_ws_ticket, core_rate_limit.WRITE, id="websocket-ticket"),
     pytest.param(followers_router.follow_user, core_rate_limit.WRITE, id="follow-user"),
     pytest.param(followers_router.accept_follow_request, core_rate_limit.WRITE, id="accept-follow-request"),
     pytest.param(followers_router.reject_follow_request, core_rate_limit.WRITE, id="reject-follow-request"),

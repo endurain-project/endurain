@@ -68,6 +68,14 @@ flowchart TB
 
 Replicas share no local state: rate limits, login lockout and pending MFA live in Redis, files live in the bucket, and a PostgreSQL advisory lock makes sure a scheduled job runs on one replica at a time.
 
+### Live updates
+
+The browser keeps a WebSocket open to one API replica, and Endurain uses it only to say "something changed, refetch" (for example, a new notification). A process that notices the change, whether another replica or a dedicated worker, publishes that hint on a Redis channel that every replica listens to. The replica holding the user's socket passes it on; the others drop it.
+
+With the default single process there is no Redis involved and the hint is delivered in the same process. A hint is never the record: it is best-effort and can be lost, for example while a replica reconnects to Redis. Notifications are always saved first, and the interface also refreshes them every minute, when the connection comes back and when the notifications panel opens, so a lost hint only delays an update.
+
+The channel is called `endurain:realtime` and is shared by the whole Redis server, so two deployments on one server need separate Redis instances.
+
 ## Choosing a deployment shape
 
 | Shape | Use when | Needed |
@@ -87,7 +95,7 @@ Replicas share no local state: rate limits, login lockout and pending MFA live i
 | `DEPLOYMENT_PROFILE` | `local` | `local`, `distributed` or `custom`. Only `local` has defaults; the others must name every capability below. |
 | `WEB_WORKERS` | `1` | Number of web-server processes. Above 1 requires shared state and a shared lock. |
 | `STATE_URI` | unset | Shared ephemeral state: rate-limit counters, login lockout, pending MFA, MFA setup secrets, Garmin MFA codes, websocket tickets. Falls back to `REDIS_URL`, then `memory://`. |
-| `EVENTS_URI` | unset | Event bus. Falls back to `REDIS_URL`, then `memory://` (in-process). `redis://…` uses Redis Streams. |
+| `EVENTS_URI` | unset | Event bus. Falls back to `REDIS_URL`, then `memory://` (in-process). `redis://…` uses Redis Streams. The same URI carries the live-update hints between processes (Redis pub/sub). |
 | `REDIS_URL` | unset | Default DSN for every Redis-backed capability that has no explicit URI. |
 | `STORAGE_URI` | `local://` | Where blobs go (thumbnails, media, images, retained files). `local://` uses `DATA_DIR`; `s3://bucket/prefix` uses S3-compatible storage. |
 | `LOCK_URI` | profile default | `noop://` (single process) or `postgres-advisory://` (coordinates scheduled jobs across replicas). Defaults to `postgres-advisory://` when more than one process runs. |

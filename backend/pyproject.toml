@@ -44,7 +44,7 @@ dependencies = [
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[fastapi,geocoding,jobs,migrations]>=0.6.1,<0.7.0",
+    "jasil[fastapi,geocoding,jobs,migrations]>=0.8.0,<0.9.0",
 ]
 
 [project.optional-dependencies]
@@ -54,7 +54,7 @@ dependencies = [
 distributed = [
     "boto3>=1.43.98",
     "redis>=8.1.0",
-    "jasil[redis,s3]>=0.6.1,<0.7.0",
+    "jasil[redis,s3]>=0.8.0,<0.9.0",
 ]
 
 [dependency-groups]
@@ -234,7 +234,6 @@ convention = "google"
 "app/modules/server_settings/**/*.py" = ["D"]
 "app/modules/strava/**/*.py" = ["D"]
 "app/modules/users/**/*.py" = ["D"]
-"app/modules/websocket/**/*.py" = ["D"]
 "scripts/**/*.py" = ["D"]
 "tests/**/*.py" = ["D", "S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["D", "E402", "I001"]  # alembic migrations have specific import order; docstrings not required

@@ -230,6 +230,12 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Redis Streams consumer thread in distributed mode.
     platform.events.start()
 
+    # Subscribe this process to the realtime hint channel and start receiving: a hint
+    # published by any replica or by the worker is pushed here when this process holds
+    # the user's socket. The worker never does this; it only publishes.
+    runtime_module_registry.register_realtime_subscribers(platform.realtime)
+    platform.realtime.start()
+
     # Phase 1: critical pre-flight tasks.
     _run_alembic_migrations()
     core_migrations.bootstrap_substrate_schema()
