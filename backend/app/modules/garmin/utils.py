@@ -244,17 +244,17 @@ def fetch_user_integrations_and_validate_token(
     return user_integrations
 
 
-def unlink_expired_account(user_id: int) -> None:
+def unlink_expired_account(user_id: int, db: Session) -> None:
     """Unlink an account whose Garmin Connect token expired and tell the user.
 
-    The notification row is written in the same short session as the unlink; the
+    The notification row is written in the same session as the unlink; the
     live push is published after the commit.
 
     Args:
         user_id: The user whose account to unlink.
+        db: The caller's session, which this commits.
     """
-    with core_database.SessionLocal() as db:
-        user_integrations_crud.unlink_garminconnect_account(user_id, db)
-        notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
-        db.commit()
+    user_integrations_crud.unlink_garminconnect_account(user_id, db)
+    notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
+    db.commit()
     notifications_integration.push_notification(user_id, notification, ws_message)

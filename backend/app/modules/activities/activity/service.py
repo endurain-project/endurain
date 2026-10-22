@@ -17,6 +17,7 @@ one owner.
 import calendar
 from datetime import UTC, date, datetime, time, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.calendar as core_calendar
@@ -664,9 +665,15 @@ def edit_activity(
         lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
         f"Activity {activity_id} not found",
     ):
-        updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
-    activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
-    db.commit()
+        try:
+            updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
+            activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
+            db.commit()
+        except IntegrityError:
+            # A gear deleted after the ownership check above fails the foreign key; report it as not found.
+            db.rollback()
+            gears_integration.require_owned_gears(user_id, [activity_attributes.gear_id], db)
+            raise
     logger.info(
         "Edited an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id, changed_fields=sorted(changed_fields)),

@@ -76,6 +76,8 @@ With the default single process there is no Redis involved and the hint is deliv
 
 The channel is called `endurain:realtime` and is shared by the whole Redis server, so two deployments on one server need separate Redis instances.
 
+With the `custom` profile, nothing checks that the live-update channel is shared. If you run more than one process (several replicas, or a dedicated job worker) and leave `EVENTS_URI` on `memory://`, hints published by one process never reach the others and live updates only arrive through the periodic refresh.
+
 ## Choosing a deployment shape
 
 | Shape | Use when | Needed |

@@ -521,6 +521,6 @@ def get_user_garminconnect_health_by_dates(
                 f"Garmin Connect token expired for user {user_id}. Unlinking account. User must re-link: {err}",
                 exc_info=err,
             )
-            garmin_utils.unlink_expired_account(user_id)
+            garmin_utils.unlink_expired_account(user_id, db)
         except Exception as err:
             logger.error(f"Error in get_user_garminconnect_health_by_dates: {err}", exc_info=err)

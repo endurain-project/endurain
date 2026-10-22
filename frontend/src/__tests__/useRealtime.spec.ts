@@ -213,6 +213,11 @@ describe('useRealtime', () => {
 
     expect(realtime.status.value).toBe('closed')
     expect(MockWebSocket.instances).toHaveLength(1)
+
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+
+    expect(MockWebSocket.instances).toHaveLength(2)
   })
 
   it('refetches notifications when the socket reopens after a drop, not on the first open', async () => {

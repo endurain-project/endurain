@@ -120,15 +120,20 @@ def _run_alembic_migrations() -> None:
     # AUTOCOMMIT keeps the connection out of a transaction, so an idle-in-transaction timeout cannot end
     # the session (and release the lock) during a slow migration.
     with core_database.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as lock_connection:
-        # A replica waits for the one migrating, but not forever if that one hangs.
-        lock_connection.execute(text(f"SET lock_timeout = '{_MIGRATION_LOCK_TIMEOUT_SECONDS}s'"))
-        lock_connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _MIGRATION_LOCK_KEY})
+        locked = False
         try:
+            # A replica waits for the one migrating, but not forever if that one hangs.
+            lock_connection.execute(text(f"SET lock_timeout = '{_MIGRATION_LOCK_TIMEOUT_SECONDS}s'"))
+            lock_connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _MIGRATION_LOCK_KEY})
+            locked = True
             command.upgrade(alembic_cfg, "head")
         finally:
-            lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _MIGRATION_LOCK_KEY})
-            # The connection goes back to the pool; do not leave the timeout on it.
-            lock_connection.execute(text("RESET lock_timeout"))
+            # The connection goes back to the pool; do not leave the timeout on it, even when the wait timed out.
+            try:
+                if locked:
+                    lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _MIGRATION_LOCK_KEY})
+            finally:
+                lock_connection.execute(text("RESET lock_timeout"))
 
 
 async def _retrieve_recent_garmin_health() -> None:

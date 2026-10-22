@@ -1,5 +1,6 @@
 """Tests for websocket.service module."""
 
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -64,18 +65,30 @@ class TestServeConnection:
         assert seen == [[websocket]]
         assert manager.get_connections(1) == []
 
-    async def test_text_and_binary_frames_are_discarded_until_the_client_leaves(self):
+    @pytest.mark.parametrize("frame", [{"text": "not json"}, {"bytes": b"\x00"}])
+    async def test_a_data_frame_closes_the_connection(self, frame):
         manager = websocket_manager.WebSocketManager()
         websocket = AsyncMock()
-        websocket.receive.side_effect = [
-            {"type": "websocket.receive", "text": "not json"},
-            {"type": "websocket.receive", "bytes": b"\x00"},
-            {"type": "websocket.disconnect", "code": 1001},
-        ]
+        websocket.receive.side_effect = [{"type": "websocket.receive", **frame}]
 
         await websocket_service.serve_connection(websocket, 1, manager)
 
-        assert websocket.receive.await_count == 3
+        websocket.close.assert_awaited_once_with(code=1008)
+        assert manager.get_connections(1) == []
+
+    async def test_a_connection_is_closed_once_it_is_too_old(self, monkeypatch):
+        monkeypatch.setattr(websocket_service, "MAX_CONNECTION_SECONDS", 0.01)
+        manager = websocket_manager.WebSocketManager()
+        websocket = AsyncMock()
+
+        async def receive():
+            await asyncio.sleep(1)
+
+        websocket.receive.side_effect = receive
+
+        await websocket_service.serve_connection(websocket, 1, manager)
+
+        websocket.close.assert_awaited_once_with(code=1001)
         assert manager.get_connections(1) == []
 
     async def test_the_connection_is_removed_however_the_loop_ends(self):

@@ -1,11 +1,17 @@
 """Serving websocket connections and delivering hints to them."""
 
-from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+
+from fastapi import WebSocket, WebSocketDisconnect, status
 
 import core.logger as core_logger
 import modules.websocket.manager as websocket_manager
 
 logger = core_logger.get_logger(__name__)
+
+# The ticket is checked only at connect time, so a connection is closed after this long: the client
+# reconnects with a fresh ticket, which needs a valid access token, and a revoked session loses its socket.
+MAX_CONNECTION_SECONDS = 900
 
 
 async def deliver_hint(user_id: int, message: dict, manager: websocket_manager.WebSocketManager) -> bool:
@@ -40,8 +46,10 @@ async def deliver_hint(user_id: int, message: dict, manager: websocket_manager.W
 async def serve_connection(websocket: WebSocket, user_id: int, manager: websocket_manager.WebSocketManager) -> None:
     """Register an authenticated connection and keep it open until the client leaves.
 
-    Traffic is one-way: whatever the client sends is read and discarded, so a closed
-    connection is noticed. The connection is unregistered however the loop ends.
+    Traffic is one-way: the client has nothing to send, so a data frame is a protocol
+    violation and closes the connection; control frames are enough to notice a closed one.
+    The connection is closed after ``MAX_CONNECTION_SECONDS`` and unregistered however
+    the loop ends.
 
     Args:
         websocket: The connection to serve.
@@ -50,8 +58,13 @@ async def serve_connection(websocket: WebSocket, user_id: int, manager: websocke
     """
     await manager.connect(user_id, websocket)
     try:
-        while (await websocket.receive())["type"] != "websocket.disconnect":
-            pass
+        async with asyncio.timeout(MAX_CONNECTION_SECONDS):
+            while (frame := await websocket.receive())["type"] != "websocket.disconnect":
+                if frame.get("text") is not None or frame.get("bytes") is not None:
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    break
+    except TimeoutError:
+        await websocket.close(code=status.WS_1001_GOING_AWAY)
     except WebSocketDisconnect:
         pass
     finally:

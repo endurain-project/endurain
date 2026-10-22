@@ -85,20 +85,15 @@ class TestWebSocketEndpoint:
         store = WsTicketStore(MemoryState())
         ticket = store.create_ticket(user_id=user_id)
 
-        # Simulate receiving messages then disconnect
-        mock_websocket.receive.side_effect = [
-            {"type": "websocket.receive", "text": "ping"},
-            {"type": "websocket.receive", "bytes": b"\x00"},
-            {"type": "websocket.disconnect", "code": 1001},
-        ]
+        # Simulate the client leaving
+        mock_websocket.receive.side_effect = [{"type": "websocket.disconnect", "code": 1001}]
 
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
 
         # Verify connection was established with correct user_id
         mock_manager.connect.assert_awaited_once_with(user_id, mock_websocket)
 
-        # Text and binary frames are read and discarded until the client leaves
-        assert mock_websocket.receive.await_count == 3
+        assert mock_websocket.receive.await_count == 1
 
         # Verify disconnect was called
         mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)

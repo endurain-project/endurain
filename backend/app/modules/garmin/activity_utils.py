@@ -133,7 +133,8 @@ def fetch_and_process_activities_by_dates(
             f"Garmin Connect token expired for user {user_id}. Unlinking account. User must re-link: {err}",
             exc_info=err,
         )
-        garmin_utils.unlink_expired_account(user_id)
+        with SessionLocal() as db:
+            garmin_utils.unlink_expired_account(user_id, db)
         return None
     except Exception as err:
         logger.error(

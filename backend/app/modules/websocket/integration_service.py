@@ -30,6 +30,9 @@ def push_to_user(user_id: int, message: dict) -> None:
         user_id: The target user.
         message: A small JSON-serializable hint, such as the event name and an id.
     """
+    if not platform_runtime.is_platform_active():
+        logger.debug("The platform is not running; dropped a realtime push", extra=core_logger.context(user_id=user_id))
+        return
     try:
         platform_runtime.get_active_platform().realtime.notify(websocket_keys.user_key(user_id), message)
     except ValueError:
