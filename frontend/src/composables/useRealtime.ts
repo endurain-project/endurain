@@ -26,6 +26,9 @@ export type RealtimeHandler = (event: RealtimeEvent) => void
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 const RECONNECT_JITTER_RATIO = 0.3
+// Close code the server sends to a connection pushed out by a newer one (more tabs than it
+// allows). Reconnecting would evict another tab in turn, so the loop would never settle.
+const EVICTED_CLOSE_CODE = 4001
 
 /**
  * Query keys to invalidate when a realtime event arrives, so server push keeps
@@ -185,10 +188,12 @@ async function openSocket(): Promise<void> {
       useTelemetry().captureError(error, { scope: 'realtime.message' })
     }
   }
-  next.onclose = () => {
+  next.onclose = (event: CloseEvent) => {
     socket = null
     status.value = 'closed'
-    scheduleReconnect()
+    if (event.code !== EVICTED_CLOSE_CODE) {
+      scheduleReconnect()
+    }
   }
 }
 

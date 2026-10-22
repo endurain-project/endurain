@@ -30,7 +30,7 @@ class TestOnRealtimeHint:
         dispatch.assert_called_once()
         dispatch.call_args.args[0].close()
 
-    async def test_a_hint_for_a_user_held_elsewhere_is_dropped(self):
+    async def test_a_hint_for_a_user_held_elsewhere_is_dropped_on_the_loop(self):
         manager = websocket_manager.WebSocketManager()
 
         with (
@@ -39,7 +39,7 @@ class TestOnRealtimeHint:
         ):
             websocket_subscribers.on_realtime_hint(websocket_keys.user_key(7), {"message": "hi"})
 
-        dispatch.assert_not_called()
+        assert await dispatch.call_args.args[0] is False
 
     def test_a_key_that_does_not_address_a_user_is_ignored(self):
         with patch.object(websocket_subscribers.core_async_bridge, "dispatch") as dispatch:

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 import modules.websocket.manager as websocket_manager
+import modules.websocket.service as websocket_service
 
 
 class TestWebSocketManager:
@@ -84,57 +85,6 @@ class TestWebSocketManager:
         # Should only log if connection existed
         mock_log.assert_not_called()
 
-    async def test_send_message(self, manager, mock_websocket):
-        """Test sending a message to a specific user."""
-        user_id = 1
-        message = {"type": "notification", "data": "test"}
-
-        await manager.connect(user_id, mock_websocket)
-        await manager.send_message(user_id, message)
-
-        # Verify send_json was called with correct message
-        mock_websocket.send_json.assert_awaited_once_with(message)
-
-    async def test_send_message_nonexistent_user(self, manager):
-        """Test sending message to non-existent user (no error)."""
-        message = {"type": "notification", "data": "test"}
-
-        # Should not raise error
-        await manager.send_message(999, message)
-
-    async def test_broadcast(self, manager):
-        """Test broadcasting a message to all connected users."""
-        ws1 = AsyncMock()
-        ws1.accept = AsyncMock()
-        ws1.send_json = AsyncMock()
-
-        ws2 = AsyncMock()
-        ws2.accept = AsyncMock()
-        ws2.send_json = AsyncMock()
-
-        ws3 = AsyncMock()
-        ws3.accept = AsyncMock()
-        ws3.send_json = AsyncMock()
-
-        await manager.connect(1, ws1)
-        await manager.connect(2, ws2)
-        await manager.connect(3, ws3)
-
-        message = {"type": "announcement", "data": "broadcast test"}
-        await manager.broadcast(message)
-
-        # Verify all connections received the message
-        ws1.send_json.assert_awaited_once_with(message)
-        ws2.send_json.assert_awaited_once_with(message)
-        ws3.send_json.assert_awaited_once_with(message)
-
-    async def test_broadcast_no_connections(self, manager):
-        """Test broadcasting with no active connections (no error)."""
-        message = {"type": "announcement", "data": "test"}
-
-        # Should not raise error
-        await manager.broadcast(message)
-
     async def test_get_connections(self, manager, mock_websocket):
         """Test retrieving a user's WebSocket connection."""
         user_id = 1
@@ -164,7 +114,7 @@ class TestWebSocketManager:
         manager.disconnect(1, first)
 
         assert manager.get_connections(1) == [second]
-        await manager.send_message(1, {"k": "v"})
+        await websocket_service.deliver_hint(1, {"k": "v"}, manager)
         second.send_json.assert_awaited_once_with({"k": "v"})
         first.send_json.assert_not_awaited()
 
@@ -178,13 +128,13 @@ class TestWebSocketManager:
 
         assert manager.active_connections == {}
 
-    async def test_send_message_reaches_every_connection(self, manager):
+    async def test_deliver_hint_reaches_every_connection(self, manager):
         """A message to a user goes to each of their tabs."""
         first, second = AsyncMock(), AsyncMock()
         await manager.connect(1, first)
         await manager.connect(1, second)
 
-        await manager.send_message(1, {"k": "v"})
+        await websocket_service.deliver_hint(1, {"k": "v"}, manager)
 
         first.send_json.assert_awaited_once_with({"k": "v"})
         second.send_json.assert_awaited_once_with({"k": "v"})
@@ -229,23 +179,13 @@ class TestSendIsolation:
     def manager(self):
         return websocket_manager.WebSocketManager()
 
-    async def test_send_message_skips_a_broken_connection(self, manager):
+    async def test_deliver_hint_skips_a_broken_connection(self, manager):
         broken, healthy = AsyncMock(), AsyncMock()
         broken.send_json.side_effect = RuntimeError("closed")
         await manager.connect(1, broken)
         await manager.connect(1, healthy)
 
-        await manager.send_message(1, {"k": "v"})
-
-        healthy.send_json.assert_awaited_once_with({"k": "v"})
-
-    async def test_broadcast_skips_a_broken_connection(self, manager):
-        broken, healthy = AsyncMock(), AsyncMock()
-        broken.send_json.side_effect = RuntimeError("closed")
-        await manager.connect(1, broken)
-        await manager.connect(2, healthy)
-
-        await manager.broadcast({"k": "v"})
+        await websocket_service.deliver_hint(1, {"k": "v"}, manager)
 
         healthy.send_json.assert_awaited_once_with({"k": "v"})
 
@@ -274,7 +214,7 @@ class TestSendIsolation:
         await manager.connect(1, healthy)
 
         with patch.object(websocket_manager, "SEND_TIMEOUT_SECONDS", 0.01):
-            await manager.send_message(1, {"k": "v"})
+            await websocket_service.deliver_hint(1, {"k": "v"}, manager)
 
         assert manager.get_connections(1) == [healthy]
 
@@ -283,6 +223,6 @@ class TestSendIsolation:
         socket.send_json.side_effect = TypeError("not serializable")
         await manager.connect(1, socket)
 
-        await manager.send_message(1, {"k": object()})
+        await websocket_service.deliver_hint(1, {"k": object()}, manager)
 
         assert manager.get_connections(1) == [socket]

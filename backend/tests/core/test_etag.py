@@ -19,7 +19,7 @@ class TestParseIfMatch:
         assert core_etag.parse_if_match('"7", "8"') == {"7", "8"}
 
     def test_strips_the_weak_prefix(self):
-        assert core_etag.parse_if_match('W/"7"') == {"7"}
+        assert core_etag.parse_if_match('W/"7"') == set()
 
 
 class TestRequireIfMatch:

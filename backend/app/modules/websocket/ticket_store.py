@@ -7,10 +7,11 @@ platform ``StateProvider`` (in-process under ``local``, Redis under
 """
 
 import secrets
-from typing import NoReturn, Protocol, runtime_checkable
+from typing import NoReturn
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -19,8 +20,8 @@ TICKET_TTL_SECONDS = 30
 _TICKET_KEY_PREFIX = "ws:ticket:"
 
 
-class WsTicketStoreUnavailableError(RuntimeError):
-    """Raised when WS ticket storage cannot be reached.
+class WsTicketStoreUnavailableError(core_exceptions.ServiceUnavailableError):
+    """Raised when WS ticket storage cannot be reached; the API answers 503.
 
     Attributes:
         None.
@@ -39,23 +40,6 @@ def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) 
     """
     logger.error("WS ticket storage failed", exc_info=err, extra=core_logger.context(operation=operation))
     raise WsTicketStoreUnavailableError("WS ticket storage is unavailable") from err
-
-
-@runtime_checkable
-class WsTicketStoreProtocol(Protocol):
-    """Contract for WS ticket stores.
-
-    Attributes:
-        None.
-    """
-
-    def create_ticket(self, user_id: int) -> str:
-        """Issue a ticket for a user."""
-        ...
-
-    def consume_ticket(self, ticket: str) -> int | None:
-        """Consume a ticket and return its user, or None when it is invalid."""
-        ...
 
 
 class WsTicketStore:

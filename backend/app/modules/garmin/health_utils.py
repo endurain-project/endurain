@@ -11,10 +11,7 @@ import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_steps.schema as health_steps_schema
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
-import modules.notifications.integration_service as notifications_integration
 import modules.users.users.crud as users_crud
-import modules.users.users_integrations.crud as user_integrations_crud
-import modules.websocket.integration_service as websocket_integration
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
@@ -524,9 +521,6 @@ def get_user_garminconnect_health_by_dates(
                 f"Garmin Connect token expired for user {user_id}. Unlinking account. User must re-link: {err}",
                 exc_info=err,
             )
-            user_integrations_crud.unlink_garminconnect_account(user_id, db)
-            notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
-            db.commit()
-            websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
+            garmin_utils.unlink_expired_account(user_id)
         except Exception as err:
             logger.error(f"Error in get_user_garminconnect_health_by_dates: {err}", exc_info=err)

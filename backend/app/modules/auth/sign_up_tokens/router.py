@@ -23,7 +23,6 @@ import modules.server_settings.utils as server_settings_utils
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
-import modules.websocket.integration_service as websocket_integration
 
 # Define the API router
 router = APIRouter()
@@ -105,7 +104,7 @@ async def signup(
     response_model=sign_up_tokens_schema.SignUpResponse,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-async def verify_email(
+def verify_email(
     request: Request,
     confirm_data: sign_up_tokens_schema.SignUpConfirm,
     db: Annotated[
@@ -146,17 +145,11 @@ async def verify_email(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
-        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_admin_approval_emails, user.id, db)
-        notifications = await run_in_threadpool(
-            notifications_integration.create_admin_sign_up_approval_notifications, user, db
-        )
-        await run_in_threadpool(db.commit)
+        sign_up_tokens_utils.request_sign_up_admin_approval_emails(user.id, db)
+        notifications = notifications_integration.create_admin_sign_up_approval_notifications(user, db)
+        db.commit()
         for notification, ws_message in notifications:
-            await run_in_threadpool(
-                websocket_integration.push_to_user,
-                notification.user_id,
-                {"message": ws_message, "notification_id": notification.id},
-            )
+            notifications_integration.push_notification(notification.user_id, notification, ws_message)
 
     # Return appropriate response based on server configuration
     message = "Email verified successfully."

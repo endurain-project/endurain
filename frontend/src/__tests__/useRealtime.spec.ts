@@ -51,7 +51,7 @@ class MockWebSocket {
   readyState = MockWebSocket.CONNECTING
   onopen: (() => void) | null = null
   onmessage: ((event: { data: string }) => void) | null = null
-  onclose: (() => void) | null = null
+  onclose: ((event: { code: number }) => void) | null = null
   onerror: (() => void) | null = null
   close = vi.fn<() => void>(() => {
     this.readyState = MockWebSocket.CLOSED
@@ -189,7 +189,7 @@ describe('useRealtime', () => {
     const first = latestSocket()
     first.open()
 
-    first.onclose?.()
+    first.onclose?.({ code: 1006 })
     expect(realtime.status.value).toBe('closed')
     expect(MockWebSocket.instances).toHaveLength(1)
 
@@ -197,6 +197,22 @@ describe('useRealtime', () => {
     vi.advanceTimersByTime(2_000)
     await flushPromises()
     expect(MockWebSocket.instances).toHaveLength(2)
+  })
+
+  it('does not reconnect when the server evicts the connection', async () => {
+    vi.useFakeTimers()
+    const realtime = useRealtime()
+    realtime.connect()
+    await flushPromises()
+    const first = latestSocket()
+    first.open()
+
+    first.onclose?.({ code: 4001 })
+    vi.advanceTimersByTime(60_000)
+    await flushPromises()
+
+    expect(realtime.status.value).toBe('closed')
+    expect(MockWebSocket.instances).toHaveLength(1)
   })
 
   it('refetches notifications when the socket reopens after a drop, not on the first open', async () => {
@@ -208,7 +224,7 @@ describe('useRealtime', () => {
     first.open()
     expect(invalidateQueries).not.toHaveBeenCalled()
 
-    first.onclose?.()
+    first.onclose?.({ code: 1006 })
     vi.advanceTimersByTime(2_000)
     await flushPromises()
     latestSocket().open()

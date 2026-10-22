@@ -8,19 +8,6 @@ import modules.websocket.manager as websocket_manager
 logger = core_logger.get_logger(__name__)
 
 
-def holds_connection(user_id: int, manager: websocket_manager.WebSocketManager) -> bool:
-    """Whether this process holds any websocket of a user.
-
-    Args:
-        user_id: The target user.
-        manager: The process-local connection registry.
-
-    Returns:
-        True when the user has at least one open connection here.
-    """
-    return bool(manager.get_connections(user_id))
-
-
 async def deliver_hint(user_id: int, message: dict, manager: websocket_manager.WebSocketManager) -> bool:
     """Send a hint to each of a user's websockets held by this process.
 
@@ -54,8 +41,7 @@ async def serve_connection(websocket: WebSocket, user_id: int, manager: websocke
     """Register an authenticated connection and keep it open until the client leaves.
 
     Traffic is one-way: whatever the client sends is read and discarded, so a closed
-    connection is noticed. Malformed JSON is logged and the connection stays open. The
-    connection is unregistered however the loop ends.
+    connection is noticed. The connection is unregistered however the loop ends.
 
     Args:
         websocket: The connection to serve.
@@ -64,13 +50,8 @@ async def serve_connection(websocket: WebSocket, user_id: int, manager: websocke
     """
     await manager.connect(user_id, websocket)
     try:
-        while True:
-            try:
-                await websocket.receive_json()
-            except ValueError:
-                logger.warning(
-                    "Received malformed JSON from a websocket client", extra=core_logger.context(user_id=user_id)
-                )
+        while (await websocket.receive())["type"] != "websocket.disconnect":
+            pass
     except WebSocketDisconnect:
         pass
     finally:

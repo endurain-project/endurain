@@ -9,16 +9,8 @@ from jasil.providers import StateBackendUnavailableError
 from modules.websocket.ticket_store import (
     TICKET_TTL_SECONDS,
     WsTicketStore,
-    WsTicketStoreProtocol,
     WsTicketStoreUnavailableError,
 )
-
-
-class TestWsTicketStoreProtocol:
-    """Structural conformance to WsTicketStoreProtocol."""
-
-    def test_store_satisfies_protocol(self):
-        assert isinstance(WsTicketStore(state=MemoryState()), WsTicketStoreProtocol)
 
 
 class TestWsTicketStore:

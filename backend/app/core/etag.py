@@ -50,14 +50,14 @@ def parse_if_match(header: str) -> set[str]:
         header: The raw header value, which may be a comma-separated list.
 
     Returns:
-        The tags, unquoted and with any weak-comparison prefix removed.
+        The unquoted tags. Weak tags (``W/"7"``) are left out: ``If-Match`` requires strong
+        comparison (RFC 9110 §13.1.1), so a weak tag never matches.
     """
     tags = set()
     for candidate in header.split(","):
         tag = candidate.strip()
-        if tag.startswith("W/"):
-            tag = tag[2:]
-        tags.add(tag.strip('"'))
+        if not tag.startswith("W/"):
+            tags.add(tag.strip('"'))
     return tags
 
 

@@ -84,6 +84,29 @@ def _get_gear_model_or_404(gear_id: int, user_id: int, db: Session) -> gears_mod
     return db_gear
 
 
+def lock_gear(gear_id: int, user_id: int, db: Session) -> None:
+    """Lock a user's gear row until the transaction ends.
+
+    Activities assigned to the gear take a shared lock on it, so this waits for in-flight
+    assignments and makes later ones fail instead of being silently unassigned by a delete.
+
+    Args:
+        gear_id: Gear ID to lock.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has no such gear.
+    """
+    stmt = (
+        select(gears_models.Gear.id)
+        .where(gears_models.Gear.id == gear_id, gears_models.Gear.user_id == user_id)
+        .with_for_update()
+    )
+    if db.execute(stmt).scalar_one_or_none() is None:
+        raise core_exceptions.NotFoundError("Gear not found")
+
+
 def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema.GearRead | None:
     """Retrieve a gear by ID for a specific user.
 

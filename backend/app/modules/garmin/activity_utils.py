@@ -12,28 +12,9 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.garmin.gear_utils as garmin_gear_utils
 import modules.garmin.utils as garmin_utils
-import modules.notifications.integration_service as notifications_integration
-import modules.users.users_integrations.crud as user_integrations_crud
-import modules.websocket.integration_service as websocket_integration
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
-
-
-def _unlink_expired_account(user_id: int) -> None:
-    """Unlink an account whose Garmin Connect token expired and tell the user.
-
-    The notification row is written in the same short session as the unlink; the
-    live push is published after the commit.
-
-    Args:
-        user_id: The user whose account to unlink.
-    """
-    with SessionLocal() as db:
-        user_integrations_crud.unlink_garminconnect_account(user_id, db)
-        notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
-        db.commit()
-    websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
 
 
 def _download_and_ingest_activity(
@@ -152,7 +133,7 @@ def fetch_and_process_activities_by_dates(
             f"Garmin Connect token expired for user {user_id}. Unlinking account. User must re-link: {err}",
             exc_info=err,
         )
-        _unlink_expired_account(user_id)
+        garmin_utils.unlink_expired_account(user_id)
         return None
     except Exception as err:
         logger.error(

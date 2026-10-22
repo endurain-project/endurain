@@ -188,8 +188,8 @@ def delete_gear(gear_id: int, user_id: int, db: Session) -> None:
     Raises:
         NotFoundError: If the user has no such gear.
     """
-    if gears_crud.get_gear_user_by_id(user_id, gear_id, db) is None:
-        raise core_exceptions.NotFoundError("Gear not found")
+    # Locked first, so an activity cannot be assigned the gear between the clear and the delete.
+    gears_crud.lock_gear(gear_id, user_id, db)
     gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
     gears_crud.delete_gear(gear_id, user_id, db)
     db.commit()

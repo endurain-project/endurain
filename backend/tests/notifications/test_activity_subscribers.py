@@ -26,7 +26,7 @@ class TestOnActivityCreatedNotify:
         on_activity_created_notify(_event({"activity_id": 1}))
         mock_notif.create_activity_created_notification.assert_not_called()
 
-    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.integration_service.websocket_integration")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_ws):
@@ -42,7 +42,7 @@ class TestOnActivityCreatedNotify:
         assert mock_notif.create_activity_created_notification.call_args.args[:3] == (2, 1, False)
         mock_ws.push_to_user.assert_called_once()
 
-    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.integration_service.websocket_integration")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_a_redelivered_event_does_not_push_again(self, mock_notif, mock_db, mock_ws):
@@ -59,7 +59,7 @@ class TestOnActivityCreatedNotify:
         assert mock_notif.create_activity_created_notification.call_args.args[3] == event.event_id
         mock_ws.push_to_user.assert_not_called()
 
-    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.integration_service.websocket_integration")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_service")
     def test_passes_duplicate_flag(self, mock_notif, mock_db, mock_ws):

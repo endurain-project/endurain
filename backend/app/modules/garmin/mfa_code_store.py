@@ -21,6 +21,7 @@ from typing import NoReturn
 import jasil.runtime as platform_runtime
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
+import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 
@@ -31,7 +32,7 @@ _GARMIN_MFA_KEY_PREFIX = "endurain:garmin:mfa:code"
 _DEFAULT_TTL_SECONDS: int = 90
 
 
-class GarminMFACodeStoreUnavailableError(RuntimeError):
+class GarminMFACodeStoreUnavailableError(core_exceptions.ServiceUnavailableError):
     """
     Raised when the Garmin MFA code storage backend cannot be reached.
 

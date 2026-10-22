@@ -14,9 +14,9 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.events as activity_events
 import modules.followers.events as followers_events
+import modules.notifications.integration_service as notifications_integration
 import modules.notifications.schema as notifications_schema
 import modules.notifications.service as notifications_service
-import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -58,7 +58,7 @@ def _notify_and_push(
             extra=core_logger.context(event_id=event.event_id, event_type=event.event_type),
         )
         return False
-    websocket_integration.push_to_user(recipient_user_id, {"message": ws_message, "notification_id": notification.id})
+    notifications_integration.push_notification(recipient_user_id, notification, ws_message)
     return True
 
 

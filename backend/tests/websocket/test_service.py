@@ -1,6 +1,6 @@
 """Tests for websocket.service module."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import WebSocketDisconnect
@@ -21,13 +21,11 @@ class TestDeliverHint:
         manager = websocket_manager.WebSocketManager()
 
         assert await websocket_service.deliver_hint(1, {"message": "hi"}, manager) is False
-        assert websocket_service.holds_connection(1, manager) is False
 
     async def test_every_connection_of_the_user_receives_the_hint(self):
         first, second = AsyncMock(), AsyncMock()
         manager = await _manager_with(first, second)
 
-        assert websocket_service.holds_connection(1, manager) is True
         assert await websocket_service.deliver_hint(1, {"message": "hi"}, manager) is True
         first.send_json.assert_awaited_once_with({"message": "hi"})
         second.send_json.assert_awaited_once_with({"message": "hi"})
@@ -59,27 +57,31 @@ class TestServeConnection:
             seen.append(manager.get_connections(1))
             raise WebSocketDisconnect()
 
-        websocket.receive_json.side_effect = receive
+        websocket.receive.side_effect = receive
 
         await websocket_service.serve_connection(websocket, 1, manager)
 
         assert seen == [[websocket]]
         assert manager.get_connections(1) == []
 
-    async def test_malformed_json_is_logged_and_the_connection_stays_open(self):
+    async def test_text_and_binary_frames_are_discarded_until_the_client_leaves(self):
         manager = websocket_manager.WebSocketManager()
         websocket = AsyncMock()
-        websocket.receive_json.side_effect = [ValueError("bad"), WebSocketDisconnect()]
+        websocket.receive.side_effect = [
+            {"type": "websocket.receive", "text": "not json"},
+            {"type": "websocket.receive", "bytes": b"\x00"},
+            {"type": "websocket.disconnect", "code": 1001},
+        ]
 
-        with patch.object(websocket_service.logger, "warning") as warning:
-            await websocket_service.serve_connection(websocket, 1, manager)
+        await websocket_service.serve_connection(websocket, 1, manager)
 
-        warning.assert_called_once()
+        assert websocket.receive.await_count == 3
+        assert manager.get_connections(1) == []
 
     async def test_the_connection_is_removed_however_the_loop_ends(self):
         manager = websocket_manager.WebSocketManager()
         websocket = AsyncMock()
-        websocket.receive_json.side_effect = RuntimeError("boom")
+        websocket.receive.side_effect = RuntimeError("boom")
 
         with pytest.raises(RuntimeError):
             await websocket_service.serve_connection(websocket, 1, manager)

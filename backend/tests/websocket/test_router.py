@@ -21,6 +21,7 @@ class TestIssueWsTicket:
 
         app = FastAPI()
         app.include_router(websocket_router.router, prefix="/ws")
+        app.dependency_overrides[auth_deps.check_scopes] = lambda: None
         app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: user_id
         app.dependency_overrides[websocket_dependencies.get_ws_ticket_store] = lambda: store
         return TestClient(app)
@@ -51,7 +52,7 @@ class TestWebSocketEndpoint:
     def mock_websocket(self):
         """Create a mock WebSocket instance."""
         websocket = AsyncMock()
-        websocket.receive_json = AsyncMock()
+        websocket.receive = AsyncMock()
         return websocket
 
     @pytest.fixture
@@ -85,10 +86,10 @@ class TestWebSocketEndpoint:
         ticket = store.create_ticket(user_id=user_id)
 
         # Simulate receiving messages then disconnect
-        mock_websocket.receive_json.side_effect = [
-            {"type": "ping"},
-            {"type": "message"},
-            WebSocketDisconnect(),
+        mock_websocket.receive.side_effect = [
+            {"type": "websocket.receive", "text": "ping"},
+            {"type": "websocket.receive", "bytes": b"\x00"},
+            {"type": "websocket.disconnect", "code": 1001},
         ]
 
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
@@ -96,8 +97,8 @@ class TestWebSocketEndpoint:
         # Verify connection was established with correct user_id
         mock_manager.connect.assert_awaited_once_with(user_id, mock_websocket)
 
-        # Verify receive_json was called multiple times
-        assert mock_websocket.receive_json.await_count == 3
+        # Text and binary frames are read and discarded until the client leaves
+        assert mock_websocket.receive.await_count == 3
 
         # Verify disconnect was called
         mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)
@@ -106,57 +107,13 @@ class TestWebSocketEndpoint:
         mock_log.assert_not_called()
 
     @patch("modules.websocket.service.logger")
-    async def test_websocket_endpoint_malformed_json(self, mock_log, mock_websocket, mock_manager):
-        """Test WebSocket endpoint handling malformed JSON."""
-        user_id = 1
-        store = WsTicketStore(MemoryState())
-        ticket = store.create_ticket(user_id=user_id)
-
-        # Simulate malformed JSON (ValueError) then disconnect
-        mock_websocket.receive_json.side_effect = [
-            ValueError("Invalid JSON"),
-            {"type": "valid"},
-            WebSocketDisconnect(),
-        ]
-
-        await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
-
-        mock_manager.connect.assert_awaited_once_with(user_id, mock_websocket)
-        mock_log.warning.assert_called_once_with(
-            "Received malformed JSON from a websocket client", extra={"user_id": user_id}
-        )
-        mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)
-
-    @patch("modules.websocket.service.logger")
-    async def test_websocket_endpoint_multiple_malformed_json(self, mock_log, mock_websocket, mock_manager):
-        """Test WebSocket endpoint handling multiple malformed JSON messages."""
-        user_id = 1
-        store = WsTicketStore(MemoryState())
-        ticket = store.create_ticket(user_id=user_id)
-
-        mock_websocket.receive_json.side_effect = [
-            ValueError("Invalid JSON 1"),
-            ValueError("Invalid JSON 2"),
-            {"type": "valid"},
-            ValueError("Invalid JSON 3"),
-            WebSocketDisconnect(),
-        ]
-
-        await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
-
-        assert len(mock_log.method_calls) == 3
-        mock_log.warning.assert_called_with(
-            "Received malformed JSON from a websocket client", extra={"user_id": user_id}
-        )
-
-    @patch("modules.websocket.service.logger")
     async def test_websocket_endpoint_immediate_disconnect(self, mock_log, mock_websocket, mock_manager):
         """Test WebSocket endpoint with immediate disconnect."""
         user_id = 1
         store = WsTicketStore(MemoryState())
         ticket = store.create_ticket(user_id=user_id)
 
-        mock_websocket.receive_json.side_effect = WebSocketDisconnect()
+        mock_websocket.receive.side_effect = WebSocketDisconnect()
 
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
 
@@ -171,10 +128,10 @@ class TestWebSocketEndpoint:
         ticket2 = store.create_ticket(user_id=2)
 
         ws1 = AsyncMock()
-        ws1.receive_json = AsyncMock(side_effect=WebSocketDisconnect())
+        ws1.receive = AsyncMock(side_effect=WebSocketDisconnect())
 
         ws2 = AsyncMock()
-        ws2.receive_json = AsyncMock(side_effect=WebSocketDisconnect())
+        ws2.receive = AsyncMock(side_effect=WebSocketDisconnect())
 
         await websocket_router.websocket_endpoint(ws1, ticket1, store, mock_manager)
         await websocket_router.websocket_endpoint(ws2, ticket2, store, mock_manager)

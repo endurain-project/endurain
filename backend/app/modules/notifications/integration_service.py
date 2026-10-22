@@ -4,9 +4,9 @@ Notifications are raised *about* things that happen elsewhere, so the producers
 that are not events are other modules. Each gets one named operation here.
 
 Every operation is synchronous and **stages** the notification rows: the caller
-owns the transaction, commits, and then pushes the live websocket message
-(dispatched onto the main loop from a worker thread). Nothing here touches the
-connection registry, so these are safe to run where there is no event loop.
+owns the transaction, commits, and then pushes the live hint with
+:func:`push_notification`. Nothing here touches the connection registry, so these
+are safe to run where there is no event loop.
 """
 
 from sqlalchemy.orm import Session
@@ -17,6 +17,18 @@ import modules.notifications.schema as notifications_schema
 import modules.notifications.service as notifications_service
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
+import modules.websocket.integration_service as websocket_integration
+
+
+def push_notification(user_id: int, notification: notifications_schema.NotificationRead, ws_message: str) -> None:
+    """Tell a user's browser that a committed notification awaits.
+
+    Args:
+        user_id: The user who owns the notification.
+        notification: The notification, already committed.
+        ws_message: The websocket message type returned when it was staged or recorded.
+    """
+    websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
 
 
 def create_garmin_token_expired_notification(
