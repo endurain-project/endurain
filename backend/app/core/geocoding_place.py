@@ -15,6 +15,7 @@ _SETTLEMENT_KEYS = ("city", "town", "village", "municipality", "hamlet", "locali
 
 
 def _address(service: str, payload: dict) -> dict:
+    """Return the address object from a Nominatim or Photon payload."""
     if service == "photon":
         features = payload.get("features") or []
         if not features:
@@ -26,6 +27,7 @@ def _address(service: str, payload: dict) -> dict:
 
 
 def _settlement(data: dict) -> str | None:
+    """Return the first settlement name in a reverse-geocode address."""
     for key in _SETTLEMENT_KEYS:
         value = data.get(key)
         if isinstance(value, str) and value.strip():
@@ -71,6 +73,7 @@ def install() -> None:
     original = HttpGeocoding._parse
 
     def _parse(self: HttpGeocoding, payload: dict) -> GeocodedPlace | None:
+        """Fill a village or hamlet in when the parsed place has no city."""
         return widen_place(self._service, payload, original(self, payload))
 
     _parse._settlement_widened = True  # type: ignore[attr-defined]

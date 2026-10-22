@@ -6,6 +6,7 @@ from core.geocoding_place import widen_place
 
 
 def test_village_becomes_the_city_when_nominatim_has_no_city() -> None:
+    """A village with no city is stored as the city."""
     place = widen_place(
         "nominatim",
         {"address": {"village": "Balatonakali", "state": "Transdanubia", "country": "Magyarország"}},
@@ -16,6 +17,7 @@ def test_village_becomes_the_city_when_nominatim_has_no_city() -> None:
 
 
 def test_a_suburb_is_not_stored_as_the_city() -> None:
+    """A suburb is a district and stays out of the city field."""
     place = GeocodedPlace(city=None, town=None, country="Magyarország")
 
     assert (
@@ -29,6 +31,7 @@ def test_a_suburb_is_not_stored_as_the_city() -> None:
 
 
 def test_an_existing_city_is_kept() -> None:
+    """A place that already has a city is left unchanged."""
     original = GeocodedPlace(city="Lisboa", town="Alvalade", country="Portugal")
 
     assert widen_place("nominatim", {"address": {"village": "Ignored"}}, original) is original

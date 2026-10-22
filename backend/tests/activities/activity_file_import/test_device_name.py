@@ -4,14 +4,17 @@ from modules.activities.activity_file_import.device_name import split_device_nam
 
 
 def test_split_device_name_keeps_the_watch() -> None:
+    """A combined creator name splits into manufacturer and model."""
     assert split_device_name("Fitbit Versa 4") == ("Fitbit", "Versa 4")
 
 
 def test_split_device_name_ignores_the_exporting_program() -> None:
+    """An exporter name is not stored as the recording device."""
     assert split_device_name("FitBridge") == (None, None)
 
 
 def test_split_device_name_fits_the_column() -> None:
+    """Each part of a device name fits the 250-character column."""
     manufacturer, model = split_device_name(f"{'A' * 300} {'B' * 300}")
 
     assert manufacturer is not None and len(manufacturer) == 250
@@ -19,6 +22,7 @@ def test_split_device_name_fits_the_column() -> None:
 
 
 def test_tcx_creator_name_reads_the_device(tmp_path) -> None:
+    """A TCX device creator yields its name."""
     path = tmp_path / "walk.tcx"
     path.write_text(
         """<?xml version="1.0" encoding="UTF-8"?>
@@ -39,6 +43,7 @@ def test_tcx_creator_name_reads_the_device(tmp_path) -> None:
 
 
 def test_tcx_creator_name_skips_an_application(tmp_path) -> None:
+    """A TCX application creator is not a watch."""
     path = tmp_path / "walk.tcx"
     path.write_text(
         """<?xml version="1.0" encoding="UTF-8"?>

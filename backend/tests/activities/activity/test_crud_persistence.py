@@ -171,6 +171,7 @@ class TestLocationLookupSchedule:
         assert self._ids(db) == []
 
     def test_country_without_a_settlement_stays_a_candidate(self, db):
+        """A country without a city or town is still due a settlement lookup."""
         created = activity_crud.create_activity(_core(), db)
         activity_crud.update_activity_location(created.id, None, None, "Portugal", db)
 

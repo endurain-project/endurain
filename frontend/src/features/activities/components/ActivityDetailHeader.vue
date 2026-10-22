@@ -67,6 +67,7 @@ const locationLabel = computed(() => {
   return [place, props.activity.country].filter(Boolean).join(', ') || null
 })
 
+/** Recording device, without repeating a manufacturer the model already contains. */
 const deviceLabel = computed(() => {
   const manufacturer = props.activity.trackerManufacturer?.trim() || ''
   const model = props.activity.trackerModel?.trim() || ''
