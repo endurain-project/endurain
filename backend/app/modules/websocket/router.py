@@ -47,7 +47,7 @@ def issue_ws_ticket(
     return {"ticket": ticket}
 
 
-@router.websocket("")
+@router.websocket("", dependencies=[Depends(websocket_dependencies.require_allowed_origin)])
 async def websocket_endpoint(
     websocket: WebSocket,
     ticket: Annotated[str, Query(alias="ticket", min_length=1, max_length=64)],
@@ -62,7 +62,7 @@ async def websocket_endpoint(
 ) -> None:
     """Handle WebSocket connections for real-time hints.
 
-    Validates the short-lived ticket before accepting the connection, then serves an
+    Refuses a browser origin the API does not serve, then validates the short-lived ticket before accepting the connection, then serves an
     authenticated WebSocket that receives "something changed, refetch" hints. The ticket
     is consumed on first use (single-use). The ticket lookup goes to the shared state, so
     it runs off the event loop.

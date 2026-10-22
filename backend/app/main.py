@@ -455,6 +455,8 @@ def create_app() -> FastAPI:
     else:
         cors_allow_origins = [core_config.settings.ENDURAIN_HOST]
 
+    # The websocket handshake is not covered by CORS, so its route checks the same list.
+    fastapi_app.state.cors_allow_origins = cors_allow_origins
     fastapi_app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_allow_origins,
