@@ -1,7 +1,11 @@
 import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import type { EmailStatusDto, ServerSettings } from '@/features/serverSettings/types'
+import type {
+  EmailStatusDto,
+  ServerSettings,
+  ServerSettingsUpdate,
+} from '@/features/serverSettings/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -72,7 +76,7 @@ function invalidateServerSettings(client: ReturnType<typeof useQueryClient>): vo
 export function useUpdateServerSettingsMutation() {
   const client = useQueryClient()
 
-  return useMutation<ServerSettings, Error, ServerSettings>({
+  return useMutation<ServerSettings, Error, ServerSettingsUpdate>({
     mutationKey: queryKeys.serverSettings.all(),
     mutationFn: (settings) => updateServerSettings(settings),
     onSettled: () => invalidateServerSettings(client),

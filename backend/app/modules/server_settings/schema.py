@@ -15,12 +15,6 @@ from pydantic import (
 
 import core.sanitization as core_sanitization
 
-# Default allowed tile domains for map tiles
-DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
-    "https://*.openstreetmap.org",  # OpenStreetMap
-    "https://*.stadiamaps.com",  # Stadia Maps
-]
-
 
 class Units(Enum):
     """An enumeration representing measurement units.
@@ -71,7 +65,7 @@ class ServerSettingsBase(BaseModel):
         public_shareable_links (StrictBool): Enable/disable public shareable links.
         public_shareable_links_user_info (StrictBool): Show user info on public shareable links.
         currency (Currency): Currency type (EURO, DOLLAR, or POUND).
-        num_records_per_page (StrictInt): Number of records per page in lists (1-100, default: 25).
+        num_records_per_page (StrictInt): Number of records per page in lists (1-100).
         signup_enabled (StrictBool): Allow new user registration.
         sso_enabled (StrictBool): Enable SSO/IdP authentication.
         local_login_enabled (StrictBool): Allow local username/password authentication.
@@ -80,8 +74,8 @@ class ServerSettingsBase(BaseModel):
         tileserver_attribution (StrictStr): Attribution string for map tile server.
         map_background_color (StrictStr): Hex color code for map background (#RRGGBB format).
         password_type (PasswordType): Password policy enforcement level (STRICT or LENGTH_ONLY).
-        password_length_regular_users (StrictInt): Minimum password length for regular users (8-128, default: 8).
-        password_length_admin_users (StrictInt): Minimum password length for admin users (8-128, default: 12).
+        password_length_regular_users (StrictInt): Minimum password length for regular users (8-128).
+        password_length_admin_users (StrictInt): Minimum password length for admin users (8-128).
 
     Validators:
         - validate_tileserver_url: Ensures tile server URL is secure, uses proper protocol, contains required placeholders, and blocks dangerous patterns.
@@ -94,7 +88,7 @@ class ServerSettingsBase(BaseModel):
         - Supports ORM attribute mapping.
     """
 
-    units: Units = Field(Units.METRIC, description="Units (metric, imperial)")
+    units: Units = Field(..., description="Units (metric, imperial)")
     public_shareable_links: StrictBool = Field(..., description="Allow public shareable links (true - yes, false - no)")
     public_shareable_links_user_info: StrictBool = Field(
         ...,
@@ -102,7 +96,7 @@ class ServerSettingsBase(BaseModel):
     )
     currency: Currency = Field(..., description="Currency (euro, dollar, pound)")
     num_records_per_page: StrictInt = Field(
-        25,
+        ...,
         ge=1,
         le=100,
         description="Number of records per page in lists",
@@ -134,15 +128,15 @@ class ServerSettingsBase(BaseModel):
         description=("Background color for the map (hex format)"),
     )
     tileserver_regenerate_thumbnails_on_change: StrictBool = Field(
-        False,
+        ...,
         description=("Delete and regenerate all activity thumbnails when tile server settings change"),
     )
-    password_type: PasswordType = Field(PasswordType.STRICT, description="Password type policy (strict, length_only)")
+    password_type: PasswordType = Field(..., description="Password type policy (strict, length_only)")
     password_length_regular_users: StrictInt = Field(
-        8, ge=8, le=128, description="Minimum password length for regular users"
+        ..., ge=8, le=128, description="Minimum password length for regular users"
     )
     password_length_admin_users: StrictInt = Field(
-        12, ge=8, le=128, description="Minimum password length for admin users"
+        ..., ge=8, le=128, description="Minimum password length for admin users"
     )
 
     model_config = ConfigDict(
@@ -183,7 +177,7 @@ class ServerSettingsBase(BaseModel):
 
         # Must contain required tile coordinate placeholders
         required = ["{z}", "{x}", "{y}"]
-        missing = [p for p in required if p not in value.lower()]
+        missing = [p for p in required if p not in value]
         if missing:
             missing_str = ", ".join(missing)
             raise ValueError(f"Tile server URL must contain placeholders: {missing_str}")
@@ -223,12 +217,15 @@ class ServerSettingsBase(BaseModel):
 class ServerSettingsEdit(ServerSettingsBase):
     """Request body for editing the server settings.
 
-    Carries every field an admin may write. The row id and the login-photo flag
-    are not here: the id is fixed (singleton) and the flag is set only by the
-    login-photo upload and delete routes, so a stale form can never reset it.
+    A full replacement: every setting except the tile API key is required. The row
+    id and the login-photo flag are not here: the id is fixed (singleton) and the
+    flag is set only by the login-photo upload and delete routes, so a stale form
+    can never reset it.
 
     Attributes:
-        tileserver_api_key: Plain-text API key for the tile server; stored encrypted.
+        tileserver_api_key: Plain-text API key for the tile server; stored encrypted
+            and never returned. Omit it to keep the stored key; send null or an
+            empty string to remove it.
         signup_require_admin_approval: Require admin approval for new sign-ups
             (true - yes, false - no).
         signup_require_email_verification: Require email verification for new
@@ -239,7 +236,7 @@ class ServerSettingsEdit(ServerSettingsBase):
     tileserver_api_key: StrictStr | None = Field(
         default=None,
         max_length=256,
-        description="API key for the tile server",
+        description="API key for the tile server (write-only); omit to keep, null or empty to remove",
     )
     signup_require_admin_approval: StrictBool = Field(
         ...,
@@ -252,11 +249,10 @@ class ServerSettingsEdit(ServerSettingsBase):
 
 
 class ServerSettingsRead(ServerSettingsEdit):
-    """Complete server settings response schema for API responses.
+    """The settings row as stored, for in-process use only.
 
-    Read-only view of all server settings. Used for authenticated endpoints
-    returning the complete server configuration; the tile API key is the
-    stored (encrypted) value until a service decrypts it for an admin.
+    Never a response model: the tile API key is the stored (encrypted) value.
+    Clients get :class:`ServerSettingsAdminRead` or :class:`ServerSettingsReadPublic`.
 
     Attributes:
         id: Unique identifier (always 1, singleton pattern).
@@ -271,6 +267,32 @@ class ServerSettingsRead(ServerSettingsEdit):
     )
     id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
+
+
+class ServerSettingsAdminRead(ServerSettingsBase):
+    """Complete server settings response for admins; the tile API key is never returned.
+
+    Attributes:
+        id: Unique identifier (always 1, singleton pattern).
+        login_photo_set: Whether a custom login photo is configured.
+        tileserver_api_key_set: Whether a tile API key is stored.
+        signup_require_admin_approval: Require admin approval for new sign-ups.
+        signup_require_email_verification: Require email verification for new sign-ups.
+    """
+
+    id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
+    login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
+    tileserver_api_key_set: StrictBool = Field(
+        ..., description="Is a tile server API key stored (true - yes, false - no)"
+    )
+    signup_require_admin_approval: StrictBool = Field(
+        ...,
+        description="Require admin approval for new sign-ups (true - yes, false - no)",
+    )
+    signup_require_email_verification: StrictBool = Field(
+        ...,
+        description="Require email verification for new sign-ups (true - yes, false - no)",
+    )
 
 
 class ServerSettingsReadPublic(ServerSettingsBase):

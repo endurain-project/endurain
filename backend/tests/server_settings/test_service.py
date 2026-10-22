@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
 import pytest
+from fastapi import HTTPException
 
 import core.exceptions as core_exceptions
 import modules.server_settings.constants as server_settings_constants
@@ -36,6 +37,7 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         tileserver_attribution="Test",
         map_background_color="#dddddd",
         password_type="strict",
+        tileserver_regenerate_thumbnails_on_change=False,
         password_length_regular_users=8,
         password_length_admin_users=12,
         tileserver_api_key="enc-old",
@@ -50,6 +52,9 @@ def _full_edit(stored: server_settings_schema.ServerSettingsRead, **overrides):
     body["tileserver_api_key"] = "plain-old"
     body.update(overrides)
     return server_settings_schema.ServerSettingsEdit(**body)
+
+
+_PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 16
 
 
 @pytest.fixture
@@ -130,7 +135,8 @@ class TestOnlyRealChangesCount:
         edit_env.write.assert_not_called()
         edit_env.publish.assert_not_called()
         db.commit.assert_not_called()
-        assert result.tileserver_api_key == "plain-old"
+        assert result.tileserver_api_key_set is True
+        assert not hasattr(result, "tileserver_api_key")
 
     def test_a_non_tile_change_commits_without_publishing(self, edit_env):
         db = MagicMock()
@@ -155,13 +161,14 @@ class TestOnlyRealChangesCount:
         written = edit_env.write.call_args.args[0]
         assert written.tileserver_api_key == "enc-old"
 
-    def test_a_changed_api_key_is_encrypted_and_returned_in_plain_text(self, edit_env):
+    def test_a_changed_api_key_is_encrypted_and_never_returned(self, edit_env):
         result = server_settings_service.edit_server_settings(
             _full_edit(edit_env.stored, tileserver_api_key="plain-new"), MagicMock()
         )
 
         assert edit_env.write.call_args.args[0].tileserver_api_key == "enc-new"
-        assert result.tileserver_api_key == "plain-new"
+        assert result.tileserver_api_key_set is True
+        assert "plain-new" not in result.model_dump_json()
         assert edit_env.publish.call_args.args[0] == {"tileserver_api_key"}
 
     def test_clearing_the_api_key_stores_none(self, edit_env):
@@ -170,7 +177,29 @@ class TestOnlyRealChangesCount:
         )
 
         assert edit_env.write.call_args.args[0].tileserver_api_key is None
-        assert result.tileserver_api_key is None
+        assert result.tileserver_api_key_set is False
+
+    def test_an_undecryptable_stored_key_can_be_replaced(self, edit_env):
+        """After the encryption key changes, re-entering the key must still work."""
+        with patch.object(
+            server_settings_service.core_cryptography,
+            "decrypt_token_fernet",
+            side_effect=HTTPException(status_code=500, detail="Internal Server Error"),
+        ):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, tileserver_api_key="plain-new"), MagicMock()
+            )
+
+        assert edit_env.write.call_args.args[0].tileserver_api_key == "enc-new"
+
+    def test_the_row_is_locked_for_the_edit(self, edit_env):
+        db = MagicMock()
+        with patch.object(
+            server_settings_service.server_settings_crud, "get_server_settings", return_value=edit_env.stored
+        ) as read:
+            server_settings_service.edit_server_settings(_full_edit(edit_env.stored, currency="dollar"), db)
+
+        read.assert_called_once_with(db, for_update=True)
 
 
 class TestLoginPhoto:
@@ -180,19 +209,44 @@ class TestLoginPhoto:
         storage.save.side_effect = lambda *a: calls.append("save")
         db = MagicMock()
         db.commit.side_effect = lambda: calls.append("commit")
-        file = MagicMock(content_type="image/png")
+        file = MagicMock(content_type="text/plain")
 
         with (
-            patch.object(server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=b"img"),
-            patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=_stored()),
+            patch.object(server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
             patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
         ):
             server_settings_service.upload_login_photo(file, storage, db)
 
         assert calls == ["save", "commit"]
-        storage.save.assert_called_once_with("server_images", "login.png", b"img", "image/png")
+        # The type is detected from the bytes, not taken from the client's claim.
+        storage.save.assert_called_once_with("server_images", "login.png", _PNG, "image/png")
 
-    def test_delete_commits_the_flag_before_removing_the_blob(self):
+    def test_upload_rejects_a_photo_over_the_login_cap(self):
+        big = _PNG + b"0" * server_settings_constants.LOGIN_PHOTO_MAX_BYTES
+        storage = MagicMock()
+
+        with (
+            patch.object(server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=big),
+            pytest.raises(core_exceptions.PayloadTooLargeError),
+        ):
+            server_settings_service.upload_login_photo(MagicMock(), storage, MagicMock())
+
+        storage.save.assert_not_called()
+
+    def test_upload_rejects_an_unrecognised_format(self):
+        storage = MagicMock()
+
+        with (
+            patch.object(
+                server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"
+            ),
+            pytest.raises(core_exceptions.UnsupportedMediaTypeError),
+        ):
+            server_settings_service.upload_login_photo(MagicMock(), storage, MagicMock())
+
+        storage.save.assert_not_called()
+
+    def test_delete_removes_the_blob_before_releasing_the_lock(self):
         calls = []
         storage = MagicMock()
         storage.delete.side_effect = lambda *a: calls.append("delete")
@@ -202,7 +256,7 @@ class TestLoginPhoto:
         with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
             server_settings_service.delete_login_photo(storage, db)
 
-        assert calls == ["commit", "delete"]
+        assert calls == ["delete", "commit"]
         storage.delete.assert_called_once_with("server_images", "login.png")
 
     def test_read_returns_none_when_missing(self):
@@ -210,6 +264,16 @@ class TestLoginPhoto:
         storage.get.return_value = None
 
         assert server_settings_service.read_login_photo(storage) is None
+
+    @pytest.mark.parametrize(
+        "data,media_type",
+        [(_PNG, "image/png"), (b"\xff\xd8\xff\xe0", "image/jpeg"), (b"RIFF\x00\x00\x00\x00WEBPVP8 ", "image/webp")],
+    )
+    def test_read_returns_the_detected_type(self, data, media_type):
+        storage = MagicMock()
+        storage.get.return_value = data
+
+        assert server_settings_service.read_login_photo(storage) == (data, media_type)
 
 
 class TestEmailStatus:
@@ -318,6 +382,7 @@ class TestGetServerSettingsForPublic:
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
             tileserver_api_key="encrypted",

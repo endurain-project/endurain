@@ -1,7 +1,9 @@
 """HTTP middleware for security headers and CSRF checks."""
 
+import asyncio
 import time
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import Request, status
 from fastapi.concurrency import run_in_threadpool
@@ -12,7 +14,7 @@ from starlette.types import ASGIApp
 
 import core.config as core_config
 import core.logger as core_logger
-import modules.server_settings.schema as server_settings_schema
+import modules.server_settings.constants as server_settings_constants
 
 logger = core_logger.get_logger(__name__)
 
@@ -42,14 +44,32 @@ CORS_ALLOW_HEADERS: tuple[str, ...] = (
 CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID")
 
 
-async def _refresh_allowed_tile_domains(request: Request) -> None:
-    """Re-read ``app.state.allowed_tile_domains`` once the cached value is stale.
+async def _reload_allowed_tile_domains(state: Any, loader: Callable[[], list[str]]) -> None:
+    """Run the loader on a worker thread and keep its result as the cached domains.
+
+    A failure keeps the previous value, so a database hiccup never breaks a response.
+
+    Args:
+        state: The app state holding ``allowed_tile_domains``.
+        loader: Reads the current domains from their source.
+    """
+    try:
+        state.allowed_tile_domains = await run_in_threadpool(loader)
+    except Exception as err:
+        logger.warning(
+            "Could not refresh the allowed tile domains; keeping the previous ones",
+            extra=core_logger.context(error=type(err).__name__),
+        )
+
+
+def _refresh_allowed_tile_domains(request: Request) -> None:
+    """Start a background re-read of ``app.state.allowed_tile_domains`` once it is stale.
 
     Only an app that records ``allowed_tile_domains_read_at`` and
     ``allowed_tile_domains_loader`` (the composition root does, at startup) is
-    refreshed; core does not know where the domains come from. The loader runs on a
-    worker thread, and a failure keeps the previous value, so a database hiccup
-    never breaks an HTML response.
+    refreshed; core does not know where the domains come from. The read never sits
+    on the response path: the request that notices staleness is served the cached
+    value and the next one sees the new value.
 
     Args:
         request: Incoming HTTP request, used to reach the app state.
@@ -59,15 +79,10 @@ async def _refresh_allowed_tile_domains(request: Request) -> None:
     loader = getattr(state, "allowed_tile_domains_loader", None)
     if read_at is None or loader is None or time.monotonic() - read_at < TILE_DOMAINS_REFRESH_SECONDS:
         return
-    # Stamped before the read, so concurrent requests do not each query the database.
+    # Stamped before the read, so concurrent requests do not each start one.
     state.allowed_tile_domains_read_at = time.monotonic()
-    try:
-        state.allowed_tile_domains = await run_in_threadpool(loader)
-    except Exception as err:
-        logger.warning(
-            "Could not refresh the allowed tile domains; keeping the previous ones",
-            extra=core_logger.context(error=type(err).__name__),
-        )
+    # The state keeps the task so it is not garbage-collected before it finishes.
+    state.allowed_tile_domains_refresh_task = asyncio.create_task(_reload_allowed_tile_domains(state, loader))
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -119,11 +134,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Only HTML receives CSP to avoid surprising JSON API clients.
         content_type = response.headers.get("content-type", "")
         if "text/html" in content_type:
-            await _refresh_allowed_tile_domains(request)
+            _refresh_allowed_tile_domains(request)
             allowed_tile_domains = getattr(
                 request.app.state,
                 "allowed_tile_domains",
-                server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS,
+                server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS,
             )
             tile_domains_str = " ".join(allowed_tile_domains)
 

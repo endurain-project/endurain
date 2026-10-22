@@ -38,7 +38,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     sso_auto_redirect: false,
     tileserver_url: 'https://tile.test/{z}/{x}/{y}.png',
     tileserver_attribution: '© Test',
-    tileserver_api_key: 'secret-key',
+    tileserver_api_key_set: true,
     tileserver_regenerate_thumbnails_on_change: false,
     map_background_color: '#dddddd',
     password_type: 'strict',
@@ -80,7 +80,7 @@ describe('mapServerSettings', () => {
       ssoAutoRedirect: false,
       tileserverUrl: 'https://tile.test/{z}/{x}/{y}.png',
       tileserverAttribution: '© Test',
-      tileserverApiKey: 'secret-key',
+      tileserverApiKeySet: true,
       tileserverRegenerateThumbnailsOnChange: false,
       mapBackgroundColor: '#dddddd',
       passwordType: 'strict',
@@ -89,10 +89,9 @@ describe('mapServerSettings', () => {
     })
   })
 
-  it('normalizes a missing API key to null', () => {
-    expect(
-      mapServerSettings(makeSettingsDto({ tileserver_api_key: null })).tileserverApiKey,
-    ).toBeNull()
+  it('exposes only whether an API key is stored', () => {
+    expect(mapServerSettings(makeSettingsDto()).tileserverApiKeySet).toBe(true)
+    expect(mapServerSettings(makeSettingsDto()) as object).not.toHaveProperty('tileserverApiKey')
   })
 })
 
@@ -113,8 +112,26 @@ describe('mapTileMapsTemplate', () => {
 describe('toServerSettingsWire', () => {
   it('round-trips every editable field so the full record is replaced', () => {
     const settings = mapServerSettings(makeSettingsDto())
-    const { id: _id, login_photo_set: _loginPhotoSet, ...editable } = makeSettingsDto()
+    const {
+      id: _id,
+      login_photo_set: _loginPhotoSet,
+      tileserver_api_key_set: _keySet,
+      ...editable
+    } = makeSettingsDto()
     expect(toServerSettingsWire(settings)).toEqual(editable)
+  })
+
+  it('omits the API key to keep it, and sends null to remove it', () => {
+    const settings = mapServerSettings(makeSettingsDto())
+    expect(toServerSettingsWire(settings)).not.toHaveProperty('tileserver_api_key')
+    expect(toServerSettingsWire({ ...settings, tileserverApiKey: null })).toHaveProperty(
+      'tileserver_api_key',
+      null,
+    )
+    expect(toServerSettingsWire({ ...settings, tileserverApiKey: 'new-key' })).toHaveProperty(
+      'tileserver_api_key',
+      'new-key',
+    )
   })
 
   it('never sends the read-only id or login-photo flag', () => {
@@ -141,7 +158,7 @@ describe('server settings service requests', () => {
   it('fetchTileMapsTemplates maps the list and tolerates a null payload', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([makeTemplateDto()])
     expect(await fetchTileMapsTemplates()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/tile_maps_templates', {
+    expect(apiFetch).toHaveBeenCalledWith('/public/server_settings/tile_maps_templates', {
       signal: undefined,
     })
 

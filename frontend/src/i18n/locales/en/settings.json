@@ -335,7 +335,9 @@
       "urlInvalid": "URL must include the z, x and y tile placeholders",
       "attribution": "Attribution",
       "apiKey": "Tile server API key",
-      "apiKeyWarning": "The API key is stored encrypted. Leave blank if your tile server doesn't need one.",
+      "apiKeyWarning": "The API key is stored encrypted and never shown again. Leave blank to keep the current key, or if your tile server doesn't need one.",
+      "apiKeyStored": "A key is stored",
+      "apiKeyRemove": "Remove the stored API key",
       "backgroundColor": "Map background color",
       "regenerateThumbnails": "Regenerate activity thumbnails when map settings change"
     },

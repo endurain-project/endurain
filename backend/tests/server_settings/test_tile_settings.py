@@ -32,7 +32,7 @@ class TestGetServerSettings:
 
         # Assert
         assert result == mock_settings
-        mock_crud_get_settings.assert_called_once_with(mock_db)
+        mock_crud_get_settings.assert_called_once_with(mock_db, for_update=False)
 
     @patch("modules.server_settings.service.server_settings_crud.get_server_settings")
     def test_get_server_settings_not_found(self, mock_crud_get_settings, mock_db):
@@ -41,8 +41,23 @@ class TestGetServerSettings:
         mock_crud_get_settings.return_value = None
 
         # Act & Assert
-        with pytest.raises(core_exceptions.NotFoundError, match="Server settings not found"):
+        with pytest.raises(core_exceptions.ServiceUnavailableError, match="not initialised"):
             server_settings_service.get_server_settings(mock_db)
+
+
+class TestAllowedTileDomainsForUrl:
+    """Test suite for allowed_tile_domains_for_url."""
+
+    def test_a_custom_host_is_added_to_the_builtin_domains(self):
+        result = server_settings_service.allowed_tile_domains_for_url("https://tiles.example.com/{z}/{x}/{y}.png")
+
+        assert result[-1] == "https://tiles.example.com"
+        assert len(result) == 3
+
+    def test_a_builtin_host_adds_nothing(self):
+        result = server_settings_service.allowed_tile_domains_for_url("https://tile.openstreetmap.org/{z}/{x}/{y}.png")
+
+        assert len(result) == 2
 
 
 class TestGetTileMapsTemplates:
@@ -371,7 +386,7 @@ class TestGetAllowedTileDomains:
     def test_get_allowed_tile_domains_db_error(self, mock_get_settings, mock_db):
         """Test a missing settings row falls back to the built-in domains."""
         # Arrange
-        mock_get_settings.side_effect = core_exceptions.NotFoundError("Server settings not found.")
+        mock_get_settings.side_effect = core_exceptions.ServiceUnavailableError("Server settings are not initialised.")
 
         # Act
         result = server_settings_service.get_allowed_tile_domains(mock_db)

@@ -72,9 +72,9 @@ def normalise_tile_url(url: str) -> str:
     """
     # The OSM default no longer uses {s}, but custom providers and older
     # stored URLs may; staticmap can't rotate subdomains, so pin it to 'a'.
-    url = re.sub(r"\{s\}", "a", url)
+    url = re.sub(r"\{s\}", "a", url, flags=re.IGNORECASE)
     # Remove {r} retina placeholder (e.g. Stadia Maps)
-    url = re.sub(r"\{r\}", "", url)
+    url = re.sub(r"\{r\}", "", url, flags=re.IGNORECASE)
     # Escape any remaining unknown {placeholders} that are not
     # the three staticmap knows about ({z}, {x}, {y})
     url = re.sub(

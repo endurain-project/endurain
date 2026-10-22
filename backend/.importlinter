@@ -45,8 +45,8 @@ forbidden_modules =
 # and the composition root (``main``) hands the collected list to
 # ``start_scheduler``.
 # One exception is recorded here so it is reviewed rather than assumed:
-# ``core.middleware`` reads the server-settings SCHEMA (a data shape, not
-# behaviour) to type the settings it stamps onto the request.
+# ``core.middleware`` reads the server-settings CONSTANTS (the built-in tile
+# domains, plain data) as the CSP fallback before any domains are loaded.
 [importlinter:contract:core-not-domain]
 name = Core must not import domain modules
 type = forbidden
@@ -56,7 +56,7 @@ source_modules =
 forbidden_modules =
     modules
 ignore_imports =
-    core.middleware -> modules.server_settings.schema
+    core.middleware -> modules.server_settings.constants
 
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis

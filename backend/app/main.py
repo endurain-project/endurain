@@ -53,8 +53,8 @@ import modules.auth.utils as auth_utils
 import modules.garmin.health_utils as garmin_health_utils
 import modules.garmin.provider_registry as garmin_provider_registry
 import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
+import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
-import modules.server_settings.schema as server_settings_schema
 import modules.strava.provider_registry as strava_provider_registry
 import modules.strava.scheduled_jobs as strava_scheduled_jobs
 from api import router as api_router
@@ -179,7 +179,7 @@ def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
         logger.error(f"Error initializing tile domains, using defaults: {type(err).__name__}", exc_info=err)
         # Fallback to built-in providers so CSP
         # remains restrictive but functional.
-        fastapi_app.state.allowed_tile_domains = server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
+        fastapi_app.state.allowed_tile_domains = server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
 
 
 async def _resolve_trusted_proxy_hostnames() -> dict[str, list[str]]:

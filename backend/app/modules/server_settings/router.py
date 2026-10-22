@@ -29,7 +29,7 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=server_settings_schema.ServerSettingsRead,
+    response_model=server_settings_schema.ServerSettingsAdminRead,
     status_code=status.HTTP_200_OK,
 )
 def read_server_settings(
@@ -41,46 +41,21 @@ def read_server_settings(
         Session,
         Depends(core_database.get_db),
     ],
-) -> server_settings_schema.ServerSettingsRead:
+) -> server_settings_schema.ServerSettingsAdminRead:
     """Get current server settings.
 
     Requires admin authentication with server_settings:read scope.
 
     Returns:
-        Current server settings configuration with decrypted API key.
+        Current server settings configuration. The tile API key is never returned,
+        only whether one is stored.
     """
     return server_settings_service.get_server_settings_for_admin(db)
 
 
-@router.get(
-    "/tile_maps_templates",
-    response_model=list[server_settings_schema.TileMapsTemplate],
-    status_code=status.HTTP_200_OK,
-)
-def list_tile_maps_templates(
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["server_settings:read"]),
-    ],
-) -> list[server_settings_schema.TileMapsTemplate]:
-    """Retrieve available tile map templates for server settings.
-
-    This endpoint returns a list of all available tile map templates that can
-    be used for configuring map display options in server settings.
-
-    Returns:
-        List of tile map template configurations available for the server.
-
-    Raises:
-        HTTPException: If the user lacks the required 'server_settings:read'
-        scope.
-    """
-    return server_settings_service.get_tile_maps_templates()
-
-
 @router.put(
     "",
-    response_model=server_settings_schema.ServerSettingsRead,
+    response_model=server_settings_schema.ServerSettingsAdminRead,
     status_code=status.HTTP_200_OK,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -95,10 +70,12 @@ def edit_server_settings(
         Session,
         Depends(core_database.get_db),
     ],
-) -> server_settings_schema.ServerSettingsRead:
+) -> server_settings_schema.ServerSettingsAdminRead:
     """Update server settings.
 
-    Requires admin authentication with server_settings:write scope.
+    Requires admin authentication with server_settings:write scope. The body replaces
+    the whole configuration; only the tile API key may be omitted, which keeps the
+    stored one.
 
     Args:
         request: The HTTP request object.
@@ -106,9 +83,14 @@ def edit_server_settings(
         db: Database session.
 
     Returns:
-        Updated server settings configuration, with the tile API key decrypted.
+        Updated server settings configuration, without the tile API key.
     """
-    return server_settings_service.edit_server_settings(server_settings_attributes, db)
+    updated = server_settings_service.edit_server_settings(server_settings_attributes, db)
+    # This process applies the new CSP tile domains at once; the other processes poll for them.
+    request.app.state.allowed_tile_domains = server_settings_service.allowed_tile_domains_for_url(
+        updated.tileserver_url
+    )
+    return updated
 
 
 @router.post(

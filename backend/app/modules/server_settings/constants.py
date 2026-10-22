@@ -8,11 +8,25 @@ from typing import Any
 LOGIN_PHOTO_STORAGE_AREA = "server_images"
 LOGIN_PHOTO_STORAGE_KEY = "login.png"
 
+#: Largest accepted login-photo upload, in bytes. The login page shows it full-bleed to
+#: every anonymous visitor, so it is capped well below the generic image upload limit.
+LOGIN_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+
+#: The tile source a fresh install starts with, and the built-in OpenStreetMap preset.
+DEFAULT_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+DEFAULT_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
+#: Tile domains the CSP ``img-src`` directive always allows.
+DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
+    "https://*.openstreetmap.org",  # OpenStreetMap
+    "https://*.stadiamaps.com",  # Stadia Maps
+]
+
 TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
     "openstreetmap": {
         "name": "OpenStreetMap",
-        "url_template": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        "url_template": DEFAULT_TILE_URL,
+        "attribution": DEFAULT_TILE_ATTRIBUTION,
         "map_background_color": "#e8e8e8",
         "requires_api_key_frontend": False,
         "requires_api_key_backend": False,

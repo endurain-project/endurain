@@ -4,7 +4,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 import jasil.providers as platform_providers
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -77,43 +77,56 @@ def decrypt_tileserver_api_key(encrypted_api_key: str | None) -> str | None:
 
     Returns:
         The plain-text key, or None when no key is set.
+
+    Raises:
+        ServiceUnavailableError: When the stored key cannot be decrypted, for example
+            after the encryption key changed.
     """
     if not encrypted_api_key:
         return None
-    return core_cryptography.decrypt_token_fernet(encrypted_api_key)
+    try:
+        return core_cryptography.decrypt_token_fernet(encrypted_api_key)
+    except HTTPException as err:
+        raise core_exceptions.ServiceUnavailableError(
+            "The stored tile API key cannot be decrypted; enter it again in the server settings"
+        ) from err
 
 
-def _with_decrypted_api_key(
+def _to_admin_read(
     server_settings: server_settings_schema.ServerSettingsRead,
-) -> server_settings_schema.ServerSettingsRead:
-    """Return the settings with the stored tile API key replaced by its plain text.
+) -> server_settings_schema.ServerSettingsAdminRead:
+    """Build the admin response: the stored settings without the tile API key.
 
     Args:
         server_settings: Settings as stored.
 
     Returns:
-        A copy carrying the decrypted key.
+        The settings with a flag saying whether a tile API key is stored.
     """
-    return server_settings.model_copy(
-        update={_API_KEY_FIELD: decrypt_tileserver_api_key(server_settings.tileserver_api_key)}
+    return server_settings_schema.ServerSettingsAdminRead(
+        **server_settings.model_dump(exclude={_API_KEY_FIELD}),
+        tileserver_api_key_set=bool(server_settings.tileserver_api_key),
     )
 
 
-def get_server_settings(db: Session) -> server_settings_schema.ServerSettingsRead:
+def get_server_settings(db: Session, *, for_update: bool = False) -> server_settings_schema.ServerSettingsRead:
     """Return the server settings as stored (the tile API key stays encrypted).
 
     Args:
         db: Database session.
+        for_update: Lock the row until the transaction ends; for a read that decides a write.
 
     Returns:
         The server settings.
 
     Raises:
-        NotFoundError: If the settings row does not exist.
+        ServiceUnavailableError: If the settings row does not exist. The row is
+            created by the migrations, so its absence is a broken install, not a
+            missing resource.
     """
-    server_settings = server_settings_crud.get_server_settings(db)
+    server_settings = server_settings_crud.get_server_settings(db, for_update=for_update)
     if server_settings is None:
-        raise core_exceptions.NotFoundError("Server settings not found.")
+        raise core_exceptions.ServiceUnavailableError("Server settings are not initialised.")
     return server_settings
 
 
@@ -127,7 +140,7 @@ def get_server_settings_for_public(db: Session) -> server_settings_schema.Server
         The public settings, with the configured SSO redirect schemes.
 
     Raises:
-        NotFoundError: If the settings row does not exist.
+        ServiceUnavailableError: If the settings row does not exist.
     """
     server_settings = get_server_settings(db)
     public_fields = server_settings.model_dump(
@@ -139,19 +152,19 @@ def get_server_settings_for_public(db: Session) -> server_settings_schema.Server
     )
 
 
-def get_server_settings_for_admin(db: Session) -> server_settings_schema.ServerSettingsRead:
-    """Return the server settings with the tile API key decrypted, for an admin to view.
+def get_server_settings_for_admin(db: Session) -> server_settings_schema.ServerSettingsAdminRead:
+    """Return the server settings for an admin to view, without the tile API key.
 
     Args:
         db: Database session.
 
     Returns:
-        The server settings with a decrypted tile API key.
+        The server settings, with a flag saying whether a tile API key is stored.
 
     Raises:
-        NotFoundError: If the settings row does not exist.
+        ServiceUnavailableError: If the settings row does not exist.
     """
-    return _with_decrypted_api_key(get_server_settings(db))
+    return _to_admin_read(get_server_settings(db))
 
 
 def get_tile_maps_templates() -> list[server_settings_schema.TileMapsTemplate]:
@@ -227,6 +240,22 @@ def _is_covered_by(source: str, allowed_sources: list[str]) -> bool:
     return False
 
 
+def allowed_tile_domains_for_url(tile_url: str) -> list[str]:
+    """Return the tile domains the CSP ``img-src`` directive allows for a tile URL.
+
+    Args:
+        tile_url: The configured tile server URL template.
+
+    Returns:
+        The built-in provider domains plus the tile URL's own domain.
+    """
+    allowed_domains: list[str] = server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
+    custom_domain = extract_domain_from_tile_url(tile_url)
+    if custom_domain and not _is_covered_by(custom_domain, allowed_domains):
+        allowed_domains.append(custom_domain)
+    return allowed_domains
+
+
 def get_allowed_tile_domains(db: Session) -> list[str]:
     """Return the tile domains the CSP ``img-src`` directive allows.
 
@@ -237,18 +266,12 @@ def get_allowed_tile_domains(db: Session) -> list[str]:
         The built-in provider domains plus the configured custom tile server's domain.
         Only the built-in ones when the settings row does not exist.
     """
-    allowed_domains: list[str] = server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
-
     try:
         server_settings = get_server_settings(db)
-    except core_exceptions.NotFoundError:
+    except core_exceptions.ServiceUnavailableError:
         logger.warning("Server settings row is missing; allowing only the built-in tile domains")
-        return allowed_domains
-
-    custom_domain = extract_domain_from_tile_url(server_settings.tileserver_url)
-    if custom_domain and not _is_covered_by(custom_domain, allowed_domains):
-        allowed_domains.append(custom_domain)
-    return allowed_domains
+        return server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
+    return allowed_tile_domains_for_url(server_settings.tileserver_url)
 
 
 def _changed_fields(
@@ -258,7 +281,8 @@ def _changed_fields(
     """Return the sent fields whose value differs from the stored one.
 
     The tile API key is compared in plain text, since the stored token is encrypted
-    and a fresh encryption of the same key never matches it.
+    and a fresh encryption of the same key never matches it. A stored key that can
+    no longer be decrypted counts as changed, so it can always be replaced or removed.
 
     Args:
         attributes: The request body.
@@ -270,7 +294,11 @@ def _changed_fields(
     changed: set[str] = set()
     for field, value in attributes.model_dump(exclude_unset=True).items():
         if field == _API_KEY_FIELD:
-            stored = decrypt_tileserver_api_key(current.tileserver_api_key)
+            try:
+                stored = decrypt_tileserver_api_key(current.tileserver_api_key)
+            except core_exceptions.ServiceUnavailableError:
+                changed.add(field)
+                continue
             if (stored or None) != (value or None):
                 changed.add(field)
         elif getattr(current, field) != value:
@@ -281,10 +309,12 @@ def _changed_fields(
 def edit_server_settings(
     attributes: server_settings_schema.ServerSettingsEdit,
     db: Session,
-) -> server_settings_schema.ServerSettingsRead:
+) -> server_settings_schema.ServerSettingsAdminRead:
     """Persist settings and publish a tile-settings fact when the tile source changed.
 
-    Only fields whose value differs from the stored one count as changed: a client
+    The settings row is locked for the whole edit, so two concurrent saves apply one
+    after the other, each compared against what the previous one stored. Only fields
+    whose value differs from the stored one count as changed: a client
     that sends the whole record on every save does not trigger a tile-settings
     event, a thumbnail regeneration or a DNS lookup for settings it did not touch.
 
@@ -293,16 +323,17 @@ def edit_server_settings(
         db: Database session.
 
     Returns:
-        The updated settings, with the tile API key decrypted as for an admin read.
+        The updated settings, as an admin read returns them.
 
     Raises:
         InvalidInputError: If the tile server URL cannot be dialled safely.
-        NotFoundError: If the settings row does not exist.
+        ServiceUnavailableError: If the settings row does not exist.
     """
-    current = get_server_settings(db)
+    current = get_server_settings(db, for_update=True)
     changed_fields = _changed_fields(attributes, current)
     if not changed_fields:
-        return _with_decrypted_api_key(current)
+        db.rollback()
+        return _to_admin_read(current)
 
     if "tileserver_url" in changed_fields:
         _reject_unsafe_tileserver(attributes.tileserver_url)
@@ -327,14 +358,43 @@ def edit_server_settings(
     else:
         db.commit()
     logger.info("Server settings updated", extra=core_logger.context(changed_fields=sorted(changed_fields)))
-    return _with_decrypted_api_key(updated)
+    return _to_admin_read(updated)
+
+
+#: Magic-number prefixes of the image formats the upload validator accepts, with their media type.
+_IMAGE_SIGNATURES: tuple[tuple[bytes, str], ...] = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def _sniff_image_type(data: bytes) -> str | None:
+    """Return the media type of image bytes from their magic number.
+
+    Args:
+        data: The image bytes.
+
+    Returns:
+        The media type, or None when the format is not recognised.
+    """
+    for signature, media_type in _IMAGE_SIGNATURES:
+        if data.startswith(signature):
+            return media_type
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProvider, db: Session) -> None:
     """Save the custom login page photo and mark it as set.
 
-    The blob is written before the flag is committed: a blob without the flag is
-    invisible, whereas a flag without a blob would point the login page at nothing.
+    The settings row is locked from before the blob is written until the flag is
+    committed, so a concurrent upload or delete cannot interleave with this one. The
+    blob is written before the flag: a blob without the flag is invisible, whereas a
+    flag without a blob would point the login page at nothing. The stored content
+    type is the one detected from the bytes, not the one the client claimed.
 
     Args:
         file: The uploaded image.
@@ -342,18 +402,22 @@ def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProv
         db: Database session.
 
     Raises:
-        DomainError: If the upload fails validation.
-        NotFoundError: If the settings row does not exist.
+        DomainError: If the upload fails validation or exceeds the login-photo size cap.
+        ServiceUnavailableError: If the settings row does not exist.
     """
     data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    get_server_settings(db)
+    if len(data) > server_settings_constants.LOGIN_PHOTO_MAX_BYTES:
+        raise core_exceptions.PayloadTooLargeError("Login photo is too large")
+    media_type = _sniff_image_type(data)
+    if media_type is None:
+        raise core_exceptions.UnsupportedMediaTypeError("Login photo must be a PNG, JPEG, GIF or WebP image")
+    server_settings_crud.set_login_photo(True, db)
     storage.save(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA,
         server_settings_constants.LOGIN_PHOTO_STORAGE_KEY,
         data,
-        file.content_type,
+        media_type,
     )
-    server_settings_crud.set_login_photo(True, db)
     db.commit()
     logger.info("Login photo uploaded")
 
@@ -361,36 +425,41 @@ def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProv
 def delete_login_photo(storage: platform_providers.StorageProvider, db: Session) -> None:
     """Remove the custom login page photo and mark it as unset.
 
-    The flag is committed before the blob is deleted, so a failed delete leaves an
-    unreferenced blob rather than a flag pointing at nothing.
+    The settings row stays locked until the blob is deleted, so a concurrent upload
+    cannot land between the two steps and lose its blob. If the delete fails the flag
+    change is rolled back, leaving the photo set and its blob in place.
 
     Args:
         storage: The platform storage provider.
         db: Database session.
 
     Raises:
-        NotFoundError: If the settings row does not exist.
+        ServiceUnavailableError: If the settings row does not exist.
     """
     server_settings_crud.set_login_photo(False, db)
-    db.commit()
     storage.delete(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA, server_settings_constants.LOGIN_PHOTO_STORAGE_KEY
     )
+    db.commit()
     logger.info("Login photo deleted")
 
 
-def read_login_photo(storage: platform_providers.StorageProvider) -> bytes | None:
+def read_login_photo(storage: platform_providers.StorageProvider) -> tuple[bytes, str] | None:
     """Return the custom login page photo.
 
     Args:
         storage: The platform storage provider.
 
     Returns:
-        The image bytes, or None when no photo is stored.
+        The image bytes and their media type, or None when no photo is stored.
     """
-    return storage.get(
+    data = storage.get(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA, server_settings_constants.LOGIN_PHOTO_STORAGE_KEY
     )
+    if data is None:
+        return None
+    # A photo stored before the type was detected on upload is served as the PNG it was.
+    return data, _sniff_image_type(data) or "image/png"
 
 
 def get_email_status() -> server_settings_schema.EmailStatus:

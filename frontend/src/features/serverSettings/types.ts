@@ -1,7 +1,7 @@
 import type { Schemas } from '@/types'
 
 /** Raw authenticated server-settings payload (snake_case wire shape). */
-export type ServerSettingsDto = Schemas['ServerSettingsRead']
+export type ServerSettingsDto = Schemas['ServerSettingsAdminRead']
 
 /**
  * Editable server-settings body for the `PUT`. The backend forbids extra
@@ -45,7 +45,7 @@ export type PasswordType = Schemas['PasswordType']
  * @property ssoAutoRedirect - Whether to auto-redirect when a single IdP is configured.
  * @property tileserverUrl - Map tile URL template (`{z}`/`{x}`/`{y}` placeholders).
  * @property tileserverAttribution - Attribution string shown on the map.
- * @property tileserverApiKey - Tile-server API key (stored encrypted), or `null`.
+ * @property tileserverApiKeySet - Whether a tile-server API key is stored (the key itself is never returned).
  * @property tileserverRegenerateThumbnailsOnChange - Whether to regenerate thumbnails when map settings change.
  * @property mapBackgroundColor - Map background colour (`#RRGGBB`).
  * @property passwordType - Password policy enforcement level.
@@ -68,7 +68,7 @@ export interface ServerSettings {
   ssoAutoRedirect: boolean
   tileserverUrl: string
   tileserverAttribution: string
-  tileserverApiKey: string | null
+  tileserverApiKeySet: boolean
   tileserverRegenerateThumbnailsOnChange: boolean
   mapBackgroundColor: string
   passwordType: PasswordType
@@ -102,9 +102,25 @@ export interface TileMapsTemplate {
 /**
  * The form-editable subset of {@link ServerSettings}. Excludes `id` (constant)
  * and `loginPhotoSet` (managed by the separate upload/delete actions), both of
- * which round-trip from the freshest server state at save time.
+ * which round-trip from the freshest server state at save time. The tile API key
+ * is write-only: `tileserverApiKey` holds a newly typed key (empty keeps the
+ * stored one) and `removeTileserverApiKey` asks for the stored key to be removed.
  */
-export type ServerSettingsFormValues = Omit<ServerSettings, 'id' | 'loginPhotoSet'>
+export type ServerSettingsFormValues = Omit<
+  ServerSettings,
+  'id' | 'loginPhotoSet' | 'tileserverApiKeySet'
+> & {
+  tileserverApiKey: string
+  removeTileserverApiKey: boolean
+}
+
+/**
+ * Server settings to persist. `tileserverApiKey` is write-only: `undefined` keeps
+ * the stored key, `null` removes it, a string replaces it.
+ */
+export type ServerSettingsUpdate = Omit<ServerSettings, 'tileserverApiKeySet'> & {
+  tileserverApiKey?: string | null
+}
 
 /** Raw email-status payload (the SMTP settings are valid, or why they are not). */
 export type EmailStatusDto = Schemas['EmailStatus']

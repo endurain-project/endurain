@@ -225,10 +225,11 @@ Docker image runs as a non-root user (`app`). For named Docker volumes, permissi
 
 ## Image personalization
 
-It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the data/server_images directory for image persistence on container updates and:
+It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the data/server_images directory for image persistence on container updates (with local storage; with object storage the image is kept there) and:
 
  - Set the image in the server settings zone of the settings page
  - A square image is expected. Default one uses 1000px vs 1000px
+ - PNG, JPEG, GIF or WebP, up to 5 MB
 
 
 ## Map tile server
@@ -238,7 +239,7 @@ Administrators choose the map tiles in the server settings page, under the maps 
 Two parts of Endurain request tiles, and they treat the URL and the API key differently:
 
 - **Maps in the browser** use the tile URL as it is saved. The URL is part of the public server settings, which can be read without signing in, and the browser sends it to the tile provider. Anything written in the URL, including a key, is therefore visible to anyone who can reach the server.
-- **Map thumbnails** are rendered by the backend. It uses the tile URL and, if set, the **Tile server API key** field. The key is stored encrypted and is never sent to the browser.
+- **Map thumbnails** are rendered by the backend. It uses the tile URL and, if set, the **Tile server API key** field. The key is stored encrypted and is never sent to the browser, not even to the settings page: the field stays empty after saving, and leaving it empty keeps the stored key.
 
 How the backend sends the key for thumbnails:
 

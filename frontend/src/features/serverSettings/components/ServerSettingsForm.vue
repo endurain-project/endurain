@@ -47,7 +47,8 @@ const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
 /**
  * Projects the loaded settings onto the form-editable subset. `id` and
  * `loginPhotoSet` are intentionally excluded: they round-trip from the freshest
- * server state at save time, never from a stale form value.
+ * server state at save time, never from a stale form value. The tile API key starts
+ * empty: the backend never returns it, and an empty field keeps the stored one.
  *
  * @param settings - The loaded server settings.
  * @returns The editable form values.
@@ -67,7 +68,8 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     ssoAutoRedirect: settings.ssoAutoRedirect,
     tileserverUrl: settings.tileserverUrl,
     tileserverAttribution: settings.tileserverAttribution,
-    tileserverApiKey: settings.tileserverApiKey,
+    tileserverApiKey: '',
+    removeTileserverApiKey: false,
     tileserverRegenerateThumbnailsOnChange: settings.tileserverRegenerateThumbnailsOnChange,
     mapBackgroundColor: settings.mapBackgroundColor,
     passwordType: settings.passwordType,
@@ -119,8 +121,11 @@ function detectTemplate(url: string): string {
  * @param formValues - The validated form values.
  */
 async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
+  const { tileserverApiKey, removeTileserverApiKey, ...editable } = formValues
+  // undefined keeps the stored key, null removes it, a string replaces it.
+  const apiKey = removeTileserverApiKey ? null : tileserverApiKey.trim() || undefined
   try {
-    await updateMutation.mutateAsync({ ...props.settings, ...formValues })
+    await updateMutation.mutateAsync({ ...props.settings, ...editable, tileserverApiKey: apiKey })
     toasts.success(t('settings.server.saveSuccess'))
   } catch {
     toasts.error(t('settings.server.saveError'))
@@ -158,7 +163,8 @@ watch(selectedTemplate, (templateId) => {
   }
   values.tileserverUrl = template.urlTemplate
   values.tileserverAttribution = template.attribution
-  values.tileserverApiKey = null
+  values.tileserverApiKey = ''
+  values.removeTileserverApiKey = props.settings.tileserverApiKeySet
   values.mapBackgroundColor = template.mapBackgroundColor
 })
 </script>
@@ -363,15 +369,24 @@ watch(selectedTemplate, (templateId) => {
         <template #default="{ fieldId }">
           <Input
             :id="fieldId"
-            :model-value="values.tileserverApiKey ?? ''"
-            type="text"
-            maxlength="512"
+            v-model="values.tileserverApiKey"
+            type="password"
+            maxlength="256"
             autocomplete="off"
-            :disabled="isSubmitting"
-            @update:model-value="values.tileserverApiKey = String($event).trim() || null"
+            :placeholder="
+              settings.tileserverApiKeySet ? t('settings.server.maps.apiKeyStored') : ''
+            "
+            :disabled="isSubmitting || values.removeTileserverApiKey"
           />
         </template>
       </FormField>
+      <Switch
+        v-if="settings.tileserverApiKeySet"
+        v-model="values.removeTileserverApiKey"
+        :disabled="isSubmitting"
+      >
+        {{ t('settings.server.maps.apiKeyRemove') }}
+      </Switch>
       <Alert kind="warning">{{ t('settings.server.maps.apiKeyWarning') }}</Alert>
 
       <div class="flex flex-col gap-1">

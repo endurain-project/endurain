@@ -3,6 +3,7 @@
 from sqlalchemy import CheckConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+import modules.server_settings.constants as server_settings_constants
 from core.database import Base
 
 
@@ -109,12 +110,12 @@ class ServerSettings(Base):
         comment="Auto-redirect to SSO if only one IdP (true - yes, false - no)",
     )
     tileserver_url: Mapped[str] = mapped_column(
-        default=("https://tile.openstreetmap.org/{z}/{x}/{y}.png"),
+        default=server_settings_constants.DEFAULT_TILE_URL,
         nullable=False,
         comment="URL template for the map tileserver",
     )
     tileserver_attribution: Mapped[str] = mapped_column(
-        default=('&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'),
+        default=server_settings_constants.DEFAULT_TILE_ATTRIBUTION,
         nullable=False,
         comment="Attribution string for the map tileserver",
     )

@@ -30,7 +30,7 @@ def get_server_settings(db: Session) -> server_settings_schema.ServerSettingsRea
         The server settings.
 
     Raises:
-        NotFoundError: If the settings row does not exist.
+        ServiceUnavailableError: If the settings row does not exist.
     """
     return server_settings_service.get_server_settings(db).model_copy(update={"tileserver_api_key": None})
 

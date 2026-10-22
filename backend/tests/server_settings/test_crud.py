@@ -71,6 +71,7 @@ def _edit(**overrides):
         tileserver_attribution="Test",
         map_background_color="#dddddd",
         password_type="strict",
+        tileserver_regenerate_thumbnails_on_change=False,
         password_length_regular_users=8,
         password_length_admin_users=12,
     )
@@ -131,7 +132,7 @@ class TestEditServerSettings:
         """Test update when settings don't exist."""
         _mock_row(mock_db, None)
 
-        with pytest.raises(core_exceptions.NotFoundError):
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
             server_settings_crud.edit_server_settings(_edit(), mock_db)
 
 
@@ -153,5 +154,5 @@ class TestSetLoginPhoto:
         """Test the flag cannot be set when settings don't exist."""
         _mock_row(mock_db, None)
 
-        with pytest.raises(core_exceptions.NotFoundError):
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
             server_settings_crud.set_login_photo(True, mock_db)

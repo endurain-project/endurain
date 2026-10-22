@@ -58,6 +58,7 @@ class TestServerSettingsBase:
             tileserver_attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -82,6 +83,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -104,6 +106,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -125,6 +128,7 @@ class TestServerSettingsBase:
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -146,6 +150,7 @@ class TestServerSettingsBase:
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -168,6 +173,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -190,6 +196,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -213,6 +220,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -234,6 +242,7 @@ class TestServerSettingsBase:
             tileserver_attribution="Test",
             map_background_color="#FF0000",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -256,6 +265,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="red",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -277,6 +287,7 @@ class TestServerSettingsBase:
             tileserver_attribution='&copy; <a href="https://example.com">Example</a>',
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -305,6 +316,7 @@ class TestServerSettingsEdit:
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
