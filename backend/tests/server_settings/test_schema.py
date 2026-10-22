@@ -48,7 +48,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -73,7 +72,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -96,7 +94,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -118,7 +115,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -140,7 +136,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -163,7 +158,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -186,7 +180,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -210,7 +203,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -232,7 +224,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -255,7 +246,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -277,7 +267,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -295,44 +284,15 @@ class TestServerSettingsBase:
         assert "href=" in settings.tileserver_attribution
 
 
-class TestServerSettings:
-    """Tests for ServerSettings schema."""
-
-    def test_server_settings_with_id(self):
-        """Test ServerSettings schema with id field."""
-        settings = server_settings_schema.ServerSettings(
-            id=1,
-            units=server_settings_schema.Units.METRIC,
-            public_shareable_links=False,
-            public_shareable_links_user_info=False,
-            login_photo_set=False,
-            currency=server_settings_schema.Currency.EURO,
-            num_records_per_page=25,
-            signup_enabled=False,
-            sso_enabled=False,
-            local_login_enabled=True,
-            sso_auto_redirect=False,
-            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            tileserver_attribution="Test",
-            map_background_color="#dddddd",
-            password_type="strict",
-            password_length_regular_users=8,
-            password_length_admin_users=12,
-        )
-        assert settings.id == 1
-
-
 class TestServerSettingsEdit:
     """Tests for ServerSettingsEdit schema."""
 
-    def test_server_settings_edit_with_signup_fields(self):
-        """Test ServerSettingsEdit includes signup requirement fields."""
-        settings = server_settings_schema.ServerSettingsEdit(
-            id=1,
+    @staticmethod
+    def _values(**overrides):
+        values = dict(
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=True,
@@ -348,8 +308,36 @@ class TestServerSettingsEdit:
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
+        values.update(overrides)
+        return values
+
+    def test_server_settings_edit_with_signup_fields(self):
+        """Test ServerSettingsEdit includes signup requirement fields."""
+        settings = server_settings_schema.ServerSettingsEdit(**self._values())
         assert settings.signup_require_admin_approval is True
         assert settings.signup_require_email_verification is False
+
+    @pytest.mark.parametrize("field,value", [("id", 1), ("login_photo_set", False)])
+    def test_edit_rejects_fields_it_does_not_own(self, field, value):
+        """The row id and the login-photo flag are not writable through the edit body."""
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**self._values(**{field: value}))
+
+    def test_edit_api_key_is_capped_so_the_encrypted_token_fits_the_column(self):
+        """A plain key over 256 characters would not fit once encrypted."""
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**self._values(tileserver_api_key="k" * 257))
+
+
+class TestServerSettingsRead:
+    """Tests for ServerSettingsRead schema."""
+
+    def test_read_carries_id_and_login_photo_flag(self):
+        """The read view adds the singleton id and the login-photo flag."""
+        values = TestServerSettingsEdit._values(id=1, login_photo_set=True)
+        settings = server_settings_schema.ServerSettingsRead(**values)
+        assert settings.id == 1
+        assert settings.login_photo_set is True
 
 
 class TestTileMapsTemplate:

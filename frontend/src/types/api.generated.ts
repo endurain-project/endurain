@@ -3872,7 +3872,7 @@ export interface paths {
          * @description Get public server settings (unauthenticated).
          *
          *     Protection Mechanisms:
-         *     - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
+         *     - Rate limiting: the application's default per-IP limit applies.
          *
          *     Returns only the public subset of server configuration
          *     (sensitive signup approval/verification settings excluded).
@@ -3882,6 +3882,38 @@ export interface paths {
          *         Public subset of server configuration.
          */
         get: operations["read_public_server_settings_api_v1_public_server_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/server_settings/login_photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Login Photo
+         * @description Serve the custom login page photo (unauthenticated).
+         *
+         *     The login screen renders before anyone is signed in, so the photo is public by
+         *     design; it is one admin-chosen image, not user data.
+         *
+         *     Args:
+         *         storage: The platform storage provider.
+         *
+         *     Returns:
+         *         The image bytes.
+         *
+         *     Raises:
+         *         HTTPException: 404 when no custom photo is stored.
+         */
+        get: operations["read_login_photo_api_v1_public_server_settings_login_photo_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3902,7 +3934,7 @@ export interface paths {
          * @description Retrieve available tile map templates for server settings (unauthenticated).
          *
          *     Protection Mechanisms:
-         *     - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
+         *     - Rate limiting: the application's default per-IP limit applies.
          *
          *     This endpoint returns a list of all available tile map templates that can be
          *     used for configuring map display options in server settings.
@@ -3971,11 +4003,12 @@ export interface paths {
          *     Requires admin authentication with server_settings:write scope.
          *
          *     Args:
-         *         request: FastAPI request object for accessing app state.
+         *         request: The HTTP request object.
          *         server_settings_attributes: Settings to update.
+         *         db: Database session.
          *
          *     Returns:
-         *         Updated server settings configuration.
+         *         Updated server settings configuration, with the tile API key decrypted.
          */
         put: operations["edit_server_settings_api_v1_server_settings_put"];
         post?: never;
@@ -4028,7 +4061,9 @@ export interface paths {
          *
          *     Args:
          *         request: The HTTP request object.
+         *         token_user_id: The requesting admin's user ID, from the access token.
          *         mail: The platform mail provider.
+         *         db: Database session.
          *
          *     Returns:
          *         A confirmation message naming the recipient address.
@@ -4090,10 +4125,13 @@ export interface paths {
          *     Requires admin authentication with server_settings:write scope.
          *
          *     Args:
+         *         request: The HTTP request object.
          *         file: Image file to upload.
+         *         storage: The platform storage provider.
+         *         db: Database session.
          *
          *     Returns:
-         *         Full file path where file was saved.
+         *         A confirmation message.
          */
         post: operations["upload_login_photo_api_v1_server_settings_upload_login_post"];
         /**
@@ -4102,11 +4140,10 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:write scope.
          *
-         *     Returns:
-         *         Success confirmation message.
-         *
-         *     Raises:
-         *         HTTPException: If deletion fails.
+         *     Args:
+         *         request: The HTTP request object.
+         *         storage: The platform storage provider.
+         *         db: Database session.
          */
         delete: operations["delete_login_photo_api_v1_server_settings_upload_login_delete"];
         options?: never;
@@ -4828,35 +4865,6 @@ export interface paths {
          *         JSON object with a single "ticket" key.
          */
         post: operations["issue_ws_ticket_api_v1_ws_ticket_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/server_images/{server_img}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Server Img Return
-         * @description Retrieves the file path for a given server image.
-         *
-         *     Args:
-         *         server_img (str): The identifier or filename of the server image.
-         *
-         *     Returns:
-         *         str: The file path to the server image.
-         *
-         *     Raises:
-         *         HTTPException: If the server image path cannot be found.
-         */
-        get: operations["server_img_return_server_images__server_img__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9298,11 +9306,14 @@ export interface components {
         };
         /**
          * ServerSettingsEdit
-         * @description Edit schema for server settings updates.
+         * @description Request body for editing the server settings.
          *
-         *     Extends ServerSettings with signup requirement fields.
+         *     Carries every field an admin may write. The row id and the login-photo flag
+         *     are not here: the id is fixed (singleton) and the flag is set only by the
+         *     login-photo upload and delete routes, so a stale form can never reset it.
          *
          *     Attributes:
+         *         tileserver_api_key: Plain-text API key for the tile server; stored encrypted.
          *         signup_require_admin_approval: Require admin approval for new sign-ups
          *             (true - yes, false - no).
          *         signup_require_email_verification: Require email verification for new
@@ -9312,20 +9323,10 @@ export interface components {
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
-             * Id
-             * @description Unique identifier for server settings (always 1)
-             */
-            id: number;
-            /**
              * Local Login Enabled
              * @description Allow local username/password login (true - yes, false - no)
              */
             local_login_enabled: boolean;
-            /**
-             * Login Photo Set
-             * @description Is login photo set (true - yes, false - no)
-             */
-            login_photo_set: boolean;
             /**
              * Map Background Color
              * @description Background color for the map (hex format)
@@ -9391,7 +9392,7 @@ export interface components {
             sso_enabled: boolean;
             /**
              * Tileserver Api Key
-             * @description API key encrypted for the tile server
+             * @description API key for the tile server
              */
             tileserver_api_key?: string | null;
             /**
@@ -9420,9 +9421,13 @@ export interface components {
          * ServerSettingsRead
          * @description Complete server settings response schema for API responses.
          *
-         *     Read-only view of all server settings including administrative
-         *     signup configuration. Used for authenticated endpoints returning
-         *     complete server configuration.
+         *     Read-only view of all server settings. Used for authenticated endpoints
+         *     returning the complete server configuration; the tile API key is the
+         *     stored (encrypted) value until a service decrypts it for an admin.
+         *
+         *     Attributes:
+         *         id: Unique identifier (always 1, singleton pattern).
+         *         login_photo_set: Whether a custom login photo is configured.
          */
         ServerSettingsRead: {
             /** @description Currency (euro, dollar, pound) */
@@ -9507,7 +9512,7 @@ export interface components {
             sso_enabled: boolean;
             /**
              * Tileserver Api Key
-             * @description API key encrypted for the tile server
+             * @description API key for the tile server
              */
             tileserver_api_key?: string | null;
             /**
@@ -9544,6 +9549,7 @@ export interface components {
          *     excludes admin-level configuration fields.
          *
          *     Attributes:
+         *         login_photo_set: Whether a custom login photo is configured.
          *         allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
          *             SSO redirects may target, so the frontend validates the same allow-list
          *             as the backend.
@@ -9551,9 +9557,9 @@ export interface components {
         ServerSettingsReadPublic: {
             /**
              * Allowed Redirect Schemes
-             * @description Return the configured custom redirect schemes, sorted.
+             * @description Custom URI schemes SSO redirects may target
              */
-            readonly allowed_redirect_schemes: string[];
+            allowed_redirect_schemes: string[];
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
@@ -17554,6 +17560,36 @@ export interface operations {
             };
         };
     };
+    read_login_photo_api_v1_public_server_settings_login_photo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/png": unknown;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     list_tile_maps_templates_api_v1_public_server_settings_tile_maps_templates_get: {
         parameters: {
             query?: never;
@@ -19012,44 +19048,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    server_img_return_server_images__server_img__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                server_img: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */

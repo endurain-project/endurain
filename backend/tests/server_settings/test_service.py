@@ -11,74 +11,205 @@ import jasil.providers as platform_providers
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
 
 
-def _attributes(**overrides):
-    attrs = MagicMock()
-    attrs.model_dump.return_value = overrides.pop("changed", {"tileserver_url": True})
-    attrs.tileserver_url = overrides.pop("tileserver_url", "https://tiles.example.com/{z}/{x}/{y}.png")
-    return attrs
+def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
+    """Settings as the crud layer returns them (the tile API key still encrypted)."""
+    values = dict(
+        id=1,
+        units="metric",
+        public_shareable_links=False,
+        public_shareable_links_user_info=False,
+        login_photo_set=False,
+        currency="euro",
+        num_records_per_page=25,
+        signup_enabled=False,
+        signup_require_admin_approval=True,
+        signup_require_email_verification=True,
+        sso_enabled=False,
+        local_login_enabled=True,
+        sso_auto_redirect=False,
+        tileserver_url="https://tiles.example.com/{z}/{x}/{y}.png",
+        tileserver_attribution="Test",
+        map_background_color="#dddddd",
+        password_type="strict",
+        password_length_regular_users=8,
+        password_length_admin_users=12,
+        tileserver_api_key="enc-old",
+    )
+    values.update(overrides)
+    return server_settings_schema.ServerSettingsRead(**values)
+
+
+def _full_edit(stored: server_settings_schema.ServerSettingsRead, **overrides):
+    """The whole record, the way the frontend sends it on every save (key in plain text)."""
+    body = stored.model_dump(exclude={"id", "login_photo_set"})
+    body["tileserver_api_key"] = "plain-old"
+    body.update(overrides)
+    return server_settings_schema.ServerSettingsEdit(**body)
+
+
+@pytest.fixture
+def edit_env():
+    """Patch the collaborators of edit_server_settings and expose them."""
+    stored = _stored()
+    with (
+        patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=stored),
+        patch.object(
+            server_settings_service.server_settings_crud,
+            "edit_server_settings",
+            side_effect=lambda attrs, db: stored.model_copy(update=attrs.model_dump(exclude_unset=True)),
+        ) as write,
+        patch.object(server_settings_service.server_settings_publishers, "publish_tile_settings_changed") as publish,
+        patch.object(server_settings_service.core_network, "url_rejection_reason_bounded", return_value=None) as dns,
+        patch.object(
+            server_settings_service.core_cryptography,
+            "decrypt_token_fernet",
+            side_effect=lambda token: {"enc-old": "plain-old", "enc-new": "plain-new"}[token],
+        ),
+        patch.object(server_settings_service.core_cryptography, "encrypt_token_fernet", return_value="enc-new"),
+    ):
+        yield MagicMock(stored=stored, write=write, publish=publish, dns=dns)
 
 
 class TestTileServerUrlIsCheckedOnWrite:
-    def test_a_url_targeting_a_non_public_address_is_refused(self):
+    def test_a_url_targeting_a_non_public_address_is_refused(self, edit_env):
         """The renderer refuses it too, but only later, in a background job.
 
         By then the admin has seen no error and the bad value is already stored.
         """
         db = MagicMock()
-        with (
-            patch.object(
-                server_settings_service.core_network,
-                "url_rejection_reason",
-                return_value="resolves to a non-public address",
-            ),
-            patch.object(server_settings_service.server_settings_crud, "edit_server_settings") as write,
-            pytest.raises(core_exceptions.InvalidInputError),
-        ):
-            server_settings_service.edit_server_settings(_attributes(), db)
+        edit_env.dns.return_value = "URL resolves to a non-public address"
 
-        write.assert_not_called()
-        db.commit.assert_not_called()
-
-    def test_the_placeholders_are_filled_before_the_check(self):
-        """``{z}/{x}/{y}`` is not a parseable URL; the host is what matters."""
-        db = MagicMock()
-        with (
-            patch.object(server_settings_service.core_network, "url_rejection_reason", return_value=None) as check,
-            patch.object(server_settings_service.server_settings_crud, "edit_server_settings"),
-            patch.object(server_settings_service.server_settings_publishers, "publish_tile_settings_changed"),
-        ):
-            server_settings_service.edit_server_settings(_attributes(), db)
-
-        assert check.call_args.args[0] == "https://tiles.example.com/0/0/0.png"
-
-    def test_an_untouched_tile_url_is_not_resolved(self):
-        """A settings write that does not change it must not pay for a lookup."""
-        db = MagicMock()
-        with (
-            patch.object(server_settings_service.core_network, "url_rejection_reason") as check,
-            patch.object(server_settings_service.server_settings_crud, "edit_server_settings"),
-        ):
-            server_settings_service.edit_server_settings(_attributes(changed={"currency": "euro"}), db)
-
-        check.assert_not_called()
-        db.commit.assert_called_once()
-
-    def test_an_unfillable_placeholder_is_a_400_not_a_background_500(self):
-        """The renderer resolves the same template before every tile fetch."""
-        db = MagicMock()
-        with (
-            patch.object(server_settings_service.server_settings_crud, "edit_server_settings") as write,
-            pytest.raises(core_exceptions.InvalidInputError),
-        ):
+        with pytest.raises(core_exceptions.InvalidInputError):
             server_settings_service.edit_server_settings(
-                _attributes(tileserver_url="https://tiles.example.com/{s}/{z}/{x}/{y}.png"), db
+                _full_edit(edit_env.stored, tileserver_url="https://internal.example.com/{z}/{x}/{y}.png"), db
             )
 
-        write.assert_not_called()
+        edit_env.write.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_the_placeholders_are_filled_before_the_check(self, edit_env):
+        """``{z}/{x}/{y}`` is not a parseable URL; the host is what matters."""
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, tileserver_url="https://other.example.com/{z}/{x}/{y}.png"), MagicMock()
+        )
+
+        assert edit_env.dns.call_args.args[0] == "https://other.example.com/0/0/0.png"
+
+    @pytest.mark.parametrize(
+        "template", [t["url_template"] for t in server_settings_constants.TILE_MAPS_TEMPLATES.values()]
+    )
+    def test_every_builtin_template_can_be_saved(self, edit_env, template):
+        """``{r}`` (Stadia retina) is dropped by the renderer, so it must not be a 400."""
+        server_settings_service.edit_server_settings(_full_edit(edit_env.stored, tileserver_url=template), MagicMock())
+
+        assert "{" not in edit_env.dns.call_args.args[0]
+
+    def test_an_unfillable_placeholder_is_a_400_not_a_background_500(self, edit_env):
+        """The renderer resolves the same template before every tile fetch."""
+        with pytest.raises(core_exceptions.InvalidInputError):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, tileserver_url="https://tiles.example.com/{}/{z}/{x}/{y}.png"), MagicMock()
+            )
+
+        edit_env.write.assert_not_called()
+
+
+class TestOnlyRealChangesCount:
+    def test_resending_the_unchanged_record_does_nothing(self, edit_env):
+        """The frontend sends every field on every save; that must not look like a tile change."""
+        db = MagicMock()
+
+        result = server_settings_service.edit_server_settings(_full_edit(edit_env.stored), db)
+
+        edit_env.dns.assert_not_called()
+        edit_env.write.assert_not_called()
+        edit_env.publish.assert_not_called()
+        db.commit.assert_not_called()
+        assert result.tileserver_api_key == "plain-old"
+
+    def test_a_non_tile_change_commits_without_publishing(self, edit_env):
+        db = MagicMock()
+
+        server_settings_service.edit_server_settings(_full_edit(edit_env.stored, currency="dollar"), db)
+
+        edit_env.dns.assert_not_called()
+        edit_env.publish.assert_not_called()
+        db.commit.assert_called_once()
+
+    def test_a_tile_change_publishes_only_the_changed_map_fields(self, edit_env):
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, map_background_color="#000000"), MagicMock()
+        )
+
+        assert edit_env.publish.call_args.args[0] == {"map_background_color"}
+        edit_env.dns.assert_not_called()
+
+    def test_an_unchanged_api_key_keeps_its_stored_token(self, edit_env):
+        server_settings_service.edit_server_settings(_full_edit(edit_env.stored, currency="dollar"), MagicMock())
+
+        written = edit_env.write.call_args.args[0]
+        assert written.tileserver_api_key == "enc-old"
+
+    def test_a_changed_api_key_is_encrypted_and_returned_in_plain_text(self, edit_env):
+        result = server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, tileserver_api_key="plain-new"), MagicMock()
+        )
+
+        assert edit_env.write.call_args.args[0].tileserver_api_key == "enc-new"
+        assert result.tileserver_api_key == "plain-new"
+        assert edit_env.publish.call_args.args[0] == {"tileserver_api_key"}
+
+    def test_clearing_the_api_key_stores_none(self, edit_env):
+        result = server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, tileserver_api_key=None), MagicMock()
+        )
+
+        assert edit_env.write.call_args.args[0].tileserver_api_key is None
+        assert result.tileserver_api_key is None
+
+
+class TestLoginPhoto:
+    def test_upload_writes_the_blob_before_committing_the_flag(self):
+        calls = []
+        storage = MagicMock()
+        storage.save.side_effect = lambda *a: calls.append("save")
+        db = MagicMock()
+        db.commit.side_effect = lambda: calls.append("commit")
+        file = MagicMock(content_type="image/png")
+
+        with (
+            patch.object(server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=b"img"),
+            patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=_stored()),
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
+        ):
+            server_settings_service.upload_login_photo(file, storage, db)
+
+        assert calls == ["save", "commit"]
+        storage.save.assert_called_once_with("server_images", "login.png", b"img", "image/png")
+
+    def test_delete_commits_the_flag_before_removing_the_blob(self):
+        calls = []
+        storage = MagicMock()
+        storage.delete.side_effect = lambda *a: calls.append("delete")
+        db = MagicMock()
+        db.commit.side_effect = lambda: calls.append("commit")
+
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
+            server_settings_service.delete_login_photo(storage, db)
+
+        assert calls == ["commit", "delete"]
+        storage.delete.assert_called_once_with("server_images", "login.png")
+
+    def test_read_returns_none_when_missing(self):
+        storage = MagicMock()
+        storage.get.return_value = None
+
+        assert server_settings_service.read_login_photo(storage) is None
 
 
 class TestEmailStatus:

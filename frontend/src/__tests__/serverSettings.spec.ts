@@ -111,9 +111,16 @@ describe('mapTileMapsTemplate', () => {
 })
 
 describe('toServerSettingsWire', () => {
-  it('round-trips every field so the full record is replaced', () => {
+  it('round-trips every editable field so the full record is replaced', () => {
     const settings = mapServerSettings(makeSettingsDto())
-    expect(toServerSettingsWire(settings)).toEqual(makeSettingsDto())
+    const { id: _id, login_photo_set: _loginPhotoSet, ...editable } = makeSettingsDto()
+    expect(toServerSettingsWire(settings)).toEqual(editable)
+  })
+
+  it('never sends the read-only id or login-photo flag', () => {
+    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()))
+    expect(wire).not.toHaveProperty('id')
+    expect(wire).not.toHaveProperty('login_photo_set')
   })
 })
 

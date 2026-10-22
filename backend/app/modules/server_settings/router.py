@@ -101,20 +101,14 @@ def edit_server_settings(
     Requires admin authentication with server_settings:write scope.
 
     Args:
-        request: FastAPI request object for accessing app state.
+        request: The HTTP request object.
         server_settings_attributes: Settings to update.
         db: Database session.
 
     Returns:
-        Updated server settings configuration.
+        Updated server settings configuration, with the tile API key decrypted.
     """
-    server_settings_updated = server_settings_service.edit_server_settings(server_settings_attributes, db)
-
-    # Update allowed tile domains in app.state if tileserver_url changed
-    if server_settings_attributes.tileserver_url is not None:
-        request.app.state.allowed_tile_domains = server_settings_service.get_allowed_tile_domains(db)
-
-    return server_settings_updated
+    return server_settings_service.edit_server_settings(server_settings_attributes, db)
 
 
 @router.post(
@@ -130,6 +124,10 @@ def upload_login_photo(
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["server_settings:write"]),
     ],
+    storage: Annotated[
+        platform_providers.StorageProvider,
+        Depends(core_dependencies.get_storage),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -142,12 +140,13 @@ def upload_login_photo(
     Args:
         request: The HTTP request object.
         file: Image file to upload.
+        storage: The platform storage provider.
         db: Database session.
 
     Returns:
-        Full file path where file was saved.
+        A confirmation message.
     """
-    server_settings_service.upload_login_photo(file, db)
+    server_settings_service.upload_login_photo(file, storage, db)
 
     return {"message": "Login photo uploaded successfully."}
 
@@ -164,6 +163,10 @@ def delete_login_photo(
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["server_settings:write"]),
     ],
+    storage: Annotated[
+        platform_providers.StorageProvider,
+        Depends(core_dependencies.get_storage),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -175,9 +178,10 @@ def delete_login_photo(
 
     Args:
         request: The HTTP request object.
+        storage: The platform storage provider.
         db: Database session.
     """
-    server_settings_service.delete_login_photo(db)
+    server_settings_service.delete_login_photo(storage, db)
 
 
 @router.get(

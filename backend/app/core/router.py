@@ -68,34 +68,7 @@ async def about() -> AboutResponse:
     )
 
 
-@router.get("/server_images/{server_img}", response_class=FileResponse)
-def server_img_return(
-    server_img: str,
-) -> FileResponse:
-    """
-    Retrieves the file path for a given server image.
-
-    Args:
-        server_img (str): The identifier or filename of the server image.
-
-    Returns:
-        str: The file path to the server image.
-
-    Raises:
-        HTTPException: If the server image path cannot be found.
-    """
-    path = core_utils.return_server_img_path(server_img)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server image not found",
-        )
-
-    return path
-
-
-# NOTE: there is deliberately no ``/user_images/{user_img}``,
+# NOTE: there is deliberately no ``/server_images/{img}``, ``/user_images/{user_img}``,
 # ``/activity_media/{media}`` or ``/activity_thumbnails/{thumbnail}`` route here.
 # All three serve private user data and are reachable only through their
 # token-gated routes. A filename-addressed route beside them is a full bypass of

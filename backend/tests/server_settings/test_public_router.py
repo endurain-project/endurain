@@ -121,3 +121,26 @@ class TestListTileMapsTemplatesPublic:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 0
+
+
+class TestReadLoginPhoto:
+    """Test suite for the public login photo route."""
+
+    @patch("modules.server_settings.public_router.server_settings_service.read_login_photo")
+    def test_serves_the_stored_image(self, mock_read, fast_api_client_public, fast_api_app):
+        mock_read.return_value = b"\x89PNG"
+
+        response = fast_api_client_public.get("/server_settings/public/login_photo")
+
+        assert response.status_code == 200
+        assert response.content == b"\x89PNG"
+        assert response.headers["content-type"] == "image/png"
+        assert "max-age" in response.headers["cache-control"]
+
+    @patch("modules.server_settings.public_router.server_settings_service.read_login_photo")
+    def test_404_when_no_photo_is_stored(self, mock_read, fast_api_client_public, fast_api_app):
+        mock_read.return_value = None
+
+        response = fast_api_client_public.get("/server_settings/public/login_photo")
+
+        assert response.status_code == 404

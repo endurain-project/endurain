@@ -6,7 +6,7 @@ import type { IdentityProviderPublic } from '@/types'
 import { queryClient } from '@/plugins/vueQuery'
 import { fetchEnabledIdentityProviders } from '@/services/identityProviders'
 import { queryKeys } from '@/services/queryKeys'
-import { getBackendAssetUrl } from '@/services/runtime'
+import { getApiBaseUrl } from '@/services/runtime'
 import {
   DEFAULT_PUBLIC_SERVER_SETTINGS,
   fetchPublicServerSettings,
@@ -65,7 +65,7 @@ export function usePublicServerSettings() {
   /** Instance login photo when configured, else the bundled default image. */
   const loginImageUrl = computed(() =>
     serverSettings.value.login_photo_set
-      ? getBackendAssetUrl('server_images/login.png')
+      ? `${getApiBaseUrl()}/public/server_settings/login_photo`
       : defaultLoginImage,
   )
 

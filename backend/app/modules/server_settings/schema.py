@@ -70,7 +70,6 @@ class ServerSettingsBase(BaseModel):
         units (Units): Unit system for measurements (METRIC or IMPERIAL).
         public_shareable_links (StrictBool): Enable/disable public shareable links.
         public_shareable_links_user_info (StrictBool): Show user info on public shareable links.
-        login_photo_set (StrictBool): Whether login photo is configured.
         currency (Currency): Currency type (EURO, DOLLAR, or POUND).
         num_records_per_page (StrictInt): Number of records per page in lists (1-100, default: 25).
         signup_enabled (StrictBool): Allow new user registration.
@@ -101,7 +100,6 @@ class ServerSettingsBase(BaseModel):
         ...,
         description="Allow show user info on public shareable links (true - yes, false - no)",
     )
-    login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
     currency: Currency = Field(..., description="Currency (euro, dollar, pound)")
     num_records_per_page: StrictInt = Field(
         25,
@@ -222,37 +220,27 @@ class ServerSettingsBase(BaseModel):
         return core_sanitization.sanitize_attribution(value) or ""
 
 
-class ServerSettings(ServerSettingsBase):
-    """Internal complete server settings schema with identifier.
+class ServerSettingsEdit(ServerSettingsBase):
+    """Request body for editing the server settings.
 
-    Extends ServerSettingsBase by adding the id field for internal
-    operations. Not typically used for API responses.
-
-    Attributes:
-        id: Unique identifier (always 1, singleton pattern).
-        tileserver_api_key: API key encrypted for the tile server.
-    """
-
-    id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
-    tileserver_api_key: StrictStr | None = Field(
-        default=None,
-        max_length=512,
-        description="API key encrypted for the tile server",
-    )
-
-
-class ServerSettingsEdit(ServerSettings):
-    """Edit schema for server settings updates.
-
-    Extends ServerSettings with signup requirement fields.
+    Carries every field an admin may write. The row id and the login-photo flag
+    are not here: the id is fixed (singleton) and the flag is set only by the
+    login-photo upload and delete routes, so a stale form can never reset it.
 
     Attributes:
+        tileserver_api_key: Plain-text API key for the tile server; stored encrypted.
         signup_require_admin_approval: Require admin approval for new sign-ups
             (true - yes, false - no).
         signup_require_email_verification: Require email verification for new
             sign-ups (true - yes, false - no).
     """
 
+    # Capped so the Fernet token (about 1.37x the plain length) fits the 512-char column.
+    tileserver_api_key: StrictStr | None = Field(
+        default=None,
+        max_length=256,
+        description="API key for the tile server",
+    )
     signup_require_admin_approval: StrictBool = Field(
         ...,
         description="Require admin approval for new sign-ups (true - yes, false - no)",
@@ -266,10 +254,23 @@ class ServerSettingsEdit(ServerSettings):
 class ServerSettingsRead(ServerSettingsEdit):
     """Complete server settings response schema for API responses.
 
-    Read-only view of all server settings including administrative
-    signup configuration. Used for authenticated endpoints returning
-    complete server configuration.
+    Read-only view of all server settings. Used for authenticated endpoints
+    returning the complete server configuration; the tile API key is the
+    stored (encrypted) value until a service decrypts it for an admin.
+
+    Attributes:
+        id: Unique identifier (always 1, singleton pattern).
+        login_photo_set: Whether a custom login photo is configured.
     """
+
+    # Wider than the edit cap: the stored value is the Fernet token, which this model also reads.
+    tileserver_api_key: StrictStr | None = Field(
+        default=None,
+        max_length=512,
+        description="API key for the tile server",
+    )
+    id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
+    login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
 
 
 class ServerSettingsReadPublic(ServerSettingsBase):
@@ -283,11 +284,13 @@ class ServerSettingsReadPublic(ServerSettingsBase):
     excludes admin-level configuration fields.
 
     Attributes:
+        login_photo_set: Whether a custom login photo is configured.
         allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
             SSO redirects may target, so the frontend validates the same allow-list
             as the backend.
     """
 
+    login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
     allowed_redirect_schemes: list[str] = Field(
         ...,
         description="Custom URI schemes SSO redirects may target",

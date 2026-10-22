@@ -2,10 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response
+import jasil.providers as platform_providers
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.dependencies as core_dependencies
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
 
@@ -25,7 +27,7 @@ def read_public_server_settings(
     """Get public server settings (unauthenticated).
 
     Protection Mechanisms:
-    - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
+    - Rate limiting: the application's default per-IP limit applies.
 
     Returns only the public subset of server configuration
     (sensitive signup approval/verification settings excluded).
@@ -48,7 +50,7 @@ def list_tile_maps_templates(
     """Retrieve available tile map templates for server settings (unauthenticated).
 
     Protection Mechanisms:
-    - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
+    - Rate limiting: the application's default per-IP limit applies.
 
     This endpoint returns a list of all available tile map templates that can be
     used for configuring map display options in server settings.
@@ -57,3 +59,41 @@ def list_tile_maps_templates(
         List of tile map template configurations available for the server.
     """
     return server_settings_service.get_tile_maps_templates()
+
+
+# Browser cache for the login photo, in seconds: short, so a replaced photo shows up soon.
+_LOGIN_PHOTO_CACHE_MAX_AGE = 60
+
+
+@router.get(
+    "/login_photo",
+    responses={200: {"content": {"image/png": {}}}},
+)
+def read_login_photo(
+    storage: Annotated[
+        platform_providers.StorageProvider,
+        Depends(core_dependencies.get_storage),
+    ],
+) -> Response:
+    """Serve the custom login page photo (unauthenticated).
+
+    The login screen renders before anyone is signed in, so the photo is public by
+    design; it is one admin-chosen image, not user data.
+
+    Args:
+        storage: The platform storage provider.
+
+    Returns:
+        The image bytes.
+
+    Raises:
+        HTTPException: 404 when no custom photo is stored.
+    """
+    data = server_settings_service.read_login_photo(storage)
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Login photo not found")
+    return Response(
+        content=data,
+        media_type="image/png",
+        headers={"Cache-Control": f"public, max-age={_LOGIN_PHOTO_CACHE_MAX_AGE}"},
+    )

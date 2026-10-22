@@ -14,6 +14,7 @@ import socket
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from functools import partial
 from urllib.parse import urlparse
 
@@ -359,6 +360,8 @@ def _is_ssrf_allowlisted(
 _UNRESOLVABLE = "hostname could not be resolved"
 _UNPARSEABLE = "resolves to an unparseable address"
 _NON_PUBLIC = "resolves to a non-public address"
+_RESOLUTION_BUSY = "hostname resolution is busy, try again"
+_RESOLUTION_TIMED_OUT = "hostname resolution timed out"
 _NOT_AN_AUTHORITY = "is not a bare host[:port] authority"
 
 
@@ -591,6 +594,48 @@ def shutdown_ssrf_dns_executor() -> None:
         return
     _ssrf_dns_executor.shutdown(wait=False, cancel_futures=True)
     _ssrf_dns_executor = None
+
+
+def url_rejection_reason_bounded(url: str, *, purpose: str | None = None) -> str | None:
+    """Return why an outbound URL must not be dialed, bounding the DNS wait.
+
+    The synchronous counterpart of :func:`reject_private_url_async` for a worker
+    thread that must not sit in an unbounded ``getaddrinfo``: the lookup runs on
+    the dedicated SSRF executor and the caller stops waiting after
+    ``_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS``. A saturated pool or a timeout is
+    reported as a rejection reason, so the caller refuses the URL rather than
+    trusting one it could not check.
+
+    Args:
+        url: Fully-qualified outbound URL.
+        purpose: Optional audit tag for allowlisted private destinations.
+
+    Returns:
+        A safe client-facing reason, or ``None`` when the URL may be dialed.
+    """
+    hostname, reason = _outbound_url_hostname(url)
+    if hostname is None:
+        return reason
+    if not _ssrf_dns_slots.acquire(blocking=False):
+        logger.warning(
+            "SSRF hostname resolution is saturated",
+            extra=core_logger.context(purpose=purpose or "unspecified"),
+        )
+        return f"URL {_RESOLUTION_BUSY}"
+    try:
+        future = _get_ssrf_dns_executor().submit(partial(url_rejection_reason, url, purpose=purpose))
+    except BaseException:
+        _ssrf_dns_slots.release()
+        raise
+    future.add_done_callback(lambda _: _ssrf_dns_slots.release())
+    try:
+        return future.result(timeout=_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS)
+    except FutureTimeoutError:
+        logger.warning(
+            "SSRF hostname resolution timed out",
+            extra=core_logger.context(purpose=purpose or "unspecified"),
+        )
+        return f"URL {_RESOLUTION_TIMED_OUT}"
 
 
 async def reject_private_url_async(url: str, *, purpose: str | None = None) -> None:

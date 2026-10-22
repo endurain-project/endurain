@@ -2,6 +2,12 @@
 
 from typing import Any
 
+#: Storage area and key of the custom login-page photo. The area matches the legacy
+#: ``{DATA_DIR}/server_images`` directory, so a photo uploaded before the
+#: ``StorageProvider`` is found by the local backend without migrating it.
+LOGIN_PHOTO_STORAGE_AREA = "server_images"
+LOGIN_PHOTO_STORAGE_KEY = "login.png"
+
 TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
     "openstreetmap": {
         "name": "OpenStreetMap",

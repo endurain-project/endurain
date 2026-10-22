@@ -810,3 +810,51 @@ class TestHostRejectionReason:
             core_network.host_rejection_reason("nominatim.internal", purpose="reverse_geocoding")
             assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
             assert "reverse_geocoding" in mock_log.info.call_args[0][0]
+
+
+class TestUrlRejectionReasonBounded:
+    """The synchronous guard must not wait on an unbounded ``getaddrinfo``."""
+
+    def test_returns_the_guard_reason_from_the_dedicated_pool(self):
+        seen = {}
+
+        def guard(url, *, purpose=None):
+            seen["thread"] = threading.current_thread().name
+            return "URL resolves to a non-public address"
+
+        with patch.object(core_network, "url_rejection_reason", guard):
+            reason = core_network.url_rejection_reason_bounded("https://internal.example.com/0/0/0.png")
+
+        assert reason == "URL resolves to a non-public address"
+        assert seen["thread"].startswith("ssrf-dns")
+
+    def test_a_lookup_that_never_returns_is_refused_not_awaited(self):
+        release = threading.Event()
+
+        def guard(url, *, purpose=None):
+            release.wait(5)
+
+        with (
+            patch.object(core_network, "url_rejection_reason", guard),
+            patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0.05),
+        ):
+            reason = core_network.url_rejection_reason_bounded("https://slow.example.com/0/0/0.png")
+        release.set()
+
+        assert reason == "URL hostname resolution timed out"
+
+    def test_a_saturated_pool_is_refused_at_once(self):
+        slots = [
+            core_network._ssrf_dns_slots.acquire(blocking=False) for _ in range(core_network._SSRF_DNS_MAX_PENDING)
+        ]
+        try:
+            reason = core_network.url_rejection_reason_bounded("https://idp.example.com/0/0/0.png")
+        finally:
+            for taken in slots:
+                if taken:
+                    core_network._ssrf_dns_slots.release()
+
+        assert reason == "URL hostname resolution is busy, try again"
+
+    def test_a_url_refused_without_dns_needs_no_slot(self):
+        assert core_network.url_rejection_reason_bounded("ftp://example.com/x") is not None

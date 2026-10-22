@@ -39,31 +39,6 @@ class _FileResponseTestMixin:
         return FileResponse(str(path))
 
 
-class TestServerImages(_FileResponseTestMixin):
-    """Tests for GET /server_images/{server_img}."""
-
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_server_img_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/server_images/test.jpg")
-            assert response.status_code == 200
-
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_server_img_path") as mock:
-            mock.return_value = None
-            response = client.get("/server_images/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Server image not found"
-
-    def test_a_nul_byte_in_the_name_is_a_404_not_a_server_error(self, tmp_path):
-        """``%00`` reaches the handler as a real NUL; the route is unauthenticated."""
-        (tmp_path / "logo.png").write_text("image")
-        with patch("core.utils.core_config.SERVER_IMAGES_DIR", str(tmp_path)):
-            response = client.get("/server_images/logo.png%00.jpg")
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Server image not found"
-
-
 class TestPrivateBlobsAreNotServedByFilename(_FileResponseTestMixin):
     """Activity media and thumbnails must not be reachable by filename.
 

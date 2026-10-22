@@ -146,7 +146,7 @@ class TestExtractDomainFromTileUrl:
     """Test suite for extract_domain_from_tile_url function."""
 
     def test_extract_domain_with_https(self):
-        """Test domain extraction from HTTPS URL extracts base domain."""
+        """Test the tile host itself is the source, not its registrable domain."""
         # Arrange
         url = "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png"
 
@@ -154,10 +154,10 @@ class TestExtractDomainFromTileUrl:
         result = server_settings_service.extract_domain_from_tile_url(url)
 
         # Assert
-        assert result == "https://*.stadiamaps.com"
+        assert result == "https://tiles.stadiamaps.com"
 
     def test_extract_domain_with_subdomain(self):
-        """Test domain extraction uses base domain for wildcard."""
+        """Test a concrete subdomain is not widened."""
         # Arrange
         url = "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
@@ -165,10 +165,10 @@ class TestExtractDomainFromTileUrl:
         result = server_settings_service.extract_domain_from_tile_url(url)
 
         # Assert
-        assert result == "https://*.openstreetmap.org"
+        assert result == "https://a.tile.openstreetmap.org"
 
     def test_extract_domain_without_subdomain(self):
-        """Test the default single-host OSM URL maps to a wildcard covering its host."""
+        """Test a single-host URL maps to exactly that host."""
         # Arrange
         url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
@@ -176,10 +176,10 @@ class TestExtractDomainFromTileUrl:
         result = server_settings_service.extract_domain_from_tile_url(url)
 
         # Assert
-        assert result == "https://*.openstreetmap.org"
+        assert result == "https://tile.openstreetmap.org"
 
     def test_extract_domain_with_s_placeholder(self):
-        """Test domain extraction handles {s} placeholder."""
+        """Test {s} widens to the host's own subdomains only."""
         # Arrange
         url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
@@ -187,7 +187,7 @@ class TestExtractDomainFromTileUrl:
         result = server_settings_service.extract_domain_from_tile_url(url)
 
         # Assert
-        assert result == "https://*.openstreetmap.org"
+        assert result == "https://*.tile.openstreetmap.org"
 
     def test_extract_domain_localhost_http(self):
         """Test localhost URL returns as-is."""
@@ -223,7 +223,7 @@ class TestExtractDomainFromTileUrl:
         assert result == "http://127.0.0.1:3000"
 
     def test_extract_domain_with_port(self):
-        """Test regular domain with port uses base domain."""
+        """Test a regular host keeps its port."""
         # Arrange
         url = "https://tiles.example.com:8443/map/{z}/{x}/{y}.png"
 
@@ -231,7 +231,7 @@ class TestExtractDomainFromTileUrl:
         result = server_settings_service.extract_domain_from_tile_url(url)
 
         # Assert
-        assert result == "https://*.example.com"
+        assert result == "https://tiles.example.com:8443"
 
     def test_extract_domain_invalid_url_no_scheme(self):
         """Test invalid URL without scheme returns None."""
@@ -270,7 +270,7 @@ class TestExtractDomainFromTileUrl:
     def test_extract_domain_exception_handling(self, mock_urlparse):
         """Test that exceptions during parsing are handled gracefully."""
         # Arrange
-        mock_urlparse.side_effect = Exception("Parse error")
+        mock_urlparse.side_effect = ValueError("Parse error")
         url = "https://tiles.example.com/map/{z}/{x}/{y}.png"
 
         # Act
@@ -278,6 +278,22 @@ class TestExtractDomainFromTileUrl:
 
         # Assert
         assert result is None
+
+
+class TestExtractDomainDoesNotWidenToAPublicSuffix:
+    """The source is never a registrable-domain wildcard."""
+
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            ("https://tiles.example.co.uk/{z}/{x}/{y}.png", "https://tiles.example.co.uk"),
+            ("https://{s}.tiles.example.co.uk/{z}/{x}/{y}.png", "https://*.tiles.example.co.uk"),
+            ("http://10.0.0.5:8080/{z}/{x}/{y}.png", "http://10.0.0.5:8080"),
+            ("http://[::1]:8080/{z}/{x}/{y}.png", "http://[::1]:8080"),
+        ],
+    )
+    def test_source_is_the_host(self, url, expected):
+        assert server_settings_service.extract_domain_from_tile_url(url) == expected
 
 
 class TestGetAllowedTileDomains:
@@ -297,7 +313,7 @@ class TestGetAllowedTileDomains:
         # Assert
         assert "https://*.openstreetmap.org" in result
         assert "https://*.stadiamaps.com" in result
-        assert "https://*.tiles.com" in result
+        assert "https://custom.tiles.com" in result
         assert len(result) == 3
 
     @patch("modules.server_settings.service.get_server_settings")
@@ -336,22 +352,6 @@ class TestGetAllowedTileDomains:
         assert len(result) == 3
 
     @patch("modules.server_settings.service.get_server_settings")
-    def test_get_allowed_tile_domains_no_custom_domain(self, mock_get_settings, mock_db):
-        """Test that only builtins are returned when no custom domain."""
-        # Arrange
-        mock_settings = MagicMock(spec=server_settings_models.ServerSettings)
-        mock_settings.tileserver_url = None
-        mock_get_settings.return_value = mock_settings
-
-        # Act
-        result = server_settings_service.get_allowed_tile_domains(mock_db)
-
-        # Assert
-        assert "https://*.openstreetmap.org" in result
-        assert "https://*.stadiamaps.com" in result
-        assert len(result) == 2
-
-    @patch("modules.server_settings.service.get_server_settings")
     def test_get_allowed_tile_domains_invalid_url(self, mock_get_settings, mock_db):
         """Test that invalid custom URLs are ignored."""
         # Arrange
@@ -369,9 +369,9 @@ class TestGetAllowedTileDomains:
 
     @patch("modules.server_settings.service.get_server_settings")
     def test_get_allowed_tile_domains_db_error(self, mock_get_settings, mock_db):
-        """Test that DB errors are handled gracefully."""
+        """Test a missing settings row falls back to the built-in domains."""
         # Arrange
-        mock_get_settings.side_effect = Exception("Database error")
+        mock_get_settings.side_effect = core_exceptions.NotFoundError("Server settings not found.")
 
         # Act
         result = server_settings_service.get_allowed_tile_domains(mock_db)

@@ -63,8 +63,9 @@ export function mapTileMapsTemplate(dto: TileMapsTemplateDto): TileMapsTemplate 
 
 /**
  * Rebuilds the full editable wire payload from a {@link ServerSettings}. Every
- * column is sent because the edit endpoint forbids extra fields and replaces
- * the whole record, so unedited fields must round-trip untouched. Deriving the
+ * editable column is sent because the edit endpoint forbids extra fields and
+ * replaces the whole record, so unedited fields must round-trip untouched. The
+ * row id and the login-photo flag are read-only: the photo routes own the flag. Deriving the
  * return type from the generated schema turns a missing field into a compile
  * error instead of a runtime `422`.
  *
@@ -73,13 +74,11 @@ export function mapTileMapsTemplate(dto: TileMapsTemplateDto): TileMapsTemplate 
  */
 export function toServerSettingsWire(settings: ServerSettings): ServerSettingsEditDto {
   return {
-    id: settings.id,
     units: settings.units,
     currency: settings.currency,
     num_records_per_page: settings.numRecordsPerPage,
     public_shareable_links: settings.publicShareableLinks,
     public_shareable_links_user_info: settings.publicShareableLinksUserInfo,
-    login_photo_set: settings.loginPhotoSet,
     signup_enabled: settings.signupEnabled,
     signup_require_admin_approval: settings.signupRequireAdminApproval,
     signup_require_email_verification: settings.signupRequireEmailVerification,

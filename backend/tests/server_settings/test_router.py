@@ -7,6 +7,7 @@ including read, update, and file upload operations.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
@@ -158,11 +159,9 @@ class TestEditServerSettings:
             "/server_settings",
             headers={"Authorization": "Bearer mock_token"},
             json={
-                "id": 1,
                 "units": "imperial",
                 "public_shareable_links": True,
                 "public_shareable_links_user_info": True,
-                "login_photo_set": False,
                 "currency": "dollar",
                 "num_records_per_page": 50,
                 "signup_enabled": True,
@@ -200,11 +199,9 @@ class TestEditServerSettings:
             "/server_settings",
             headers={"Authorization": "Bearer mock_token"},
             json={
-                "id": 1,
                 "units": "imperial",
                 "public_shareable_links": True,
                 "public_shareable_links_user_info": True,
-                "login_photo_set": False,
                 "currency": "dollar",
                 "num_records_per_page": 50,
                 "signup_enabled": True,
@@ -224,6 +221,35 @@ class TestEditServerSettings:
 
         # Assert
         assert response.status_code == 404
+
+
+class TestEditRejectsReadOnlyFields:
+    """The edit body must not accept fields the route does not own."""
+
+    @pytest.mark.parametrize("field,value", [("id", 2), ("login_photo_set", False)])
+    def test_read_only_fields_are_a_422(self, field, value, fast_api_client, fast_api_app):
+        body = {
+            "units": "imperial",
+            "public_shareable_links": True,
+            "public_shareable_links_user_info": True,
+            "currency": "dollar",
+            "num_records_per_page": 50,
+            "signup_enabled": True,
+            "signup_require_admin_approval": False,
+            "signup_require_email_verification": True,
+            "sso_enabled": False,
+            "local_login_enabled": True,
+            "sso_auto_redirect": False,
+            "tileserver_url": "https://tiles.example.com/{z}/{x}/{y}.png",
+            "tileserver_attribution": "&copy; Example",
+            "map_background_color": "#000000",
+            "password_type": "length_only",
+            "password_length_regular_users": 10,
+            "password_length_admin_users": 15,
+            field: value,
+        }
+        response = fast_api_client.put("/server_settings", headers={"Authorization": "Bearer mock_token"}, json=body)
+        assert response.status_code == 422
 
 
 class TestDeleteLoginPhoto:

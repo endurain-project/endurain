@@ -605,3 +605,62 @@ class TestSecurityHeadersMiddleware:
             "connect-src 'self' https://cdn.jsdelivr.net https://api.github.com https://auth.example.com https://proxy.example.com;"
             in csp
         )
+
+
+class TestAllowedTileDomainsRefresh:
+    """Each process re-reads the CSP tile domains, so an edit made elsewhere reaches it."""
+
+    @staticmethod
+    def _client(read_at, loader=None):
+        from fastapi import FastAPI
+        from fastapi.responses import HTMLResponse
+        from fastapi.testclient import TestClient
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.state.allowed_tile_domains = ["https://*.old.example.com"]
+        if read_at is not None:
+            app.state.allowed_tile_domains_read_at = read_at
+        if loader is not None:
+            app.state.allowed_tile_domains_loader = loader
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html></html>")
+
+        return TestClient(app)
+
+    def test_a_stale_value_is_re_read(self):
+        csp = (
+            self._client(read_at=-1e9, loader=lambda: ["https://new.example.com"])
+            .get("/html")
+            .headers["Content-Security-Policy"]
+        )
+
+        assert "https://new.example.com" in csp
+        assert "old.example.com" not in csp
+
+    def test_a_fresh_value_is_not_re_read(self):
+        import time
+        from unittest.mock import MagicMock
+
+        loader = MagicMock()
+        csp = self._client(read_at=time.monotonic(), loader=loader).get("/html").headers["Content-Security-Policy"]
+
+        loader.assert_not_called()
+        assert "old.example.com" in csp
+
+    def test_a_failed_read_keeps_the_previous_value(self):
+        from unittest.mock import MagicMock
+
+        response = self._client(read_at=-1e9, loader=MagicMock(side_effect=RuntimeError("db down"))).get("/html")
+
+        assert response.status_code == 200
+        assert "old.example.com" in response.headers["Content-Security-Policy"]
+
+    def test_an_app_without_a_loader_is_left_alone(self):
+        csp = self._client(read_at=-1e9).get("/html").headers["Content-Security-Policy"]
+
+        assert "old.example.com" in csp

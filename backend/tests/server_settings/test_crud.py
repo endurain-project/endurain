@@ -56,11 +56,9 @@ def _mock_row(mock_db, row):
 def _edit(**overrides):
     """Build a complete edit payload."""
     values = dict(
-        id=1,
         units=server_settings_schema.Units.IMPERIAL,
         public_shareable_links=True,
         public_shareable_links_user_info=True,
-        login_photo_set=False,
         currency=server_settings_schema.Currency.DOLLAR,
         num_records_per_page=50,
         signup_enabled=True,

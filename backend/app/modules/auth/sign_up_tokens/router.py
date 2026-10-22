@@ -9,7 +9,6 @@ from fastapi import (
     Request,
     status,
 )
-from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -34,7 +33,7 @@ router = APIRouter()
     response_model=sign_up_tokens_schema.SignUpResponse,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-async def signup(
+def signup(
     request: Request,
     user: users_schema.UsersSignup,
     identity_service: Annotated[
@@ -84,7 +83,7 @@ async def signup(
 
     if server_settings.signup_require_email_verification:
         # Send the sign-up email
-        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_verification_email, created_user.id, db)
+        sign_up_tokens_utils.request_sign_up_verification_email(created_user.id, db)
         message += " Email sent with verification instructions."
         email_verification_required = True
     if server_settings.signup_require_admin_approval:
