@@ -3116,7 +3116,6 @@ export interface paths {
          *         file: ZIP file containing profile data.
          *         token_user_id: User ID from access token.
          *         db: Database session.
-         *         websocket_manager: WebSocket manager for updates.
          *
          *     Returns:
          *         Import results with counts of imported items.
@@ -4820,6 +4819,8 @@ export interface paths {
          *     endpoint, so the real access token never appears in a URL.
          *
          *     Args:
+         *         request: The request, which the rate limiter keys on.
+         *         _check_scopes: Requires the scope that reads the notifications the hints announce.
          *         user_id: Authenticated user ID from auth dependency.
          *         ticket_store: WsTicketStore for issuing tickets.
          *
