@@ -51,7 +51,6 @@ jobs:
   typecheck-backend:
     name: Backend (${{ matrix.tool }}, non-blocking)
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -76,5 +75,6 @@ jobs:
         run: uv sync --frozen --no-dev --group typecheck --no-install-project
 
       - name: Type check
+        continue-on-error: true
         working-directory: backend
         run: uv run --no-sync ${{ matrix.command }}
