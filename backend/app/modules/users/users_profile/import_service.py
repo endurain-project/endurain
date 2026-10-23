@@ -944,7 +944,7 @@ class ImportService:
                             health_weight[field] = None
 
                 data = health_weight_schema.HealthWeightCreate(**health_weight)
-                health_weight_integration.create_health_weight(self.user_id, data, self.db)
+                health_weight_integration.upsert_health_weight(self.user_id, data, self.db)
                 self.db.commit()
                 self.counts["health_weight"] += 1
             logger.info(f"Imported {self.counts['health_weight']} health weight records")

@@ -91,7 +91,10 @@ def mock_db() -> MagicMock:
     Returns:
         MagicMock: A mock object with the specification of a SQLAlchemy Session.
     """
-    return MagicMock(spec=Session)
+    db = MagicMock(spec=Session)
+    # A real savepoint rolls back and re-raises; a bare mock context manager would swallow the error.
+    db.begin_nested.return_value.__exit__.return_value = False
+    return db
 
 
 @pytest.fixture

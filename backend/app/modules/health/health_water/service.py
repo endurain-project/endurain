@@ -6,6 +6,7 @@ resolution and the transaction boundary. What other modules may consume lives in
 """
 
 from datetime import date as date_type
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -91,6 +92,45 @@ def stage_edit_health_water(
     return health_water_crud.edit_health_water(user_id, health_water, db)
 
 
+def stage_add_health_water(
+    user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
+) -> health_water_schema.HealthWaterRead:
+    """Stage an intake added to the user's total for its date, creating the day's record if needed.
+
+    A writer that creates the date first, on this replica or another, is not an error: the
+    intake is added to the record it created.
+
+    Args:
+        user_id: The record's owner.
+        health_water: The intake to add.
+        db: Database session.
+
+    Returns:
+        The staged record of the day.
+
+    Raises:
+        ConflictError: If the date's record cannot be created or found.
+    """
+    if health_water.date is None:
+        # The request carries no timezone, so the fallback is the server's configured zone.
+        health_water.date = core_timezone.today_in(core_config.settings.TZ)
+
+    existing = health_water_crud.get_health_water_by_date_and_user_id(user_id, health_water.date.isoformat(), db)
+    if existing is None:
+        try:
+            with db.begin_nested():
+                return health_water_crud.create_health_water(user_id, health_water, db)
+        except core_exceptions.ConflictError:
+            existing = health_water_crud.get_health_water_by_date_and_user_id(
+                user_id, health_water.date.isoformat(), db
+            )
+            if existing is None:
+                raise
+    return health_water_crud.add_health_water_amount(
+        user_id, existing.id, health_water.amount_ml or Decimal(0), health_water.source, db
+    )
+
+
 def create_health_water(
     user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
 ) -> health_water_schema.HealthWaterRead:
@@ -104,27 +144,10 @@ def create_health_water(
     Returns:
         The day's record after the addition.
 
+    Raises:
+        ConflictError: If the date's record cannot be created or found.
     """
-    if health_water.date is None:
-        # The request carries no timezone, so the fallback is the server's configured zone.
-        health_water.date = core_timezone.today_in(core_config.settings.TZ)
-
-    existing = health_water_crud.get_health_water_by_date_and_user_id(user_id, health_water.date.isoformat(), db)
-    if existing:
-        stored = stage_edit_health_water(
-            user_id,
-            health_water_schema.HealthWaterUpdate(
-                id=existing.id,
-                user_id=user_id,
-                amount_ml=(existing.amount_ml or 0) + (health_water.amount_ml or 0),
-                date=health_water.date,
-                source=health_water.source,
-            ),
-            db,
-        )
-    else:
-        stored = health_water_crud.create_health_water(user_id, health_water, db)
-
+    stored = stage_add_health_water(user_id, health_water, db)
     db.commit()
     logger.info("Stored a water intake record", extra=core_logger.context(user_id=user_id))
     return stored

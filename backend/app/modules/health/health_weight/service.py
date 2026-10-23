@@ -143,6 +143,47 @@ def stage_edit_health_weight(
     return health_weight_crud.edit_health_weight(user_id, health_weight, db)
 
 
+def stage_upsert_health_weight(
+    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+) -> health_weight_schema.HealthWeightRead:
+    """Stage a weight record, or an update to the user's record for the same date.
+
+    A writer that creates the date first, on this replica or another, is not an error: the
+    record it created is updated instead.
+
+    Args:
+        user_id: The record's owner.
+        health_weight: The record to store.
+        db: Database session.
+
+    Returns:
+        The staged record.
+
+    Raises:
+        ConflictError: If the date's record cannot be created or found.
+    """
+    if health_weight.date is None:
+        # The request carries no timezone, so the fallback is the server's configured zone.
+        health_weight.date = core_timezone.today_in(core_config.settings.TZ)
+
+    existing = health_weight_crud.get_health_weight_by_date_and_user_id(user_id, health_weight.date.isoformat(), db)
+    if existing is None:
+        try:
+            with db.begin_nested():
+                return stage_create_health_weight(user_id, health_weight, db)
+        except core_exceptions.ConflictError:
+            existing = health_weight_crud.get_health_weight_by_date_and_user_id(
+                user_id, health_weight.date.isoformat(), db
+            )
+            if existing is None:
+                raise
+    return stage_edit_health_weight(
+        user_id,
+        health_weight_schema.HealthWeightUpdate(id=existing.id, user_id=user_id, **health_weight.model_dump()),
+        db,
+    )
+
+
 def create_health_weight(
     user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
@@ -156,21 +197,10 @@ def create_health_weight(
     Returns:
         The stored record.
 
+    Raises:
+        ConflictError: If the date's record cannot be created or found.
     """
-    if health_weight.date is None:
-        # The request carries no timezone, so the fallback is the server's configured zone.
-        health_weight.date = core_timezone.today_in(core_config.settings.TZ)
-
-    existing = health_weight_crud.get_health_weight_by_date_and_user_id(user_id, health_weight.date.isoformat(), db)
-    if existing:
-        stored = stage_edit_health_weight(
-            user_id,
-            health_weight_schema.HealthWeightUpdate(id=existing.id, user_id=user_id, **health_weight.model_dump()),
-            db,
-        )
-    else:
-        stored = stage_create_health_weight(user_id, health_weight, db)
-
+    stored = stage_upsert_health_weight(user_id, health_weight, db)
     db.commit()
     logger.info("Stored a weight record", extra=core_logger.context(user_id=user_id))
     return stored

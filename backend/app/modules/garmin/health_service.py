@@ -52,53 +52,41 @@ def _sleep_score(score: dict | None) -> health_sleep_schema.SleepScore | None:
     return health_sleep_schema.SleepScore(key) if key in health_sleep_schema.SleepScore._value2member_map_ else None
 
 
-def _upsert(
+def _store(
     user_id: int,
     record: BaseModel,
     *,
     label: str,
-    get: Callable[[int, str, Session], Any],
-    edit: Callable[[int, Any, Session], Any],
-    create: Callable[[int, Any, Session], Any],
-    update_schema: type[BaseModel],
+    upsert: Callable[[int, Any, Session], Any],
     create_schema: type[BaseModel],
-    keep_existing: Callable[[Any], bool] | None = None,
+    keep_existing: Callable[[int, str, Session], bool] | None = None,
 ) -> bool:
-    """Store a health record in a short session of its own: edit the day's record, or create it.
+    """Store a health record in a short session of its own: create the day's record, or update it.
 
     Args:
         user_id: The record's owner.
         record: The record built from Garmin Connect, carrying its ``date``.
         label: The kind of record, for the log.
-        get: Reads the owner's record for a date.
-        edit: Edits an existing record.
-        create: Creates a record.
-        update_schema: The schema ``edit`` takes.
-        create_schema: The schema ``create`` takes.
-        keep_existing: Tells whether an existing record must be left as it is.
+        upsert: Stages the record, or an update to the owner's record for its date.
+        create_schema: The schema ``upsert`` takes.
+        keep_existing: Tells whether the owner's record for a date must be left as it is.
 
     Returns:
         True when the record was stored, False when an existing one was kept.
     """
     fields = record.model_dump()
     with core_database.SessionLocal() as db:
-        existing = get(user_id, str(fields["date"]), db)
-        if existing and keep_existing is not None and keep_existing(existing):
+        if keep_existing is not None and keep_existing(user_id, str(fields["date"]), db):
             logger.info(
                 "Keeping existing non-Garmin health record",
                 extra=core_logger.context(user_id=user_id, record=label, date=fields["date"]),
             )
             return False
-        if existing:
-            edit(user_id, update_schema(id=existing.id, user_id=user_id, **fields), db)
-            outcome = "edited"
-        else:
-            create(user_id, create_schema(**fields), db)
-            outcome = "created"
+        upsert(user_id, create_schema(**fields), db)
         db.commit()
     logger.info(
         "Garmin Connect health record stored",
-        extra=core_logger.context(user_id=user_id, record=label, outcome=outcome, date=fields["date"]),
+        extra=core_logger.context(user_id=user_id, record=label, date=fields["date"]),
     )
     return True
 
@@ -149,14 +137,11 @@ def fetch_and_process_bc_by_dates(
             metabolic_age=metabolic_age,
             source=health_weight_schema.Source.GARMIN,
         )
-        _upsert(
+        _store(
             user_id,
             health_weight,
             label="Body composition",
-            get=health_weight_integration.get_health_weight_by_date,
-            edit=health_weight_integration.edit_health_weight,
-            create=health_weight_integration.create_health_weight,
-            update_schema=health_weight_schema.HealthWeightUpdate,
+            upsert=health_weight_integration.upsert_health_weight,
             create_schema=health_weight_schema.HealthWeightCreate,
         )
         count_processed += 1
@@ -199,14 +184,11 @@ def fetch_and_process_ds_by_dates(
             steps=ds["totalSteps"],
             source=health_steps_schema.Source.GARMIN,
         )
-        _upsert(
+        _store(
             user_id,
             health_steps,
             label="Daily steps",
-            get=health_steps_integration.get_health_steps_by_date,
-            edit=health_steps_integration.edit_health_steps,
-            create=health_steps_integration.create_health_steps,
-            update_schema=health_steps_schema.HealthStepsUpdate,
+            upsert=health_steps_integration.upsert_health_steps,
             create_schema=health_steps_schema.HealthStepsCreate,
         )
         count_processed += 1
@@ -320,12 +302,17 @@ def _build_sleep(garmin_sleep: dict, sleep_dto: dict) -> health_sleep_schema.Hea
     )
 
 
-def _is_other_source_sleep(existing: Any) -> bool:
-    """Tell whether a stored sleep record came from another source than Garmin Connect.
+def _is_other_source_sleep(user_id: int, date: str, db: Session) -> bool:
+    """Tell whether the stored sleep record of a date came from another source than Garmin Connect.
 
     Rows created before ``source`` was stored are recognised by their Garmin sleep id.
     """
-    return existing.source != health_sleep_schema.Source.GARMIN and not existing.garminconnect_sleep_id
+    existing = health_sleep_integration.get_health_sleep_by_date(user_id, date, db)
+    return (
+        existing is not None
+        and existing.source != health_sleep_schema.Source.GARMIN
+        and not existing.garminconnect_sleep_id
+    )
 
 
 def fetch_and_process_sleep_by_dates(
@@ -360,14 +347,11 @@ def fetch_and_process_sleep_by_dates(
             )
             continue
 
-        stored = _upsert(
+        stored = _store(
             user_id,
             _build_sleep(garmin_sleep, sleep_dto),
             label="Sleep data",
-            get=health_sleep_integration.get_health_sleep_by_date,
-            edit=health_sleep_integration.edit_health_sleep,
-            create=health_sleep_integration.create_health_sleep,
-            update_schema=health_sleep_schema.HealthSleepUpdate,
+            upsert=health_sleep_integration.upsert_health_sleep,
             create_schema=health_sleep_schema.HealthSleepCreate,
             keep_existing=_is_other_source_sleep,
         )

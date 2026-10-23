@@ -89,6 +89,47 @@ def stage_edit_health_steps(
     return health_steps_crud.edit_health_steps(user_id, health_steps, db)
 
 
+def stage_upsert_health_steps(
+    user_id: int, health_steps: health_steps_schema.HealthStepsCreate, db: Session
+) -> health_steps_schema.HealthStepsRead:
+    """Stage a steps record, or an update to the user's record for the same date.
+
+    A writer that creates the date first, on this replica or another, is not an error: the
+    record it created is updated instead.
+
+    Args:
+        user_id: The record's owner.
+        health_steps: The record to store.
+        db: Database session.
+
+    Returns:
+        The staged record.
+
+    Raises:
+        ConflictError: If the date's record cannot be created or found.
+    """
+    if health_steps.date is None:
+        # The request carries no timezone, so the fallback is the server's configured zone.
+        health_steps.date = core_timezone.today_in(core_config.settings.TZ)
+
+    existing = health_steps_crud.get_health_steps_by_date_and_user_id(user_id, health_steps.date.isoformat(), db)
+    if existing is None:
+        try:
+            with db.begin_nested():
+                return health_steps_crud.create_health_steps(user_id, health_steps, db)
+        except core_exceptions.ConflictError:
+            existing = health_steps_crud.get_health_steps_by_date_and_user_id(
+                user_id, health_steps.date.isoformat(), db
+            )
+            if existing is None:
+                raise
+    return stage_edit_health_steps(
+        user_id,
+        health_steps_schema.HealthStepsUpdate(id=existing.id, user_id=user_id, **health_steps.model_dump()),
+        db,
+    )
+
+
 def create_health_steps(
     user_id: int, health_steps: health_steps_schema.HealthStepsCreate, db: Session
 ) -> health_steps_schema.HealthStepsRead:
@@ -102,21 +143,10 @@ def create_health_steps(
     Returns:
         The stored record.
 
+    Raises:
+        ConflictError: If the date's record cannot be created or found.
     """
-    if health_steps.date is None:
-        # The request carries no timezone, so the fallback is the server's configured zone.
-        health_steps.date = core_timezone.today_in(core_config.settings.TZ)
-
-    existing = health_steps_crud.get_health_steps_by_date_and_user_id(user_id, health_steps.date.isoformat(), db)
-    if existing:
-        stored = stage_edit_health_steps(
-            user_id,
-            health_steps_schema.HealthStepsUpdate(id=existing.id, user_id=user_id, **health_steps.model_dump()),
-            db,
-        )
-    else:
-        stored = health_steps_crud.create_health_steps(user_id, health_steps, db)
-
+    stored = stage_upsert_health_steps(user_id, health_steps, db)
     db.commit()
     logger.info("Stored a steps record", extra=core_logger.context(user_id=user_id))
     return stored

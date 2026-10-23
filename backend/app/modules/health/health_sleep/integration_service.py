@@ -25,40 +25,20 @@ def get_health_sleep_by_date(user_id: int, date: str, db: Session) -> health_sle
     return health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, date, db)
 
 
-def create_health_sleep(
+def upsert_health_sleep(
     user_id: int, health_sleep: health_sleep_schema.HealthSleepCreate, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
-    """Stage a sleep record for a user.
+    """Stage a sleep record for a user, or an update to their record for the same date.
 
     Args:
         user_id: The record's owner.
-        health_sleep: The record to create.
+        health_sleep: The record to store.
         db: Database session.
 
     Returns:
         The staged record.
 
     Raises:
-        ConflictError: If the user already has a record for that date.
+        ConflictError: If the date's record cannot be created or found.
     """
-    return health_sleep_crud.create_health_sleep(user_id, health_sleep, db)
-
-
-def edit_health_sleep(
-    user_id: int, health_sleep: health_sleep_schema.HealthSleepUpdate, db: Session
-) -> health_sleep_schema.HealthSleepRead:
-    """Stage an update to a user's sleep record.
-
-    Args:
-        user_id: The record's owner.
-        health_sleep: The record with its changes.
-        db: Database session.
-
-    Returns:
-        The updated record.
-
-    Raises:
-        PermissionDeniedError: If the record names another user.
-        NotFoundError: If the user has no such record.
-    """
-    return health_sleep_service.stage_edit_health_sleep(user_id, health_sleep, db)
+    return health_sleep_service.stage_upsert_health_sleep(user_id, health_sleep, db)

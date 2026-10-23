@@ -43,17 +43,37 @@ class TestCreateHealthWater:
         assert result is mock_create.return_value
         mock_db.commit.assert_called_once()
 
-    @patch(f"{_PREFIX}.health_water_crud.edit_health_water")
+    @patch(f"{_PREFIX}.health_water_crud.add_health_water_amount")
     @patch(f"{_PREFIX}.health_water_crud.get_health_water_by_date_and_user_id")
-    def test_adds_the_intake_to_the_days_total(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=7, amount_ml=500.0)
+    def test_adds_the_intake_to_the_days_total(self, mock_get_by_date, mock_add, mock_db):
+        mock_get_by_date.return_value = MagicMock(id=7)
         record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=250.0)
 
         health_water_service.create_health_water(1, record, mock_db)
 
-        edited = mock_edit.call_args.args[1]
-        assert (edited.id, edited.user_id, edited.amount_ml) == (7, 1, 750.0)
+        assert mock_add.call_args.args[:3] == (1, 7, 250.0)
         mock_db.commit.assert_called_once()
+
+    @patch(f"{_PREFIX}.health_water_crud.add_health_water_amount")
+    @patch(f"{_PREFIX}.health_water_crud.create_health_water", side_effect=core_exceptions.ConflictError("duplicate"))
+    @patch(f"{_PREFIX}.health_water_crud.get_health_water_by_date_and_user_id")
+    def test_an_intake_that_lost_the_race_is_added_to_the_record_that_won(
+        self, mock_get_by_date, _create, mock_add, mock_db
+    ):
+        mock_get_by_date.side_effect = [None, MagicMock(id=7)]
+        record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=250.0)
+
+        health_water_service.create_health_water(1, record, mock_db)
+
+        assert mock_add.call_args.args[:3] == (1, 7, 250.0)
+
+    @patch(f"{_PREFIX}.health_water_crud.create_health_water", side_effect=core_exceptions.ConflictError("duplicate"))
+    @patch(f"{_PREFIX}.health_water_crud.get_health_water_by_date_and_user_id", return_value=None)
+    def test_a_conflict_with_no_record_to_add_to_is_raised(self, _get_by_date, _create, mock_db):
+        record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=250.0)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            health_water_service.create_health_water(1, record, mock_db)
 
 
 class TestEditAndDelete:

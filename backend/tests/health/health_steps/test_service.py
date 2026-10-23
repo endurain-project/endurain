@@ -52,6 +52,28 @@ class TestCreateHealthSteps:
         mock_db.commit.assert_called_once()
 
 
+class TestRaceForTheDate:
+    @patch(f"{_PREFIX}.health_steps_crud.edit_health_steps")
+    @patch(f"{_PREFIX}.health_steps_crud.create_health_steps", side_effect=core_exceptions.ConflictError("duplicate"))
+    @patch(f"{_PREFIX}.health_steps_crud.get_health_steps_by_date_and_user_id")
+    def test_a_record_that_lost_the_race_updates_the_one_that_won(self, mock_get_by_date, _create, mock_edit, mock_db):
+        mock_get_by_date.side_effect = [None, MagicMock(id=7)]
+        record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
+
+        health_steps_service.create_health_steps(1, record, mock_db)
+
+        assert mock_edit.call_args.args[1].id == 7
+        mock_db.begin_nested.assert_called_once()
+
+    @patch(f"{_PREFIX}.health_steps_crud.create_health_steps", side_effect=core_exceptions.ConflictError("duplicate"))
+    @patch(f"{_PREFIX}.health_steps_crud.get_health_steps_by_date_and_user_id", return_value=None)
+    def test_a_conflict_with_no_record_to_update_is_raised(self, _get_by_date, _create, mock_db):
+        record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            health_steps_service.create_health_steps(1, record, mock_db)
+
+
 class TestEditAndDelete:
     @patch(f"{_PREFIX}.health_steps_crud.edit_health_steps")
     def test_edit_commits(self, mock_edit, mock_db):

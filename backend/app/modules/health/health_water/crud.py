@@ -1,8 +1,9 @@
 """CRUD operations for health water intake records."""
 
 from datetime import date as date_type
+from decimal import Decimal
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -169,6 +170,39 @@ def edit_health_water(
         setattr(db_health_water, key, value)
 
     db.flush()
+    db.refresh(db_health_water)
+
+    return health_water_serializers.to_read_schema(db_health_water)
+
+
+def add_health_water_amount(
+    user_id: int, health_water_id: int, amount_ml: Decimal, source: str | None, db: Session
+) -> health_water_schema.HealthWaterRead:
+    """Stage an intake added to the total of a user's water intake record.
+
+    The addition is one ``UPDATE``, so intakes added at the same moment, by this replica or
+    another, are all counted.
+
+    Args:
+        user_id: The record's owner.
+        health_water_id: The record to add to.
+        amount_ml: Water consumed, in milliliters.
+        source: Source of the intake.
+        db: Database session.
+
+    Returns:
+        The updated record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    db_health_water = _get_model_by_id_and_user_id(health_water_id, user_id, db)
+    db.execute(
+        update(health_water_models.HealthWater)
+        .where(health_water_models.HealthWater.id == health_water_id)
+        .values(amount_ml=health_water_models.HealthWater.amount_ml + amount_ml, source=source)
+        .execution_options(synchronize_session=False)
+    )
     db.refresh(db_health_water)
 
     return health_water_serializers.to_read_schema(db_health_water)

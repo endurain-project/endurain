@@ -3,7 +3,7 @@
 from datetime import date as date_type
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -29,6 +29,7 @@ class HealthWeight(Base):
     """
 
     __tablename__ = "health_weight"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_health_weight_user_date"),)
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

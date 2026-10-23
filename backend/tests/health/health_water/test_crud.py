@@ -1,4 +1,5 @@
 from datetime import date as datetime_date
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -135,3 +136,15 @@ class TestDeleteHealthWater:
         with pytest.raises(core_exceptions.NotFoundError):
             health_water_crud.delete_health_water(1, 9, mock_db)
         mock_db.delete.assert_not_called()
+
+
+class TestAddHealthWaterAmount:
+    @patch.object(health_water_crud, "_get_model_by_id_and_user_id")
+    def test_adds_in_one_update_and_returns_the_refreshed_record(self, mock_get_model, mock_db):
+        mock_get_model.return_value = _row(7)
+
+        result = health_water_crud.add_health_water_amount(1, 7, Decimal(250), "web", mock_db)
+
+        mock_db.execute.assert_called_once()
+        mock_db.refresh.assert_called_once_with(mock_get_model.return_value)
+        assert result is mock_get_model.return_value

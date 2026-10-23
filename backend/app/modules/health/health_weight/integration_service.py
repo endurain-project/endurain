@@ -10,20 +10,6 @@ import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
 
 
-def get_health_weight_by_date(user_id: int, date: str, db: Session) -> health_weight_schema.HealthWeightRead | None:
-    """Return a user's weight record for a date, or ``None``.
-
-    Args:
-        user_id: The record's owner.
-        date: The record's date.
-        db: Database session.
-
-    Returns:
-        The record, or ``None``.
-    """
-    return health_weight_crud.get_health_weight_by_date_and_user_id(user_id, date, db)
-
-
 def get_latest_health_weight(user_id: int, db: Session) -> health_weight_schema.HealthWeightRead | None:
     """Return a user's most recent weight record, or ``None``.
 
@@ -50,43 +36,23 @@ def list_health_weight(user_id: int, db: Session) -> list[health_weight_schema.H
     return health_weight_crud.get_all_health_weight_by_user_id(user_id, db)
 
 
-def create_health_weight(
+def upsert_health_weight(
     user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
-    """Stage a weight record for a user, deriving the BMI when it is not given.
+    """Stage a weight record for a user, or an update to their record for the same date.
 
     Args:
         user_id: The record's owner.
-        health_weight: The record to create.
+        health_weight: The record to store.
         db: Database session.
 
     Returns:
         The staged record.
 
     Raises:
-        ConflictError: If the user already has a record for that date.
+        ConflictError: If the date's record cannot be created or found.
     """
-    return health_weight_service.stage_create_health_weight(user_id, health_weight, db)
-
-
-def edit_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightUpdate, db: Session
-) -> health_weight_schema.HealthWeightRead:
-    """Stage an update to a user's weight record, deriving the BMI when it is not given.
-
-    Args:
-        user_id: The record's owner.
-        health_weight: The record with its changes.
-        db: Database session.
-
-    Returns:
-        The updated record.
-
-    Raises:
-        PermissionDeniedError: If the record names another user.
-        NotFoundError: If the user has no such record.
-    """
-    return health_weight_service.stage_edit_health_weight(user_id, health_weight, db)
+    return health_weight_service.stage_upsert_health_weight(user_id, health_weight, db)
 
 
 def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session) -> None:
