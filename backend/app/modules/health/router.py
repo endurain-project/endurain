@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import modules.auth.dependencies as auth_dependencies
 import modules.health.health_fasting.crud as health_fasting_crud
-import modules.health.health_poop.crud as health_poop_crud
+import modules.health.health_poop.integration_service as health_poop_integration
 import modules.health.health_sleep.integration_service as health_sleep_integration
 import modules.health.health_steps.integration_service as health_steps_integration
-import modules.health.health_water.crud as health_water_crud
+import modules.health.health_water.integration_service as health_water_integration
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.schema as health_schema
 import modules.users.users.utils as users_utils
@@ -79,10 +79,10 @@ def read_health_daily_stats(
     active_fasting = health_fasting_crud.get_active_fasting_by_user_id(token_user_id, db)
 
     # Get today's water intake
-    today_water = health_water_crud.get_health_water_by_date_and_user_id(token_user_id, today, db)
+    today_water = health_water_integration.get_health_water_by_date(token_user_id, today, db)
 
     # Get today's poop records
-    today_poop_records = health_poop_crud.get_health_poop_by_date_and_user_id(token_user_id, today, db)
+    today_poop_records = health_poop_integration.list_health_poop_by_date(token_user_id, today, db)
 
     # Build dashboard response with only necessary fields
     sleep_data = None

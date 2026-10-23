@@ -11,7 +11,6 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Query,
     Security,
     status,
@@ -22,8 +21,8 @@ import core.database as core_database
 import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_poop.schema as health_poop_schema
+import modules.health.health_poop.service as health_poop_service
 
 # Define the API router
 router = APIRouter()
@@ -90,21 +89,7 @@ def read_health_poop_all_pagination(
         HTTPException: If the user lacks required scope or
             pagination values are invalid.
     """
-    total = health_poop_crud.get_health_poop_number_by_user_id(token_user_id, db, interval)
-    records = health_poop_crud.get_health_poop_by_user_id(
-        token_user_id,
-        db,
-        page_number,
-        num_records,
-        interval,
-    )
-
-    return health_poop_schema.HealthPoopListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
-    )
+    return health_poop_service.list_health_poop(token_user_id, db, page_number, num_records, interval)
 
 
 @router.get(
@@ -145,15 +130,7 @@ def read_health_poop_by_id(
     Raises:
         HTTPException: If record not found.
     """
-    record = health_poop_crud.get_health_poop_by_id_and_user_id(health_poop_id, token_user_id, db)
-
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Poop record not found",
-        )
-
-    return record  # type: ignore[return-value]
+    return health_poop_service.get_health_poop(token_user_id, health_poop_id, db)
 
 
 @router.post(
@@ -194,7 +171,7 @@ def create_health_poop(
     Returns:
         Created HealthPoopRead record.
     """
-    return health_poop_crud.create_health_poop(token_user_id, health_poop, db)
+    return health_poop_service.create_health_poop(token_user_id, health_poop, db)
 
 
 @router.put(
@@ -235,7 +212,7 @@ def edit_health_poop(
     Raises:
         HTTPException: If record not found or unauthorized.
     """
-    return health_poop_crud.edit_health_poop(token_user_id, health_poop, db)
+    return health_poop_service.edit_health_poop(token_user_id, health_poop, db)
 
 
 @router.delete(
@@ -273,4 +250,4 @@ def delete_health_poop(
     Raises:
         HTTPException: If record not found or unauthorized.
     """
-    health_poop_crud.delete_health_poop(token_user_id, health_poop_id, db)
+    health_poop_service.delete_health_poop(token_user_id, health_poop_id, db)

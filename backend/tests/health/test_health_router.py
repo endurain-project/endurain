@@ -30,8 +30,8 @@ class TestReadHealthDailyStats:
     @patch("modules.health.router.health_sleep_integration.get_health_sleep_by_date")
     @patch("modules.health.router.health_steps_integration.get_health_steps_by_date")
     @patch("modules.health.router.health_fasting_crud.get_active_fasting_by_user_id")
-    @patch("modules.health.router.health_water_crud.get_health_water_by_date_and_user_id")
-    @patch("modules.health.router.health_poop_crud.get_health_poop_by_date_and_user_id")
+    @patch("modules.health.router.health_water_integration.get_health_water_by_date")
+    @patch("modules.health.router.health_poop_integration.list_health_poop_by_date")
     @patch("modules.health.router.users_utils.user_local_today", return_value=date(2024, 1, 15))
     def test_all_data_present(
         self,
@@ -78,8 +78,8 @@ class TestReadHealthDailyStats:
     @patch("modules.health.router.health_sleep_integration.get_health_sleep_by_date")
     @patch("modules.health.router.health_steps_integration.get_health_steps_by_date")
     @patch("modules.health.router.health_fasting_crud.get_active_fasting_by_user_id")
-    @patch("modules.health.router.health_water_crud.get_health_water_by_date_and_user_id")
-    @patch("modules.health.router.health_poop_crud.get_health_poop_by_date_and_user_id")
+    @patch("modules.health.router.health_water_integration.get_health_water_by_date")
+    @patch("modules.health.router.health_poop_integration.list_health_poop_by_date")
     @patch("modules.health.router.users_utils.user_local_today", return_value=date(2024, 1, 15))
     def test_all_data_missing(
         self,

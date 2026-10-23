@@ -1,0 +1,159 @@
+"""Application logic for health water intake records.
+
+Owns the ownership check, the same-day accumulation, the interval-to-date
+resolution and the transaction boundary. What other modules may consume lives in
+:mod:`modules.health.health_water.integration_service`.
+"""
+
+from datetime import date as date_type
+
+from sqlalchemy.orm import Session
+
+import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
+import modules.health.constants as health_constants
+import modules.health.health_water.crud as health_water_crud
+import modules.health.health_water.schema as health_water_schema
+import modules.users.users.integration_service as users_integration
+
+
+def _since(user_id: int, interval: health_constants.Interval | None, db: Session) -> date_type | None:
+    """Return the first date of an interval in the user's own calendar, or ``None``.
+
+    Args:
+        user_id: The user whose "today" anchors the interval.
+        interval: The interval to resolve.
+        db: Database session.
+
+    Returns:
+        The interval's start date, or ``None`` when no interval is given.
+    """
+    if interval is None:
+        return None
+    return health_computation.get_start_date_for_interval(interval.value, users_integration.local_today(user_id, db))
+
+
+def list_health_water(
+    user_id: int,
+    db: Session,
+    page_number: int | None = None,
+    num_records: int | None = None,
+    interval: health_constants.Interval | None = None,
+) -> health_water_schema.HealthWaterListResponse:
+    """List a user's water intake records with their total.
+
+    Args:
+        user_id: The records' owner.
+        db: Database session.
+        page_number: 1-based page.
+        num_records: Records per page.
+        interval: Return only records within this interval.
+
+    Returns:
+        The page of records and the total.
+    """
+    since = _since(user_id, interval, db)
+    return health_water_schema.HealthWaterListResponse(
+        total=health_water_crud.get_health_water_number_by_user_id(user_id, db, since),
+        num_records=num_records,
+        page_number=page_number,
+        records=health_water_crud.get_health_water_by_user_id(user_id, db, page_number, num_records, since),
+    )
+
+
+def stage_edit_health_water(
+    user_id: int, health_water: health_water_schema.HealthWaterUpdate, db: Session
+) -> health_water_schema.HealthWaterRead:
+    """Stage an update to a water intake record after checking it names the caller.
+
+    Args:
+        user_id: The record's owner.
+        health_water: The record with its changes.
+        db: Database session.
+
+    Returns:
+        The updated record.
+
+    Raises:
+        PermissionDeniedError: If the record names another user.
+        NotFoundError: If the user has no such record.
+    """
+    if health_water.user_id != user_id:
+        raise core_exceptions.PermissionDeniedError("Cannot edit health water intake for another user.")
+    return health_water_crud.edit_health_water(user_id, health_water, db)
+
+
+def create_health_water(
+    user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
+) -> health_water_schema.HealthWaterRead:
+    """Add an intake to the user's total for its date, creating the day's record if needed, and commit.
+
+    Args:
+        user_id: The record's owner.
+        health_water: The intake to add.
+        db: Database session.
+
+    Returns:
+        The day's record after the addition.
+
+    Raises:
+        InvalidInputError: If the intake has no date.
+    """
+    if not health_water.date:
+        raise core_exceptions.InvalidInputError("Date field is required.")
+
+    existing = health_water_crud.get_health_water_by_date_and_user_id(user_id, health_water.date.isoformat(), db)
+    if existing:
+        stored = stage_edit_health_water(
+            user_id,
+            health_water_schema.HealthWaterUpdate(
+                id=existing.id,
+                user_id=user_id,
+                amount_ml=(existing.amount_ml or 0) + (health_water.amount_ml or 0),
+                date=health_water.date,
+                source=health_water.source,
+            ),
+            db,
+        )
+    else:
+        stored = health_water_crud.create_health_water(user_id, health_water, db)
+
+    db.commit()
+    return stored
+
+
+def edit_health_water(
+    user_id: int, health_water: health_water_schema.HealthWaterUpdate, db: Session
+) -> health_water_schema.HealthWaterRead:
+    """Update a water intake record and commit.
+
+    Args:
+        user_id: The record's owner.
+        health_water: The record with its changes.
+        db: Database session.
+
+    Returns:
+        The updated record.
+
+    Raises:
+        PermissionDeniedError: If the record names another user.
+        NotFoundError: If the user has no such record.
+    """
+    updated = stage_edit_health_water(user_id, health_water, db)
+    db.commit()
+    return updated
+
+
+def delete_health_water(user_id: int, health_water_id: int, db: Session) -> None:
+    """Delete a water intake record and commit.
+
+    Args:
+        user_id: The record's owner.
+        health_water_id: The record to delete.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    health_water_crud.delete_health_water(user_id, health_water_id, db)
+    db.commit()
