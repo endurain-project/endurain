@@ -40,7 +40,7 @@ function roundDisplay(value: number): number {
 }
 
 /** Unit suffix shown on the y-axis ticks and tooltip. */
-const unitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const unitLabel = computed(() => (isImperial.value ? t('app.units.flOz') : t('app.units.ml')))
 
 /**
  * Entries that carry a water value, oldest-first so the line reads left → right

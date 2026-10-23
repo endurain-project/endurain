@@ -10,6 +10,7 @@ import {
   activityTypeToGearType,
   activityTypeUsesKnots,
   activityTypeUsesPace,
+  activityTypeUsesSpm,
   lapCyclesLabelKey,
   presentActivityType,
 } from '@/features/activities/utils/activityType'
@@ -65,6 +66,12 @@ describe('activity type predicates', () => {
     expect(activityTypeUsesKnots(43)).toBe(true)
     expect(activityTypeUsesKnots(30)).toBe(true)
     expect(activityTypeUsesKnots(4)).toBe(false)
+  })
+
+  it('uses steps per minute for running and walking cadence', () => {
+    expect(activityTypeUsesSpm(1)).toBe(true)
+    expect(activityTypeUsesSpm(11)).toBe(true)
+    expect(activityTypeUsesSpm(4)).toBe(false)
   })
 })
 

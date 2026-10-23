@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Фільтри",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Велосипед",
     "shoes": "Взуття",
@@ -91,7 +89,6 @@
     "unsupported": "Цей тип спорядження не відстежує компоненти.",
     "noneActive": "Усі компоненти неактивні. Увімкніть «Показати неактивні», щоб побачити їх.",
     "inactive": "Неактивне",
-    "unitHours": "h",
     "purchasedOn": "Придбано {date}",
     "wearLabel": "Знос {name}",
     "actions": {

@@ -44,7 +44,7 @@ const props = defineProps<{
   columns: readonly ActivityMetricColumn[]
 }>()
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 
 const presentation = computed(() => presentActivityType(props.activity.activityType))
 const isDistanceBased = computed(() => activityTypeIsDistanceBased(props.activity.activityType))
@@ -77,13 +77,13 @@ const elevationMetric = computed(() => formatElevation(props.activity.elevationG
 const caloriesMetric = computed<FormattedMetric>(() => {
   const calories = props.activity.calories
   return calories !== null && calories !== undefined && Number.isFinite(calories)
-    ? { value: String(Math.round(calories)), unit: 'kcal' }
+    ? { value: String(Math.round(calories)), unit: 'app.units.kcal' }
     : NA_METRIC
 })
 const avgHrMetric = computed<FormattedMetric>(() => {
   const hr = props.activity.averageHr
   return hr !== null && hr !== undefined && Number.isFinite(hr)
-    ? { value: String(Math.round(hr)), unit: 'bpm' }
+    ? { value: String(Math.round(hr)), unit: 'app.units.bpm' }
     : NA_METRIC
 })
 
@@ -109,17 +109,17 @@ const cells = computed<Record<ActivityMetricKey, FormattedMetric>>(() => ({
 const mobileSummary = computed(() => {
   const parts: string[] = []
   if (cells.value.distance.value !== '--') {
-    parts.push(combineMetric(cells.value.distance))
+    parts.push(combineMetric(cells.value.distance, t))
   }
   if (durationLabel.value !== '--') {
     parts.push(durationLabel.value)
   }
   if (cells.value.paceSpeed.value !== '--') {
-    parts.push(combineMetric(cells.value.paceSpeed))
+    parts.push(combineMetric(cells.value.paceSpeed, t))
   }
   const extraColumn = props.columns.find((col) => col.key === 'calories' || col.key === 'avgHr')
   if (extraColumn && cells.value[extraColumn.key].value !== '--') {
-    parts.push(combineMetric(cells.value[extraColumn.key]))
+    parts.push(combineMetric(cells.value[extraColumn.key], t))
   }
   return parts.join(' · ')
 })
@@ -166,7 +166,7 @@ const mobileSummary = computed(() => {
         >
           {{ cells[col.key].value }}
           <span v-if="cells[col.key].unit" class="text-hint font-normal">{{
-            cells[col.key].unit
+            t(cells[col.key].unit)
           }}</span>
         </p>
         <p v-else class="text-metric font-medium leading-tight text-muted-foreground">—</p>

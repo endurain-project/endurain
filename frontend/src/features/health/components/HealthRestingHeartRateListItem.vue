@@ -18,7 +18,7 @@ const { t, locale } = useI18n()
 const rhrLabel = computed(() =>
   props.entry.restingHeartRate === null
     ? '—'
-    : formatRestingHeartRate(props.entry.restingHeartRate),
+    : formatRestingHeartRate(props.entry.restingHeartRate, t),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))

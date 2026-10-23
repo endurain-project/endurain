@@ -67,13 +67,13 @@ function formatByMetric(value: number, goalType: GoalMetric, activityType: numbe
 /** Resolves the unit suffix shown after the total/target values. */
 function unitFor(goalType: GoalMetric, activityType: number): string {
   if (goalType === 'distance') {
-    return formatDistance(0, activityType, props.units).unit
+    return t(formatDistance(0, activityType, props.units).unit)
   }
   if (goalType === 'elevation') {
-    return formatElevation(0, props.units).unit
+    return t(formatElevation(0, props.units).unit)
   }
   if (goalType === 'calories') {
-    return t('settings.goals.unit.calories')
+    return t('app.units.kcal')
   }
   return ''
 }

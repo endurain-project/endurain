@@ -37,9 +37,6 @@
   "errorGeneral": "Не вдалося зареєструватися. Спробуйте ще раз.",
   "signupDisabled": "Реєстрація не увімкнена на цьому сервері",
   "imageAlt": "Ілюстрація реєстрації Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Каталанська",
     "zh-Hans": "Китайська (спрощена)",

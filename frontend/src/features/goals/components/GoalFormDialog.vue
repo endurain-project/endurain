@@ -174,10 +174,10 @@ const canSubmit = computed(() => {
 })
 
 const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.miles') : t('settings.goals.unit.km'),
+  props.units === 'imperial' ? t('app.units.mi') : t('app.units.km'),
 )
 const elevationUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.feet') : t('settings.goals.unit.meters'),
+  props.units === 'imperial' ? t('app.units.ft') : t('app.units.m'),
 )
 const distanceLabel = computed(
   () => `${t('settings.goals.metric.distance')} (${distanceUnit.value})`,
@@ -186,7 +186,7 @@ const elevationLabel = computed(
   () => `${t('settings.goals.metric.elevation')} (${elevationUnit.value})`,
 )
 const caloriesLabel = computed(
-  () => `${t('settings.goals.metric.calories')} (${t('settings.goals.unit.calories')})`,
+  () => `${t('settings.goals.metric.calories')} (${t('app.units.kcal')})`,
 )
 
 /** Seeds the form from the goal being edited, or pristine defaults. */

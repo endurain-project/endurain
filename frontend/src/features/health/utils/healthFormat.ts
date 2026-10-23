@@ -7,6 +7,7 @@
  */
 
 import type { Schemas } from '@/types'
+import type { Translate } from '@/features/activities/utils/format'
 import type { FastingSnapshot } from '@/features/health/types'
 
 import { kgToLbs, mlToFlOz } from '@/utils/units'
@@ -17,13 +18,14 @@ type Units = Schemas['Units']
  * Formats a duration in seconds as a compact `Hh Mm` string (e.g. `8h 5m`).
  *
  * @param seconds - Duration in seconds (clamped to zero if negative).
+ * @param t - Translates the duration pattern.
  * @returns The `Hh Mm` representation.
  */
-export function formatHoursMinutes(seconds: number): string {
+export function formatHoursMinutes(seconds: number, t: Translate): string {
   const totalMinutes = Math.max(0, Math.round(seconds / 60))
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  return `${hours}h ${minutes}m`
+  return t('app.units.hoursMinutes', { hours, minutes })
 }
 
 /**
@@ -46,20 +48,22 @@ export function formatElapsedClock(seconds: number): string {
  * Formats a resting heart rate as `52 bpm`.
  *
  * @param bpm - Resting heart rate in beats per minute.
+ * @param t - Translates the unit key.
  * @returns The formatted heart rate.
  */
-export function formatRestingHeartRate(bpm: number): string {
-  return `${Math.round(bpm)} bpm`
+export function formatRestingHeartRate(bpm: number, t: Translate): string {
+  return `${Math.round(bpm)} ${t('app.units.bpm')}`
 }
 
 /**
  * Formats a skin-temperature deviation to one decimal place in °C.
  *
  * @param celsius - Deviation in degrees Celsius (may be negative).
+ * @param t - Translates the unit key.
  * @returns The formatted deviation.
  */
-export function formatSkinTempDeviation(celsius: number): string {
-  return `${celsius.toFixed(1)} °C`
+export function formatSkinTempDeviation(celsius: number, t: Translate): string {
+  return `${celsius.toFixed(1)} ${t('app.units.celsius')}`
 }
 
 /**
@@ -67,13 +71,14 @@ export function formatSkinTempDeviation(celsius: number): string {
  *
  * @param weightKg - Weight in kilograms.
  * @param units - The user's unit system.
+ * @param t - Translates the unit key.
  * @returns The formatted weight (`72.0 kg` or `158.7 lb`).
  */
-export function formatWeight(weightKg: number, units: Units): string {
+export function formatWeight(weightKg: number, units: Units, t: Translate): string {
   if (units === 'imperial') {
-    return `${kgToLbs(weightKg).toFixed(1)} lb`
+    return `${kgToLbs(weightKg).toFixed(1)} ${t('app.units.lb')}`
   }
-  return `${weightKg.toFixed(1)} kg`
+  return `${weightKg.toFixed(1)} ${t('app.units.kg')}`
 }
 
 /**
@@ -82,13 +87,14 @@ export function formatWeight(weightKg: number, units: Units): string {
  *
  * @param massKg - Mass in kilograms.
  * @param units - The user's unit system.
+ * @param t - Translates the unit key.
  * @returns The formatted mass (`5.20 kg` or `11.46 lb`).
  */
-export function formatBodyMass(massKg: number, units: Units): string {
+export function formatBodyMass(massKg: number, units: Units, t: Translate): string {
   if (units === 'imperial') {
-    return `${kgToLbs(massKg).toFixed(2)} lb`
+    return `${kgToLbs(massKg).toFixed(2)} ${t('app.units.lb')}`
   }
-  return `${massKg.toFixed(2)} kg`
+  return `${massKg.toFixed(2)} ${t('app.units.kg')}`
 }
 
 /**
@@ -136,13 +142,14 @@ export function formatSteps(steps: number): string {
  *
  * @param amountMl - Volume in millilitres.
  * @param units - The user's unit system.
+ * @param t - Translates the unit key.
  * @returns The formatted volume (`1500 ml` or `50.7 fl oz`).
  */
-export function formatWater(amountMl: number, units: Units): string {
+export function formatWater(amountMl: number, units: Units, t: Translate): string {
   if (units === 'imperial') {
-    return `${mlToFlOz(amountMl).toFixed(1)} fl oz`
+    return `${mlToFlOz(amountMl).toFixed(1)} ${t('app.units.flOz')}`
   }
-  return `${Math.round(amountMl)} ml`
+  return `${Math.round(amountMl)} ${t('app.units.ml')}`
 }
 
 /**

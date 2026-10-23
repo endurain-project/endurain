@@ -119,13 +119,9 @@
       "unitsMetric": "Metričke",
       "unitsImperial": "Imperijalne",
       "height": "Visina",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Stope moraju biti između 0 i 10",
       "inchesInvalid": "Inči moraju biti između 0 i 11",
       "maxHeartRate": "Maksimalan puls",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Evro",
@@ -491,13 +487,6 @@
       "distance": "Udaljenost",
       "elevation": "Visinska razlika",
       "duration": "Trajanje"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Izmeni cilj {name}",

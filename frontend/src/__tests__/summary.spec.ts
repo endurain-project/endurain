@@ -22,6 +22,7 @@ import {
   formatSummaryDuration,
   formatSummaryElevation,
 } from '@/features/summary/utils/summaryFormat'
+import i18n from '@/i18n'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
@@ -195,28 +196,42 @@ describe('period labels', () => {
 
 describe('summary formatters', () => {
   it('formats distance in km and miles to two decimals', () => {
-    expect(formatSummaryDistance(12500, 'metric')).toEqual({ value: '12.50', unit: 'km' })
-    expect(formatSummaryDistance(12500, 'imperial')).toEqual({ value: '7.77', unit: 'mi' })
+    expect(formatSummaryDistance(12500, 'metric')).toEqual({
+      value: '12.50',
+      unit: 'app.units.km',
+    })
+    expect(formatSummaryDistance(12500, 'imperial')).toEqual({
+      value: '7.77',
+      unit: 'app.units.mi',
+    })
   })
 
   it('formats elevation rounded in metres and feet', () => {
-    expect(formatSummaryElevation(123.4, 'metric')).toEqual({ value: '123', unit: 'm' })
-    expect(formatSummaryElevation(100, 'imperial')).toEqual({ value: '328', unit: 'ft' })
+    expect(formatSummaryElevation(123.4, 'metric')).toEqual({
+      value: '123',
+      unit: 'app.units.m',
+    })
+    expect(formatSummaryElevation(100, 'imperial')).toEqual({
+      value: '328',
+      unit: 'app.units.ft',
+    })
   })
 
   it('formats duration as a compact clock', () => {
-    expect(formatSummaryDuration(3661)).toEqual({ value: '1h 1m', unit: '' })
-    expect(formatSummaryDuration(600)).toEqual({ value: '10m', unit: '' })
-    expect(formatSummaryDuration(0)).toEqual({ value: '0m', unit: '' })
+    const t = i18n.global.t
+    expect(formatSummaryDuration(3661, t)).toEqual({ value: '1h 1m', unit: '' })
+    expect(formatSummaryDuration(600, t)).toEqual({ value: '10m', unit: '' })
+    expect(formatSummaryDuration(0, t)).toEqual({ value: '0m', unit: '' })
   })
 
   it('formats calories grouped into thousands', () => {
-    expect(formatSummaryCalories(1234)).toEqual({ value: '1,234', unit: 'kcal' })
-    expect(formatSummaryCalories(999)).toEqual({ value: '999', unit: 'kcal' })
+    expect(formatSummaryCalories(1234)).toEqual({ value: '1,234', unit: 'app.units.kcal' })
+    expect(formatSummaryCalories(999)).toEqual({ value: '999', unit: 'app.units.kcal' })
   })
 
   it('combines a metric value and unit, omitting an empty unit', () => {
-    expect(combineSummaryMetric({ value: '12.50', unit: 'km' })).toBe('12.50 km')
-    expect(combineSummaryMetric({ value: '5', unit: '' })).toBe('5')
+    const t = i18n.global.t
+    expect(combineSummaryMetric({ value: '12.50', unit: 'app.units.km' }, t)).toBe('12.50 km')
+    expect(combineSummaryMetric({ value: '5', unit: '' }, t)).toBe('5')
   })
 })

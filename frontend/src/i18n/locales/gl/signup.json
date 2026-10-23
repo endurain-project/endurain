@@ -37,9 +37,6 @@
   "errorGeneral": "O rexistro fallou. Por favor, téntao de novo.",
   "signupDisabled": "O rexistro non está activado neste servidor",
   "imageAlt": "Ilustración de rexistro de Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Catalán",
     "zh-Hans": "Chinés (simplificado)",

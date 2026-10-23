@@ -37,9 +37,6 @@
   "errorGeneral": "Registreerumine ebaõnnestus. Palun proovi uuesti.",
   "signupDisabled": "Registreerumine pole selles serveris lubatud",
   "imageAlt": "Enduraini registreerumise illustratsioon",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalaani",
     "zh-Hans": "Hiina (lihtsustatud)",

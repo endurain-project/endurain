@@ -37,9 +37,6 @@
   "errorGeneral": "Registracija nepavyko. Bandykite dar kartą.",
   "signupDisabled": "Registracija šiame serveryje neįjungta",
   "imageAlt": "Endurain registracijos iliustracija",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalonų",
     "zh-Hans": "Kinų (supaprastinta)",

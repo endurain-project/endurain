@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "筛选",
-  "unitKm": "公里",
-  "unitMi": "英里",
   "types": {
     "bicycle": "自行车",
     "shoes": "鞋子",
@@ -91,7 +89,6 @@
     "unsupported": "此装备类型不支持追踪零件。",
     "noneActive": "所有零件均未启用，开启「显示未启用装备」以查看。",
     "inactive": "未启用",
-    "unitHours": "小时",
     "purchasedOn": "购于 {date}",
     "wearLabel": "{name} 磨损",
     "actions": {

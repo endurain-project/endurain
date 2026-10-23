@@ -35,5 +35,16 @@
     "edit": "Modifica",
     "supported": "Markdown supportato",
     "empty": "Nessuna anteprima disponibile"
+  },
+  "units": {
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "ft": "ft",
+    "cm": "cm",
+    "in": "in",
+    "bpm": "bpm",
+    "kcal": "kcal",
+    "h": "h"
   }
 }

@@ -37,9 +37,6 @@
   "errorGeneral": "Rekisteröityminen epäonnistui. Yritä uudelleen.",
   "signupDisabled": "Rekisteröityminen ei ole käytössä tällä palvelimella",
   "imageAlt": "Endurainin rekisteröitymiskuvitus",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalaani",
     "zh-Hans": "Kiina (yksinkertaistettu)",

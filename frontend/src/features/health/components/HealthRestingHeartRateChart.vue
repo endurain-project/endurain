@@ -38,7 +38,7 @@ const chartRender = computed<ChartRenderOptions>(() => {
     kind: 'line',
     series: [{ label: t('health.rhr.chartSeries'), data, color: RHR_COLOR }],
     labels,
-    valueFormat: (value) => formatRestingHeartRate(value),
+    valueFormat: (value) => formatRestingHeartRate(value, t),
   }
 })
 

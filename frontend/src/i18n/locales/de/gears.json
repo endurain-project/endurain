@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filter",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Fahrrad",
     "shoes": "Schuhe",
@@ -91,7 +89,6 @@
     "unsupported": "Dieser Ausrüstungstyp unterstützt keine Komponenten.",
     "noneActive": "Alle Komponenten sind inaktiv. Aktiviere \"Inaktive anzeigen\", um sie zu sehen.",
     "inactive": "Inaktiv",
-    "unitHours": "h",
     "purchasedOn": "Gekauft am {date}",
     "wearLabel": "Verschleiß {name}",
     "actions": {

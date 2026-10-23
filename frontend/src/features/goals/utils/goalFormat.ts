@@ -9,6 +9,7 @@ import {
 } from '@lucide/vue'
 
 import type { Schemas } from '@/types'
+import type { Translate } from '@/features/activities/utils/format'
 import type { GoalActivityType, GoalInterval, GoalMetric } from '@/features/goals/types'
 
 import { kmToMiles, milesToKm } from '@/utils/units'
@@ -113,11 +114,14 @@ export function hoursMinutesToSeconds(hours: number, minutes: number): number {
  * hour), matching how the rest of the app summarizes durations.
  *
  * @param seconds - Duration in seconds.
+ * @param t - Translates the duration pattern.
  * @returns A compact human-readable duration, e.g. `12h 30m` or `45m`.
  */
-export function formatGoalDuration(seconds: number): string {
+export function formatGoalDuration(seconds: number, t: Translate): string {
   const { hours, minutes } = secondsToHoursMinutes(seconds)
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+  return hours > 0
+    ? t('app.units.hoursMinutes', { hours, minutes })
+    : t('app.units.minutes', { minutes })
 }
 
 /** Recurrence intervals in display order, shared by the goal form and filters. */

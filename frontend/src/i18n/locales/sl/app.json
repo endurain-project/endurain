@@ -35,5 +35,16 @@
     "edit": "Uredi",
     "supported": "Markdown podprt",
     "empty": "Ni ničesar za predogled"
+  },
+  "units": {
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "ft": "ft",
+    "cm": "cm",
+    "in": "in",
+    "bpm": "utrip/min",
+    "kcal": "kcal",
+    "h": "h"
   }
 }

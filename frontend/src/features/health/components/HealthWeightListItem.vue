@@ -39,7 +39,7 @@ const hasDetails = computed(
 
 /** Primary weight string, or an em dash when the entry carries no weight. */
 const weightLabel = computed(() =>
-  props.entry.weightKg === null ? '—' : formatWeight(props.entry.weightKg, props.units),
+  props.entry.weightKg === null ? '—' : formatWeight(props.entry.weightKg, props.units, t),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))
@@ -108,11 +108,11 @@ const fromGarmin = computed(() => props.entry.source === 'garmin')
       </div>
       <div v-if="entry.boneMassKg !== null">
         <dt class="text-caption">{{ t('health.weight.detail.boneMass') }}</dt>
-        <dd class="text-hint">{{ formatBodyMass(entry.boneMassKg, units) }}</dd>
+        <dd class="text-hint">{{ formatBodyMass(entry.boneMassKg, units, t) }}</dd>
       </div>
       <div v-if="entry.muscleMassKg !== null">
         <dt class="text-caption">{{ t('health.weight.detail.muscleMass') }}</dt>
-        <dd class="text-hint">{{ formatBodyMass(entry.muscleMassKg, units) }}</dd>
+        <dd class="text-hint">{{ formatBodyMass(entry.muscleMassKg, units, t) }}</dd>
       </div>
     </dl>
   </div>

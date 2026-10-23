@@ -119,13 +119,9 @@
       "unitsMetric": "Meetermõõdustik",
       "unitsImperial": "Briti süsteem",
       "height": "Pikkus",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Jalad peavad olema vahemikus 0 kuni 10",
       "inchesInvalid": "Tollid peavad olema vahemikus 0 kuni 11",
       "maxHeartRate": "Maksimaalne pulss",
-      "unitBpm": "bpm",
       "currency": "Valuuta",
       "currencies": {
         "euro": "Euro",
@@ -491,13 +487,6 @@
       "distance": "Vahemaa",
       "elevation": "Tõus",
       "duration": "Kestus"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Muuda eesmärki {name}",

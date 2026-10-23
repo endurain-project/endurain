@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Szűrők",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Kerékpár",
     "shoes": "Cipő",
@@ -91,7 +89,6 @@
     "unsupported": "Ennél a felszereléstípusnál nem követhetők nyomon az alkatrészek.",
     "noneActive": "Minden alkatrész inaktív. Kapcsold be az „Inaktívak megjelenítése” lehetőséget a megtekintésükhöz.",
     "inactive": "Inaktív",
-    "unitHours": "ó",
     "purchasedOn": "Vásárolva: {date}",
     "wearLabel": "{name} kopás",
     "actions": {

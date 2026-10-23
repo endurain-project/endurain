@@ -35,5 +35,16 @@
     "edit": "Editează",
     "supported": "Markdown acceptat",
     "empty": "Nimic de previzualizat"
+  },
+  "units": {
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "ft": "ft",
+    "cm": "cm",
+    "in": "in",
+    "bpm": "bpm",
+    "kcal": "kcal",
+    "h": "h"
   }
 }

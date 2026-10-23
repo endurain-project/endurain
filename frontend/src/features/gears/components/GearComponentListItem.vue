@@ -38,13 +38,13 @@ const title = computed(() => `${props.component.brand} ${props.component.model}`
 const typeLabel = computed(() => humanizeComponentType(props.component.type))
 const timeBased = computed(() => isTimeBasedGear(props.gearType))
 const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
+  props.units === 'imperial' ? t('app.units.mi') : t('app.units.km'),
 )
 
 /** Accumulated usage, rendered as a duration (racquet) or distance + unit. */
 const currentDisplay = computed(() =>
   timeBased.value
-    ? formatDuration(props.component.currentTime)
+    ? formatDuration(props.component.currentTime, t)
     : `${metersToDisplayDistance(props.component.currentDistance, props.units)} ${distanceUnit.value}`,
 )
 
@@ -59,7 +59,7 @@ const expectedDisplay = computed(() => {
     return ''
   }
   return timeBased.value
-    ? formatDuration(base)
+    ? formatDuration(base, t)
     : `${metersToDisplayDistance(base, props.units)} ${distanceUnit.value}`
 })
 

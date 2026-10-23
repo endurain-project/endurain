@@ -37,9 +37,6 @@
   "errorGeneral": "A regisztráció sikertelen. Kérjük, próbáld újra.",
   "signupDisabled": "A regisztráció nincs engedélyezve ezen a kiszolgálón",
   "imageAlt": "Endurain regisztrációs illusztráció",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalán",
     "zh-Hans": "Kínai (egyszerűsített)",

@@ -119,13 +119,9 @@
       "unitsMetric": "Metrisch",
       "unitsImperial": "Imperial",
       "height": "Körpergröße",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Fuß muss zwischen 0 und 10 liegen",
       "inchesInvalid": "Zoll muss zwischen 0 und 11 liegen",
       "maxHeartRate": "Maximale Herzfrequenz",
-      "unitBpm": "bpm",
       "currency": "Währung",
       "currencies": {
         "euro": "Euro",
@@ -491,13 +487,6 @@
       "distance": "Distanz",
       "elevation": "Höhe",
       "duration": "Dauer"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Ziel {name} bearbeiten",

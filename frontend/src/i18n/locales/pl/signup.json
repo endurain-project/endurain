@@ -37,9 +37,6 @@
   "errorGeneral": "Rejestracja nie powiodła się. Spróbuj ponownie.",
   "signupDisabled": "Rejestracja nie jest włączona na tym serwerze",
   "imageAlt": "Ilustracja rejestracji Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Kataloński",
     "zh-Hans": "Chiński (uproszczony)",

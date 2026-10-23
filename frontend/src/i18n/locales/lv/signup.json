@@ -37,9 +37,6 @@
   "errorGeneral": "Reģistrācija neizdevās. Lūdzu, mēģiniet vēlreiz.",
   "signupDisabled": "Reģistrācija šajā serverī nav iespējota",
   "imageAlt": "Endurain reģistrācijas ilustrācija",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalāņu",
     "zh-Hans": "Ķīniešu (vienkāršotā)",

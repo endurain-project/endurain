@@ -37,9 +37,6 @@
   "errorGeneral": "El registre ha fallat. Torna-ho a intentar.",
   "signupDisabled": "El registre no està activat en aquest servidor",
   "imageAlt": "Il·lustració de registre d'Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Català",
     "zh-Hans": "Xinès (Simplificat)",

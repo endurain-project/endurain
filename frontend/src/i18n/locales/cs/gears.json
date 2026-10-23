@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtry",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Kolo",
     "shoes": "Boty",
@@ -91,7 +89,6 @@
     "unsupported": "Tento typ vybavení nesleduje komponenty.",
     "noneActive": "Všechny komponenty jsou neaktivní. Zapněte „Zobrazit neaktivní“, abyste je viděli.",
     "inactive": "Neaktivní",
-    "unitHours": "h",
     "purchasedOn": "Zakoupeno {date}",
     "wearLabel": "Opotřebení {name}",
     "actions": {

@@ -37,9 +37,6 @@
   "errorGeneral": "Registrazione non riuscita. Riprova.",
   "signupDisabled": "La registrazione non è abilitata su questo server",
   "imageAlt": "Illustrazione di registrazione a Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Catalano",
     "zh-Hans": "Cinese (semplificato)",

@@ -119,13 +119,9 @@
       "unitsMetric": "Metrické",
       "unitsImperial": "Imperiálne",
       "height": "Výška",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Stopy musia byť medzi 0 a 10",
       "inchesInvalid": "Palce musia byť medzi 0 a 11",
       "maxHeartRate": "Max. tepová frekvencia",
-      "unitBpm": "bpm",
       "currency": "Mena",
       "currencies": {
         "euro": "Euro",
@@ -491,13 +487,6 @@
       "distance": "Vzdialenosť",
       "elevation": "Prevýšenie",
       "duration": "Trvanie"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Upraviť cieľ {name}",

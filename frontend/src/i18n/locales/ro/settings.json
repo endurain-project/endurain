@@ -119,13 +119,9 @@
       "unitsMetric": "Metric",
       "unitsImperial": "Imperial",
       "height": "Înălțime",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Picioarele trebuie să fie între 0 și 10",
       "inchesInvalid": "Inchii trebuie să fie între 0 și 11",
       "maxHeartRate": "Puls maxim",
-      "unitBpm": "bpm",
       "currency": "Monedă",
       "currencies": {
         "euro": "Euro",
@@ -491,13 +487,6 @@
       "distance": "Distanță",
       "elevation": "Diferență de nivel",
       "duration": "Durată"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Editează obiectivul {name}",

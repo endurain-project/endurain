@@ -19,6 +19,7 @@ import {
   metersToElevationValue,
   secondsToHoursMinutes,
 } from '@/features/goals/utils/goalFormat'
+import i18n from '@/i18n'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
@@ -203,7 +204,8 @@ describe('goal unit conversions', () => {
   })
 
   it('formats durations compactly', () => {
-    expect(formatGoalDuration(5400)).toBe('1h 30m')
-    expect(formatGoalDuration(1800)).toBe('30m')
+    const t = i18n.global.t
+    expect(formatGoalDuration(5400, t)).toBe('1h 30m')
+    expect(formatGoalDuration(1800, t)).toBe('30m')
   })
 })

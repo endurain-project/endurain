@@ -35,5 +35,16 @@
     "edit": "Redigera",
     "supported": "Markdown stöds",
     "empty": "Inget att förhandsgranska"
+  },
+  "units": {
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "ft": "ft",
+    "cm": "cm",
+    "in": "in",
+    "bpm": "slag/min",
+    "kcal": "kcal",
+    "h": "h"
   }
 }

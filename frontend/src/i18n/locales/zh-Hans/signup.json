@@ -37,9 +37,6 @@
   "errorGeneral": "Sign up failed. Please try again.",
   "signupDisabled": "Sign-up is not enabled on this server",
   "imageAlt": "Endurain sign up illustration",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "加泰罗尼亚语",
     "zh-Hans": "中文（简体）",

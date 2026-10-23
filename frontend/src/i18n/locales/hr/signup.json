@@ -37,9 +37,6 @@
   "errorGeneral": "Registracija nije uspjela. Pokušajte ponovno.",
   "signupDisabled": "Registracija nije omogućena na ovom poslužitelju",
   "imageAlt": "Endurain ilustracija za registraciju",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalonski",
     "zh-Hans": "Kineski (pojednostavljeni)",

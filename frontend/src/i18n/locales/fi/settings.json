@@ -119,13 +119,9 @@
       "unitsMetric": "Metriset",
       "unitsImperial": "Brittiläiset",
       "height": "Pituus",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Jalkojen on oltava välillä 0–10",
       "inchesInvalid": "Tuumien on oltava välillä 0–11",
       "maxHeartRate": "Maksimisyke",
-      "unitBpm": "bpm",
       "currency": "Valuutta",
       "currencies": {
         "euro": "Euro",
@@ -491,13 +487,6 @@
       "distance": "Matka",
       "elevation": "Nousu",
       "duration": "Kesto"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Muokkaa tavoitetta {name}",

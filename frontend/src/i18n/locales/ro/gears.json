@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtre",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bicicletă",
     "shoes": "Încălțăminte",
@@ -91,7 +89,6 @@
     "unsupported": "Acest tip de echipament nu urmărește componente.",
     "noneActive": "Toate componentele sunt inactive. Activează „Arată inactive” pentru a le vedea.",
     "inactive": "Inactiv",
-    "unitHours": "h",
     "purchasedOn": "Achiziționat la {date}",
     "wearLabel": "Uzură {name}",
     "actions": {
