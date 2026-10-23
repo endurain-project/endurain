@@ -3,9 +3,10 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Security, status
 from fastapi.responses import FileResponse
 
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.logs_schema as logs_schema
 import modules.server_settings.logs_service as logs_service
@@ -101,3 +102,32 @@ def download_logs(
         media_type="text/plain",
         filename=logs_service.LOG_FILE_NAME,
     )
+
+
+@router.delete(
+    "",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def clear_logs(
+    request: Request,
+    _check_scopes: Annotated[
+        Callable,
+        Security(auth_dependencies.check_scopes, scopes=["server_settings:logs_clear"]),
+    ],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+) -> None:
+    """Empty the server log and delete its rotated backups.
+
+    Requires admin authentication with server_settings:logs_clear scope. The action is
+    recorded as the first line of the new log.
+
+    Args:
+        request: The HTTP request object.
+        token_user_id: The requesting admin's user ID, from the access token.
+
+    Raises:
+        NotFoundError: 404 if the log viewer is not available on this deployment.
+    """
+    logs_service.clear_logs(token_user_id)

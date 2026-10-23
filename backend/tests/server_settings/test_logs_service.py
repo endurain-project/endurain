@@ -130,3 +130,47 @@ class TestGetLogFilePath:
     def test_disabled_viewer_is_not_found(self, tmp_path):
         with patch("core.config.Settings.logs_viewer_enabled", False), pytest.raises(core_exceptions.NotFoundError):
             logs_service.get_log_file_path()
+
+
+class TestClearLogs:
+    """Tests for clear_logs."""
+
+    def test_empties_the_file_and_removes_rotated_backups(self, logs_dir):
+        _write(logs_dir, [_json_line("INFO", "old")])
+        (logs_dir / "app.log.1").write_text("older")
+        (logs_dir / "app.log.2").write_text("oldest")
+        (logs_dir / "other.log").write_text("keep")
+
+        logs_service.clear_logs(7)
+
+        assert (logs_dir / logs_service.LOG_FILE_NAME).read_text() == ""
+        assert not (logs_dir / "app.log.1").exists()
+        assert not (logs_dir / "app.log.2").exists()
+        assert (logs_dir / "other.log").exists()
+
+    def test_records_who_cleared_the_logs(self, logs_dir):
+        with patch.object(logs_service.logger, "warning") as warning:
+            logs_service.clear_logs(7)
+        assert warning.call_args.kwargs["extra"] == {"admin_id": 7}
+
+    def test_missing_file_is_not_an_error(self, logs_dir):
+        logs_service.clear_logs(7)
+
+    def test_disabled_viewer_is_not_found(self, tmp_path):
+        with patch("core.config.Settings.logs_viewer_enabled", False), pytest.raises(core_exceptions.NotFoundError):
+            logs_service.clear_logs(7)
+
+
+class TestLogsRouteScopes:
+    """The log routes each require their own scope."""
+
+    def test_reading_and_clearing_need_different_scopes(self):
+        import modules.server_settings.logs_router as logs_router
+
+        def scopes(path: str, method: str) -> set[str]:
+            route = next(r for r in logs_router.router.routes if r.path == path and method in r.methods)
+            return {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
+
+        assert scopes("", "GET") == {"server_settings:logs"}
+        assert scopes("/download", "GET") == {"server_settings:logs"}
+        assert scopes("", "DELETE") == {"server_settings:logs_clear"}

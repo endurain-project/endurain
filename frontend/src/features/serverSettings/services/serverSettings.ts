@@ -367,3 +367,13 @@ export async function downloadLogs(signal?: AbortSignal): Promise<Blob> {
     signal,
   })
 }
+
+/**
+ * Empties the server log and deletes its rotated backups (admin scope
+ * `server_settings:logs_clear`). The backend records the action in the new log.
+ *
+ * @throws {HttpError} When the request fails.
+ */
+export async function clearLogs(): Promise<void> {
+  await apiFetch('/server-settings/logs', { method: 'DELETE', responseType: 'void' })
+}

@@ -12,7 +12,10 @@ from pathlib import Path
 
 import core.config as core_config
 import core.exceptions as core_exceptions
+import core.logger as core_logger
 import modules.server_settings.logs_schema as logs_schema
+
+logger = core_logger.get_logger(__name__)
 
 LOG_FILE_NAME = "app.log"
 
@@ -104,6 +107,30 @@ def read_logs(
     entries = _parse_entries(chunk[:complete_end].decode("utf-8", errors="replace").splitlines())
     matching = [entry for entry in entries if _matches(entry, min_level, search)]
     return logs_schema.LogPage(entries=matching[-limit:], cursor=start + complete_end)
+
+
+def clear_logs(admin_id: int) -> None:
+    """Empty the log file and delete its rotated backups.
+
+    The file is truncated in place, so the logging handler keeps its open file and
+    writes on from the start. The clear is recorded as the first line of the new log.
+
+    Args:
+        admin_id: ID of the admin who cleared the logs.
+
+    Raises:
+        NotFoundError: If the viewer is disabled.
+    """
+    if not core_config.settings.logs_viewer_enabled:
+        raise core_exceptions.NotFoundError("The log viewer is not available")
+    path = Path(core_config.settings.LOGS_DIR) / LOG_FILE_NAME
+    for backup in path.parent.glob(f"{LOG_FILE_NAME}.*"):
+        if backup.suffix[1:].isdigit():
+            backup.unlink(missing_ok=True)
+    if path.is_file():
+        with path.open("r+b") as log_file:
+            log_file.truncate(0)
+    logger.warning("Server logs cleared", extra=core_logger.context(admin_id=admin_id))
 
 
 def _matches(entry: logs_schema.LogEntry, min_level: logs_schema.LogLevel | None, search: str | None) -> bool:

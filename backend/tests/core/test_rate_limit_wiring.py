@@ -43,6 +43,7 @@ import modules.garmin.router as garmin_router
 import modules.gears.gear.router as gear_router
 import modules.gears.gear_components.router as gear_components_router
 import modules.notifications.router as notifications_router
+import modules.server_settings.logs_router as server_settings_logs_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users_profile.router as users_profile_router
@@ -93,6 +94,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(server_settings_router.edit_mail_settings, core_rate_limit.WRITE, id="server-settings-edit-mail"),
     pytest.param(server_settings_router.upload_login_photo, core_rate_limit.UPLOAD, id="server-settings-upload-login"),
     pytest.param(server_settings_router.delete_login_photo, core_rate_limit.WRITE, id="server-settings-delete-login"),
+    pytest.param(server_settings_logs_router.clear_logs, core_rate_limit.WRITE, id="server-settings-clear-logs"),
     pytest.param(idp_public_router.initiate_login, core_rate_limit.SENSITIVE, id="oidc-initiate"),
     pytest.param(idp_public_router.handle_callback, core_rate_limit.SENSITIVE, id="oidc-callback"),
     pytest.param(

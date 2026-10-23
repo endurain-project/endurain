@@ -4206,7 +4206,21 @@ export interface paths {
         get: operations["read_logs_api_v1_server_settings_logs_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Clear Logs
+         * @description Empty the server log and delete its rotated backups.
+         *
+         *     Requires admin authentication with server_settings:logs_clear scope. The action is
+         *     recorded as the first line of the new log.
+         *
+         *     Args:
+         *         request: The HTTP request object.
+         *         token_user_id: The requesting admin's user ID, from the access token.
+         *
+         *     Raises:
+         *         NotFoundError: 404 if the log viewer is not available on this deployment.
+         */
+        delete: operations["clear_logs_api_v1_server_settings_logs_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -18361,6 +18375,33 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    clear_logs_api_v1_server_settings_logs_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {

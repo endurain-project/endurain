@@ -70,6 +70,7 @@ SERVER_SETTINGS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "server_settings:read",
     "server_settings:write",
     "server_settings:logs",
+    "server_settings:logs_clear",
 )
 
 SCOPE_DICT: Final[dict[str, str]] = {
@@ -94,6 +95,7 @@ SCOPE_DICT: Final[dict[str, str]] = {
     "server_settings:read": "Read privileges over server settings",
     "server_settings:write": "Write privileges over server settings",
     "server_settings:logs": "Read privileges over the server logs",
+    "server_settings:logs_clear": "Privileges to clear the server logs",
     "identity_providers:read": "Read privileges over identity providers",
     "identity_providers:write": "Write privileges over identity providers",
 }

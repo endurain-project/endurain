@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { apiFetch } from '@/services/http'
 import {
+  clearLogs,
   downloadLogs,
   fetchLogs,
   fetchLogsStatus,
@@ -56,6 +57,17 @@ describe('server log services', () => {
       responseType: 'blob',
       timeoutMs: 0,
       signal: undefined,
+    })
+  })
+
+  it('clears the log with a DELETE', async () => {
+    mockedApiFetch.mockResolvedValue(undefined)
+
+    await clearLogs()
+
+    expect(mockedApiFetch).toHaveBeenCalledWith('/server-settings/logs', {
+      method: 'DELETE',
+      responseType: 'void',
     })
   })
 })

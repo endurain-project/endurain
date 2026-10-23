@@ -430,6 +430,16 @@
       "refresh": "Refresh",
       "download": "Download",
       "downloadError": "Couldn't download the log file.",
+      "clear": "Clear",
+      "cleared": "Logs cleared",
+      "clearError": "Couldn't clear the logs.",
+      "clearConfirm": {
+        "title": "Clear the server logs?",
+        "description": "This permanently deletes the log file and its rotated backups. Download the log first if you may need it. The action itself is recorded in the new log.",
+        "confirm": "Clear logs",
+        "cancel": "Cancel",
+        "close": "Close"
+      },
       "loadError": "Couldn't load the logs.",
       "empty": "No log records found"
     },

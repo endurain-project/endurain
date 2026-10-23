@@ -16,6 +16,7 @@ import type {
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
+  clearLogs,
   deleteLoginPhoto,
   downloadLogs,
   fetchEmailStatus,
@@ -258,5 +259,20 @@ export function useLogsQuery(filters: Ref<LogFilters>, live: Ref<boolean>) {
 export function useDownloadLogsMutation() {
   return useMutation<Blob, Error, void>({
     mutationFn: () => downloadLogs(),
+  })
+}
+
+/**
+ * Clear mutation. Resets every cached log tail, since the file they were read
+ * from is gone and their cursors no longer point into it.
+ *
+ * @returns The TanStack Query mutation for clearing the server log.
+ */
+export function useClearLogsMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, void>({
+    mutationFn: () => clearLogs(),
+    onSuccess: () => client.resetQueries({ queryKey: queryKeys.serverSettings.logsAll() }),
   })
 }

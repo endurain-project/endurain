@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Download, RefreshCw } from '@lucide/vue'
+import { Download, RefreshCw, Trash2 } from '@lucide/vue'
 
 import type { LogFilters, LogLevel } from '@/features/serverSettings/types'
 
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import {
+  useClearLogsMutation,
   useDownloadLogsMutation,
   useLogsQuery,
 } from '@/features/serverSettings/composables/useServerSettings'
@@ -51,6 +53,8 @@ const filters = computed<LogFilters>(() => ({
 
 const logsQuery = useLogsQuery(filters, live)
 const downloadMutation = useDownloadLogsMutation()
+const clearMutation = useClearLogsMutation()
+const confirmClearOpen = ref(false)
 
 const entries = computed(() => logsQuery.data.value?.entries ?? [])
 
@@ -64,6 +68,17 @@ function handleDownload(): void {
   downloadMutation.mutate(undefined, {
     onSuccess: (blob) => downloadBlob(blob, 'endurain-app.log'),
     onError: () => toasts.error(t('settings.server.logs.downloadError')),
+  })
+}
+
+/** Empties the server log once the admin has confirmed. */
+function handleClear(): void {
+  clearMutation.mutate(undefined, {
+    onSuccess: () => {
+      confirmClearOpen.value = false
+      toasts.success(t('settings.server.logs.cleared'))
+    },
+    onError: () => toasts.error(t('settings.server.logs.clearError')),
   })
 }
 </script>
@@ -123,6 +138,10 @@ function handleDownload(): void {
           <Download class="size-4" aria-hidden="true" />
           {{ t('settings.server.logs.download') }}
         </Button>
+        <Button variant="outline" @click="confirmClearOpen = true">
+          <Trash2 class="size-4" aria-hidden="true" />
+          {{ t('settings.server.logs.clear') }}
+        </Button>
       </div>
     </div>
 
@@ -152,5 +171,16 @@ function handleDownload(): void {
         <pre v-if="entry.exception" class="whitespace-pre-wrap text-hr">{{ entry.exception }}</pre>
       </li>
     </ol>
+
+    <ConfirmDialog
+      v-model:open="confirmClearOpen"
+      :title="t('settings.server.logs.clearConfirm.title')"
+      :description="t('settings.server.logs.clearConfirm.description')"
+      :confirm-label="t('settings.server.logs.clearConfirm.confirm')"
+      :cancel-label="t('settings.server.logs.clearConfirm.cancel')"
+      :close-label="t('settings.server.logs.clearConfirm.close')"
+      :pending="clearMutation.isPending.value"
+      @confirm="handleClear"
+    />
   </Card>
 </template>
