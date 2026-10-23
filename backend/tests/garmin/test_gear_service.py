@@ -8,9 +8,10 @@ import modules.garmin.gear_service as garmin_gear_service
 
 
 def _patched(client):
+    session = garmin_gear_service.garmin_service.GarminSession(client, {"di_token": "enc"}) if client else None
     return (
         patch.object(garmin_gear_service, "SessionLocal"),
-        patch.object(garmin_gear_service.garmin_service, "get_user_garminconnect_client", return_value=client),
+        patch.object(garmin_gear_service.garmin_service, "get_user_garminconnect_session", return_value=session),
         patch.object(garmin_gear_service.user_integrations_integration, "set_garminconnect_sync_gear"),
         patch.object(garmin_gear_service.garmin_service, "unlink_expired_account"),
     )

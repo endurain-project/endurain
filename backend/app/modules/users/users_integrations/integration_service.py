@@ -23,7 +23,7 @@ def get_user_integrations(user_id: int, db: Session) -> user_integrations_schema
 
 
 def link_garminconnect_account(user_id: int, token: dict, db: Session) -> None:
-    """Store a user's Garmin Connect token.
+    """Store a user's Garmin Connect token; the caller commits.
 
     Args:
         user_id: The user linking Garmin Connect.
@@ -34,13 +34,27 @@ def link_garminconnect_account(user_id: int, token: dict, db: Session) -> None:
 
 
 def unlink_garminconnect_account(user_id: int, db: Session) -> None:
-    """Clear a user's Garmin Connect token and gear sync preference.
+    """Clear a user's Garmin Connect token and gear sync preference; the caller commits.
 
     Args:
         user_id: The user unlinking Garmin Connect.
         db: Database session.
     """
     user_integrations_crud.unlink_garminconnect_account(user_id, db)
+
+
+def unlink_garminconnect_account_if_token(user_id: int, token: dict, db: Session) -> bool:
+    """Clear a user's Garmin Connect token only while it is still the given one; the caller commits.
+
+    Args:
+        user_id: The user unlinking Garmin Connect.
+        token: The stored token that was found to be rejected.
+        db: Database session.
+
+    Returns:
+        True when the account was unlinked, False when the token has since changed.
+    """
+    return user_integrations_crud.unlink_garminconnect_account_if_token(user_id, token, db)
 
 
 def set_garminconnect_sync_gear(user_id: int, sync_gear: bool, db: Session) -> None:

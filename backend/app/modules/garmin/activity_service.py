@@ -107,7 +107,7 @@ def _download_and_ingest_activity(
 
 
 def fetch_and_process_activities_by_dates(
-    garminconnect_client: garminconnect.Garmin,
+    session: garmin_service.GarminSession,
     start_date: datetime,
     end_date: datetime,
     user_id: int,
@@ -119,7 +119,7 @@ def fetch_and_process_activities_by_dates(
     logged and skipped, so it does not stop the rest of the window.
 
     Args:
-        garminconnect_client: A client authenticated as the user.
+        session: The user's authenticated Garmin Connect session.
         start_date: Start of the window.
         end_date: End of the window.
         user_id: The user the activities belong to.
@@ -127,6 +127,7 @@ def fetch_and_process_activities_by_dates(
     Returns:
         The stored activities, or ``None`` when there were none.
     """
+    garminconnect_client = session.client
     try:
         garmin_activities = garminconnect_client.get_activities_by_date(
             str(start_date.date()),
@@ -139,7 +140,7 @@ def fetch_and_process_activities_by_dates(
             extra=core_logger.context(user_id=user_id),
         )
         with SessionLocal() as db:
-            garmin_service.unlink_expired_account(user_id, db)
+            garmin_service.unlink_expired_account(user_id, session.token, db)
         return None
     except Exception as err:
         logger.error(
@@ -203,16 +204,16 @@ def get_user_garminconnect_activities_by_dates(
     """
     try:
         with SessionLocal() as db:
-            garminconnect_client = garmin_service.get_user_garminconnect_client(user_id, db)
+            session = garmin_service.get_user_garminconnect_session(user_id, db)
 
-        if garminconnect_client is None:
+        if session is None:
             return None
 
         logger.info(
             "Started Garmin Connect activities processing for date range to",
             extra=core_logger.context(user_id=user_id, start_date=start_date.date(), end_date=end_date.date()),
         )
-        processed = fetch_and_process_activities_by_dates(garminconnect_client, start_date, end_date, user_id)
+        processed = fetch_and_process_activities_by_dates(session, start_date, end_date, user_id)
         logger.info(
             "Garmin Connect activities processed",
             extra=core_logger.context(user_id=user_id, count=len(processed) if processed else 0),

@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated
 
 import jasil.providers as platform_providers
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -13,10 +13,9 @@ import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
 import modules.garmin.dependencies as garmin_dependencies
-import modules.garmin.gear_service as garmin_gear_service
-import modules.garmin.health_service as garmin_health_service
 import modules.garmin.schema as garmin_schema
 import modules.garmin.service as garmin_service
+import modules.garmin.sync_service as garmin_sync_service
 
 router = APIRouter()
 
@@ -107,35 +106,36 @@ def garminconnect_retrieve_activities_days(
 
 
 @router.get("/gear", status_code=202, response_model=garmin_schema.GarminDetail)
+@core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def garminconnect_retrieve_gear(
+    request: Request,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(core_database.get_db)],
 ) -> garmin_schema.GarminDetail:
-    """Sync the user's Garmin Connect gear in the background."""
-    background_tasks.add_task(garmin_gear_service.get_user_gear, token_user_id)
-    return garmin_schema.GarminDetail(
-        detail=f"Garmin Connect gear will be processed in the background for {token_user_id}"
-    )
+    """Queue a sync of the user's Garmin Connect gear; a background job runs it."""
+    return garmin_sync_service.request_gear_sync(token_user_id, db)
 
 
 @router.get("/health", status_code=202, response_model=garmin_schema.GarminDetail)
+@core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def garminconnect_retrieve_health_days(
+    request: Request,
     start_date: date,
     end_date: date,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(core_database.get_db)],
 ) -> garmin_schema.GarminDetail:
-    """Sync the user's Garmin Connect health data for a date range in the background."""
-    background_tasks.add_task(garmin_health_service.sync_health_for_dates, start_date, end_date, token_user_id)
-    return garmin_schema.GarminDetail(
-        detail=f"Garmin Connect health data will be processed in the background for {token_user_id}"
-    )
+    """Queue a sync of the user's Garmin Connect health data for a date range.
+
+    The range must not exceed 31 days; a background job runs it.
+    """
+    return garmin_sync_service.request_health_sync(token_user_id, start_date, end_date, db)
 
 
 @router.delete("/unlink", response_model=garmin_schema.GarminDetail)

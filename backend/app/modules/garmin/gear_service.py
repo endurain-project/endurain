@@ -179,13 +179,13 @@ def get_user_gear(user_id: int) -> None:
     )
 
     with SessionLocal() as db:
-        garminconnect_client = garmin_service.get_user_garminconnect_client(user_id, db)
+        session = garmin_service.get_user_garminconnect_session(user_id, db)
 
-    if garminconnect_client is None:
+    if session is None:
         return
 
     try:
-        fetch_and_process_gear(garminconnect_client, user_id)
+        fetch_and_process_gear(session.client, user_id)
     except garminconnect.GarminConnectAuthenticationError as err:
         logger.error(
             "Garmin Connect token expired. Unlinking account. User must re-link",
@@ -193,7 +193,7 @@ def get_user_gear(user_id: int) -> None:
             extra=core_logger.context(user_id=user_id),
         )
         with SessionLocal() as db:
-            garmin_service.unlink_expired_account(user_id, db)
+            garmin_service.unlink_expired_account(user_id, session.token, db)
         return
 
     with SessionLocal() as db:

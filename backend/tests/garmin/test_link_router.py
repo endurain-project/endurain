@@ -108,3 +108,23 @@ def test_oversized_credentials_and_codes_are_rejected():
 
     assert client.post("/garminconnect/link", json={**_BODY, "password": "x" * 1000}).status_code == 422
     assert client.post("/garminconnect/mfa", json={"mfa_code": "1" * 100}).status_code == 422
+
+
+def test_a_gear_sync_is_queued_not_run_on_the_request():
+    client, _ = _client()
+    with patch("modules.garmin.sync_service.request_gear_sync") as queue:
+        from modules.garmin.schema import GarminDetail
+
+        queue.return_value = GarminDetail(detail="queued")
+        response = client.get("/garminconnect/gear")
+
+    assert response.status_code == 202
+    queue.assert_called_once()
+
+
+def test_a_reversed_health_range_is_a_client_error():
+    client, _ = _client()
+
+    response = client.get("/garminconnect/health", params={"start_date": "2026-01-02", "end_date": "2026-01-01"})
+
+    assert response.status_code == 400

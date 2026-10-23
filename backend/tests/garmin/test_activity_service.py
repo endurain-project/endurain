@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 import modules.garmin.activity_service as activity_utils
+import modules.garmin.service as garmin_service
 
 
 def _make_garminconnect_client(activity_id: int = 12345) -> Mock:
@@ -25,7 +26,7 @@ def _make_garminconnect_client(activity_id: int = 12345) -> Mock:
 
 def _call(client: Mock, user_id: int = 1) -> list | None:
     return activity_utils.fetch_and_process_activities_by_dates(
-        garminconnect_client=client,
+        session=garmin_service.GarminSession(client, {"di_token": "enc"}),
         start_date=datetime(2026, 1, 1, tzinfo=UTC),
         end_date=datetime(2026, 1, 2, tzinfo=UTC),
         user_id=user_id,

@@ -350,7 +350,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     # Stop the bulk-import background pool (no-op when it was never started, i.e.
     # when durable jobs handle imports instead).
     activity_ingestion_integration.shutdown_background_ingestion()
-    garmin_integration.shutdown_link_executor()
+    garmin_integration.shutdown_executors()
     runtime_module_registry.shutdown_deferred_subscribers()
 
     # Stop the SSRF hostname-resolution pool (no-op when no lookup ever ran).

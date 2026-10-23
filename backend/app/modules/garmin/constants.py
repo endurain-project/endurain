@@ -8,6 +8,16 @@ PROVIDER_NAME = "garminconnect"
 # attempt never expires under the poller.
 MFA_WAIT_SECONDS = 60
 
+# Longest health range one request may ask for: each day is a Garmin round trip.
+MAX_HEALTH_RANGE_DAYS = 31
+
+
+class SyncKind(StrEnum):
+    """What a queued Garmin Connect sync pulls."""
+
+    GEAR = "gear"
+    HEALTH = "health"
+
 
 class LinkStatus(StrEnum):
     """Where a Garmin Connect link attempt is."""

@@ -212,3 +212,41 @@ class TestFetchUserIntegrationsAndValidateToken:
         linked = MagicMock(garminconnect_token={"di_token": "enc"})
         with patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=linked):
             assert garmin_service.fetch_user_integrations_and_validate_token(1, MagicMock()) is linked
+
+
+class TestUnlinkExpiredAccount:
+    def test_the_rejected_token_is_unlinked_and_the_user_told_in_one_commit(self):
+        db = MagicMock()
+        with (
+            patch.object(
+                garmin_service.user_integrations_integration, "unlink_garminconnect_account_if_token", return_value=True
+            ) as unlink,
+            patch.object(
+                garmin_service.notifications_integration,
+                "create_garmin_token_expired_notification",
+                return_value=("n", "ws"),
+            ),
+            patch.object(garmin_service.notifications_integration, "push_notification") as push,
+        ):
+            garmin_service.unlink_expired_account(1, {"di_token": "old"}, db)
+
+        unlink.assert_called_once_with(1, {"di_token": "old"}, db)
+        db.commit.assert_called_once()
+        push.assert_called_once_with(1, "n", "ws")
+
+    def test_a_token_linked_since_is_left_alone_and_nobody_is_notified(self):
+        db = MagicMock()
+        with (
+            patch.object(
+                garmin_service.user_integrations_integration,
+                "unlink_garminconnect_account_if_token",
+                return_value=False,
+            ),
+            patch.object(garmin_service.notifications_integration, "create_garmin_token_expired_notification") as note,
+            patch.object(garmin_service.notifications_integration, "push_notification") as push,
+        ):
+            garmin_service.unlink_expired_account(1, {"di_token": "old"}, db)
+
+        db.commit.assert_not_called()
+        note.assert_not_called()
+        push.assert_not_called()

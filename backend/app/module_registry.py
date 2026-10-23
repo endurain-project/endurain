@@ -40,6 +40,7 @@ import modules.activities.contributor_registry as activities_contributor_registr
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
 import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
+import modules.garmin.subscriber_registry as garmin_subscriber_registry
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
@@ -231,6 +232,8 @@ MODULES: tuple[RuntimeModule, ...] = (
     ),
     RuntimeModule(
         name="garmin",
+        register_durable=garmin_subscriber_registry.register_durable_handlers,
+        nets=garmin_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=garmin_scheduled_jobs.recurring_jobs,
         startup_tasks=(
             StartupTask(

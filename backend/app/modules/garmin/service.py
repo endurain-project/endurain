@@ -9,6 +9,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
+from typing import NamedTuple
 
 import garminconnect
 import jasil.providers as platform_providers
@@ -178,6 +179,7 @@ def link_garminconnect(
                 garmin_token_utils.serialize_garmin_token(garmin.client, is_cn),
                 db,
             )
+            db.commit()
     except garminconnect.GarminConnectAuthenticationError as err:
         logger.error("There was an authentication error using Garmin Connect. Check credentials", exc_info=err)
         link_states.set_status(
@@ -319,6 +321,7 @@ def unlink_account(user_id: int, db: Session) -> garmin_schema.GarminDetail:
         The outcome message.
     """
     user_integrations_integration.unlink_garminconnect_account(user_id, db)
+    db.commit()
     logger.info(
         "Garmin Connect unlinked",
         extra=core_logger.context(user_id=user_id),
@@ -352,15 +355,28 @@ def fetch_user_integrations_and_validate_token(
     return user_integrations
 
 
-def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Garmin | None:
-    """Return an authenticated Garmin Connect client for a linked user.
+class GarminSession(NamedTuple):
+    """A linked user's authenticated client and the stored token it was restored from.
+
+    Attributes:
+        client: The authenticated Garmin Connect client.
+        token: The token as stored when the client was restored, so a rejection can be
+            told apart from a later re-link.
+    """
+
+    client: garminconnect.Garmin
+    token: dict
+
+
+def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession | None:
+    """Return an authenticated Garmin Connect session for a linked user.
 
     Args:
         user_id: The user whose Garmin Connect account to use.
         db: Database session.
 
     Returns:
-        The client, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
+        The session, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
     """
     try:
         user_integrations = fetch_user_integrations_and_validate_token(user_id, db)
@@ -375,20 +391,44 @@ def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Ga
         )
         return None
 
-    return garmin_token_utils.login_garminconnect_using_tokens(user_integrations.garminconnect_token)
+    token = user_integrations.garminconnect_token
+    client = garmin_token_utils.login_garminconnect_using_tokens(token)
+    return GarminSession(client, token) if client is not None else None
 
 
-def unlink_expired_account(user_id: int, db: Session) -> None:
+def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Garmin | None:
+    """Return an authenticated Garmin Connect client for a linked user.
+
+    Args:
+        user_id: The user whose Garmin Connect account to use.
+        db: Database session.
+
+    Returns:
+        The client, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
+    """
+    session = get_user_garminconnect_session(user_id, db)
+    return session.client if session is not None else None
+
+
+def unlink_expired_account(user_id: int, token: dict, db: Session) -> None:
     """Unlink an account whose Garmin Connect token expired and tell the user.
 
-    The notification row is written in the same session as the unlink; the live push is
-    published after the commit.
+    The unlink and the notification row commit together; the live push is published after.
+    Nothing happens when the stored token is no longer ``token``: the user re-linked, or
+    another job already unlinked it and told them.
 
     Args:
         user_id: The user whose account to unlink.
+        token: The stored token that Garmin Connect rejected.
         db: The caller's session, which this commits.
     """
-    user_integrations_integration.unlink_garminconnect_account(user_id, db)
+    if not user_integrations_integration.unlink_garminconnect_account_if_token(user_id, token, db):
+        db.rollback()
+        logger.info(
+            "Garmin Connect token changed since it expired; account left linked",
+            extra=core_logger.context(user_id=user_id),
+        )
+        return
     notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
     db.commit()
     notifications_integration.push_notification(user_id, notification, ws_message)

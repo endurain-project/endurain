@@ -172,20 +172,21 @@ class TestExpiredToken:
         client = MagicMock()
         client.get_body_composition.side_effect = health_utils.garminconnect.GarminConnectAuthenticationError("401")
 
+        session = health_utils.garmin_service.GarminSession(client, {"di_token": "enc"})
         with (
             patch.object(health_utils, "SessionLocal"),
-            patch.object(health_utils.garmin_service, "get_user_garminconnect_client", return_value=client),
+            patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=session),
             patch.object(health_utils.garmin_service, "unlink_expired_account") as unlink,
         ):
             health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1)
 
         unlink.assert_called_once()
-        assert unlink.call_args.args[0] == 1
+        assert unlink.call_args.args[:2] == (1, {"di_token": "enc"})
 
     def test_an_unlinked_user_is_skipped(self):
         with (
             patch.object(health_utils, "SessionLocal"),
-            patch.object(health_utils.garmin_service, "get_user_garminconnect_client", return_value=None),
+            patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=None),
             patch.object(health_utils, "fetch_and_process_bc_by_dates") as fetch,
         ):
             health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1)

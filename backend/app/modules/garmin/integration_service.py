@@ -9,6 +9,7 @@ import modules.activities.activity_ingestion.integration_service as activity_ing
 import modules.garmin.activity_service as garmin_activity_service
 import modules.garmin.constants as garmin_constants
 import modules.garmin.service as garmin_service
+import modules.garmin.sync_service as garmin_sync_service
 import modules.users.users_integrations.integration_service as user_integrations_integration
 from core.database import SessionLocal
 
@@ -36,4 +37,7 @@ def register_activity_provider() -> None:
     )
 
 
-shutdown_link_executor = garmin_service.shutdown_link_executor
+def shutdown_executors() -> None:
+    """Stop the Garmin Connect link and sync threads."""
+    garmin_service.shutdown_link_executor()
+    garmin_sync_service.shutdown_sync_executor()

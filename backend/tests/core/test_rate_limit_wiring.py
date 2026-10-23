@@ -143,6 +143,10 @@ _TIERED_ENDPOINTS = [
         core_rate_limit.PROVIDER_SYNC,
         id="garmin-retrieve-activities",
     ),
+    pytest.param(garmin_router.garminconnect_retrieve_gear, core_rate_limit.PROVIDER_SYNC, id="garmin-retrieve-gear"),
+    pytest.param(
+        garmin_router.garminconnect_retrieve_health_days, core_rate_limit.PROVIDER_SYNC, id="garmin-retrieve-health"
+    ),
     pytest.param(garmin_router.garminconnect_link, core_rate_limit.WRITE, id="garmin-link"),
     pytest.param(garmin_router.garminconnect_mfa_code, core_rate_limit.WRITE, id="garmin-mfa"),
     pytest.param(garmin_router.garminconnect_unlink, core_rate_limit.WRITE, id="garmin-unlink"),
