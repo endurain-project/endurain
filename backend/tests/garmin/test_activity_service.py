@@ -108,7 +108,7 @@ class TestDownloadsRunWithoutASession:
 
 
 class TestFailureIsolation:
-    def test_one_failing_download_does_not_stop_the_next_activity(self, monkeypatch):
+    def test_one_failing_download_does_not_stop_the_next_activity_but_fails_the_sync(self, monkeypatch):
         client = _make_garminconnect_client()
         client.get_activities_by_date.return_value = [
             {"activityId": 1, "activityName": "Broken"},
@@ -118,14 +118,21 @@ class TestFailureIsolation:
         monkeypatch.setattr(
             activity_utils.file_uploads, "extract_validated_zip_sync", Mock(return_value=[Path("/w/b.fit")])
         )
-        monkeypatch.setattr(
-            activity_utils.activity_ingestion_integration, "ingest_activity_file", lambda **_k: [Mock()]
-        )
+        ingest = Mock(return_value=[Mock()])
+        monkeypatch.setattr(activity_utils.activity_ingestion_integration, "ingest_activity_file", ingest)
 
-        result = _call(client)
+        with pytest.raises(RuntimeError, match="garmin 500"):
+            _call(client)
 
-        assert result is not None and len(result) == 1
         assert client.download_activity.call_count == 2
+        ingest.assert_called_once()
+
+    def test_a_failed_window_fetch_fails_the_sync(self):
+        client = _make_garminconnect_client()
+        client.get_activities_by_date.side_effect = RuntimeError("garmin 429")
+
+        with pytest.raises(RuntimeError, match="garmin 429"):
+            _call(client)
 
     def test_an_activity_already_stored_is_not_downloaded(self, monkeypatch):
         client = _make_garminconnect_client()
@@ -206,3 +213,17 @@ def test_an_auth_rejection_while_downloading_unlinks_the_account_and_stops_the_w
 
     unlink.assert_called_once()
     download.assert_called_once()
+
+
+def test_a_failed_sync_still_stores_the_refreshed_token_and_reaches_the_caller():
+    session = garmin_service.GarminSession(Mock(), {"di_token": "enc"})
+    with (
+        patch.object(activity_utils.core_database, "SessionLocal"),
+        patch.object(garmin_service, "get_user_garminconnect_session", return_value=session),
+        patch.object(activity_utils, "fetch_and_process_activities_by_dates", side_effect=RuntimeError("boom")),
+        patch.object(garmin_service, "save_refreshed_token") as save,
+        pytest.raises(RuntimeError),
+    ):
+        activity_utils.get_user_garminconnect_activities_by_dates(1, datetime(2026, 1, 1), datetime(2026, 1, 2))
+
+    save.assert_called_once()

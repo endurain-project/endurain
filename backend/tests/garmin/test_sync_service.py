@@ -166,7 +166,7 @@ class TestRunSync:
         assert states.get(1, Kind.GEAR).status == Status.COMPLETED
         assert states.get(2, Kind.HEALTH).status == Status.COMPLETED
 
-    def test_a_failure_is_recorded_released_and_raised_for_a_retry(self, states):
+    def test_without_a_worker_a_failure_is_recorded_released_and_raised(self, local, states):
         states.begin(1, Kind.GEAR)
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
@@ -176,6 +176,17 @@ class TestRunSync:
 
         assert states.get(1, Kind.GEAR).status == Status.FAILED
         assert states.begin(1, Kind.GEAR) is True
+
+    def test_with_a_worker_a_failure_stays_queued_and_claimed_for_its_retry(self, durable, states):
+        states.begin(1, Kind.GEAR)
+        with (
+            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
+            pytest.raises(RuntimeError),
+        ):
+            garmin_sync_service.run_sync(garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.GEAR), states)
+
+        assert states.get(1, Kind.GEAR).status == Status.QUEUED
+        assert states.begin(1, Kind.GEAR) is False
 
     def test_a_sync_that_did_not_run_is_recorded_as_failed_without_a_retry(self, states):
         states.begin(1, Kind.GEAR)
@@ -215,21 +226,34 @@ class TestRecentHealth:
 
         assert [call.args[0] for call in publish.call_args_list] == [2]
 
-    def test_without_durable_jobs_users_run_in_turn_and_one_failing_does_not_stop_the_rest(self, local, states):
-        def sync(_start, _end, user_id):
-            if user_id == 1:
-                raise RuntimeError("boom")
-            return True
-
+    def test_without_durable_jobs_each_user_goes_to_the_pool_not_the_scheduler_thread(self, local, states):
         with (
             patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[1, 2], []]),
-            patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates", side_effect=sync) as pull,
+            patch.object(garmin_sync_service.core_database, "SessionLocal"),
+            patch.object(garmin_sync_service, "run_sync") as run,
         ):
             garmin_sync_service.sync_recent_health(states)
 
-        assert pull.call_count == 2
-        assert states.get(1, Kind.HEALTH).status == Status.FAILED
-        assert states.get(2, Kind.HEALTH).status == Status.COMPLETED
+        run.assert_not_called()
+        assert local.submit.call_count == 2
+        assert states.get(1, Kind.HEALTH).status == Status.QUEUED
+        assert states.get(2, Kind.HEALTH).status == Status.QUEUED
+
+    def test_a_full_pool_skips_a_user_and_the_rest_are_still_visited(self, local, states, monkeypatch):
+        import threading
+
+        full = threading.BoundedSemaphore(1)
+        full.acquire()
+        monkeypatch.setattr(garmin_sync_service, "_local_slots", full)
+        with (
+            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[1, 2], []]),
+            patch.object(garmin_sync_service.core_database, "SessionLocal"),
+        ):
+            garmin_sync_service.sync_recent_health(states)
+
+        local.submit.assert_not_called()
+        assert states.begin(1, Kind.HEALTH) is True
+        assert states.begin(2, Kind.HEALTH) is True
 
 
 def test_the_durable_handler_runs_the_event_payload(states):

@@ -71,12 +71,17 @@ def run_sync(payload: garmin_events.SyncRequestedPayload, states: garmin_sync_st
     A sync that could not run because the account is not linked or Garmin Connect rejected its
     token is recorded as failed and not raised: a retry would meet the same answer.
 
+    A sync that raised is retried by a durable worker, so it stays ``QUEUED`` with its claim held:
+    releasing the claim would let a second sync start beside the retry, and the claim runs out on
+    its own if the retries are exhausted. Without a worker nothing retries it, so it is ``FAILED``
+    and the claim is released.
+
     Args:
         payload: What to sync.
         states: Shared store of the sync's state.
 
     Raises:
-        Exception: Whatever the sync raised, after recording it as failed, so a durable worker retries it.
+        Exception: Whatever the sync raised, after recording its state, so a durable worker retries it.
     """
     states.set_status(payload.user_id, payload.kind, garmin_constants.SyncStatus.RUNNING)
     synced = False
@@ -86,7 +91,12 @@ def run_sync(payload: garmin_events.SyncRequestedPayload, states: garmin_sync_st
         elif payload.start_date is not None and payload.end_date is not None:
             synced = garmin_health_service.sync_health_for_dates(payload.start_date, payload.end_date, payload.user_id)
     except Exception:
-        states.set_status(payload.user_id, payload.kind, garmin_constants.SyncStatus.FAILED)
+        retried = core_config.settings.JOBS_ENABLED
+        states.set_status(
+            payload.user_id,
+            payload.kind,
+            garmin_constants.SyncStatus.QUEUED if retried else garmin_constants.SyncStatus.FAILED,
+        )
         raise
     outcome = garmin_constants.SyncStatus.COMPLETED if synced else garmin_constants.SyncStatus.FAILED
     states.set_status(payload.user_id, payload.kind, outcome)
@@ -281,9 +291,10 @@ def request_activities_sync(
 def _sync_recent_health_for_user(
     user_id: int, start_date: date, end_date: date, states: garmin_sync_state_store.GarminSyncStateStore
 ) -> None:
-    """Sync one user's recent health data: queue it for a worker, or run it here without durable jobs.
+    """Queue one user's recent health data for a worker, or for the in-process pool without durable jobs.
 
-    A user whose health sync is still pending is skipped.
+    A user whose health sync is still pending, or whom a full pool cannot take, is skipped: the
+    window overlaps the next run, so nothing is lost.
 
     Args:
         user_id: The user to sync.
@@ -291,26 +302,24 @@ def _sync_recent_health_for_user(
         end_date: Last day of the range.
         states: Shared store of the sync's state.
     """
-    if core_config.settings.JOBS_ENABLED:
-        with core_database.SessionLocal() as db:
-            try:
-                _queue(user_id, garmin_constants.SyncKind.HEALTH, start_date, end_date, states, db)
-            except core_exceptions.ConflictError:
-                logger.debug("Garmin Connect health sync already pending", extra=core_logger.context(user_id=user_id))
-        return
-    if states.begin(user_id, garmin_constants.SyncKind.HEALTH):
-        payload = garmin_events.SyncRequestedPayload(
-            user_id=user_id, kind=garmin_constants.SyncKind.HEALTH, start_date=start_date, end_date=end_date
-        )
-        run_sync(payload, states)
+    with core_database.SessionLocal() as db:
+        try:
+            _queue(user_id, garmin_constants.SyncKind.HEALTH, start_date, end_date, states, db)
+        except core_exceptions.ConflictError:
+            logger.debug("Garmin Connect health sync already pending", extra=core_logger.context(user_id=user_id))
+        except core_exceptions.ServiceUnavailableError:
+            logger.warning(
+                "Garmin Connect health sync skipped: the in-process pool is full",
+                extra=core_logger.context(user_id=user_id),
+            )
 
 
 def sync_recent_health(states: garmin_sync_state_store.GarminSyncStateStore) -> None:
     """Sync the last day of Garmin Connect health stats for every linked user.
 
-    With durable jobs each user's sync is queued for a worker, so users are isolated, retried
-    and spread over replicas; without them this runs them one after another. Linked users are
-    read a page at a time in short sessions, and one user failing does not stop the rest.
+    Each user's sync is queued, for a worker with durable jobs or for the in-process pool without
+    them, so users are isolated and never run on this thread. Linked users are read a page at a
+    time in short sessions, and one user failing does not stop the rest.
 
     Args:
         states: Shared store of the syncs' state.
