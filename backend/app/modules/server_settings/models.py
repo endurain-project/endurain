@@ -1,6 +1,6 @@
 """ORM model for the singleton server settings row."""
 
-from sqlalchemy import CheckConstraint, String, text
+from sqlalchemy import CheckConstraint, Float, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 import modules.server_settings.constants as server_settings_constants
@@ -38,6 +38,11 @@ class ServerSettings(Base):
             for regular users.
         password_length_admin_users: Min password length for
             admin users.
+        geocoding_service: Reverse-geocoding service.
+        geocoding_host: Geocoding service host (NULL - default host).
+        geocoding_use_https: Address the geocoding host over HTTPS.
+        geocoding_rate_limit: Geocoding requests per second.
+        geocoding_api_key: API key for the geocoding service (encrypted).
     """
 
     __tablename__ = "server_settings"
@@ -151,7 +156,43 @@ class ServerSettings(Base):
         comment="Minimum password length for admin users",
     )
 
-    __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)
+    geocoding_service: Mapped[str] = mapped_column(
+        String(20),
+        default="nominatim",
+        server_default="nominatim",
+        nullable=False,
+        comment="Reverse-geocoding service (nominatim, photon, geocode)",
+    )
+    geocoding_host: Mapped[str | None] = mapped_column(
+        String(253),
+        default=None,
+        nullable=True,
+        comment="Host of the geocoding service (NULL - the service's default host)",
+    )
+    geocoding_use_https: Mapped[bool] = mapped_column(
+        default=True,
+        server_default=text("true"),
+        nullable=False,
+        comment="Address the geocoding host over HTTPS (true - yes, false - no)",
+    )
+    geocoding_rate_limit: Mapped[float] = mapped_column(
+        Float,
+        default=1.0,
+        server_default=text("1.0"),
+        nullable=False,
+        comment="Maximum geocoding requests per second (0 disables throttling)",
+    )
+    geocoding_api_key: Mapped[str | None] = mapped_column(
+        String(length=512),
+        default=None,
+        nullable=True,
+        comment="API key encrypted for the geocoding service",
+    )
+
+    __table_args__ = (
+        CheckConstraint("id = 1", name="single_row_check"),
+        CheckConstraint("geocoding_service IN ('nominatim', 'photon', 'geocode')", name="geocoding_service_check"),
+    )
 
 
 class MailSettings(Base):

@@ -33,6 +33,26 @@ MAIL_ENV_VARS: dict[str, str] = {
     "from_address": "SMTP_FROM",
 }
 
+#: Geocoding field -> the deprecated environment variable that sets it (the Nominatim variant
+#: for the per-service host and HTTPS fields). The block is imported as a whole, so all of
+#: these are env-managed while any variable in ``GEOCODING_ENV_VAR_NAMES`` is set.
+GEOCODING_ENV_VARS: dict[str, str] = {
+    "geocoding_service": "REVERSE_GEO_PROVIDER",
+    "geocoding_host": "NOMINATIM_API_HOST",
+    "geocoding_use_https": "NOMINATIM_API_USE_HTTPS",
+    "geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT",
+    "geocoding_api_key": "GEOCODES_MAPS_API",
+}
+
+#: The Photon variants of the per-service geocoding fields.
+GEOCODING_PHOTON_ENV_VARS: dict[str, str] = {
+    "geocoding_host": "PHOTON_API_HOST",
+    "geocoding_use_https": "PHOTON_API_USE_HTTPS",
+}
+
+#: Every deprecated geocoding variable; any one of them being set makes the block env-managed.
+GEOCODING_ENV_VAR_NAMES: tuple[str, ...] = (*GEOCODING_ENV_VARS.values(), *GEOCODING_PHOTON_ENV_VARS.values())
+
 #: Logged once at boot when deprecated environment variables were found; ``{names}`` is
 #: the comma-separated variable names, never their values.
 DEPRECATED_ENV_WARNING = (

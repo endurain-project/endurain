@@ -82,6 +82,4 @@ class TestServerSettingsModel:
     def test_server_settings_check_constraint(self):
         """Test that single_row_check constraint exists."""
         constraints = server_settings_models.ServerSettings.__table_args__
-        assert len(constraints) == 1
-        constraint = constraints[0]
-        assert constraint.name == "single_row_check"
+        assert {c.name for c in constraints} == {"single_row_check", "geocoding_service_check"}

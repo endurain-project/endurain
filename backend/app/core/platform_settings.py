@@ -52,7 +52,6 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
         ),
         # Endurain wrote objects in the flat ``{data_dir}/{area}/{key}`` layout.
         storage=jasil_settings.StorageSettings(local_legacy_layout=True),
-        geocoding=_build_geocoding_settings(settings),
         network=jasil_settings.NetworkSettings(ssrf_allowed_hosts=tuple(settings.SSRF_ALLOWED_HOSTS)),
     )
 
@@ -68,41 +67,4 @@ def _build_job_settings(settings: core_config.Settings) -> jasil_settings.JobSet
         poll_interval_seconds=settings.JOBS_POLL_INTERVAL_SECONDS,
         max_attempts=settings.JOBS_MAX_ATTEMPTS,
         retention_days=settings.JOBS_RETENTION_DAYS,
-    )
-
-
-def _geocoding_uri(settings: core_config.Settings) -> str:
-    """Build the ``GeocodingSettings.uri`` for the configured provider.
-
-    Args:
-        settings: The application settings.
-
-    Returns:
-        ``nominatim://``/``photon://`` (``+http`` when cleartext) or ``geocode://``;
-        an unknown provider is passed through so JASIL logs and disables it.
-    """
-    provider = settings.REVERSE_GEO_PROVIDER
-    if provider == "nominatim":
-        scheme = "nominatim" if settings.NOMINATIM_API_USE_HTTPS else "nominatim+http"
-        return f"{scheme}://{settings.NOMINATIM_API_HOST}"
-    if provider == "photon":
-        scheme = "photon" if settings.PHOTON_API_USE_HTTPS else "photon+http"
-        return f"{scheme}://{settings.PHOTON_API_HOST}"
-    if provider == "geocode":
-        return "geocode://"
-    return f"{provider}://"
-
-
-def _build_geocoding_settings(settings: core_config.Settings) -> jasil_settings.GeocodingSettings:
-    """Map the reverse-geocoding variables onto ``GeocodingSettings``.
-
-    The ``changeme`` placeholder becomes an unset key so JASIL disables the
-    capability for the same reason the previous container did.
-    """
-    api_key = settings.GEOCODES_MAPS_API
-    return jasil_settings.GeocodingSettings(
-        uri=_geocoding_uri(settings),
-        rate_limit=settings.REVERSE_GEO_RATE_LIMIT,
-        api_key=None if api_key == "changeme" else api_key,
-        user_agent=f"Endurain/{core_config.API_VERSION} (ReverseGeocoding)",
     )

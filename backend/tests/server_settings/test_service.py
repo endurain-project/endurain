@@ -12,6 +12,7 @@ import pytest
 from fastapi import HTTPException
 
 import core.exceptions as core_exceptions
+import core.geocoding as core_geocoding
 import core.mail as core_mail
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.schema as server_settings_schema
@@ -42,6 +43,11 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         password_length_regular_users=8,
         password_length_admin_users=12,
         tileserver_api_key="enc-old",
+        geocoding_service="nominatim",
+        geocoding_host=None,
+        geocoding_use_https=True,
+        geocoding_rate_limit=1.0,
+        geocoding_api_key=None,
     )
     values.update(overrides)
     return server_settings_schema.ServerSettingsRead(**values)
@@ -201,6 +207,278 @@ class TestOnlyRealChangesCount:
             server_settings_service.edit_server_settings(_full_edit(edit_env.stored, currency="dollar"), db)
 
         read.assert_called_once_with(db, for_update=True)
+
+
+class TestGeocodingSettingsOnWrite:
+    @pytest.fixture
+    def geo_env(self, edit_env):
+        with (
+            patch.object(server_settings_service, "server_settings_env_managed", return_value={}) as managed,
+            patch.object(
+                server_settings_service.core_network, "url_rejection_reason_bounded", return_value=None
+            ) as dns,
+        ):
+            edit_env.managed = managed
+            edit_env.geo_dns = dns
+            yield edit_env
+
+    def test_a_save_that_leaves_geocoding_alone_does_no_lookup(self, geo_env):
+        geo_env.geo_dns.reset_mock()
+
+        server_settings_service.edit_server_settings(_full_edit(geo_env.stored, currency="dollar"), MagicMock())
+
+        geo_env.geo_dns.assert_not_called()
+
+    def test_the_default_host_is_checked_when_none_is_set(self, geo_env):
+        server_settings_service.edit_server_settings(
+            _full_edit(geo_env.stored, geocoding_service="photon"), MagicMock()
+        )
+
+        assert geo_env.geo_dns.call_args.args[0] == "https://photon.komoot.io/reverse"
+
+    def test_a_custom_host_and_scheme_are_checked(self, geo_env):
+        server_settings_service.edit_server_settings(
+            _full_edit(geo_env.stored, geocoding_host="nominatim.lan:8080", geocoding_use_https=False), MagicMock()
+        )
+
+        assert geo_env.geo_dns.call_args.args[0] == "http://nominatim.lan:8080/reverse"
+
+    def test_a_refused_host_is_a_400_and_writes_nothing(self, geo_env):
+        geo_env.geo_dns.return_value = "URL resolves to a private address"
+
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            server_settings_service.edit_server_settings(
+                _full_edit(geo_env.stored, geocoding_host="10.0.0.5"), MagicMock()
+            )
+
+        assert "SSRF_ALLOWED_HOSTS" in exc_info.value.detail
+        geo_env.write.assert_not_called()
+
+    def test_geocode_without_a_key_is_refused(self, geo_env):
+        body = _full_edit(geo_env.stored, geocoding_service="geocode")
+        body = body.model_copy(update={"geocoding_api_key": None})
+
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            server_settings_service.edit_server_settings(body, MagicMock())
+
+        assert "API key" in exc_info.value.detail
+        geo_env.geo_dns.assert_not_called()
+
+    def test_geocode_with_a_new_key_is_accepted_and_the_key_encrypted(self, geo_env):
+        result = server_settings_service.edit_server_settings(
+            _full_edit(geo_env.stored, geocoding_service="geocode", geocoding_api_key="plain-new"), MagicMock()
+        )
+
+        assert geo_env.write.call_args.args[0].geocoding_api_key == "enc-new"
+        assert result.geocoding_api_key_set is True
+        assert "plain-new" not in result.model_dump_json()
+
+    def test_geocode_with_a_stored_key_and_none_sent_is_accepted(self, geo_env):
+        geo_env.stored = geo_env.stored.model_copy(update={"geocoding_api_key": "enc-old"})
+        with patch.object(
+            server_settings_service.server_settings_crud, "get_server_settings", return_value=geo_env.stored
+        ):
+            server_settings_service.edit_server_settings(
+                _full_edit(geo_env.stored, geocoding_service="geocode"), MagicMock()
+            )
+
+        geo_env.write.assert_called_once()
+
+    def test_the_two_keys_are_independent(self, geo_env):
+        server_settings_service.edit_server_settings(
+            _full_edit(geo_env.stored, geocoding_api_key="plain-new"), MagicMock()
+        )
+
+        written = geo_env.write.call_args.args[0]
+        assert written.geocoding_api_key == "enc-new"
+        assert written.tileserver_api_key == "enc-old"
+
+
+class TestServerSettingsEnvManaged:
+    def test_nothing_is_managed_without_a_geocoding_variable(self):
+        with patch.object(server_settings_service, "_env_var_is_set", return_value=False):
+            assert server_settings_service.server_settings_env_managed() == {}
+
+    def test_one_variable_manages_every_geocoding_field(self):
+        with (
+            patch.object(
+                server_settings_service, "_env_var_is_set", side_effect=lambda n: n == "REVERSE_GEO_RATE_LIMIT"
+            ),
+            patch.object(server_settings_service.core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="nominatim")),
+        ):
+            managed = server_settings_service.server_settings_env_managed()
+
+        assert managed == {
+            "geocoding_service": "REVERSE_GEO_PROVIDER",
+            "geocoding_host": "NOMINATIM_API_HOST",
+            "geocoding_use_https": "NOMINATIM_API_USE_HTTPS",
+            "geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT",
+            "geocoding_api_key": "GEOCODES_MAPS_API",
+        }
+
+    def test_photon_names_its_own_host_variables(self):
+        with (
+            patch.object(server_settings_service, "_env_var_is_set", return_value=True),
+            patch.object(server_settings_service.core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="photon")),
+        ):
+            managed = server_settings_service.server_settings_env_managed()
+
+        assert managed["geocoding_host"] == "PHOTON_API_HOST"
+        assert managed["geocoding_use_https"] == "PHOTON_API_USE_HTTPS"
+
+    def test_a_change_to_an_env_managed_field_is_refused(self, edit_env):
+        with (
+            patch.object(
+                server_settings_service,
+                "server_settings_env_managed",
+                return_value={"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"},
+            ),
+            pytest.raises(core_exceptions.InvalidInputError) as exc_info,
+        ):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, geocoding_rate_limit=2.0), MagicMock()
+            )
+
+        assert "REVERSE_GEO_RATE_LIMIT" in exc_info.value.detail
+        edit_env.write.assert_not_called()
+
+    def test_a_change_to_another_field_succeeds_while_geocoding_is_managed(self, edit_env):
+        with patch.object(
+            server_settings_service,
+            "server_settings_env_managed",
+            return_value={"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"},
+        ):
+            result = server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, currency="dollar"), MagicMock()
+            )
+
+        assert result.currency == "dollar"
+        assert result.env_managed == {"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"}
+
+
+class TestGetGeocodingConfig:
+    def test_decrypts_the_key(self, edit_env):
+        stored = edit_env.stored.model_copy(update={"geocoding_api_key": "enc-old", "geocoding_host": "h.example.com"})
+        with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=stored):
+            config = server_settings_service.get_geocoding_config(MagicMock())
+
+        assert config.api_key == "plain-old"
+        assert config.host == "h.example.com"
+        assert config.service == core_geocoding.GeocodingService.NOMINATIM
+
+    def test_a_missing_row_means_geocoding_is_unavailable(self):
+        with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=None):
+            assert server_settings_service.get_geocoding_config(MagicMock()) is None
+
+
+def _geo_env_settings(**overrides):
+    values = dict(
+        REVERSE_GEO_PROVIDER="nominatim",
+        NOMINATIM_API_HOST="nominatim.openstreetmap.org",
+        NOMINATIM_API_USE_HTTPS=True,
+        PHOTON_API_HOST="photon.komoot.io",
+        PHOTON_API_USE_HTTPS=True,
+        GEOCODES_MAPS_API="changeme",
+        REVERSE_GEO_RATE_LIMIT=1.0,
+    )
+    values.update(overrides)
+    return MagicMock(**values)
+
+
+@pytest.fixture
+def import_geo(edit_env):
+    """Pretend the given geocoding variables are set; yield the knobs."""
+    state = MagicMock(set_vars={"REVERSE_GEO_PROVIDER"}, settings=_geo_env_settings(), stored=edit_env.stored)
+    with (
+        patch.object(server_settings_service, "_env_var_is_set", side_effect=lambda n: n in state.set_vars),
+        patch.object(server_settings_service.core_config, "settings", state.settings),
+        patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=state.stored),
+    ):
+        state.write = edit_env.write
+        yield state
+
+
+class TestImportGeocodingEnv:
+    def test_nothing_happens_without_a_geocoding_variable(self, import_geo):
+        import_geo.set_vars = set()
+
+        assert server_settings_service._import_geocoding_env(MagicMock()) == []
+        import_geo.write.assert_not_called()
+
+    def test_values_equal_to_the_stored_ones_write_nothing(self, import_geo):
+        names = server_settings_service._import_geocoding_env(MagicMock())
+
+        assert names == ["REVERSE_GEO_PROVIDER"]
+        import_geo.write.assert_not_called()
+
+    def test_only_the_differing_fields_are_written(self, import_geo):
+        import_geo.set_vars = {"REVERSE_GEO_PROVIDER", "REVERSE_GEO_RATE_LIMIT"}
+        import_geo.settings.REVERSE_GEO_RATE_LIMIT = 2.5
+
+        server_settings_service._import_geocoding_env(MagicMock())
+
+        assert import_geo.write.call_args.args[0].model_dump(exclude_unset=True) == {"geocoding_rate_limit": 2.5}
+
+    def test_photon_reads_its_own_host_only_when_set(self, import_geo):
+        import_geo.settings.REVERSE_GEO_PROVIDER = "photon"
+        import_geo.set_vars = {"REVERSE_GEO_PROVIDER", "PHOTON_API_HOST"}
+        import_geo.settings.PHOTON_API_HOST = "photon.example.com"
+        import_geo.settings.NOMINATIM_API_HOST = "ignored.example.com"
+
+        server_settings_service._import_geocoding_env(MagicMock())
+
+        written = import_geo.write.call_args.args[0].model_dump(exclude_unset=True)
+        assert written == {"geocoding_service": "photon", "geocoding_host": "photon.example.com"}
+
+    def test_an_unset_host_variable_means_the_default_host(self, import_geo):
+        import_geo.stored = import_geo.stored.model_copy(update={"geocoding_host": "old.example.com"})
+        with patch.object(
+            server_settings_service.server_settings_crud, "get_server_settings", return_value=import_geo.stored
+        ):
+            server_settings_service._import_geocoding_env(MagicMock())
+
+        assert import_geo.write.call_args.args[0].model_dump(exclude_unset=True) == {"geocoding_host": None}
+
+    def test_the_changeme_placeholder_is_no_key(self, import_geo):
+        import_geo.set_vars = {"GEOCODES_MAPS_API"}
+        import_geo.settings.GEOCODES_MAPS_API = "changeme"
+
+        server_settings_service._import_geocoding_env(MagicMock())
+
+        import_geo.write.assert_not_called()
+
+    def test_a_real_key_is_encrypted_and_written(self, import_geo):
+        import_geo.set_vars = {"REVERSE_GEO_PROVIDER", "GEOCODES_MAPS_API"}
+        import_geo.settings.REVERSE_GEO_PROVIDER = "geocode"
+        import_geo.settings.GEOCODES_MAPS_API = "a-real-key"
+
+        server_settings_service._import_geocoding_env(MagicMock())
+
+        written = import_geo.write.call_args.args[0].model_dump(exclude_unset=True)
+        assert written["geocoding_api_key"] == "enc-new"
+        assert written["geocoding_service"] == "geocode"
+        assert "a-real-key" not in str(written)
+
+    def test_an_unknown_provider_leaves_the_stored_settings_and_does_not_raise(self, import_geo):
+        import_geo.settings.REVERSE_GEO_PROVIDER = "bing"
+
+        names = server_settings_service._import_geocoding_env(MagicMock())
+
+        assert names == ["REVERSE_GEO_PROVIDER"]
+        import_geo.write.assert_not_called()
+
+
+class TestImportDeprecatedNamesBothBlocks:
+    def test_the_warning_names_mail_and_geocoding_variables(self):
+        with (
+            patch.object(server_settings_service, "_import_mail_env", return_value=["SMTP_HOST"]),
+            patch.object(server_settings_service, "_import_geocoding_env", return_value=["REVERSE_GEO_PROVIDER"]),
+            patch.object(server_settings_service.logger, "warning") as warn,
+        ):
+            server_settings_service.import_deprecated_env_settings(MagicMock())
+
+        warn.assert_called_once()
+        assert "SMTP_HOST, REVERSE_GEO_PROVIDER" in warn.call_args.args[0]
 
 
 class TestLoginPhoto:
@@ -719,6 +997,11 @@ class TestGetServerSettingsForPublic:
             password_length_regular_users=8,
             password_length_admin_users=12,
             tileserver_api_key="encrypted",
+            geocoding_service="nominatim",
+            geocoding_host=None,
+            geocoding_use_https=True,
+            geocoding_rate_limit=1.0,
+            geocoding_api_key="encrypted-geo",
         )
 
     @patch("modules.server_settings.service.core_config.settings")

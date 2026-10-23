@@ -13,6 +13,7 @@ from pydantic import (
     field_validator,
 )
 
+import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.sanitization as core_sanitization
 
@@ -215,7 +216,61 @@ class ServerSettingsBase(BaseModel):
         return core_sanitization.sanitize_attribution(value) or ""
 
 
-class ServerSettingsEdit(ServerSettingsBase):
+#: Bare ``host[:port]`` authority: a hostname, IPv4 address or bracketed IPv6 literal, no scheme or path.
+_GEOCODING_HOST_PATTERN = re.compile(r"^([A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?|\[[0-9A-Fa-f:.]+\])(:[0-9]{1,5})?$")
+
+
+class ServerSettingsGeocoding(BaseModel):
+    """The reverse-geocoding fields, kept off the public settings model.
+
+    A separate mixin rather than part of :class:`ServerSettingsBase`, which the public
+    settings inherit: the geocoding host of a self-hosted instance is not for anonymous visitors.
+
+    Attributes:
+        geocoding_service: The reverse-geocoding service.
+        geocoding_host: Host (and optional port) of the service; empty for the service's default host.
+        geocoding_use_https: Address the host over HTTPS.
+        geocoding_rate_limit: Maximum requests per second (0 disables throttling).
+    """
+
+    geocoding_service: core_geocoding.GeocodingService = Field(
+        ..., description="Reverse-geocoding service (nominatim, photon, geocode)"
+    )
+    geocoding_host: StrictStr | None = Field(
+        ...,
+        max_length=253,
+        description="Host of the geocoding service, e.g. nominatim.example.org:8080 (empty - the service's default)",
+    )
+    geocoding_use_https: StrictBool = Field(
+        ..., description="Address the geocoding host over HTTPS (true - yes, false - no)"
+    )
+    geocoding_rate_limit: float = Field(
+        ..., ge=0, le=100, description="Maximum geocoding requests per second (0 disables throttling)"
+    )
+
+    @field_validator("geocoding_host", mode="after")
+    @classmethod
+    def validate_geocoding_host(cls, value: str | None) -> str | None:
+        """Normalise the geocoding host and refuse anything but ``host[:port]``.
+
+        Args:
+            value: The submitted host.
+
+        Returns:
+            The lower-cased host, or None when blank.
+
+        Raises:
+            ValueError: If the value carries a scheme, path or other characters.
+        """
+        value = (value or "").strip().lower()
+        if not value:
+            return None
+        if not _GEOCODING_HOST_PATTERN.fullmatch(value):
+            raise ValueError("Geocoding host must be a hostname or IP address with an optional port")
+        return value
+
+
+class ServerSettingsEdit(ServerSettingsBase, ServerSettingsGeocoding):
     """Request body for editing the server settings.
 
     A full replacement: every setting except the tile API key is required. The row
@@ -231,6 +286,8 @@ class ServerSettingsEdit(ServerSettingsBase):
             (true - yes, false - no).
         signup_require_email_verification: Require email verification for new
             sign-ups (true - yes, false - no).
+        geocoding_api_key: Plain-text API key for the geocoding service; same
+            write-only semantics as ``tileserver_api_key``.
     """
 
     # Capped so the Fernet token (about 1.37x the plain length) fits the 512-char column.
@@ -238,6 +295,11 @@ class ServerSettingsEdit(ServerSettingsBase):
         default=None,
         max_length=256,
         description="API key for the tile server (write-only); omit to keep, null or empty to remove",
+    )
+    geocoding_api_key: StrictStr | None = Field(
+        default=None,
+        max_length=256,
+        description="API key for the geocoding service (write-only); omit to keep, null or empty to remove",
     )
     signup_require_admin_approval: StrictBool = Field(
         ...,
@@ -266,17 +328,25 @@ class ServerSettingsRead(ServerSettingsEdit):
         max_length=512,
         description="API key for the tile server",
     )
+    geocoding_api_key: StrictStr | None = Field(
+        default=None,
+        max_length=512,
+        description="API key for the geocoding service",
+    )
     id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
 
 
-class ServerSettingsAdminRead(ServerSettingsBase):
-    """Complete server settings response for admins; the tile API key is never returned.
+class ServerSettingsAdminRead(ServerSettingsBase, ServerSettingsGeocoding):
+    """Complete server settings response for admins; API keys are never returned.
 
     Attributes:
         id: Unique identifier (always 1, singleton pattern).
         login_photo_set: Whether a custom login photo is configured.
         tileserver_api_key_set: Whether a tile API key is stored.
+        geocoding_api_key_set: Whether a geocoding API key is stored.
+        env_managed: Field name to the environment variable that sets it; those
+            fields cannot be edited while the variable is set.
         signup_require_admin_approval: Require admin approval for new sign-ups.
         signup_require_email_verification: Require email verification for new sign-ups.
     """
@@ -285,6 +355,10 @@ class ServerSettingsAdminRead(ServerSettingsBase):
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
     tileserver_api_key_set: StrictBool = Field(
         ..., description="Is a tile server API key stored (true - yes, false - no)"
+    )
+    geocoding_api_key_set: StrictBool = Field(..., description="Is a geocoding API key stored (true - yes, false - no)")
+    env_managed: dict[str, str] = Field(
+        ..., description="Field name to the environment variable that sets it (not editable while set)"
     )
     signup_require_admin_approval: StrictBool = Field(
         ...,

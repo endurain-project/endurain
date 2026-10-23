@@ -319,6 +319,10 @@ class TestServerSettingsEdit:
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
+            geocoding_service="nominatim",
+            geocoding_host=None,
+            geocoding_use_https=True,
+            geocoding_rate_limit=1.0,
         )
         values.update(overrides)
         return values
@@ -384,3 +388,48 @@ class TestTileMapsTemplate:
                 requires_api_key_backend=False,
             )
         assert "map_background_color" in str(exc_info.value)
+
+
+class TestGeocodingFields:
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            (None, None),
+            ("", None),
+            ("  ", None),
+            ("Nominatim.Example.org", "nominatim.example.org"),
+            ("nominatim.example.org:8080", "nominatim.example.org:8080"),
+            ("10.0.0.5:2322", "10.0.0.5:2322"),
+            ("[::1]:8080", "[::1]:8080"),
+        ],
+    )
+    def test_host_is_normalised(self, host, expected):
+        values = TestServerSettingsEdit._values(geocoding_host=host)
+
+        assert server_settings_schema.ServerSettingsEdit(**values).geocoding_host == expected
+
+    @pytest.mark.parametrize("host", ["https://example.org", "example.org/path", "exa mple.org", "a@b.org", "-bad.org"])
+    def test_host_with_a_scheme_path_or_junk_is_rejected(self, host):
+        values = TestServerSettingsEdit._values(geocoding_host=host)
+
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**values)
+
+    @pytest.mark.parametrize(("field", "value"), [("geocoding_service", "bing"), ("geocoding_rate_limit", -1)])
+    def test_invalid_values_are_rejected(self, field, value):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(**{field: value}))
+
+    def test_rate_limit_zero_is_allowed_and_101_is_not(self):
+        server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(geocoding_rate_limit=0))
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(geocoding_rate_limit=101))
+
+    def test_the_api_key_is_capped_for_the_encrypted_column(self):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(geocoding_api_key="k" * 257))
+
+    def test_the_public_settings_do_not_carry_geocoding(self):
+        assert not any(
+            name.startswith("geocoding") for name in server_settings_schema.ServerSettingsReadPublic.model_fields
+        )

@@ -37,7 +37,12 @@ def _settings_row(**overrides):
         password_type="strict",
         password_length_regular_users=8,
         password_length_admin_users=12,
+        geocoding_service="nominatim",
+        geocoding_host=None,
+        geocoding_use_https=True,
+        geocoding_rate_limit=1.0,
         tileserver_api_key=None,
+        geocoding_api_key=None,
     )
     values.update(overrides)
     row = MagicMock(spec=server_settings_models.ServerSettings)
@@ -74,6 +79,10 @@ def _edit(**overrides):
         tileserver_regenerate_thumbnails_on_change=False,
         password_length_regular_users=8,
         password_length_admin_users=12,
+        geocoding_service="nominatim",
+        geocoding_host=None,
+        geocoding_use_https=True,
+        geocoding_rate_limit=1.0,
     )
     values.update(overrides)
     return server_settings_schema.ServerSettingsEdit(**values)

@@ -20,6 +20,7 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { useToasts } from '@/composables/useToasts'
+import EnvManagedHint from '@/features/serverSettings/components/EnvManagedHint.vue'
 import { useUpdateServerSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
 
 const props = defineProps<{
@@ -41,6 +42,13 @@ const PASSWORD_REGULAR_LENGTHS = Array.from({ length: 13 }, (_, index) => index 
 const PASSWORD_ADMIN_LENGTHS = Array.from({ length: 18 }, (_, index) => index + 8)
 /** Sentinel id for the "custom" (manually edited) tile server. */
 const CUSTOM_TEMPLATE = 'custom'
+/** Public hosts each geocoding service uses when none is set; shown as the host placeholder. */
+const GEOCODING_DEFAULT_HOSTS: Record<string, string> = {
+  nominatim: 'nominatim.openstreetmap.org',
+  photon: 'photon.komoot.io',
+}
+/** Highest accepted geocoding rate limit (requests per second). */
+const MAX_GEOCODING_RATE_LIMIT = 100
 /** Placeholders every valid tile URL template must contain. */
 const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
 
@@ -75,7 +83,52 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     passwordType: settings.passwordType,
     passwordLengthRegularUsers: settings.passwordLengthRegularUsers,
     passwordLengthAdminUsers: settings.passwordLengthAdminUsers,
+    geocodingService: settings.geocodingService,
+    geocodingHost: settings.geocodingHost ?? '',
+    geocodingUseHttps: settings.geocodingUseHttps,
+    geocodingRateLimit: String(settings.geocodingRateLimit),
+    geocodingApiKey: '',
+    removeGeocodingApiKey: false,
   }
+}
+
+/**
+ * Validates the geocoding rate limit: a number from 0 to 100.
+ *
+ * @param message - Error when the value is not a valid rate limit.
+ * @returns A validator for the rate-limit field.
+ */
+function rateLimitValidator(message: string): Validator<string> {
+  return (value) => {
+    const rate = Number(value.trim())
+    return value.trim() !== '' &&
+      Number.isFinite(rate) &&
+      rate >= 0 &&
+      rate <= MAX_GEOCODING_RATE_LIMIT
+      ? null
+      : message
+  }
+}
+
+/**
+ * The environment variable that sets a field, or undefined when it is editable.
+ *
+ * @param field - The backend field name (snake_case, as in `env_managed`).
+ * @returns The variable name.
+ */
+function envVar(field: string): string | undefined {
+  return props.settings.envManaged[field]
+}
+
+/**
+ * The hint under an env-managed field, naming the variable that sets it.
+ *
+ * @param field - The backend field name.
+ * @returns The hint, or undefined when the field is editable.
+ */
+function envHint(field: string): string | undefined {
+  const name = envVar(field)
+  return name ? t('settings.server.envManaged', { name }) : undefined
 }
 
 /**
@@ -121,11 +174,27 @@ function detectTemplate(url: string): string {
  * @param formValues - The validated form values.
  */
 async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
-  const { tileserverApiKey, removeTileserverApiKey, ...editable } = formValues
+  const {
+    tileserverApiKey,
+    removeTileserverApiKey,
+    geocodingApiKey,
+    removeGeocodingApiKey,
+    geocodingHost,
+    geocodingRateLimit,
+    ...editable
+  } = formValues
   // undefined keeps the stored key, null removes it, a string replaces it.
   const apiKey = removeTileserverApiKey ? null : tileserverApiKey.trim() || undefined
+  const geocodingKey = removeGeocodingApiKey ? null : geocodingApiKey.trim() || undefined
   try {
-    await updateMutation.mutateAsync({ ...props.settings, ...editable, tileserverApiKey: apiKey })
+    await updateMutation.mutateAsync({
+      ...props.settings,
+      ...editable,
+      geocodingHost: geocodingHost.trim() || null,
+      geocodingRateLimit: Number(geocodingRateLimit.trim()),
+      tileserverApiKey: apiKey,
+      geocodingApiKey: geocodingKey,
+    })
     toasts.success(t('settings.server.saveSuccess'))
   } catch {
     toasts.error(t('settings.server.saveError'))
@@ -140,9 +209,15 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur } =
         t('settings.server.maps.urlRequired'),
         t('settings.server.maps.urlInvalid'),
       ),
+      geocodingRateLimit: rateLimitValidator(t('settings.server.geocoding.rateLimitInvalid')),
     },
     onSubmit: submitForm,
   })
+
+const isGeocodeService = computed(() => values.geocodingService === 'geocode')
+const geocodingHostPlaceholder = computed(
+  () => GEOCODING_DEFAULT_HOSTS[values.geocodingService] ?? '',
+)
 
 const selectedTemplate = ref(detectTemplate(props.settings.tileserverUrl))
 const isCustomTemplate = computed(() => selectedTemplate.value === CUSTOM_TEMPLATE)
@@ -406,6 +481,111 @@ watch(selectedTemplate, (templateId) => {
       <Switch v-model="values.tileserverRegenerateThumbnailsOnChange" :disabled="isSubmitting">
         {{ t('settings.server.maps.regenerateThumbnails') }}
       </Switch>
+    </Card>
+
+    <!-- Reverse geocoding -->
+    <Card class="flex flex-col gap-3">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-card-heading">{{ t('settings.server.geocoding.title') }}</h2>
+        <p class="text-body">{{ t('settings.server.geocoding.description') }}</p>
+      </div>
+
+      <FormField
+        :label="t('settings.server.geocoding.service')"
+        :hint="envHint('geocoding_service')"
+      >
+        <template #default="{ fieldId, describedBy }">
+          <Select
+            :id="fieldId"
+            v-model="values.geocodingService"
+            :aria-describedby="describedBy"
+            :disabled="isSubmitting || Boolean(envVar('geocoding_service'))"
+          >
+            <option value="nominatim">{{ t('settings.server.geocoding.serviceNominatim') }}</option>
+            <option value="photon">{{ t('settings.server.geocoding.servicePhoton') }}</option>
+            <option value="geocode">{{ t('settings.server.geocoding.serviceGeocode') }}</option>
+          </Select>
+        </template>
+      </FormField>
+
+      <template v-if="!isGeocodeService">
+        <FormField
+          :label="t('settings.server.geocoding.host')"
+          :hint="envHint('geocoding_host') ?? t('settings.server.geocoding.hostHint')"
+        >
+          <template #default="{ fieldId, describedBy }">
+            <Input
+              :id="fieldId"
+              v-model="values.geocodingHost"
+              :aria-describedby="describedBy"
+              type="text"
+              maxlength="253"
+              autocomplete="off"
+              :placeholder="geocodingHostPlaceholder"
+              :disabled="isSubmitting || Boolean(envVar('geocoding_host'))"
+            />
+          </template>
+        </FormField>
+
+        <Switch
+          v-model="values.geocodingUseHttps"
+          :disabled="isSubmitting || Boolean(envVar('geocoding_use_https'))"
+        >
+          {{ t('settings.server.geocoding.useHttps') }}
+        </Switch>
+        <EnvManagedHint :name="envVar('geocoding_use_https')" />
+      </template>
+
+      <FormField
+        :label="t('settings.server.geocoding.rateLimit')"
+        :hint="envHint('geocoding_rate_limit') ?? t('settings.server.geocoding.rateLimitHint')"
+        :error="errors.geocodingRateLimit"
+      >
+        <template #default="{ fieldId, describedBy, invalid }">
+          <Input
+            :id="fieldId"
+            v-model="values.geocodingRateLimit"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
+            type="text"
+            inputmode="decimal"
+            maxlength="6"
+            :disabled="isSubmitting || Boolean(envVar('geocoding_rate_limit'))"
+            @blur="handleBlur('geocodingRateLimit')"
+          />
+        </template>
+      </FormField>
+
+      <template v-if="isGeocodeService">
+        <FormField
+          :label="t('settings.server.geocoding.apiKey')"
+          :hint="envHint('geocoding_api_key')"
+        >
+          <template #default="{ fieldId, describedBy }">
+            <Input
+              :id="fieldId"
+              v-model="values.geocodingApiKey"
+              :aria-describedby="describedBy"
+              type="password"
+              maxlength="256"
+              autocomplete="off"
+              :placeholder="
+                settings.geocodingApiKeySet ? t('settings.server.geocoding.apiKeyStored') : ''
+              "
+              :disabled="
+                isSubmitting || values.removeGeocodingApiKey || Boolean(envVar('geocoding_api_key'))
+              "
+            />
+          </template>
+        </FormField>
+        <Switch
+          v-if="settings.geocodingApiKeySet"
+          v-model="values.removeGeocodingApiKey"
+          :disabled="isSubmitting || Boolean(envVar('geocoding_api_key'))"
+        >
+          {{ t('settings.server.geocoding.apiKeyRemove') }}
+        </Switch>
+      </template>
     </Card>
 
     <div class="flex justify-begin">

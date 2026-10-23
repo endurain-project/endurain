@@ -6326,6 +6326,17 @@ export interface components {
          */
         Gender: "male" | "female" | "unspecified";
         /**
+         * GeocodingService
+         * @description The reverse-geocoding service in use.
+         *
+         *     Attributes:
+         *         NOMINATIM: A Nominatim instance, the public one by default.
+         *         PHOTON: A Photon instance, the public one by default.
+         *         GEOCODE: geocode.maps.co, a fixed host that needs an API key.
+         * @enum {string}
+         */
+        GeocodingService: "nominatim" | "photon" | "geocode";
+        /**
          * GoalType
          * @description Types of measurable user goals.
          *
@@ -9428,18 +9439,50 @@ export interface components {
         };
         /**
          * ServerSettingsAdminRead
-         * @description Complete server settings response for admins; the tile API key is never returned.
+         * @description Complete server settings response for admins; API keys are never returned.
          *
          *     Attributes:
          *         id: Unique identifier (always 1, singleton pattern).
          *         login_photo_set: Whether a custom login photo is configured.
          *         tileserver_api_key_set: Whether a tile API key is stored.
+         *         geocoding_api_key_set: Whether a geocoding API key is stored.
+         *         env_managed: Field name to the environment variable that sets it; those
+         *             fields cannot be edited while the variable is set.
          *         signup_require_admin_approval: Require admin approval for new sign-ups.
          *         signup_require_email_verification: Require email verification for new sign-ups.
          */
         ServerSettingsAdminRead: {
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
+            /**
+             * Env Managed
+             * @description Field name to the environment variable that sets it (not editable while set)
+             */
+            env_managed: {
+                [key: string]: string;
+            };
+            /**
+             * Geocoding Api Key Set
+             * @description Is a geocoding API key stored (true - yes, false - no)
+             */
+            geocoding_api_key_set: boolean;
+            /**
+             * Geocoding Host
+             * @description Host of the geocoding service, e.g. nominatim.example.org:8080 (empty - the service's default)
+             */
+            geocoding_host: string | null;
+            /**
+             * Geocoding Rate Limit
+             * @description Maximum geocoding requests per second (0 disables throttling)
+             */
+            geocoding_rate_limit: number;
+            /** @description Reverse-geocoding service (nominatim, photon, geocode) */
+            geocoding_service: components["schemas"]["GeocodingService"];
+            /**
+             * Geocoding Use Https
+             * @description Address the geocoding host over HTTPS (true - yes, false - no)
+             */
+            geocoding_use_https: boolean;
             /**
              * Id
              * @description Unique identifier for server settings (always 1)
@@ -9552,10 +9595,34 @@ export interface components {
          *             (true - yes, false - no).
          *         signup_require_email_verification: Require email verification for new
          *             sign-ups (true - yes, false - no).
+         *         geocoding_api_key: Plain-text API key for the geocoding service; same
+         *             write-only semantics as ``tileserver_api_key``.
          */
         ServerSettingsEdit: {
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
+            /**
+             * Geocoding Api Key
+             * @description API key for the geocoding service (write-only); omit to keep, null or empty to remove
+             */
+            geocoding_api_key?: string | null;
+            /**
+             * Geocoding Host
+             * @description Host of the geocoding service, e.g. nominatim.example.org:8080 (empty - the service's default)
+             */
+            geocoding_host: string | null;
+            /**
+             * Geocoding Rate Limit
+             * @description Maximum geocoding requests per second (0 disables throttling)
+             */
+            geocoding_rate_limit: number;
+            /** @description Reverse-geocoding service (nominatim, photon, geocode) */
+            geocoding_service: components["schemas"]["GeocodingService"];
+            /**
+             * Geocoding Use Https
+             * @description Address the geocoding host over HTTPS (true - yes, false - no)
+             */
+            geocoding_use_https: boolean;
             /**
              * Local Login Enabled
              * @description Allow local username/password login (true - yes, false - no)

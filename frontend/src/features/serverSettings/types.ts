@@ -22,6 +22,9 @@ export type Currency = Schemas['Currency']
 /** Password policy level, mirrored from the backend enum (`strict` | `length_only`). */
 export type PasswordType = Schemas['PasswordType']
 
+/** Reverse-geocoding service, mirrored from the backend enum (`nominatim` | `photon` | `geocode`). */
+export type GeocodingService = Schemas['GeocodingService']
+
 /**
  * The clean, camel-cased server-settings model used across the admin zone.
  * Carries every editable column — not just the ones a section renders —
@@ -51,6 +54,12 @@ export type PasswordType = Schemas['PasswordType']
  * @property passwordType - Password policy enforcement level.
  * @property passwordLengthRegularUsers - Minimum password length for regular users.
  * @property passwordLengthAdminUsers - Minimum password length for admin users.
+ * @property geocodingService - Reverse-geocoding service.
+ * @property geocodingHost - Host (and optional port) of the geocoding service, or null for its default host.
+ * @property geocodingUseHttps - Whether the geocoding host is addressed over HTTPS.
+ * @property geocodingRateLimit - Maximum geocoding requests per second (0 disables throttling).
+ * @property geocodingApiKeySet - Whether a geocoding API key is stored (the key itself is never returned).
+ * @property envManaged - Field name (snake_case) to the environment variable that sets it; those fields are read-only.
  */
 export interface ServerSettings {
   id: number
@@ -74,6 +83,12 @@ export interface ServerSettings {
   passwordType: PasswordType
   passwordLengthRegularUsers: number
   passwordLengthAdminUsers: number
+  geocodingService: GeocodingService
+  geocodingHost: string | null
+  geocodingUseHttps: boolean
+  geocodingRateLimit: number
+  geocodingApiKeySet: boolean
+  envManaged: Record<string, string>
 }
 
 /**
@@ -102,24 +117,41 @@ export interface TileMapsTemplate {
 /**
  * The form-editable subset of {@link ServerSettings}. Excludes `id` (constant)
  * and `loginPhotoSet` (managed by the separate upload/delete actions), both of
- * which round-trip from the freshest server state at save time. The tile API key
- * is write-only: `tileserverApiKey` holds a newly typed key (empty keeps the
- * stored one) and `removeTileserverApiKey` asks for the stored key to be removed.
+ * which round-trip from the freshest server state at save time. The API keys
+ * are write-only: `tileserverApiKey` / `geocodingApiKey` hold a newly typed key
+ * (empty keeps the stored one) and `removeTileserverApiKey` /
+ * `removeGeocodingApiKey` ask for the stored key to be removed. The geocoding host
+ * and rate limit are strings because the text inputs bind strings; they are
+ * converted on save.
  */
 export type ServerSettingsFormValues = Omit<
   ServerSettings,
-  'id' | 'loginPhotoSet' | 'tileserverApiKeySet'
+  | 'id'
+  | 'loginPhotoSet'
+  | 'tileserverApiKeySet'
+  | 'geocodingApiKeySet'
+  | 'envManaged'
+  | 'geocodingHost'
+  | 'geocodingRateLimit'
 > & {
   tileserverApiKey: string
   removeTileserverApiKey: boolean
+  geocodingHost: string
+  geocodingRateLimit: string
+  geocodingApiKey: string
+  removeGeocodingApiKey: boolean
 }
 
 /**
- * Server settings to persist. `tileserverApiKey` is write-only: `undefined` keeps
- * the stored key, `null` removes it, a string replaces it.
+ * Server settings to persist. The API keys are write-only: `undefined` keeps the
+ * stored key, `null` removes it, a string replaces it.
  */
-export type ServerSettingsUpdate = Omit<ServerSettings, 'tileserverApiKeySet'> & {
+export type ServerSettingsUpdate = Omit<
+  ServerSettings,
+  'tileserverApiKeySet' | 'geocodingApiKeySet' | 'envManaged'
+> & {
   tileserverApiKey?: string | null
+  geocodingApiKey?: string | null
 }
 
 /** Raw email-status payload (the mail settings are valid, or why they are not). */

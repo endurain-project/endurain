@@ -45,6 +45,12 @@ export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
     passwordType: dto.password_type,
     passwordLengthRegularUsers: dto.password_length_regular_users,
     passwordLengthAdminUsers: dto.password_length_admin_users,
+    geocodingService: dto.geocoding_service,
+    geocodingHost: dto.geocoding_host,
+    geocodingUseHttps: dto.geocoding_use_https,
+    geocodingRateLimit: dto.geocoding_rate_limit,
+    geocodingApiKeySet: dto.geocoding_api_key_set,
+    envManaged: dto.env_managed,
   }
 }
 
@@ -75,7 +81,7 @@ export function mapTileMapsTemplate(dto: TileMapsTemplateDto): TileMapsTemplate 
  * error instead of a runtime `422`.
  *
  * @param settings - The server settings (already merged with any edits).
- * @returns The snake-cased editable body; it carries the tile API key only when one is being set or removed.
+ * @returns The snake-cased editable body; it carries an API key only when one is being set or removed.
  */
 export function toServerSettingsWire(settings: ServerSettingsUpdate): ServerSettingsEditDto {
   return {
@@ -97,9 +103,16 @@ export function toServerSettingsWire(settings: ServerSettingsUpdate): ServerSett
     password_type: settings.passwordType,
     password_length_regular_users: settings.passwordLengthRegularUsers,
     password_length_admin_users: settings.passwordLengthAdminUsers,
+    geocoding_service: settings.geocodingService,
+    geocoding_host: settings.geocodingHost,
+    geocoding_use_https: settings.geocodingUseHttps,
+    geocoding_rate_limit: settings.geocodingRateLimit,
     // Omitted keeps the stored key; the backend never returns it, so it cannot round-trip.
     ...(settings.tileserverApiKey !== undefined && {
       tileserver_api_key: settings.tileserverApiKey,
+    }),
+    ...(settings.geocodingApiKey !== undefined && {
+      geocoding_api_key: settings.geocodingApiKey,
     }),
   }
 }

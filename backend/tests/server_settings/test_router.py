@@ -45,6 +45,12 @@ class TestReadServerSettings:
             password_length_regular_users=8,
             password_length_admin_users=12,
             tileserver_api_key_set=False,
+            geocoding_service="nominatim",
+            geocoding_host=None,
+            geocoding_use_https=True,
+            geocoding_rate_limit=1.0,
+            geocoding_api_key_set=False,
+            env_managed={},
         )
 
         mock_get_settings.return_value = mock_settings
@@ -108,6 +114,12 @@ class TestEditServerSettings:
             password_length_admin_users=15,
             tileserver_regenerate_thumbnails_on_change=False,
             tileserver_api_key_set=False,
+            geocoding_service="nominatim",
+            geocoding_host=None,
+            geocoding_use_https=True,
+            geocoding_rate_limit=1.0,
+            geocoding_api_key_set=False,
+            env_managed={},
         )
 
         mock_edit_settings.return_value = mock_updated_settings
@@ -135,6 +147,10 @@ class TestEditServerSettings:
                 "password_length_regular_users": 10,
                 "password_length_admin_users": 15,
                 "tileserver_regenerate_thumbnails_on_change": False,
+                "geocoding_service": "nominatim",
+                "geocoding_host": None,
+                "geocoding_use_https": True,
+                "geocoding_rate_limit": 1.0,
             },
         )
 
@@ -178,6 +194,10 @@ class TestEditServerSettings:
                 "password_length_regular_users": 10,
                 "password_length_admin_users": 15,
                 "tileserver_regenerate_thumbnails_on_change": False,
+                "geocoding_service": "nominatim",
+                "geocoding_host": None,
+                "geocoding_use_https": True,
+                "geocoding_rate_limit": 1.0,
             },
         )
 
@@ -209,6 +229,10 @@ class TestEditRejectsReadOnlyFields:
             "password_length_regular_users": 10,
             "password_length_admin_users": 15,
             "tileserver_regenerate_thumbnails_on_change": False,
+            "geocoding_service": "nominatim",
+            "geocoding_host": None,
+            "geocoding_use_https": True,
+            "geocoding_rate_limit": 1.0,
             field: value,
         }
         response = fast_api_client.put("/server_settings", headers={"Authorization": "Bearer mock_token"}, json=body)

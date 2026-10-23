@@ -13,6 +13,7 @@ import core.config as core_config
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
+import core.geocoding as core_geocoding
 import core.i18n as core_i18n
 import core.logger as core_logger
 import core.mail as core_mail
@@ -30,6 +31,11 @@ logger = core_logger.get_logger(__name__)
 _MAP_FIELDS = frozenset({"tileserver_url", "tileserver_api_key", "map_background_color"})
 _API_KEY_FIELD = "tileserver_api_key"
 _API_KEY_LABEL = "tile API key"
+_GEOCODING_API_KEY_FIELD = "geocoding_api_key"
+_GEOCODING_API_KEY_LABEL = "geocoding API key"
+#: Write-only secret fields of the settings row -> what they are called in messages.
+_SECRET_FIELDS = {_API_KEY_FIELD: _API_KEY_LABEL, _GEOCODING_API_KEY_FIELD: _GEOCODING_API_KEY_LABEL}
+_GEOCODING_FIELDS = frozenset(server_settings_constants.GEOCODING_ENV_VARS)
 _MAIL_CREDENTIAL_FIELD = "password"
 _MAIL_CREDENTIAL_LABEL = "SMTP password"
 _SMTP_ENV_VARS = (
@@ -159,20 +165,41 @@ def decrypt_tileserver_api_key(encrypted_api_key: str | None) -> str | None:
     return _decrypt_secret(encrypted_api_key, _API_KEY_LABEL)
 
 
+def server_settings_env_managed() -> dict[str, str]:
+    """Return the settings fields an environment variable currently sets.
+
+    Geocoding is imported as a block, so while any geocoding variable is set all of its
+    fields are env-managed, each named by its most specific variable.
+
+    Returns:
+        Field name to environment variable name.
+    """
+    if not any(_env_var_is_set(name) for name in server_settings_constants.GEOCODING_ENV_VAR_NAMES):
+        return {}
+    photon = core_config.settings.REVERSE_GEO_PROVIDER == core_geocoding.GeocodingService.PHOTON
+    return {
+        field: server_settings_constants.GEOCODING_PHOTON_ENV_VARS.get(field, name) if photon else name
+        for field, name in server_settings_constants.GEOCODING_ENV_VARS.items()
+    }
+
+
 def _to_admin_read(
     server_settings: server_settings_schema.ServerSettingsRead,
 ) -> server_settings_schema.ServerSettingsAdminRead:
-    """Build the admin response: the stored settings without the tile API key.
+    """Build the admin response: the stored settings without the API keys.
 
     Args:
         server_settings: Settings as stored.
 
     Returns:
-        The settings with a flag saying whether a tile API key is stored.
+        The settings with a flag per API key saying whether one is stored, and the
+        fields an environment variable sets.
     """
     return server_settings_schema.ServerSettingsAdminRead(
-        **server_settings.model_dump(exclude={_API_KEY_FIELD}),
+        **server_settings.model_dump(exclude=set(_SECRET_FIELDS)),
         tileserver_api_key_set=bool(server_settings.tileserver_api_key),
+        geocoding_api_key_set=bool(server_settings.geocoding_api_key),
+        env_managed=server_settings_env_managed(),
     )
 
 
@@ -347,7 +374,7 @@ def _changed_fields(
 ) -> set[str]:
     """Return the sent fields whose value differs from the stored one.
 
-    The tile API key is compared in plain text, since the stored token is encrypted
+    The API keys are compared in plain text, since the stored token is encrypted
     and a fresh encryption of the same key never matches it. A stored key that can
     no longer be decrypted counts as changed, so it can always be replaced or removed.
 
@@ -360,12 +387,71 @@ def _changed_fields(
     """
     changed: set[str] = set()
     for field, value in attributes.model_dump(exclude_unset=True).items():
-        if field == _API_KEY_FIELD:
-            if _secret_changed(current.tileserver_api_key, value, _API_KEY_LABEL):
+        if field in _SECRET_FIELDS:
+            if _secret_changed(getattr(current, field), value, _SECRET_FIELDS[field]):
                 changed.add(field)
         elif getattr(current, field) != value:
             changed.add(field)
     return changed
+
+
+def _validate_geocoding(
+    attributes: server_settings_schema.ServerSettingsEdit,
+    current: server_settings_schema.ServerSettingsRead,
+) -> None:
+    """Refuse a geocoding configuration the substrate would not use.
+
+    Args:
+        attributes: The request body.
+        current: The settings as stored.
+
+    Raises:
+        InvalidInputError: If the host is one the server must not dial, or the
+            geocode.maps.co service has no API key.
+    """
+    service = core_geocoding.GeocodingService(attributes.geocoding_service)
+    if service == core_geocoding.GeocodingService.GEOCODE:
+        has_key = (
+            attributes.geocoding_api_key
+            if _GEOCODING_API_KEY_FIELD in attributes.model_fields_set
+            else current.geocoding_api_key
+        )
+        if not has_key:
+            raise core_exceptions.InvalidInputError("geocode.maps.co needs an API key")
+        return
+    scheme = "https" if attributes.geocoding_use_https else "http"
+    host = attributes.geocoding_host or core_geocoding.DEFAULT_HOSTS[service]
+    reason = core_network.url_rejection_reason_bounded(f"{scheme}://{host}/reverse", purpose="reverse_geocoding")
+    if reason is not None:
+        logger.warning("Refused a geocoding host", extra=core_logger.context(reason=reason))
+        raise core_exceptions.InvalidInputError(
+            f"Geocoding host {reason}; add it to SSRF_ALLOWED_HOSTS for a self-hosted instance"
+        )
+
+
+def get_geocoding_config(db: Session) -> core_geocoding.GeocodingConfig | None:
+    """Return the reverse-geocoding configuration, ready to use.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The configuration with the API key decrypted, or None when the settings row is missing.
+
+    Raises:
+        ServiceUnavailableError: When the stored API key cannot be decrypted.
+    """
+    row = server_settings_crud.get_server_settings(db)
+    if row is None:
+        logger.warning("Server settings are unavailable; geocoding is disabled")
+        return None
+    return core_geocoding.GeocodingConfig(
+        service=core_geocoding.GeocodingService(row.geocoding_service),
+        host=row.geocoding_host,
+        use_https=row.geocoding_use_https,
+        rate_limit=row.geocoding_rate_limit,
+        api_key=_decrypt_secret(row.geocoding_api_key, _GEOCODING_API_KEY_LABEL),
+    )
 
 
 def edit_server_settings(
@@ -397,16 +483,26 @@ def edit_server_settings(
         db.rollback()
         return _to_admin_read(current)
 
+    env_managed = server_settings_env_managed()
+    managed_changes = sorted(changed_fields & env_managed.keys())
+    if managed_changes:
+        raise core_exceptions.InvalidInputError(
+            "; ".join(
+                f"{field} is set by the {env_managed[field]} environment variable; remove it to edit this setting here"
+                for field in managed_changes
+            )
+        )
     if "tileserver_url" in changed_fields:
         _reject_unsafe_tileserver(attributes.tileserver_url)
-    if _API_KEY_FIELD in attributes.model_fields_set:
-        # An unchanged key keeps its stored token instead of being re-encrypted.
-        plain_api_key = attributes.tileserver_api_key
-        if _API_KEY_FIELD not in changed_fields:
-            stored_api_key = current.tileserver_api_key
-        else:
-            stored_api_key = _encrypt_secret(plain_api_key)
-        attributes = attributes.model_copy(update={_API_KEY_FIELD: stored_api_key})
+    if changed_fields & _GEOCODING_FIELDS:
+        _validate_geocoding(attributes, current)
+    # An unchanged key keeps its stored token instead of being re-encrypted.
+    stored_secrets = {
+        field: _encrypt_secret(getattr(attributes, field)) if field in changed_fields else getattr(current, field)
+        for field in _SECRET_FIELDS
+        if field in attributes.model_fields_set
+    }
+    attributes = attributes.model_copy(update=stored_secrets)
 
     updated = server_settings_crud.edit_server_settings(attributes, db)
     changed_map_fields = changed_fields & _MAP_FIELDS
@@ -890,6 +986,68 @@ def _import_mail_env(db: Session) -> list[str]:
     return names
 
 
+def _import_geocoding_env(db: Session) -> list[str]:
+    """Save the deprecated reverse-geocoding variables into the server settings.
+
+    Runs only when at least one of them is set. An unknown provider leaves the stored
+    settings unchanged and is logged, as it used to disable geocoding without stopping
+    the application. Writes only the fields that differ; the caller commits.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The names of the geocoding variables that are set; empty when none is.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    names = [name for name in server_settings_constants.GEOCODING_ENV_VAR_NAMES if _env_var_is_set(name)]
+    if not names:
+        return []
+    settings = core_config.settings
+    try:
+        service = core_geocoding.GeocodingService(settings.REVERSE_GEO_PROVIDER)
+    except ValueError:
+        logger.error(
+            "REVERSE_GEO_PROVIDER is not nominatim, photon or geocode, so the stored geocoding settings were left "
+            "unchanged",
+            extra=core_logger.context(console=True),
+        )
+        return names
+
+    if service == core_geocoding.GeocodingService.GEOCODE:
+        host, use_https = None, True
+    else:
+        prefix = service.name
+        host_var, https_var = f"{prefix}_API_HOST", f"{prefix}_API_USE_HTTPS"
+        # An unset host variable means the service's default host, not the default the settings carry.
+        host = getattr(settings, host_var) if _env_var_is_set(host_var) else None
+        use_https = getattr(settings, https_var)
+    api_key = None if settings.GEOCODES_MAPS_API == "changeme" else settings.GEOCODES_MAPS_API
+
+    current = get_server_settings(db, for_update=True)
+    target = {
+        "geocoding_service": service.value,
+        "geocoding_host": host,
+        "geocoding_use_https": use_https,
+        "geocoding_rate_limit": settings.REVERSE_GEO_RATE_LIMIT,
+    }
+    changes: dict[str, Any] = {field: value for field, value in target.items() if getattr(current, field) != value}
+    if _secret_changed(current.geocoding_api_key, api_key, _GEOCODING_API_KEY_LABEL):
+        changes[_GEOCODING_API_KEY_FIELD] = _encrypt_secret(api_key)
+    if changes:
+        # Only the differing fields are written; the values were validated above.
+        server_settings_crud.edit_server_settings(
+            server_settings_schema.ServerSettingsEdit.model_construct(**changes), db
+        )
+        logger.info(
+            "Geocoding settings imported from the environment",
+            extra=core_logger.context(changed_fields=sorted(changes)),
+        )
+    return names
+
+
 def import_deprecated_env_settings(db: Session) -> None:
     """Save the deprecated environment variables into the database, once per start.
 
@@ -903,7 +1061,7 @@ def import_deprecated_env_settings(db: Session) -> None:
     Raises:
         ServiceUnavailableError: If a settings row does not exist.
     """
-    deprecated_names = _import_mail_env(db)
+    deprecated_names = [*_import_mail_env(db), *_import_geocoding_env(db)]
     db.commit()
     if deprecated_names:
         logger.warning(

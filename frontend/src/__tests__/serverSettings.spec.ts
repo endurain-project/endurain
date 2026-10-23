@@ -52,6 +52,12 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     password_type: 'strict',
     password_length_regular_users: 8,
     password_length_admin_users: 12,
+    geocoding_service: 'nominatim',
+    geocoding_host: null,
+    geocoding_use_https: true,
+    geocoding_rate_limit: 1,
+    geocoding_api_key_set: false,
+    env_managed: {},
     ...overrides,
   }
 }
@@ -109,12 +115,27 @@ describe('mapServerSettings', () => {
       passwordType: 'strict',
       passwordLengthRegularUsers: 8,
       passwordLengthAdminUsers: 12,
+      geocodingService: 'nominatim',
+      geocodingHost: null,
+      geocodingUseHttps: true,
+      geocodingRateLimit: 1,
+      geocodingApiKeySet: false,
+      envManaged: {},
     })
   })
 
   it('exposes only whether an API key is stored', () => {
     expect(mapServerSettings(makeSettingsDto()).tileserverApiKeySet).toBe(true)
     expect(mapServerSettings(makeSettingsDto()) as object).not.toHaveProperty('tileserverApiKey')
+    expect(mapServerSettings(makeSettingsDto()) as object).not.toHaveProperty('geocodingApiKey')
+    expect(
+      mapServerSettings(makeSettingsDto({ geocoding_api_key_set: true })).geocodingApiKeySet,
+    ).toBe(true)
+  })
+
+  it('carries the env-managed map', () => {
+    const dto = makeSettingsDto({ env_managed: { geocoding_host: 'PHOTON_API_HOST' } })
+    expect(mapServerSettings(dto).envManaged).toEqual({ geocoding_host: 'PHOTON_API_HOST' })
   })
 })
 
@@ -139,6 +160,8 @@ describe('toServerSettingsWire', () => {
       id: _id,
       login_photo_set: _loginPhotoSet,
       tileserver_api_key_set: _keySet,
+      geocoding_api_key_set: _geoKeySet,
+      env_managed: _envManaged,
       ...editable
     } = makeSettingsDto()
     expect(toServerSettingsWire(settings)).toEqual(editable)
@@ -155,6 +178,25 @@ describe('toServerSettingsWire', () => {
       'tileserver_api_key',
       'new-key',
     )
+  })
+
+  it('omits the geocoding key to keep it, and sends null to remove it', () => {
+    const settings = mapServerSettings(makeSettingsDto())
+    expect(toServerSettingsWire(settings)).not.toHaveProperty('geocoding_api_key')
+    expect(toServerSettingsWire({ ...settings, geocodingApiKey: null })).toHaveProperty(
+      'geocoding_api_key',
+      null,
+    )
+    expect(toServerSettingsWire({ ...settings, geocodingApiKey: 'geo-key' })).toHaveProperty(
+      'geocoding_api_key',
+      'geo-key',
+    )
+  })
+
+  it('never sends the env-managed map or the key-stored flags', () => {
+    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()))
+    expect(wire).not.toHaveProperty('env_managed')
+    expect(wire).not.toHaveProperty('geocoding_api_key_set')
   })
 
   it('never sends the read-only id or login-photo flag', () => {

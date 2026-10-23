@@ -12,6 +12,7 @@ from jasil.providers import EventBusProvider, RealtimeProvider
 
 import core.config as core_config
 import core.database as core_database
+import core.geocoding as core_geocoding
 import core.logger as core_logger
 import core.mail as core_mail
 import core.scheduler as core_scheduler
@@ -323,10 +324,23 @@ def _load_mail_settings() -> jasil_settings.MailSettings:
         return core_mail.to_mail_settings(server_settings_integration.get_mail_config(db))
 
 
+def _load_geocoding_settings() -> jasil_settings.GeocodingSettings:
+    """Read the operator-edited geocoding settings for the substrate to apply.
+
+    Reads and maps only: the substrate validates the result and decides what a failed
+    read or an unusable configuration means.
+
+    Returns:
+        The stored geocoding settings; unset when the settings are unavailable.
+    """
+    with core_database.SessionLocal() as db:
+        return core_geocoding.to_geocoding_settings(server_settings_integration.get_geocoding_config(db))
+
+
 def runtime_sources() -> jasil_settings.RuntimeSources:
     """Return the callables the substrate uses to read operator-edited settings at runtime.
 
     Returns:
         The runtime sources, shared by the API and the standalone worker.
     """
-    return jasil_settings.RuntimeSources(mail=_load_mail_settings)
+    return jasil_settings.RuntimeSources(mail=_load_mail_settings, geocoding=_load_geocoding_settings)

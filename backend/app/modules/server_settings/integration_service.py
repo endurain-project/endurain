@@ -9,6 +9,7 @@ import of deprecated environment variables and is a unit of work that commits.
 
 from sqlalchemy.orm import Session
 
+import core.geocoding as core_geocoding
 import core.logger as core_logger
 import core.mail as core_mail
 import modules.server_settings.contracts as server_settings_contracts
@@ -20,9 +21,9 @@ logger = core_logger.get_logger(__name__)
 
 
 def get_server_settings(db: Session) -> server_settings_schema.ServerSettingsRead:
-    """Return the server settings, without the tile API key.
+    """Return the server settings, without the API keys.
 
-    Callers need the sign-up, login and password policy; the key is not theirs to
+    Callers need the sign-up, login and password policy; the keys are not theirs to
     hold, so it is blanked rather than handed over encrypted.
 
     Args:
@@ -34,7 +35,9 @@ def get_server_settings(db: Session) -> server_settings_schema.ServerSettingsRea
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
     """
-    return server_settings_service.get_server_settings(db).model_copy(update={"tileserver_api_key": None})
+    return server_settings_service.get_server_settings(db).model_copy(
+        update={"tileserver_api_key": None, "geocoding_api_key": None}
+    )
 
 
 def get_allowed_tile_domains(db: Session) -> list[str]:
@@ -120,6 +123,21 @@ def is_mail_configured(db: Session) -> bool:
         True when mail settings are stored and valid.
     """
     return server_settings_service.get_email_status(db).configured
+
+
+def get_geocoding_config(db: Session) -> core_geocoding.GeocodingConfig | None:
+    """Return the configured reverse-geocoding service, with the API key decrypted.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The geocoding configuration, or None when the settings row is missing.
+
+    Raises:
+        ServiceUnavailableError: When the stored API key cannot be decrypted.
+    """
+    return server_settings_service.get_geocoding_config(db)
 
 
 def import_deprecated_env_settings(db: Session) -> None:

@@ -237,6 +237,7 @@ class Settings(BaseSettings):
     ALLOW_API_KEY_QUERY_PARAM: bool = False
 
     # --- Reverse-geocoding providers ---
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
     REVERSE_GEO_PROVIDER: str = "nominatim"
     PHOTON_API_HOST: str = "photon.komoot.io"
     PHOTON_API_USE_HTTPS: bool = True

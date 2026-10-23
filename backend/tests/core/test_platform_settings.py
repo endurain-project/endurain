@@ -190,58 +190,6 @@ class TestEventLogSettings:
         assert result.retention_days == 0
 
 
-class TestGeocodingSettings:
-    def test_hosts_and_provider_mapped(self):
-        settings = core_config.Settings(
-            _env_file=None,
-            REVERSE_GEO_PROVIDER="photon",
-            REVERSE_GEO_RATE_LIMIT=2.5,
-            NOMINATIM_API_HOST="nominatim.example.org",
-            NOMINATIM_API_USE_HTTPS=False,
-            PHOTON_API_HOST="photon.example.com",
-            PHOTON_API_USE_HTTPS=True,
-        )
-
-        result = build_jasil_settings(settings).geocoding
-
-        assert result.uri == "photon://photon.example.com"
-        assert result.rate_limit == 2.5
-
-    def test_cleartext_nominatim_uses_the_http_scheme(self):
-        settings = core_config.Settings(
-            _env_file=None,
-            REVERSE_GEO_PROVIDER="nominatim",
-            NOMINATIM_API_HOST="nominatim.example.org",
-            NOMINATIM_API_USE_HTTPS=False,
-        )
-
-        assert build_jasil_settings(settings).geocoding.uri == "nominatim+http://nominatim.example.org"
-
-    def test_geocode_provider_uses_the_geocode_scheme(self):
-        settings = core_config.Settings(_env_file=None, REVERSE_GEO_PROVIDER="geocode")
-
-        assert build_jasil_settings(settings).geocoding.uri == "geocode://"
-
-    def test_placeholder_api_key_becomes_unset(self):
-        # 'changeme' is the shipped placeholder; JASIL disables the capability
-        # for a falsy key, which is what the previous container did for it.
-        result = build_jasil_settings(core_config.Settings(_env_file=None)).geocoding
-
-        assert result.api_key is None
-
-    def test_real_api_key_carried_over(self):
-        settings = core_config.Settings(_env_file=None, GEOCODES_MAPS_API="a-real-key")
-
-        result = build_jasil_settings(settings).geocoding
-
-        assert result.api_key == "a-real-key"
-
-    def test_user_agent_identifies_endurain(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None)).geocoding
-
-        assert result.user_agent == f"Endurain/{core_config.API_VERSION} (ReverseGeocoding)"
-
-
 class TestNetworkSettings:
     def test_ssrf_allowlist_mapped_as_tuple(self):
         settings = core_config.Settings(
