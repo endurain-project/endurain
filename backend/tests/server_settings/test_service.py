@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
 import pytest
-from fastapi import HTTPException
 
 import core.exceptions as core_exceptions
 import core.geocoding as core_geocoding
@@ -199,7 +198,7 @@ class TestOnlyRealChangesCount:
         with patch.object(
             server_settings_service.core_cryptography,
             "decrypt_token_fernet",
-            side_effect=HTTPException(status_code=500, detail="Internal Server Error"),
+            side_effect=core_exceptions.UndecryptableError(),
         ):
             server_settings_service.edit_server_settings(
                 _full_edit(edit_env.stored, tileserver_api_key="plain-new"), MagicMock()

@@ -204,6 +204,21 @@ class ProcessingError(DomainError):
     default_detail = "Internal Server Error"
 
 
+class CryptographyError(ProcessingError):
+    """Encrypting or decrypting a secret failed, or the configured key cannot be used.
+
+    The response is as opaque as :class:`ProcessingError`: the cause belongs in the log.
+    """
+
+
+class UndecryptableError(CryptographyError):
+    """A stored secret was not produced by the configured key, or is corrupt.
+
+    Unlike a missing or malformed key, this concerns one value: the secret has to be entered
+    again, and retrying the same operation meets the same answer.
+    """
+
+
 def build_problem_response(
     *,
     request: Request,

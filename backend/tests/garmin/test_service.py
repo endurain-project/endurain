@@ -116,3 +116,35 @@ def test_a_rejected_token_unlinks_the_account_it_was_stored_as():
         garmin_service.handle_rejected_token(1, session, garminconnect.GarminConnectAuthenticationError("401"))
 
     unlink.assert_called_once_with(1, {"di_token": "enc"}, session_local.return_value.__enter__.return_value)
+
+
+class TestUndecryptableToken:
+    """A stored token the configured key cannot read is dead: the user must link again."""
+
+    def _restore(self, session_fn):
+        integrations = MagicMock(garminconnect_token={"di_token": "enc"})
+        with (
+            patch.object(
+                garmin_service.user_integrations_integration, "get_user_integrations", return_value=integrations
+            ),
+            patch.object(
+                garmin_service.garmin_token_utils,
+                "login_garminconnect_using_tokens",
+                side_effect=core_exceptions.UndecryptableError(),
+            ),
+            patch.object(garmin_service, "unlink_expired_account") as unlink,
+        ):
+            return session_fn(1, MagicMock()), unlink
+
+    def test_the_account_is_unlinked_and_the_user_told(self):
+        session, unlink = self._restore(garmin_service.get_user_garminconnect_session)
+
+        assert session is None
+        unlink.assert_called_once()
+        assert unlink.call_args.args[:2] == (1, {"di_token": "enc"})
+
+    def test_a_migration_gets_no_client_and_changes_nothing(self):
+        client, unlink = self._restore(garmin_service.get_user_garminconnect_client)
+
+        assert client is None
+        unlink.assert_not_called()

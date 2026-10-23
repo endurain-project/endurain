@@ -78,8 +78,8 @@ class GarminSession(NamedTuple):
     token: dict
 
 
-def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession | None:
-    """Return an authenticated Garmin Connect session for a linked user.
+def _restore_session(user_id: int, db: Session) -> GarminSession | None:
+    """Restore the session of a linked user from the token stored for them.
 
     Args:
         user_id: The user whose Garmin Connect account to use.
@@ -87,6 +87,9 @@ def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession |
 
     Returns:
         The session, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
+
+    Raises:
+        UndecryptableError: When the stored token cannot be decrypted with the configured key.
     """
     try:
         user_integrations = get_linked_user_integrations(user_id, db)
@@ -106,17 +109,55 @@ def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession |
     return GarminSession(client, token) if client is not None else None
 
 
+def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession | None:
+    """Return an authenticated Garmin Connect session for a linked user.
+
+    A stored token the configured key cannot read is as dead as one Garmin Connect rejected:
+    the account is unlinked and the user told to link it again.
+
+    Args:
+        user_id: The user whose Garmin Connect account to use.
+        db: Database session, which this commits when it unlinks the account.
+
+    Returns:
+        The session, or ``None`` when Garmin Connect is not linked or the stored session is unusable.
+    """
+    try:
+        return _restore_session(user_id, db)
+    except core_exceptions.UndecryptableError as err:
+        logger.warning(
+            "Garmin Connect token cannot be decrypted. Unlinking account. User must re-link",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
+        # The stored token is the one that failed, so it is the one to compare on the unlink.
+        user_integrations = get_linked_user_integrations(user_id, db)
+        if user_integrations is not None:
+            unlink_expired_account(user_id, user_integrations.garminconnect_token, db)
+        return None
+
+
 def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Garmin | None:
-    """Return an authenticated Garmin Connect client for a linked user.
+    """Return an authenticated Garmin Connect client for a linked user, changing nothing.
+
+    Serves data migrations, which read the account and never unlink it.
 
     Args:
         user_id: The user whose Garmin Connect account to use.
         db: Database session.
 
     Returns:
-        The client, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
+        The client, or ``None`` when Garmin Connect is not linked or the stored session is unusable.
     """
-    session = get_user_garminconnect_session(user_id, db)
+    try:
+        session = _restore_session(user_id, db)
+    except core_exceptions.UndecryptableError as err:
+        logger.warning(
+            "Garmin Connect token cannot be decrypted",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
+        return None
     return session.client if session is not None else None
 
 

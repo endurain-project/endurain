@@ -8,7 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import jasil.providers as platform_providers
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -106,7 +106,7 @@ def _decrypt_secret(token: str | None, label: str) -> str | None:
         return None
     try:
         return core_cryptography.decrypt_token_fernet(token)
-    except HTTPException as err:
+    except core_exceptions.CryptographyError as err:
         raise core_exceptions.ServiceUnavailableError(
             f"The stored {label} cannot be decrypted; enter it again in the server settings"
         ) from err

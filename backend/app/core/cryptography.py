@@ -1,9 +1,9 @@
 """Fernet token encryption helpers."""
 
-from cryptography.fernet import Fernet
-from fastapi import HTTPException, status
+from cryptography.fernet import Fernet, InvalidToken
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -17,7 +17,7 @@ def create_fernet_cipher() -> Fernet:
         Fernet cipher initialised with the configured key.
 
     Raises:
-        HTTPException: If the key cannot be loaded or parsed.
+        CryptographyError: If the key cannot be loaded or parsed.
     """
     try:
         key = core_config.read_secret("FERNET_KEY")
@@ -27,10 +27,7 @@ def create_fernet_cipher() -> Fernet:
     except Exception as err:
         logger.error(f"Error in create_fernet_cipher: {type(err).__name__}", exc_info=err)
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        raise core_exceptions.CryptographyError() from err
 
 
 def encrypt_token_fernet(token: object | None) -> str | None:
@@ -44,7 +41,7 @@ def encrypt_token_fernet(token: object | None) -> str | None:
         Encrypted token string, or None when input is None.
 
     Raises:
-        HTTPException: If encryption fails.
+        CryptographyError: If encryption fails.
     """
     try:
         if token is None:
@@ -56,13 +53,12 @@ def encrypt_token_fernet(token: object | None) -> str | None:
             token = str(token)
 
         return cipher.encrypt(token.encode()).decode()
+    except core_exceptions.CryptographyError:
+        raise
     except Exception as err:
         logger.error(f"Error in encrypt_token_fernet: {type(err).__name__}", exc_info=err)
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        raise core_exceptions.CryptographyError() from err
 
 
 def decrypt_token_fernet(encrypted_token: str | None) -> str | None:
@@ -76,7 +72,8 @@ def decrypt_token_fernet(encrypted_token: str | None) -> str | None:
         Decrypted token string, or None when input is None.
 
     Raises:
-        HTTPException: If decryption fails.
+        UndecryptableError: If the token was not encrypted with the configured key, or is corrupt.
+        CryptographyError: If the key cannot be used or decryption otherwise fails.
     """
     try:
         if encrypted_token is None:
@@ -85,10 +82,13 @@ def decrypt_token_fernet(encrypted_token: str | None) -> str | None:
         cipher = create_fernet_cipher()
 
         return cipher.decrypt(encrypted_token.encode()).decode()
+    except core_exceptions.CryptographyError:
+        raise
+    except InvalidToken as err:
+        logger.error(f"Error in decrypt_token_fernet: {type(err).__name__}", exc_info=err)
+
+        raise core_exceptions.UndecryptableError() from err
     except Exception as err:
         logger.error(f"Error in decrypt_token_fernet: {type(err).__name__}", exc_info=err)
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        raise core_exceptions.CryptographyError() from err
