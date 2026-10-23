@@ -5954,7 +5954,10 @@ export interface components {
              * @default false
              */
             is_cn: boolean;
-            /** Password */
+            /**
+             * Password
+             * Format: password
+             */
             password: string;
             /** Username */
             username: string;

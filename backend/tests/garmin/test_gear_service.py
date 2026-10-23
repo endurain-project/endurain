@@ -13,7 +13,7 @@ def _patched(client):
         patch.object(garmin_gear_service, "SessionLocal"),
         patch.object(garmin_gear_service.garmin_service, "get_user_garminconnect_session", return_value=session),
         patch.object(garmin_gear_service.user_integrations_integration, "set_garminconnect_sync_gear"),
-        patch.object(garmin_gear_service.garmin_service, "unlink_expired_account"),
+        patch.object(garmin_gear_service.garmin_service, "handle_rejected_token"),
     )
 
 

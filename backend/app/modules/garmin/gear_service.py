@@ -109,7 +109,7 @@ def resolve_synced_gear_id(user_id: int, garminconnect_gear: list | None, db: Se
     """
     if not garminconnect_gear:
         return None
-    user_integrations = garmin_service.fetch_user_integrations_and_validate_token(user_id, db)
+    user_integrations = garmin_service.get_linked_user_integrations(user_id, db)
     if user_integrations is None or not user_integrations.garminconnect_sync_gear:
         return None
     gear = gears_integration.get_gear_by_garminconnect_id(garminconnect_gear[0]["uuid"], user_id, db)
@@ -187,13 +187,7 @@ def get_user_gear(user_id: int) -> None:
     try:
         fetch_and_process_gear(session.client, user_id)
     except garminconnect.GarminConnectAuthenticationError as err:
-        logger.error(
-            "Garmin Connect token expired. Unlinking account. User must re-link",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id),
-        )
-        with SessionLocal() as db:
-            garmin_service.unlink_expired_account(user_id, session.token, db)
+        garmin_service.handle_rejected_token(user_id, session, err)
         return
     finally:
         garmin_service.save_refreshed_token(user_id, session)

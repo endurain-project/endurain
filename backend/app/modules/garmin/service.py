@@ -128,7 +128,13 @@ def start_link(
             raise core_exceptions.ConflictError("A Garmin Connect link is already in progress")
         try:
             future = _LINK_EXECUTOR.submit(
-                link_garminconnect, user_id, login.username, login.password, mfa_codes, link_states, login.is_cn
+                link_garminconnect,
+                user_id,
+                login.username,
+                login.password.get_secret_value(),
+                mfa_codes,
+                link_states,
+                login.is_cn,
             )
         except BaseException:
             # The attempt never started, so nothing would ever release its claim.
@@ -334,9 +340,7 @@ def unlink_account(user_id: int, db: Session) -> garmin_schema.GarminDetail:
     return garmin_schema.GarminDetail(detail=f"Garmin Connect unlinked for user {user_id} successfully")
 
 
-def fetch_user_integrations_and_validate_token(
-    user_id: int, db: Session
-) -> user_integrations_schema.UsersIntegrationsRead | None:
+def get_linked_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead | None:
     """Return a user's integrations when Garmin Connect is linked.
 
     Args:
@@ -384,7 +388,7 @@ def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession |
         The session, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
     """
     try:
-        user_integrations = fetch_user_integrations_and_validate_token(user_id, db)
+        user_integrations = get_linked_user_integrations(user_id, db)
     except core_exceptions.NotFoundError:
         logger.warning("Garmin Connect user has no integrations record", extra=core_logger.context(user_id=user_id))
         return None
@@ -435,6 +439,37 @@ def save_refreshed_token(user_id: int, session: GarminSession) -> None:
                 logger.info("Garmin Connect token refreshed", extra=core_logger.context(user_id=user_id))
     except Exception as err:
         logger.error("Failed to store the refreshed Garmin Connect token", exc_info=err)
+
+
+def linked_user_ids(after_id: int, limit: int) -> list[int]:
+    """Page through the users who have linked Garmin Connect, in a short session of its own.
+
+    Args:
+        after_id: Return only users with an id greater than this.
+        limit: Maximum number of user ids to return.
+
+    Returns:
+        The linked user ids, ascending.
+    """
+    with core_database.SessionLocal() as db:
+        return user_integrations_integration.list_user_ids_with_garminconnect_linked(after_id, limit, db)
+
+
+def handle_rejected_token(user_id: int, session: GarminSession, err: Exception) -> None:
+    """Unlink an account whose token Garmin Connect rejected during a sync, and tell the user.
+
+    Args:
+        user_id: The user whose sync was rejected.
+        session: The session the sync used.
+        err: The authentication error Garmin Connect raised.
+    """
+    logger.error(
+        "Garmin Connect token expired. Unlinking account. User must re-link",
+        exc_info=err,
+        extra=core_logger.context(user_id=user_id),
+    )
+    with core_database.SessionLocal() as db:
+        unlink_expired_account(user_id, session.token, db)
 
 
 def unlink_expired_account(user_id: int, token: dict, db: Session) -> None:

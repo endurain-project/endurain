@@ -131,12 +131,7 @@ class TestUsersHealthPull:
         synced = []
 
         with (
-            patch.object(health_utils, "SessionLocal"),
-            patch.object(
-                health_utils.user_integrations_integration,
-                "list_user_ids_with_garminconnect_linked",
-                side_effect=pages,
-            ) as listing,
+            patch.object(health_utils.garmin_service, "linked_user_ids", side_effect=pages) as listing,
             patch.object(
                 health_utils,
                 "get_user_garminconnect_health_by_dates",
@@ -154,12 +149,7 @@ class TestUsersHealthPull:
                 raise RuntimeError("boom")
 
         with (
-            patch.object(health_utils, "SessionLocal"),
-            patch.object(
-                health_utils.user_integrations_integration,
-                "list_user_ids_with_garminconnect_linked",
-                side_effect=[[1, 2], []],
-            ),
+            patch.object(health_utils.garmin_service, "linked_user_ids", side_effect=[[1, 2], []]),
             patch.object(health_utils, "get_user_garminconnect_health_by_dates", side_effect=sync) as pull,
         ):
             health_utils.retrieve_garminconnect_users_health_for_days(1)
@@ -168,7 +158,7 @@ class TestUsersHealthPull:
 
 
 class TestExpiredToken:
-    def test_an_expired_token_unlinks_with_a_fresh_session(self):
+    def test_an_expired_token_is_handed_to_the_rejected_token_handler(self):
         client = MagicMock()
         client.get_body_composition.side_effect = health_utils.garminconnect.GarminConnectAuthenticationError("401")
 
@@ -176,12 +166,12 @@ class TestExpiredToken:
         with (
             patch.object(health_utils, "SessionLocal"),
             patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=session),
-            patch.object(health_utils.garmin_service, "unlink_expired_account") as unlink,
+            patch.object(health_utils.garmin_service, "handle_rejected_token") as unlink,
         ):
             health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1)
 
         unlink.assert_called_once()
-        assert unlink.call_args.args[:2] == (1, {"di_token": "enc"})
+        assert unlink.call_args.args[:2] == (1, session)
 
     def test_an_unlinked_user_is_skipped(self):
         with (

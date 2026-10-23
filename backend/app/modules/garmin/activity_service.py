@@ -134,13 +134,7 @@ def fetch_and_process_activities_by_dates(
             str(end_date.date()),
         )
     except garminconnect.GarminConnectAuthenticationError as err:
-        logger.error(
-            "Garmin Connect token expired. Unlinking account. User must re-link",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id),
-        )
-        with SessionLocal() as db:
-            garmin_service.unlink_expired_account(user_id, session.token, db)
+        garmin_service.handle_rejected_token(user_id, session, err)
         return None
     except Exception as err:
         logger.error(

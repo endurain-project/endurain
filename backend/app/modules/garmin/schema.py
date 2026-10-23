@@ -1,6 +1,6 @@
 """Garmin Connect request and response shapes."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 import modules.garmin.constants as garmin_constants
 
@@ -9,7 +9,7 @@ class GarminLogin(BaseModel):
     """Credentials a user submits to link Garmin Connect."""
 
     username: str = Field(min_length=1, max_length=250)
-    password: str = Field(min_length=1, max_length=250)
+    password: SecretStr = Field(min_length=1, max_length=250)
     is_cn: bool = False
 
 

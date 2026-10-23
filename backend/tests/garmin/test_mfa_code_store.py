@@ -41,14 +41,6 @@ class TestGarminMFACodeStore:
     def test_delete_code_missing_is_noop(self):
         self._make_store().delete_code(99)
 
-    def test_clear_all_empties_store(self):
-        store = self._make_store()
-        store.add_code(1, "111")
-        store.add_code(2, "222")
-        store.clear_all()
-        assert store.has_code(1) is False
-        assert store.has_code(2) is False
-
     def test_overwrite_code_updates_value(self):
         store = self._make_store()
         store.add_code(7, "old")
@@ -83,10 +75,6 @@ class TestGarminMFACodeStoreUnavailable:
     def test_has_code_raises_unavailable(self):
         with pytest.raises(mfa_code_store.GarminMFACodeStoreUnavailableError):
             self._failing_store().has_code(1)
-
-    def test_clear_all_raises_unavailable(self):
-        with pytest.raises(mfa_code_store.GarminMFACodeStoreUnavailableError):
-            self._failing_store().clear_all()
 
     def test_delete_code_swallows_outage(self):
         # delete_code is best-effort (entries expire via TTL), so an outage must not raise.

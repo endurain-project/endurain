@@ -13,7 +13,6 @@ Interface::
     get_code(user_id)         - retrieve it (does NOT delete)
     delete_code(user_id)      - remove it after consumption
     has_code(user_id)         - check whether a live code exists
-    clear_all()               - remove all codes (for tests / admin)
 """
 
 from typing import NoReturn
@@ -164,14 +163,3 @@ class GarminMFACodeStore:
             return self._state.get(self._key(user_id)) is not None
         except StateBackendUnavailableError as err:
             _raise_store_unavailable("check Garmin MFA code", err)
-
-    def clear_all(self) -> None:
-        """Remove all Garmin MFA codes.
-
-        Raises:
-            GarminMFACodeStoreUnavailableError: When storage is unavailable.
-        """
-        try:
-            self._state.delete_prefix(f"{_GARMIN_MFA_KEY_PREFIX}:")
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable("clear Garmin MFA codes", err)

@@ -201,17 +201,17 @@ class TestFetchUserIntegrationsAndValidateToken:
             patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            garmin_service.fetch_user_integrations_and_validate_token(1, MagicMock())
+            garmin_service.get_linked_user_integrations(1, MagicMock())
 
     def test_an_unlinked_user_has_no_integrations_to_use(self):
         unlinked = MagicMock(garminconnect_token=None)
         with patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=unlinked):
-            assert garmin_service.fetch_user_integrations_and_validate_token(1, MagicMock()) is None
+            assert garmin_service.get_linked_user_integrations(1, MagicMock()) is None
 
     def test_a_linked_user_is_returned(self):
         linked = MagicMock(garminconnect_token={"di_token": "enc"})
         with patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=linked):
-            assert garmin_service.fetch_user_integrations_and_validate_token(1, MagicMock()) is linked
+            assert garmin_service.get_linked_user_integrations(1, MagicMock()) is linked
 
 
 class TestUnlinkExpiredAccount:
@@ -301,3 +301,21 @@ def test_a_link_that_cannot_start_releases_its_claim(stores):
             garmin_service.start_link(1, garmin_schema.GarminLogin(username="u", password="p"), mfa_codes, link_states)
 
     assert link_states.begin(1) is True
+
+
+def test_a_rejected_token_unlinks_the_account_it_was_stored_as():
+    session = garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
+    with (
+        patch.object(garmin_service.core_database, "SessionLocal") as session_local,
+        patch.object(garmin_service, "unlink_expired_account") as unlink,
+    ):
+        garmin_service.handle_rejected_token(1, session, garminconnect.GarminConnectAuthenticationError("401"))
+
+    unlink.assert_called_once_with(1, {"di_token": "enc"}, session_local.return_value.__enter__.return_value)
+
+
+def test_the_password_does_not_appear_in_the_login_repr():
+    login = garmin_schema.GarminLogin(username="me@example.com", password="s3cret")
+
+    assert "s3cret" not in repr(login)
+    assert login.password.get_secret_value() == "s3cret"

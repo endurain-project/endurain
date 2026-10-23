@@ -12,12 +12,21 @@ import modules.health.health_steps.integration_service as health_steps_integrati
 import modules.health.health_steps.schema as health_steps_schema
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.health_weight.schema as health_weight_schema
-import modules.users.users_integrations.integration_service as user_integrations_integration
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
 _USERS_PAGE_SIZE = 100
+
+
+def _to_int(value: float | None) -> int | None:
+    """Return ``value`` as an int, or ``None`` when Garmin Connect sent none."""
+    return int(value) if value is not None else None
+
+
+def _epoch_ms_to_utc(value: int | None) -> datetime | None:
+    """Return the datetime a Garmin Connect millisecond epoch names, or ``None`` when it sent none."""
+    return datetime.fromtimestamp(value / 1000, tz=UTC) if value else None
 
 
 def _sleep_score(score: dict | None) -> health_sleep_schema.SleepScore | None:
@@ -259,22 +268,8 @@ def fetch_and_process_sleep_by_dates(
             continue
 
         # Convert timestamps from milliseconds to datetime
-        sleep_start_gmt = (
-            datetime.fromtimestamp(
-                sleep_dto["sleepStartTimestampGMT"] / 1000,
-                tz=UTC,
-            )
-            if sleep_dto.get("sleepStartTimestampGMT")
-            else None
-        )
-        sleep_end_gmt = (
-            datetime.fromtimestamp(
-                sleep_dto["sleepEndTimestampGMT"] / 1000,
-                tz=UTC,
-            )
-            if sleep_dto.get("sleepEndTimestampGMT")
-            else None
-        )
+        sleep_start_gmt = _epoch_ms_to_utc(sleep_dto.get("sleepStartTimestampGMT"))
+        sleep_end_gmt = _epoch_ms_to_utc(sleep_dto.get("sleepEndTimestampGMT"))
         # NOTE: Garmin's ``*TimestampLocal`` epochs are already offset-shifted —
         # they encode the sleeper's WALL CLOCK, not an instant. Reading them with
         # ``tz=UTC`` therefore yields a datetime whose UTC components equal the
@@ -287,22 +282,8 @@ def fetch_and_process_sleep_by_dates(
         # hold a meaningful instant. Deriving them from the GMT pair plus the
         # recording offset (which is exactly ``local - gmt``) would remove the
         # ambiguity; until then, do not convert or compare these values.
-        sleep_start_local = (
-            datetime.fromtimestamp(
-                sleep_dto["sleepStartTimestampLocal"] / 1000,
-                tz=UTC,
-            )
-            if sleep_dto.get("sleepStartTimestampLocal")
-            else None
-        )
-        sleep_end_local = (
-            datetime.fromtimestamp(
-                sleep_dto["sleepEndTimestampLocal"] / 1000,
-                tz=UTC,
-            )
-            if sleep_dto.get("sleepEndTimestampLocal")
-            else None
-        )
+        sleep_start_local = _epoch_ms_to_utc(sleep_dto.get("sleepStartTimestampLocal"))
+        sleep_end_local = _epoch_ms_to_utc(sleep_dto.get("sleepEndTimestampLocal"))
 
         # Process sleep stages from sleepLevels array
         sleep_stages = []
@@ -386,32 +367,16 @@ def fetch_and_process_sleep_by_dates(
             light_sleep_seconds=sleep_dto.get("lightSleepSeconds"),
             rem_sleep_seconds=sleep_dto.get("remSleepSeconds"),
             awake_sleep_seconds=sleep_dto.get("awakeSleepSeconds"),
-            avg_heart_rate=(int(sleep_dto.get("avgHeartRate")) if sleep_dto.get("avgHeartRate") is not None else None),
+            avg_heart_rate=_to_int(sleep_dto.get("avgHeartRate")),
             min_heart_rate=None,
             max_heart_rate=None,
-            avg_spo2=(
-                int(sleep_dto.get("averageSpO2Value")) if sleep_dto.get("averageSpO2Value") is not None else None
-            ),
+            avg_spo2=_to_int(sleep_dto.get("averageSpO2Value")),
             lowest_spo2=sleep_dto.get("lowestSpO2Value"),
             highest_spo2=sleep_dto.get("highestSpO2Value"),
-            avg_respiration=(
-                int(sleep_dto.get("averageRespirationValue"))
-                if sleep_dto.get("averageRespirationValue") is not None
-                else None
-            ),
-            lowest_respiration=(
-                int(sleep_dto.get("lowestRespirationValue"))
-                if sleep_dto.get("lowestRespirationValue") is not None
-                else None
-            ),
-            highest_respiration=(
-                int(sleep_dto.get("highestRespirationValue"))
-                if sleep_dto.get("highestRespirationValue") is not None
-                else None
-            ),
-            avg_stress_level=(
-                int(sleep_dto.get("avgSleepStress")) if sleep_dto.get("avgSleepStress") is not None else None
-            ),
+            avg_respiration=_to_int(sleep_dto.get("averageRespirationValue")),
+            lowest_respiration=_to_int(sleep_dto.get("lowestRespirationValue")),
+            highest_respiration=_to_int(sleep_dto.get("highestRespirationValue")),
+            avg_stress_level=_to_int(sleep_dto.get("avgSleepStress")),
             awake_count=sleep_dto.get("awakeCount"),
             restless_moments_count=None,
             sleep_score_overall=overall_score.get("value"),
@@ -432,9 +397,7 @@ def fetch_and_process_sleep_by_dates(
             rem_percentage_score=_sleep_score(rem_percentage_score),
             deep_percentage_score=_sleep_score(deep_percentage_score),
             light_percentage_score=_sleep_score(light_percentage_score),
-            avg_sleep_stress=(
-                int(sleep_dto.get("avgSleepStress")) if sleep_dto.get("avgSleepStress") is not None else None
-            ),
+            avg_sleep_stress=_to_int(sleep_dto.get("avgSleepStress")),
             sleep_stress_score=_sleep_score(sleep_stress_score),
         )
 
@@ -491,10 +454,7 @@ def retrieve_garminconnect_users_health_for_days(days: int) -> None:
     after_id = 0
     while True:
         try:
-            with SessionLocal() as db:
-                user_ids = user_integrations_integration.list_user_ids_with_garminconnect_linked(
-                    after_id, _USERS_PAGE_SIZE, db
-                )
+            user_ids = garmin_service.linked_user_ids(after_id, _USERS_PAGE_SIZE)
         except Exception as err:
             logger.error(
                 "Error getting users in retrieve_garminconnect_users_health_for_days",
@@ -572,13 +532,7 @@ def get_user_garminconnect_health_by_dates(
             extra=core_logger.context(user_id=user_id, count=num_garminconnect_sleep_processed),
         )
     except garminconnect.GarminConnectAuthenticationError as err:
-        logger.error(
-            "Garmin Connect token expired. Unlinking account. User must re-link",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id),
-        )
-        with SessionLocal() as db:
-            garmin_service.unlink_expired_account(user_id, session.token, db)
+        garmin_service.handle_rejected_token(user_id, session, err)
     except Exception as err:
         logger.error(
             "Error in get_user_garminconnect_health_by_dates",
