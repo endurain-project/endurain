@@ -1,7 +1,8 @@
 """Tests for garmin.link_state_store (provider-backed)."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
@@ -83,3 +84,24 @@ class TestState:
         state.set.side_effect = StateBackendUnavailableError("down")
 
         link_state_store.GarminLinkStateStore(state=state).set_status(1, Status.COMPLETED)
+
+
+def test_a_claim_is_not_left_behind_when_the_pending_state_cannot_be_written():
+    store = _store()
+    with (
+        patch.object(store, "_write", side_effect=StateBackendUnavailableError("down")),
+        pytest.raises(StateBackendUnavailableError),
+    ):
+        store.begin(1)
+
+    assert store.begin(1) is True
+
+
+def test_progress_renews_the_claim():
+    state = MemoryState()
+    store = link_state_store.GarminLinkStateStore(state=state, ttl_seconds=60)
+    store.begin(1)
+    with patch.object(state, "set") as write:
+        store.set_status(1, Status.MFA_REQUIRED)
+
+    assert store._claim_key(1) in [call.args[0] for call in write.call_args_list]

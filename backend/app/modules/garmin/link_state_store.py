@@ -27,8 +27,9 @@ logger = core_logger.get_logger(__name__)
 _LINK_STATE_KEY_PREFIX = "endurain:garmin:link:state"
 _LINK_CLAIM_KEY_PREFIX = "endurain:garmin:link:claim"
 # Must exceed the login timeout (MFA_WAIT_SECONDS plus the login itself), so a live attempt never expires
-# under the poller. A dead replica's claim expires after this, which also frees a retry.
-_DEFAULT_TTL_SECONDS: int = 120
+# under the poller. Each recorded progress renews the claim, so only a dead replica's claim runs out,
+# which frees a retry.
+_DEFAULT_TTL_SECONDS: int = 2 * garmin_constants.MFA_WAIT_SECONDS
 
 
 class LinkState(BaseModel):
@@ -93,15 +94,35 @@ class GarminLinkStateStore:
         """
         if not self._state.set_if_absent(self._claim_key(user_id), b"1", self._ttl_seconds):
             return False
-        self._write(user_id, LinkState(status=garmin_constants.LinkStatus.PENDING))
+        try:
+            self._write(user_id, LinkState(status=garmin_constants.LinkStatus.PENDING))
+        except StateBackendUnavailableError:
+            self._release(user_id)
+            raise
         return True
+
+    def _release(self, user_id: int) -> None:
+        """Drop a user's claim, leaving it to expire when storage cannot be reached."""
+        try:
+            self._state.delete(self._claim_key(user_id))
+        except StateBackendUnavailableError as err:
+            logger.warning("Failed to release the Garmin link claim; it will expire", exc_info=err)
+
+    def release(self, user_id: int) -> None:
+        """Abandon an attempt that never got to run, so the user can retry at once.
+
+        Args:
+            user_id: Authenticated user ID.
+        """
+        self._release(user_id)
 
     def set_status(
         self, user_id: int, status: garmin_constants.LinkStatus, reason: garmin_constants.LinkFailure | None = None
     ) -> None:
         """Record a link attempt's progress or outcome.
 
-        A finished attempt releases its claim. A failure to record is logged, not raised: the
+        A finished attempt releases its claim; any other progress renews it, so a live
+        attempt keeps its claim for as long as it keeps reporting. A failure to record is logged, not raised: the
         attempt itself must still finish, and the entries expire on their own.
 
         Args:
@@ -113,6 +134,8 @@ class GarminLinkStateStore:
             self._write(user_id, LinkState(status=status, reason=reason))
             if status in _FINISHED:
                 self._state.delete(self._claim_key(user_id))
+            else:
+                self._state.set(self._claim_key(user_id), b"1", ttl_seconds=self._ttl_seconds)
         except StateBackendUnavailableError as err:
             logger.warning("Failed to record the Garmin link state", exc_info=err)
 

@@ -535,6 +535,7 @@ def get_user_garminconnect_health_by_dates(
         end_date: End of the window.
         user_id: The user to sync.
     """
+    session = None
     try:
         with SessionLocal() as db:
             session = garmin_service.get_user_garminconnect_session(user_id, db)
@@ -584,6 +585,9 @@ def get_user_garminconnect_health_by_dates(
             exc_info=err,
             extra=core_logger.context(user_id=user_id),
         )
+    finally:
+        if session is not None:
+            garmin_service.save_refreshed_token(user_id, session)
 
 
 def sync_health_for_dates(start_date: date, end_date: date, user_id: int) -> None:

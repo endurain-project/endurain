@@ -126,9 +126,14 @@ def start_link(
     try:
         if not link_states.begin(user_id):
             raise core_exceptions.ConflictError("A Garmin Connect link is already in progress")
-        future = _LINK_EXECUTOR.submit(
-            link_garminconnect, user_id, login.username, login.password, mfa_codes, link_states, login.is_cn
-        )
+        try:
+            future = _LINK_EXECUTOR.submit(
+                link_garminconnect, user_id, login.username, login.password, mfa_codes, link_states, login.is_cn
+            )
+        except BaseException:
+            # The attempt never started, so nothing would ever release its claim.
+            link_states.release(user_id)
+            raise
     except BaseException:
         _link_slots.release()
         raise
@@ -408,6 +413,28 @@ def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Ga
     """
     session = get_user_garminconnect_session(user_id, db)
     return session.client if session is not None else None
+
+
+def save_refreshed_token(user_id: int, session: GarminSession) -> None:
+    """Store the token a sync's client refreshed, so the next sync restores a live one.
+
+    Garmin Connect may rotate the refresh token, in which case the stored one stops working.
+    A failure is logged, not raised: the sync itself has already finished.
+
+    Args:
+        user_id: The user the session belongs to.
+        session: The session the sync used.
+    """
+    try:
+        token = garmin_token_utils.refreshed_token(session.token, session.client.client)
+        if token is None:
+            return
+        with core_database.SessionLocal() as db:
+            if user_integrations_integration.replace_garminconnect_token_if_token(user_id, session.token, token, db):
+                db.commit()
+                logger.info("Garmin Connect token refreshed", extra=core_logger.context(user_id=user_id))
+    except Exception as err:
+        logger.error("Failed to store the refreshed Garmin Connect token", exc_info=err)
 
 
 def unlink_expired_account(user_id: int, token: dict, db: Session) -> None:

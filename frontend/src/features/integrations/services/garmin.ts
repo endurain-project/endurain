@@ -67,7 +67,7 @@ export async function submitGarminMfa(code: string): Promise<void> {
 export async function retrieveGarminActivities(range: DateRange): Promise<void> {
   await apiFetch(
     `/garminconnect/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { responseType: 'void' },
+    { method: 'POST', responseType: 'void' },
   )
 }
 
@@ -77,7 +77,7 @@ export async function retrieveGarminActivities(range: DateRange): Promise<void> 
  * @throws {HttpError} When the request fails.
  */
 export async function retrieveGarminGear(): Promise<void> {
-  await apiFetch('/garminconnect/gear', { responseType: 'void' })
+  await apiFetch('/garminconnect/gear', { method: 'POST', responseType: 'void' })
 }
 
 /**
@@ -89,7 +89,7 @@ export async function retrieveGarminGear(): Promise<void> {
 export async function retrieveGarminHealth(range: DateRange): Promise<void> {
   await apiFetch(
     `/garminconnect/health?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { responseType: 'void' },
+    { method: 'POST', responseType: 'void' },
   )
 }
 

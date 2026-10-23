@@ -202,6 +202,7 @@ def get_user_garminconnect_activities_by_dates(
         The stored activities, or ``None`` when Garmin Connect is not linked or
         nothing new came back.
     """
+    session = None
     try:
         with SessionLocal() as db:
             session = garmin_service.get_user_garminconnect_session(user_id, db)
@@ -225,3 +226,6 @@ def get_user_garminconnect_activities_by_dates(
             exc_info=err,
         )
         return None
+    finally:
+        if session is not None:
+            garmin_service.save_refreshed_token(user_id, session)

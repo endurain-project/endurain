@@ -76,7 +76,7 @@ def garminconnect_mfa_code(
     return garmin_service.submit_mfa_code(token_user_id, mfa_request.mfa_code, mfa_codes, link_states)
 
 
-@router.get(
+@router.post(
     "/activities",
     status_code=202,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
@@ -105,7 +105,7 @@ def garminconnect_retrieve_activities_days(
     return garmin_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
 
 
-@router.get("/gear", status_code=202, response_model=garmin_schema.GarminDetail)
+@router.post("/gear", status_code=202, response_model=garmin_schema.GarminDetail)
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def garminconnect_retrieve_gear(
     request: Request,
@@ -119,7 +119,7 @@ def garminconnect_retrieve_gear(
     return garmin_sync_service.request_gear_sync(token_user_id, db)
 
 
-@router.get("/health", status_code=202, response_model=garmin_schema.GarminDetail)
+@router.post("/health", status_code=202, response_model=garmin_schema.GarminDetail)
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def garminconnect_retrieve_health_days(
     request: Request,

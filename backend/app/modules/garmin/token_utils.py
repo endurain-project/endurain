@@ -41,6 +41,22 @@ def login_garminconnect_using_tokens(token: dict) -> garminconnect.Garmin | None
         return None
 
 
+def refreshed_token(token: dict, client) -> dict | None:
+    """Build the storable form of a client's token when the client has refreshed it.
+
+    Args:
+        token: The token as stored when the client was restored.
+        client: The restored Garmin Connect client, which refreshes its token as it is used.
+
+    Returns:
+        The token to store, or ``None`` when the client still holds the stored one.
+    """
+    stored = json.loads(deserialize_garmin_token(token))
+    if stored["di_token"] == client.di_token and stored["di_refresh_token"] == client.di_refresh_token:
+        return None
+    return serialize_garmin_token(client, token.get("is_cn", False))
+
+
 def serialize_garmin_token(client, is_cn: bool = False) -> dict:
     """Build the storable form of a logged-in client's token, encrypting its secrets.
 

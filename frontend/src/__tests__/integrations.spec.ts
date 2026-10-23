@@ -164,24 +164,27 @@ describe('garmin service', () => {
     })
   })
 
-  it('retrieveGarminActivities GETs the activities path with the window', async () => {
+  it('retrieveGarminActivities POSTs the activities path with the window', async () => {
     await retrieveGarminActivities(range)
     expect(apiFetch).toHaveBeenCalledWith(
       '/garminconnect/activities?start_date=2026-01-01&end_date=2026-01-07',
-      { responseType: 'void' },
+      { method: 'POST', responseType: 'void' },
     )
   })
 
-  it('retrieveGarminGear GETs the gear path', async () => {
+  it('retrieveGarminGear POSTs the gear path', async () => {
     await retrieveGarminGear()
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/gear', { responseType: 'void' })
+    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/gear', {
+      method: 'POST',
+      responseType: 'void',
+    })
   })
 
-  it('retrieveGarminHealth GETs the health path with the window', async () => {
+  it('retrieveGarminHealth POSTs the health path with the window', async () => {
     await retrieveGarminHealth(range)
     expect(apiFetch).toHaveBeenCalledWith(
       '/garminconnect/health?start_date=2026-01-01&end_date=2026-01-07',
-      { responseType: 'void' },
+      { method: 'POST', responseType: 'void' },
     )
   })
 

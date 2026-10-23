@@ -852,3 +852,34 @@ class TestSetUserGarminConnectSyncGearDBError:
 
             assert exc_info.value.status_code == 500
             mock_db.rollback.assert_called_once()
+
+
+class TestReplaceGarminConnectTokenIfToken:
+    """Test suite for replace_garminconnect_token_if_token function."""
+
+    def test_replaces_while_the_stored_token_is_the_old_one(self, mock_db):
+        """The refreshed token is stored, without committing."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.garminconnect_token = {"di_token": "old"}
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.replace_garminconnect_token_if_token(
+            1, {"di_token": "old"}, {"di_token": "new"}, mock_db
+        )
+
+        assert result is True
+        assert mock_integrations.garminconnect_token == {"di_token": "new"}
+        mock_db.commit.assert_not_called()
+
+    def test_keeps_a_token_linked_since(self, mock_db):
+        """A re-linked token is not overwritten by a refresh of the previous one."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.garminconnect_token = {"di_token": "relinked"}
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.replace_garminconnect_token_if_token(
+            1, {"di_token": "old"}, {"di_token": "new"}, mock_db
+        )
+
+        assert result is False
+        assert mock_integrations.garminconnect_token == {"di_token": "relinked"}

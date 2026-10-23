@@ -195,6 +195,8 @@ def get_user_gear(user_id: int) -> None:
         with SessionLocal() as db:
             garmin_service.unlink_expired_account(user_id, session.token, db)
         return
+    finally:
+        garmin_service.save_refreshed_token(user_id, session)
 
     with SessionLocal() as db:
         user_integrations_integration.set_garminconnect_sync_gear(user_id, True, db)

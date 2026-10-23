@@ -116,7 +116,7 @@ def test_a_gear_sync_is_queued_not_run_on_the_request():
         from modules.garmin.schema import GarminDetail
 
         queue.return_value = GarminDetail(detail="queued")
-        response = client.get("/garminconnect/gear")
+        response = client.post("/garminconnect/gear")
 
     assert response.status_code == 202
     queue.assert_called_once()
@@ -125,6 +125,6 @@ def test_a_gear_sync_is_queued_not_run_on_the_request():
 def test_a_reversed_health_range_is_a_client_error():
     client, _ = _client()
 
-    response = client.get("/garminconnect/health", params={"start_date": "2026-01-02", "end_date": "2026-01-01"})
+    response = client.post("/garminconnect/health", params={"start_date": "2026-01-02", "end_date": "2026-01-01"})
 
     assert response.status_code == 400

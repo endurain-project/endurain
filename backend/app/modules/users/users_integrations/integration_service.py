@@ -57,6 +57,21 @@ def unlink_garminconnect_account_if_token(user_id: int, token: dict, db: Session
     return user_integrations_crud.unlink_garminconnect_account_if_token(user_id, token, db)
 
 
+def replace_garminconnect_token_if_token(user_id: int, old_token: dict, new_token: dict, db: Session) -> bool:
+    """Store a refreshed Garmin Connect token only while the stored one is still ``old_token``; the caller commits.
+
+    Args:
+        user_id: The user whose token to replace.
+        old_token: The stored token the new one was refreshed from.
+        new_token: The refreshed token.
+        db: Database session.
+
+    Returns:
+        True when the token was replaced, False when the stored token has since changed.
+    """
+    return user_integrations_crud.replace_garminconnect_token_if_token(user_id, old_token, new_token, db)
+
+
 def set_garminconnect_sync_gear(user_id: int, sync_gear: bool, db: Session) -> None:
     """Set whether a user's Garmin Connect gear is synchronised.
 

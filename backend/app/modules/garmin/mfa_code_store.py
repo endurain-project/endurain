@@ -23,12 +23,13 @@ from jasil.providers import StateBackendUnavailableError, StateProvider
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
+import modules.garmin.constants as garmin_constants
 
 logger = core_logger.get_logger(__name__)
 
 _GARMIN_MFA_KEY_PREFIX = "endurain:garmin:mfa:code"
 # TTL must exceed the MFA_WAIT_SECONDS a login waits for a code.
-_DEFAULT_TTL_SECONDS: int = 90
+_DEFAULT_TTL_SECONDS: int = garmin_constants.MFA_WAIT_SECONDS + 30
 
 
 class GarminMFACodeStoreUnavailableError(core_exceptions.ServiceUnavailableError):

@@ -250,3 +250,54 @@ class TestUnlinkExpiredAccount:
         db.commit.assert_not_called()
         note.assert_not_called()
         push.assert_not_called()
+
+
+class TestSaveRefreshedToken:
+    def _session(self):
+        return garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
+
+    def test_a_refreshed_token_is_stored_while_the_old_one_is_still_linked(self):
+        session = self._session()
+        with (
+            patch.object(garmin_service.garmin_token_utils, "refreshed_token", return_value={"di_token": "new"}),
+            patch.object(garmin_service.core_database, "SessionLocal") as session_local,
+            patch.object(
+                garmin_service.user_integrations_integration, "replace_garminconnect_token_if_token", return_value=True
+            ) as replace,
+        ):
+            garmin_service.save_refreshed_token(1, session)
+
+        db = session_local.return_value.__enter__.return_value
+        replace.assert_called_once_with(1, {"di_token": "enc"}, {"di_token": "new"}, db)
+        db.commit.assert_called_once()
+
+    def test_an_unchanged_token_writes_nothing(self):
+        with (
+            patch.object(garmin_service.garmin_token_utils, "refreshed_token", return_value=None),
+            patch.object(garmin_service.core_database, "SessionLocal") as session_local,
+        ):
+            garmin_service.save_refreshed_token(1, self._session())
+
+        session_local.assert_not_called()
+
+    def test_a_token_linked_since_is_not_overwritten(self):
+        with (
+            patch.object(garmin_service.garmin_token_utils, "refreshed_token", return_value={"di_token": "new"}),
+            patch.object(garmin_service.core_database, "SessionLocal") as session_local,
+            patch.object(
+                garmin_service.user_integrations_integration, "replace_garminconnect_token_if_token", return_value=False
+            ),
+        ):
+            garmin_service.save_refreshed_token(1, self._session())
+
+        session_local.return_value.__enter__.return_value.commit.assert_not_called()
+
+
+def test_a_link_that_cannot_start_releases_its_claim(stores):
+    mfa_codes, link_states = stores
+    with patch.object(garmin_service, "_LINK_EXECUTOR") as executor:
+        executor.submit.side_effect = RuntimeError("shut down")
+        with pytest.raises(RuntimeError):
+            garmin_service.start_link(1, garmin_schema.GarminLogin(username="u", password="p"), mfa_codes, link_states)
+
+    assert link_states.begin(1) is True
