@@ -85,7 +85,7 @@ onBeforeUnmount(() => {
         <dt class="text-caption">{{ t(stat.labelKey) }}</dt>
         <dd class="text-item-title">
           {{ stat.value
-          }}<span v-if="stat.unit" class="ms-1 text-hint font-normal">{{ stat.unit }}</span>
+          }}<span v-if="stat.unit" class="ms-1 text-hint font-normal">{{ t(stat.unit) }}</span>
         </dd>
       </div>
     </dl>

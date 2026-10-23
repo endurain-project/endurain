@@ -84,6 +84,28 @@
     "calories": "Calories",
     "jumps": "Jumps"
   },
+  "units": {
+    "spm": "spm",
+    "rpm": "rpm",
+    "kmh": "km/h",
+    "mph": "mph",
+    "kn": "kn",
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "yd": "yd",
+    "ft": "ft",
+    "minPerKm": "min/km",
+    "minPerMi": "min/mi",
+    "minPer100m": "min/100m",
+    "minPer100yd": "min/100yd",
+    "minPer500m": "min/500m",
+    "bpm": "bpm",
+    "w": "W",
+    "kcal": "kcal",
+    "celsius": "°C",
+    "fahrenheit": "°F"
+  },
   "streams": {
     "heartRate": "Heart rate",
     "power": "Power",

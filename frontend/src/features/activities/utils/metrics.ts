@@ -17,6 +17,7 @@ import {
   formatHmsDuration,
   formatPace,
   formatSpeed,
+  type Translate,
   type Units,
 } from './format'
 
@@ -38,7 +39,7 @@ export interface MetricTile {
   labelKey: string
   /** Formatted value. */
   value: string
-  /** Unit suffix (may be empty). */
+  /** i18n key of the unit suffix (empty when unitless). */
   unit: string
   /** Semantic colour accent for the value. */
   accent: NonNullable<MetricPillVariants['accent']>
@@ -138,7 +139,7 @@ export function buildActivityMetrics(
         key: 'calories',
         labelKey: 'activities.metrics.calories',
         value: String(Math.round(activity.calories)),
-        unit: 'kcal',
+        unit: 'activities.units.kcal',
         accent: 'effort',
       })
     }
@@ -185,7 +186,7 @@ export function buildActivityMetrics(
         key: 'avgPower',
         labelKey: 'activities.metrics.avgPower',
         value: String(Math.round(activity.averagePower)),
-        unit: 'W',
+        unit: 'activities.units.w',
         accent: 'effort',
       })
     }
@@ -196,7 +197,7 @@ export function buildActivityMetrics(
         key: 'avgHr',
         labelKey: 'activities.metrics.avgHr',
         value: String(Math.round(activity.averageHr)),
-        unit: 'bpm',
+        unit: 'activities.units.bpm',
         accent: 'hr',
       })
     }
@@ -207,7 +208,7 @@ export function buildActivityMetrics(
         key: 'maxHr',
         labelKey: 'activities.metrics.maxHr',
         value: String(Math.round(activity.maxHr)),
-        unit: 'bpm',
+        unit: 'activities.units.bpm',
         accent: 'hr',
       })
     }
@@ -285,6 +286,7 @@ export function buildActivityMetrics(
  * @param enhancedAvgSpeed - Lap average speed in metres per second.
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
+ * @param t - Translates the unit key.
  * @returns A combined `value unit` string, or `--`.
  */
 export function formatLapTempo(
@@ -292,13 +294,14 @@ export function formatLapTempo(
   enhancedAvgSpeed: number | null,
   activityType: number,
   units: Units,
+  t: Translate,
 ): string {
   if (activityTypeUsesPace(activityType)) {
     return enhancedAvgPace === null
       ? '--'
-      : combineMetric(formatPace(enhancedAvgPace, activityType, units))
+      : combineMetric(formatPace(enhancedAvgPace, activityType, units), t)
   }
   return enhancedAvgSpeed === null
     ? '--'
-    : combineMetric(formatSpeed(enhancedAvgSpeed, activityType, units))
+    : combineMetric(formatSpeed(enhancedAvgSpeed, activityType, units), t)
 }

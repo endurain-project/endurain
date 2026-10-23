@@ -4,10 +4,10 @@ import { kmToMiles } from '@/utils/units'
 
 import {
   activityTypeIsRowing,
-  activityTypeIsRunning,
   activityTypeIsStandUpPaddling,
   activityTypeIsSwimming,
   activityTypeUsesKnots,
+  activityTypeUsesSpm,
 } from './activityType'
 
 /** The user's unit system. */
@@ -26,11 +26,17 @@ const METERS_PER_YARD = 0.9144
 /** Metres to feet. */
 const METERS_TO_FEET = 3.28084
 
+/**
+ * Resolves an i18n key to display text. Callers pass their `t`, so these
+ * helpers stay free of an i18n instance.
+ */
+export type Translate = (key: string) => string
+
 /** A formatted metric split into its value and unit for the metric pills. */
 export interface FormattedMetric {
   /** The formatted numeric value (no unit). */
   value: string
-  /** The unit suffix (may be empty). */
+  /** i18n key of the unit suffix (empty when unitless). */
   unit: string
 }
 
@@ -39,10 +45,11 @@ export interface FormattedMetric {
  * dense contexts (lap tables, tooltips).
  *
  * @param metric - The split metric.
+ * @param t - Translates the unit key.
  * @returns The combined string.
  */
-export function combineMetric(metric: FormattedMetric): string {
-  return metric.unit ? `${metric.value} ${metric.unit}` : metric.value
+export function combineMetric(metric: FormattedMetric, t: Translate): string {
+  return metric.unit ? `${metric.value} ${t(metric.unit)}` : metric.value
 }
 
 /**
@@ -91,16 +98,16 @@ export function formatPaceClock(secondsPerUnit: number): string {
  *
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns The pace unit label (e.g. `min/km`).
+ * @returns The pace unit's i18n key (e.g. `activities.units.minPerKm`).
  */
 export function paceUnitLabel(activityType: number, units: Units): string {
   if (activityTypeIsSwimming(activityType)) {
-    return units === 'imperial' ? 'min/100yd' : 'min/100m'
+    return units === 'imperial' ? 'activities.units.minPer100yd' : 'activities.units.minPer100m'
   }
   if (activityTypeIsRowing(activityType) || activityTypeIsStandUpPaddling(activityType)) {
-    return 'min/500m'
+    return 'activities.units.minPer500m'
   }
-  return units === 'imperial' ? 'min/mi' : 'min/km'
+  return units === 'imperial' ? 'activities.units.minPerMi' : 'activities.units.minPerKm'
 }
 
 /**
@@ -157,13 +164,13 @@ export function formatPace(
  *
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns The speed unit label.
+ * @returns The speed unit's i18n key.
  */
 export function speedUnitLabel(activityType: number, units: Units): string {
   if (activityTypeUsesKnots(activityType)) {
-    return 'kn'
+    return 'activities.units.kn'
   }
-  return units === 'imperial' ? 'mph' : 'km/h'
+  return units === 'imperial' ? 'activities.units.mph' : 'activities.units.kmh'
 }
 
 /**
@@ -212,13 +219,13 @@ export function formatSpeed(
  *
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns The distance unit label.
+ * @returns The distance unit's i18n key.
  */
 export function distanceUnitLabel(activityType: number, units: Units): string {
   if (activityTypeIsSwimming(activityType)) {
-    return units === 'imperial' ? 'yd' : 'm'
+    return units === 'imperial' ? 'activities.units.yd' : 'activities.units.m'
   }
-  return units === 'imperial' ? 'mi' : 'km'
+  return units === 'imperial' ? 'activities.units.mi' : 'activities.units.km'
 }
 
 /**
@@ -277,7 +284,7 @@ export function elevationToDisplay(meters: number, units: Units): number {
  * @returns The split elevation metric.
  */
 export function formatElevation(meters: number | null | undefined, units: Units): FormattedMetric {
-  const unit = units === 'imperial' ? 'ft' : 'm'
+  const unit = units === 'imperial' ? 'activities.units.ft' : 'activities.units.m'
   if (meters === null || meters === undefined) {
     return { value: '--', unit }
   }
@@ -306,24 +313,22 @@ export function temperatureToDisplay(celsius: number, units: Units): number {
 }
 
 /**
- * Presents a cadence value. Running cadence is doubled to total steps per
- * minute (SPM); other sports keep the raw revolutions per minute (RPM),
- * mirroring v1.
+ * Presents running/walking cadence in steps per minute; other sports keep RPM.
  *
  * @param raw - Raw cadence reading.
  * @param activityType - Numeric activity type.
  * @returns The presentation-ready cadence.
  */
 export function presentCadence(raw: number, activityType: number): number {
-  return activityTypeIsRunning(activityType) ? raw * 2 : raw
+  return activityTypeUsesSpm(activityType) ? raw * 2 : raw
 }
 
 /**
- * Resolves the cadence unit label (SPM for running, RPM otherwise).
+ * Resolves the cadence unit's i18n key (SPM for running/walking, RPM otherwise).
  *
  * @param activityType - Numeric activity type.
- * @returns The cadence unit label.
+ * @returns The cadence unit's i18n key.
  */
 export function cadenceUnitLabel(activityType: number): string {
-  return activityTypeIsRunning(activityType) ? 'spm' : 'rpm'
+  return activityTypeUsesSpm(activityType) ? 'activities.units.spm' : 'activities.units.rpm'
 }

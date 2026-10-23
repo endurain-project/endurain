@@ -9,8 +9,11 @@ import {
   isMetricRelevantForType,
   METRIC_PRIVACY_FIELD,
 } from '@/features/activities/utils/streams'
+import i18n from '@/i18n'
 
 import { makeActivity } from './fixtures/activity'
+
+const t = i18n.global.t
 
 /** Builds a stream fixture. */
 function stream(streamType: number, waypoints: ActivityStream['waypoints']): ActivityStream {
@@ -23,6 +26,7 @@ describe('buildStreamChart', () => {
       stream(1, [{ hr: 120 }, { hr: 130 }]),
       makeActivity({ activityType: 1, distance: 10000 }),
       'metric',
+      t,
     )
     expect(chart).not.toBeNull()
     expect(chart?.metric).toBe('hr')
@@ -37,8 +41,8 @@ describe('buildStreamChart', () => {
     expect(chart?.render.xUnit).toBe('km')
     // Aggregate stats are shown beneath the chart.
     expect(chart?.stats).toEqual([
-      { labelKey: 'activities.metrics.avgHr', value: '150', unit: 'bpm' },
-      { labelKey: 'activities.metrics.maxHr', value: '175', unit: 'bpm' },
+      { labelKey: 'activities.metrics.avgHr', value: '150', unit: 'activities.units.bpm' },
+      { labelKey: 'activities.metrics.maxHr', value: '175', unit: 'activities.units.bpm' },
     ])
   })
 
@@ -47,6 +51,7 @@ describe('buildStreamChart', () => {
       stream(1, [{ hr: 120 }, { hr: 140 }, { hr: 130 }]),
       makeActivity({ activityType: 19, distance: 0, totalTimerTime: null, totalElapsedTime: 600 }),
       'metric',
+      t,
     )
     // Without distance the x-axis falls back to the activity duration; labels must be
     // non-empty and aligned to the sample count or the line never draws.
@@ -120,6 +125,7 @@ describe('buildStreamChart', () => {
         totalTimerTime: null,
       }),
       'metric',
+      t,
     )
     expect(chart?.render.labels).toEqual(['1', '2'])
   })
@@ -129,6 +135,7 @@ describe('buildStreamChart', () => {
       stream(4, [{ ele: 100 }, { ele: 200 }]),
       makeActivity({ activityType: 1, distance: 1000 }),
       'metric',
+      t,
     )
     expect(metric?.render.kind).toBe('line')
     expect(metric?.render.series[0]?.data).toEqual([100, 200])
@@ -137,6 +144,7 @@ describe('buildStreamChart', () => {
       stream(4, [{ ele: 100 }]),
       makeActivity({ activityType: 1, distance: 1000 }),
       'imperial',
+      t,
     )
     expect(imperial?.render.series[0]?.data[0]).toBeCloseTo(328.084)
   })
@@ -147,6 +155,7 @@ describe('buildStreamChart', () => {
       stream(6, [{ pace: 0.3 }, { pace: 2.0 }]),
       makeActivity({ activityType: 1, distance: 1000 }),
       'metric',
+      t,
     )
     expect(chart?.metric).toBe('pace')
     expect(chart?.render.invertY).toBeFalsy()
@@ -161,14 +170,15 @@ describe('buildStreamChart', () => {
       stream(3, [{ cad: 85 }]),
       makeActivity({ activityType: 1 }),
       'metric',
+      t,
     )
     expect(chart?.render.series[0]?.data).toEqual([170])
   })
 
   it('returns null for unknown stream types, empty or all-missing samples', () => {
-    expect(buildStreamChart(stream(99, [{ hr: 100 }]), makeActivity(), 'metric')).toBeNull()
-    expect(buildStreamChart(stream(1, []), makeActivity(), 'metric')).toBeNull()
-    expect(buildStreamChart(stream(1, [{ hr: null }]), makeActivity(), 'metric')).toBeNull()
+    expect(buildStreamChart(stream(99, [{ hr: 100 }]), makeActivity(), 'metric', t)).toBeNull()
+    expect(buildStreamChart(stream(1, []), makeActivity(), 'metric', t)).toBeNull()
+    expect(buildStreamChart(stream(1, [{ hr: null }]), makeActivity(), 'metric', t)).toBeNull()
   })
 })
 
@@ -202,6 +212,7 @@ describe('buildStreamCharts', () => {
       makeActivity({ activityType: 1 }),
       'metric',
       (metric) => metric !== 'hr',
+      t,
     )
     expect(charts.map((chart) => chart.metric)).toEqual(['pace', 'elevation'])
   })
@@ -213,6 +224,7 @@ describe('buildStreamCharts', () => {
       makeActivity({ activityType: 4, averageSpeed: 8 }),
       'metric',
       () => true,
+      t,
     )
     expect(charts.map((chart) => chart.metric)).toEqual(['velocity'])
   })
