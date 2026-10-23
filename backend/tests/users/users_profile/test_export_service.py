@@ -372,7 +372,7 @@ class TestExportServiceCollectHealthWeight:
                     return_value=mock_health,
                 ),
                 patch(
-                    "modules.users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
+                    "modules.users.users_profile.export_service.health_targets_integration.get_health_targets",
                     return_value=MagicMock(),
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -410,7 +410,7 @@ class TestExportServiceCollectHealthWeight:
                     return_value=[],
                 ),
                 patch(
-                    "modules.users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
+                    "modules.users.users_profile.export_service.health_targets_integration.get_health_targets",
                     return_value=None,
                 ),
             ):

@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import modules.auth.dependencies as auth_dependencies
-import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.schema as health_targets_schema
+import modules.health.health_targets.service as health_targets_service
 
 # Define the API router
 router = APIRouter()
@@ -52,8 +52,7 @@ def read_health_targets_all(
         HTTPException: May raise 401 Unauthorized if the token is invalid or expired.
         HTTPException: May raise 403 Forbidden if the user lacks the required 'health:read' scope.
     """
-    # Get the health_targets from the database
-    return health_targets_crud.get_health_targets_by_user_id(token_user_id, db)
+    return health_targets_service.get_health_targets(token_user_id, db)
 
 
 @router.put(
@@ -102,5 +101,4 @@ def update_health_targets(
             lacks proper permissions or if the token is invalid.
         HTTPException: May raise database-related errors if the update operation fails.
     """
-    # Update the health_targets in the database
-    return health_targets_crud.edit_health_target(health_targets, token_user_id, db)
+    return health_targets_service.update_health_targets(health_targets, token_user_id, db)

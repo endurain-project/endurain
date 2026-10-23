@@ -36,7 +36,7 @@ import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear.schema as gear_schema
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.gears.gear_components.schema as gear_components_schema
-import modules.health.health_targets.crud as health_targets_crud
+import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_targets.schema as health_targets_schema
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
@@ -953,7 +953,7 @@ class ImportService:
         # Import health targets
         if health_targets_data:
             for target_data in health_targets_data:
-                current_health_target = health_targets_crud.get_health_targets_by_user_id(self.user_id, self.db)
+                current_health_target = health_targets_integration.get_health_targets(self.user_id, self.db)
 
                 # Convert string numeric values to floats/ints
                 if isinstance(target_data.get("weight"), str):
@@ -977,7 +977,8 @@ class ImportService:
                     target_data.pop("id", None)
 
                 target = health_targets_schema.HealthTargetsUpdate(**target_data)
-                health_targets_crud.edit_health_target(target, self.user_id, self.db)
+                health_targets_integration.edit_health_targets(target, self.user_id, self.db)
+                self.db.commit()
                 self.counts["health_targets"] += 1
             logger.info(f"Imported {self.counts['health_targets']} health targets")
         else:

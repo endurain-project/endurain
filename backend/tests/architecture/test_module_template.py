@@ -17,6 +17,7 @@ import modules.activities.contributor_registry as activities_contributor_registr
 import modules.activities.model_registry as activities_model_registry
 import modules.followers.model_registry as followers_model_registry
 import modules.gears.model_registry as gears_model_registry
+import modules.health.model_registry as health_model_registry
 import modules.notifications.model_registry as notifications_model_registry
 import modules.server_settings.model_registry as server_settings_model_registry
 
@@ -122,12 +123,19 @@ def test_model_registries_collect_every_converted_model() -> None:
         if package.parent.name == "gears" and (package / "models.py").is_file()
     }
     assert set(gears_model_registry.MODEL_MODULES) == expected_gears
+    expected_health = {
+        f"modules.health.{package.name}.models"
+        for package in sorted((_MODULES_DIR / "health").iterdir())
+        if (package / "model_registry.py").is_file()
+    }
+    assert set(health_model_registry.MODEL_MODULES) == expected_health
     assert set(notifications_model_registry.MODEL_MODULES) == {"modules.notifications.models"}
     assert set(server_settings_model_registry.MODEL_MODULES) == {"modules.server_settings.models"}
     assert (
         expected_activities
         | set(followers_model_registry.MODEL_MODULES)
         | expected_gears
+        | expected_health
         | set(notifications_model_registry.MODEL_MODULES)
         | set(server_settings_model_registry.MODEL_MODULES)
         == app_model_registry._CONVERTED_MODEL_MODULES

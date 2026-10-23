@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
 import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth._internal.security_stores as auth_security_stores
@@ -222,6 +223,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     """
 
     app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
 
     # Include any routers you have configured
     for dotted in DEFAULT_ROUTER_MODULES:

@@ -540,10 +540,10 @@ class TestImportServiceHealth:
         with (
             patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=mock_health_target,
             ),
-            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_integration.edit_health_targets"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": 75.5}],
@@ -566,10 +566,10 @@ class TestImportServiceHealth:
         with (
             patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=mock_target,
             ),
-            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_integration.edit_health_targets"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": "abc", "physique_rating": "xyz", "metabolic_age": "invalid"}],
@@ -589,10 +589,10 @@ class TestImportServiceHealth:
         with (
             patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=None,
             ),
-            patch("modules.users.users_profile.import_service.health_targets_crud.create_health_targets"),
+            patch("modules.users.users_profile.import_service.health_targets_integration.create_health_targets"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": 75.5}],
@@ -1542,10 +1542,10 @@ class TestImportServiceHealthEmptyBranches:
 
         with (
             patch(
-                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=mock_target,
             ),
-            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_integration.edit_health_targets"),
         ):
             await service.collect_and_import_health_weight([], [{"weight": 80.0}])
 
@@ -1562,10 +1562,10 @@ class TestImportServiceHealthEmptyBranches:
         with (
             patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=None,
             ),
-            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_integration.edit_health_targets"),
             patch(
                 "modules.users.users_profile.import_service.health_targets_schema.HealthTargetsUpdate",
                 return_value=MagicMock(),

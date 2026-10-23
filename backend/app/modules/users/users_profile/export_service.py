@@ -29,7 +29,7 @@ import modules.activities.activity_media.integration_service as activity_media_i
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear_components.integration_service as gear_components_integration
-import modules.health.health_targets.crud as health_targets_crud
+import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_weight.crud as health_weight_crud
 import modules.users.users.signing as users_signing
 import modules.users.users_default_gear.crud as user_default_gear_crud
@@ -538,7 +538,7 @@ class ExportService:
 
             # Collect and write health targets
             try:
-                health_targets = health_targets_crud.get_health_targets_by_user_id(self.user_id, self.db)
+                health_targets = health_targets_integration.get_health_targets(self.user_id, self.db)
                 if health_targets:
                     # health_targets is a single object, not a list
                     health_targets_dict = users_profile_utils.sqlalchemy_obj_to_dict(health_targets)
