@@ -128,6 +128,15 @@ export function buildChartConfiguration(
       plugins: {
         legend: { display: options.series.length > 1 },
         tooltip: {
+          // The Chart.js default is a black box. Match the card and the popover.
+          backgroundColor: '#ffffff',
+          titleColor: '#2c2c2a',
+          bodyColor: '#2c2c2a',
+          borderColor: 'rgba(0, 0, 0, 0.08)',
+          borderWidth: 1,
+          padding: 8,
+          cornerRadius: 8,
+          displayColors: false,
           callbacks: {
             // X value (tooltip title): append the axis unit (e.g. `0.7 km`) so a
             // hover is self-describing. Distance-less charts pass no unit.

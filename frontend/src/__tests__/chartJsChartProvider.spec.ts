@@ -127,6 +127,14 @@ describe('buildChartConfiguration', () => {
     const tooltip = config.options?.plugins?.tooltip as
       { callbacks?: { title?: (items: { label: string }[]) => string } } | undefined
     expect(tooltip?.callbacks?.title?.([{ label: '0.7' }])).toBe('0.7 km')
+    const colors = tooltip as {
+      backgroundColor?: string
+      titleColor?: string
+      bodyColor?: string
+    }
+    expect(colors.backgroundColor).toBe('#ffffff')
+    expect(colors.titleColor).toBe('#2c2c2a')
+    expect(colors.bodyColor).toBe('#2c2c2a')
   })
 
   it('leaves the y-axis upright without explicit options', () => {
