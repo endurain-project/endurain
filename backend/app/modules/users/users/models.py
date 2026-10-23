@@ -9,7 +9,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 if TYPE_CHECKING:
-    from modules.health.health_fasting.models import HealthFasting
     from modules.users.users_default_gear.models import UsersDefaultGear
     from modules.users.users_goals.models import UsersGoal
     from modules.users.users_integrations.models import UsersIntegrations
@@ -167,10 +166,6 @@ class Users(Base):
         cascade="all, delete-orphan",
     )
     users_privacy_settings: Mapped[list["UsersPrivacySettings"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_fasting: Mapped[list["HealthFasting"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
     )

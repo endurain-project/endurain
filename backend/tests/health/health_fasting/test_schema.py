@@ -36,7 +36,7 @@ class TestHealthFastingCompleteSchema:
         from modules.health.health_fasting.schema import FastingStatus, HealthFastingComplete
 
         data = HealthFastingComplete(fast_end_time=datetime(2024, 1, 15, 16, 0, 0))
-        assert data.status == FastingStatus.COMPLETED
+        assert data.status == FastingStatus.COMPLETED.value
 
 
 class TestHealthFastingStatsResponse:

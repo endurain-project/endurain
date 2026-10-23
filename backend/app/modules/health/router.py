@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import modules.auth.dependencies as auth_dependencies
-import modules.health.health_fasting.crud as health_fasting_crud
+import modules.health.health_fasting.integration_service as health_fasting_integration
 import modules.health.health_poop.integration_service as health_poop_integration
 import modules.health.health_sleep.integration_service as health_sleep_integration
 import modules.health.health_steps.integration_service as health_steps_integration
@@ -76,7 +76,7 @@ def read_health_daily_stats(
     today_steps = health_steps_integration.get_health_steps_by_date(token_user_id, today, db)
 
     # Get active fasting or most recent
-    active_fasting = health_fasting_crud.get_active_fasting_by_user_id(token_user_id, db)
+    active_fasting = health_fasting_integration.get_active_fasting(token_user_id, db)
 
     # Get today's water intake
     today_water = health_water_integration.get_health_water_by_date(token_user_id, today, db)

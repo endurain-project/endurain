@@ -207,6 +207,7 @@ class HealthFastingComplete(BaseModel):
     )
     status: FastingStatus = Field(
         default=FastingStatus.COMPLETED,
+        validate_default=True,
         description="Final status of the fasting session",
     )
     notes: StrictStr | None = Field(
