@@ -1,7 +1,7 @@
 import type { ServerSettingsFormValues } from '@/features/serverSettings/types'
 
 /** The tabs of the server settings page, in display order. */
-export const SETTINGS_TABS = ['general', 'access', 'maps', 'email'] as const
+export const SETTINGS_TABS = ['general', 'access', 'maps', 'email', 'logs'] as const
 
 /** One tab of the server settings page. */
 export type SettingsTab = (typeof SETTINGS_TABS)[number]

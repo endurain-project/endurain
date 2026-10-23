@@ -19,14 +19,17 @@ import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
 import ServerSettingsSearch from '@/features/serverSettings/components/ServerSettingsSearch.vue'
 import AccessTab from '@/features/serverSettings/components/tabs/AccessTab.vue'
 import GeneralTab from '@/features/serverSettings/components/tabs/GeneralTab.vue'
+import LogsTab from '@/features/serverSettings/components/tabs/LogsTab.vue'
 import MapsTab from '@/features/serverSettings/components/tabs/MapsTab.vue'
 import UnsavedChangesBar from '@/features/serverSettings/components/UnsavedChangesBar.vue'
+import { useLogsStatusQuery } from '@/features/serverSettings/composables/useServerSettings'
 import {
   provideServerSettingsForm,
   useServerSettingsForm,
 } from '@/features/serverSettings/composables/useServerSettingsForm'
 import type { SettingsSearchResult } from '@/features/serverSettings/searchIndex'
 import {
+  DEFAULT_SETTINGS_TAB,
   parseSettingsTab,
   SETTINGS_TABS,
   type SettingsTab,
@@ -58,7 +61,19 @@ const root = ref<HTMLElement | null>(null)
 const mailDirty = ref(false)
 const hasUnsaved = computed(() => isDirty.value || mailDirty.value)
 
-const activeTab = computed(() => parseSettingsTab(route.query.tab))
+const logsStatus = useLogsStatusQuery()
+// The logs tab exists only where the backend offers the viewer.
+const visibleTabs = computed(() =>
+  SETTINGS_TABS.filter((tab) => tab !== 'logs' || logsStatus.data.value?.enabled === true),
+)
+
+const activeTab = computed(() => {
+  const tab = parseSettingsTab(route.query.tab)
+  // A linked ?tab=logs waits for the status before it is judged unavailable.
+  const unavailable =
+    tab === 'logs' && !logsStatus.isPending.value && !visibleTabs.value.includes(tab)
+  return unavailable ? DEFAULT_SETTINGS_TAB : tab
+})
 
 /**
  * Whether a tab holds unsaved edits.
@@ -177,7 +192,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnloa
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" class="w-56">
-            <DropdownMenuItem v-for="tab in SETTINGS_TABS" :key="tab" @select="selectTab(tab)">
+            <DropdownMenuItem v-for="tab in visibleTabs" :key="tab" @select="selectTab(tab)">
               <span class="truncate">{{ t(`settings.server.tabs.${tab}`) }}</span>
               <span
                 v-if="isTabDirty(tab)"
@@ -191,7 +206,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnloa
         </DropdownMenu>
 
         <TabsList class="hidden lg:inline-flex" :aria-label="t('settings.server.tabs.label')">
-          <TabsTrigger v-for="tab in SETTINGS_TABS" :key="tab" :value="tab">
+          <TabsTrigger v-for="tab in visibleTabs" :key="tab" :value="tab">
             {{ t(`settings.server.tabs.${tab}`) }}
             <span
               v-if="isTabDirty(tab)"
@@ -216,6 +231,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnloa
       </TabsContent>
       <TabsContent value="email" force-mount class="mt-0 data-[state=inactive]:hidden">
         <EmailCard @dirty-change="mailDirty = $event" />
+      </TabsContent>
+      <!-- Not force-mounted: the log tail polls only while its tab is open. -->
+      <TabsContent v-if="visibleTabs.includes('logs')" value="logs" class="mt-0">
+        <LogsTab />
       </TabsContent>
     </Tabs>
 

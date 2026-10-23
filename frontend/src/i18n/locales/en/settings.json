@@ -288,6 +288,7 @@
       "access": "Access & security",
       "maps": "Maps & location",
       "email": "Email",
+      "logs": "Logs",
       "unsaved": "Has unsaved changes"
     },
     "search": {
@@ -417,6 +418,20 @@
       "deleteError": "Couldn't remove the login photo. Please try again.",
       "cancel": "Cancel",
       "close": "Close"
+    },
+    "logs": {
+      "title": "Server logs",
+      "description": "The newest records of the application log. Logs from deployments that run several processes are collected by your platform instead.",
+      "level": "Minimum level",
+      "allLevels": "All levels",
+      "search": "Search",
+      "searchPlaceholder": "Text, logger or request ID…",
+      "live": "Live",
+      "refresh": "Refresh",
+      "download": "Download",
+      "downloadError": "Couldn't download the log file.",
+      "loadError": "Couldn't load the logs.",
+      "empty": "No log records found"
     },
     "email": {
       "title": "Email",

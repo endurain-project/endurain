@@ -402,6 +402,11 @@ export const queryKeys = {
     email: () => ['server-settings', 'email'] as const,
     /** The editable mail server settings. */
     mail: () => ['server-settings', 'mail'] as const,
+    /** Whether the server-log viewer is available. */
+    logsStatus: () => ['server-settings', 'logs-status'] as const,
+    /** The accumulated server-log tail for one set of filters. */
+    logs: (level: string | null, search: string) =>
+      ['server-settings', 'logs', level, search] as const,
   },
 
   /**

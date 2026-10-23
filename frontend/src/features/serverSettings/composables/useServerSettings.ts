@@ -1,8 +1,12 @@
 import { storeToRefs } from 'pinia'
+import { computed, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type {
   EmailStatusDto,
+  LogFilters,
+  LogPage,
+  LogsStatusDto,
   MailSettings,
   MailSettingsUpdate,
   ServerSettings,
@@ -13,7 +17,10 @@ import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   deleteLoginPhoto,
+  downloadLogs,
   fetchEmailStatus,
+  fetchLogs,
+  fetchLogsStatus,
   fetchMailSettings,
   fetchServerSettings,
   fetchTileMapsTemplates,
@@ -180,5 +187,76 @@ export function useUpdateMailSettingsMutation() {
       void client.invalidateQueries({ queryKey: queryKeys.serverSettings.mail() })
       void client.invalidateQueries({ queryKey: queryKeys.serverSettings.email() })
     },
+  })
+}
+
+/** Most records the log viewer keeps in memory while tailing. */
+const MAX_LOG_ENTRIES = 1000
+
+/** How often a live tail asks for new records, in milliseconds. */
+const LOG_TAIL_INTERVAL_MS = 3000
+
+/**
+ * Whether the server-log viewer is available. A failure (for example a token
+ * that predates the logs scope) counts as unavailable.
+ *
+ * @returns The TanStack Query result for the viewer status.
+ */
+export function useLogsStatusQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery<LogsStatusDto>({
+    queryKey: queryKeys.serverSettings.logsStatus(),
+    queryFn: ({ signal }) => fetchLogsStatus(signal),
+    enabled: isAuthenticated,
+    retry: false,
+  })
+}
+
+/**
+ * The server-log tail for the given filters. The first fetch returns the
+ * newest records; every later fetch asks only for what was written since the
+ * last cursor and appends it, so a refetch (manual or live) extends the list.
+ * A cursor that moved backwards means the log rotated, which restarts the list.
+ *
+ * @param filters - Severity and text filters; a change starts a new tail.
+ * @param live - Whether to keep polling for new records.
+ * @returns The TanStack Query result for the accumulated log page.
+ */
+export function useLogsQuery(filters: Ref<LogFilters>, live: Ref<boolean>) {
+  const client = useQueryClient()
+  const queryKey = computed(() =>
+    queryKeys.serverSettings.logs(filters.value.level, filters.value.search),
+  )
+
+  return useQuery<LogPage>({
+    queryKey,
+    queryFn: async ({ signal }) => {
+      const previous = client.getQueryData<LogPage>(queryKey.value)
+      const page = await fetchLogs(filters.value, previous?.cursor ?? null, signal)
+      if (!previous || page.cursor < previous.cursor) {
+        return page
+      }
+      return {
+        entries: [...previous.entries, ...page.entries].slice(-MAX_LOG_ENTRIES),
+        cursor: page.cursor,
+      }
+    },
+    refetchInterval: () => (live.value ? LOG_TAIL_INTERVAL_MS : false),
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+/**
+ * Download mutation. Resolves with the log file; the caller saves it (e.g. via
+ * `downloadBlob`). Modelled as a mutation purely for the in-flight / error
+ * state — it changes no server state.
+ *
+ * @returns The TanStack Query mutation that produces the log file blob.
+ */
+export function useDownloadLogsMutation() {
+  return useMutation<Blob, Error, void>({
+    mutationFn: () => downloadLogs(),
   })
 }

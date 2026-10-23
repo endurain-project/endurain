@@ -1,5 +1,8 @@
 import type {
   EmailStatusDto,
+  LogFilters,
+  LogPage,
+  LogsStatusDto,
   MailSettings,
   MailSettingsDto,
   MailSettingsEditDto,
@@ -308,4 +311,59 @@ export async function updateMailSettings(settings: MailSettingsUpdate): Promise<
     body: JSON.stringify(toMailSettingsWire(settings)),
   })
   return mapMailSettings(dto)
+}
+
+/**
+ * Fetches whether the server-log viewer is available (admin scope
+ * `server_settings:logs`). It is off for the demo and for deployments that run
+ * more than one process.
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The viewer status.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchLogsStatus(signal?: AbortSignal): Promise<LogsStatusDto> {
+  return apiFetch<LogsStatusDto>('/server-settings/logs/status', { signal })
+}
+
+/**
+ * Fetches records from the end of the server log (admin scope `server_settings:logs`).
+ *
+ * @param filters - Severity and text filters.
+ * @param after - Cursor from an earlier page to read only newer records, or null for the newest.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The matching records, oldest first, and the next cursor.
+ * @throws {HttpError} When the request fails (404 when the viewer is unavailable).
+ */
+export async function fetchLogs(
+  filters: LogFilters,
+  after: number | null,
+  signal?: AbortSignal,
+): Promise<LogPage> {
+  const params = new URLSearchParams()
+  if (filters.level) {
+    params.set('level', filters.level)
+  }
+  if (filters.search) {
+    params.set('search', filters.search)
+  }
+  if (after !== null) {
+    params.set('after', String(after))
+  }
+  return apiFetch<LogPage>(`/server-settings/logs?${params}`, { signal })
+}
+
+/**
+ * Downloads the current server log file (admin scope `server_settings:logs`).
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The log file as a {@link Blob}.
+ * @throws {HttpError} When the request fails.
+ */
+export async function downloadLogs(signal?: AbortSignal): Promise<Blob> {
+  return apiFetch<Blob>('/server-settings/logs/download', {
+    responseType: 'blob',
+    timeoutMs: 0,
+    signal,
+  })
 }

@@ -631,6 +631,23 @@ class Settings(BaseSettings):
             profile=self.DEPLOYMENT_PROFILE, web_workers=self.WEB_WORKERS, job_worker_mode=self.job_worker_mode
         )
 
+    @property
+    def single_log_writer(self) -> bool:
+        """Whether one process alone writes ``{LOGS_DIR}/app.log``.
+
+        Only then can the file be rotated safely and read back as the whole log.
+        """
+        return not self.resolved_deployment_topology.multi_process
+
+    @property
+    def logs_viewer_enabled(self) -> bool:
+        """Whether admins may read the application log through the API.
+
+        Off for the public demo and wherever several processes write logs, which
+        belong in the platform's log collection rather than in one local file.
+        """
+        return self.ENVIRONMENT != "demo" and self.single_log_writer
+
     # The ``substrate_*_uri`` properties below are what the platform substrate is
     # handed; the ``resolved_*`` ones above fold in the host's fallbacks for the
     # application's own use. They differ deliberately: only the ``local`` profile

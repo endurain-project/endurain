@@ -38,13 +38,15 @@ Provides:
   - WebSocketKeepaliveFilter: drops websocket PING/PONG frame lines.
   - _build_handlers: environment-aware handler factory
     (stdout JSON always in production/demo; file when
-    LOGS_DIR is set; file plus console mirror in development).
+    LOGS_DIR is set, rotated when one process writes it; file
+    plus console mirror in development).
   - setup_main_logger: configures the main, Alembic, and
     APScheduler loggers.
 """
 
 import json
 import logging
+import logging.handlers
 import sys
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -84,6 +86,10 @@ _LEVELS: dict[str, int] = {
     "debug": logging.DEBUG,
     "trace": logging.DEBUG,
 }
+
+# Size at which a single-writer ``app.log`` rolls over, and how many rolled files are kept.
+LOG_FILE_MAX_BYTES = 10 * 1024 * 1024
+LOG_FILE_BACKUP_COUNT = 5
 
 # Format used by the development console mirror — matches uvicorn's own output
 # so operator-facing lifecycle lines blend into the server log.
@@ -387,6 +393,15 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
     # time we get here ``core.config`` is fully initialized.
     import core.config as core_config
 
+    def _file_handler(path: str) -> logging.FileHandler:
+        # Rotation renames the file under the other writers, so it is only safe
+        # when this is the sole process writing it.
+        if core_config.settings.single_log_writer:
+            return logging.handlers.RotatingFileHandler(
+                path, maxBytes=LOG_FILE_MAX_BYTES, backupCount=LOG_FILE_BACKUP_COUNT
+            )
+        return logging.FileHandler(path)
+
     def _configure(handler: logging.Handler, formatter: logging.Formatter) -> logging.Handler:
         handler.setFormatter(formatter)
         handler.setLevel(log_level)
@@ -403,7 +418,7 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
         # output regardless of the ENVIRONMENT value.
         if core_config.settings.LOGS_DIR:
             log_path = f"{core_config.settings.LOGS_DIR}/app.log"
-            handlers.append(_configure(logging.FileHandler(log_path), JsonFormatter()))
+            handlers.append(_configure(_file_handler(log_path), JsonFormatter()))
         # No console mirror here: stdout already carries every record, so adding
         # one would duplicate every operator-facing line.
         return handlers
@@ -412,7 +427,7 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
     console_mirror = _configure(logging.StreamHandler(sys.stdout), logging.Formatter(_CONSOLE_FORMAT))
     console_mirror.addFilter(ConsoleMirrorFilter())
     return [
-        _configure(logging.FileHandler(log_path), _DevFormatter()),
+        _configure(_file_handler(log_path), _DevFormatter()),
         console_mirror,
     ]
 

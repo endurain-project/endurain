@@ -185,6 +185,26 @@ class TestBuildHandlers:
         assert isinstance(console_handler, logging.StreamHandler)
         assert any(isinstance(f, core_logger.ConsoleMirrorFilter) for f in console_handler.filters)
 
+    def test_single_writer_rotates_the_log_file(self, tmp_path):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+            patch("core.config.Settings.single_log_writer", True),
+        ):
+            file_handler = core_logger._build_handlers(logging.DEBUG)[0]
+        assert isinstance(file_handler, logging.handlers.RotatingFileHandler)
+        assert file_handler.maxBytes == core_logger.LOG_FILE_MAX_BYTES
+        assert file_handler.backupCount == core_logger.LOG_FILE_BACKUP_COUNT
+
+    def test_several_writers_do_not_rotate_the_log_file(self, tmp_path):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+            patch("core.config.Settings.single_log_writer", False),
+        ):
+            file_handler = core_logger._build_handlers(logging.DEBUG)[0]
+        assert not isinstance(file_handler, logging.handlers.RotatingFileHandler)
+
 
 class TestReplaceHandlers:
     """Tests for _replace_handlers function."""

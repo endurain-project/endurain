@@ -4176,6 +4176,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/server-settings/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Logs
+         * @description Read records from the end of the server log.
+         *
+         *     Requires admin authentication with server_settings:logs scope. Without ``after``
+         *     the newest matching records are returned; pass the returned ``cursor`` as
+         *     ``after`` to receive only what was written since.
+         *
+         *     Args:
+         *         limit: Most records to return.
+         *         level: Lowest severity to include.
+         *         search: Case-insensitive text a record must contain.
+         *         after: Cursor from an earlier page.
+         *
+         *     Returns:
+         *         The matching records, oldest first, and the cursor for the next call.
+         *
+         *     Raises:
+         *         NotFoundError: 404 if the log viewer is not available on this deployment.
+         */
+        get: operations["read_logs_api_v1_server_settings_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server-settings/logs/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Logs
+         * @description Download the current log file.
+         *
+         *     Requires admin authentication with server_settings:logs scope. Rotated backups
+         *     are not included.
+         *
+         *     Returns:
+         *         The log file as plain text.
+         *
+         *     Raises:
+         *         NotFoundError: 404 if the log viewer is not available or no log has been written.
+         */
+        get: operations["download_logs_api_v1_server_settings_logs_download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server-settings/logs/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Logs Status
+         * @description Get whether the log viewer is available.
+         *
+         *     Requires admin authentication with server_settings:logs scope.
+         *
+         *     Returns:
+         *         Whether the log can be read through the API on this deployment.
+         */
+        get: operations["read_logs_status_api_v1_server_settings_logs_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions/user/{user_id}": {
         parameters: {
             query?: never;
@@ -8672,6 +8762,60 @@ export interface components {
          */
         LinkStatus: "pending" | "mfa_required" | "completed" | "failed";
         /**
+         * LogEntry
+         * @description One record of the application log.
+         *
+         *     Attributes:
+         *         timestamp: When the record was written, as the log wrote it, or null if unknown.
+         *         level: Severity of the record.
+         *         logger: Dotted name of the logger that emitted it, or null if unknown.
+         *         message: The log message.
+         *         request_id: ID of the HTTP request that produced it, or null.
+         *         context: Structured fields attached to the record, or null.
+         *         exception: Formatted traceback, or null.
+         */
+        LogEntry: {
+            /** Context */
+            context: {
+                [key: string]: unknown;
+            } | null;
+            /** Exception */
+            exception: string | null;
+            /** Level */
+            level: string;
+            /** Logger */
+            logger: string | null;
+            /** Message */
+            message: string;
+            /** Request Id */
+            request_id: string | null;
+            /** Timestamp */
+            timestamp: string | null;
+        };
+        /**
+         * LogLevel
+         * @description Log levels an admin can filter by, from least to most severe.
+         * @enum {string}
+         */
+        LogLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+        /**
+         * LogPage
+         * @description A slice of the application log.
+         *
+         *     Attributes:
+         *         entries: Matching records, oldest first.
+         *         cursor: Position to pass as ``after`` to receive only records written after this slice.
+         */
+        LogPage: {
+            /**
+             * Cursor
+             * @description Pass as `after` to read only newer records
+             */
+            cursor: number;
+            /** Entries */
+            entries: components["schemas"]["LogEntry"][];
+        };
+        /**
          * LogoutResponse
          * @description Response payload returned by the logout endpoint.
          *
@@ -8681,6 +8825,17 @@ export interface components {
         LogoutResponse: {
             /** Message */
             message: string;
+        };
+        /**
+         * LogsStatus
+         * @description Whether the log viewer is available on this deployment.
+         *
+         *     Attributes:
+         *         enabled: True when the application log can be read through the API.
+         */
+        LogsStatus: {
+            /** Enabled */
+            enabled: boolean;
         };
         /**
          * MFABackupCodeStatus
@@ -18159,6 +18314,111 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_logs_api_v1_server_settings_logs_get: {
+        parameters: {
+            query?: {
+                /** @description Most records to return */
+                limit?: number;
+                /** @description Lowest severity to include */
+                level?: components["schemas"]["LogLevel"] | null;
+                /** @description Text a record must contain */
+                search?: string | null;
+                /** @description Cursor from an earlier page, to read only newer records */
+                after?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    download_logs_api_v1_server_settings_logs_download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current log file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": unknown;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_logs_status_api_v1_server_settings_logs_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogsStatus"];
+                };
             };
             /** @description Unexpected error */
             default: {

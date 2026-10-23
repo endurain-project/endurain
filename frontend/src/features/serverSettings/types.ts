@@ -10,6 +10,29 @@ export type ServerSettingsDto = Schemas['ServerSettingsAdminRead']
  */
 export type ServerSettingsEditDto = Schemas['ServerSettingsEdit']
 
+/** Whether the server-log viewer is available on this deployment. */
+export type LogsStatusDto = Schemas['LogsStatus']
+
+/** One record of the server log. */
+export type LogEntry = Schemas['LogEntry']
+
+/** A slice of the server log with the cursor for reading what follows it. */
+export type LogPage = Schemas['LogPage']
+
+/** Log severity, mirrored from the backend enum (`DEBUG` to `CRITICAL`). */
+export type LogLevel = Schemas['LogLevel']
+
+/**
+ * What the log viewer filters on.
+ *
+ * @property level - Lowest severity to show, or null for all.
+ * @property search - Text a record must contain; empty for no text filter.
+ */
+export interface LogFilters {
+  level: LogLevel | null
+  search: string
+}
+
 /** Raw tile-map template payload (snake_case wire shape). */
 export type TileMapsTemplateDto = Schemas['TileMapsTemplate']
 

@@ -79,6 +79,7 @@ class TestScopeConstants:
         assert isinstance(auth_constants.SERVER_SETTINGS_ADMIN_SCOPE, tuple)
         assert "server_settings:read" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
         assert "server_settings:write" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
+        assert "server_settings:logs" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
 
     def test_scope_dict_contains_all_scopes(self):
         """Test that SCOPE_DICT contains descriptions for all defined scopes."""

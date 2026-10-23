@@ -38,6 +38,7 @@ import modules.health.health_water.router as health_water_router
 import modules.health.health_weight.router as health_weight_router
 import modules.health.router as health_router
 import modules.notifications.router as notifications_router
+import modules.server_settings.logs_router as server_settings_logs_router
 import modules.server_settings.public_router as server_settings_public_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
@@ -290,6 +291,12 @@ router.include_router(
 router.include_router(
     server_settings_router.router,
     prefix=core_config.ROOT_PATH + "/server-settings",
+    tags=["server_settings"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    server_settings_logs_router.router,
+    prefix=core_config.ROOT_PATH + "/server-settings/logs",
     tags=["server_settings"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
