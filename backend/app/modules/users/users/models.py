@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from modules.health.health_fasting.models import HealthFasting
     from modules.health.health_poop.models import HealthPoop
     from modules.health.health_sleep.models import HealthSleep
-    from modules.health.health_steps.models import HealthSteps
     from modules.health.health_water.models import HealthWater
     from modules.users.users_default_gear.models import UsersDefaultGear
     from modules.users.users_goals.models import UsersGoal
@@ -175,10 +174,6 @@ class Users(Base):
         cascade="all, delete-orphan",
     )
     health_sleep: Mapped[list["HealthSleep"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_steps: Mapped[list["HealthSteps"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
     )

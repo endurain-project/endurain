@@ -1,13 +1,9 @@
 from datetime import date as date_type
-from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
 
 
 class HealthSteps(Base):
@@ -16,7 +12,7 @@ class HealthSteps(Base):
 
     This model stores health and fitness tracking data related to the number of steps
     taken by a user on a specific date. It includes information about the data source
-    and maintains a relationship with the Users model.
+    and belongs to a user through ``user_id``.
 
     Attributes:
         id: Primary key, auto-incremented unique identifier.
@@ -24,13 +20,9 @@ class HealthSteps(Base):
         date: Calendar date for which the step count is recorded.
         steps: Total number of steps taken on the date.
         source: Source of the step data (e.g., fitness device, app).
-        user: Relationship to the Users model.
 
     Table:
         health_steps
-
-    Relationships:
-        - Many-to-One with Users model through user_id
     """
 
     __tablename__ = "health_steps"
@@ -59,6 +51,3 @@ class HealthSteps(Base):
         nullable=True,
         comment="Source of the health steps data",
     )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_steps")

@@ -16,7 +16,7 @@ import modules.auth.dependencies as auth_dependencies
 import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_sleep.crud as health_sleep_crud
-import modules.health.health_steps.crud as health_steps_crud
+import modules.health.health_steps.integration_service as health_steps_integration
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.schema as health_schema
@@ -73,7 +73,7 @@ def read_health_daily_stats(
     latest_weight = health_weight_integration.get_latest_health_weight(token_user_id, db)
 
     # Get today's steps
-    today_steps = health_steps_crud.get_health_steps_by_date_and_user_id(token_user_id, today, db)
+    today_steps = health_steps_integration.get_health_steps_by_date(token_user_id, today, db)
 
     # Get active fasting or most recent
     active_fasting = health_fasting_crud.get_active_fasting_by_user_id(token_user_id, db)

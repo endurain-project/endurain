@@ -2,8 +2,7 @@ from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
 import modules.health.health_steps.crud as health_steps_crud
@@ -11,447 +10,120 @@ import modules.health.health_steps.models as health_steps_models
 import modules.health.health_steps.schema as health_steps_schema
 
 
-def _make_steps_mock(record_id=1, user_id=1, **kwargs):
-    """Create a HealthSteps mock with all required schema attributes set."""
-    mock = MagicMock(spec=health_steps_models.HealthSteps)
-    mock.id = record_id
-    mock.user_id = user_id
-    mock.date = kwargs.get("date")
-    mock.steps = kwargs.get("steps")
-    mock.source = kwargs.get("source")
-    return mock
+def _row(record_id: int = 1, steps: int = 10000) -> MagicMock:
+    row = MagicMock(spec=health_steps_models.HealthSteps)
+    row.id = record_id
+    row.user_id = 1
+    row.date = datetime_date(2024, 1, 15)
+    row.steps = steps
+    row.source = None
+    return row
 
 
-class TestGetHealthStepsNumber:
-    """
-    Test suite for get_health_steps_number_by_user_id function.
-    """
-
-    def test_get_health_steps_number_success(self, mock_db):
-        """
-        Test successful count of health steps records for a user.
-        """
-        # Arrange
-        user_id = 1
-        expected_count = 5
-        mock_db.execute.return_value.scalar_one.return_value = expected_count
-
-        # Act
-        result = health_steps_crud.get_health_steps_number_by_user_id(user_id, mock_db)
-
-        # Assert
-        assert result == expected_count
-        mock_db.execute.assert_called_once()
-
-    def test_get_health_steps_number_zero(self, mock_db):
-        """
-        Test count when user has no health steps records.
-        """
-        # Arrange
-        user_id = 1
-        mock_db.execute.return_value.scalar_one.return_value = 0
-
-        # Act
-        result = health_steps_crud.get_health_steps_number_by_user_id(user_id, mock_db)
-
-        # Assert
-        assert result == 0
-
-    def test_get_health_steps_number_exception(self, mock_db):
-        """
-        Test exception handling in get_health_steps_number_by_user_id.
-        """
-        # Arrange
-        user_id = 1
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            health_steps_crud.get_health_steps_number_by_user_id(user_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert exc_info.value.detail == "Database error occurred"
+def _returns_scalars(mock_db, rows):
+    mock_db.execute.return_value.scalars.return_value.all.return_value = rows
 
 
-class TestGetHealthStepsWithPagination:
-    """
-    Test suite for get_health_steps_by_user_id function.
-    """
-
-    def test_get_health_steps_with_pagination_success(self, mock_db):
-        """
-        Test successful retrieval of paginated health steps records.
-        """
-        # Arrange
-        user_id = 1
-        page_number = 2
-        num_records = 5
-        mock_steps1 = _make_steps_mock(id=1)
-        mock_steps2 = _make_steps_mock(id=2)
-
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [mock_steps1, mock_steps2]
-        mock_execute = MagicMock()
-        mock_execute.scalars.return_value = mock_scalars
-        mock_db.execute.return_value = mock_execute
-
-        # Act
-        result = health_steps_crud.get_health_steps_by_user_id(user_id, mock_db, page_number, num_records)
-
-        # Assert
-        assert len(result) == 2
-        mock_db.execute.assert_called_once()
-
-    def test_get_health_steps_with_pagination_defaults(self, mock_db):
-        """
-        Test pagination with default values.
-        """
-        # Arrange
-        user_id = 1
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = []
-        mock_execute = MagicMock()
-        mock_execute.scalars.return_value = mock_scalars
-        mock_db.execute.return_value = mock_execute
-
-        # Act
-        result = health_steps_crud.get_health_steps_by_user_id(user_id, mock_db)
-
-        # Assert
-        assert result == []
-        mock_db.execute.assert_called_once()
-
-    def test_get_health_steps_with_pagination_exception(self, mock_db):
-        """
-        Test exception handling in get_health_steps_by_user_id.
-        """
-        # Arrange
-        user_id = 1
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            health_steps_crud.get_health_steps_by_user_id(user_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert exc_info.value.detail == "Database error occurred"
+def _returns_one(mock_db, row):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
 
-class TestGetHealthStepsByDate:
-    """
-    Test suite for get_health_steps_by_date_and_user_id function.
-    """
+class TestReads:
+    def test_number_counts(self, mock_db):
+        mock_db.execute.return_value.scalar_one.return_value = 3
 
-    def test_get_health_steps_by_date_success(self, mock_db):
-        """
-        Test successful retrieval of health steps by date.
-        """
-        # Arrange
-        user_id = 1
-        test_date = "2024-01-15"
-        mock_steps = _make_steps_mock()
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_steps
+        assert health_steps_crud.get_health_steps_number_by_user_id(1, mock_db) == 3
 
-        # Act
-        result = health_steps_crud.get_health_steps_by_date_and_user_id(user_id, test_date, mock_db)
+    def test_number_with_a_lower_bound(self, mock_db):
+        mock_db.execute.return_value.scalar_one.return_value = 1
 
-        # Assert
-        assert result.id == 1
-        mock_db.execute.assert_called_once()
+        health_steps_crud.get_health_steps_number_by_user_id(1, mock_db, datetime_date(2024, 1, 1))
 
-    def test_get_health_steps_by_date_not_found(self, mock_db):
-        """
-        Test retrieval when no record exists for date.
-        """
-        # Arrange
-        user_id = 1
-        test_date = "2024-01-15"
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+        assert "health_steps.date >=" in str(mock_db.execute.call_args.args[0])
 
-        # Act
-        result = health_steps_crud.get_health_steps_by_date_and_user_id(user_id, test_date, mock_db)
+    def test_list_paginates_and_bounds(self, mock_db):
+        _returns_scalars(mock_db, [_row()])
 
-        # Assert
-        assert result is None
+        result = health_steps_crud.get_health_steps_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1))
 
-    def test_get_health_steps_by_date_exception(self, mock_db):
-        """
-        Test exception handling in get_health_steps_by_date_and_user_id.
-        """
-        # Arrange
-        user_id = 1
-        test_date = "2024-01-15"
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
+        assert len(result) == 1
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "LIMIT 10 OFFSET 10" in compiled
+        assert "health_steps.date >=" in compiled
 
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            health_steps_crud.get_health_steps_by_date_and_user_id(user_id, test_date, mock_db)
+    def test_list_empty(self, mock_db):
+        _returns_scalars(mock_db, [])
 
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert exc_info.value.detail == "Database error occurred"
+        assert health_steps_crud.get_health_steps_by_user_id(1, mock_db) == []
+
+    def test_by_date_found(self, mock_db):
+        _returns_one(mock_db, _row())
+
+        assert health_steps_crud.get_health_steps_by_date_and_user_id(1, "2024-01-15", mock_db).steps == 10000
+
+    def test_by_date_not_found(self, mock_db):
+        _returns_one(mock_db, None)
+
+        assert health_steps_crud.get_health_steps_by_date_and_user_id(1, "2024-01-15", mock_db) is None
 
 
 class TestCreateHealthSteps:
-    """
-    Test suite for create_health_steps function.
-    """
+    def test_stages_without_committing(self, mock_db):
+        record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
 
-    def test_create_health_steps_success(self, mock_db):
-        """
-        Test successful creation of health steps entry.
-        """
-        # Arrange
-        user_id = 1
-        health_steps = health_steps_schema.HealthStepsCreate(
-            date=datetime_date(2024, 1, 15),
-            steps=10000,
-            source="garmin",
-        )
+        with patch.object(health_steps_models, "HealthSteps", return_value=_row()) as model:
+            health_steps_crud.create_health_steps(1, record, mock_db)
 
-        mock_db_steps = MagicMock()
-        mock_db_steps.id = 1
-        mock_db_steps.user_id = 1
-        mock_db_steps.steps = 10000
-        mock_db_steps.date = None
-        mock_db_steps.source = None
-        mock_db.add.return_value = None
-        mock_db.commit.return_value = None
-        mock_db.refresh.return_value = None
+        assert model.call_args.kwargs["user_id"] == 1
+        assert model.call_args.kwargs["steps"] == 9000
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
-        with patch.object(
-            health_steps_models,
-            "HealthSteps",
-            return_value=mock_db_steps,
+    def test_duplicate_date_is_a_conflict(self, mock_db):
+        mock_db.flush.side_effect = IntegrityError("duplicate", None, None)
+        record = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=9000)
+
+        with (
+            patch.object(health_steps_models, "HealthSteps", return_value=_row()),
+            pytest.raises(core_exceptions.ConflictError, match="Duplicate entry error"),
         ):
-            # Act
-            result = health_steps_crud.create_health_steps(user_id, health_steps, mock_db)
-
-            # Assert
-            assert result.id == 1
-            assert result.steps == 10000
-            mock_db.add.assert_called_once()
-            mock_db.commit.assert_called_once()
-            mock_db.refresh.assert_called_once()
-
-    def test_create_health_steps_with_none_date(self, mock_db):
-        """
-        Test creation with None date sets current date via schema validator.
-        """
-        # Arrange
-        user_id = 1
-        # Note: HealthStepsCreate automatically sets date to today if None
-        health_steps = health_steps_schema.HealthStepsCreate(steps=10000, source="garmin")
-
-        mock_db_steps = MagicMock()
-        mock_db_steps.id = 1
-        mock_db_steps.user_id = 1
-        mock_db_steps.date = None
-        mock_db_steps.steps = None
-        mock_db_steps.source = None
-        mock_db.add.return_value = None
-        mock_db.commit.return_value = None
-        mock_db.refresh.return_value = None
-
-        with patch.object(
-            health_steps_models,
-            "HealthSteps",
-            return_value=mock_db_steps,
-        ):
-            # Act
-            result = health_steps_crud.create_health_steps(user_id, health_steps, mock_db)
-
-            # Assert
-            # The schema should have set date to today
-            assert health_steps.date is not None
-            assert result.id == 1
-
-    def test_create_health_steps_duplicate_entry(self, mock_db):
-        """
-        Test creation with duplicate entry raises conflict error.
-        """
-        # Arrange
-        user_id = 1
-        health_steps = health_steps_schema.HealthStepsCreate(
-            date=datetime_date(2024, 1, 15), steps=10000, source="garmin"
-        )
-
-        mock_db_steps = MagicMock()
-        mock_db.add.return_value = None
-        mock_db.commit.side_effect = IntegrityError("Duplicate entry", None, None)
-
-        with patch.object(
-            health_steps_models,
-            "HealthSteps",
-            return_value=mock_db_steps,
-        ):
-            # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
-                health_steps_crud.create_health_steps(user_id, health_steps, mock_db)
-
-            assert exc_info.value.status_code == status.HTTP_409_CONFLICT
-            assert "Duplicate entry error" in exc_info.value.detail
-            mock_db.rollback.assert_called_once()
-
-    def test_create_health_steps_exception(self, mock_db):
-        """
-        Test exception handling in create_health_steps.
-        """
-        # Arrange
-        user_id = 1
-        health_steps = health_steps_schema.HealthStepsCreate(date=datetime_date(2024, 1, 15), steps=10000)
-
-        mock_db.add.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            health_steps_crud.create_health_steps(user_id, health_steps, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_db.rollback.assert_called_once()
+            health_steps_crud.create_health_steps(1, record, mock_db)
 
 
 class TestEditHealthSteps:
-    """
-    Test suite for edit_health_steps function.
-    """
+    def test_updates_the_given_fields_and_stages(self, mock_db):
+        row = _row()
+        _returns_one(mock_db, row)
+        update = health_steps_schema.HealthStepsUpdate(id=1, user_id=1, date=datetime_date(2024, 1, 15), steps=12000)
 
-    def test_edit_health_steps_success(self, mock_db):
-        """
-        Test successful edit of health steps entry.
-        """
-        # Arrange
-        user_id = 1
-        health_steps = health_steps_schema.HealthStepsUpdate(
-            id=1, user_id=1, date=datetime_date(2024, 1, 15), steps=12000
-        )
+        health_steps_crud.edit_health_steps(1, update, mock_db)
 
-        mock_db_steps = _make_steps_mock(steps=12000)
+        assert row.steps == 12000
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_steps
+    def test_unknown_record_is_not_found(self, mock_db):
+        _returns_one(mock_db, None)
+        update = health_steps_schema.HealthStepsUpdate(id=9, user_id=1, date=datetime_date(2024, 1, 15), steps=12000)
 
-        # Act
-        result = health_steps_crud.edit_health_steps(user_id, health_steps, mock_db)
-
-        # Assert
-        assert result.steps == 12000
-        mock_db.commit.assert_called_once()
-
-    def test_edit_health_steps_not_found(self, mock_db):
-        """
-        Test edit when health steps record not found.
-        """
-        # Arrange
-        user_id = 1
-        health_steps = health_steps_schema.HealthStepsUpdate(
-            id=999, user_id=1, date=datetime_date(2024, 1, 15), steps=12000
-        )
-
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            health_steps_crud.edit_health_steps(user_id, health_steps, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-        assert exc_info.value.detail == "Health steps not found"
-
-    def test_edit_health_steps_update_multiple_fields(self, mock_db):
-        """
-        Test edit updates multiple fields correctly.
-        """
-        # Arrange
-        user_id = 1
-        health_steps = health_steps_schema.HealthStepsUpdate(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            steps=15000,
-            source="garmin",
-        )
-
-        mock_db_steps = _make_steps_mock()
-
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_steps
-
-        # Act
-        health_steps_crud.edit_health_steps(user_id, health_steps, mock_db)
-
-        # Assert
-        mock_db.commit.assert_called_once()
-
-    def test_edit_health_steps_exception(self, mock_db):
-        """
-        Test exception handling in edit_health_steps.
-        """
-        # Arrange
-        user_id = 1
-        health_steps = health_steps_schema.HealthStepsUpdate(
-            id=1, user_id=1, steps=12000, date=datetime_date(2024, 1, 15)
-        )
-
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            health_steps_crud.edit_health_steps(user_id, health_steps, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_db.rollback.assert_called_once()
+        with pytest.raises(core_exceptions.NotFoundError, match="Health steps not found"):
+            health_steps_crud.edit_health_steps(1, update, mock_db)
 
 
 class TestDeleteHealthSteps:
-    """
-    Test suite for delete_health_steps function.
-    """
+    def test_deletes_and_stages(self, mock_db):
+        row = _row()
+        _returns_one(mock_db, row)
 
-    def test_delete_health_steps_success(self, mock_db):
-        """
-        Test successful deletion of health steps entry.
-        """
-        # Arrange
-        user_id = 1
-        health_steps_id = 1
+        health_steps_crud.delete_health_steps(1, 1, mock_db)
 
-        mock_db_steps = _make_steps_mock()
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_steps
+        mock_db.delete.assert_called_once_with(row)
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
-        # Act
-        health_steps_crud.delete_health_steps(user_id, health_steps_id, mock_db)
+    def test_unknown_record_is_not_found(self, mock_db):
+        _returns_one(mock_db, None)
 
-        # Assert
-        mock_db.delete.assert_called_once_with(mock_db_steps)
-        mock_db.commit.assert_called_once()
-
-    def test_delete_health_steps_not_found(self, mock_db):
-        """
-        Test deletion when health steps record not found.
-        """
-        # Arrange
-        user_id = 1
-        health_steps_id = 999
-
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            health_steps_crud.delete_health_steps(user_id, health_steps_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-        assert "Health steps not found" in exc_info.value.detail
-
-    def test_delete_health_steps_exception(self, mock_db):
-        """
-        Test exception handling in delete_health_steps.
-        """
-        # Arrange
-        user_id = 1
-        health_steps_id = 1
-
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            health_steps_crud.delete_health_steps(user_id, health_steps_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_db.rollback.assert_called_once()
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_steps_crud.delete_health_steps(1, 9, mock_db)
+        mock_db.delete.assert_not_called()

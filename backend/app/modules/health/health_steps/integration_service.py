@@ -1,9 +1,13 @@
-"""The operations other modules may call on health steps records."""
+"""The operations other modules may call on health steps records.
+
+The writes stage; the caller owns the unit of work and commits.
+"""
 
 from sqlalchemy.orm import Session
 
 import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_steps.schema as health_steps_schema
+import modules.health.health_steps.service as health_steps_service
 
 
 def get_health_steps_by_date(user_id: int, date: str, db: Session) -> health_steps_schema.HealthStepsRead | None:
@@ -23,7 +27,7 @@ def get_health_steps_by_date(user_id: int, date: str, db: Session) -> health_ste
 def create_health_steps(
     user_id: int, health_steps: health_steps_schema.HealthStepsCreate, db: Session
 ) -> health_steps_schema.HealthStepsRead:
-    """Create a steps record for a user.
+    """Stage a steps record for a user.
 
     Args:
         user_id: The record's owner.
@@ -31,7 +35,10 @@ def create_health_steps(
         db: Database session.
 
     Returns:
-        The created record.
+        The staged record.
+
+    Raises:
+        ConflictError: If the user already has a record for that date.
     """
     return health_steps_crud.create_health_steps(user_id, health_steps, db)
 
@@ -39,7 +46,7 @@ def create_health_steps(
 def edit_health_steps(
     user_id: int, health_steps: health_steps_schema.HealthStepsUpdate, db: Session
 ) -> health_steps_schema.HealthStepsRead:
-    """Edit a user's steps record.
+    """Stage an update to a user's steps record.
 
     Args:
         user_id: The record's owner.
@@ -47,6 +54,10 @@ def edit_health_steps(
         db: Database session.
 
     Returns:
-        The edited record.
+        The updated record.
+
+    Raises:
+        PermissionDeniedError: If the record names another user.
+        NotFoundError: If the user has no such record.
     """
-    return health_steps_crud.edit_health_steps(user_id, health_steps, db)
+    return health_steps_service.stage_edit_health_steps(user_id, health_steps, db)

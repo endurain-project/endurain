@@ -1,15 +1,15 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_steps.schema as health_steps_schema
+import modules.health.health_steps.service as health_steps_service
 
 # Define the API router
 router = APIRouter()
@@ -76,17 +76,7 @@ def read_health_steps_all_pagination(
         HTTPException: If the user lacks required 'health:read' scope or if
             pagination values are invalid.
     """
-    # Get the total count and paginated records from the database
-    total = health_steps_crud.get_health_steps_number_by_user_id(token_user_id, db, interval)
-    records = health_steps_crud.get_health_steps_by_user_id(token_user_id, db, page_number, num_records, interval)
-
-    # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
-    return health_steps_schema.HealthStepsListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
-    )
+    return health_steps_service.list_health_steps(token_user_id, db, page_number, num_records, interval)
 
 
 @router.post(
@@ -126,27 +116,9 @@ def create_health_steps(
         health_steps_schema.HealthSteps: The created or updated health steps data.
 
     Raises:
-        HTTPException: 400 error if the date field is not provided in the request.
+        InvalidInputError: If the date field is not provided in the request.
     """
-    if not health_steps.date:
-        raise HTTPException(status_code=400, detail="Date field is required.")
-
-    # Convert date to string format for CRUD function
-    date_str = health_steps.date.isoformat()
-
-    # Check if health_steps for this date already exists
-    steps_for_date = health_steps_crud.get_health_steps_by_date_and_user_id(token_user_id, date_str, db)
-
-    if steps_for_date:
-        # Convert to update schema with the existing ID and user_id
-        health_steps_update = health_steps_schema.HealthStepsUpdate(
-            id=steps_for_date.id, user_id=token_user_id, **health_steps.model_dump()
-        )
-        # Updates the health_steps in the database and returns it
-        return health_steps_crud.edit_health_steps(token_user_id, health_steps_update, db)
-    else:
-        # Creates the health_steps in the database and returns it
-        return health_steps_crud.create_health_steps(token_user_id, health_steps, db)
+    return health_steps_service.create_health_steps(token_user_id, health_steps, db)
 
 
 @router.put(
@@ -190,7 +162,7 @@ def edit_health_steps(
             found, or database operations fail.
     """
     # Updates the health_steps in the database and returns it
-    return health_steps_crud.edit_health_steps(token_user_id, health_steps, db)
+    return health_steps_service.edit_health_steps(token_user_id, health_steps, db)
 
 
 @router.delete("/{health_steps_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
@@ -228,4 +200,4 @@ def delete_health_steps(
             - The health steps record doesn't exist or doesn't belong to the user
     """
     # Deletes entry from database
-    health_steps_crud.delete_health_steps(token_user_id, health_steps_id, db)
+    health_steps_service.delete_health_steps(token_user_id, health_steps_id, db)
