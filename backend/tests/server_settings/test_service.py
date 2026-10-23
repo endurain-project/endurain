@@ -53,6 +53,7 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         session_absolute_timeout_hours=24,
         access_token_expire_minutes=15,
         refresh_token_expire_days=7,
+        read_notification_retention_days=90,
         geocoding_api_key=None,
     )
     values.update(overrides)
@@ -621,6 +622,77 @@ class TestImportSessionEnv:
             server_settings_service._import_session_env(MagicMock())
 
 
+class TestRetention:
+    def test_the_stored_value_is_returned_by_the_integration_read(self, edit_env):
+        from modules.server_settings import integration_service
+
+        stored = edit_env.stored.model_copy(update={"read_notification_retention_days": 30})
+        with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=stored):
+            assert integration_service.get_read_notification_retention_days(MagicMock()) == 30
+
+    def test_the_variable_manages_only_its_own_field(self):
+        with patch.object(
+            server_settings_service, "_env_var_is_set", side_effect=lambda n: n == "READ_NOTIFICATION_RETENTION_DAYS"
+        ):
+            assert server_settings_service.server_settings_env_managed() == {
+                "read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"
+            }
+
+    def test_a_change_to_the_managed_field_is_refused(self, edit_env):
+        with (
+            patch.object(
+                server_settings_service,
+                "server_settings_env_managed",
+                return_value={"read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"},
+            ),
+            pytest.raises(core_exceptions.InvalidInputError) as exc_info,
+        ):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, read_notification_retention_days=30), MagicMock()
+            )
+
+        assert "READ_NOTIFICATION_RETENTION_DAYS" in exc_info.value.detail
+        edit_env.write.assert_not_called()
+
+    @pytest.fixture
+    def import_env(self, edit_env):
+        state = MagicMock(is_set=True, settings=MagicMock(READ_NOTIFICATION_RETENTION_DAYS=90), write=edit_env.write)
+        with (
+            patch.object(server_settings_service, "_env_var_is_set", side_effect=lambda n: state.is_set),
+            patch.object(server_settings_service.core_config, "settings", state.settings),
+            patch.object(
+                server_settings_service.server_settings_crud, "get_server_settings", return_value=edit_env.stored
+            ),
+        ):
+            yield state
+
+    def test_nothing_happens_without_the_variable(self, import_env):
+        import_env.is_set = False
+
+        assert server_settings_service._import_retention_env(MagicMock()) == []
+        import_env.write.assert_not_called()
+
+    def test_an_equal_value_writes_nothing(self, import_env):
+        assert server_settings_service._import_retention_env(MagicMock()) == ["READ_NOTIFICATION_RETENTION_DAYS"]
+        import_env.write.assert_not_called()
+
+    def test_a_different_value_is_written(self, import_env):
+        import_env.settings.READ_NOTIFICATION_RETENTION_DAYS = 7
+
+        server_settings_service._import_retention_env(MagicMock())
+
+        assert import_env.write.call_args.args[0].model_dump(exclude_unset=True) == {
+            "read_notification_retention_days": 7
+        }
+
+    def test_zero_is_imported(self, import_env):
+        import_env.settings.READ_NOTIFICATION_RETENTION_DAYS = 0
+
+        server_settings_service._import_retention_env(MagicMock())
+
+        assert import_env.write.call_args.args[0].read_notification_retention_days == 0
+
+
 class TestLoginPhoto:
     def test_upload_writes_the_blob_before_committing_the_flag(self):
         calls = []
@@ -1146,6 +1218,7 @@ class TestGetServerSettingsForPublic:
             session_absolute_timeout_hours=24,
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
+            read_notification_retention_days=90,
             geocoding_api_key="encrypted-geo",
         )
 

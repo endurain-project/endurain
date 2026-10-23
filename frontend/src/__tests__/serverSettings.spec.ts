@@ -61,6 +61,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     session_absolute_timeout_hours: 24,
     access_token_expire_minutes: 15,
     refresh_token_expire_days: 7,
+    read_notification_retention_days: 90,
     geocoding_api_key_set: false,
     env_managed: {},
     ...overrides,
@@ -129,6 +130,7 @@ describe('mapServerSettings', () => {
       sessionAbsoluteTimeoutHours: 24,
       accessTokenExpireMinutes: 15,
       refreshTokenExpireDays: 7,
+      readNotificationRetentionDays: 90,
       geocodingApiKeySet: false,
       envManaged: {},
     })
@@ -215,6 +217,7 @@ describe('toServerSettingsWire', () => {
       session_absolute_timeout_hours: 24,
       access_token_expire_minutes: 30,
       refresh_token_expire_days: 7,
+      read_notification_retention_days: 90,
     })
   })
 

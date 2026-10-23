@@ -46,6 +46,7 @@ def _settings_row(**overrides):
         session_absolute_timeout_hours=24,
         access_token_expire_minutes=15,
         refresh_token_expire_days=7,
+        read_notification_retention_days=90,
         tileserver_api_key=None,
         geocoding_api_key=None,
     )
@@ -93,6 +94,7 @@ def _edit(**overrides):
         session_absolute_timeout_hours=24,
         access_token_expire_minutes=15,
         refresh_token_expire_days=7,
+        read_notification_retention_days=90,
     )
     values.update(overrides)
     return server_settings_schema.ServerSettingsEdit(**values)

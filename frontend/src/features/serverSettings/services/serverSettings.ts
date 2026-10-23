@@ -54,6 +54,7 @@ export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
     sessionAbsoluteTimeoutHours: dto.session_absolute_timeout_hours,
     accessTokenExpireMinutes: dto.access_token_expire_minutes,
     refreshTokenExpireDays: dto.refresh_token_expire_days,
+    readNotificationRetentionDays: dto.read_notification_retention_days,
     geocodingApiKeySet: dto.geocoding_api_key_set,
     envManaged: dto.env_managed,
   }
@@ -117,6 +118,7 @@ export function toServerSettingsWire(settings: ServerSettingsUpdate): ServerSett
     session_absolute_timeout_hours: settings.sessionAbsoluteTimeoutHours,
     access_token_expire_minutes: settings.accessTokenExpireMinutes,
     refresh_token_expire_days: settings.refreshTokenExpireDays,
+    read_notification_retention_days: settings.readNotificationRetentionDays,
     // Omitted keeps the stored key; the backend never returns it, so it cannot round-trip.
     ...(settings.tileserverApiKey !== undefined && {
       tileserver_api_key: settings.tileserverApiKey,

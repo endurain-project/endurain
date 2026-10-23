@@ -172,14 +172,13 @@ def server_settings_env_managed() -> dict[str, str]:
 
     Geocoding is imported as a block, so while any geocoding variable is set all of its
     fields are env-managed, each named by its most specific variable. The session policy
-    variables each manage only their own field.
+    and retention variables each manage only their own field.
 
     Returns:
         Field name to environment variable name.
     """
-    managed = {
-        field: name for field, name in server_settings_constants.SESSION_ENV_VARS.items() if _env_var_is_set(name)
-    }
+    per_field_env_vars = server_settings_constants.SESSION_ENV_VARS | server_settings_constants.RETENTION_ENV_VARS
+    managed = {field: name for field, name in per_field_env_vars.items() if _env_var_is_set(name)}
     if any(_env_var_is_set(name) for name in server_settings_constants.GEOCODING_ENV_VAR_NAMES):
         photon = core_config.settings.REVERSE_GEO_PROVIDER == core_geocoding.GeocodingService.PHOTON
         managed |= {
@@ -1125,6 +1124,37 @@ def _import_session_env(db: Session) -> list[str]:
     return names
 
 
+def _import_retention_env(db: Session) -> list[str]:
+    """Save the deprecated read-notification retention variable into the server settings.
+
+    Writes only when the value differs; the caller commits.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The names of the retention variables that are set.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    names = [name for name in server_settings_constants.RETENTION_ENV_VARS.values() if _env_var_is_set(name)]
+    if not names:
+        return []
+    current = get_server_settings(db, for_update=True)
+    days = core_config.settings.READ_NOTIFICATION_RETENTION_DAYS
+    if current.read_notification_retention_days != days:
+        # The value was validated by the settings model.
+        server_settings_crud.edit_server_settings(
+            server_settings_schema.ServerSettingsEdit.model_construct(read_notification_retention_days=days), db
+        )
+        logger.info(
+            "Read-notification retention imported from the environment",
+            extra=core_logger.context(changed_fields=["read_notification_retention_days"]),
+        )
+    return names
+
+
 def import_deprecated_env_settings(db: Session) -> None:
     """Save the deprecated environment variables into the database, once per start.
 
@@ -1138,7 +1168,12 @@ def import_deprecated_env_settings(db: Session) -> None:
     Raises:
         ServiceUnavailableError: If a settings row does not exist.
     """
-    deprecated_names = [*_import_mail_env(db), *_import_geocoding_env(db), *_import_session_env(db)]
+    deprecated_names = [
+        *_import_mail_env(db),
+        *_import_geocoding_env(db),
+        *_import_session_env(db),
+        *_import_retention_env(db),
+    ]
     db.commit()
     if deprecated_names:
         logger.warning(

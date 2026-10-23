@@ -63,6 +63,9 @@ SESSION_ENV_VARS: dict[str, str] = {
     "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS",
 }
 
+#: Read-notification retention field -> the deprecated environment variable that sets it.
+RETENTION_ENV_VARS: dict[str, str] = {"read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"}
+
 #: Logged once at boot when deprecated environment variables were found; ``{names}`` is
 #: the comma-separated variable names, never their values.
 DEPRECATED_ENV_WARNING = (

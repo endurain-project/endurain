@@ -155,6 +155,21 @@ def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
     return server_settings_service.get_session_policy(db)
 
 
+def get_read_notification_retention_days(db: Session) -> int:
+    """Return the age in days after which read notifications are purged.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The retention in days; 0 disables pruning.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    return server_settings_service.get_server_settings(db).read_notification_retention_days
+
+
 def import_deprecated_env_settings(db: Session) -> None:
     """Save the deprecated environment variables into the database and warn about them.
 

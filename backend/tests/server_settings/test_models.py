@@ -89,4 +89,5 @@ class TestServerSettingsModel:
             "session_absolute_timeout_hours_check",
             "access_token_expire_minutes_check",
             "refresh_token_expire_days_check",
+            "read_notification_retention_days_check",
         }

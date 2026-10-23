@@ -54,6 +54,7 @@ const IDLE_HOURS_RANGE = { min: 1, max: 8760 } as const
 const ABSOLUTE_HOURS_RANGE = { min: 1, max: 8760 } as const
 const ACCESS_MINUTES_RANGE = { min: 1, max: 1440 } as const
 const REFRESH_DAYS_RANGE = { min: 1, max: 365 } as const
+const RETENTION_DAYS_RANGE = { min: 0, max: 3650 } as const
 /** Placeholders every valid tile URL template must contain. */
 const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
 
@@ -99,6 +100,7 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     sessionAbsoluteTimeoutHours: String(settings.sessionAbsoluteTimeoutHours),
     accessTokenExpireMinutes: String(settings.accessTokenExpireMinutes),
     refreshTokenExpireDays: String(settings.refreshTokenExpireDays),
+    readNotificationRetentionDays: String(settings.readNotificationRetentionDays),
   }
 }
 
@@ -217,6 +219,7 @@ async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
     sessionAbsoluteTimeoutHours,
     accessTokenExpireMinutes,
     refreshTokenExpireDays,
+    readNotificationRetentionDays,
     ...editable
   } = formValues
   // undefined keeps the stored key, null removes it, a string replaces it.
@@ -232,6 +235,7 @@ async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
       sessionAbsoluteTimeoutHours: Number(sessionAbsoluteTimeoutHours.trim()),
       accessTokenExpireMinutes: Number(accessTokenExpireMinutes.trim()),
       refreshTokenExpireDays: Number(refreshTokenExpireDays.trim()),
+      readNotificationRetentionDays: Number(readNotificationRetentionDays.trim()),
       tileserverApiKey: apiKey,
       geocodingApiKey: geocodingKey,
     })
@@ -276,6 +280,10 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur } =
       refreshTokenExpireDays: integerRangeValidator(
         REFRESH_DAYS_RANGE,
         rangeMessage(REFRESH_DAYS_RANGE),
+      ),
+      readNotificationRetentionDays: integerRangeValidator(
+        RETENTION_DAYS_RANGE,
+        rangeMessage(RETENTION_DAYS_RANGE),
       ),
     },
     onSubmit: submitForm,
@@ -502,6 +510,33 @@ watch(selectedTemplate, (templateId) => {
           </template>
         </FormField>
       </div>
+    </Card>
+
+    <!-- Data retention -->
+    <Card class="flex flex-col gap-3">
+      <h2 class="text-card-heading">{{ t('settings.server.retention.title') }}</h2>
+      <FormField
+        :label="t('settings.server.retention.readNotifications')"
+        :hint="
+          envHint('read_notification_retention_days') ??
+          t('settings.server.retention.readNotificationsHint')
+        "
+        :error="errors.readNotificationRetentionDays"
+      >
+        <template #default="{ fieldId, describedBy, invalid }">
+          <Input
+            :id="fieldId"
+            v-model="values.readNotificationRetentionDays"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
+            type="text"
+            inputmode="numeric"
+            maxlength="4"
+            :disabled="isSubmitting || Boolean(envVar('read_notification_retention_days'))"
+            @blur="handleBlur('readNotificationRetentionDays')"
+          />
+        </template>
+      </FormField>
     </Card>
 
     <!-- Registration -->

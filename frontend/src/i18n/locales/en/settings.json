@@ -314,6 +314,11 @@
       "invalidRange": "Enter a whole number between {min} and {max}.",
       "absoluteBelowIdle": "Must not be shorter than the idle timeout."
     },
+    "retention": {
+      "title": "Data retention",
+      "readNotifications": "Delete read notifications after (days)",
+      "readNotificationsHint": "0 keeps read notifications forever. Unread notifications are never deleted."
+    },
     "signup": {
       "title": "Registration",
       "enabled": "Allow new user sign-ups",

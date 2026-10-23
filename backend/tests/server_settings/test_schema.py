@@ -328,6 +328,7 @@ class TestServerSettingsEdit:
             session_absolute_timeout_hours=24,
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
+            read_notification_retention_days=90,
         )
         values.update(overrides)
         return values
@@ -481,3 +482,21 @@ class TestSessionPolicyFields:
     def test_the_public_settings_do_not_carry_the_session_policy(self):
         public = server_settings_schema.ServerSettingsReadPublic.model_fields
         assert not {"access_token_expire_minutes", "session_idle_timeout_enabled"} & set(public)
+
+
+class TestRetentionField:
+    @pytest.mark.parametrize("value", [-1, 3651])
+    def test_out_of_range_values_are_rejected(self, value):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(
+                **TestServerSettingsEdit._values(read_notification_retention_days=value)
+            )
+
+    @pytest.mark.parametrize("value", [0, 3650])
+    def test_the_bounds_are_accepted(self, value):
+        server_settings_schema.ServerSettingsEdit(
+            **TestServerSettingsEdit._values(read_notification_retention_days=value)
+        )
+
+    def test_the_public_settings_do_not_carry_it(self):
+        assert "read_notification_retention_days" not in server_settings_schema.ServerSettingsReadPublic.model_fields

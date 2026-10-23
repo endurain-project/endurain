@@ -947,6 +947,8 @@ class TestSessionPolicySettings:
             ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
             ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
             ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
+            ("READ_NOTIFICATION_RETENTION_DAYS", -1),
+            ("READ_NOTIFICATION_RETENTION_DAYS", 3651),
             ("SESSION_IDLE_TIMEOUT_HOURS", 0),
             ("SESSION_IDLE_TIMEOUT_HOURS", 8761),
             ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 0),

@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import core.config as core_config
 import core.exceptions as core_exceptions
 import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
@@ -153,10 +152,17 @@ class TestCreateFollowNotifications:
 
 
 class TestPurgeReadNotifications:
-    def test_deletes_read_notifications_older_than_the_configured_days(self, mock_db):
+    @staticmethod
+    def _retention(days):
+        return patch(
+            "modules.notifications.service.server_settings_integration.get_read_notification_retention_days",
+            return_value=days,
+        )
+
+    def test_deletes_read_notifications_older_than_the_stored_days(self, mock_db):
         batch = notifications_constants.PURGE_BATCH_SIZE
         with (
-            patch("modules.notifications.service.core_config.settings.READ_NOTIFICATION_RETENTION_DAYS", 30),
+            self._retention(30) as retention,
             patch(
                 "modules.notifications.service.notifications_crud.delete_read_notifications_before",
                 side_effect=[batch, 4],
@@ -164,23 +170,18 @@ class TestPurgeReadNotifications:
         ):
             before = datetime.now(UTC)
             removed = notifications_service.purge_read_notifications(mock_db)
+        retention.assert_called_once_with(mock_db)
         assert removed == batch + 4
         assert delete.call_count == 2
         cutoff = delete.call_args.args[0]
         assert before - timedelta(days=30, seconds=5) < cutoff < before - timedelta(days=30) + timedelta(seconds=5)
         assert mock_db.commit.call_count == 2
 
-    @pytest.mark.parametrize("retention_days", [0, -1])
-    def test_disabled_retention_deletes_nothing(self, mock_db, retention_days):
+    def test_zero_disables_pruning(self, mock_db):
         with (
-            patch(
-                "modules.notifications.service.core_config.settings.READ_NOTIFICATION_RETENTION_DAYS", retention_days
-            ),
+            self._retention(0),
             patch("modules.notifications.service.notifications_crud.delete_read_notifications_before") as delete,
         ):
             assert notifications_service.purge_read_notifications(mock_db) == 0
         delete.assert_not_called()
         mock_db.commit.assert_not_called()
-
-    def test_default_retention_is_ninety_days(self):
-        assert core_config.Settings.model_fields["READ_NOTIFICATION_RETENTION_DAYS"].default == 90

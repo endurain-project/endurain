@@ -309,7 +309,21 @@ class ServerSettingsSessionPolicy(BaseModel):
         return self
 
 
-class ServerSettingsEdit(ServerSettingsBase, ServerSettingsGeocoding, ServerSettingsSessionPolicy):
+class ServerSettingsRetention(BaseModel):
+    """The data retention fields, kept off the public settings model.
+
+    Attributes:
+        read_notification_retention_days: Days after which read notifications are purged (0 disables pruning).
+    """
+
+    read_notification_retention_days: StrictInt = Field(
+        ..., ge=0, le=3650, description="Days after which read notifications are purged (0 - never)"
+    )
+
+
+class ServerSettingsEdit(
+    ServerSettingsBase, ServerSettingsGeocoding, ServerSettingsSessionPolicy, ServerSettingsRetention
+):
     """Request body for editing the server settings.
 
     A full replacement: every setting except the tile API key is required. The row
@@ -376,7 +390,9 @@ class ServerSettingsRead(ServerSettingsEdit):
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
 
 
-class ServerSettingsAdminRead(ServerSettingsBase, ServerSettingsGeocoding, ServerSettingsSessionPolicy):
+class ServerSettingsAdminRead(
+    ServerSettingsBase, ServerSettingsGeocoding, ServerSettingsSessionPolicy, ServerSettingsRetention
+):
     """Complete server settings response for admins; API keys are never returned.
 
     Attributes:

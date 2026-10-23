@@ -63,6 +63,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property sessionAbsoluteTimeoutHours - Hours after which a session ends whatever its activity.
  * @property accessTokenExpireMinutes - Access token lifetime in minutes.
  * @property refreshTokenExpireDays - Refresh token lifetime in days.
+ * @property readNotificationRetentionDays - Days after which read notifications are purged (0 keeps them forever).
  * @property geocodingApiKeySet - Whether a geocoding API key is stored (the key itself is never returned).
  * @property envManaged - Field name (snake_case) to the environment variable that sets it; those fields are read-only.
  */
@@ -97,6 +98,7 @@ export interface ServerSettings {
   sessionAbsoluteTimeoutHours: number
   accessTokenExpireMinutes: number
   refreshTokenExpireDays: number
+  readNotificationRetentionDays: number
   geocodingApiKeySet: boolean
   envManaged: Record<string, string>
 }
@@ -131,7 +133,7 @@ export interface TileMapsTemplate {
  * are write-only: `tileserverApiKey` / `geocodingApiKey` hold a newly typed key
  * (empty keeps the stored one) and `removeTileserverApiKey` /
  * `removeGeocodingApiKey` ask for the stored key to be removed. The geocoding host,
- * rate limit and the session policy numbers are strings because the text inputs bind
+ * rate limit and the session policy and retention numbers are strings because the text inputs bind
  * strings; they are converted on save.
  */
 export type ServerSettingsFormValues = Omit<
@@ -147,6 +149,7 @@ export type ServerSettingsFormValues = Omit<
   | 'sessionAbsoluteTimeoutHours'
   | 'accessTokenExpireMinutes'
   | 'refreshTokenExpireDays'
+  | 'readNotificationRetentionDays'
 > & {
   tileserverApiKey: string
   removeTileserverApiKey: boolean
@@ -158,6 +161,7 @@ export type ServerSettingsFormValues = Omit<
   sessionAbsoluteTimeoutHours: string
   accessTokenExpireMinutes: string
   refreshTokenExpireDays: string
+  readNotificationRetentionDays: string
 }
 
 /**

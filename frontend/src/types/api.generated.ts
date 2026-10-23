@@ -9536,6 +9536,11 @@ export interface components {
              */
             public_shareable_links_user_info: boolean;
             /**
+             * Read Notification Retention Days
+             * @description Days after which read notifications are purged (0 - never)
+             */
+            read_notification_retention_days: number;
+            /**
              * Refresh Token Expire Days
              * @description Refresh token lifetime in days
              */
@@ -9690,6 +9695,11 @@ export interface components {
              * @description Allow show user info on public shareable links (true - yes, false - no)
              */
             public_shareable_links_user_info: boolean;
+            /**
+             * Read Notification Retention Days
+             * @description Days after which read notifications are purged (0 - never)
+             */
+            read_notification_retention_days: number;
             /**
              * Refresh Token Expire Days
              * @description Refresh token lifetime in days

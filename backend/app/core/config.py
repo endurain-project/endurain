@@ -225,9 +225,10 @@ class Settings(BaseSettings):
 
     # --- Notifications ---
     # Age in days after which read notifications are purged by a scheduled
-    # cleanup (daily). Unread notifications are never purged. Set to 0 (or
-    # negative) to disable pruning and keep them forever.
-    READ_NOTIFICATION_RETENTION_DAYS: int = 90
+    # cleanup (daily). Unread notifications are never purged. Set to 0 to disable
+    # pruning and keep them forever.
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
+    READ_NOTIFICATION_RETENTION_DAYS: int = Field(90, ge=0, le=3650)
 
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.

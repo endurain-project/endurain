@@ -54,6 +54,7 @@ class TestReadServerSettings:
             session_absolute_timeout_hours=24,
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
+            read_notification_retention_days=90,
             geocoding_api_key_set=False,
             env_managed={},
         )
@@ -128,6 +129,7 @@ class TestEditServerSettings:
             session_absolute_timeout_hours=24,
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
+            read_notification_retention_days=90,
             geocoding_api_key_set=False,
             env_managed={},
         )
@@ -166,6 +168,7 @@ class TestEditServerSettings:
                 "session_absolute_timeout_hours": 24,
                 "access_token_expire_minutes": 15,
                 "refresh_token_expire_days": 7,
+                "read_notification_retention_days": 90,
             },
         )
 
@@ -218,6 +221,7 @@ class TestEditServerSettings:
                 "session_absolute_timeout_hours": 24,
                 "access_token_expire_minutes": 15,
                 "refresh_token_expire_days": 7,
+                "read_notification_retention_days": 90,
             },
         )
 
@@ -258,6 +262,7 @@ class TestEditRejectsReadOnlyFields:
             "session_absolute_timeout_hours": 24,
             "access_token_expire_minutes": 15,
             "refresh_token_expire_days": 7,
+            "read_notification_retention_days": 90,
             field: value,
         }
         response = fast_api_client.put("/server_settings", headers={"Authorization": "Bearer mock_token"}, json=body)

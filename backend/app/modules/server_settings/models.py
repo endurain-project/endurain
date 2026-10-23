@@ -48,6 +48,7 @@ class ServerSettings(Base):
         session_absolute_timeout_hours: Hours after which a session ends.
         access_token_expire_minutes: Access token lifetime in minutes.
         refresh_token_expire_days: Refresh token lifetime in days.
+        read_notification_retention_days: Days after which read notifications are purged (0 - never).
     """
 
     __tablename__ = "server_settings"
@@ -225,8 +226,18 @@ class ServerSettings(Base):
         comment="Refresh token lifetime in days",
     )
 
+    read_notification_retention_days: Mapped[int] = mapped_column(
+        default=90,
+        server_default=text("90"),
+        nullable=False,
+        comment="Days after which read notifications are purged (0 - never)",
+    )
+
     __table_args__ = (
         CheckConstraint("id = 1", name="single_row_check"),
+        CheckConstraint(
+            "read_notification_retention_days BETWEEN 0 AND 3650", name="read_notification_retention_days_check"
+        ),
         CheckConstraint("session_idle_timeout_hours BETWEEN 1 AND 8760", name="session_idle_timeout_hours_check"),
         CheckConstraint(
             "session_absolute_timeout_hours BETWEEN 1 AND 8760", name="session_absolute_timeout_hours_check"
