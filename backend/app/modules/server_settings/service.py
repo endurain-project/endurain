@@ -2,6 +2,7 @@
 
 import ipaddress
 import os
+from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
 
@@ -20,6 +21,7 @@ import core.mail as core_mail
 import core.network as core_network
 import core.route_map as core_route_map
 import modules.server_settings.constants as server_settings_constants
+import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.email_messages as server_settings_email_messages
 import modules.server_settings.event_publishers as server_settings_publishers
@@ -169,18 +171,22 @@ def server_settings_env_managed() -> dict[str, str]:
     """Return the settings fields an environment variable currently sets.
 
     Geocoding is imported as a block, so while any geocoding variable is set all of its
-    fields are env-managed, each named by its most specific variable.
+    fields are env-managed, each named by its most specific variable. The session policy
+    variables each manage only their own field.
 
     Returns:
         Field name to environment variable name.
     """
-    if not any(_env_var_is_set(name) for name in server_settings_constants.GEOCODING_ENV_VAR_NAMES):
-        return {}
-    photon = core_config.settings.REVERSE_GEO_PROVIDER == core_geocoding.GeocodingService.PHOTON
-    return {
-        field: server_settings_constants.GEOCODING_PHOTON_ENV_VARS.get(field, name) if photon else name
-        for field, name in server_settings_constants.GEOCODING_ENV_VARS.items()
+    managed = {
+        field: name for field, name in server_settings_constants.SESSION_ENV_VARS.items() if _env_var_is_set(name)
     }
+    if any(_env_var_is_set(name) for name in server_settings_constants.GEOCODING_ENV_VAR_NAMES):
+        photon = core_config.settings.REVERSE_GEO_PROVIDER == core_geocoding.GeocodingService.PHOTON
+        managed |= {
+            field: server_settings_constants.GEOCODING_PHOTON_ENV_VARS.get(field, name) if photon else name
+            for field, name in server_settings_constants.GEOCODING_ENV_VARS.items()
+        }
+    return managed
 
 
 def _to_admin_read(
@@ -222,6 +228,29 @@ def get_server_settings(db: Session, *, for_update: bool = False) -> server_sett
     if server_settings is None:
         raise core_exceptions.ServiceUnavailableError("Server settings are not initialised.")
     return server_settings
+
+
+def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
+    """Return how long tokens and sessions live.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The session policy. The timeouts are enforced together, so both are None while
+        they are disabled.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    settings = get_server_settings(db)
+    timeouts_enabled = settings.session_idle_timeout_enabled
+    return server_settings_contracts.SessionPolicy(
+        access_token_ttl=timedelta(minutes=settings.access_token_expire_minutes),
+        refresh_token_ttl=timedelta(days=settings.refresh_token_expire_days),
+        idle_timeout=timedelta(hours=settings.session_idle_timeout_hours) if timeouts_enabled else None,
+        absolute_timeout=timedelta(hours=settings.session_absolute_timeout_hours) if timeouts_enabled else None,
+    )
 
 
 def get_server_settings_for_public(db: Session) -> server_settings_schema.ServerSettingsReadPublic:
@@ -1048,6 +1077,54 @@ def _import_geocoding_env(db: Session) -> list[str]:
     return names
 
 
+def _import_session_env(db: Session) -> list[str]:
+    """Save the deprecated session and token policy variables into the server settings.
+
+    Each set variable is imported on its own, and only when it differs. Writes only the
+    fields that differ; the caller commits.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The names of the session policy variables that are set.
+
+    Raises:
+        ValueError: If the resulting absolute session timeout is shorter than the idle
+            timeout. This is a configuration error that stops the start rather than
+            silently weakening the policy.
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    names = [name for name in server_settings_constants.SESSION_ENV_VARS.values() if _env_var_is_set(name)]
+    if not names:
+        return []
+    settings = core_config.settings
+    current = get_server_settings(db, for_update=True)
+    targets = {
+        field: getattr(settings, name)
+        for field, name in server_settings_constants.SESSION_ENV_VARS.items()
+        if name in names
+    }
+    changes: dict[str, Any] = {field: value for field, value in targets.items() if getattr(current, field) != value}
+    idle = changes.get("session_idle_timeout_hours", current.session_idle_timeout_hours)
+    absolute = changes.get("session_absolute_timeout_hours", current.session_absolute_timeout_hours)
+    if absolute < idle:
+        raise ValueError(
+            "SESSION_ABSOLUTE_TIMEOUT_HOURS and SESSION_IDLE_TIMEOUT_HOURS are inconsistent: "
+            "the absolute timeout cannot be shorter than the idle timeout"
+        )
+    if changes:
+        # Only the differing fields are written; the values were validated by the settings model.
+        server_settings_crud.edit_server_settings(
+            server_settings_schema.ServerSettingsEdit.model_construct(**changes), db
+        )
+        logger.info(
+            "Session policy imported from the environment",
+            extra=core_logger.context(changed_fields=sorted(changes)),
+        )
+    return names
+
+
 def import_deprecated_env_settings(db: Session) -> None:
     """Save the deprecated environment variables into the database, once per start.
 
@@ -1061,7 +1138,7 @@ def import_deprecated_env_settings(db: Session) -> None:
     Raises:
         ServiceUnavailableError: If a settings row does not exist.
     """
-    deprecated_names = [*_import_mail_env(db), *_import_geocoding_env(db)]
+    deprecated_names = [*_import_mail_env(db), *_import_geocoding_env(db), *_import_session_env(db)]
     db.commit()
     if deprecated_names:
         logger.warning(

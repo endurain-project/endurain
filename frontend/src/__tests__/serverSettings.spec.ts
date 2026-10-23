@@ -56,6 +56,11 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     geocoding_host: null,
     geocoding_use_https: true,
     geocoding_rate_limit: 1,
+    session_idle_timeout_enabled: false,
+    session_idle_timeout_hours: 1,
+    session_absolute_timeout_hours: 24,
+    access_token_expire_minutes: 15,
+    refresh_token_expire_days: 7,
     geocoding_api_key_set: false,
     env_managed: {},
     ...overrides,
@@ -119,6 +124,11 @@ describe('mapServerSettings', () => {
       geocodingHost: null,
       geocodingUseHttps: true,
       geocodingRateLimit: 1,
+      sessionIdleTimeoutEnabled: false,
+      sessionIdleTimeoutHours: 1,
+      sessionAbsoluteTimeoutHours: 24,
+      accessTokenExpireMinutes: 15,
+      refreshTokenExpireDays: 7,
       geocodingApiKeySet: false,
       envManaged: {},
     })
@@ -191,6 +201,21 @@ describe('toServerSettingsWire', () => {
       'geocoding_api_key',
       'geo-key',
     )
+  })
+
+  it('sends the session policy fields', () => {
+    const wire = toServerSettingsWire(
+      mapServerSettings(
+        makeSettingsDto({ session_idle_timeout_enabled: true, access_token_expire_minutes: 30 }),
+      ),
+    )
+    expect(wire).toMatchObject({
+      session_idle_timeout_enabled: true,
+      session_idle_timeout_hours: 1,
+      session_absolute_timeout_hours: 24,
+      access_token_expire_minutes: 30,
+      refresh_token_expire_days: 7,
+    })
   })
 
   it('never sends the env-managed map or the key-stored flags', () => {

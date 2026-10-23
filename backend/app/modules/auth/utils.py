@@ -5,7 +5,7 @@ Provides credential verification, JWT/CSRF token creation, and the
 both password and PKCE login flows.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import (
@@ -22,13 +22,14 @@ import core.exceptions as core_exceptions
 import core.network as core_network
 import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth._internal.token_manager as auth_token_manager
-import modules.auth.constants as auth_constants
 import modules.auth.credentials.crud as auth_credentials_crud
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.utils as auth_sessions_utils
+import modules.server_settings.contracts as server_settings_contracts
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 
@@ -123,6 +124,7 @@ def authenticate_user(
 def create_tokens(
     user: users_schema.UsersRead,
     token_manager: auth_token_manager.TokenManager,
+    policy: server_settings_contracts.SessionPolicy,
     session_id: str | None = None,
 ) -> tuple[str, datetime, str, datetime, str, str]:
     """
@@ -131,6 +133,7 @@ def create_tokens(
     Args:
         user (users_schema.UsersRead): The user object for whom the tokens are being created.
         token_manager (auth_token_manager.TokenManager): The token manager responsible for token creation.
+        policy (server_settings_contracts.SessionPolicy): The token lifetimes to apply.
         session_id (str | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
 
     Returns:
@@ -148,10 +151,12 @@ def create_tokens(
         session_id = str(uuid4())
 
     # Create the access, refresh tokens and csrf token
-    access_token_exp, access_token = token_manager.create_token(session_id, user, auth_token_manager.TokenType.ACCESS)
+    access_token_exp, access_token = token_manager.create_token(
+        session_id, user, auth_token_manager.TokenType.ACCESS, policy.access_token_ttl
+    )
 
     refresh_token_exp, refresh_token = token_manager.create_token(
-        session_id, user, auth_token_manager.TokenType.REFRESH
+        session_id, user, auth_token_manager.TokenType.REFRESH, policy.refresh_token_ttl
     )
 
     csrf_token = token_manager.create_csrf_token()
@@ -170,6 +175,7 @@ def mint_access_token(
     user: users_schema.UsersRead,
     token_manager: auth_token_manager.TokenManager,
     session_id: str,
+    policy: server_settings_contracts.SessionPolicy,
 ) -> tuple[datetime, str]:
     """
     Mint a single fresh access token for an existing session.
@@ -182,11 +188,12 @@ def mint_access_token(
         user: The user the token is issued for.
         token_manager: Token manager responsible for token creation.
         session_id: Existing session identifier to bind the token to.
+        policy: The token lifetimes to apply.
 
     Returns:
         Tuple of (access_token_exp, access_token).
     """
-    return token_manager.create_token(session_id, user, auth_token_manager.TokenType.ACCESS)
+    return token_manager.create_token(session_id, user, auth_token_manager.TokenType.ACCESS, policy.access_token_ttl)
 
 
 def _is_secure_cookie_environment() -> bool:
@@ -206,6 +213,7 @@ def _is_secure_cookie_environment() -> bool:
 def set_refresh_token_cookie(
     response: Response,
     refresh_token: str,
+    expires_at: datetime,
 ) -> None:
     """Set the canonical refresh-token cookie with consistent attributes.
 
@@ -213,12 +221,17 @@ def set_refresh_token_cookie(
     SSO token exchange) must go through this helper so that
     ``HttpOnly``, ``SameSite=Strict``, ``Path``, expiry, and the
     ``Secure`` flag stay in lockstep.
+
+    Args:
+        response: Response object to receive the cookie.
+        refresh_token: The refresh token to store.
+        expires_at: When the refresh token expires; the cookie expires with it.
     """
     clear_refresh_token_cookies(response)
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE_NAME,
         value=refresh_token,
-        expires=datetime.now(UTC) + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        expires=expires_at,
         httponly=True,
         path=REFRESH_TOKEN_COOKIE_PATH,
         secure=_is_secure_cookie_environment(),
@@ -302,7 +315,7 @@ def build_token_response(
         # token in body for in-memory storage. Cookie attributes are
         # centralised in set_refresh_token_cookie so login, /refresh, and
         # SSO token exchange stay in lockstep.
-        set_refresh_token_cookie(response, refresh_token)
+        set_refresh_token_cookie(response, refresh_token, refresh_token_exp)
         body["csrf_token"] = csrf_token
     else:
         # Mobile: All tokens in JSON body for secure platform storage.
@@ -388,7 +401,7 @@ def complete_login(
         refresh_token_exp,
         refresh_token,
         csrf_token,
-    ) = create_tokens(user, token_manager)
+    ) = create_tokens(user, token_manager, server_settings_integration.get_session_policy(db))
 
     # Create the session and store it in the database
     # Note: csrf_token is NOT stored on initial login (csrf_token_hash = None).
@@ -402,6 +415,7 @@ def complete_login(
         refresh_token,
         password_hasher,
         db,
+        refresh_token_exp,
     )
 
     # Token delivery based on client type (web cookie vs mobile body) is
@@ -495,6 +509,7 @@ def create_mobile_pkce_session_response(
         None,  # No refresh token yet
         password_hasher,
         db,
+        datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
         oauth_state_id=state_id,
     )
 

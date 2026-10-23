@@ -1,4 +1,5 @@
 import contextlib
+from datetime import timedelta
 from importlib import import_module
 from unittest.mock import MagicMock
 
@@ -12,6 +13,7 @@ import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.token_manager as auth_token_manager
 import modules.auth.dependencies as auth_dependencies
+import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
 
 # Variables and constants
@@ -56,6 +58,17 @@ def password_hasher() -> auth_password_hasher.PasswordHasher:
         auth_password_hasher.PasswordHasher: An instance of the password hasher utility.
     """
     return auth_password_hasher.get_password_hasher()
+
+
+@pytest.fixture
+def session_policy() -> server_settings_contracts.SessionPolicy:
+    """The default session policy: 15-minute access tokens, 7-day refresh tokens, no timeouts."""
+    return server_settings_contracts.SessionPolicy(
+        access_token_ttl=timedelta(minutes=15),
+        refresh_token_ttl=timedelta(days=7),
+        idle_timeout=None,
+        absolute_timeout=None,
+    )
 
 
 @pytest.fixture

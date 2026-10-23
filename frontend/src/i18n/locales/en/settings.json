@@ -301,6 +301,19 @@
       "lengthRegular": "Minimum length regular users",
       "lengthAdmin": "Minimum length admin users"
     },
+    "session": {
+      "title": "Sessions",
+      "description": "Changes apply to new sign-ins and to the next token refresh. Tokens already issued keep their lifetime.",
+      "timeoutsEnabled": "Enforce session timeouts",
+      "idleHours": "Idle timeout (hours)",
+      "idleHoursHint": "A session ends after this many hours without activity.",
+      "absoluteHours": "Absolute timeout (hours)",
+      "absoluteHoursHint": "A session ends after this many hours, whatever its activity. Not shorter than the idle timeout.",
+      "accessMinutes": "Access token lifetime (minutes)",
+      "refreshDays": "Refresh token lifetime (days)",
+      "invalidRange": "Enter a whole number between {min} and {max}.",
+      "absoluteBelowIdle": "Must not be shorter than the idle timeout."
+    },
     "signup": {
       "title": "Registration",
       "enabled": "Allow new user sign-ups",

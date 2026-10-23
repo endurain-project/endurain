@@ -43,6 +43,11 @@ class ServerSettings(Base):
         geocoding_use_https: Address the geocoding host over HTTPS.
         geocoding_rate_limit: Geocoding requests per second.
         geocoding_api_key: API key for the geocoding service (encrypted).
+        session_idle_timeout_enabled: Enforce session idle and absolute timeouts.
+        session_idle_timeout_hours: Hours of inactivity that end a session.
+        session_absolute_timeout_hours: Hours after which a session ends.
+        access_token_expire_minutes: Access token lifetime in minutes.
+        refresh_token_expire_days: Refresh token lifetime in days.
     """
 
     __tablename__ = "server_settings"
@@ -189,8 +194,45 @@ class ServerSettings(Base):
         comment="API key encrypted for the geocoding service",
     )
 
+    session_idle_timeout_enabled: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        comment="Enforce session idle and absolute timeouts (true - yes, false - no)",
+    )
+    session_idle_timeout_hours: Mapped[int] = mapped_column(
+        default=1,
+        server_default=text("1"),
+        nullable=False,
+        comment="Hours of inactivity after which a session ends",
+    )
+    session_absolute_timeout_hours: Mapped[int] = mapped_column(
+        default=24,
+        server_default=text("24"),
+        nullable=False,
+        comment="Hours after which a session ends whatever its activity",
+    )
+    access_token_expire_minutes: Mapped[int] = mapped_column(
+        default=15,
+        server_default=text("15"),
+        nullable=False,
+        comment="Access token lifetime in minutes",
+    )
+    refresh_token_expire_days: Mapped[int] = mapped_column(
+        default=7,
+        server_default=text("7"),
+        nullable=False,
+        comment="Refresh token lifetime in days",
+    )
+
     __table_args__ = (
         CheckConstraint("id = 1", name="single_row_check"),
+        CheckConstraint("session_idle_timeout_hours BETWEEN 1 AND 8760", name="session_idle_timeout_hours_check"),
+        CheckConstraint(
+            "session_absolute_timeout_hours BETWEEN 1 AND 8760", name="session_absolute_timeout_hours_check"
+        ),
+        CheckConstraint("access_token_expire_minutes BETWEEN 1 AND 1440", name="access_token_expire_minutes_check"),
+        CheckConstraint("refresh_token_expire_days BETWEEN 1 AND 365", name="refresh_token_expire_days_check"),
         CheckConstraint("geocoding_service IN ('nominatim', 'photon', 'geocode')", name="geocoding_service_check"),
     )
 

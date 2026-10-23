@@ -42,11 +42,11 @@ Variables marked as deprecated have moved to the admin settings. On every start,
 | SECRET_KEY | No default set | `No` | Run `openssl rand -hex 32` on a terminal or use the [Secret Generators](../tools.md#secret-generators) tool. Example output is `69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3`. Alternatively, use `SECRET_KEY_FILE` for Docker secrets |
 | FERNET_KEY | No default set | `No` | Run `openssl rand -base64 32` on a terminal or use the base64 tool in the [Secret Generators](../tools.md#secret-generators). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=`. Alternatively, use `FERNET_KEY_FILE` for Docker secrets |
 | ALGORITHM | HS256 | Yes | Currently only HS256 is supported |
-| ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes |
-| REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days |
-| SESSION_IDLE_TIMEOUT_ENABLED | false | Yes | Enforce idle timeouts (supported values are `true` and `false`) |
-| SESSION_IDLE_TIMEOUT_HOURS | 1 | Yes | Time in hours |
-| SESSION_ABSOLUTE_TIMEOUT_HOURS | 24 | Yes | Time in hours |
+| ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in minutes |
+| REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in days |
+| SESSION_IDLE_TIMEOUT_ENABLED | false | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Enforce idle timeouts (supported values are `true` and `false`) |
+| SESSION_IDLE_TIMEOUT_HOURS | 1 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in hours |
+| SESSION_ABSOLUTE_TIMEOUT_HOURS | 24 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in hours |
 | BEHIND_PROXY | false | Yes | Change to true if behind reverse proxy |
 | ENVIRONMENT | production | Yes | `production`, `demo` and `development` allowed. `development` allows connections from localhost:8080 and localhost:5173 at the CORS level. `demo` equals to `production` except it does not return user sessions. **`production` and `demo` set the `Secure` flag on all authentication cookies (refresh token and OAuth/SSO session), so Endurain must be served over HTTPS (directly or via a reverse proxy terminating TLS) for login, session refresh, and SSO to work** |
 | SMTP_HOST | No default set | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. The SMTP host of your email provider. Example `smtp.protonmail.ch`. If the SMTP settings are invalid, email is disabled and a warning naming the setting is logged at startup. Failed emails are only retried when `JOBS_ENABLED=true` |
@@ -143,7 +143,9 @@ Frontend dependencies:
 By default, Endurain sessions last 7 days without enforcing idle timeouts.
 For enhanced security, you can enable automatic session expiration:
 
-**Environment Variables:**
+These settings are edited in Settings > Server > Sessions. The environment variables below are deprecated: they are imported into the settings on startup and removed in v0.22.
+
+**Environment Variables (deprecated):**
 
 - `SESSION_IDLE_TIMEOUT_ENABLED`: Enable timeout enforcement (default: `false`)
 - `SESSION_IDLE_TIMEOUT_HOURS`: Logout after inactivity (default: `1`)

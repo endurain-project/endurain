@@ -140,6 +140,21 @@ def get_geocoding_config(db: Session) -> core_geocoding.GeocodingConfig | None:
     return server_settings_service.get_geocoding_config(db)
 
 
+def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
+    """Return how long tokens and sessions live.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The session policy; both timeouts are None while timeouts are disabled.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    return server_settings_service.get_session_policy(db)
+
+
 def import_deprecated_env_settings(db: Session) -> None:
     """Save the deprecated environment variables into the database and warn about them.
 

@@ -11,6 +11,7 @@ from pydantic import (
     StrictInt,
     StrictStr,
     field_validator,
+    model_validator,
 )
 
 import core.geocoding as core_geocoding
@@ -270,7 +271,45 @@ class ServerSettingsGeocoding(BaseModel):
         return value
 
 
-class ServerSettingsEdit(ServerSettingsBase, ServerSettingsGeocoding):
+class ServerSettingsSessionPolicy(BaseModel):
+    """The session and token policy fields, kept off the public settings model.
+
+    Attributes:
+        session_idle_timeout_enabled: Enforce the idle and absolute session timeouts.
+        session_idle_timeout_hours: Hours of inactivity that end a session (1-8760).
+        session_absolute_timeout_hours: Hours after which a session ends (1-8760, not below the idle timeout).
+        access_token_expire_minutes: Access token lifetime in minutes (1-1440).
+        refresh_token_expire_days: Refresh token lifetime in days (1-365).
+    """
+
+    session_idle_timeout_enabled: StrictBool = Field(
+        ..., description="Enforce session idle and absolute timeouts (true - yes, false - no)"
+    )
+    session_idle_timeout_hours: StrictInt = Field(
+        ..., ge=1, le=8760, description="Hours of inactivity after which a session ends"
+    )
+    session_absolute_timeout_hours: StrictInt = Field(
+        ..., ge=1, le=8760, description="Hours after which a session ends whatever its activity"
+    )
+    access_token_expire_minutes: StrictInt = Field(..., ge=1, le=1440, description="Access token lifetime in minutes")
+    refresh_token_expire_days: StrictInt = Field(..., ge=1, le=365, description="Refresh token lifetime in days")
+
+    @model_validator(mode="after")
+    def validate_absolute_timeout(self) -> "ServerSettingsSessionPolicy":
+        """Refuse an absolute timeout shorter than the idle timeout.
+
+        Returns:
+            The validated model.
+
+        Raises:
+            ValueError: If the absolute timeout is below the idle timeout.
+        """
+        if self.session_absolute_timeout_hours < self.session_idle_timeout_hours:
+            raise ValueError("The absolute session timeout cannot be shorter than the idle timeout")
+        return self
+
+
+class ServerSettingsEdit(ServerSettingsBase, ServerSettingsGeocoding, ServerSettingsSessionPolicy):
     """Request body for editing the server settings.
 
     A full replacement: every setting except the tile API key is required. The row
@@ -337,7 +376,7 @@ class ServerSettingsRead(ServerSettingsEdit):
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
 
 
-class ServerSettingsAdminRead(ServerSettingsBase, ServerSettingsGeocoding):
+class ServerSettingsAdminRead(ServerSettingsBase, ServerSettingsGeocoding, ServerSettingsSessionPolicy):
     """Complete server settings response for admins; API keys are never returned.
 
     Attributes:

@@ -7,8 +7,10 @@ from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
+from pydantic import ValidationError
 
 import core.config as core_config
+from core.config import Settings
 
 
 class TestLookLikeIp:
@@ -924,3 +926,40 @@ class TestBulkImportDirectoriesArePerUser:
             assert core_config.bulk_import_dir_for("7") == "/data/bulk_import/7"
             with pytest.raises(ValueError):
                 core_config.bulk_import_dir_for("../2")
+
+
+class TestSessionPolicySettings:
+    """The deprecated session and token variables keep the bounds the database enforces."""
+
+    def test_defaults_are_the_documented_ones(self):
+        s = Settings(_env_file=None)
+        assert (s.ACCESS_TOKEN_EXPIRE_MINUTES, s.REFRESH_TOKEN_EXPIRE_DAYS) == (15, 7)
+        assert (s.SESSION_IDLE_TIMEOUT_ENABLED, s.SESSION_IDLE_TIMEOUT_HOURS, s.SESSION_ABSOLUTE_TIMEOUT_HOURS) == (
+            False,
+            1,
+            24,
+        )
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 0),
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 0),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 8761),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 0),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 8761),
+        ],
+    )
+    def test_out_of_range_values_fail_settings_construction(self, name, value):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, **{name: value})
+
+    def test_values_are_read_from_the_environment(self):
+        with patch.dict(os.environ, {"ACCESS_TOKEN_EXPIRE_MINUTES": "30", "SESSION_IDLE_TIMEOUT_ENABLED": "true"}):
+            s = Settings(_env_file=None)
+        assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
+        assert s.SESSION_IDLE_TIMEOUT_ENABLED is True
+        assert {"ACCESS_TOKEN_EXPIRE_MINUTES", "SESSION_IDLE_TIMEOUT_ENABLED"} <= s.model_fields_set

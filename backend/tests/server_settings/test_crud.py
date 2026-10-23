@@ -41,6 +41,11 @@ def _settings_row(**overrides):
         geocoding_host=None,
         geocoding_use_https=True,
         geocoding_rate_limit=1.0,
+        session_idle_timeout_enabled=False,
+        session_idle_timeout_hours=1,
+        session_absolute_timeout_hours=24,
+        access_token_expire_minutes=15,
+        refresh_token_expire_days=7,
         tileserver_api_key=None,
         geocoding_api_key=None,
     )
@@ -83,6 +88,11 @@ def _edit(**overrides):
         geocoding_host=None,
         geocoding_use_https=True,
         geocoding_rate_limit=1.0,
+        session_idle_timeout_enabled=False,
+        session_idle_timeout_hours=1,
+        session_absolute_timeout_hours=24,
+        access_token_expire_minutes=15,
+        refresh_token_expire_days=7,
     )
     values.update(overrides)
     return server_settings_schema.ServerSettingsEdit(**values)

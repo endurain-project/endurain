@@ -49,6 +49,11 @@ const GEOCODING_DEFAULT_HOSTS: Record<string, string> = {
 }
 /** Highest accepted geocoding rate limit (requests per second). */
 const MAX_GEOCODING_RATE_LIMIT = 100
+/** Accepted ranges of the session policy numbers (mirrors the backend bounds). */
+const IDLE_HOURS_RANGE = { min: 1, max: 8760 } as const
+const ABSOLUTE_HOURS_RANGE = { min: 1, max: 8760 } as const
+const ACCESS_MINUTES_RANGE = { min: 1, max: 1440 } as const
+const REFRESH_DAYS_RANGE = { min: 1, max: 365 } as const
 /** Placeholders every valid tile URL template must contain. */
 const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
 
@@ -89,6 +94,33 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     geocodingRateLimit: String(settings.geocodingRateLimit),
     geocodingApiKey: '',
     removeGeocodingApiKey: false,
+    sessionIdleTimeoutEnabled: settings.sessionIdleTimeoutEnabled,
+    sessionIdleTimeoutHours: String(settings.sessionIdleTimeoutHours),
+    sessionAbsoluteTimeoutHours: String(settings.sessionAbsoluteTimeoutHours),
+    accessTokenExpireMinutes: String(settings.accessTokenExpireMinutes),
+    refreshTokenExpireDays: String(settings.refreshTokenExpireDays),
+  }
+}
+
+/**
+ * Validates a whole number within an inclusive range.
+ *
+ * @param range - The inclusive bounds.
+ * @param message - Error when the value is not a whole number in range.
+ * @returns A validator for the numeric field.
+ */
+function integerRangeValidator(
+  range: { readonly min: number; readonly max: number },
+  message: string,
+): Validator<string> {
+  return (value) => {
+    const number = Number(value.trim())
+    return value.trim() !== '' &&
+      Number.isInteger(number) &&
+      number >= range.min &&
+      number <= range.max
+      ? null
+      : message
   }
 }
 
@@ -181,6 +213,10 @@ async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
     removeGeocodingApiKey,
     geocodingHost,
     geocodingRateLimit,
+    sessionIdleTimeoutHours,
+    sessionAbsoluteTimeoutHours,
+    accessTokenExpireMinutes,
+    refreshTokenExpireDays,
     ...editable
   } = formValues
   // undefined keeps the stored key, null removes it, a string replaces it.
@@ -192,6 +228,10 @@ async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
       ...editable,
       geocodingHost: geocodingHost.trim() || null,
       geocodingRateLimit: Number(geocodingRateLimit.trim()),
+      sessionIdleTimeoutHours: Number(sessionIdleTimeoutHours.trim()),
+      sessionAbsoluteTimeoutHours: Number(sessionAbsoluteTimeoutHours.trim()),
+      accessTokenExpireMinutes: Number(accessTokenExpireMinutes.trim()),
+      refreshTokenExpireDays: Number(refreshTokenExpireDays.trim()),
       tileserverApiKey: apiKey,
       geocodingApiKey: geocodingKey,
     })
@@ -199,6 +239,16 @@ async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
   } catch {
     toasts.error(t('settings.server.saveError'))
   }
+}
+
+/**
+ * The out-of-range message for a numeric session setting.
+ *
+ * @param range - The inclusive bounds.
+ * @returns The translated message.
+ */
+function rangeMessage(range: { readonly min: number; readonly max: number }): string {
+  return t('settings.server.session.invalidRange', range)
 }
 
 const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur } =
@@ -210,6 +260,23 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur } =
         t('settings.server.maps.urlInvalid'),
       ),
       geocodingRateLimit: rateLimitValidator(t('settings.server.geocoding.rateLimitInvalid')),
+      sessionIdleTimeoutHours: integerRangeValidator(
+        IDLE_HOURS_RANGE,
+        rangeMessage(IDLE_HOURS_RANGE),
+      ),
+      sessionAbsoluteTimeoutHours: (value: string): string | null =>
+        integerRangeValidator(ABSOLUTE_HOURS_RANGE, rangeMessage(ABSOLUTE_HOURS_RANGE))(value) ??
+        (Number(value.trim()) < Number(values.sessionIdleTimeoutHours.trim())
+          ? t('settings.server.session.absoluteBelowIdle')
+          : null),
+      accessTokenExpireMinutes: integerRangeValidator(
+        ACCESS_MINUTES_RANGE,
+        rangeMessage(ACCESS_MINUTES_RANGE),
+      ),
+      refreshTokenExpireDays: integerRangeValidator(
+        REFRESH_DAYS_RANGE,
+        rangeMessage(REFRESH_DAYS_RANGE),
+      ),
     },
     onSubmit: submitForm,
   })
@@ -321,6 +388,117 @@ watch(selectedTemplate, (templateId) => {
                 {{ length }}
               </option>
             </Select>
+          </template>
+        </FormField>
+      </div>
+    </Card>
+
+    <!-- Sessions -->
+    <Card class="flex flex-col gap-3">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-card-heading">{{ t('settings.server.session.title') }}</h2>
+        <p class="text-body">{{ t('settings.server.session.description') }}</p>
+      </div>
+
+      <Switch
+        v-model="values.sessionIdleTimeoutEnabled"
+        :disabled="isSubmitting || Boolean(envVar('session_idle_timeout_enabled'))"
+      >
+        {{ t('settings.server.session.timeoutsEnabled') }}
+      </Switch>
+      <EnvManagedHint :name="envVar('session_idle_timeout_enabled')" />
+
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FormField
+          :label="t('settings.server.session.idleHours')"
+          :hint="
+            envHint('session_idle_timeout_hours') ?? t('settings.server.session.idleHoursHint')
+          "
+          :error="errors.sessionIdleTimeoutHours"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
+            <Input
+              :id="fieldId"
+              v-model="values.sessionIdleTimeoutHours"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
+              type="text"
+              inputmode="numeric"
+              maxlength="4"
+              :disabled="
+                isSubmitting ||
+                !values.sessionIdleTimeoutEnabled ||
+                Boolean(envVar('session_idle_timeout_hours'))
+              "
+              @blur="handleBlur('sessionIdleTimeoutHours')"
+            />
+          </template>
+        </FormField>
+
+        <FormField
+          :label="t('settings.server.session.absoluteHours')"
+          :hint="
+            envHint('session_absolute_timeout_hours') ??
+            t('settings.server.session.absoluteHoursHint')
+          "
+          :error="errors.sessionAbsoluteTimeoutHours"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
+            <Input
+              :id="fieldId"
+              v-model="values.sessionAbsoluteTimeoutHours"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
+              type="text"
+              inputmode="numeric"
+              maxlength="4"
+              :disabled="
+                isSubmitting ||
+                !values.sessionIdleTimeoutEnabled ||
+                Boolean(envVar('session_absolute_timeout_hours'))
+              "
+              @blur="handleBlur('sessionAbsoluteTimeoutHours')"
+            />
+          </template>
+        </FormField>
+
+        <FormField
+          :label="t('settings.server.session.accessMinutes')"
+          :hint="envHint('access_token_expire_minutes')"
+          :error="errors.accessTokenExpireMinutes"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
+            <Input
+              :id="fieldId"
+              v-model="values.accessTokenExpireMinutes"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
+              type="text"
+              inputmode="numeric"
+              maxlength="4"
+              :disabled="isSubmitting || Boolean(envVar('access_token_expire_minutes'))"
+              @blur="handleBlur('accessTokenExpireMinutes')"
+            />
+          </template>
+        </FormField>
+
+        <FormField
+          :label="t('settings.server.session.refreshDays')"
+          :hint="envHint('refresh_token_expire_days')"
+          :error="errors.refreshTokenExpireDays"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
+            <Input
+              :id="fieldId"
+              v-model="values.refreshTokenExpireDays"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
+              type="text"
+              inputmode="numeric"
+              maxlength="3"
+              :disabled="isSubmitting || Boolean(envVar('refresh_token_expire_days'))"
+              @blur="handleBlur('refreshTokenExpireDays')"
+            />
           </template>
         </FormField>
       </div>

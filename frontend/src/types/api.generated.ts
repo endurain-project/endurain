@@ -9452,6 +9452,11 @@ export interface components {
          *         signup_require_email_verification: Require email verification for new sign-ups.
          */
         ServerSettingsAdminRead: {
+            /**
+             * Access Token Expire Minutes
+             * @description Access token lifetime in minutes
+             */
+            access_token_expire_minutes: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
@@ -9531,6 +9536,26 @@ export interface components {
              */
             public_shareable_links_user_info: boolean;
             /**
+             * Refresh Token Expire Days
+             * @description Refresh token lifetime in days
+             */
+            refresh_token_expire_days: number;
+            /**
+             * Session Absolute Timeout Hours
+             * @description Hours after which a session ends whatever its activity
+             */
+            session_absolute_timeout_hours: number;
+            /**
+             * Session Idle Timeout Enabled
+             * @description Enforce session idle and absolute timeouts (true - yes, false - no)
+             */
+            session_idle_timeout_enabled: boolean;
+            /**
+             * Session Idle Timeout Hours
+             * @description Hours of inactivity after which a session ends
+             */
+            session_idle_timeout_hours: number;
+            /**
              * Signup Enabled
              * @description Allow user sign-up registration (true - yes, false - no)
              */
@@ -9599,6 +9624,11 @@ export interface components {
          *             write-only semantics as ``tileserver_api_key``.
          */
         ServerSettingsEdit: {
+            /**
+             * Access Token Expire Minutes
+             * @description Access token lifetime in minutes
+             */
+            access_token_expire_minutes: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
@@ -9660,6 +9690,26 @@ export interface components {
              * @description Allow show user info on public shareable links (true - yes, false - no)
              */
             public_shareable_links_user_info: boolean;
+            /**
+             * Refresh Token Expire Days
+             * @description Refresh token lifetime in days
+             */
+            refresh_token_expire_days: number;
+            /**
+             * Session Absolute Timeout Hours
+             * @description Hours after which a session ends whatever its activity
+             */
+            session_absolute_timeout_hours: number;
+            /**
+             * Session Idle Timeout Enabled
+             * @description Enforce session idle and absolute timeouts (true - yes, false - no)
+             */
+            session_idle_timeout_enabled: boolean;
+            /**
+             * Session Idle Timeout Hours
+             * @description Hours of inactivity after which a session ends
+             */
+            session_idle_timeout_hours: number;
             /**
              * Signup Enabled
              * @description Allow user sign-up registration (true - yes, false - no)

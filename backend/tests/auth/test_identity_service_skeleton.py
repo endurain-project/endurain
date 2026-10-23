@@ -539,6 +539,7 @@ class TestIssueTokenPair:
     def test_delegates_to_create_tokens(
         self,
         service: DefaultIdentityService,
+        session_policy,
     ):
         """Delegates to auth_utils.create_tokens with correct args."""
         mock_user = MagicMock()
@@ -555,14 +556,15 @@ class TestIssueTokenPair:
             "modules.auth.identity_service.auth_utils.create_tokens",
             return_value=expected,
         ) as mock_create:
-            result = service.issue_token_pair(mock_user, session_id="sid-1")
+            result = service.issue_token_pair(mock_user, session_policy, session_id="sid-1")
 
-        mock_create.assert_called_once_with(mock_user, service._token_manager, "sid-1")
+        mock_create.assert_called_once_with(mock_user, service._token_manager, session_policy, "sid-1")
         assert result == expected
 
     def test_delegates_without_session_id_passes_none(
         self,
         service: DefaultIdentityService,
+        session_policy,
     ):
         """Passes None as session_id when the argument is omitted."""
         mock_user = MagicMock()
@@ -579,9 +581,9 @@ class TestIssueTokenPair:
             "modules.auth.identity_service.auth_utils.create_tokens",
             return_value=expected,
         ) as mock_create:
-            result = service.issue_token_pair(mock_user)
+            result = service.issue_token_pair(mock_user, session_policy)
 
-        mock_create.assert_called_once_with(mock_user, service._token_manager, None)
+        mock_create.assert_called_once_with(mock_user, service._token_manager, session_policy, None)
         assert result == expected
 
 

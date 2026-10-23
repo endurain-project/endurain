@@ -12,16 +12,16 @@ The following environment variables control authentication behavior:
 | -------- | ----------- | ------- | -------- |
 | `SECRET_KEY` | Secret key for JWT signing (min 32 characters recommended) | - | Yes |
 | `ALGORITHM` | JWT signing algorithm | `HS256` | No |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime in minutes | `15` | No |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime in days | `7` | No |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Access token lifetime in minutes | `15` | No |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Refresh token lifetime in days | `7` | No |
 
 #### Session Configuration
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
-| `SESSION_IDLE_TIMEOUT_ENABLED` | Enable session idle timeout | `false` | No |
-| `SESSION_IDLE_TIMEOUT_HOURS` | Hours of inactivity before session expires | `1` | No |
-| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Maximum session lifetime in hours | `24` | No |
+| `SESSION_IDLE_TIMEOUT_ENABLED` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Enable session idle timeout | `false` | No |
+| `SESSION_IDLE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Hours of inactivity before session expires | `1` | No |
+| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Maximum session lifetime in hours | `24` | No |
 
 #### Security Configuration
 

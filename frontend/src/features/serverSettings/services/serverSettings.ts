@@ -49,6 +49,11 @@ export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
     geocodingHost: dto.geocoding_host,
     geocodingUseHttps: dto.geocoding_use_https,
     geocodingRateLimit: dto.geocoding_rate_limit,
+    sessionIdleTimeoutEnabled: dto.session_idle_timeout_enabled,
+    sessionIdleTimeoutHours: dto.session_idle_timeout_hours,
+    sessionAbsoluteTimeoutHours: dto.session_absolute_timeout_hours,
+    accessTokenExpireMinutes: dto.access_token_expire_minutes,
+    refreshTokenExpireDays: dto.refresh_token_expire_days,
     geocodingApiKeySet: dto.geocoding_api_key_set,
     envManaged: dto.env_managed,
   }
@@ -107,6 +112,11 @@ export function toServerSettingsWire(settings: ServerSettingsUpdate): ServerSett
     geocoding_host: settings.geocodingHost,
     geocoding_use_https: settings.geocodingUseHttps,
     geocoding_rate_limit: settings.geocodingRateLimit,
+    session_idle_timeout_enabled: settings.sessionIdleTimeoutEnabled,
+    session_idle_timeout_hours: settings.sessionIdleTimeoutHours,
+    session_absolute_timeout_hours: settings.sessionAbsoluteTimeoutHours,
+    access_token_expire_minutes: settings.accessTokenExpireMinutes,
+    refresh_token_expire_days: settings.refreshTokenExpireDays,
     // Omitted keeps the stored key; the backend never returns it, so it cannot round-trip.
     ...(settings.tileserverApiKey !== undefined && {
       tileserver_api_key: settings.tileserverApiKey,

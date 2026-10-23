@@ -24,7 +24,7 @@ from typing import Annotated, Self
 import jasil.capabilities as platform_capabilities
 import jasil.profile as platform_profile
 from cryptography.fernet import Fernet
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 import core.logger as core_logger
@@ -235,6 +235,15 @@ class Settings(BaseSettings):
     # access logs, proxy histories, and browser history.
     # Enable only if you have integrations that cannot set custom headers.
     ALLOW_API_KEY_QUERY_PARAM: bool = False
+
+    # --- Session and token policy ---
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
+    # The bounds are the ones the database schema enforces, so whatever is accepted here is storable.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(15, ge=1, le=1440)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(7, ge=1, le=365)
+    SESSION_IDLE_TIMEOUT_ENABLED: bool = False
+    SESSION_IDLE_TIMEOUT_HOURS: int = Field(1, ge=1, le=8760)
+    SESSION_ABSOLUTE_TIMEOUT_HOURS: int = Field(24, ge=1, le=8760)
 
     # --- Reverse-geocoding providers ---
     # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.

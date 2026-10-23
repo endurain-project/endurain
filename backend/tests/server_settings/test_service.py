@@ -5,6 +5,7 @@ what deserializes settings on every *read*, so a validator there would put a DNS
 lookup on the read path of the whole app.
 """
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
@@ -47,6 +48,11 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         geocoding_host=None,
         geocoding_use_https=True,
         geocoding_rate_limit=1.0,
+        session_idle_timeout_enabled=False,
+        session_idle_timeout_hours=1,
+        session_absolute_timeout_hours=24,
+        access_token_expire_minutes=15,
+        refresh_token_expire_days=7,
         geocoding_api_key=None,
     )
     values.update(overrides)
@@ -479,6 +485,140 @@ class TestImportDeprecatedNamesBothBlocks:
 
         warn.assert_called_once()
         assert "SMTP_HOST, REVERSE_GEO_PROVIDER" in warn.call_args.args[0]
+
+
+class TestGetSessionPolicy:
+    def test_timeouts_enabled(self, edit_env):
+        stored = edit_env.stored.model_copy(
+            update={
+                "session_idle_timeout_enabled": True,
+                "session_idle_timeout_hours": 2,
+                "session_absolute_timeout_hours": 48,
+                "access_token_expire_minutes": 30,
+                "refresh_token_expire_days": 14,
+            }
+        )
+        with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=stored):
+            policy = server_settings_service.get_session_policy(MagicMock())
+
+        assert policy.access_token_ttl == timedelta(minutes=30)
+        assert policy.refresh_token_ttl == timedelta(days=14)
+        assert policy.idle_timeout == timedelta(hours=2)
+        assert policy.absolute_timeout == timedelta(hours=48)
+
+    def test_disabled_timeouts_are_none_but_lifetimes_stay(self, edit_env):
+        policy = server_settings_service.get_session_policy(MagicMock())
+
+        assert policy.idle_timeout is None
+        assert policy.absolute_timeout is None
+        assert policy.access_token_ttl == timedelta(minutes=15)
+        assert policy.refresh_token_ttl == timedelta(days=7)
+
+    def test_a_missing_row_raises(self):
+        with (
+            patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=None),
+            pytest.raises(core_exceptions.ServiceUnavailableError),
+        ):
+            server_settings_service.get_session_policy(MagicMock())
+
+
+class TestSessionEnvManaged:
+    def test_each_variable_manages_only_its_own_field(self):
+        with patch.object(
+            server_settings_service, "_env_var_is_set", side_effect=lambda n: n == "REFRESH_TOKEN_EXPIRE_DAYS"
+        ):
+            assert server_settings_service.server_settings_env_managed() == {
+                "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS"
+            }
+
+    def test_a_change_to_a_managed_session_field_is_refused(self, edit_env):
+        with (
+            patch.object(
+                server_settings_service,
+                "server_settings_env_managed",
+                return_value={"access_token_expire_minutes": "ACCESS_TOKEN_EXPIRE_MINUTES"},
+            ),
+            pytest.raises(core_exceptions.InvalidInputError) as exc_info,
+        ):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, access_token_expire_minutes=30), MagicMock()
+            )
+
+        assert "ACCESS_TOKEN_EXPIRE_MINUTES" in exc_info.value.detail
+        edit_env.write.assert_not_called()
+
+
+def _session_env_settings(**overrides):
+    values = dict(
+        ACCESS_TOKEN_EXPIRE_MINUTES=15,
+        REFRESH_TOKEN_EXPIRE_DAYS=7,
+        SESSION_IDLE_TIMEOUT_ENABLED=False,
+        SESSION_IDLE_TIMEOUT_HOURS=1,
+        SESSION_ABSOLUTE_TIMEOUT_HOURS=24,
+    )
+    values.update(overrides)
+    return MagicMock(**values)
+
+
+@pytest.fixture
+def import_session(edit_env):
+    state = MagicMock(set_vars=set(), settings=_session_env_settings(), stored=edit_env.stored, write=edit_env.write)
+    with (
+        patch.object(server_settings_service, "_env_var_is_set", side_effect=lambda n: n in state.set_vars),
+        patch.object(server_settings_service.core_config, "settings", state.settings),
+        patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=state.stored),
+    ):
+        yield state
+
+
+class TestImportSessionEnv:
+    def test_nothing_happens_without_a_session_variable(self, import_session):
+        assert server_settings_service._import_session_env(MagicMock()) == []
+        import_session.write.assert_not_called()
+
+    def test_values_equal_to_the_stored_ones_write_nothing(self, import_session):
+        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
+
+        assert server_settings_service._import_session_env(MagicMock()) == ["ACCESS_TOKEN_EXPIRE_MINUTES"]
+        import_session.write.assert_not_called()
+
+    def test_only_the_set_variables_are_imported_and_only_when_different(self, import_session):
+        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES", "REFRESH_TOKEN_EXPIRE_DAYS"}
+        import_session.settings.ACCESS_TOKEN_EXPIRE_MINUTES = 60
+        # Not set in the environment, so it must not be touched even though it differs from the stored value.
+        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 5
+
+        server_settings_service._import_session_env(MagicMock())
+
+        written = import_session.write.call_args.args[0].model_dump(exclude_unset=True)
+        assert written == {"access_token_expire_minutes": 60}
+
+    def test_the_enabled_flag_is_imported(self, import_session):
+        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_ENABLED"}
+        import_session.settings.SESSION_IDLE_TIMEOUT_ENABLED = True
+
+        server_settings_service._import_session_env(MagicMock())
+
+        assert import_session.write.call_args.args[0].model_dump(exclude_unset=True) == {
+            "session_idle_timeout_enabled": True
+        }
+
+    def test_an_absolute_timeout_below_the_idle_timeout_stops_the_start(self, import_session):
+        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_HOURS", "SESSION_ABSOLUTE_TIMEOUT_HOURS"}
+        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 48
+        import_session.settings.SESSION_ABSOLUTE_TIMEOUT_HOURS = 24
+
+        with pytest.raises(ValueError, match="SESSION_ABSOLUTE_TIMEOUT_HOURS"):
+            server_settings_service._import_session_env(MagicMock())
+
+        import_session.write.assert_not_called()
+
+    def test_a_lone_idle_timeout_is_checked_against_the_stored_absolute_one(self, import_session):
+        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_HOURS"}
+        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 100
+
+        with pytest.raises(ValueError):
+            server_settings_service._import_session_env(MagicMock())
 
 
 class TestLoginPhoto:
@@ -1001,6 +1141,11 @@ class TestGetServerSettingsForPublic:
             geocoding_host=None,
             geocoding_use_https=True,
             geocoding_rate_limit=1.0,
+            session_idle_timeout_enabled=False,
+            session_idle_timeout_hours=1,
+            session_absolute_timeout_hours=24,
+            access_token_expire_minutes=15,
+            refresh_token_expire_days=7,
             geocoding_api_key="encrypted-geo",
         )
 

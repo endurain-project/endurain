@@ -1,6 +1,7 @@
 """Tests for auth.utils module."""
 
-from datetime import UTC, datetime
+import dataclasses
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,6 +9,13 @@ from fastapi import HTTPException, Response
 
 import modules.auth.schema as auth_schema
 import modules.auth.utils as auth_utils
+
+
+@pytest.fixture(autouse=True)
+def _session_policy(session_policy):
+    """Serve the default session policy instead of reading it from the database."""
+    with patch("modules.auth.utils.server_settings_integration.get_session_policy", return_value=session_policy):
+        yield
 
 
 def _set_cookie_headers(response: Response) -> list[str]:
@@ -119,7 +127,7 @@ class TestAuthenticateUser:
 class TestCreateTokens:
     """Test token creation function."""
 
-    def test_create_tokens_generates_all_tokens(self, token_manager, sample_user_read):
+    def test_create_tokens_generates_all_tokens(self, token_manager, sample_user_read, session_policy):
         """Test that create_tokens generates all required tokens."""
         # Act
         (
@@ -129,7 +137,7 @@ class TestCreateTokens:
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = auth_utils.create_tokens(sample_user_read, token_manager)
+        ) = auth_utils.create_tokens(sample_user_read, token_manager, session_policy)
 
         # Assert
         assert session_id is not None
@@ -156,7 +164,7 @@ class TestCreateTokens:
         assert isinstance(csrf_token, str)
         assert len(csrf_token) >= 32
 
-    def test_create_tokens_with_custom_session_id(self, token_manager, sample_user_read):
+    def test_create_tokens_with_custom_session_id(self, token_manager, sample_user_read, session_policy):
         """Test that create_tokens uses provided session ID."""
         # Arrange
         custom_session_id = "custom-session-123"
@@ -169,12 +177,12 @@ class TestCreateTokens:
             _,
             _,
             _,
-        ) = auth_utils.create_tokens(sample_user_read, token_manager, custom_session_id)
+        ) = auth_utils.create_tokens(sample_user_read, token_manager, session_policy, custom_session_id)
 
         # Assert
         assert session_id == custom_session_id
 
-    def test_create_tokens_refresh_expires_after_access(self, token_manager, sample_user_read):
+    def test_create_tokens_refresh_expires_after_access(self, token_manager, sample_user_read, session_policy):
         """Test that refresh token expires after access token."""
         # Act
         (
@@ -184,19 +192,19 @@ class TestCreateTokens:
             refresh_token_exp,
             _,
             _,
-        ) = auth_utils.create_tokens(sample_user_read, token_manager)
+        ) = auth_utils.create_tokens(sample_user_read, token_manager, session_policy)
 
         # Assert
         assert refresh_token_exp > access_token_exp
 
-    def test_create_tokens_generates_unique_tokens(self, token_manager, sample_user_read):
+    def test_create_tokens_generates_unique_tokens(self, token_manager, sample_user_read, session_policy):
         """Test that multiple calls generate unique tokens."""
         # Act
         (_, _, access_token1, _, refresh_token1, csrf_token1) = auth_utils.create_tokens(
-            sample_user_read, token_manager
+            sample_user_read, token_manager, session_policy
         )
         (_, _, access_token2, _, refresh_token2, csrf_token2) = auth_utils.create_tokens(
-            sample_user_read, token_manager
+            sample_user_read, token_manager, session_policy
         )
 
         # Assert
@@ -299,6 +307,37 @@ class TestCompleteLogin:
         assert call_args[0][1] == sample_user_read
         # Verify request was passed
         assert call_args[0][2] == mock_request
+
+    def test_complete_login_uses_the_policy_lifetimes_for_tokens_cookie_and_session(
+        self, password_hasher, token_manager, mock_db, sample_user_read, mock_request, session_policy
+    ):
+        """The session and the cookie expire with the refresh token, whose lifetime is the policy's."""
+        policy = dataclasses.replace(
+            session_policy, access_token_ttl=timedelta(minutes=5), refresh_token_ttl=timedelta(days=3)
+        )
+        response = Response()
+
+        with (
+            patch("modules.auth.utils.server_settings_integration.get_session_policy", return_value=policy),
+            patch("modules.auth.utils.auth_sessions_utils.create_session") as mock_create_session,
+        ):
+            result = auth_utils.complete_login(
+                response, mock_request, sample_user_read, "web", password_hasher, token_manager, mock_db
+            )
+
+        assert result["expires_in"] == pytest.approx(300, abs=2)
+        assert result["refresh_token_expires_in"] == pytest.approx(3 * 86400, abs=2)
+        session_expiry = mock_create_session.call_args.args[6]
+        assert session_expiry - datetime.now(UTC) == pytest.approx(timedelta(days=3), abs=timedelta(seconds=2))
+        cookie = _set_cookie_headers(response)[-1].lower()
+        assert f"{session_expiry:%d %b %Y}".lower() in cookie
+
+    def test_set_refresh_token_cookie_expires_at_the_given_time(self):
+        response = Response()
+
+        auth_utils.set_refresh_token_cookie(response, "tok", datetime(2031, 1, 5, 12, 0, tzinfo=UTC))
+
+        assert "05 jan 2031 12:00:00 gmt" in _set_cookie_headers(response)[-1].lower()
 
     def test_complete_login_invalid_client_type_raises_error(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
@@ -407,7 +446,7 @@ class TestCompleteLogin:
         """Test setting a refresh cookie clears all known old paths."""
         response = Response()
 
-        auth_utils.set_refresh_token_cookie(response, "new-refresh-token")
+        auth_utils.set_refresh_token_cookie(response, "new-refresh-token", datetime.now(UTC) + timedelta(days=7))
 
         set_cookie_headers = [header.lower() for header in _set_cookie_headers(response)]
         assert any(

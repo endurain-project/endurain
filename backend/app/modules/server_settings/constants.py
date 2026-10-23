@@ -53,6 +53,16 @@ GEOCODING_PHOTON_ENV_VARS: dict[str, str] = {
 #: Every deprecated geocoding variable; any one of them being set makes the block env-managed.
 GEOCODING_ENV_VAR_NAMES: tuple[str, ...] = (*GEOCODING_ENV_VARS.values(), *GEOCODING_PHOTON_ENV_VARS.values())
 
+#: Session policy field -> the deprecated environment variable that sets it. Each variable
+#: makes only its own field env-managed.
+SESSION_ENV_VARS: dict[str, str] = {
+    "session_idle_timeout_enabled": "SESSION_IDLE_TIMEOUT_ENABLED",
+    "session_idle_timeout_hours": "SESSION_IDLE_TIMEOUT_HOURS",
+    "session_absolute_timeout_hours": "SESSION_ABSOLUTE_TIMEOUT_HOURS",
+    "access_token_expire_minutes": "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS",
+}
+
 #: Logged once at boot when deprecated environment variables were found; ``{names}`` is
 #: the comma-separated variable names, never their values.
 DEPRECATED_ENV_WARNING = (

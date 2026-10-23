@@ -26,6 +26,7 @@ import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.utils as auth_sessions_utils
 import modules.auth.utils as auth_utils
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
 
@@ -367,6 +368,7 @@ async def handle_callback(
             None,
             password_hasher,
             db,
+            datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
             oauth_state_id=oauth_state.id,
         )
 
@@ -585,7 +587,9 @@ async def exchange_tokens_for_session(
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = auth_utils.create_tokens(user, token_manager, session_id)
+        ) = auth_utils.create_tokens(
+            user, token_manager, server_settings_integration.get_session_policy(db), session_id
+        )
 
         # Calculate expires_in from access token expiration
         expires_in = int((access_token_exp - datetime.now(UTC)).total_seconds())
@@ -624,7 +628,7 @@ async def exchange_tokens_for_session(
         # issue a non-Secure refresh cookie when that env var was
         # missing or mis-set in production.
         if client_type == "web":
-            auth_utils.set_refresh_token_cookie(response, refresh_token)
+            auth_utils.set_refresh_token_cookie(response, refresh_token, refresh_token_exp)
 
         # Note: tokens_exchanged was flipped atomically together
         # with the refresh-token hash above, so no second write is

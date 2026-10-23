@@ -49,6 +49,11 @@ class TestReadServerSettings:
             geocoding_host=None,
             geocoding_use_https=True,
             geocoding_rate_limit=1.0,
+            session_idle_timeout_enabled=False,
+            session_idle_timeout_hours=1,
+            session_absolute_timeout_hours=24,
+            access_token_expire_minutes=15,
+            refresh_token_expire_days=7,
             geocoding_api_key_set=False,
             env_managed={},
         )
@@ -118,6 +123,11 @@ class TestEditServerSettings:
             geocoding_host=None,
             geocoding_use_https=True,
             geocoding_rate_limit=1.0,
+            session_idle_timeout_enabled=False,
+            session_idle_timeout_hours=1,
+            session_absolute_timeout_hours=24,
+            access_token_expire_minutes=15,
+            refresh_token_expire_days=7,
             geocoding_api_key_set=False,
             env_managed={},
         )
@@ -151,6 +161,11 @@ class TestEditServerSettings:
                 "geocoding_host": None,
                 "geocoding_use_https": True,
                 "geocoding_rate_limit": 1.0,
+                "session_idle_timeout_enabled": False,
+                "session_idle_timeout_hours": 1,
+                "session_absolute_timeout_hours": 24,
+                "access_token_expire_minutes": 15,
+                "refresh_token_expire_days": 7,
             },
         )
 
@@ -198,6 +213,11 @@ class TestEditServerSettings:
                 "geocoding_host": None,
                 "geocoding_use_https": True,
                 "geocoding_rate_limit": 1.0,
+                "session_idle_timeout_enabled": False,
+                "session_idle_timeout_hours": 1,
+                "session_absolute_timeout_hours": 24,
+                "access_token_expire_minutes": 15,
+                "refresh_token_expire_days": 7,
             },
         )
 
@@ -233,6 +253,11 @@ class TestEditRejectsReadOnlyFields:
             "geocoding_host": None,
             "geocoding_use_https": True,
             "geocoding_rate_limit": 1.0,
+            "session_idle_timeout_enabled": False,
+            "session_idle_timeout_hours": 1,
+            "session_absolute_timeout_hours": 24,
+            "access_token_expire_minutes": 15,
+            "refresh_token_expire_days": 7,
             field: value,
         }
         response = fast_api_client.put("/server_settings", headers={"Authorization": "Bearer mock_token"}, json=body)

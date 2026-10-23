@@ -51,6 +51,7 @@ import modules.auth.credentials.crud as auth_credentials_crud
 import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.utils as auth_utils
+import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
 from modules.auth.principal import (
@@ -183,12 +184,14 @@ class IdentityService(Protocol):
     def issue_token_pair(
         self,
         user: users_schema.UsersRead,
+        policy: server_settings_contracts.SessionPolicy,
         session_id: str | None = None,
     ) -> tuple[str, datetime, str, datetime, str, str]:
         """Issue an access/refresh token pair for a user.
 
         Args:
             user: The validated user object.
+            policy: The token lifetimes to apply.
             session_id: Optional existing session
                 identifier; a new UUID is generated
                 when ``None``.
@@ -963,12 +966,14 @@ class DefaultIdentityService:
     def issue_token_pair(
         self,
         user: users_schema.UsersRead,
+        policy: server_settings_contracts.SessionPolicy,
         session_id: str | None = None,
     ) -> tuple[str, datetime, str, datetime, str, str]:
         """Issue an access/refresh token pair for a user.
 
         Args:
             user: The validated user object.
+            policy: The token lifetimes to apply.
             session_id: Optional existing session
                 identifier; a new UUID is generated
                 when ``None``.
@@ -978,7 +983,7 @@ class DefaultIdentityService:
                 access_token, refresh_token_exp,
                 refresh_token, csrf_token)``.
         """
-        return auth_utils.create_tokens(user, self._token_manager, session_id)
+        return auth_utils.create_tokens(user, self._token_manager, policy, session_id)
 
     def revoke_session(
         self,

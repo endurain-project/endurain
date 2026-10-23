@@ -58,6 +58,11 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property geocodingHost - Host (and optional port) of the geocoding service, or null for its default host.
  * @property geocodingUseHttps - Whether the geocoding host is addressed over HTTPS.
  * @property geocodingRateLimit - Maximum geocoding requests per second (0 disables throttling).
+ * @property sessionIdleTimeoutEnabled - Whether the session idle and absolute timeouts are enforced.
+ * @property sessionIdleTimeoutHours - Hours of inactivity that end a session.
+ * @property sessionAbsoluteTimeoutHours - Hours after which a session ends whatever its activity.
+ * @property accessTokenExpireMinutes - Access token lifetime in minutes.
+ * @property refreshTokenExpireDays - Refresh token lifetime in days.
  * @property geocodingApiKeySet - Whether a geocoding API key is stored (the key itself is never returned).
  * @property envManaged - Field name (snake_case) to the environment variable that sets it; those fields are read-only.
  */
@@ -87,6 +92,11 @@ export interface ServerSettings {
   geocodingHost: string | null
   geocodingUseHttps: boolean
   geocodingRateLimit: number
+  sessionIdleTimeoutEnabled: boolean
+  sessionIdleTimeoutHours: number
+  sessionAbsoluteTimeoutHours: number
+  accessTokenExpireMinutes: number
+  refreshTokenExpireDays: number
   geocodingApiKeySet: boolean
   envManaged: Record<string, string>
 }
@@ -120,9 +130,9 @@ export interface TileMapsTemplate {
  * which round-trip from the freshest server state at save time. The API keys
  * are write-only: `tileserverApiKey` / `geocodingApiKey` hold a newly typed key
  * (empty keeps the stored one) and `removeTileserverApiKey` /
- * `removeGeocodingApiKey` ask for the stored key to be removed. The geocoding host
- * and rate limit are strings because the text inputs bind strings; they are
- * converted on save.
+ * `removeGeocodingApiKey` ask for the stored key to be removed. The geocoding host,
+ * rate limit and the session policy numbers are strings because the text inputs bind
+ * strings; they are converted on save.
  */
 export type ServerSettingsFormValues = Omit<
   ServerSettings,
@@ -133,6 +143,10 @@ export type ServerSettingsFormValues = Omit<
   | 'envManaged'
   | 'geocodingHost'
   | 'geocodingRateLimit'
+  | 'sessionIdleTimeoutHours'
+  | 'sessionAbsoluteTimeoutHours'
+  | 'accessTokenExpireMinutes'
+  | 'refreshTokenExpireDays'
 > & {
   tileserverApiKey: string
   removeTileserverApiKey: boolean
@@ -140,6 +154,10 @@ export type ServerSettingsFormValues = Omit<
   geocodingRateLimit: string
   geocodingApiKey: string
   removeGeocodingApiKey: boolean
+  sessionIdleTimeoutHours: string
+  sessionAbsoluteTimeoutHours: string
+  accessTokenExpireMinutes: string
+  refreshTokenExpireDays: string
 }
 
 /**
