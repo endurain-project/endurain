@@ -27,7 +27,7 @@ def _build_app(mock_db):
 
 class TestReadHealthDailyStats:
     @patch("modules.health.router.health_weight_integration.get_latest_health_weight")
-    @patch("modules.health.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
+    @patch("modules.health.router.health_sleep_integration.get_health_sleep_by_date")
     @patch("modules.health.router.health_steps_integration.get_health_steps_by_date")
     @patch("modules.health.router.health_fasting_crud.get_active_fasting_by_user_id")
     @patch("modules.health.router.health_water_crud.get_health_water_by_date_and_user_id")
@@ -75,7 +75,7 @@ class TestReadHealthDailyStats:
         assert data["poop"]["count"] == 1
 
     @patch("modules.health.router.health_weight_integration.get_latest_health_weight")
-    @patch("modules.health.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
+    @patch("modules.health.router.health_sleep_integration.get_health_sleep_by_date")
     @patch("modules.health.router.health_steps_integration.get_health_steps_by_date")
     @patch("modules.health.router.health_fasting_crud.get_active_fasting_by_user_id")
     @patch("modules.health.router.health_water_crud.get_health_water_by_date_and_user_id")

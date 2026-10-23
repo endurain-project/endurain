@@ -1,9 +1,14 @@
-"""The operations other modules may call on health sleep records."""
+"""The operations other modules may call on health sleep records.
+
+The writes stage; the caller owns the unit of work and commits. Records arrive
+already scored by their provider, so nothing here scores them.
+"""
 
 from sqlalchemy.orm import Session
 
 import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.schema as health_sleep_schema
+import modules.health.health_sleep.service as health_sleep_service
 
 
 def get_health_sleep_by_date(user_id: int, date: str, db: Session) -> health_sleep_schema.HealthSleepRead | None:
@@ -23,7 +28,7 @@ def get_health_sleep_by_date(user_id: int, date: str, db: Session) -> health_sle
 def create_health_sleep(
     user_id: int, health_sleep: health_sleep_schema.HealthSleepCreate, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
-    """Create a sleep record for a user.
+    """Stage a sleep record for a user.
 
     Args:
         user_id: The record's owner.
@@ -31,7 +36,10 @@ def create_health_sleep(
         db: Database session.
 
     Returns:
-        The created record.
+        The staged record.
+
+    Raises:
+        ConflictError: If the user already has a record for that date.
     """
     return health_sleep_crud.create_health_sleep(user_id, health_sleep, db)
 
@@ -39,7 +47,7 @@ def create_health_sleep(
 def edit_health_sleep(
     user_id: int, health_sleep: health_sleep_schema.HealthSleepUpdate, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
-    """Edit a user's sleep record.
+    """Stage an update to a user's sleep record.
 
     Args:
         user_id: The record's owner.
@@ -47,6 +55,10 @@ def edit_health_sleep(
         db: Database session.
 
     Returns:
-        The edited record.
+        The updated record.
+
+    Raises:
+        PermissionDeniedError: If the record names another user.
+        NotFoundError: If the user has no such record.
     """
-    return health_sleep_crud.edit_health_sleep(user_id, health_sleep, db)
+    return health_sleep_service.stage_edit_health_sleep(user_id, health_sleep, db)

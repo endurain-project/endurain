@@ -8,9 +8,8 @@ import core.database as core_database
 import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.schema as health_sleep_schema
-import modules.health.health_sleep.sleep_scoring as health_sleep_sleep_scoring
+import modules.health.health_sleep.service as health_sleep_service
 
 # Define the API router
 router = APIRouter()
@@ -77,17 +76,7 @@ def read_health_sleep_all_pagination(
         HTTPException: If the user lacks required 'health:read' scope or if
             pagination values are invalid.
     """
-    # Get the total count and records from the database
-    total = health_sleep_crud.get_health_sleep_number_by_user_id(token_user_id, db, interval)
-    records = health_sleep_crud.get_health_sleep_by_user_id(token_user_id, db, page_number, num_records, interval)
-
-    # Pydantic will convert ORM models to HealthSleepRead via from_attributes=True
-    return health_sleep_schema.HealthSleepListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
-    )
+    return health_sleep_service.list_health_sleep(token_user_id, db, page_number, num_records, interval)
 
 
 @router.post(
@@ -127,27 +116,9 @@ def create_health_sleep(
         health_sleep_schema.HealthSleepRead: The created or updated health sleep data.
 
     Raises:
-        HTTPException: 400 error if the date field is not provided in the request.
+        InvalidInputError: If the date field is not provided in the request.
     """
-    # Calculate sleep scores before saving
-    health_sleep_sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
-
-    # Date is guaranteed to be present due to HealthSleepCreate validator
-    date_str = health_sleep.date.isoformat()  # type: ignore[union-attr]
-
-    # Check if health_sleep for this date already exists
-    sleep_for_date = health_sleep_crud.get_health_sleep_by_date_and_user_id(token_user_id, date_str, db)
-
-    if sleep_for_date:
-        # Convert to update schema with the existing ID and user_id
-        health_sleep_update = health_sleep_schema.HealthSleepUpdate(
-            id=sleep_for_date.id, user_id=token_user_id, **health_sleep.model_dump()
-        )
-        # Updates the health_sleep in the database and returns it
-        return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep_update, db)
-    else:
-        # Creates the health_sleep in the database and returns it
-        return health_sleep_crud.create_health_sleep(token_user_id, health_sleep, db)
+    return health_sleep_service.create_health_sleep(token_user_id, health_sleep, db)
 
 
 @router.put(
@@ -190,11 +161,7 @@ def edit_health_sleep(
         HTTPException: May raise various HTTP exceptions if authorization fails, user is not
             found, or database operations fail.
     """
-    # Recalculate sleep scores when editing
-    health_sleep_sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
-
-    # Updates the health_sleep in the database and returns it
-    return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep, db)
+    return health_sleep_service.edit_health_sleep(token_user_id, health_sleep, db)
 
 
 @router.delete("/{health_sleep_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
@@ -232,4 +199,4 @@ def delete_health_sleep(
             - The health sleep record doesn't exist or doesn't belong to the user
     """
     # Deletes entry from database
-    health_sleep_crud.delete_health_sleep(token_user_id, health_sleep_id, db)
+    health_sleep_service.delete_health_sleep(token_user_id, health_sleep_id, db)

@@ -438,7 +438,7 @@ def calculate_sleep_score_overall(
     return max(0, min(100, overall_score))
 
 
-def _calculate_and_set_sleep_scores(
+def calculate_and_set_sleep_scores(
     health_sleep: (
         health_sleep_schema.HealthSleepCreate
         | health_sleep_schema.HealthSleepRead

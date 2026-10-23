@@ -15,7 +15,7 @@ import core.database as core_database
 import modules.auth.dependencies as auth_dependencies
 import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_poop.crud as health_poop_crud
-import modules.health.health_sleep.crud as health_sleep_crud
+import modules.health.health_sleep.integration_service as health_sleep_integration
 import modules.health.health_steps.integration_service as health_steps_integration
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_weight.integration_service as health_weight_integration
@@ -67,7 +67,7 @@ def read_health_daily_stats(
     today = str(users_utils.user_local_today(token_user_id, db))
 
     # Get today's sleep
-    today_sleep = health_sleep_crud.get_health_sleep_by_date_and_user_id(token_user_id, today, db)
+    today_sleep = health_sleep_integration.get_health_sleep_by_date(token_user_id, today, db)
 
     # Get latest weight (most recent record)
     latest_weight = health_weight_integration.get_latest_health_weight(token_user_id, db)
