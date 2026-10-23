@@ -90,6 +90,7 @@ _TIERED_ENDPOINTS = [
     ),
     pytest.param(server_settings_router.send_test_email, core_rate_limit.SENSITIVE, id="server-settings-test-email"),
     pytest.param(server_settings_router.edit_server_settings, core_rate_limit.WRITE, id="server-settings-edit"),
+    pytest.param(server_settings_router.edit_mail_settings, core_rate_limit.WRITE, id="server-settings-edit-mail"),
     pytest.param(server_settings_router.upload_login_photo, core_rate_limit.UPLOAD, id="server-settings-upload-login"),
     pytest.param(server_settings_router.delete_login_photo, core_rate_limit.WRITE, id="server-settings-delete-login"),
     pytest.param(idp_public_router.initiate_login, core_rate_limit.SENSITIVE, id="oidc-initiate"),

@@ -53,25 +53,7 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
         # Endurain wrote objects in the flat ``{data_dir}/{area}/{key}`` layout.
         storage=jasil_settings.StorageSettings(local_legacy_layout=True),
         geocoding=_build_geocoding_settings(settings),
-        mail=_build_mail_settings(settings),
         network=jasil_settings.NetworkSettings(ssrf_allowed_hosts=tuple(settings.SSRF_ALLOWED_HOSTS)),
-    )
-
-
-def _build_mail_settings(settings: core_config.Settings) -> jasil_settings.MailSettings:
-    """Map the SMTP variables onto ``MailSettings``; unset when mail is disabled."""
-    uri = settings.smtp_uri
-    if uri is None:
-        return jasil_settings.MailSettings()
-    sender = settings.smtp_sender or ""
-    # A bare address gets the product name as display name; "Name <addr>" is kept.
-    from_address = sender if "<" in sender else f"Endurain <{sender}>"
-    return jasil_settings.MailSettings(
-        uri=uri,
-        from_address=from_address,
-        secure=settings.SMTP_SECURE,
-        username=settings.SMTP_USERNAME,
-        password=core_config.read_secret("SMTP_PASSWORD") if settings.SMTP_USERNAME else None,
     )
 
 

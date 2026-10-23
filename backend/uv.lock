@@ -944,8 +944,8 @@ requires-dist = [
     { name = "gpxpy", specifier = ">=1.6.2" },
     { name = "httpx2", specifier = ">=2.13.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
-    { name = "jasil", extras = ["fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.9.0,<0.10.0" },
-    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.9.0,<0.10.0" },
+    { name = "jasil", extras = ["fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.10.1,<0.11.0" },
+    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.10.1,<0.11.0" },
     { name = "joserfc", specifier = ">=1.7.5" },
     { name = "nh3", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=2.5.3" },
@@ -1549,15 +1549,15 @@ wheels = [
 
 [[package]]
 name = "jasil"
-version = "0.9.0"
+version = "0.10.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/ee/626291012ea6e737ab89ab2f4c743ab360d2fa2c02d5498cde02bc1d72c5/jasil-0.9.0.tar.gz", hash = "sha256:d1e65627c70c3b833ad9a0c06a7f892a4321208e406aa04d6fb4940cd5f45fb9", size = 191556, upload-time = "2026-10-22T13:28:17.411Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/07/4477ab7e0566073732d4d91fb0d6ec996d757204b035ff72ec2c15700fd7/jasil-0.10.1.tar.gz", hash = "sha256:fd2e2ebb99b9a602b938f8b1b50993b714fa5fbd9c04011068f0e145734909af", size = 198613, upload-time = "2026-10-22T21:23:29.022Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/5f/f1689cfcecf7c3c00c848d35db5986ba1f138224730b3f95908621d5eb39/jasil-0.9.0-py3-none-any.whl", hash = "sha256:7efc638f80e3f9a61dafc137e347161657e03f7818d58434118892486778c60e", size = 215286, upload-time = "2026-10-22T13:28:15.997Z" },
+    { url = "https://files.pythonhosted.org/packages/38/37/76d6fe5e96c5716f0ca0be7317946decc508d95b2a7f5fb9515fe5148375/jasil-0.10.1-py3-none-any.whl", hash = "sha256:8c257db4d55514e83f4c9e98314edb0a6f9dbb5ba88b268ffe1349df25028698", size = 222451, upload-time = "2026-10-22T21:23:27.519Z" },
 ]
 
 [package.optional-dependencies]

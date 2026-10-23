@@ -268,7 +268,9 @@ class TestCreatePasswordResetTokenUtils:
 class TestRequestPasswordResetEmail:
     """Test suite for request_password_reset_email."""
 
-    @patch("modules.auth.password_reset_tokens.utils.core_mail.is_mail_configured", return_value=False)
+    @patch(
+        "modules.auth.password_reset_tokens.utils.server_settings_integration.is_mail_configured", return_value=False
+    )
     def test_raises_503_when_mail_not_configured(self, _configured, mock_db):
         with pytest.raises(HTTPException) as exc_info:
             password_reset_tokens_utils.request_password_reset_email("user@example.com", mock_db)
@@ -279,7 +281,7 @@ class TestRequestPasswordResetEmail:
         "modules.auth.password_reset_tokens.utils.password_reset_tokens_event_publishers.publish_password_reset_requested"
     )
     @patch("modules.auth.password_reset_tokens.utils.users_crud.get_user_by_email")
-    @patch("modules.auth.password_reset_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    @patch("modules.auth.password_reset_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
     def test_unknown_or_inactive_user_publishes_nothing(self, _configured, mock_get_user, mock_publish, mock_db):
         mock_get_user.return_value = None
         password_reset_tokens_utils.request_password_reset_email("nobody@example.com", mock_db)
@@ -293,7 +295,7 @@ class TestRequestPasswordResetEmail:
         "modules.auth.password_reset_tokens.utils.password_reset_tokens_event_publishers.publish_password_reset_requested"
     )
     @patch("modules.auth.password_reset_tokens.utils.users_crud.get_user_by_email")
-    @patch("modules.auth.password_reset_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    @patch("modules.auth.password_reset_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
     def test_active_user_publishes_event(self, _configured, mock_get_user, mock_publish, mock_db):
         mock_get_user.return_value = MagicMock(id=9, active=True)
 

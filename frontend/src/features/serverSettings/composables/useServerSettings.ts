@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type {
   EmailStatusDto,
+  MailSettings,
+  MailSettingsUpdate,
   ServerSettings,
   ServerSettingsUpdate,
 } from '@/features/serverSettings/types'
@@ -12,9 +14,11 @@ import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   deleteLoginPhoto,
   fetchEmailStatus,
+  fetchMailSettings,
   fetchServerSettings,
   fetchTileMapsTemplates,
   sendTestEmail,
+  updateMailSettings,
   updateServerSettings,
   uploadLoginPhoto,
 } from '@/features/serverSettings/services/serverSettings'
@@ -116,7 +120,7 @@ export function useDeleteLoginPhotoMutation() {
 
 /**
  * Whether outgoing email is usable. Always refetched on mount so the admin sees
- * the current state after fixing their SMTP environment and restarting.
+ * the current state.
  *
  * @returns The TanStack Query result for the email status.
  */
@@ -140,5 +144,41 @@ export function useEmailStatusQuery() {
 export function useSendTestEmailMutation() {
   return useMutation<string, Error, void>({
     mutationFn: () => sendTestEmail(),
+  })
+}
+
+/**
+ * The editable mail server settings (admin scope). Always refetched on mount so
+ * the form never seeds from stale env-managed flags.
+ *
+ * @returns The TanStack Query result for the mail settings.
+ */
+export function useMailSettingsQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery<MailSettings>({
+    queryKey: queryKeys.serverSettings.mail(),
+    queryFn: ({ signal }) => fetchMailSettings(signal),
+    enabled: isAuthenticated,
+    staleTime: 0,
+  })
+}
+
+/**
+ * Update mutation for the mail server settings. Invalidates the settings and the
+ * email status, since whether email is usable depends on the settings.
+ *
+ * @returns The TanStack Query mutation for updating the mail settings.
+ */
+export function useUpdateMailSettingsMutation() {
+  const client = useQueryClient()
+
+  return useMutation<MailSettings, Error, MailSettingsUpdate>({
+    mutationKey: queryKeys.serverSettings.mail(),
+    mutationFn: (settings) => updateMailSettings(settings),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.serverSettings.mail() })
+      void client.invalidateQueries({ queryKey: queryKeys.serverSettings.email() })
+    },
   })
 }

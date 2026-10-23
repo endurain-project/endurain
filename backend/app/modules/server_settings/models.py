@@ -1,6 +1,6 @@
 """ORM model for the singleton server settings row."""
 
-from sqlalchemy import CheckConstraint, String
+from sqlalchemy import CheckConstraint, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 import modules.server_settings.constants as server_settings_constants
@@ -152,3 +152,67 @@ class ServerSettings(Base):
     )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)
+
+
+class MailSettings(Base):
+    """Outgoing mail server configuration.
+
+    Attributes:
+        id: Primary key (always 1, singleton pattern).
+        host: Mail server hostname; NULL means mail is disabled.
+        port: Mail server port.
+        security: Connection security (starttls, ssl, none).
+        username: Authentication username.
+        password: Authentication password (encrypted).
+        from_address: Sender address; the username is used when NULL.
+    """
+
+    __tablename__ = "mail_settings"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        default=1,
+        nullable=False,
+    )
+    host: Mapped[str | None] = mapped_column(
+        String(253),
+        default=None,
+        nullable=True,
+        comment="Mail server hostname (NULL - mail disabled)",
+    )
+    port: Mapped[int] = mapped_column(
+        default=587,
+        server_default=text("587"),
+        nullable=False,
+        comment="Mail server port",
+    )
+    security: Mapped[str] = mapped_column(
+        String(10),
+        default="starttls",
+        server_default="starttls",
+        nullable=False,
+        comment="Connection security (starttls, ssl, none)",
+    )
+    username: Mapped[str | None] = mapped_column(
+        String(320),
+        default=None,
+        nullable=True,
+        comment="Mail server authentication username",
+    )
+    password: Mapped[str | None] = mapped_column(
+        String(512),
+        default=None,
+        nullable=True,
+        comment="Mail server authentication password (encrypted)",
+    )
+    from_address: Mapped[str | None] = mapped_column(
+        String(320),
+        default=None,
+        nullable=True,
+        comment="Sender address (NULL - the username is used)",
+    )
+
+    __table_args__ = (
+        CheckConstraint("id = 1", name="mail_settings_single_row_check"),
+        CheckConstraint("security IN ('starttls', 'ssl', 'none')", name="mail_settings_security_check"),
+    )

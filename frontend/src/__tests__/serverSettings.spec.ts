@@ -1,17 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ServerSettingsDto, TileMapsTemplateDto } from '@/features/serverSettings/types'
+import type {
+  MailSettingsDto,
+  ServerSettingsDto,
+  TileMapsTemplateDto,
+} from '@/features/serverSettings/types'
 
 import { apiFetch } from '@/services/http'
 import {
   deleteLoginPhoto,
   fetchEmailStatus,
+  fetchMailSettings,
   fetchServerSettings,
   fetchTileMapsTemplates,
+  mapMailSettings,
   mapServerSettings,
   mapTileMapsTemplate,
   sendTestEmail,
+  toMailSettingsWire,
   toServerSettingsWire,
+  updateMailSettings,
   updateServerSettings,
   uploadLoginPhoto,
 } from '@/features/serverSettings/services/serverSettings'
@@ -44,6 +52,21 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     password_type: 'strict',
     password_length_regular_users: 8,
     password_length_admin_users: 12,
+    ...overrides,
+  }
+}
+
+/** Builds a full `MailSettingsAdminRead` wire payload, overridable per case. */
+function makeMailDto(overrides: Partial<MailSettingsDto> = {}): MailSettingsDto {
+  return {
+    id: 1,
+    host: 'mail.example.com',
+    port: 587,
+    security: 'starttls',
+    username: 'me@example.com',
+    from_address: null,
+    password_set: true,
+    env_managed: { host: 'SMTP_HOST' },
     ...overrides,
   }
 }
@@ -208,12 +231,12 @@ describe('server settings service requests', () => {
   })
 
   it('fetchEmailStatus reads the email status endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ configured: false, problems: ['SMTP_HOST is not set'] })
+    vi.mocked(apiFetch).mockResolvedValue({ configured: false, problems: ['Host is not set'] })
 
     const status = await fetchEmailStatus()
 
     expect(apiFetch).toHaveBeenCalledWith('/server_settings/email', { signal: undefined })
-    expect(status).toEqual({ configured: false, problems: ['SMTP_HOST is not set'] })
+    expect(status).toEqual({ configured: false, problems: ['Host is not set'] })
   })
 
   it('sendTestEmail POSTs to the test endpoint and returns the confirmation message', async () => {
@@ -223,5 +246,93 @@ describe('server settings service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/test', { method: 'POST' })
     expect(message).toBe('Test email sent to admin@example.com.')
+  })
+})
+
+describe('mapMailSettings', () => {
+  it('maps the wire shape to the clean camel-cased model', () => {
+    expect(mapMailSettings(makeMailDto())).toEqual({
+      host: 'mail.example.com',
+      port: 587,
+      security: 'starttls',
+      username: 'me@example.com',
+      fromAddress: null,
+      passwordSet: true,
+      envManaged: { host: 'SMTP_HOST' },
+    })
+  })
+
+  it('exposes only whether a password is stored', () => {
+    expect(mapMailSettings(makeMailDto())).not.toHaveProperty('password')
+  })
+})
+
+describe('toMailSettingsWire', () => {
+  const update = {
+    host: 'mail.example.com',
+    port: 465,
+    security: 'ssl' as const,
+    username: null,
+    fromAddress: 'noreply@example.com',
+  }
+
+  it('sends every field so the full record is replaced', () => {
+    expect(toMailSettingsWire(update)).toEqual({
+      host: 'mail.example.com',
+      port: 465,
+      security: 'ssl',
+      username: null,
+      from_address: 'noreply@example.com',
+    })
+  })
+
+  it('omits the password to keep it, and sends null to remove it', () => {
+    expect(toMailSettingsWire(update)).not.toHaveProperty('password')
+    expect(toMailSettingsWire({ ...update, password: null })).toHaveProperty('password', null)
+    expect(toMailSettingsWire({ ...update, password: 'new-secret' })).toHaveProperty(
+      'password',
+      'new-secret',
+    )
+  })
+})
+
+describe('mail settings service requests', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('fetchMailSettings reads the mail settings endpoint and maps the response', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeMailDto())
+
+    const settings = await fetchMailSettings()
+
+    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/settings', { signal: undefined })
+    expect(settings.passwordSet).toBe(true)
+  })
+
+  it('updateMailSettings PUTs the wire body and maps the response', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeMailDto({ port: 465 }))
+
+    const settings = await updateMailSettings({
+      host: 'mail.example.com',
+      port: 465,
+      security: 'ssl',
+      username: null,
+      fromAddress: null,
+      password: 'new-secret',
+    })
+
+    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        host: 'mail.example.com',
+        port: 465,
+        security: 'ssl',
+        username: null,
+        from_address: null,
+        password: 'new-secret',
+      }),
+    })
+    expect(settings.port).toBe(465)
   })
 })

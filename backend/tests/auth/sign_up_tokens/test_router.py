@@ -35,7 +35,9 @@ def mock_email_service():
     Yields:
         MagicMock: The patched ``is_mail_configured`` function.
     """
-    with patch("modules.auth.sign_up_tokens.router.core_mail.is_mail_configured", return_value=True) as is_configured:
+    with patch(
+        "modules.auth.sign_up_tokens.router.server_settings_integration.is_mail_configured", return_value=True
+    ) as is_configured:
         yield is_configured
 
 

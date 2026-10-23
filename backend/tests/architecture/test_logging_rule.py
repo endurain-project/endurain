@@ -64,8 +64,9 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "websocket/ticket_store.py": "Reports a storage outage and an unreadable ticket value it cannot attribute to a request.",
 }
 
-#: Modules whose ``console=True`` records are operator-facing: bulk-import progress and migrations.
-_CONSOLE_ALLOWED_PREFIXES = ("activities/activity_ingestion/",)
+#: Modules whose ``console=True`` records are operator-facing: bulk-import progress, migrations and the boot
+#: import of deprecated settings.
+_CONSOLE_ALLOWED_PREFIXES = ("activities/activity_ingestion/", "server_settings/")
 _CONSOLE_ALLOWED_ROLES = frozenset({"migration_service"})
 
 #: Exceptions a service raises to refuse a request. Raising one is a decision, and the rule says a refusal

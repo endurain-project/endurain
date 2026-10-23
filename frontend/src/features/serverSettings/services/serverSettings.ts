@@ -1,5 +1,9 @@
 import type {
   EmailStatusDto,
+  MailSettings,
+  MailSettingsDto,
+  MailSettingsEditDto,
+  MailSettingsUpdate,
   ServerSettings,
   ServerSettingsDto,
   ServerSettingsEditDto,
@@ -206,4 +210,73 @@ export async function sendTestEmail(): Promise<string> {
     method: 'POST',
   })
   return result.message
+}
+
+/**
+ * Maps a raw `MailSettingsAdminRead` payload to the clean {@link MailSettings} model.
+ *
+ * @param dto - Raw mail-settings payload from the backend.
+ * @returns The normalized mail-settings model.
+ */
+export function mapMailSettings(dto: MailSettingsDto): MailSettings {
+  return {
+    host: dto.host,
+    port: dto.port,
+    security: dto.security,
+    username: dto.username,
+    fromAddress: dto.from_address,
+    passwordSet: dto.password_set,
+    envManaged: dto.env_managed,
+  }
+}
+
+/**
+ * Rebuilds the full editable wire payload from a {@link MailSettingsUpdate}. Every
+ * field is sent because the edit endpoint forbids extra fields and replaces the
+ * whole record; only the password may be left out. Deriving the return type from
+ * the generated schema turns a missing field into a compile error.
+ *
+ * @param settings - The mail settings to persist.
+ * @returns The snake-cased editable body; it carries the password only when one is being set or removed.
+ */
+export function toMailSettingsWire(settings: MailSettingsUpdate): MailSettingsEditDto {
+  return {
+    host: settings.host,
+    port: settings.port,
+    security: settings.security,
+    username: settings.username,
+    from_address: settings.fromAddress,
+    // Omitted keeps the stored password; the backend never returns it, so it cannot round-trip.
+    ...(settings.password !== undefined && { password: settings.password }),
+  }
+}
+
+/**
+ * Fetches the mail server settings (admin scope `server_settings:read`). The
+ * password is never returned, only whether one is stored.
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The mail settings, mapped to the clean model.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchMailSettings(signal?: AbortSignal): Promise<MailSettings> {
+  const dto = await apiFetch<MailSettingsDto>('/server_settings/email/settings', { signal })
+  return mapMailSettings(dto)
+}
+
+/**
+ * Updates the mail server settings (admin scope `server_settings:write`). The
+ * backend validates the configuration and rejects a change to a field an
+ * environment variable currently sets.
+ *
+ * @param settings - The mail settings to persist.
+ * @returns The updated mail settings, mapped to the clean model.
+ * @throws {HttpError} `400` when the configuration is not usable or a field is env-managed.
+ */
+export async function updateMailSettings(settings: MailSettingsUpdate): Promise<MailSettings> {
+  const dto = await apiFetch<MailSettingsDto>('/server_settings/email/settings', {
+    method: 'PUT',
+    body: JSON.stringify(toMailSettingsWire(settings)),
+  })
+  return mapMailSettings(dto)
 }

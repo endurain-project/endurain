@@ -359,7 +359,7 @@
     },
     "email": {
       "title": "Email",
-      "description": "Endurain sends password reset and sign-up emails through the SMTP server configured in the environment.",
+      "description": "Endurain sends password reset and sign-up emails through the mail server configured here.",
       "statusLoadError": "Couldn't check the email configuration.",
       "configured": "Email is configured.",
       "notConfigured": "Email is not configured:",
@@ -368,8 +368,29 @@
       "sendHint": "The test email is sent to your own address.",
       "sent": "Test email sent",
       "failed": "The test email could not be sent",
-      "failedUnknown": "Check the server logs for details."
-    }
+      "failedUnknown": "Check the server logs for details.",
+      "settingsLoadError": "Couldn't load the mail settings.",
+      "host": "Host",
+      "hostHint": "Leave empty to turn email off.",
+      "port": "Port",
+      "portInvalid": "Enter a port between 1 and 65535.",
+      "security": "Connection security",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "None (private relay only)",
+      "securityNoneWarning": "Without encryption, only a mail server on a private or loopback address is accepted, and a username and password cannot be used.",
+      "username": "Username",
+      "password": "Password",
+      "passwordStored": "A password is stored. Leave empty to keep it.",
+      "passwordRemove": "Remove the stored password",
+      "fromAddress": "Sender address",
+      "fromAddressHint": "Leave empty to use the username.",
+      "envManagedInfo": "These settings come from environment variables. Remove them from the environment to edit them here.",
+      "save": "Save mail settings",
+      "saveSuccess": "Mail settings saved",
+      "saveError": "The mail settings could not be saved"
+    },
+    "envManaged": "Set by the {name} environment variable. Remove it to edit this setting here."
   },
   "idp": {
     "title": "Identity providers",

@@ -715,18 +715,6 @@ class TestCheckRequiredEnvVars:
         ):
             check_required_env_vars()
 
-    def test_email_not_configured(self):
-        from core.config import check_required_env_vars
-
-        with (
-            patch.dict(os.environ, self._minimal_env(), clear=True),
-            patch("core.config.logger") as mock_log,
-        ):
-            check_required_env_vars()
-
-        info_calls = [c for c in mock_log.method_calls if "Email not configured" in str(c)]
-        assert len(info_calls) >= 1
-
     def test_secret_via_file_variant(self):
         from core.config import check_required_env_vars
 

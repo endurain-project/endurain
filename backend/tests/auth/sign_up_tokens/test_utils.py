@@ -56,7 +56,7 @@ class TestCreateSignUpTokenUtils:
 class TestRequestEmails:
     """Tests for the request_* functions that publish email events."""
 
-    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=False)
+    @patch("modules.auth.sign_up_tokens.utils.server_settings_integration.is_mail_configured", return_value=False)
     def test_not_configured_raises_503(self, _configured, mock_db):
         """Every request function raises 503 when mail is not configured."""
         for call in (
@@ -69,7 +69,7 @@ class TestRequestEmails:
             assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_event_publishers.publish_sign_up_verification_requested")
-    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    @patch("modules.auth.sign_up_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
     def test_verification_publishes_event(self, _configured, mock_publish, mock_db):
         sign_up_tokens_utils.request_sign_up_verification_email(5, mock_db)
 
@@ -77,7 +77,7 @@ class TestRequestEmails:
 
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_event_publishers.publish_sign_up_approval_requested")
     @patch("modules.auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
-    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    @patch("modules.auth.sign_up_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
     def test_admin_approval_publishes_one_event_per_admin(self, _configured, mock_admins, mock_publish, mock_db):
         mock_admins.return_value = [MagicMock(id=10), MagicMock(id=11)]
 
@@ -86,7 +86,7 @@ class TestRequestEmails:
         assert [c.args for c in mock_publish.call_args_list] == [(5, 10, mock_db), (5, 11, mock_db)]
 
     @patch("modules.auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
-    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    @patch("modules.auth.sign_up_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
     def test_admin_approval_no_admins_raises_404(self, _configured, mock_admins, mock_db):
         mock_admins.side_effect = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No admin users found")
 
@@ -96,7 +96,7 @@ class TestRequestEmails:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_event_publishers.publish_sign_up_approved")
-    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    @patch("modules.auth.sign_up_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
     def test_approved_publishes_event(self, _configured, mock_publish, mock_db):
         sign_up_tokens_utils.request_sign_up_approved_email(5, mock_db)
 

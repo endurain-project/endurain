@@ -22,6 +22,26 @@ DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
     "https://*.stadiamaps.com",  # Stadia Maps
 ]
 
+#: Mail settings field -> the deprecated environment variable that sets it. The mail block is
+#: imported as a whole, so all of these are env-managed while ``SMTP_HOST`` is set.
+MAIL_ENV_VARS: dict[str, str] = {
+    "host": "SMTP_HOST",
+    "port": "SMTP_PORT",
+    "security": "SMTP_SECURE",
+    "username": "SMTP_USERNAME",
+    "password": "SMTP_PASSWORD",
+    "from_address": "SMTP_FROM",
+}
+
+#: Logged once at boot when deprecated environment variables were found; ``{names}`` is
+#: the comma-separated variable names, never their values.
+DEPRECATED_ENV_WARNING = (
+    "The environment variables {names} are deprecated. Their values were saved to the "
+    "database and are now edited in Settings > Server. Remove them from your "
+    "environment: while they are set they overwrite the stored values on every start, "
+    "and from v0.22.0 Endurain refuses to start while any of them is set."
+)
+
 TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
     "openstreetmap": {
         "name": "OpenStreetMap",

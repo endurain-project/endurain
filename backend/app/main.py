@@ -220,7 +220,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
 
     # Build the platform substrate (providers + backends) and attach it to app state.
-    platform = platform_container.build_platform(substrate_settings)
+    platform = platform_container.build_platform(substrate_settings, sources=runtime_module_registry.runtime_sources())
     fastapi_app.state.platform = platform
 
     # Publish it process-wide so background work (scheduler, Garmin login thread)
@@ -264,6 +264,9 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     _run_alembic_migrations()
     core_migrations.bootstrap_substrate_schema()
     await core_migrations.check_migrations()
+    # Before anything can send mail: save deprecated environment variables into the database.
+    with SessionLocal() as db:
+        server_settings_integration.import_deprecated_env_settings(db)
     # The composition root collects each module's own declaration; the scheduler
     # knows how to schedule, never what.
     core_scheduler.start_scheduler(

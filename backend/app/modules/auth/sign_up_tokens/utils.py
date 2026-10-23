@@ -19,6 +19,7 @@ import modules.auth.sign_up_tokens.email_messages as sign_up_tokens_email_messag
 import modules.auth.sign_up_tokens.event_publishers as sign_up_tokens_event_publishers
 import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
 import modules.auth.token_hashing as token_hashing
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.utils as users_utils
 from core.database import SessionLocal
@@ -62,9 +63,13 @@ def create_sign_up_token(user_id: int, db: Session) -> str:
     return token
 
 
-def _require_mail_configured() -> None:
-    """Raise 503 when outgoing email is not configured."""
-    if not core_mail.is_mail_configured():
+def _require_mail_configured(db: Session) -> None:
+    """Raise 503 when outgoing email is not configured.
+
+    Args:
+        db: Active SQLAlchemy session.
+    """
+    if not server_settings_integration.is_mail_configured(db):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email service is not configured",
@@ -82,7 +87,7 @@ def request_sign_up_verification_email(user_id: int, db: Session) -> None:
     Raises:
         HTTPException: 503 if the email service is not configured.
     """
-    _require_mail_configured()
+    _require_mail_configured(db)
     sign_up_tokens_event_publishers.publish_sign_up_verification_requested(user_id, db)
 
 
@@ -97,7 +102,7 @@ def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:
     Raises:
         HTTPException: 503 if the email service is not configured.
     """
-    _require_mail_configured()
+    _require_mail_configured(db)
     for admin in users_utils.get_admin_users_or_404(db):
         sign_up_tokens_event_publishers.publish_sign_up_approval_requested(user_id, admin.id, db)
 
@@ -113,7 +118,7 @@ def request_sign_up_approved_email(user_id: int, db: Session) -> None:
     Raises:
         HTTPException: 503 if the email service is not configured.
     """
-    _require_mail_configured()
+    _require_mail_configured(db)
     sign_up_tokens_event_publishers.publish_sign_up_approved(user_id, db)
 
 

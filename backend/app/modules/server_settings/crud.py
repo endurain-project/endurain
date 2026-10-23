@@ -107,3 +107,67 @@ def set_login_photo(is_set: bool, db: Session) -> None:
     db_server_settings = _lock_server_settings_model(db)
     db_server_settings.login_photo_set = is_set
     db.flush()
+
+
+def _find_mail_settings_model(db: Session, *, for_update: bool = False) -> server_settings_models.MailSettings | None:
+    """Load the singleton mail settings row.
+
+    Args:
+        db: Database session.
+        for_update: Lock the row until the transaction ends, so concurrent writers
+            (other workers or replicas included) queue instead of overwriting each other.
+
+    Returns:
+        The mapped MailSettings ORM instance, or None if the row does not exist.
+    """
+    stmt = select(server_settings_models.MailSettings).where(server_settings_models.MailSettings.id == _SINGLETON_ID)
+    if for_update:
+        # A locked read must see what the previous holder committed, not a stale loaded copy.
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def get_mail_settings(db: Session, *, for_update: bool = False) -> server_settings_schema.MailSettingsRead | None:
+    """Retrieve the singleton mail settings.
+
+    Args:
+        db: Database session.
+        for_update: Lock the row until the transaction ends; for a read that decides a write.
+
+    Returns:
+        The settings as stored (the password stays encrypted), or None if not found.
+    """
+    db_mail_settings = _find_mail_settings_model(db, for_update=for_update)
+    if db_mail_settings is None:
+        return None
+    return server_settings_schema.MailSettingsRead.model_validate(db_mail_settings)
+
+
+def edit_mail_settings(
+    mail_settings: server_settings_schema.MailSettingsEdit,
+    db: Session,
+) -> server_settings_schema.MailSettingsRead:
+    """Stage an update of the mail settings.
+
+    Args:
+        mail_settings: The fields to apply; only the ones that were set are written.
+            A password must already be encrypted.
+        db: Database session.
+
+    Returns:
+        The updated settings as stored.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    db_mail_settings = _find_mail_settings_model(db, for_update=True)
+    if db_mail_settings is None:
+        raise core_exceptions.ServiceUnavailableError("Mail settings are not initialised.")
+
+    for key, value in mail_settings.model_dump(exclude_unset=True).items():
+        setattr(db_mail_settings, key, value)
+
+    db.flush()
+    db.refresh(db_mail_settings)
+
+    return server_settings_schema.MailSettingsRead.model_validate(db_mail_settings)

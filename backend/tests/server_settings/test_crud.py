@@ -156,3 +156,82 @@ class TestSetLoginPhoto:
 
         with pytest.raises(core_exceptions.ServiceUnavailableError):
             server_settings_crud.set_login_photo(True, mock_db)
+
+
+def _mail_row(**overrides):
+    values = dict(
+        id=1, host="mail.example.com", port=587, security="starttls", username=None, password=None, from_address=None
+    )
+    values.update(overrides)
+    row = MagicMock(spec=server_settings_models.MailSettings)
+    for key, value in values.items():
+        setattr(row, key, value)
+    return row
+
+
+def _mail_edit(**overrides):
+    values = dict(host="smtp.example.org", port=465, security="ssl", username=None, from_address=None)
+    values.update(overrides)
+    return server_settings_schema.MailSettingsEdit(**values)
+
+
+class TestGetMailSettings:
+    def test_returns_the_stored_row_as_the_read_schema(self, mock_db):
+        _mock_row(mock_db, _mail_row())
+
+        result = server_settings_crud.get_mail_settings(mock_db)
+
+        assert isinstance(result, server_settings_schema.MailSettingsRead)
+        assert result.host == "mail.example.com"
+
+    def test_returns_none_when_missing(self, mock_db):
+        _mock_row(mock_db, None)
+
+        assert server_settings_crud.get_mail_settings(mock_db) is None
+
+    def test_for_update_locks_the_row(self, mock_db):
+        _mock_row(mock_db, _mail_row())
+
+        server_settings_crud.get_mail_settings(mock_db, for_update=True)
+
+        assert mock_db.execute.call_args.args[0]._for_update_arg is not None
+
+    def test_a_plain_read_does_not_lock(self, mock_db):
+        _mock_row(mock_db, _mail_row())
+
+        server_settings_crud.get_mail_settings(mock_db)
+
+        assert mock_db.execute.call_args.args[0]._for_update_arg is None
+
+
+class TestEditMailSettings:
+    def test_stages_without_committing_and_locks(self, mock_db):
+        row = _mail_row()
+        _mock_row(mock_db, row)
+
+        result = server_settings_crud.edit_mail_settings(_mail_edit(), mock_db)
+
+        assert row.host == "smtp.example.org"
+        assert row.port == 465
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
+        mock_db.refresh.assert_called_once_with(row)
+        assert mock_db.execute.call_args.args[0]._for_update_arg is not None
+        assert isinstance(result, server_settings_schema.MailSettingsRead)
+
+    def test_writes_only_the_fields_that_were_set(self, mock_db):
+        row = _mail_row(password="enc")
+        _mock_row(mock_db, row)
+        payload = server_settings_schema.MailSettingsEdit.model_construct(_fields_set={"port"}, port=25)
+
+        server_settings_crud.edit_mail_settings(payload, mock_db)
+
+        assert row.port == 25
+        assert row.password == "enc"
+        assert row.host == "mail.example.com"
+
+    def test_missing_row_raises_service_unavailable(self, mock_db):
+        _mock_row(mock_db, None)
+
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
+            server_settings_crud.edit_mail_settings(_mail_edit(), mock_db)

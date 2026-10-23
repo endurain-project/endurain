@@ -69,7 +69,7 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     worker_settings = core_config.settings.model_copy(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
     substrate_settings = core_platform_settings.build_jasil_settings(worker_settings)
     jasil_settings.configure(substrate_settings)
-    platform = platform_container.build_platform(substrate_settings)
+    platform = platform_container.build_platform(substrate_settings, sources=runtime_module_registry.runtime_sources())
     platform_runtime.set_active_platform(platform)
     # Register every activity durable-job handler so this worker can resolve any
     # claimed job's subscriber_id back to a handler. Uses the SAME shared surface

@@ -5,12 +5,15 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+import jasil.settings as jasil_settings
 from jasil.jobs.reconciliation import DurableSubscriberNet
 from jasil.jobs.registry import JobHandlerRegistry
 from jasil.providers import EventBusProvider, RealtimeProvider
 
 import core.config as core_config
+import core.database as core_database
 import core.logger as core_logger
+import core.mail as core_mail
 import core.scheduler as core_scheduler
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
@@ -38,6 +41,7 @@ import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
+import modules.server_settings.integration_service as server_settings_integration
 import modules.websocket.subscriber_registry as websocket_subscriber_registry
 
 logger = core_logger.get_logger(__name__)
@@ -304,3 +308,25 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
 def startup_tasks() -> tuple[StartupTask, ...]:
     """Collect best-effort startup tasks from every installed module."""
     return tuple(task for module in MODULES for task in module.startup_tasks)
+
+
+def _load_mail_settings() -> jasil_settings.MailSettings:
+    """Read the operator-edited mail settings for the substrate to apply.
+
+    Reads and maps only: the substrate validates the result and decides what a failed
+    read or an invalid configuration means.
+
+    Returns:
+        The stored mail settings; unset when mail is disabled.
+    """
+    with core_database.SessionLocal() as db:
+        return core_mail.to_mail_settings(server_settings_integration.get_mail_config(db))
+
+
+def runtime_sources() -> jasil_settings.RuntimeSources:
+    """Return the callables the substrate uses to read operator-edited settings at runtime.
+
+    Returns:
+        The runtime sources, shared by the API and the standalone worker.
+    """
+    return jasil_settings.RuntimeSources(mail=_load_mail_settings)

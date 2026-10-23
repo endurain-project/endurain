@@ -13,6 +13,7 @@ from pydantic import (
     field_validator,
 )
 
+import core.mail as core_mail
 import core.sanitization as core_sanitization
 
 
@@ -361,11 +362,101 @@ class TileMapsTemplate(BaseModel):
     )
 
 
+class MailSettingsEdit(BaseModel):
+    """Request body for editing the mail server settings.
+
+    A full replacement except for the password.
+
+    Attributes:
+        host: Mail server hostname; empty or null disables mail.
+        port: Mail server port.
+        security: Connection security.
+        username: Authentication username.
+        from_address: Sender address; the username is used when empty.
+        password: Plain-text password; stored encrypted and never returned. Omit it
+            to keep the stored password; send null or an empty string to remove it.
+    """
+
+    host: StrictStr | None = Field(..., max_length=253, description="Mail server hostname (empty - mail disabled)")
+    port: StrictInt = Field(..., ge=1, le=65535, description="Mail server port")
+    security: core_mail.MailSecurity = Field(..., description="Connection security (starttls, ssl, none)")
+    username: StrictStr | None = Field(..., max_length=320, description="Mail server authentication username")
+    from_address: StrictStr | None = Field(
+        ..., max_length=320, description="Sender address (empty - the username is used)"
+    )
+    # Capped so the Fernet token (about 1.37x the plain length) fits the 512-char column.
+    password: StrictStr | None = Field(
+        default=None,
+        max_length=256,
+        description="Mail server password (write-only); omit to keep, null or empty to remove",
+    )
+
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+
+    @field_validator("host", "username", "from_address", mode="after")
+    @classmethod
+    def _empty_to_none(cls, value: str | None) -> str | None:
+        """Treat a blank string as unset.
+
+        Args:
+            value: The submitted value.
+
+        Returns:
+            The stripped value, or None when it is blank.
+        """
+        return (value.strip() or None) if value is not None else None
+
+
+class MailSettingsRead(MailSettingsEdit):
+    """The mail settings row as stored, for in-process use only.
+
+    Never a response model: the password is the stored (encrypted) value.
+
+    Attributes:
+        id: Unique identifier (always 1, singleton pattern).
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid", use_enum_values=True)
+
+    # Wider than the edit cap: the stored value is the Fernet token, which this model also reads.
+    password: StrictStr | None = Field(default=None, max_length=512, description="Mail server password")
+    id: StrictInt = Field(..., description="Unique identifier for mail settings (always 1)")
+
+
+class MailSettingsAdminRead(BaseModel):
+    """Mail server settings response for admins; the password is never returned.
+
+    Attributes:
+        id: Unique identifier (always 1, singleton pattern).
+        host: Mail server hostname, or null when mail is disabled.
+        port: Mail server port.
+        security: Connection security.
+        username: Authentication username.
+        from_address: Sender address, or null when the username is used.
+        password_set: Whether a password is stored.
+        env_managed: Field name to the environment variable that sets it; those
+            fields cannot be edited while the variable is set.
+    """
+
+    id: StrictInt
+    host: StrictStr | None
+    port: StrictInt
+    security: core_mail.MailSecurity
+    username: StrictStr | None
+    from_address: StrictStr | None
+    password_set: StrictBool = Field(..., description="Is a mail server password stored (true - yes, false - no)")
+    env_managed: dict[str, str] = Field(
+        ..., description="Field name to the environment variable that sets it (not editable while set)"
+    )
+
+    model_config = ConfigDict(use_enum_values=True)
+
+
 class EmailStatus(BaseModel):
     """Whether outgoing email is usable, and why not when it is not.
 
     Attributes:
-        configured: True when the SMTP settings are valid and email can be sent.
+        configured: True when the mail settings are valid and email can be sent.
         problems: Reasons email is disabled. Names settings, never their values.
     """
 

@@ -379,6 +379,11 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
         "A race on the unique media hash leaves the session unusable until it is rolled back, so the "
         "write has to own the rollback before it looks up the winner."
     ),
+    "server_settings.integration_service.import_deprecated_env_settings": (
+        "The API's boot import of deprecated environment variables: it opens its own session at startup, "
+        "locks the settings rows, writes only what differs and commits once, so replicas booting together "
+        "serialise on the lock; there is no caller transaction to join."
+    ),
 }
 
 #: Modules whose functions a transaction walk does not enter: they stage or describe, and a

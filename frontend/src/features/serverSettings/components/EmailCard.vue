@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
+import MailSettingsForm from '@/features/serverSettings/components/MailSettingsForm.vue'
 import {
   useEmailStatusQuery,
+  useMailSettingsQuery,
   useSendTestEmailMutation,
 } from '@/features/serverSettings/composables/useServerSettings'
 import { HttpError } from '@/services/http'
@@ -17,6 +19,7 @@ import { HttpError } from '@/services/http'
 const { t } = useI18n()
 const toasts = useToasts()
 const statusQuery = useEmailStatusQuery()
+const settingsQuery = useMailSettingsQuery()
 const testMutation = useSendTestEmailMutation()
 
 const emailStatus = computed(() => statusQuery.data.value ?? null)
@@ -44,6 +47,12 @@ function sendTest(): void {
       <h2 class="text-card-heading">{{ t('settings.server.email.title') }}</h2>
       <p class="text-body">{{ t('settings.server.email.description') }}</p>
     </div>
+
+    <Skeleton v-if="settingsQuery.isPending.value" class="h-9 w-full" />
+    <Alert v-else-if="settingsQuery.isError.value" kind="error">
+      {{ t('settings.server.email.settingsLoadError') }}
+    </Alert>
+    <MailSettingsForm v-else-if="settingsQuery.data.value" :settings="settingsQuery.data.value" />
 
     <Skeleton v-if="statusQuery.isPending.value" class="h-9 w-full" />
 

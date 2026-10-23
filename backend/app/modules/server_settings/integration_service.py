@@ -2,13 +2,15 @@
 
 A small, curated interface stated as the *questions callers actually ask* rather
 than as "here is the settings row". Settings are one global row that the rest of
-the application only reads, so this surface is all reads. Writes stay behind the
-module's admin routes.
+the application only reads, so this surface is reads. Writes stay behind the
+module's admin routes, apart from one: ``import_deprecated_env_settings`` is the boot
+import of deprecated environment variables and is a unit of work that commits.
 """
 
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import core.mail as core_mail
 import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.schema as server_settings_schema
@@ -91,3 +93,44 @@ def get_tile_server_settings(db: Session) -> server_settings_contracts.TileServe
         background_color=settings.map_background_color,
         api_key=api_key,
     )
+
+
+def get_mail_config(db: Session) -> core_mail.MailConfig | None:
+    """Return the configured mail server, with the password decrypted.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The mail configuration, or None when mail is disabled.
+
+    Raises:
+        ServiceUnavailableError: When the stored password cannot be decrypted.
+    """
+    return server_settings_service.get_mail_config(db)
+
+
+def is_mail_configured(db: Session) -> bool:
+    """Return whether outgoing email is configured and usable.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        True when mail settings are stored and valid.
+    """
+    return server_settings_service.get_email_status(db).configured
+
+
+def import_deprecated_env_settings(db: Session) -> None:
+    """Save the deprecated environment variables into the database and warn about them.
+
+    Called once at API startup, after the migrations. Commits.
+
+    Args:
+        db: Database session.
+
+    Raises:
+        ServiceUnavailableError: If a settings row does not exist.
+    """
+    server_settings_service.import_deprecated_env_settings(db)

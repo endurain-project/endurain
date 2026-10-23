@@ -4037,11 +4037,62 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:read scope.
          *
+         *     Args:
+         *         db: Database session.
+         *
          *     Returns:
          *         Whether email is configured and, when not, the reasons (setting names only).
          */
         get: operations["read_email_status_api_v1_server_settings_email_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server_settings/email/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Mail Settings
+         * @description Get the mail server settings.
+         *
+         *     Requires admin authentication with server_settings:read scope.
+         *
+         *     Args:
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The mail settings. The password is never returned, only whether one is stored;
+         *         ``env_managed`` names the fields an environment variable currently sets.
+         */
+        get: operations["read_mail_settings_api_v1_server_settings_email_settings_get"];
+        /**
+         * Edit Mail Settings
+         * @description Update the mail server settings.
+         *
+         *     Requires admin authentication with server_settings:write scope. The body replaces
+         *     the whole configuration; only the password may be omitted, which keeps the stored one.
+         *
+         *     Args:
+         *         request: The HTTP request object.
+         *         mail_settings_attributes: Settings to update.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         Updated mail settings, without the password.
+         *
+         *     Raises:
+         *         InvalidInputError: 400 if a field is set by an environment variable or the
+         *             configuration is not usable.
+         */
+        put: operations["edit_mail_settings_api_v1_server_settings_email_settings_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5663,7 +5714,7 @@ export interface components {
          * @description Whether outgoing email is usable, and why not when it is not.
          *
          *     Attributes:
-         *         configured: True when the SMTP settings are valid and email can be sent.
+         *         configured: True when the mail settings are valid and email can be sent.
          *         problems: Reasons email is disabled. Names settings, never their values.
          */
         EmailStatus: {
@@ -8805,6 +8856,101 @@ export interface components {
              * @description Whether MFA is enabled
              */
             mfa_enabled: boolean;
+        };
+        /**
+         * MailSecurity
+         * @description How the connection to the mail server is secured.
+         *
+         *     Attributes:
+         *         STARTTLS: ``smtp://``, upgraded with STARTTLS (port 587 by default).
+         *         SSL: ``smtps://``, implicit TLS (port 465 typically).
+         *         NONE: ``smtp://`` in cleartext; a private or loopback relay only, without credentials.
+         * @enum {string}
+         */
+        MailSecurity: "starttls" | "ssl" | "none";
+        /**
+         * MailSettingsAdminRead
+         * @description Mail server settings response for admins; the password is never returned.
+         *
+         *     Attributes:
+         *         id: Unique identifier (always 1, singleton pattern).
+         *         host: Mail server hostname, or null when mail is disabled.
+         *         port: Mail server port.
+         *         security: Connection security.
+         *         username: Authentication username.
+         *         from_address: Sender address, or null when the username is used.
+         *         password_set: Whether a password is stored.
+         *         env_managed: Field name to the environment variable that sets it; those
+         *             fields cannot be edited while the variable is set.
+         */
+        MailSettingsAdminRead: {
+            /**
+             * Env Managed
+             * @description Field name to the environment variable that sets it (not editable while set)
+             */
+            env_managed: {
+                [key: string]: string;
+            };
+            /** From Address */
+            from_address: string | null;
+            /** Host */
+            host: string | null;
+            /** Id */
+            id: number;
+            /**
+             * Password Set
+             * @description Is a mail server password stored (true - yes, false - no)
+             */
+            password_set: boolean;
+            /** Port */
+            port: number;
+            security: components["schemas"]["MailSecurity"];
+            /** Username */
+            username: string | null;
+        };
+        /**
+         * MailSettingsEdit
+         * @description Request body for editing the mail server settings.
+         *
+         *     A full replacement except for the password.
+         *
+         *     Attributes:
+         *         host: Mail server hostname; empty or null disables mail.
+         *         port: Mail server port.
+         *         security: Connection security.
+         *         username: Authentication username.
+         *         from_address: Sender address; the username is used when empty.
+         *         password: Plain-text password; stored encrypted and never returned. Omit it
+         *             to keep the stored password; send null or an empty string to remove it.
+         */
+        MailSettingsEdit: {
+            /**
+             * From Address
+             * @description Sender address (empty - the username is used)
+             */
+            from_address: string | null;
+            /**
+             * Host
+             * @description Mail server hostname (empty - mail disabled)
+             */
+            host: string | null;
+            /**
+             * Password
+             * @description Mail server password (write-only); omit to keep, null or empty to remove
+             */
+            password?: string | null;
+            /**
+             * Port
+             * @description Mail server port
+             */
+            port: number;
+            /** @description Connection security (starttls, ssl, none) */
+            security: components["schemas"]["MailSecurity"];
+            /**
+             * Username
+             * @description Mail server authentication username
+             */
+            username: string | null;
         };
         /**
          * MobileSessionResponse
@@ -17701,6 +17847,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmailStatus"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_mail_settings_api_v1_server_settings_email_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailSettingsAdminRead"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_mail_settings_api_v1_server_settings_email_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailSettingsEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailSettingsAdminRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */

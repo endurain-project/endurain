@@ -90,7 +90,7 @@ def request_password_reset_email(email: str, db: Session) -> None:
         HTTPException: 503 if the email service is not configured.
     """
     # Check if email service is configured
-    if not core_mail.is_mail_configured():
+    if not server_settings_integration.is_mail_configured(db):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email service is not configured",

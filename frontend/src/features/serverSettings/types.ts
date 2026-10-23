@@ -122,5 +122,60 @@ export type ServerSettingsUpdate = Omit<ServerSettings, 'tileserverApiKeySet'> &
   tileserverApiKey?: string | null
 }
 
-/** Raw email-status payload (the SMTP settings are valid, or why they are not). */
+/** Raw email-status payload (the mail settings are valid, or why they are not). */
 export type EmailStatusDto = Schemas['EmailStatus']
+
+/** Raw authenticated mail-settings payload (snake_case wire shape). */
+export type MailSettingsDto = Schemas['MailSettingsAdminRead']
+
+/** Editable mail-settings body for the `PUT`; the backend replaces the whole record. */
+export type MailSettingsEditDto = Schemas['MailSettingsEdit']
+
+/** Mail connection security, mirrored from the backend enum (`starttls` | `ssl` | `none`). */
+export type MailSecurity = Schemas['MailSecurity']
+
+/**
+ * The clean, camel-cased mail-server settings. Mapped from {@link MailSettingsDto}
+ * at the service boundary so components never touch the raw DTO.
+ *
+ * @property host - Mail server hostname, or null when mail is disabled.
+ * @property port - Mail server port.
+ * @property security - How the connection is secured.
+ * @property username - Authentication username, or null.
+ * @property fromAddress - Sender address, or null when the username is used.
+ * @property passwordSet - Whether a password is stored (the password itself is never returned).
+ * @property envManaged - Field name to the environment variable that sets it; those fields are read-only.
+ */
+export interface MailSettings {
+  host: string | null
+  port: number
+  security: MailSecurity
+  username: string | null
+  fromAddress: string | null
+  passwordSet: boolean
+  envManaged: Record<string, string>
+}
+
+/**
+ * The form-editable subset of {@link MailSettings}. The password is write-only:
+ * `password` holds a newly typed one (empty keeps the stored one) and
+ * `removePassword` asks for the stored one to be removed. The port is a string
+ * because the text input binds strings; it is validated and converted on save.
+ */
+export interface MailSettingsFormValues {
+  host: string
+  port: string
+  security: MailSecurity
+  username: string
+  fromAddress: string
+  password: string
+  removePassword: boolean
+}
+
+/**
+ * Mail settings to persist. `password` is write-only: `undefined` keeps the
+ * stored password, `null` removes it, a string replaces it.
+ */
+export type MailSettingsUpdate = Omit<MailSettings, 'passwordSet' | 'envManaged'> & {
+  password?: string | null
+}

@@ -12,7 +12,6 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import core.mail as core_mail
 import core.rate_limit as core_rate_limit
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
@@ -137,7 +136,7 @@ def verify_email(
     user_id = sign_up_tokens_utils.use_sign_up_token(confirm_data.token, db)
     users_crud.verify_user_email(user_id, server_settings, db)
 
-    if core_mail.is_mail_configured():
+    if server_settings_integration.is_mail_configured(db):
         user: users_schema.UsersRead | None = users_crud.get_user_by_id(user_id, db)
         if not user:
             raise HTTPException(

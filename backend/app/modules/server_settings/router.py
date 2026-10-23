@@ -176,15 +176,89 @@ def read_email_status(
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["server_settings:read"]),
     ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
 ) -> server_settings_schema.EmailStatus:
     """Get whether outgoing email is usable.
 
     Requires admin authentication with server_settings:read scope.
 
+    Args:
+        db: Database session.
+
     Returns:
         Whether email is configured and, when not, the reasons (setting names only).
     """
-    return server_settings_service.get_email_status()
+    return server_settings_service.get_email_status(db)
+
+
+@router.get(
+    "/email/settings",
+    response_model=server_settings_schema.MailSettingsAdminRead,
+    status_code=status.HTTP_200_OK,
+)
+def read_mail_settings(
+    _check_scopes: Annotated[
+        Callable,
+        Security(auth_dependencies.check_scopes, scopes=["server_settings:read"]),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> server_settings_schema.MailSettingsAdminRead:
+    """Get the mail server settings.
+
+    Requires admin authentication with server_settings:read scope.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The mail settings. The password is never returned, only whether one is stored;
+        ``env_managed`` names the fields an environment variable currently sets.
+    """
+    return server_settings_service.get_mail_settings_for_admin(db)
+
+
+@router.put(
+    "/email/settings",
+    response_model=server_settings_schema.MailSettingsAdminRead,
+    status_code=status.HTTP_200_OK,
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def edit_mail_settings(
+    request: Request,
+    mail_settings_attributes: server_settings_schema.MailSettingsEdit,
+    _check_scopes: Annotated[
+        Callable,
+        Security(auth_dependencies.check_scopes, scopes=["server_settings:write"]),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> server_settings_schema.MailSettingsAdminRead:
+    """Update the mail server settings.
+
+    Requires admin authentication with server_settings:write scope. The body replaces
+    the whole configuration; only the password may be omitted, which keeps the stored one.
+
+    Args:
+        request: The HTTP request object.
+        mail_settings_attributes: Settings to update.
+        db: Database session.
+
+    Returns:
+        Updated mail settings, without the password.
+
+    Raises:
+        InvalidInputError: 400 if a field is set by an environment variable or the
+            configuration is not usable.
+    """
+    return server_settings_service.edit_mail_settings(mail_settings_attributes, db)
 
 
 @router.post(
@@ -230,5 +304,5 @@ def send_test_email(
     admin = users_integration.get_user(token_user_id, db)
     if admin is None:
         raise core_exceptions.NotFoundError("User not found")
-    server_settings_service.send_test_email(admin, mail)
+    server_settings_service.send_test_email(admin, mail, db)
     return {"message": f"Test email sent to {admin.email}."}
