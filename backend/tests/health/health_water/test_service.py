@@ -89,3 +89,15 @@ class TestListHealthWater:
         health_water_service.list_health_water(1, mock_db)
 
         mock_number.assert_called_once_with(1, mock_db, None)
+
+
+class TestMissingDate:
+    @patch(f"{_PREFIX}.health_water_crud.create_health_water")
+    @patch(f"{_PREFIX}.health_water_crud.get_health_water_by_date_and_user_id", return_value=None)
+    @patch(f"{_PREFIX}.core_timezone.today_in", return_value=datetime_date(2024, 1, 15))
+    def test_defaults_to_today_in_the_servers_timezone(self, _today, _get_by_date, mock_create, mock_db):
+        record = health_water_schema.HealthWaterCreate(amount_ml=500.0)
+
+        health_water_service.create_health_water(1, record, mock_db)
+
+        assert mock_create.call_args.args[1].date == datetime_date(2024, 1, 15)

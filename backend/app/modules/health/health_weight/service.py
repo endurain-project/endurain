@@ -7,13 +7,18 @@ consume lives in :mod:`modules.health.health_weight.integration_service`.
 
 from sqlalchemy.orm import Session
 
+import core.config as core_config
 import core.exceptions as core_exceptions
+import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_weight.bmi as health_weight_bmi
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
 import modules.users.users.integration_service as users_integration
+
+logger = core_logger.get_logger(__name__)
 
 
 def _user_height_cm(user_id: int, db: Session) -> float | None:
@@ -130,6 +135,7 @@ def stage_edit_health_weight(
         NotFoundError: If the user has no such record.
     """
     if health_weight.user_id != user_id:
+        logger.warning("Refused to edit a weight record of another user", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.PermissionDeniedError("Cannot edit health weight for another user.")
 
     if health_weight.bmi is None and health_weight.weight is not None:
@@ -150,11 +156,10 @@ def create_health_weight(
     Returns:
         The stored record.
 
-    Raises:
-        InvalidInputError: If the record has no date.
     """
-    if not health_weight.date:
-        raise core_exceptions.InvalidInputError("Date field is required.")
+    if health_weight.date is None:
+        # The request carries no timezone, so the fallback is the server's configured zone.
+        health_weight.date = core_timezone.today_in(core_config.settings.TZ)
 
     existing = health_weight_crud.get_health_weight_by_date_and_user_id(user_id, health_weight.date.isoformat(), db)
     if existing:
@@ -167,6 +172,7 @@ def create_health_weight(
         stored = stage_create_health_weight(user_id, health_weight, db)
 
     db.commit()
+    logger.info("Stored a weight record", extra=core_logger.context(user_id=user_id))
     return stored
 
 
@@ -189,6 +195,7 @@ def edit_health_weight(
     """
     updated = stage_edit_health_weight(user_id, health_weight, db)
     db.commit()
+    logger.info("Edited a weight record", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -205,3 +212,6 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session) -> No
     """
     health_weight_crud.delete_health_weight(user_id, health_weight_id, db)
     db.commit()
+    logger.info(
+        "Deleted a weight record", extra=core_logger.context(user_id=user_id, health_weight_id=health_weight_id)
+    )

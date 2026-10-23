@@ -1,3 +1,5 @@
+"""SQLAlchemy ORM model for health steps records."""
+
 from datetime import date as date_type
 
 from sqlalchemy import ForeignKey, String
@@ -7,8 +9,7 @@ from core.database import Base
 
 
 class HealthSteps(Base):
-    """
-    SQLAlchemy model representing daily step count data for users.
+    """SQLAlchemy model representing daily step count data for users.
 
     This model stores health and fitness tracking data related to the number of steps
     taken by a user on a specific date. It includes information about the data source

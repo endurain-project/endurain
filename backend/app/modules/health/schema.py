@@ -1,9 +1,10 @@
+"""Client response shape shared by the paginated health lists."""
+
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 
 class HealthListResponse(BaseModel):
-    """
-    Response model for listing records.
+    """Response model for listing records.
 
     Attributes:
         total: Total number of health records for the user.

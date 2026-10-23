@@ -253,7 +253,6 @@ convention = "google"
 "app/logs/**/*.py" = ["D"]
 "app/migrations/**/*.py" = ["D"]
 "app/modules/auth/**/*.py" = ["D"]
-"app/modules/health/**/*.py" = ["D"]
 "app/modules/strava/**/*.py" = ["D"]
 "app/modules/users/**/*.py" = ["D"]
 "scripts/**/*.py" = ["D"]

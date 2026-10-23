@@ -30,8 +30,7 @@ def read_health_daily_stats(
         Depends(core_database.get_db),
     ],
 ) -> health_dashboard_schema.HealthDashboardResponse:
-    """
-    Retrieve the user's health dashboard for today.
+    """Retrieve the user's health dashboard for today.
 
     Args:
         _check_scopes: Security dependency that validates the user has

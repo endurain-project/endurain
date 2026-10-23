@@ -1,3 +1,5 @@
+"""SQLAlchemy ORM model for per-user health targets."""
+
 from decimal import Decimal
 
 from sqlalchemy import ForeignKey, Numeric
@@ -7,8 +9,7 @@ from core.database import Base
 
 
 class HealthTargets(Base):
-    """
-    User health targets configuration.
+    """User health targets configuration.
 
     Attributes:
         id: Primary key.

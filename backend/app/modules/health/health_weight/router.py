@@ -1,11 +1,14 @@
+"""FastAPI router for health weight endpoints."""
+
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
 import modules.health.health_weight.schema as health_weight_schema
@@ -46,8 +49,7 @@ def read_health_weight_all_pagination(
         Query(description="Filter by goal interval"),
     ] = None,
 ) -> health_weight_schema.HealthWeightListResponse:
-    """
-    Retrieve paginated health weight records for the authenticated user.
+    """Retrieve paginated health weight records for the authenticated user.
 
     This endpoint fetches health weight data with optional pagination and
     filtering. Access is restricted to users with the 'health:read' scope.
@@ -85,7 +87,9 @@ def read_health_weight_all_pagination(
     response_model=health_weight_schema.HealthWeightRead,
     status_code=status.HTTP_201_CREATED,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_health_weight(
+    request: Request,
     health_weight: health_weight_schema.HealthWeightCreate,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
@@ -97,13 +101,13 @@ def create_health_weight(
         Depends(core_database.get_db),
     ],
 ) -> health_weight_schema.HealthWeightRead:
-    """
-    Create or update a health weight record for the authenticated user.
+    """Create or update a health weight record for the authenticated user.
 
     This endpoint creates a new health weight record if one doesn't exist for the given date,
     or updates an existing record if one is already present for that date.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_weight (health_weight_schema.HealthWeightCreate): The health weight data to create or update.
             Must include a date field.
         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
@@ -113,8 +117,6 @@ def create_health_weight(
     Returns:
         health_weight_schema.HealthWeightRead: The created or updated health weight record.
 
-    Raises:
-        InvalidInputError: If the date field is not provided in the request.
     """
     return health_weight_service.create_health_weight(token_user_id, health_weight, db)
 
@@ -124,7 +126,9 @@ def create_health_weight(
     response_model=health_weight_schema.HealthWeightRead,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_weight(
+    request: Request,
     health_weight: health_weight_schema.HealthWeightUpdate,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
@@ -136,13 +140,13 @@ def edit_health_weight(
         Depends(core_database.get_db),
     ],
 ) -> health_weight_schema.HealthWeightRead:
-    """
-    Edit a health weight entry for the authenticated user.
+    """Edit a health weight entry for the authenticated user.
 
     This endpoint allows users with 'health:write' scope to update an existing
     health weight record in the database.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_weight (health_weight_schema.HealthWeight): The health weight data
             to be updated, containing the weight information and associated metadata.
         _check_scopes (Callable): Security dependency that verifies the user has
@@ -162,8 +166,10 @@ def edit_health_weight(
 
 
 @router.delete("/{health_weight_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_weight(
-    health_weight_id: int,
+    request: Request,
+    health_weight_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
         int,
@@ -174,13 +180,13 @@ def delete_health_weight(
         Depends(core_database.get_db),
     ],
 ) -> None:
-    """
-    Delete a health weight entry for the authenticated user.
+    """Delete a health weight entry for the authenticated user.
 
     This endpoint allows users to delete their own health weight records. It requires
     the 'health:write' scope for authorization.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_weight_id (int): The unique identifier of the health weight entry to delete.
         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
         token_user_id (int): The user ID extracted from the access token, used to ensure

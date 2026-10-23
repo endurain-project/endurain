@@ -1,5 +1,4 @@
-"""
-Pydantic schemas for health water intake data.
+"""Pydantic schemas for health water intake data.
 
 This module defines the request/response schemas for water intake
 tracking, including validation rules and source enumeration.
@@ -14,17 +13,13 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
-    model_validator,
 )
 
-import core.config as core_config
-import core.timezone as core_timezone
 import modules.health.schema as health_schema
 
 
 class Source(Enum):
-    """
-    Enumeration of data sources for water intake records.
+    """Enumeration of data sources for water intake records.
 
     Attributes:
         MANUAL: Manually entered water intake data.
@@ -36,8 +31,7 @@ class Source(Enum):
 
 
 class HealthWaterBase(BaseModel):
-    """
-    Base model for health water intake data.
+    """Base model for health water intake data.
 
     Attributes:
         date: Calendar date of the water intake record.
@@ -69,34 +63,14 @@ class HealthWaterBase(BaseModel):
 
 
 class HealthWaterCreate(HealthWaterBase):
+    """Schema for creating a new water intake record.
+
+    The date is optional; ``service`` fills it in when the client sends none.
     """
-    Schema for creating a new water intake record.
-
-    Automatically sets the date to today if not provided.
-    """
-
-    @model_validator(mode="after")
-    def set_default_date(self) -> "HealthWaterCreate":
-        """
-        Set date to today if not provided.
-
-        Clients should always send their own local date — the request carries no
-        timezone, so this fallback can only use the server's configured zone and
-        will file an entry logged near local midnight under the wrong day for an
-        athlete elsewhere. Resolved through ``settings.TZ`` explicitly rather
-        than ``date.today()``, which silently depends on the container's clock.
-
-        Returns:
-            The validated model instance with date set.
-        """
-        if self.date is None:
-            self.date = core_timezone.today_in(core_config.settings.TZ)
-        return self
 
 
 class HealthWaterRead(HealthWaterBase):
-    """
-    Schema for reading a water intake record.
+    """Schema for reading a water intake record.
 
     Attributes:
         id: Unique identifier for the water intake record.
@@ -114,8 +88,7 @@ class HealthWaterRead(HealthWaterBase):
 
 
 class HealthWaterUpdate(HealthWaterRead):
-    """
-    Schema for updating a water intake record.
+    """Schema for updating a water intake record.
 
     Inherits from HealthWaterRead for consistency with read
     operations while allowing modifications to water intake data.
@@ -123,8 +96,7 @@ class HealthWaterUpdate(HealthWaterRead):
 
 
 class HealthWaterListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health water intake records.
+    """Response model for listing health water intake records.
 
     Attributes:
         records: A list of HealthWaterRead objects representing

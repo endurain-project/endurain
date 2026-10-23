@@ -1,5 +1,4 @@
-"""
-FastAPI router for health poop (bowel movement) endpoints.
+"""FastAPI router for health poop (bowel movement) endpoints.
 
 This module defines the API endpoints for managing bowel movement
 records, including CRUD operations with pagination and filtering.
@@ -12,6 +11,7 @@ from fastapi import (
     APIRouter,
     Depends,
     Query,
+    Request,
     Security,
     status,
 )
@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
 import modules.health.health_poop.schema as health_poop_schema
@@ -66,8 +67,7 @@ def read_health_poop_all_pagination(
         Query(description="Filter by goal interval"),
     ] = None,
 ) -> health_poop_schema.HealthPoopListResponse:
-    """
-    Retrieve paginated poop records for the user.
+    """Retrieve paginated poop records for the user.
 
     Args:
         _check_scopes: Security dependency that validates the
@@ -98,7 +98,7 @@ def read_health_poop_all_pagination(
     status_code=status.HTTP_200_OK,
 )
 def read_health_poop_by_id(
-    health_poop_id: int,
+    health_poop_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[
         Callable,
         Security(
@@ -115,8 +115,7 @@ def read_health_poop_by_id(
         Depends(core_database.get_db),
     ],
 ) -> health_poop_schema.HealthPoopRead:
-    """
-    Retrieve a specific poop record by ID.
+    """Retrieve a specific poop record by ID.
 
     Args:
         health_poop_id: ID of the poop record.
@@ -138,7 +137,9 @@ def read_health_poop_by_id(
     response_model=health_poop_schema.HealthPoopRead,
     status_code=status.HTTP_201_CREATED,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_health_poop(
+    request: Request,
     health_poop: health_poop_schema.HealthPoopCreate,
     _check_scopes: Annotated[
         Callable,
@@ -156,13 +157,13 @@ def create_health_poop(
         Depends(core_database.get_db),
     ],
 ) -> health_poop_schema.HealthPoopRead:
-    """
-    Create a new poop record for the user.
+    """Create a new poop record for the user.
 
     Unlike other health modules, multiple poop records can exist
     per day.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_poop: Poop data to create.
         _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.
@@ -179,7 +180,9 @@ def create_health_poop(
     response_model=health_poop_schema.HealthPoopRead,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_poop(
+    request: Request,
     health_poop: health_poop_schema.HealthPoopUpdate,
     _check_scopes: Annotated[
         Callable,
@@ -197,10 +200,10 @@ def edit_health_poop(
         Depends(core_database.get_db),
     ],
 ) -> health_poop_schema.HealthPoopRead:
-    """
-    Edit an existing poop record.
+    """Edit an existing poop record.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_poop: Poop data to update.
         _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.
@@ -220,8 +223,10 @@ def edit_health_poop(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_poop(
-    health_poop_id: int,
+    request: Request,
+    health_poop_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[
         Callable,
         Security(
@@ -238,10 +243,10 @@ def delete_health_poop(
         Depends(core_database.get_db),
     ],
 ) -> None:
-    """
-    Delete a poop record for the authenticated user.
+    """Delete a poop record for the authenticated user.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_poop_id: ID of the poop record to delete.
         _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.

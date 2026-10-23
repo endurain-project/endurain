@@ -1,3 +1,5 @@
+"""Pydantic request and response shapes for health sleep records."""
+
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
@@ -12,14 +14,11 @@ from pydantic import (
     model_validator,
 )
 
-import core.config as core_config
-import core.timezone as core_timezone
 import modules.health.schema as health_schema
 
 
 class Source(Enum):
-    """
-    Enum representing the source of sleep health data.
+    """Enum representing the source of sleep health data.
 
     Attributes:
         GARMIN: Sleep data sourced from Garmin devices or services.
@@ -29,8 +28,7 @@ class Source(Enum):
 
 
 class SleepStageType(Enum):
-    """
-    Enum representing different stages of sleep.
+    """Enum representing different stages of sleep.
 
     Attributes:
         DEEP (int): Deep sleep stage, value 0. Characterized by slow brain waves and muscle relaxation.
@@ -46,8 +44,7 @@ class SleepStageType(Enum):
 
 
 class HRVStatus(Enum):
-    """
-    Enum representing the Heart Rate Variability (HRV) status classification.
+    """Enum representing the Heart Rate Variability (HRV) status classification.
 
     Attributes:
         BALANCED: Indicates healthy HRV levels with good cardiovascular autonomic balance.
@@ -63,8 +60,7 @@ class HRVStatus(Enum):
 
 
 class SleepScore(Enum):
-    """
-    Enumeration of sleep quality score levels.
+    """Enumeration of sleep quality score levels.
 
     Attributes:
         EXCELLENT (str): Represents excellent sleep quality.
@@ -80,8 +76,7 @@ class SleepScore(Enum):
 
 
 class HealthSleepStage(BaseModel):
-    """
-    Represents a sleep stage with timing and duration information.
+    """Represents a sleep stage with timing and duration information.
 
     This model captures details about individual sleep stages within a sleep session,
     including the type of stage, when it occurred, and how long it lasted.
@@ -107,8 +102,7 @@ class HealthSleepStage(BaseModel):
 
 
 class HealthSleepBase(BaseModel):
-    """
-    Pydantic model representing the base schema for health sleep data.
+    """Pydantic model representing the base schema for health sleep data.
 
     This model defines the structure and validation rules for sleep-related health metrics,
     including sleep duration, quality scores, heart rate variability, oxygen saturation,
@@ -243,35 +237,14 @@ class HealthSleepBase(BaseModel):
 
 
 class HealthSleepCreate(HealthSleepBase):
+    """Schema for creating a health sleep record.
+
+    The date is optional; ``service`` fills it in when the client sends none.
     """
-    Validator for HealthSleepCreate model that automatically sets the date field.
-
-    This validator runs after model initialization to ensure that if no date
-    is provided, it defaults to today's date.
-    """
-
-    @model_validator(mode="after")
-    def set_default_date(self) -> "HealthSleepCreate":
-        """
-        Set date to today if not provided.
-
-        Clients should always send their own local date — the request carries no
-        timezone, so this fallback can only use the server's configured zone and
-        will file an entry logged near local midnight under the wrong day for an
-        athlete elsewhere. Resolved through ``settings.TZ`` explicitly rather
-        than ``date.today()``, which silently depends on the container's clock.
-
-        Returns:
-            The validated model instance with date set.
-        """
-        if self.date is None:
-            self.date = core_timezone.today_in(core_config.settings.TZ)
-        return self
 
 
 class HealthSleepRead(HealthSleepBase):
-    """
-    Read schema for health sleep records.
+    """Read schema for health sleep records.
 
     Extends the base health sleep schema with an identifier field for retrieving
     or referencing existing sleep records in the database.
@@ -286,8 +259,7 @@ class HealthSleepRead(HealthSleepBase):
 
 
 class HealthSleepUpdate(HealthSleepRead):
-    """
-    Schema for updating health sleep records.
+    """Schema for updating health sleep records.
 
     Inherits all fields from HealthSleepRead, allowing clients to update
     existing sleep data while maintaining consistency with the read schema.
@@ -298,8 +270,7 @@ class HealthSleepUpdate(HealthSleepRead):
 
 
 class HealthSleepListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health sleep records.
+    """Response model for listing health sleep records.
 
     Extends the base HealthListResponse to provide a typed response containing
     a list of sleep records. This model is used when returning multiple sleep

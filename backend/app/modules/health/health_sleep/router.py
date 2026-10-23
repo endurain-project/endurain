@@ -1,11 +1,14 @@
+"""FastAPI router for health sleep endpoints."""
+
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
 import modules.health.health_sleep.schema as health_sleep_schema
@@ -46,8 +49,7 @@ def read_health_sleep_all_pagination(
         Query(description="Filter by goal interval"),
     ] = None,
 ) -> health_sleep_schema.HealthSleepListResponse:
-    """
-    Retrieve health sleep records for the authenticated user.
+    """Retrieve health sleep records for the authenticated user.
 
     This endpoint fetches health sleep data with optional pagination and
     filtering. Access is restricted to users with the 'health:read' scope.
@@ -84,7 +86,9 @@ def read_health_sleep_all_pagination(
     response_model=health_sleep_schema.HealthSleepRead,
     status_code=status.HTTP_201_CREATED,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_health_sleep(
+    request: Request,
     health_sleep: health_sleep_schema.HealthSleepCreate,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
@@ -96,14 +100,14 @@ def create_health_sleep(
         Depends(core_database.get_db),
     ],
 ) -> health_sleep_schema.HealthSleepRead:
-    """
-    Create or update health sleep data for a user.
+    """Create or update health sleep data for a user.
 
     This endpoint creates new health sleep data or updates existing data if an entry
     for the specified date already exists. The operation is determined automatically
     based on whether sleep data exists for the given date.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create
             or update, including the date and sleep duration.
         _check_scopes (Callable): Security dependency that verifies the user has
@@ -115,8 +119,6 @@ def create_health_sleep(
     Returns:
         health_sleep_schema.HealthSleepRead: The created or updated health sleep data.
 
-    Raises:
-        InvalidInputError: If the date field is not provided in the request.
     """
     return health_sleep_service.create_health_sleep(token_user_id, health_sleep, db)
 
@@ -126,7 +128,9 @@ def create_health_sleep(
     response_model=health_sleep_schema.HealthSleepRead,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_sleep(
+    request: Request,
     health_sleep: health_sleep_schema.HealthSleepUpdate,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
@@ -138,13 +142,13 @@ def edit_health_sleep(
         Depends(core_database.get_db),
     ],
 ) -> health_sleep_schema.HealthSleepRead:
-    """
-    Edit health sleep data for a user.
+    """Edit health sleep data for a user.
 
     This endpoint updates existing health sleep records in the database for the authenticated user.
     Requires 'health:write' scope for authorization.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
             containing the new values for the health sleep record.
         _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
@@ -165,8 +169,10 @@ def edit_health_sleep(
 
 
 @router.delete("/{health_sleep_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_sleep(
-    health_sleep_id: int,
+    request: Request,
+    health_sleep_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
         int,
@@ -177,13 +183,13 @@ def delete_health_sleep(
         Depends(core_database.get_db),
     ],
 ) -> None:
-    """
-    Delete a health sleep record for the authenticated user.
+    """Delete a health sleep record for the authenticated user.
 
     This endpoint removes a specific health sleep entry from the database for the user
     identified by the access token. The user must have 'health:write' scope permission.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_sleep_id (int): The unique identifier of the health sleep record to delete.
         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
         token_user_id (int): The user ID extracted from the access token.

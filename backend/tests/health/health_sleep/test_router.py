@@ -67,13 +67,13 @@ class TestCreateHealthSleep:
         assert response.json()["total_sleep_seconds"] == 28800
 
     @patch(f"{_SERVICE}.create_health_sleep")
-    def test_missing_date_defaults_to_today(self, mock_create, fast_api_client, fast_api_app):
+    def test_missing_date_is_left_to_the_service(self, mock_create, fast_api_client, fast_api_app):
         mock_create.return_value = _record()
 
         response = fast_api_client.post("/health_sleep", json={"total_sleep_seconds": 28800}, headers=_HEADERS)
 
         assert response.status_code == 201
-        assert mock_create.call_args.args[1].date is not None
+        assert mock_create.call_args.args[1].date is None
 
     @patch(f"{_SERVICE}.create_health_sleep")
     def test_conflict_is_409(self, mock_create, fast_api_client, fast_api_app):

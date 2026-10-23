@@ -280,7 +280,22 @@ _OUTBOUND_SURFACE_STEMS = frozenset({"identity_service"})
 
 #: Layer-rule exceptions as ``{(importer, imported): reason}``, in dotted paths
 #: rooted at ``app``. Every entry is a deliberate seam; anything else fails.
-_LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {}
+_LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
+    (
+        "modules.health.health_fasting.crud",
+        "modules.health.computation",
+    ): (
+        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
+    (
+        "modules.health.health_poop.crud",
+        "modules.health.computation",
+    ): (
+        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
+}
 
 #: Top-level modules that sit below another, as ``{module: modules it may not import}``.
 _MUST_NOT_IMPORT: dict[str, tuple[str, ...]] = {

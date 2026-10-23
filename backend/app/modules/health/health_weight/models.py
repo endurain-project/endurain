@@ -1,3 +1,5 @@
+"""SQLAlchemy ORM model for health weight records."""
+
 from datetime import date as date_type
 from decimal import Decimal
 
@@ -8,8 +10,7 @@ from core.database import Base
 
 
 class HealthWeight(Base):
-    """
-    User health weight and body composition data.
+    """User health weight and body composition data.
 
     Attributes:
         id: Primary key.

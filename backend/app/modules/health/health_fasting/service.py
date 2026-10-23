@@ -11,6 +11,7 @@ from datetime import date as date_type
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
@@ -18,6 +19,8 @@ import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_fasting.streaks as health_fasting_streaks
 import modules.users.users.integration_service as users_integration
+
+logger = core_logger.get_logger(__name__)
 
 
 def _since(user_id: int, interval: health_constants.Interval | None, db: Session) -> date_type | None:
@@ -150,6 +153,7 @@ def create_health_fasting(
 
     created = health_fasting_crud.create_health_fasting(user_id, health_fasting, db)
     db.commit()
+    logger.info("Stored a fasting session", extra=core_logger.context(user_id=user_id))
     return created
 
 
@@ -171,10 +175,12 @@ def edit_health_fasting(
         NotFoundError: If the user has no such record.
     """
     if health_fasting.user_id != user_id:
+        logger.warning("Refused to edit a fasting session of another user", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.PermissionDeniedError("Cannot edit fasting record for another user.")
 
     updated = health_fasting_crud.edit_health_fasting(user_id, health_fasting, db)
     db.commit()
+    logger.info("Edited a fasting session", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -216,6 +222,9 @@ def complete_health_fasting(
         db,
     )
     db.commit()
+    logger.info(
+        "Completed a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
+    )
     return ended
 
 
@@ -232,3 +241,6 @@ def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> 
     """
     health_fasting_crud.delete_health_fasting(user_id, health_fasting_id, db)
     db.commit()
+    logger.info(
+        "Deleted a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
+    )

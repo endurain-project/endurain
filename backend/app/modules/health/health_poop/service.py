@@ -10,11 +10,14 @@ from datetime import date as date_type
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.logger as core_logger
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_poop.schema as health_poop_schema
 import modules.users.users.integration_service as users_integration
+
+logger = core_logger.get_logger(__name__)
 
 
 def _since(user_id: int, interval: health_constants.Interval | None, db: Session) -> date_type | None:
@@ -115,6 +118,7 @@ def create_health_poop(
     """
     created = health_poop_crud.create_health_poop(user_id, health_poop, db)
     db.commit()
+    logger.info("Stored a bowel movement record", extra=core_logger.context(user_id=user_id))
     return created
 
 
@@ -136,10 +140,14 @@ def edit_health_poop(
         NotFoundError: If the user has no such record.
     """
     if health_poop.user_id != user_id:
+        logger.warning(
+            "Refused to edit a bowel movement record of another user", extra=core_logger.context(user_id=user_id)
+        )
         raise core_exceptions.PermissionDeniedError("Cannot edit health poop record for another user.")
 
     updated = health_poop_crud.edit_health_poop(user_id, health_poop, db)
     db.commit()
+    logger.info("Edited a bowel movement record", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -156,3 +164,6 @@ def delete_health_poop(user_id: int, health_poop_id: int, db: Session) -> None:
     """
     health_poop_crud.delete_health_poop(user_id, health_poop_id, db)
     db.commit()
+    logger.info(
+        "Deleted a bowel movement record", extra=core_logger.context(user_id=user_id, health_poop_id=health_poop_id)
+    )

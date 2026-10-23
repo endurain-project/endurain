@@ -1,5 +1,4 @@
-"""
-FastAPI router for health fasting endpoints.
+"""FastAPI router for health fasting endpoints.
 
 This module defines the API endpoints for managing fasting sessions,
 including CRUD operations, active fast tracking, and statistics.
@@ -8,11 +7,12 @@ including CRUD operations, active fast tracking, and statistics.
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
 import modules.health.health_fasting.schema as health_fasting_schema
@@ -53,8 +53,7 @@ def read_health_fasting_all_pagination(
         Query(description="Filter by goal interval"),
     ] = None,
 ) -> health_fasting_schema.HealthFastingListResponse:
-    """
-    Retrieve health fasting records for the authenticated user.
+    """Retrieve health fasting records for the authenticated user.
 
     This endpoint fetches health fasting data with optional pagination and
     filtering. Access is restricted to users with the 'health:read' scope.
@@ -102,8 +101,7 @@ def read_active_fasting(
         Depends(core_database.get_db),
     ],
 ) -> health_fasting_schema.HealthFastingRead | None:
-    """
-    Retrieve the active fasting session for the authenticated user.
+    """Retrieve the active fasting session for the authenticated user.
 
     Args:
         _check_scopes: Security dependency for health:read scope.
@@ -132,8 +130,7 @@ def read_fasting_stats(
         Depends(core_database.get_db),
     ],
 ) -> health_fasting_schema.HealthFastingStatsResponse:
-    """
-    Retrieve fasting statistics for the authenticated user.
+    """Retrieve fasting statistics for the authenticated user.
 
     Args:
         _check_scopes: Security dependency for health:read scope.
@@ -152,7 +149,7 @@ def read_fasting_stats(
     status_code=status.HTTP_200_OK,
 )
 def read_health_fasting_by_id(
-    health_fasting_id: int,
+    health_fasting_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:read"])],
     token_user_id: Annotated[
         int,
@@ -163,8 +160,7 @@ def read_health_fasting_by_id(
         Depends(core_database.get_db),
     ],
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Retrieve a specific fasting record by ID.
+    """Retrieve a specific fasting record by ID.
 
     Args:
         health_fasting_id: ID of the fasting record.
@@ -186,7 +182,9 @@ def read_health_fasting_by_id(
     response_model=health_fasting_schema.HealthFastingRead,
     status_code=status.HTTP_201_CREATED,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_health_fasting(
+    request: Request,
     health_fasting: health_fasting_schema.HealthFastingCreate,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
@@ -198,10 +196,10 @@ def create_health_fasting(
         Depends(core_database.get_db),
     ],
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Create a new fasting session.
+    """Create a new fasting session.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_fasting: Fasting data to create.
         _check_scopes: Security dependency for health:write scope.
         token_user_id: User ID from the access token.
@@ -221,7 +219,9 @@ def create_health_fasting(
     response_model=health_fasting_schema.HealthFastingRead,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_fasting(
+    request: Request,
     health_fasting: health_fasting_schema.HealthFastingUpdate,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
@@ -233,10 +233,10 @@ def edit_health_fasting(
         Depends(core_database.get_db),
     ],
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Edit an existing fasting record.
+    """Edit an existing fasting record.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_fasting: Fasting data to update.
         _check_scopes: Security dependency for health:write scope.
         token_user_id: User ID from the access token.
@@ -253,8 +253,10 @@ def edit_health_fasting(
     response_model=health_fasting_schema.HealthFastingRead,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def complete_health_fasting(
-    health_fasting_id: int,
+    request: Request,
+    health_fasting_id: core_dependencies.PositiveId,
     complete_data: health_fasting_schema.HealthFastingComplete,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
@@ -266,10 +268,10 @@ def complete_health_fasting(
         Depends(core_database.get_db),
     ],
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Complete or end a fasting session.
+    """Complete or end a fasting session.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_fasting_id: ID of the fasting record to complete.
         complete_data: Completion data with end time and status.
         _check_scopes: Security dependency for health:write scope.
@@ -287,8 +289,10 @@ def complete_health_fasting(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_fasting(
-    health_fasting_id: int,
+    request: Request,
+    health_fasting_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
     token_user_id: Annotated[
         int,
@@ -299,10 +303,10 @@ def delete_health_fasting(
         Depends(core_database.get_db),
     ],
 ) -> None:
-    """
-    Delete a fasting record.
+    """Delete a fasting record.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_fasting_id: ID of the fasting record to delete.
         _check_scopes: Security dependency for health:write scope.
         token_user_id: User ID from the access token.

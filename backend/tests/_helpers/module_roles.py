@@ -27,6 +27,7 @@ CONVERTED_MODULES: tuple[str, ...] = (
     "followers",
     "garmin",
     "gears",
+    "health",
     "notifications",
     "server_settings",
     "websocket",
@@ -38,7 +39,6 @@ CONVERTED_MODULES: tuple[str, ...] = (
 #: module cannot start life silently outside the rules.
 UNCONVERTED_MODULES: tuple[str, ...] = (
     "auth",
-    "health",
     "strava",
     "users",
 )

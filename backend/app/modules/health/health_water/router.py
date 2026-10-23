@@ -1,5 +1,4 @@
-"""
-FastAPI router for health water intake endpoints.
+"""FastAPI router for health water intake endpoints.
 
 This module defines the API endpoints for managing water intake
 records, including CRUD operations with pagination and filtering.
@@ -12,6 +11,7 @@ from fastapi import (
     APIRouter,
     Depends,
     Query,
+    Request,
     Security,
     status,
 )
@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
 import modules.health.health_water.schema as health_water_schema
@@ -66,8 +67,7 @@ def read_health_water_all_pagination(
         Query(description="Filter by goal interval"),
     ] = None,
 ) -> health_water_schema.HealthWaterListResponse:
-    """
-    Retrieve paginated water intake records for the user.
+    """Retrieve paginated water intake records for the user.
 
     Args:
         _check_scopes: Security dependency that validates the
@@ -97,7 +97,9 @@ def read_health_water_all_pagination(
     response_model=health_water_schema.HealthWaterRead,
     status_code=status.HTTP_201_CREATED,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_health_water(
+    request: Request,
     health_water: health_water_schema.HealthWaterCreate,
     _check_scopes: Annotated[
         Callable,
@@ -115,13 +117,13 @@ def create_health_water(
         Depends(core_database.get_db),
     ],
 ) -> health_water_schema.HealthWaterRead:
-    """
-    Create or update a water intake record for the user.
+    """Create or update a water intake record for the user.
 
     If a record already exists for the given date, it will be
     updated instead of creating a duplicate.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_water: Water intake data to create.
         _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.
@@ -130,8 +132,6 @@ def create_health_water(
     Returns:
         Created or updated HealthWaterRead record.
 
-    Raises:
-        InvalidInputError: If the date field is not provided.
     """
     return health_water_service.create_health_water(token_user_id, health_water, db)
 
@@ -141,7 +141,9 @@ def create_health_water(
     response_model=health_water_schema.HealthWaterRead,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_water(
+    request: Request,
     health_water: health_water_schema.HealthWaterUpdate,
     _check_scopes: Annotated[
         Callable,
@@ -159,10 +161,10 @@ def edit_health_water(
         Depends(core_database.get_db),
     ],
 ) -> health_water_schema.HealthWaterRead:
-    """
-    Edit an existing water intake record.
+    """Edit an existing water intake record.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_water: Water intake data to update.
         _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.
@@ -182,8 +184,10 @@ def edit_health_water(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_water(
-    health_water_id: int,
+    request: Request,
+    health_water_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[
         Callable,
         Security(
@@ -200,10 +204,10 @@ def delete_health_water(
         Depends(core_database.get_db),
     ],
 ) -> None:
-    """
-    Delete a water intake record for the authenticated user.
+    """Delete a water intake record for the authenticated user.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_water_id: ID of the water intake record.
         _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.

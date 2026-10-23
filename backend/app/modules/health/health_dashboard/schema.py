@@ -6,8 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
 
 
 class HealthSleepDashboard(BaseModel):
-    """
-    Latest sleep metrics for dashboard display.
+    """Latest sleep metrics for dashboard display.
 
     Attributes:
         total_sleep_seconds: Total sleep duration in seconds.
@@ -41,8 +40,7 @@ class HealthSleepDashboard(BaseModel):
 
 
 class HealthWeightDashboard(BaseModel):
-    """
-    Latest weight metrics for dashboard display.
+    """Latest weight metrics for dashboard display.
 
     Attributes:
         weight: Weight in kilograms.
@@ -66,8 +64,7 @@ class HealthWeightDashboard(BaseModel):
 
 
 class HealthStepsDashboard(BaseModel):
-    """
-    Latest steps for dashboard display.
+    """Latest steps for dashboard display.
 
     Attributes:
         steps: Number of steps taken.
@@ -86,8 +83,7 @@ class HealthStepsDashboard(BaseModel):
 
 
 class HealthFastingDashboard(BaseModel):
-    """
-    Active or latest fasting session for dashboard display.
+    """Active or latest fasting session for dashboard display.
 
     Attributes:
         id: Unique identifier for the fasting record.
@@ -126,8 +122,7 @@ class HealthFastingDashboard(BaseModel):
 
 
 class HealthWaterDashboard(BaseModel):
-    """
-    Today's water intake for dashboard display.
+    """Today's water intake for dashboard display.
 
     Attributes:
         amount_ml: Total water consumed today in milliliters.
@@ -146,8 +141,7 @@ class HealthWaterDashboard(BaseModel):
 
 
 class HealthPoopDashboard(BaseModel):
-    """
-    Today's bowel movement summary for dashboard display.
+    """Today's bowel movement summary for dashboard display.
 
     Attributes:
         count: Number of bowel movements recorded today.
@@ -166,8 +160,7 @@ class HealthPoopDashboard(BaseModel):
 
 
 class HealthDashboardResponse(BaseModel):
-    """
-    Consolidated dashboard response with current health metrics.
+    """Consolidated dashboard response with current health metrics.
 
     Attributes:
         sleep: Latest sleep data.

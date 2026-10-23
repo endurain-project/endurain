@@ -9,12 +9,17 @@ from datetime import date as date_type
 
 from sqlalchemy.orm import Session
 
+import core.config as core_config
 import core.exceptions as core_exceptions
+import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_water.schema as health_water_schema
 import modules.users.users.integration_service as users_integration
+
+logger = core_logger.get_logger(__name__)
 
 
 def _since(user_id: int, interval: health_constants.Interval | None, db: Session) -> date_type | None:
@@ -79,6 +84,9 @@ def stage_edit_health_water(
         NotFoundError: If the user has no such record.
     """
     if health_water.user_id != user_id:
+        logger.warning(
+            "Refused to edit a water intake record of another user", extra=core_logger.context(user_id=user_id)
+        )
         raise core_exceptions.PermissionDeniedError("Cannot edit health water intake for another user.")
     return health_water_crud.edit_health_water(user_id, health_water, db)
 
@@ -96,11 +104,10 @@ def create_health_water(
     Returns:
         The day's record after the addition.
 
-    Raises:
-        InvalidInputError: If the intake has no date.
     """
-    if not health_water.date:
-        raise core_exceptions.InvalidInputError("Date field is required.")
+    if health_water.date is None:
+        # The request carries no timezone, so the fallback is the server's configured zone.
+        health_water.date = core_timezone.today_in(core_config.settings.TZ)
 
     existing = health_water_crud.get_health_water_by_date_and_user_id(user_id, health_water.date.isoformat(), db)
     if existing:
@@ -119,6 +126,7 @@ def create_health_water(
         stored = health_water_crud.create_health_water(user_id, health_water, db)
 
     db.commit()
+    logger.info("Stored a water intake record", extra=core_logger.context(user_id=user_id))
     return stored
 
 
@@ -141,6 +149,7 @@ def edit_health_water(
     """
     updated = stage_edit_health_water(user_id, health_water, db)
     db.commit()
+    logger.info("Edited a water intake record", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -157,3 +166,6 @@ def delete_health_water(user_id: int, health_water_id: int, db: Session) -> None
     """
     health_water_crud.delete_health_water(user_id, health_water_id, db)
     db.commit()
+    logger.info(
+        "Deleted a water intake record", extra=core_logger.context(user_id=user_id, health_water_id=health_water_id)
+    )

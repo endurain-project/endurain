@@ -1,9 +1,10 @@
+"""Pydantic request and response shapes for health targets."""
+
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
 
 
 class HealthTargetsBase(BaseModel):
-    """
-    Base schema for health targets with shared fields.
+    """Base schema for health targets with shared fields.
 
     Attributes:
         weight: Target weight in kg.
@@ -44,8 +45,7 @@ class HealthTargetsBase(BaseModel):
 
 
 class HealthTargetsRead(HealthTargetsBase):
-    """
-    Schema for reading health targets.
+    """Schema for reading health targets.
 
     Attributes:
         id: Unique identifier for the health target record.
@@ -57,8 +57,7 @@ class HealthTargetsRead(HealthTargetsBase):
 
 
 class HealthTargetsUpdate(HealthTargetsRead):
-    """
-    Schema for updating health targets.
+    """Schema for updating health targets.
 
     Inherits all validation from HealthTargetsRead.
     All fields are optional for partial updates.

@@ -1,5 +1,4 @@
-"""
-SQLAlchemy models for health fasting tracking.
+"""SQLAlchemy models for health fasting tracking.
 
 This module defines the database models for storing user fasting sessions,
 including timing, duration, type, and status information.
@@ -14,8 +13,7 @@ from core.database import Base
 
 
 class HealthFasting(Base):
-    """
-    User fasting session tracking data.
+    """User fasting session tracking data.
 
     Attributes:
         id: Primary key.

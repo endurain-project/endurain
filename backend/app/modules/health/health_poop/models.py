@@ -1,5 +1,4 @@
-"""
-SQLAlchemy models for health poop (bowel movement) tracking.
+"""SQLAlchemy models for health poop (bowel movement) tracking.
 
 This module defines the database models for storing user bowel
 movement data, including Bristol stool scale type, color, and
@@ -15,8 +14,7 @@ from core.database import Base
 
 
 class HealthPoop(Base):
-    """
-    User bowel movement tracking data.
+    """User bowel movement tracking data.
 
     Attributes:
         id: Primary key, auto-incremented unique identifier.

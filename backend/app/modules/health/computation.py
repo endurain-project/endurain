@@ -9,8 +9,7 @@ from sqlalchemy import func
 
 
 def get_start_date_for_interval(interval: str, today: date) -> date:
-    """
-    Calculate the start date based on the specified time interval.
+    """Calculate the start date based on the specified time interval.
 
     Args:
         interval (str): The time interval for which to calculate the start date.

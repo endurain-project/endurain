@@ -1,5 +1,4 @@
-"""
-SQLAlchemy models for health water intake tracking.
+"""SQLAlchemy models for health water intake tracking.
 
 This module defines the database models for storing user daily
 water intake data, including consumption amount and data source.
@@ -15,8 +14,7 @@ from core.database import Base
 
 
 class HealthWater(Base):
-    """
-    User daily water intake tracking data.
+    """User daily water intake tracking data.
 
     Attributes:
         id: Primary key, auto-incremented unique identifier.

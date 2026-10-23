@@ -6,8 +6,11 @@ The module's own application layer; what other modules may consume lives in
 
 from sqlalchemy.orm import Session
 
+import core.logger as core_logger
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.schema as health_targets_schema
+
+logger = core_logger.get_logger(__name__)
 
 
 def get_health_targets(user_id: int, db: Session) -> health_targets_schema.HealthTargetsRead | None:
@@ -43,4 +46,5 @@ def update_health_targets(
     """
     updated = health_targets_crud.edit_health_target(health_targets, user_id, db)
     db.commit()
+    logger.info("Updated health targets", extra=core_logger.context(user_id=user_id))
     return updated

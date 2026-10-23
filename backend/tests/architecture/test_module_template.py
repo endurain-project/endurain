@@ -60,6 +60,10 @@ def _absolute_imports(path: Path) -> set[str]:
 #: test below fails on an entry that has grown a surface, so the list cannot
 #: outlive the exemption.
 _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
+    "health_dashboard": (
+        "Read-only and top of the health namespace: it consolidates the other health packages' "
+        "surfaces into the daily dashboard route. Nothing calls it."
+    ),
     "activity_geocoding": (
         "Purely reactive: it geocodes on the activity.created event (subscribers) and "
         "reconciles on a schedule (scheduled_jobs), both wired by app/module_registry.py. "
@@ -89,9 +93,9 @@ def test_every_module_exposes_one_cross_module_surface_name() -> None:
 def test_exempt_packages_publish_no_surface() -> None:
     """An exemption is for a package with no surface; delete it once one exists."""
     stale = [
-        name
-        for name in _NO_CROSS_MODULE_SURFACE
-        if (_MODULES_DIR / "activities" / name / "integration_service.py").is_file()
+        package.name
+        for package in _TEMPLATE_PACKAGES
+        if package.name in _NO_CROSS_MODULE_SURFACE and (package / "integration_service.py").is_file()
     ]
     assert not stale, f"Remove from _NO_CROSS_MODULE_SURFACE, they now have a surface: {', '.join(stale)}"
 
@@ -125,8 +129,8 @@ def test_model_registries_collect_every_converted_model() -> None:
     assert set(gears_model_registry.MODEL_MODULES) == expected_gears
     expected_health = {
         f"modules.health.{package.name}.models"
-        for package in sorted((_MODULES_DIR / "health").iterdir())
-        if (package / "model_registry.py").is_file()
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "health" and (package / "models.py").is_file()
     }
     assert set(health_model_registry.MODEL_MODULES) == expected_health
     assert set(notifications_model_registry.MODEL_MODULES) == {"modules.notifications.models"}
