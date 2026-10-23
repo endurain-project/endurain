@@ -155,6 +155,26 @@ class TestComputeElevationGainAndLoss:
         assert gain == 0.0
         assert loss == 0.0
 
+    def test_slow_descent_is_counted(self):
+        # A long downhill stays under 0.1 m per sample. The whole drop still counts.
+        elevations = [{"ele": 136 - 0.05 * i} for i in range(281)]
+        gain, loss = compute_elevation_gain_and_loss(elevations, median_window=1, avg_window=1, threshold=0.1)
+        assert gain == 0.0
+        assert loss == pytest.approx(13.9)
+
+    def test_slow_climb_is_counted(self):
+        # 0.05 m per sample stays under the 0.1 m gate, but the hill is 10 m.
+        elevations = [{"ele": 100 + 0.05 * i} for i in range(201)]
+        gain, loss = compute_elevation_gain_and_loss(elevations, median_window=1, avg_window=1, threshold=0.1)
+        assert gain == pytest.approx(9.9)
+        assert loss == 0.0
+
+    def test_wobble_under_the_threshold_is_ignored(self):
+        elevations = [{"ele": 100 + (0.04 if i % 2 else -0.04)} for i in range(200)]
+        gain, loss = compute_elevation_gain_and_loss(elevations, median_window=1, avg_window=1, threshold=0.1)
+        assert gain == 0.0
+        assert loss == 0.0
+
 
 class TestSumElevationDeltas:
     def test_flat_series_returns_zero_zero(self):
@@ -354,7 +374,7 @@ class TestElevationSmoothing:
     def test_parity_with_mobile_app(self):
         elevations = [100 + 0.5 * i + (4 if i % 2 == 0 else -4) for i in range(60)]
         gain, loss = compute_elevation_gain_and_loss([{"ele": e} for e in elevations])
-        assert gain == pytest.approx(22.3956043956, abs=1e-6)
+        assert gain == pytest.approx(22.674242424242422, abs=1e-9)
         assert loss == 0
 
     def test_stream_smoothing_keeps_time_and_matches_gain(self):
@@ -366,7 +386,7 @@ class TestElevationSmoothing:
         gain, _ = compute_elevation_gain_and_loss(stream, median_window=1, avg_window=1)
         assert gain > 100
         smoothed_gain, _ = compute_elevation_gain_and_loss(smoothed, median_window=1, avg_window=1)
-        assert smoothed_gain == pytest.approx(22.3956043956, abs=1e-6)
+        assert smoothed_gain == pytest.approx(22.674242424242422, abs=1e-9)
 
     def test_stream_smoothing_returns_input_on_invalid_data(self):
         stream = [{"time": "t", "ele": None}]
