@@ -33,6 +33,7 @@ cannot drift. What an agent most often gets wrong:
 | Raising errors, endpoints, pagination, rate limits, API changes | `references/errors-and-api.md` |
 | Handling uploads, access control, secrets, outbound requests | `references/security.md` |
 | Writing or fixing tests | `references/testing.md` |
+| Reviewing code for horizontal scaling (replicas, shared state, durable work) | `references/scaling-review.md` |
 
 ## Before finishing a structural change
 
