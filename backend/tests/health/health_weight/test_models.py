@@ -104,13 +104,6 @@ class TestHealthWeightModel:
         assert health_weight_models.HealthWeight.body_fat.type.precision == 10
         assert health_weight_models.HealthWeight.body_fat.type.scale == 2
 
-    def test_health_weight_model_has_user_relationship(self):
-        """
-        Test HealthWeight model has user relationship.
-        """
-        # Assert
-        assert hasattr(health_weight_models.HealthWeight, "users")
-
     def test_health_weight_model_docstring(self):
         """
         Test HealthWeight model has docstring.

@@ -704,7 +704,7 @@ class TestEditUser:
 
         with (
             patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("modules.users.users.crud.health_weight_utils.calculate_bmi_all_user_entries") as mock_bmi,
+            patch("modules.users.users.crud.health_weight_integration.recalculate_bmi_for_user") as mock_bmi,
         ):
             # Simulate that height changes during refresh
             def refresh_side_effect():
@@ -947,14 +947,14 @@ class TestEditProfileUser:
 
         with (
             patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("modules.users.users.crud.health_weight_utils.calculate_bmi_all_user_entries") as mock_bmi,
+            patch("modules.users.users.crud.health_weight_integration.recalculate_bmi_for_user") as mock_bmi,
         ):
             mock_db.refresh.side_effect = lambda x: setattr(mock_db_user, "height", 185)
 
             result = await edit_profile_user(1, mock_profile, mock_db)
 
         assert result == mock_db_user
-        mock_bmi.assert_called_once_with(1, mock_db)
+        mock_bmi.assert_called_once_with(1, 185.0, mock_db)
 
     @pytest.mark.asyncio
     async def test_photo_is_left_untouched(self):

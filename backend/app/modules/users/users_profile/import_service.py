@@ -38,7 +38,7 @@ import modules.gears.gear_components.integration_service as gear_components_inte
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_targets.schema as health_targets_schema
-import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.health_weight.schema as health_weight_schema
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
@@ -944,7 +944,8 @@ class ImportService:
                             health_weight[field] = None
 
                 data = health_weight_schema.HealthWeightCreate(**health_weight)
-                health_weight_crud.create_health_weight(self.user_id, data, self.db)
+                health_weight_integration.create_health_weight(self.user_id, data, self.db)
+                self.db.commit()
                 self.counts["health_weight"] += 1
             logger.info(f"Imported {self.counts['health_weight']} health weight records")
         else:

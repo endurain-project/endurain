@@ -18,7 +18,7 @@ import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_water.crud as health_water_crud
-import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.schema as health_schema
 import modules.users.users.utils as users_utils
 
@@ -70,7 +70,7 @@ def read_health_daily_stats(
     today_sleep = health_sleep_crud.get_health_sleep_by_date_and_user_id(token_user_id, today, db)
 
     # Get latest weight (most recent record)
-    latest_weight = health_weight_crud.get_latest_weight_by_user_id(token_user_id, db)
+    latest_weight = health_weight_integration.get_latest_health_weight(token_user_id, db)
 
     # Get today's steps
     today_steps = health_steps_crud.get_health_steps_by_date_and_user_id(token_user_id, today, db)

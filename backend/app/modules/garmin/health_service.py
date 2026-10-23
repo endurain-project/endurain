@@ -130,6 +130,7 @@ def _upsert(
         else:
             create(user_id, create_schema(**fields), db)
             outcome = "created"
+        db.commit()
     logger.info(
         "Garmin Connect health record stored",
         extra=core_logger.context(user_id=user_id, record=label, outcome=outcome, date=fields["date"]),

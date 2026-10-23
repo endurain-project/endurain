@@ -30,7 +30,7 @@ import modules.activities.contributor_registry as activities_contributor_registr
 import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.health.health_targets.integration_service as health_targets_integration
-import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.users.users.signing as users_signing
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.schema as user_default_gear_schema
@@ -521,7 +521,7 @@ class ExportService:
         try:
             # Collect and write health data
             try:
-                health_weight = health_weight_crud.get_all_health_weight_by_user_id(self.user_id, self.db)
+                health_weight = health_weight_integration.list_health_weight(self.user_id, self.db)
                 if health_weight:
                     health_weight_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(hd) for hd in health_weight]
                     users_profile_utils.write_json_to_zip(

@@ -538,7 +538,7 @@ class TestImportServiceHealth:
         mock_health_target.id = 1
 
         with (
-            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_integration.create_health_weight"),
             patch(
                 "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=mock_health_target,
@@ -564,7 +564,7 @@ class TestImportServiceHealth:
         mock_target.id = 1
 
         with (
-            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_integration.create_health_weight"),
             patch(
                 "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=mock_target,
@@ -587,7 +587,7 @@ class TestImportServiceHealth:
         )
 
         with (
-            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_integration.create_health_weight"),
             patch(
                 "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=None,
@@ -1560,7 +1560,7 @@ class TestImportServiceHealthEmptyBranches:
         )
 
         with (
-            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_integration.create_health_weight"),
             patch(
                 "modules.users.users_profile.import_service.health_targets_integration.get_health_targets",
                 return_value=None,
@@ -1586,7 +1586,7 @@ class TestImportServiceHealthEmptyBranches:
             db=mock_db,
         )
 
-        with patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"):
+        with patch("modules.users.users_profile.import_service.health_weight_integration.create_health_weight"):
             await service.collect_and_import_health_weight([{"weight": 75.5}], [])
 
         assert service.counts["health_weight"] == 1

@@ -1,15 +1,15 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
+import modules.health.health_weight.service as health_weight_service
 
 # Define the API router
 router = APIRouter()
@@ -77,17 +77,7 @@ def read_health_weight_all_pagination(
         HTTPException: If the user lacks required 'health:read' scope or if
             pagination values are invalid.
     """
-    # Get the total count and paginated records from the database
-    total = health_weight_crud.get_health_weight_number_by_user_id(token_user_id, db, interval)
-    records = health_weight_crud.get_health_weight_by_user_id(token_user_id, db, page_number, num_records, interval)
-
-    # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
-    return health_weight_schema.HealthWeightListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
-    )
+    return health_weight_service.list_health_weight(token_user_id, db, page_number, num_records, interval)
 
 
 @router.post(
@@ -124,29 +114,9 @@ def create_health_weight(
         health_weight_schema.HealthWeightRead: The created or updated health weight record.
 
     Raises:
-        HTTPException: 400 error if the date field is not provided in the request.
+        InvalidInputError: If the date field is not provided in the request.
     """
-    if not health_weight.date:
-        raise HTTPException(status_code=400, detail="Date field is required.")
-
-    # Convert date to string format for CRUD function
-    date_str = health_weight.date.isoformat()
-
-    # Check if health_weight for this date already exists
-    health_for_date = health_weight_crud.get_health_weight_by_date_and_user_id(token_user_id, date_str, db)
-
-    if health_for_date:
-        # Convert to update schema with the existing ID
-        health_weight_update = health_weight_schema.HealthWeightUpdate(
-            id=health_for_date.id,
-            user_id=token_user_id,
-            **health_weight.model_dump(),
-        )
-        # Updates the health_weight in the database and returns it
-        return health_weight_crud.edit_health_weight(token_user_id, health_weight_update, db)
-    else:
-        # Creates the health_weight in the database and returns it
-        return health_weight_crud.create_health_weight(token_user_id, health_weight, db)
+    return health_weight_service.create_health_weight(token_user_id, health_weight, db)
 
 
 @router.put(
@@ -185,11 +155,10 @@ def edit_health_weight(
         The updated health weight record from the database.
 
     Raises:
-        HTTPException: If the user doesn't have permission to edit the weight entry
-            or if the entry doesn't exist.
+        PermissionDeniedError: If the record names another user.
+        NotFoundError: If the entry doesn't exist.
     """
-    # Updates the health_weight in the database and returns it
-    return health_weight_crud.edit_health_weight(token_user_id, health_weight, db)
+    return health_weight_service.edit_health_weight(token_user_id, health_weight, db)
 
 
 @router.delete("/{health_weight_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
@@ -222,8 +191,6 @@ def delete_health_weight(
         None: This function does not return any value upon successful deletion.
 
     Raises:
-        HTTPException: May raise various HTTP exceptions (e.g., 404 if entry not found,
-            403 if unauthorized) through the CRUD layer.
+        NotFoundError: If the entry doesn't exist for the user.
     """
-    # Deletes entry from database
-    health_weight_crud.delete_health_weight(token_user_id, health_weight_id, db)
+    health_weight_service.delete_health_weight(token_user_id, health_weight_id, db)

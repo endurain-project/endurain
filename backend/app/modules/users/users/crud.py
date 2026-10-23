@@ -23,7 +23,7 @@ import core.logger as core_logger
 import core.sanitization as core_sanitization
 import modules.activities.activity.integration_service as activity_integration
 import modules.auth.password_policy as auth_password_policy
-import modules.health.health_weight.utils as health_weight_utils
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.models as users_models
@@ -133,7 +133,10 @@ def _persist_user_edits(
 
     if recalculate_bmi_on_height_change and height_before != db_users.height:
         # Update the user's health data
-        health_weight_utils.calculate_bmi_all_user_entries(db_users.id, db)
+        health_weight_integration.recalculate_bmi_for_user(
+            db_users.id, float(db_users.height) if db_users.height is not None else None, db
+        )
+        db.commit()
 
     return _transform_users(db_users)
 
