@@ -711,3 +711,129 @@ class TestParseFrameLap:
         lap = fit_frames.parse_frame_lap(_MockFrame(total_distance=0, total_timer_time=0))
         assert lap["enhanced_avg_speed"] is None
         assert lap.get("enhanced_avg_pace") is None
+
+
+class TestActivityLocalTimestampOffset:
+    """A GPS-less session resolves its timezone from the FIT activity message offset."""
+
+    def test_resolves_timezone_from_activity_offset(self):
+        record = _session_record("garmin")
+        record["activity_time_offset"] = 2 * 3600
+
+        activities = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-2"
+
+    def test_activity_offset_takes_precedence_over_device_settings(self):
+        record = _session_record("garmin")
+        record["activity_time_offset"] = 2 * 3600
+        record["time_offset"] = 3600
+
+        activities = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-2"
+
+    def test_zero_activity_offset_resolves_to_utc_without_device_settings(self):
+        record = _session_record("garmin")
+        record["activity_time_offset"] = 0
+        record["time_offset"] = 0
+
+        activities = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        assert activities[0]["activity"].timezone == "UTC"
+
+    def test_zero_activity_offset_yields_to_nonzero_device_settings(self):
+        record = _session_record("garmin")
+        record["activity_time_offset"] = 0
+        record["time_offset"] = 3600
+
+        activities = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-1"
+
+    def test_falls_back_to_device_settings_without_activity_offset(self):
+        record = _session_record("garmin")
+        record["activity_time_offset"] = None
+        record["time_offset"] = 3600
+
+        activities = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-1"
+
+    def test_prefers_the_athlete_zone_when_the_activity_offset_agrees(self):
+        # Paris is UTC+2 in June.
+        record = _session_record("garmin")
+        record["activity_time_offset"] = 2 * 3600
+
+        activities = fit_utils.create_activity_objects([record], user_id=1, default_timezone="Europe/Paris")
+
+        assert activities[0]["activity"].timezone == "Europe/Paris"
+
+    def test_gps_track_takes_precedence_over_activity_offset(self, monkeypatch):
+        record = _session_record("garmin")
+        record["activity_time_offset"] = 2 * 3600
+        record["is_lat_lon_set"] = True
+        record["lat_lon_waypoints"] = [
+            {"time": datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC), "lat": 35.68, "lon": 139.69},
+        ]
+        monkeypatch.setattr(
+            fit_utils.activity_file_import_parser_utils,
+            "resolve_timezone_from_lat_lon",
+            lambda lat, lon, fallback: "Asia/Tokyo",
+        )
+
+        activities = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        assert activities[0]["activity"].timezone == "Asia/Tokyo"
+
+    def test_activity_frame_sets_parse_state_offset(self):
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=1_007_200)
+        frame.name = "activity"
+        state = fit_utils.FitParseState()
+
+        fit_utils._dispatch_data_message(frame, state, None)
+
+        assert state.activity_time_offset == 7200
+        assert state.to_payload()["activity_time_offset"] == 7200
+
+
+class _RawFrame:
+    """Frame exposing get_raw_value, mimicking fitdecode raw field access."""
+
+    def __init__(self, **values):
+        self._values = values
+
+    def get_raw_value(self, key):
+        if key not in self._values:
+            raise KeyError(key)
+        return self._values[key]
+
+
+class TestParseFrameActivity:
+    """parse_frame_activity derives the UTC offset from local_timestamp - timestamp."""
+
+    def test_returns_positive_offset(self):
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=1_007_200)
+        assert fit_frames.parse_frame_activity(frame) == 7200
+
+    def test_returns_negative_offset(self):
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=982_000)
+        assert fit_frames.parse_frame_activity(frame) == -18_000
+
+    def test_none_when_local_timestamp_missing(self):
+        assert fit_frames.parse_frame_activity(_RawFrame(timestamp=1_000_000)) is None
+
+    def test_none_when_timestamp_missing(self):
+        assert fit_frames.parse_frame_activity(_RawFrame(local_timestamp=1_000_000)) is None
+
+    def test_none_when_offset_beyond_utc_plus_14(self):
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=1_000_000 + 15 * 3600)
+        assert fit_frames.parse_frame_activity(frame) is None
+
+    def test_none_when_offset_beyond_utc_minus_12(self):
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=1_000_000 - 13 * 3600)
+        assert fit_frames.parse_frame_activity(frame) is None
+
+    def test_accepts_utc_plus_14_boundary(self):
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=1_000_000 + 14 * 3600)
+        assert fit_frames.parse_frame_activity(frame) == 14 * 3600

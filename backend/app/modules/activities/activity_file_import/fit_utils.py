@@ -145,6 +145,21 @@ def create_activity_objects(
                         session_record["lat_lon_waypoints"][0]["lon"],
                         timezone,
                     )
+                elif session_record.get("activity_time_offset") is not None and (
+                    session_record["activity_time_offset"] != 0 or not session_record["time_offset"]
+                ):
+                    # activity.local_timestamp - activity.timestamp is the
+                    # canonical FIT offset and is present in GPS-less files,
+                    # so it outranks device_settings.time_offset. Some writers
+                    # set local_timestamp == timestamp when the zone is
+                    # unknown, so a 0 offset yields to a non-zero
+                    # device_settings.time_offset.
+                    session_timezone = activity_file_import_fit_frames._timezone_from_offset(
+                        session_record["activity_time_offset"],
+                        session_record["session"]["first_waypoint_time"],
+                        default_timezone,
+                        timezone,
+                    )
                 elif session_record["time_offset"]:
                     session_timezone = activity_file_import_fit_frames._timezone_from_offset(
                         session_record["time_offset"],
@@ -387,6 +402,7 @@ def split_records_by_activity(parsed_data: dict) -> list[dict]:
         parsed_session = {
             "session": session,
             "time_offset": parsed_data["time_offset"],
+            "activity_time_offset": parsed_data.get("activity_time_offset"),
             "activity_name": parsed_data["activity_name"],
             "lat_lon_waypoints": [],
             "is_lat_lon_set": False,
@@ -506,6 +522,7 @@ class FitParseState:
 
     activity_name: str = "Workout"
     time_offset: int = 0
+    activity_time_offset: int | None = None
     last_waypoint_time: datetime | None = None
     resting_heart_rate: dict | None = None
     sessions: list[dict] = field(default_factory=list)
@@ -552,6 +569,7 @@ class FitParseState:
         return {
             "sessions": self.sessions,
             "time_offset": self.time_offset,
+            "activity_time_offset": self.activity_time_offset,
             "activity_name": self.activity_name,
             "is_elevation_set": self.is_elevation_set,
             "ele_waypoints": self.ele_waypoints,
@@ -813,6 +831,8 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
         state.time_offset = activity_file_import_fit_frames.interpret_time_offset(
             activity_file_import_fit_frames.parse_frame_device_settings(frame)
         )
+    elif name == "activity":
+        state.activity_time_offset = activity_file_import_fit_frames.parse_frame_activity(frame)
     elif name == "length":
         state.lengths.append(activity_file_import_fit_frames.parse_frame_length(frame))
     elif name == "file_id":
