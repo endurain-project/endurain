@@ -293,6 +293,8 @@ def parse_activity(
         with SessionLocal() as db:
             gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
+    avg_cadence, max_cadence = _running_cadence_to_spm(activity_type, avg_cadence, max_cadence, cad_waypoints)
+
     if activity_type != 3 and activity_type != 7 and is_lat_lon_set:
         timezone = core_timezone.from_lat_lon(
             lat_lon_waypoints[0]["lat"],
@@ -360,6 +362,36 @@ def parse_activity(
         "stream_data": stream_data,
         "laps": laps,
     }
+
+
+def _running_cadence_to_spm(
+    activity_type: int,
+    avg_cadence: float | None,
+    max_cadence: float | None,
+    cad_waypoints: list[dict],
+) -> tuple[float | int | None, float | int | None]:
+    """Convert Strava running cadence from a single-leg rate (rpm) to steps per minute.
+
+    Strava reports running cadence as rpm, so running types are doubled whatever
+    the average holds. The waypoints are rewritten in place because the stream
+    data and the per-lap cadence are built from the same list.
+
+    Args:
+        activity_type: Endurain activity type id.
+        avg_cadence: Activity average cadence, or ``None``.
+        max_cadence: Activity maximum cadence, or ``None``.
+        cad_waypoints: Cadence stream waypoints.
+
+    Returns:
+        The average and maximum cadence, doubled for running types.
+    """
+    if not activity_constants.is_running_cadence_type(activity_type):
+        return avg_cadence, max_cadence
+    cad_waypoints[:] = activities_computation.double_cadence_waypoints(cad_waypoints)
+    return (
+        activities_computation.double_running_cadence(avg_cadence),
+        activities_computation.double_running_cadence(max_cadence),
+    )
 
 
 def save_activity_streams_laps(
