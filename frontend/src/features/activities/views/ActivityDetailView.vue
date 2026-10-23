@@ -327,70 +327,77 @@ const notFound = computed(() => !isPending.value && !isError.value && activity.v
         :is-owner="isOwner"
         :cursor="cursorPoint"
         follow
+        sticky
         @track-hover="onScrub"
       />
 
+      <!-- Below the map on purpose, so these cards slide under it while it is pinned. -->
       <div
-        v-if="chartPanels.length > 0"
-        class="grid gap-3 lg:grid-cols-2"
-        @pointerleave="onScrub(null)"
-        @pointerup="onPointerUp"
-        @pointercancel="onScrub(null)"
+        v-if="chartPanels.length > 0 || showLaps || showWorkout"
+        class="relative z-0 flex flex-col gap-3"
       >
-        <template v-for="panel in chartPanels" :key="panel.key">
-          <ActivityStreamChart
-            v-if="panel.kind === 'chart'"
-            :title="t(panel.chart.titleKey)"
-            :render="panel.chart.render"
-            :stats="panel.chart.stats"
-            :cursor-fraction="scrubFraction"
-            @scrub="onScrub"
-          />
-          <Card v-else class="flex min-w-0 flex-col gap-3">
-            <div class="flex items-center gap-2">
-              <span class="bg-hr size-2.5 rounded-full" aria-hidden="true" />
-              <h3 class="text-card-heading">{{ t('activities.hrZones.title') }}</h3>
-            </div>
-            <div class="flex flex-1 items-center">
-              <ActivityHrZones :zones="panel.zones" class="w-full" />
-            </div>
-          </Card>
-        </template>
-      </div>
+        <div
+          v-if="chartPanels.length > 0"
+          class="grid gap-3 lg:grid-cols-2"
+          @pointerleave="onScrub(null)"
+          @pointerup="onPointerUp"
+          @pointercancel="onScrub(null)"
+        >
+          <template v-for="panel in chartPanels" :key="panel.key">
+            <ActivityStreamChart
+              v-if="panel.kind === 'chart'"
+              :title="t(panel.chart.titleKey)"
+              :render="panel.chart.render"
+              :stats="panel.chart.stats"
+              :cursor-fraction="scrubFraction"
+              @scrub="onScrub"
+            />
+            <Card v-else class="flex min-w-0 flex-col gap-3">
+              <div class="flex items-center gap-2">
+                <span class="bg-hr size-2.5 rounded-full" aria-hidden="true" />
+                <h3 class="text-card-heading">{{ t('activities.hrZones.title') }}</h3>
+              </div>
+              <div class="flex flex-1 items-center">
+                <ActivityHrZones :zones="panel.zones" class="w-full" />
+              </div>
+            </Card>
+          </template>
+        </div>
 
-      <Card v-if="showLaps || showWorkout" class="flex flex-col gap-3">
-        <!-- Both available → switch between Laps and Sets (mirrors v1's pills). -->
-        <Tabs v-if="showLaps && showWorkout" v-model="splitsTab">
-          <TabsList>
-            <TabsTrigger value="laps">{{ t('activities.laps.title') }}</TabsTrigger>
-            <TabsTrigger value="sets">{{ t('activities.workout.title') }}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="laps">
+        <Card v-if="showLaps || showWorkout" class="flex flex-col gap-3">
+          <!-- Both available → switch between Laps and Sets (mirrors v1's pills). -->
+          <Tabs v-if="showLaps && showWorkout" v-model="splitsTab">
+            <TabsList>
+              <TabsTrigger value="laps">{{ t('activities.laps.title') }}</TabsTrigger>
+              <TabsTrigger value="sets">{{ t('activities.workout.title') }}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="laps">
+              <ActivityLapsTable :laps="laps ?? []" :activity="activity" :units="units" />
+            </TabsContent>
+            <TabsContent value="sets">
+              <ActivityWorkoutSets
+                :workout-steps="workoutSteps ?? []"
+                :workout-sets="workoutSets ?? []"
+                :exercise-titles="exerciseTitles ?? []"
+              />
+            </TabsContent>
+          </Tabs>
+
+          <!-- Only one available → a plain titled table. -->
+          <template v-else-if="showLaps">
+            <h2 class="text-card-heading">{{ t('activities.laps.title') }}</h2>
             <ActivityLapsTable :laps="laps ?? []" :activity="activity" :units="units" />
-          </TabsContent>
-          <TabsContent value="sets">
+          </template>
+          <template v-else>
+            <h2 class="text-card-heading">{{ t('activities.workout.title') }}</h2>
             <ActivityWorkoutSets
               :workout-steps="workoutSteps ?? []"
               :workout-sets="workoutSets ?? []"
               :exercise-titles="exerciseTitles ?? []"
             />
-          </TabsContent>
-        </Tabs>
-
-        <!-- Only one available → a plain titled table. -->
-        <template v-else-if="showLaps">
-          <h2 class="text-card-heading">{{ t('activities.laps.title') }}</h2>
-          <ActivityLapsTable :laps="laps ?? []" :activity="activity" :units="units" />
-        </template>
-        <template v-else>
-          <h2 class="text-card-heading">{{ t('activities.workout.title') }}</h2>
-          <ActivityWorkoutSets
-            :workout-steps="workoutSteps ?? []"
-            :workout-sets="workoutSets ?? []"
-            :exercise-titles="exerciseTitles ?? []"
-          />
-        </template>
-      </Card>
+          </template>
+        </Card>
+      </div>
     </template>
   </div>
 </template>
