@@ -66,7 +66,7 @@ engine = create_engine(
     db_url,
     pool_size=20,
     max_overflow=40,
-    pool_timeout=180,
+    pool_timeout=30,
     pool_recycle=3600,
     pool_pre_ping=True,
     connect_args=_connect_args,

@@ -727,7 +727,7 @@ the conformance test's allowlist.
 
 - **Storage lifecycle.** The `bulk_import_errors` area has no sweep, retention or account-deletion
   removal, and the thumbnail reconciliation lists its whole area each pass.
-- **Timeouts.** The pool (20 + 40, 180 s wait) and the absence of a `statement_timeout` are
+- **Timeouts.** The pool (20 + 40, 30 s wait) and the absence of a `statement_timeout` are
   constants in `core/database.py`, not settings, so an operator cannot bound them.
 - **Observability.** Logs are the only signal; queue depth, job
   duration and dead-letter counts are not exported as metrics.

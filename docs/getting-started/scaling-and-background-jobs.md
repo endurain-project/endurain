@@ -174,7 +174,7 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 
 ## Sizing
 
-Each web process keeps its own database pool of up to 60 connections (20 plus 40 overflow) and about 40 request threads. A request waits up to 180 seconds for a free connection before it fails.
+Each web process keeps its own database pool of up to 60 connections (20 plus 40 overflow) and about 40 request threads. A request waits up to 30 seconds for a free connection before it fails.
 
 - Total connections are `60 × (web workers + replicas + dedicated workers)`. Keep that below PostgreSQL's `max_connections` (100 by default), or put PgBouncer in front of the database.
 - Each coordination lock held through `postgres-advisory://` keeps one more connection open for as long as the job runs.
