@@ -98,6 +98,8 @@ def _build_security_config() -> FileSecurityConfig:
         max_gzip_size=_MAX_GZIP_BYTES,
         max_uncompressed_size=_MAX_UNCOMPRESSED_BYTES,
         max_number_files_same_type=_MAX_FILES_SAME_TYPE,
+        # Strava bulk exports store activities as ``.fit.gz`` entries inside the ZIP.
+        allow_nested_archives=True,
         enable_audit_logging=True,
     )
     config = FileSecurityConfig()

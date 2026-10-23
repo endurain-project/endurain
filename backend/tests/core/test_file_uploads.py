@@ -188,6 +188,20 @@ async def test_validate_upload_accepts_valid_payload(kind: UploadKind, filename:
 
 
 @pytest.mark.asyncio
+async def test_validate_upload_accepts_zip_with_gzip_entries():
+    """A ZIP holding ``.gz`` activities (Strava bulk export layout) validates."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("activities.csv", b"Activity ID\n1\n")
+        zf.writestr("activities/1.gpx.gz", _make_gzip_bytes())
+    upload = _upload("export.zip", buf.getvalue())
+    try:
+        await validate_upload(upload, kind=UploadKind.ZIP)
+    finally:
+        await upload.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("kind,filename,_b", _KIND_CASES)
 async def test_validate_upload_rejects_garbage(kind: UploadKind, filename: str, _b):
     """Garbage bytes with a valid extension are rejected."""
