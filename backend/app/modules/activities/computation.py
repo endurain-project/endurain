@@ -192,14 +192,16 @@ def compute_elevation_gain_and_loss(
 ) -> tuple[float, float]:
     """Compute total elevation gain/loss in meters from waypoints.
 
-    Applies a median filter then a moving-average smoother before
-    summing per-step deltas above ``threshold``.
+    Applies a median filter then a moving-average smoother. The threshold is
+    measured from the last counted altitude, not from the previous sample: a
+    one-second track climbs less than ``threshold`` per sample after smoothing,
+    and a per-sample gate dropped the whole hill.
 
     Args:
         elevations: List of dicts with an ``ele`` key (meters).
         median_window: Window size for the median pre-filter.
         avg_window: Window size for the moving-average smoother.
-        threshold: Minimum |delta| (m) counted toward gain/loss.
+        threshold: Minimum climb or drop (m) since the last counted point.
 
     Returns:
         Tuple of (gain_m, loss_m).
@@ -210,15 +212,20 @@ def compute_elevation_gain_and_loss(
         return 0, 0
 
     filtered = _smooth_elevations(values, median_window, avg_window)
+    if not filtered:
+        return 0.0, 0.0
 
     total_gain = 0.0
     total_loss = 0.0
-    for i in range(1, len(filtered)):
-        diff = filtered[i] - filtered[i - 1]
+    anchor = filtered[0]
+    for elevation in filtered[1:]:
+        diff = elevation - anchor
         if diff > threshold:
             total_gain += diff
+            anchor = elevation
         elif diff < -threshold:
             total_loss -= diff
+            anchor = elevation
     return total_gain, total_loss
 
 
