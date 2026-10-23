@@ -46,6 +46,7 @@ class TestSettings:
 
         s = Settings(_env_file=None)
         assert s.LOG_LEVEL == "info"
+        assert s.LOG_WEBSOCKET_FRAMES is False
         assert s.ENVIRONMENT == "production"
         assert s.TZ == "UTC"
         assert s.ENDURAIN_HOST == "http://localhost:8080"

@@ -35,6 +35,7 @@ Provides:
     every log record so all logs from a single request
     can be correlated.
   - ConsoleMirrorFilter: passes only records explicitly flagged for the console.
+  - WebSocketKeepaliveFilter: drops websocket PING/PONG frame lines.
   - _build_handlers: environment-aware handler factory
     (stdout JSON always in production/demo; file when
     LOGS_DIR is set; file plus console mirror in development).
@@ -137,6 +138,34 @@ class ConsoleMirrorFilter(logging.Filter):
             True when the record carries a truthy ``console`` field.
         """
         return bool(getattr(record, CONSOLE_FIELD, False))
+
+
+class WebSocketKeepaliveFilter(logging.Filter):
+    """
+    Drop the PING/PONG keepalive frames the websockets library logs at DEBUG.
+
+    Uvicorn hands its ``uvicorn.error`` logger to the websockets protocol, so every
+    keepalive frame is logged beside Uvicorn's other debug output and cannot be
+    silenced by logger name or level alone.
+    """
+
+    _PREFIXES = ("> PING", "< PING", "> PONG", "< PONG")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Report whether the record is something other than a keepalive frame.
+
+        Args:
+            record: The log record to test.
+
+        Returns:
+            False for a PING/PONG frame line, True otherwise.
+        """
+        return not record.getMessage().startswith(self._PREFIXES)
+
+
+# Shared instance so repeated ``setup_main_logger`` calls attach it once.
+_WEBSOCKET_KEEPALIVE_FILTER = WebSocketKeepaliveFilter()
 
 
 # Attributes always present on a LogRecord — excluded from the extra
@@ -469,5 +498,11 @@ def setup_main_logger():
         handlers,
     )
     safeuploads_audit_logger.propagate = True
+
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    if core_config.settings.LOG_WEBSOCKET_FRAMES:
+        uvicorn_logger.removeFilter(_WEBSOCKET_KEEPALIVE_FILTER)
+    else:
+        uvicorn_logger.addFilter(_WEBSOCKET_KEEPALIVE_FILTER)
 
     return main_logger

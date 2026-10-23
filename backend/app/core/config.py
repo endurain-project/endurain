@@ -70,6 +70,8 @@ class Settings(BaseSettings):
 
     # --- Logging / environment ---
     LOG_LEVEL: str = "info"
+    # Websocket PING/PONG keepalive frames are logged at DEBUG; hidden unless enabled.
+    LOG_WEBSOCKET_FRAMES: bool = False
     ENVIRONMENT: str = "production"
     TZ: str = "UTC"
 

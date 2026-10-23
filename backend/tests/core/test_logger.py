@@ -311,6 +311,56 @@ class TestConsoleMirrorFilter:
         assert core_logger.ConsoleMirrorFilter().filter(self._record()) is False
 
 
+class TestWebSocketKeepaliveFilter:
+    """Tests for WebSocketKeepaliveFilter and its wiring in setup_main_logger."""
+
+    def _record(self, msg, *args):
+        return logging.LogRecord(
+            name="uvicorn.error",
+            level=logging.DEBUG,
+            pathname="/f.py",
+            lineno=1,
+            msg=msg,
+            args=args,
+            exc_info=None,
+        )
+
+    def test_drops_keepalive_frames(self):
+        filter_ = core_logger.WebSocketKeepaliveFilter()
+        for msg, frame in (
+            ("> %s", "PING 62 54 ea a6 [binary, 4 bytes]"),
+            ("< %s", "PONG 62 54 ea a6 [binary, 4 bytes]"),
+        ):
+            assert filter_.filter(self._record(msg, frame)) is False
+
+    def test_keeps_other_records(self):
+        filter_ = core_logger.WebSocketKeepaliveFilter()
+        assert filter_.filter(self._record("< %s", "TEXT 'hi' [2 bytes]")) is True
+        assert filter_.filter(self._record("WebSocket connection made")) is True
+
+    def _setup(self, tmp_path, frames):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOG_LEVEL", "debug"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+            patch("core.config.settings.LOG_WEBSOCKET_FRAMES", frames),
+        ):
+            core_logger.setup_main_logger()
+
+    def test_setup_attaches_filter_by_default(self, tmp_path):
+        uvicorn_logger = logging.getLogger("uvicorn.error")
+        self._setup(tmp_path, frames=False)
+        self._setup(tmp_path, frames=False)
+        assert uvicorn_logger.filters.count(core_logger._WEBSOCKET_KEEPALIVE_FILTER) == 1
+        uvicorn_logger.removeFilter(core_logger._WEBSOCKET_KEEPALIVE_FILTER)
+
+    def test_setup_leaves_frames_when_enabled(self, tmp_path):
+        uvicorn_logger = logging.getLogger("uvicorn.error")
+        self._setup(tmp_path, frames=False)
+        self._setup(tmp_path, frames=True)
+        assert core_logger._WEBSOCKET_KEEPALIVE_FILTER not in uvicorn_logger.filters
+
+
 class TestEndToEnd:
     """A record logged through a module logger reaches the configured handlers."""
 

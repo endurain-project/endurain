@@ -218,6 +218,10 @@ build_forwarded_allow_ips() {
 case "$APP_ROLE" in
     api)
         CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
+        # Uvicorn's per-request access log is hidden unless LOG_ACCESS=true.
+        if [ "${LOG_ACCESS:-false}" != "true" ]; then
+            CMD="$CMD --no-access-log"
+        fi
         if [ "$BEHIND_PROXY" = "true" ]; then
             CMD="$CMD --proxy-headers"
             if [ -n "$FORWARDED_ALLOW_IPS" ]; then
