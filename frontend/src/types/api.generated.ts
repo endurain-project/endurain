@@ -1011,7 +1011,9 @@ export interface paths {
          * Garminconnect Retrieve Health Days
          * @description Queue a sync of the user's Garmin Connect health data for a date range.
          *
-         *     The range must not exceed 31 days; a background job runs it.
+         *     The range must not exceed 31 days; a background job runs it. Poll
+         *     ``GET /garminconnect/sync/health`` for the outcome. A second request while one is pending is
+         *     answered 409.
          */
         post: operations["garminconnect_retrieve_health_days_api_v1_garminconnect_health_post"];
         delete?: never;
@@ -14038,6 +14040,35 @@ export interface operations {
             };
         };
     };
+    garminconnect_unlink_api_v1_garminconnect_link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GarminDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     garminconnect_link_status_api_v1_garminconnect_link_status_get: {
         parameters: {
             query?: never;
@@ -14096,35 +14127,6 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    garminconnect_unlink_api_v1_garminconnect_link_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GarminDetail"];
                 };
             };
             /** @description Unexpected error */
