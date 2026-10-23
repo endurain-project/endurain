@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -185,3 +185,24 @@ class TestWorkDirectoryIsPrivate:
 
         assert not Path(seen["upload_dir"]).exists()
         assert seen["dest_dir"].startswith(seen["upload_dir"])
+
+
+def test_an_auth_rejection_while_downloading_unlinks_the_account_and_stops_the_window():
+    import garminconnect
+
+    session = garmin_service.GarminSession(Mock(), {"di_token": "enc"})
+    session.client.get_activities_by_date.return_value = [{"activityId": 1}, {"activityId": 2}]
+    with (
+        patch.object(activity_utils, "SessionLocal"),
+        patch.object(activity_utils.activity_integration, "get_activity_by_garminconnect_id", return_value=None),
+        patch.object(
+            activity_utils,
+            "_download_and_ingest_activity",
+            side_effect=garminconnect.GarminConnectAuthenticationError("401"),
+        ) as download,
+        patch.object(garmin_service, "handle_rejected_token") as unlink,
+    ):
+        activity_utils.fetch_and_process_activities_by_dates(session, datetime(2026, 1, 1), datetime(2026, 1, 2), 1)
+
+    unlink.assert_called_once()
+    download.assert_called_once()

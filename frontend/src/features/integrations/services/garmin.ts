@@ -99,5 +99,5 @@ export async function retrieveGarminHealth(range: DateRange): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function unlinkGarmin(): Promise<void> {
-  await apiFetch('/garminconnect/unlink', { method: 'DELETE', responseType: 'void' })
+  await apiFetch('/garminconnect/link', { method: 'DELETE', responseType: 'void' })
 }

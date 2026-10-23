@@ -8,6 +8,7 @@ instead of importing this module.
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.garmin.activity_service as garmin_activity_service
 import modules.garmin.constants as garmin_constants
+import modules.garmin.link_service as garmin_link_service
 import modules.garmin.service as garmin_service
 import modules.garmin.sync_service as garmin_sync_service
 
@@ -23,5 +24,5 @@ def register_activity_provider() -> None:
 
 def shutdown_executors() -> None:
     """Stop the Garmin Connect link and sync threads."""
-    garmin_service.shutdown_link_executor()
+    garmin_link_service.shutdown_link_executor()
     garmin_sync_service.shutdown_sync_executor()

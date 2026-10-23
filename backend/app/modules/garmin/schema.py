@@ -16,13 +16,7 @@ class GarminLogin(BaseModel):
 class MFARequest(BaseModel):
     """The MFA code a user submits to finish a link attempt."""
 
-    mfa_code: str = Field(min_length=1, max_length=32)
-
-
-class MFAAccepted(BaseModel):
-    """Acknowledgement that an MFA code was stored."""
-
-    message: str
+    mfa_code: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9]+$")
 
 
 class GarminDetail(BaseModel):
@@ -42,3 +36,15 @@ class GarminLinkStatus(BaseModel):
 
     status: garmin_constants.LinkStatus
     reason: garmin_constants.LinkFailure | None = None
+
+
+class GarminSyncStatus(BaseModel):
+    """Where a queued Garmin Connect gear or health sync is.
+
+    Attributes:
+        kind: What the sync pulls.
+        status: ``queued`` until a worker picks it up, ``running``, then ``completed`` or ``failed``.
+    """
+
+    kind: garmin_constants.SyncKind
+    status: garmin_constants.SyncStatus

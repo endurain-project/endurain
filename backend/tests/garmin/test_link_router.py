@@ -1,6 +1,6 @@
 """Tests for the Garmin Connect link routes."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,6 +11,8 @@ import modules.garmin.constants as garmin_constants
 import modules.garmin.dependencies as garmin_dependencies
 import modules.garmin.link_state_store as link_state_store
 import modules.garmin.mfa_code_store as mfa_code_store
+import modules.garmin.schema as garmin_schema
+import modules.garmin.sync_state_store as sync_state_store
 
 _BODY = {"username": "me@example.com", "password": "pw", "is_cn": False}
 
@@ -29,10 +31,13 @@ def _client(user_id: int = 1):
     app.dependency_overrides[garmin_dependencies.get_garmin_mfa_code_store] = lambda: mfa_code_store.GarminMFACodeStore(
         state=state
     )
+    app.dependency_overrides[garmin_dependencies.get_garmin_sync_state_store] = lambda: (
+        sync_state_store.GarminSyncStateStore(state=state)
+    )
     return TestClient(app), link_states
 
 
-@patch("modules.garmin.service._LINK_EXECUTOR")
+@patch("modules.garmin.link_service._LINK_EXECUTOR")
 def test_link_returns_pending_at_once_and_starts_the_login(mock_start):
     client, link_states = _client()
 
@@ -44,7 +49,7 @@ def test_link_returns_pending_at_once_and_starts_the_login(mock_start):
     assert mock_start.submit.call_args.args[1:3] == (1, "me@example.com")
 
 
-@patch("modules.garmin.service._LINK_EXECUTOR")
+@patch("modules.garmin.link_service._LINK_EXECUTOR")
 def test_a_second_link_while_one_runs_is_a_conflict(mock_start):
     client, _ = _client()
     client.post("/garminconnect/link", json=_BODY)
@@ -55,7 +60,7 @@ def test_a_second_link_while_one_runs_is_a_conflict(mock_start):
     mock_start.submit.assert_called_once()
 
 
-@patch("modules.garmin.service._LINK_EXECUTOR")
+@patch("modules.garmin.link_service._LINK_EXECUTOR")
 def test_a_failed_link_can_be_retried(mock_start):
     client, link_states = _client()
     client.post("/garminconnect/link", json=_BODY)
@@ -112,14 +117,57 @@ def test_oversized_credentials_and_codes_are_rejected():
 
 def test_a_gear_sync_is_queued_not_run_on_the_request():
     client, _ = _client()
-    with patch("modules.garmin.sync_service.request_gear_sync") as queue:
-        from modules.garmin.schema import GarminDetail
-
-        queue.return_value = GarminDetail(detail="queued")
+    with patch("modules.garmin.sync_service._queue") as queue:
+        queue.return_value = garmin_schema.GarminSyncStatus(
+            kind=garmin_constants.SyncKind.GEAR, status=garmin_constants.SyncStatus.QUEUED
+        )
         response = client.post("/garminconnect/gear")
 
     assert response.status_code == 202
+    assert response.json() == {"kind": "gear", "status": "queued"}
     queue.assert_called_once()
+
+
+def test_a_second_gear_sync_while_one_is_pending_is_a_conflict():
+    client, _ = _client()
+    with (
+        patch("modules.garmin.sync_service.core_config.settings", MagicMock(JOBS_ENABLED=False)),
+        patch("modules.garmin.sync_service._SYNC_EXECUTOR"),
+    ):
+        first = client.post("/garminconnect/gear")
+        second = client.post("/garminconnect/gear")
+
+    assert first.status_code == 202
+    assert second.status_code == 409
+
+
+def test_a_sync_status_is_reported_once_queued_and_not_found_before():
+    client, _ = _client()
+    assert client.get("/garminconnect/sync/health").status_code == 404
+
+    with (
+        patch("modules.garmin.sync_service.core_config.settings", MagicMock(JOBS_ENABLED=False)),
+        patch("modules.garmin.sync_service._SYNC_EXECUTOR"),
+    ):
+        client.post("/garminconnect/health", params={"start_date": "2026-01-01", "end_date": "2026-01-01"})
+
+    assert client.get("/garminconnect/sync/health").json() == {"kind": "health", "status": "queued"}
+    assert client.get("/garminconnect/sync/gear").status_code == 404
+
+
+def test_a_non_numeric_mfa_code_is_rejected():
+    client, _ = _client()
+
+    assert client.post("/garminconnect/mfa", json={"mfa_code": "12 34!"}).status_code == 422
+
+
+def test_unlinking_is_a_delete_on_the_link():
+    client, _ = _client()
+    with patch("modules.garmin.service.unlink_account") as unlink:
+        unlink.return_value = garmin_schema.GarminDetail(detail="ok")
+        response = client.delete("/garminconnect/link")
+
+    assert response.status_code == 200
 
 
 def test_a_reversed_health_range_is_a_client_error():

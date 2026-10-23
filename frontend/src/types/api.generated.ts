@@ -987,6 +987,9 @@ export interface paths {
         /**
          * Garminconnect Retrieve Gear
          * @description Queue a sync of the user's Garmin Connect gear; a background job runs it.
+         *
+         *     Poll ``GET /garminconnect/sync/gear`` for the outcome. A second request while one is
+         *     pending is answered 409.
          */
         post: operations["garminconnect_retrieve_gear_api_v1_garminconnect_gear_post"];
         delete?: never;
@@ -1035,7 +1038,11 @@ export interface paths {
          *     reports ``completed`` or ``failed``. A second request while one is running is answered 409.
          */
         post: operations["garminconnect_link_api_v1_garminconnect_link_post"];
-        delete?: never;
+        /**
+         * Garminconnect Unlink
+         * @description Unlink the user's Garmin Connect account.
+         */
+        delete: operations["garminconnect_unlink_api_v1_garminconnect_link_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1081,21 +1088,21 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/unlink": {
+    "/api/v1/garminconnect/sync/{kind}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Garminconnect Sync Status
+         * @description Report where the authenticated user's queued gear or health sync is.
+         */
+        get: operations["garminconnect_sync_status_api_v1_garminconnect_sync__kind__get"];
         put?: never;
         post?: never;
-        /**
-         * Garminconnect Unlink
-         * @description Unlink the user's Garmin Connect account.
-         */
-        delete: operations["garminconnect_unlink_api_v1_garminconnect_unlink_delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5963,6 +5970,18 @@ export interface components {
             username: string;
         };
         /**
+         * GarminSyncStatus
+         * @description Where a queued Garmin Connect gear or health sync is.
+         *
+         *     Attributes:
+         *         kind: What the sync pulls.
+         *         status: ``queued`` until a worker picks it up, ``running``, then ``completed`` or ``failed``.
+         */
+        GarminSyncStatus: {
+            kind: components["schemas"]["SyncKind"];
+            status: components["schemas"]["SyncStatus"];
+        };
+        /**
          * GearComponentCreate
          * @description Schema for creating a gear component.
          *
@@ -8880,14 +8899,6 @@ export interface components {
             enabled: boolean;
         };
         /**
-         * MFAAccepted
-         * @description Acknowledgement that an MFA code was stored.
-         */
-        MFAAccepted: {
-            /** Message */
-            message: string;
-        };
-        /**
          * MFABackupCodeStatus
          * @description Aggregate status of a user's MFA backup codes.
          *
@@ -10198,6 +10209,18 @@ export interface components {
             /** Client Secret */
             client_secret: string | null;
         };
+        /**
+         * SyncKind
+         * @description What a queued Garmin Connect sync pulls.
+         * @enum {string}
+         */
+        SyncKind: "gear" | "health";
+        /**
+         * SyncStatus
+         * @description Where a queued Garmin Connect sync is.
+         * @enum {string}
+         */
+        SyncStatus: "queued" | "running" | "completed" | "failed";
         /**
          * TileMapsTemplate
          * @description Schema representing available tile map templates.
@@ -13918,7 +13941,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GarminDetail"];
+                    "application/json": components["schemas"]["GarminSyncStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -13950,7 +13973,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GarminDetail"];
+                    "application/json": components["schemas"]["GarminSyncStatus"];
                 };
             };
             /** @description Validation Error */
@@ -14063,7 +14086,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFAAccepted"];
+                    "application/json": components["schemas"]["GarminDetail"];
                 };
             };
             /** @description Validation Error */
@@ -14086,7 +14109,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_unlink_api_v1_garminconnect_unlink_delete: {
+    garminconnect_unlink_api_v1_garminconnect_link_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -14102,6 +14125,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GarminDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    garminconnect_sync_status_api_v1_garminconnect_sync__kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["SyncKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GarminSyncStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */

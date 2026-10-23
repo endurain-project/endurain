@@ -2,7 +2,6 @@
 
 from unittest.mock import patch
 
-import modules.garmin.health_service as garmin_health_service
 import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
 
 
@@ -27,6 +26,6 @@ def test_the_startup_health_pull_is_queued_under_the_recurring_jobs_lock():
         garmin_scheduled_jobs.schedule_recent_health()
 
     run_once.assert_called_once()
-    assert run_once.call_args.args == (garmin_health_service.retrieve_recent_health,)
+    assert run_once.call_args.args == (garmin_scheduled_jobs.sync_recent_health,)
     assert run_once.call_args.kwargs["lock_name"] == recurring.lock_name
-    assert recurring.func is garmin_health_service.retrieve_recent_health
+    assert recurring.func is garmin_scheduled_jobs.sync_recent_health

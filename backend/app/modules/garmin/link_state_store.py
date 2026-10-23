@@ -2,9 +2,9 @@
 
 Linking logs in to Garmin in a background thread that may wait for an MFA code, while the
 browser polls ``GET /garminconnect/link/status``. The poll can land on any replica, so the
-state lives in the platform ``StateProvider`` (in-process under ``local``, Redis under
-``distributed``) and nothing about it is process-local. The state is the contract: the
-browser learns that an MFA code is wanted by reading it, never from a push that could be lost.
+state lives in the platform ``StateProvider`` (see :mod:`modules.garmin.state_store`). The state
+is the contract: the browser learns that an MFA code is wanted by reading it, never from a push
+that could be lost.
 
 Interface::
 
@@ -13,23 +13,11 @@ Interface::
     get(user_id)                   - read the current state, or None once expired
 """
 
-import json
-
-from jasil.providers import StateBackendUnavailableError, StateProvider
+from jasil.providers import StateProvider
 from pydantic import BaseModel
 
-import core.hashing as core_hashing
-import core.logger as core_logger
 import modules.garmin.constants as garmin_constants
-
-logger = core_logger.get_logger(__name__)
-
-_LINK_STATE_KEY_PREFIX = "endurain:garmin:link:state"
-_LINK_CLAIM_KEY_PREFIX = "endurain:garmin:link:claim"
-# Must exceed the login timeout (MFA_WAIT_SECONDS plus the login itself), so a live attempt never expires
-# under the poller. Each recorded progress renews the claim, so only a dead replica's claim runs out,
-# which frees a retry.
-_DEFAULT_TTL_SECONDS: int = 2 * garmin_constants.MFA_WAIT_SECONDS
+import modules.garmin.state_store as garmin_state_store
 
 
 class LinkState(BaseModel):
@@ -51,37 +39,22 @@ class GarminLinkStateStore:
     """Garmin link attempt state backed by the platform ``StateProvider``.
 
     Attributes:
-        _state: The platform state provider.
-        _ttl_seconds: State lifetime in seconds.
+        _attempts: The claim and state storage for link attempts.
     """
 
-    def __init__(self, state: StateProvider, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
+    def __init__(self, state: StateProvider, ttl_seconds: int = garmin_constants.LINK_TTL_SECONDS) -> None:
         """Initialize the link state store.
 
         Args:
             state: The platform state provider.
-            ttl_seconds: How long each state remains readable.
+            ttl_seconds: How long a link attempt's claim and state last.
         """
-        self._state = state
-        self._ttl_seconds = ttl_seconds
-
-    def _key(self, user_id: int) -> str:
-        """Build the storage key for a user's link attempt."""
-        return f"{_LINK_STATE_KEY_PREFIX}:{core_hashing.sha256_hex(str(user_id))}"
-
-    def _claim_key(self, user_id: int) -> str:
-        """Build the storage key of the claim that marks a user's attempt as running."""
-        return f"{_LINK_CLAIM_KEY_PREFIX}:{core_hashing.sha256_hex(str(user_id))}"
-
-    def _write(self, user_id: int, state: LinkState) -> None:
-        self._state.set(self._key(user_id), state.model_dump_json().encode(), ttl_seconds=self._ttl_seconds)
+        self._attempts = garmin_state_store.AttemptStateStore(state, "link", ttl_seconds)
 
     def begin(self, user_id: int) -> bool:
         """Start a link attempt unless one is still running.
 
-        The claim is one atomic ``set_if_absent``, so two requests racing across replicas
-        cannot both start a login. A finished attempt releases it, so the user can retry
-        straight after a failure.
+        A finished attempt releases the claim, so the user can retry straight after a failure.
 
         Args:
             user_id: Authenticated user ID.
@@ -90,23 +63,9 @@ class GarminLinkStateStore:
             True when the attempt was recorded as pending, False when another is in progress.
 
         Raises:
-            StateBackendUnavailableError: When storage is unavailable.
+            GarminStateUnavailableError: When storage is unavailable.
         """
-        if not self._state.set_if_absent(self._claim_key(user_id), b"1", self._ttl_seconds):
-            return False
-        try:
-            self._write(user_id, LinkState(status=garmin_constants.LinkStatus.PENDING))
-        except StateBackendUnavailableError:
-            self._release(user_id)
-            raise
-        return True
-
-    def _release(self, user_id: int) -> None:
-        """Drop a user's claim, leaving it to expire when storage cannot be reached."""
-        try:
-            self._state.delete(self._claim_key(user_id))
-        except StateBackendUnavailableError as err:
-            logger.warning("Failed to release the Garmin link claim; it will expire", exc_info=err)
+        return self._attempts.begin(str(user_id), LinkState(status=garmin_constants.LinkStatus.PENDING))
 
     def release(self, user_id: int) -> None:
         """Abandon an attempt that never got to run, so the user can retry at once.
@@ -114,30 +73,19 @@ class GarminLinkStateStore:
         Args:
             user_id: Authenticated user ID.
         """
-        self._release(user_id)
+        self._attempts.release(str(user_id))
 
     def set_status(
         self, user_id: int, status: garmin_constants.LinkStatus, reason: garmin_constants.LinkFailure | None = None
     ) -> None:
         """Record a link attempt's progress or outcome.
 
-        A finished attempt releases its claim; any other progress renews it, so a live
-        attempt keeps its claim for as long as it keeps reporting. A failure to record is logged, not raised: the
-        attempt itself must still finish, and the entries expire on their own.
-
         Args:
             user_id: Authenticated user ID.
             status: The new status.
             reason: Why the attempt failed, when ``status`` is ``FAILED``.
         """
-        try:
-            self._write(user_id, LinkState(status=status, reason=reason))
-            if status in _FINISHED:
-                self._state.delete(self._claim_key(user_id))
-            else:
-                self._state.set(self._claim_key(user_id), b"1", ttl_seconds=self._ttl_seconds)
-        except StateBackendUnavailableError as err:
-            logger.warning("Failed to record the Garmin link state", exc_info=err)
+        self._attempts.record(str(user_id), LinkState(status=status, reason=reason), finished=status in _FINISHED)
 
     def get(self, user_id: int) -> LinkState | None:
         """Read a user's link attempt state.
@@ -149,7 +97,7 @@ class GarminLinkStateStore:
             The state, or None when no attempt is recorded or it has expired.
 
         Raises:
-            StateBackendUnavailableError: When storage is unavailable.
+            GarminStateUnavailableError: When storage is unavailable.
         """
-        value = self._state.get(self._key(user_id))
-        return LinkState(**json.loads(value)) if value is not None else None
+        value = self._attempts.read(str(user_id))
+        return LinkState.model_validate_json(value) if value is not None else None

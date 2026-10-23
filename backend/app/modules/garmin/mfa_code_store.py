@@ -12,64 +12,18 @@ Interface::
     add_code(user_id, code)   - store the MFA code for user_id
     get_code(user_id)         - retrieve it (does NOT delete)
     delete_code(user_id)      - remove it after consumption
-    has_code(user_id)         - check whether a live code exists
 """
-
-from typing import NoReturn
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
-import core.exceptions as core_exceptions
-import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.garmin.constants as garmin_constants
+import modules.garmin.state_store as garmin_state_store
 
 logger = core_logger.get_logger(__name__)
 
-_GARMIN_MFA_KEY_PREFIX = "endurain:garmin:mfa:code"
 # TTL must exceed the MFA_WAIT_SECONDS a login waits for a code.
 _DEFAULT_TTL_SECONDS: int = garmin_constants.MFA_WAIT_SECONDS + 30
-
-
-class GarminMFACodeStoreUnavailableError(core_exceptions.ServiceUnavailableError):
-    """Raised when the Garmin MFA code storage backend cannot be reached.
-
-    Attributes:
-        None.
-    """
-
-
-def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
-    """Log a storage outage and re-raise it as a Garmin-store error.
-
-    Args:
-        operation: Storage operation that failed.
-        err: The provider outage error.
-
-    Raises:
-        GarminMFACodeStoreUnavailableError: Always raised.
-    """
-    logger.error(
-        "Garmin MFA code storage failed",
-        exc_info=err,
-        extra=core_logger.context(operation=operation),
-    )
-    raise GarminMFACodeStoreUnavailableError("Garmin MFA code storage is unavailable") from err
-
-
-def _user_id_digest(user_id: int) -> str:
-    """Hash a user ID for storage key names.
-
-    Args:
-        user_id: User ID to hash.
-
-    Returns:
-        SHA-256 hex digest for use in the storage key.
-
-    Raises:
-        None.
-    """
-    return core_hashing.sha256_hex(str(user_id))
 
 
 class GarminMFACodeStore:
@@ -92,7 +46,7 @@ class GarminMFACodeStore:
 
     def _key(self, user_id: int) -> str:
         """Build the storage key for a user's pending MFA code."""
-        return f"{_GARMIN_MFA_KEY_PREFIX}:{_user_id_digest(user_id)}"
+        return garmin_state_store.key("mfa:code", str(user_id))
 
     def add_code(self, user_id: int, code: str) -> None:
         """Store a Garmin MFA code with TTL.
@@ -102,12 +56,12 @@ class GarminMFACodeStore:
             code: The MFA code submitted by the user.
 
         Raises:
-            GarminMFACodeStoreUnavailableError: When storage is unavailable.
+            GarminStateUnavailableError: When storage is unavailable.
         """
         try:
             self._state.set(self._key(user_id), code.encode(), ttl_seconds=self._ttl_seconds)
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("add Garmin MFA code", err)
+            garmin_state_store.raise_unavailable("add Garmin MFA code", err)
         logger.debug(
             "Stored Garmin MFA code",
             extra=core_logger.context(user_id=user_id),
@@ -123,12 +77,12 @@ class GarminMFACodeStore:
             The stored code string, or None if missing or expired.
 
         Raises:
-            GarminMFACodeStoreUnavailableError: When storage is unavailable.
+            GarminStateUnavailableError: When storage is unavailable.
         """
         try:
             value = self._state.get(self._key(user_id))
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("get Garmin MFA code", err)
+            garmin_state_store.raise_unavailable("get Garmin MFA code", err)
         return value.decode() if value is not None else None
 
     def delete_code(self, user_id: int) -> None:
@@ -138,28 +92,8 @@ class GarminMFACodeStore:
 
         Args:
             user_id: Authenticated user ID.
-
-        Raises:
-            None.
         """
         try:
             self._state.delete(self._key(user_id))
         except StateBackendUnavailableError as err:
             logger.warning("Failed to delete Garmin MFA code; entry will expire naturally via TTL", exc_info=err)
-
-    def has_code(self, user_id: int) -> bool:
-        """Return True when a non-expired code exists for a user.
-
-        Args:
-            user_id: Authenticated user ID.
-
-        Returns:
-            True if a valid code is stored, False otherwise.
-
-        Raises:
-            GarminMFACodeStoreUnavailableError: When storage is unavailable.
-        """
-        try:
-            return self._state.get(self._key(user_id)) is not None
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable("check Garmin MFA code", err)

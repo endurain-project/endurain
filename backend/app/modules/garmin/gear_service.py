@@ -193,6 +193,10 @@ def get_user_gear(user_id: int) -> None:
         garmin_service.save_refreshed_token(user_id, session)
 
     with SessionLocal() as db:
+        # The account may have been unlinked while the gear was being fetched
+        if garmin_service.get_linked_user_integrations(user_id, db) is None:
+            logger.info("Garmin Connect unlinked during the gear sync", extra=core_logger.context(user_id=user_id))
+            return
         user_integrations_integration.set_garminconnect_sync_gear(user_id, True, db)
         logger.info(
             "Will parse current activities and set gear if applicable",

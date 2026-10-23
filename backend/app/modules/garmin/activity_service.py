@@ -170,6 +170,9 @@ def fetch_and_process_activities_by_dates(
         )
         try:
             parsed_activities.extend(_download_and_ingest_activity(garminconnect_client, activity, user_id))
+        except garminconnect.GarminConnectAuthenticationError as err:
+            garmin_service.handle_rejected_token(user_id, session, err)
+            break
         except Exception as err:
             logger.error(
                 "Error processing Garmin Connect activity",

@@ -188,9 +188,9 @@ describe('garmin service', () => {
     )
   })
 
-  it('unlinkGarmin DELETEs the unlink path', async () => {
+  it('unlinkGarmin DELETEs the link', async () => {
     await unlinkGarmin()
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/unlink', {
+    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/link', {
       method: 'DELETE',
       responseType: 'void',
     })

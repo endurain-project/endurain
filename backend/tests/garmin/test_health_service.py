@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import modules.garmin.health_service as health_utils
 import modules.health.health_sleep.schema as health_sleep_schema
 
@@ -125,38 +127,6 @@ class _CountingSessions:
         self.open_count -= 1
 
 
-class TestUsersHealthPull:
-    def test_only_linked_users_are_synced_one_page_at_a_time(self):
-        pages = [[1, 2], [5], []]
-        synced = []
-
-        with (
-            patch.object(health_utils.garmin_service, "linked_user_ids", side_effect=pages) as listing,
-            patch.object(
-                health_utils,
-                "get_user_garminconnect_health_by_dates",
-                side_effect=lambda _start, _end, user_id: synced.append(user_id),
-            ),
-        ):
-            health_utils.retrieve_garminconnect_users_health_for_days(1)
-
-        assert synced == [1, 2, 5]
-        assert [call.args[0] for call in listing.call_args_list] == [0, 2, 5]
-
-    def test_one_failing_user_does_not_stop_the_rest(self):
-        def sync(_start, _end, user_id):
-            if user_id == 1:
-                raise RuntimeError("boom")
-
-        with (
-            patch.object(health_utils.garmin_service, "linked_user_ids", side_effect=[[1, 2], []]),
-            patch.object(health_utils, "get_user_garminconnect_health_by_dates", side_effect=sync) as pull,
-        ):
-            health_utils.retrieve_garminconnect_users_health_for_days(1)
-
-        assert pull.call_count == 2
-
-
 class TestExpiredToken:
     def test_an_expired_token_is_handed_to_the_rejected_token_handler(self):
         client = MagicMock()
@@ -182,3 +152,39 @@ class TestExpiredToken:
             health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1)
 
         fetch.assert_not_called()
+
+
+class TestFailuresPropagate:
+    def test_an_unexpected_failure_reaches_the_caller_so_a_worker_retries(self):
+        session = health_utils.garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
+        with (
+            patch.object(health_utils, "SessionLocal"),
+            patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=session),
+            patch.object(health_utils, "fetch_and_process_bc_by_dates", side_effect=RuntimeError("boom")),
+            patch.object(health_utils.garmin_service, "save_refreshed_token") as save,
+            pytest.raises(RuntimeError),
+        ):
+            health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1)
+
+        save.assert_called_once()
+
+
+class TestUpsert:
+    def test_an_existing_record_is_edited_and_a_missing_one_created(self):
+        record = health_utils.health_steps_schema.HealthStepsBase(
+            date="2026-09-29", steps=10, source=health_utils.health_steps_schema.Source.GARMIN
+        )
+        edit, create = MagicMock(), MagicMock()
+        kwargs = {
+            "label": "Daily steps",
+            "edit": edit,
+            "create": create,
+            "update_schema": health_utils.health_steps_schema.HealthStepsUpdate,
+            "create_schema": health_utils.health_steps_schema.HealthStepsCreate,
+        }
+        with patch.object(health_utils, "SessionLocal"):
+            health_utils._upsert(1, record, get=lambda *_: MagicMock(id=7), **kwargs)
+            health_utils._upsert(1, record, get=lambda *_: None, **kwargs)
+
+        assert edit.call_args.args[1].id == 7
+        create.assert_called_once()
