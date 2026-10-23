@@ -32,7 +32,7 @@
 - An expensive read (aggregation, export, stream, render) takes a stricter rate tier than `DEFAULT`.
 - A user-triggerable job (import, sync, thumbnail, geocoding) needs a per-user cap or rate tier, a timeout and bounded retries.
 - The limiter keys on a validly signed Bearer token, else on `core.network.get_ip_address`; never key on a raw header or read `X-Forwarded-For` directly.
-- The application limiter is abuse control; volumetric DDoS is absorbed by the reverse proxy or CDN (`docs/getting-started/advanced-setup.md`).
+- The application limiter is abuse control; it does not absorb volumetric DDoS, which needs DDoS protection configured upstream of Endurain (`docs/getting-started/advanced-setup.md`).
 - Auth and reset responses do not reveal whether an account exists; never log tokens, secrets or API keys.
 - Security headers, CSRF and CORS live in `core/middleware.py` and `main.py`; do not widen `allow_origins` or drop a header to make a client work.
 
