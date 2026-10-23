@@ -45,6 +45,10 @@ const props = withDefaults(
     heightClass?: string
     /** Whether the viewer owns the activity (gates the per-photo delete button). */
     isOwner?: boolean
+    /** Route point that follows the chart cursor. Ignored without a live map. */
+    cursor?: GeoPoint | null
+    /** Reports hover on the route line. Home thumbnails leave this off. */
+    follow?: boolean
   }>(),
   {
     thumbnailUrl: null,
@@ -52,8 +56,14 @@ const props = withDefaults(
     thumbnailPending: false,
     heightClass: 'h-72 lg:h-150',
     isOwner: false,
+    cursor: null,
+    follow: false,
   },
 )
+
+const emit = defineEmits<{
+  trackHover: [fraction: number | null]
+}>()
 
 const { t } = useI18n()
 const toasts = useToasts()
@@ -188,7 +198,13 @@ async function confirmDelete(): Promise<void> {
         :class="heightClass"
         :aria-hidden="index !== current"
       >
-        <ActivityMap v-if="slide.kind === 'map'" :points="points" />
+        <ActivityMap
+          v-if="slide.kind === 'map'"
+          :points="points"
+          :cursor="cursor"
+          :follow="follow"
+          @track-hover="emit('trackHover', $event)"
+        />
         <component
           :is="thumbnailTo ? RouterLink : 'div'"
           v-else-if="slide.kind === 'thumbnail'"

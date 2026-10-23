@@ -10,10 +10,12 @@ import { Chart, registerables, type ChartConfiguration, type ChartDataset } from
 import zoomPlugin from 'chartjs-plugin-zoom'
 
 import type {
+  ChartCursorGeometry,
   ChartInstance,
   ChartProvider,
   ChartRenderOptions,
 } from '@/composables/useChartProvider'
+import { indexAtFraction } from '@/features/activities/utils/scrub'
 
 Chart.register(...registerables, zoomPlugin)
 
@@ -125,27 +127,43 @@ export function buildChartConfiguration(
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
+      // The shared cursor is an HTML overlay. Skip Chart.js hover work on
+      // activity charts so a pointer move does not rebuild a tooltip. Health
+      // charts omit this and keep the default hover events.
+      ...(options.showTooltip === false ? { events: [] } : {}),
       plugins: {
         legend: { display: options.series.length > 1 },
-        tooltip: {
-          callbacks: {
-            // X value (tooltip title): append the axis unit (e.g. `0.7 km`) so a
-            // hover is self-describing. Distance-less charts pass no unit.
-            title: (items) => {
-              const raw = items[0]?.label ?? ''
-              return options.xUnit && raw ? `${raw} ${options.xUnit}` : raw
-            },
-            // Y value: `<series>: <formatted>` using the domain formatter.
-            label: (ctx) => {
-              const y = ctx.parsed.y
-              if (y === null || y === undefined) {
-                return ctx.dataset.label ?? ''
-              }
-              const formatted = options.valueFormat?.(y) ?? String(y)
-              return ctx.dataset.label ? `${ctx.dataset.label}: ${formatted}` : formatted
-            },
-          },
-        },
+        tooltip:
+          options.showTooltip === false
+            ? { enabled: false }
+            : {
+                // The Chart.js default is a black box. Match the card and the popover.
+                backgroundColor: '#ffffff',
+                titleColor: '#2c2c2a',
+                bodyColor: '#2c2c2a',
+                borderColor: 'rgba(0, 0, 0, 0.08)',
+                borderWidth: 1,
+                padding: 8,
+                cornerRadius: 8,
+                displayColors: false,
+                callbacks: {
+                  // X value (tooltip title): append the axis unit (e.g. `0.7 km`) so a
+                  // hover is self-describing. Distance-less charts pass no unit.
+                  title: (items) => {
+                    const raw = items[0]?.label ?? ''
+                    return options.xUnit && raw ? `${raw} ${options.xUnit}` : raw
+                  },
+                  // Y value: `<series>: <formatted>` using the domain formatter.
+                  label: (ctx) => {
+                    const y = ctx.parsed.y
+                    if (y === null || y === undefined) {
+                      return ctx.dataset.label ?? ''
+                    }
+                    const formatted = options.valueFormat?.(y) ?? String(y)
+                    return ctx.dataset.label ? `${ctx.dataset.label}: ${formatted}` : formatted
+                  },
+                },
+              },
         // Interactive pan/zoom along the distance axis; wheel + drag on
         // desktop, pinch on touch (the v2 plugin handles pinch natively).
         zoom: options.zoom
@@ -192,6 +210,16 @@ export function createChartJsChartProvider(config: ChartJsChartProviderConfig = 
       let currentType = initialConfig.type
       let chart = new Chart(canvas, initialConfig)
 
+      /** Number of x samples currently drawn. */
+      const sampleCount = (): number => {
+        const labels = chart.data.labels
+        if (Array.isArray(labels) && labels.length > 0) {
+          return labels.length
+        }
+        const data = chart.data.datasets[0]?.data
+        return Array.isArray(data) ? data.length : 0
+      }
+
       return {
         update(next: ChartRenderOptions): void {
           const nextConfig = buildChartConfiguration(next, palette)
@@ -205,6 +233,39 @@ export function createChartJsChartProvider(config: ChartJsChartProviderConfig = 
           }
           chart.data = nextConfig.data
           chart.update()
+        },
+        fractionAt(clientX: number): number | null {
+          const area = chart.chartArea
+          const scale = chart.scales.x
+          if (!area || !scale || area.right <= area.left) {
+            return null
+          }
+          const x = clientX - canvas.getBoundingClientRect().left
+          if (x < area.left || x > area.right) {
+            return null
+          }
+          const count = sampleCount()
+          if (count <= 1) {
+            return 0
+          }
+          const value = scale.getValueForPixel(x)
+          if (typeof value !== 'number' || Number.isNaN(value)) {
+            return null
+          }
+          return Math.min(1, Math.max(0, value / (count - 1)))
+        },
+        cursorGeometry(fraction: number): ChartCursorGeometry | null {
+          const area = chart.chartArea
+          const scale = chart.scales.x
+          const count = sampleCount()
+          if (!area || !scale || count <= 0 || area.bottom <= area.top) {
+            return null
+          }
+          const left = scale.getPixelForValue(indexAtFraction(count, fraction))
+          if (left < area.left || left > area.right) {
+            return null
+          }
+          return { left, top: area.top, height: area.bottom - area.top }
         },
         destroy(): void {
           chart.destroy()
