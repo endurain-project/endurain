@@ -51,8 +51,24 @@ oauth2_scheme = OAuth2PasswordBearer(
     auto_error=False,
 )
 
+
+class ClientTypeHeader(APIKeyHeader):
+    """Required ``X-Client-Type`` header whose absence is a 400, not an authentication failure."""
+
+    def make_not_authenticated_error(self) -> HTTPException:
+        """Build the error raised when the header is missing.
+
+        Returns:
+            A 400 naming the missing header, so an integrator does not mistake it for bad credentials.
+        """
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required X-Client-Type header (web or mobile)",
+        )
+
+
 # Define the API key header for the client type
-header_client_type_scheme = APIKeyHeader(name="X-Client-Type")
+header_client_type_scheme = ClientTypeHeader(name="X-Client-Type")
 
 # Define the API key header for third-party API key auth
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)

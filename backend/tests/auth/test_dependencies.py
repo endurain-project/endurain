@@ -284,3 +284,30 @@ class TestAuthContextIdentity:
         import modules.auth._internal.internal_dependencies as auth_security
 
         assert auth_dependencies.AuthContext is auth_security.AuthContext
+
+
+class TestClientTypeHeader:
+    """Tests for the required X-Client-Type header scheme."""
+
+    @staticmethod
+    def _request(headers: dict[str, str]):
+        from starlette.requests import Request
+
+        scope = {"type": "http", "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()]}
+        return Request(scope)
+
+    @pytest.mark.asyncio
+    async def test_missing_header_is_a_400_naming_the_header(self):
+        import modules.auth._internal.internal_dependencies as auth_security
+
+        with pytest.raises(HTTPException) as exc_info:
+            await auth_security.header_client_type_scheme(self._request({}))
+        assert exc_info.value.status_code == 400
+        assert "X-Client-Type" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_present_header_is_returned(self):
+        import modules.auth._internal.internal_dependencies as auth_security
+
+        result = await auth_security.header_client_type_scheme(self._request({"X-Client-Type": "web"}))
+        assert result == "web"
