@@ -29,6 +29,7 @@ import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
 import modules.gears.gear.router as gears_router
 import modules.gears.gear_components.router as gear_components_router
+import modules.health.health_dashboard.router as health_dashboard_router
 import modules.health.health_fasting.router as health_fasting_router
 import modules.health.health_poop.router as health_poop_router
 import modules.health.health_sleep.router as health_sleep_router
@@ -36,7 +37,6 @@ import modules.health.health_steps.router as health_steps_router
 import modules.health.health_targets.router as health_targets_router
 import modules.health.health_water.router as health_water_router
 import modules.health.health_weight.router as health_weight_router
-import modules.health.router as health_router
 import modules.notifications.router as notifications_router
 import modules.server_settings.logs_router as server_settings_logs_router
 import modules.server_settings.public_router as server_settings_public_router
@@ -206,7 +206,7 @@ router.include_router(
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
-    health_router.router,
+    health_dashboard_router.router,
     prefix=core_config.ROOT_PATH + "/health",
     tags=["health"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
