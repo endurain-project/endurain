@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -61,6 +62,17 @@ class TestReadNotificationById:
         assert response.json()["id"] == 1
 
     @patch("modules.notifications.router.notifications_crud.get_user_notification_by_id")
+    def test_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
+        from modules.notifications.schema import NotificationRead
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = NotificationRead(id=1, user_id=1, read=False, created_at=datetime(2026, 7, 16, 10, 30))
+
+        response = client.get("/notifications/1", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 200
+        assert response.json()["created_at"] == "2026-07-16T10:30:00Z"
+
+    @patch("modules.notifications.router.notifications_crud.get_user_notification_by_id")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -80,6 +92,19 @@ class TestReadNotificationsPagination:
 
         response = client.get("/notifications/page_number/1/num_records/10", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+
+    @patch("modules.notifications.router.notifications_crud.get_user_notifications_with_pagination")
+    def test_pagination_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
+        from modules.notifications.schema import NotificationRead
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = [
+            NotificationRead(id=1, user_id=1, read=False, created_at=datetime(2026, 7, 16, 10, 30, tzinfo=UTC))
+        ]
+
+        response = client.get("/notifications/page_number/1/num_records/10", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 200
+        assert response.json()[0]["created_at"] == "2026-07-16T10:30:00Z"
 
 
 class TestMarkNotificationAsRead:

@@ -8,8 +8,10 @@ from pydantic import (
     Field,
     StrictBool,
     StrictInt,
-    field_serializer,
+    field_validator,
 )
+
+import core.timezone as core_timezone
 
 
 class NotificationBase(BaseModel):
@@ -83,17 +85,19 @@ class NotificationRead(NotificationBase):
         description="Timestamp of creation",
     )
 
-    @field_serializer("created_at")
-    def serialize_created_at(self, value: datetime | None) -> str | None:
+    @field_validator("created_at")
+    @classmethod
+    def normalize_created_at(cls, value: datetime | None) -> datetime | None:
         """
-        Serialize created_at as date string.
+        Normalize created_at to a UTC-aware datetime.
+
+        JSON output is then a full ISO 8601 timestamp with a UTC
+        offset, which the frontend needs to compute relative times.
 
         Args:
-            value: The datetime value to serialize.
+            value: The datetime value to normalize.
 
         Returns:
-            Date string in YYYY-MM-DD format or None.
+            UTC-aware datetime or None.
         """
-        if value is None:
-            return None
-        return value.strftime("%Y-%m-%d")
+        return core_timezone.to_utc_aware(value)
