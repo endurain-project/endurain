@@ -1,11 +1,12 @@
 """Tests for core.router — metadata and static-fallback routes."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.testclient import TestClient
 
+from core.database import get_db
 from core.router import router
 
 app = FastAPI()
@@ -27,6 +28,29 @@ class TestAbout:
         assert data["license"]["name"] == LICENSE_NAME
         assert data["license"]["identifier"] == LICENSE_IDENTIFIER
         assert data["license"]["url"] == LICENSE_URL
+
+
+class TestHealth:
+    """Tests for GET {ROOT_PATH}/health — database-backed liveness."""
+
+    def test_returns_ok_when_database_answers(self):
+        app.dependency_overrides[get_db] = lambda: MagicMock()
+        try:
+            response = client.get("/api/v1/health")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+    def test_returns_503_when_database_fails(self):
+        db = MagicMock()
+        db.execute.side_effect = TimeoutError("pool exhausted")
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            response = client.get("/api/v1/health")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+        assert response.status_code == 503
 
 
 class _FileResponseTestMixin:

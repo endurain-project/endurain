@@ -1,10 +1,15 @@
 """Core metadata and static fallback routes."""
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.database as core_database
 import core.utils as core_utils
 
 # Define the API router
@@ -66,6 +71,30 @@ async def about() -> AboutResponse:
             url=core_config.LICENSE_URL,
         ),
     )
+
+
+@router.get(core_config.ROOT_PATH + "/health", status_code=status.HTTP_200_OK)
+def health(db: Annotated[Session, Depends(core_database.get_db)]) -> dict[str, str]:
+    """
+    Liveness check that needs a database connection.
+
+    Unlike ``/about``, this fails when the connection pool is exhausted or the
+    database is unreachable, so orchestrators can detect a wedged instance.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        ``{"status": "ok"}`` when the database answers.
+
+    Raises:
+        HTTPException: 503 when no connection can be obtained or the query fails.
+    """
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database unavailable") from err
+    return {"status": "ok"}
 
 
 @router.get("/server_images/{server_img}", response_class=FileResponse)
