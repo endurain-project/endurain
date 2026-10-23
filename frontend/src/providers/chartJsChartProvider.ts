@@ -14,6 +14,7 @@ import type {
   ChartProvider,
   ChartRenderOptions,
 } from '@/composables/useChartProvider'
+import { themeColor } from '@/lib/themeColor'
 
 Chart.register(...registerables, zoomPlugin)
 
@@ -128,11 +129,11 @@ export function buildChartConfiguration(
       plugins: {
         legend: { display: options.series.length > 1 },
         tooltip: {
-          // The Chart.js default is a black box. Match the card and the popover.
-          backgroundColor: '#ffffff',
-          titleColor: '#2c2c2a',
-          bodyColor: '#2c2c2a',
-          borderColor: 'rgba(0, 0, 0, 0.08)',
+          // The Chart.js default is a black box. Follow the popover, including dark mode.
+          backgroundColor: themeColor('--color-popover'),
+          titleColor: themeColor('--color-popover-foreground'),
+          bodyColor: themeColor('--color-popover-foreground'),
+          borderColor: themeColor('--color-border'),
           borderWidth: 1,
           padding: 8,
           cornerRadius: 8,

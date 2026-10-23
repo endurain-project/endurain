@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { setChartProvider, useChartProvider } from '@/composables/useChartProvider'
+import { themeColor } from '@/lib/themeColor'
 import {
   buildChartConfiguration,
   createChartJsChartProvider,
@@ -132,9 +133,9 @@ describe('buildChartConfiguration', () => {
       titleColor?: string
       bodyColor?: string
     }
-    expect(colors.backgroundColor).toBe('#ffffff')
-    expect(colors.titleColor).toBe('#2c2c2a')
-    expect(colors.bodyColor).toBe('#2c2c2a')
+    expect(colors.backgroundColor).toBe(themeColor('--color-popover'))
+    expect(colors.titleColor).toBe(themeColor('--color-popover-foreground'))
+    expect(colors.bodyColor).toBe(themeColor('--color-popover-foreground'))
   })
 
   it('leaves the y-axis upright without explicit options', () => {
