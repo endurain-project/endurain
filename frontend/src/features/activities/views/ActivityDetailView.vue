@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft } from '@lucide/vue'
@@ -15,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import ActivityDetailHeader from '@/features/activities/components/ActivityDetailHeader.vue'
 import ActivityGallery from '@/features/activities/components/ActivityGallery.vue'
-import ActivityGearCard from '@/features/activities/components/ActivityGearCard.vue'
 import ActivityHrZones from '@/features/activities/components/ActivityHrZones.vue'
 import ActivityLapsTable from '@/features/activities/components/ActivityLapsTable.vue'
 import ActivityMetricsGrid from '@/features/activities/components/ActivityMetricsGrid.vue'
@@ -39,6 +38,7 @@ import {
   streamMetricVisibility,
 } from '@/features/activities/utils/privacy'
 import { extractHrZones } from '@/features/activities/utils/hrZones'
+import { pointAtFraction } from '@/features/activities/utils/scrub'
 import { buildStreamCharts, extractTrackPoints } from '@/features/activities/utils/streams'
 
 const route = useRoute()
@@ -59,8 +59,7 @@ const { data: laps } = useActivityLapsQuery(activityId, activityLoaded)
 
 const currentUserId = computed(() => currentUser.value?.id ?? null)
 
-// Only the owner manages gear; non-owners (incl. public viewers) never see the
-// gear card.
+// Only the owner manages gear (in the header) and deletes photos.
 const isOwner = computed(
   () => !!activity.value && isActivityOwner(activity.value, currentUserId.value),
 )
@@ -88,6 +87,39 @@ const metricVisibility = computed(() =>
 )
 
 const trackPoints = computed(() => extractTrackPoints(streams.value ?? []))
+
+const scrubFraction = ref<number | null>(null)
+let scrubFrame = 0
+let scrubPending: number | null = null
+
+/** A lifted finger has no hover, so the cursor should not stay behind. */
+function onPointerUp(event: PointerEvent): void {
+  if (event.pointerType !== 'mouse') {
+    onScrub(null)
+  }
+}
+
+/** Keeps one pointer position per frame for every chart and the map marker. */
+function onScrub(fraction: number | null): void {
+  scrubPending = fraction
+  if (scrubFrame !== 0) {
+    return
+  }
+  scrubFrame = requestAnimationFrame(() => {
+    scrubFrame = 0
+    scrubFraction.value = scrubPending
+  })
+}
+
+onBeforeUnmount(() => {
+  if (scrubFrame !== 0) {
+    cancelAnimationFrame(scrubFrame)
+  }
+})
+
+const cursorPoint = computed(() =>
+  scrubFraction.value == null ? null : pointAtFraction(trackPoints.value, scrubFraction.value),
+)
 const showMap = computed(
   () =>
     !!activity.value &&
@@ -293,63 +325,79 @@ const notFound = computed(() => !isPending.value && !isError.value && activity.v
         :points="showMap ? trackPoints : []"
         :activity-id="activity.id"
         :is-owner="isOwner"
+        :cursor="cursorPoint"
+        follow
+        sticky
+        @track-hover="onScrub"
       />
 
-      <ActivityGearCard v-if="isOwner" :activity="activity" />
+      <!-- Below the map on purpose, so these cards slide under it while it is pinned. -->
+      <div
+        v-if="chartPanels.length > 0 || showLaps || showWorkout"
+        class="relative z-0 flex flex-col gap-3"
+      >
+        <div
+          v-if="chartPanels.length > 0"
+          class="grid gap-3 lg:grid-cols-2"
+          @pointerleave="onScrub(null)"
+          @pointerup="onPointerUp"
+          @pointercancel="onScrub(null)"
+        >
+          <template v-for="panel in chartPanels" :key="panel.key">
+            <ActivityStreamChart
+              v-if="panel.kind === 'chart'"
+              :title="t(panel.chart.titleKey)"
+              :render="panel.chart.render"
+              :stats="panel.chart.stats"
+              :cursor-fraction="scrubFraction"
+              @scrub="onScrub"
+            />
+            <Card v-else class="flex min-w-0 flex-col gap-3">
+              <div class="flex items-center gap-2">
+                <span class="bg-hr size-2.5 rounded-full" aria-hidden="true" />
+                <h3 class="text-card-heading">{{ t('activities.hrZones.title') }}</h3>
+              </div>
+              <div class="flex flex-1 items-center">
+                <ActivityHrZones :zones="panel.zones" class="w-full" />
+              </div>
+            </Card>
+          </template>
+        </div>
 
-      <div v-if="chartPanels.length > 0" class="grid gap-3 lg:grid-cols-2">
-        <template v-for="panel in chartPanels" :key="panel.key">
-          <ActivityStreamChart
-            v-if="panel.kind === 'chart'"
-            :title="t(panel.chart.titleKey)"
-            :render="panel.chart.render"
-            :stats="panel.chart.stats"
-          />
-          <Card v-else class="flex min-w-0 flex-col gap-3">
-            <div class="flex items-center gap-2">
-              <span class="bg-hr size-2.5 rounded-full" aria-hidden="true" />
-              <h3 class="text-card-heading">{{ t('activities.hrZones.title') }}</h3>
-            </div>
-            <div class="flex flex-1 items-center">
-              <ActivityHrZones :zones="panel.zones" class="w-full" />
-            </div>
-          </Card>
-        </template>
-      </div>
+        <Card v-if="showLaps || showWorkout" class="flex flex-col gap-3">
+          <!-- Both available → switch between Laps and Sets (mirrors v1's pills). -->
+          <Tabs v-if="showLaps && showWorkout" v-model="splitsTab">
+            <TabsList>
+              <TabsTrigger value="laps">{{ t('activities.laps.title') }}</TabsTrigger>
+              <TabsTrigger value="sets">{{ t('activities.workout.title') }}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="laps">
+              <ActivityLapsTable :laps="laps ?? []" :activity="activity" :units="units" />
+            </TabsContent>
+            <TabsContent value="sets">
+              <ActivityWorkoutSets
+                :workout-steps="workoutSteps ?? []"
+                :workout-sets="workoutSets ?? []"
+                :exercise-titles="exerciseTitles ?? []"
+              />
+            </TabsContent>
+          </Tabs>
 
-      <Card v-if="showLaps || showWorkout" class="flex flex-col gap-3">
-        <!-- Both available → switch between Laps and Sets (mirrors v1's pills). -->
-        <Tabs v-if="showLaps && showWorkout" v-model="splitsTab">
-          <TabsList>
-            <TabsTrigger value="laps">{{ t('activities.laps.title') }}</TabsTrigger>
-            <TabsTrigger value="sets">{{ t('activities.workout.title') }}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="laps">
+          <!-- Only one available → a plain titled table. -->
+          <template v-else-if="showLaps">
+            <h2 class="text-card-heading">{{ t('activities.laps.title') }}</h2>
             <ActivityLapsTable :laps="laps ?? []" :activity="activity" :units="units" />
-          </TabsContent>
-          <TabsContent value="sets">
+          </template>
+          <template v-else>
+            <h2 class="text-card-heading">{{ t('activities.workout.title') }}</h2>
             <ActivityWorkoutSets
               :workout-steps="workoutSteps ?? []"
               :workout-sets="workoutSets ?? []"
               :exercise-titles="exerciseTitles ?? []"
             />
-          </TabsContent>
-        </Tabs>
-
-        <!-- Only one available → a plain titled table. -->
-        <template v-else-if="showLaps">
-          <h2 class="text-card-heading">{{ t('activities.laps.title') }}</h2>
-          <ActivityLapsTable :laps="laps ?? []" :activity="activity" :units="units" />
-        </template>
-        <template v-else>
-          <h2 class="text-card-heading">{{ t('activities.workout.title') }}</h2>
-          <ActivityWorkoutSets
-            :workout-steps="workoutSteps ?? []"
-            :workout-sets="workoutSets ?? []"
-            :exercise-titles="exerciseTitles ?? []"
-          />
-        </template>
-      </Card>
+          </template>
+        </Card>
+      </div>
     </template>
   </div>
 </template>

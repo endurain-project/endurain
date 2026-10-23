@@ -45,6 +45,15 @@ const props = withDefaults(
     heightClass?: string
     /** Whether the viewer owns the activity (gates the per-photo delete button). */
     isOwner?: boolean
+    /** Route point that follows the chart cursor. Ignored without a live map. */
+    cursor?: GeoPoint | null
+    /** Reports hover on the route line. Home thumbnails leave this off. */
+    follow?: boolean
+    /**
+     * On a phone, keep this gallery under the navbar while the rest of the
+     * activity page scrolls. Home cards leave it off.
+     */
+    sticky?: boolean
   }>(),
   {
     thumbnailUrl: null,
@@ -52,8 +61,15 @@ const props = withDefaults(
     thumbnailPending: false,
     heightClass: 'h-72 lg:h-150',
     isOwner: false,
+    cursor: null,
+    follow: false,
+    sticky: false,
   },
 )
+
+const emit = defineEmits<{
+  trackHover: [fraction: number | null]
+}>()
 
 const { t } = useI18n()
 const toasts = useToasts()
@@ -173,97 +189,109 @@ async function confirmDelete(): Promise<void> {
 <template>
   <div
     v-if="slides.length > 0"
-    class="relative overflow-hidden rounded-card border border-border bg-muted"
+    class="bg-card"
+    :class="sticky ? 'max-lg:sticky max-lg:top-below-nav max-lg:z-20' : undefined"
   >
-    <!-- Every slide stays mounted (translated, never `display:none`) so the
-         Leaflet map keeps its measured size as the carousel moves. -->
     <div
-      class="flex transition-transform duration-300 ease-out"
-      :style="{ transform: `translateX(-${current * 100}%)` }"
+      class="relative overflow-hidden rounded-card border border-border bg-muted"
+      :class="sticky ? 'max-lg:shadow-md' : undefined"
     >
+      <!-- Every slide stays mounted (translated, never `display:none`) so the
+         Leaflet map keeps its measured size as the carousel moves. -->
       <div
-        v-for="(slide, index) in slides"
-        :key="slide.kind === 'photo' ? `photo-${slide.media.id}` : slide.kind"
-        class="relative w-full shrink-0"
-        :class="heightClass"
-        :aria-hidden="index !== current"
+        class="flex transition-transform duration-300 ease-out"
+        :style="{ transform: `translateX(-${current * 100}%)` }"
       >
-        <ActivityMap v-if="slide.kind === 'map'" :points="points" />
-        <component
-          :is="thumbnailTo ? RouterLink : 'div'"
-          v-else-if="slide.kind === 'thumbnail'"
-          :to="thumbnailTo"
-          class="block size-full"
-        >
-          <img :src="thumbnailUrl ?? ''" alt="" loading="lazy" class="size-full object-cover" />
-        </component>
         <div
-          v-else-if="slide.kind === 'thumbnailPending'"
-          class="flex size-full items-center justify-center"
-          role="status"
-          :aria-label="t('activities.media.thumbnailPending')"
-        >
-          <Skeleton class="size-full rounded-none" />
-        </div>
-        <template v-else>
-          <button
-            type="button"
-            class="size-full cursor-zoom-in focus-visible:outline-none"
-            :aria-label="t('activities.media.expand')"
-            @click="openLightbox(slide.media)"
-          >
-            <Image
-              :src="slide.media.url"
-              :alt="t('activities.media.alt')"
-              class="size-full object-contain"
-            />
-          </button>
-          <button
-            v-if="isOwner"
-            type="button"
-            class="absolute right-2 bottom-2 z-10 flex size-9 items-center justify-center rounded-full bg-card/80 text-destructive backdrop-blur transition-colors hover:bg-destructive/10"
-            :aria-label="t('activities.media.deleteTitle')"
-            @click="requestDelete(slide.media)"
-          >
-            <Trash2 class="size-4" />
-          </button>
-        </template>
-      </div>
-    </div>
-
-    <template v-if="slides.length > 1">
-      <button
-        type="button"
-        class="absolute left-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur transition-colors hover:bg-card disabled:opacity-40"
-        :disabled="current === 0"
-        :aria-label="t('activities.gallery.previous')"
-        @click="go(current - 1)"
-      >
-        <ChevronLeft class="size-5" />
-      </button>
-      <button
-        type="button"
-        class="absolute right-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur transition-colors hover:bg-card disabled:opacity-40"
-        :disabled="current === slides.length - 1"
-        :aria-label="t('activities.gallery.next')"
-        @click="go(current + 1)"
-      >
-        <ChevronRight class="size-5" />
-      </button>
-
-      <div class="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1.5">
-        <button
           v-for="(slide, index) in slides"
-          :key="slide.kind === 'photo' ? `dot-${slide.media.id}` : `dot-${slide.kind}`"
-          type="button"
-          class="size-2 rounded-full transition-colors"
-          :class="index === current ? 'bg-brand' : 'bg-foreground/30 hover:bg-foreground/50'"
-          :aria-label="t('activities.gallery.goToSlide', { index: index + 1 })"
-          :aria-current="index === current"
-          @click="go(index)"
-        />
+          :key="slide.kind === 'photo' ? `photo-${slide.media.id}` : slide.kind"
+          class="relative w-full shrink-0"
+          :class="heightClass"
+          :aria-hidden="index !== current"
+        >
+          <ActivityMap
+            v-if="slide.kind === 'map'"
+            :points="points"
+            :cursor="cursor"
+            :follow="follow"
+            @track-hover="emit('trackHover', $event)"
+          />
+          <component
+            :is="thumbnailTo ? RouterLink : 'div'"
+            v-else-if="slide.kind === 'thumbnail'"
+            :to="thumbnailTo"
+            class="block size-full"
+          >
+            <img :src="thumbnailUrl ?? ''" alt="" loading="lazy" class="size-full object-cover" />
+          </component>
+          <div
+            v-else-if="slide.kind === 'thumbnailPending'"
+            class="flex size-full items-center justify-center"
+            role="status"
+            :aria-label="t('activities.media.thumbnailPending')"
+          >
+            <Skeleton class="size-full rounded-none" />
+          </div>
+          <template v-else>
+            <button
+              type="button"
+              class="size-full cursor-zoom-in focus-visible:outline-none"
+              :aria-label="t('activities.media.expand')"
+              @click="openLightbox(slide.media)"
+            >
+              <Image
+                :src="slide.media.url"
+                :alt="t('activities.media.alt')"
+                class="size-full object-contain"
+              />
+            </button>
+            <button
+              v-if="isOwner"
+              type="button"
+              class="absolute right-2 bottom-2 z-10 flex size-9 items-center justify-center rounded-full bg-card/80 text-destructive backdrop-blur transition-colors hover:bg-destructive/10"
+              :aria-label="t('activities.media.deleteTitle')"
+              @click="requestDelete(slide.media)"
+            >
+              <Trash2 class="size-4" />
+            </button>
+          </template>
+        </div>
       </div>
-    </template>
+
+      <template v-if="slides.length > 1">
+        <button
+          type="button"
+          class="absolute left-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur transition-colors hover:bg-card disabled:opacity-40"
+          :disabled="current === 0"
+          :aria-label="t('activities.gallery.previous')"
+          @click="go(current - 1)"
+        >
+          <ChevronLeft class="size-5" />
+        </button>
+        <button
+          type="button"
+          class="absolute right-2 top-1/2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur transition-colors hover:bg-card disabled:opacity-40"
+          :disabled="current === slides.length - 1"
+          :aria-label="t('activities.gallery.next')"
+          @click="go(current + 1)"
+        >
+          <ChevronRight class="size-5" />
+        </button>
+
+        <div class="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1.5">
+          <button
+            v-for="(slide, index) in slides"
+            :key="slide.kind === 'photo' ? `dot-${slide.media.id}` : `dot-${slide.kind}`"
+            type="button"
+            class="size-2 rounded-full transition-colors"
+            :class="index === current ? 'bg-brand' : 'bg-foreground/30 hover:bg-foreground/50'"
+            :aria-label="t('activities.gallery.goToSlide', { index: index + 1 })"
+            :aria-current="index === current"
+            @click="go(index)"
+          />
+        </div>
+      </template>
+    </div>
   </div>
 
   <!-- ── Lightbox overlay ─────────────────────────────────────────────────── -->
