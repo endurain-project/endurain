@@ -98,7 +98,7 @@ describe('notification service requests', () => {
 
     await markNotificationRead(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/notifications/7/mark_as_read', {
+    expect(apiFetch).toHaveBeenCalledWith('/notifications/7/read', {
       method: 'PUT',
       responseType: 'void',
     })
@@ -109,7 +109,7 @@ describe('notification service requests', () => {
 
     await markAllNotificationsRead()
 
-    expect(apiFetch).toHaveBeenCalledWith('/notifications/mark_all_as_read', {
+    expect(apiFetch).toHaveBeenCalledWith('/notifications/read', {
       method: 'PUT',
       responseType: 'void',
     })

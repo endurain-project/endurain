@@ -280,7 +280,7 @@ class TestDeleteLoginPhoto:
         """Test successful deletion of login photo."""
         # Act
         response = fast_api_client.delete(
-            "/server_settings/upload/login",
+            "/server_settings/login-photo",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -292,7 +292,7 @@ class TestDeleteLoginPhoto:
         """Test deletion when photo doesn't exist."""
         # Act
         response = fast_api_client.delete(
-            "/server_settings/upload/login",
+            "/server_settings/login-photo",
             headers={"Authorization": "Bearer mock_token"},
         )
 

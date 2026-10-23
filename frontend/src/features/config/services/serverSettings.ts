@@ -31,7 +31,7 @@ export const DEFAULT_PUBLIC_SERVER_SETTINGS: PublicServerSettings = {
  * @throws {HttpError} When the endpoint cannot be reached.
  */
 export async function fetchPublicServerSettings(): Promise<PublicServerSettings> {
-  const settings = await apiFetch<PublicServerSettings>('/public/server_settings', {
+  const settings = await apiFetch<PublicServerSettings>('/public/server-settings', {
     auth: false,
     retryOnUnauthorized: false,
   })

@@ -248,14 +248,14 @@ describe('server settings service requests', () => {
 
     const settings = await fetchServerSettings()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings', { signal: undefined })
     expect(settings.numRecordsPerPage).toBe(25)
   })
 
   it('fetchTileMapsTemplates maps the list and tolerates a null payload', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([makeTemplateDto()])
     expect(await fetchTileMapsTemplates()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/public/server_settings/tile_maps_templates', {
+    expect(apiFetch).toHaveBeenCalledWith('/public/server-settings/tile-maps-templates', {
       signal: undefined,
     })
 
@@ -269,7 +269,7 @@ describe('server settings service requests', () => {
 
     await updateServerSettings(settings)
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings', {
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings', {
       method: 'PUT',
       headers: { 'If-Match': '"3"' },
       body: JSON.stringify(toServerSettingsWire(settings)),
@@ -287,7 +287,7 @@ describe('server settings service requests', () => {
     await uploadLoginPhoto(file)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/server_settings/upload/login',
+      '/server-settings/login-photo',
       expect.objectContaining({ method: 'POST', responseType: 'void' }),
     )
     expect(capturedBody).toBeInstanceOf(FormData)
@@ -299,7 +299,7 @@ describe('server settings service requests', () => {
 
     await deleteLoginPhoto()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/upload/login', {
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/login-photo', {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -310,7 +310,7 @@ describe('server settings service requests', () => {
 
     const status = await fetchEmailStatus()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email', { signal: undefined })
     expect(status).toEqual({ configured: false, problems: ['Host is not set'] })
   })
 
@@ -319,7 +319,7 @@ describe('server settings service requests', () => {
 
     const message = await sendTestEmail()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/test', { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email/test', { method: 'POST' })
     expect(message).toBe('Test email sent to admin@example.com.')
   })
 })
@@ -383,7 +383,7 @@ describe('mail settings service requests', () => {
 
     const settings = await fetchMailSettings()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/settings', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email/settings', { signal: undefined })
     expect(settings.passwordSet).toBe(true)
   })
 
@@ -400,7 +400,7 @@ describe('mail settings service requests', () => {
       password: 'new-secret',
     })
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/settings', {
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email/settings', {
       method: 'PUT',
       headers: { 'If-Match': '"2"' },
       body: JSON.stringify({

@@ -111,7 +111,7 @@ def edit_server_settings(
 
 
 @router.post(
-    "/upload/login",
+    "/login-photo",
     response_model=dict[str, str],
     status_code=status.HTTP_201_CREATED,
 )
@@ -151,7 +151,7 @@ def upload_login_photo(
 
 
 @router.delete(
-    "/upload/login",
+    "/login-photo",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )

@@ -65,7 +65,7 @@ export function usePublicServerSettings() {
   /** Instance login photo when configured, else the bundled default image. */
   const loginImageUrl = computed(() =>
     serverSettings.value.login_photo_set
-      ? `${getApiBaseUrl()}/public/server_settings/login_photo`
+      ? `${getApiBaseUrl()}/public/server-settings/login-photo`
       : defaultLoginImage,
   )
 

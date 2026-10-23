@@ -48,14 +48,14 @@ def test_list(mock_list, client):
 def test_list_for_gear_passes_the_active_filter(mock_list, client, mock_db):
     mock_list.return_value = core_pagination.Page.build([_read(current_distance=3.0)], 1, 1, 200)
 
-    response = client.get("/gear_components/gear_id/1?active=true", headers=_HEADERS)
+    response = client.get("/gear_components/gears/1?active=true", headers=_HEADERS)
 
     assert response.json()["items"][0]["current_distance"] == 3.0
     mock_list.assert_called_once_with(1, 1, mock_db, active=True, page_number=1, num_records=200)
 
 
 def test_a_non_positive_gear_id_is_rejected(client):
-    assert client.get("/gear_components/gear_id/0", headers=_HEADERS).status_code == 422
+    assert client.get("/gear_components/gears/0", headers=_HEADERS).status_code == 422
 
 
 @patch("modules.gears.gear_components.service.create_gear_component")

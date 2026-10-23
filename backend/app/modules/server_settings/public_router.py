@@ -40,7 +40,7 @@ def read_public_server_settings(
 
 
 @router.get(
-    "/tile_maps_templates",
+    "/tile-maps-templates",
     response_model=list[server_settings_schema.TileMapsTemplate],
 )
 def list_tile_maps_templates() -> list[server_settings_schema.TileMapsTemplate]:
@@ -63,7 +63,7 @@ _LOGIN_PHOTO_CACHE_MAX_AGE = 300
 
 
 @router.get(
-    "/login_photo",
+    "/login-photo",
     responses={200: {"content": {"image/*": {}}}, 304: {"description": "Not modified"}},
 )
 def read_login_photo(

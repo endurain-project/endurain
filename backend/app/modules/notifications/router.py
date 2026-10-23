@@ -117,7 +117,7 @@ def read_notifications_user_pagination(
 
 
 @router.put(
-    "/{notification_id}/mark_as_read",
+    "/{notification_id}/read",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )
@@ -152,7 +152,7 @@ def mark_notification_as_read(
 
 
 @router.put(
-    "/mark_all_as_read",
+    "/read",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )

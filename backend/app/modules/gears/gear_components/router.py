@@ -46,7 +46,7 @@ def read_gear_components(
 
 
 @router.get(
-    "/gear_id/{gear_id}",
+    "/gears/{gear_id}",
     response_model=core_pagination.Page[gear_components_schema.GearComponentRead],
 )
 def read_gear_components_gear_id(

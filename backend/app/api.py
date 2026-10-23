@@ -194,7 +194,7 @@ router.include_router(
 )
 router.include_router(
     gear_components_router.router,
-    prefix=core_config.ROOT_PATH + "/gear_components",
+    prefix=core_config.ROOT_PATH + "/gear-components",
     tags=["gear_components"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
@@ -289,7 +289,7 @@ router.include_router(
 )
 router.include_router(
     server_settings_router.router,
-    prefix=core_config.ROOT_PATH + "/server_settings",
+    prefix=core_config.ROOT_PATH + "/server-settings",
     tags=["server_settings"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
@@ -386,7 +386,7 @@ router.include_router(
 )
 router.include_router(
     server_settings_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/server_settings",
+    prefix=core_config.ROOT_PATH + "/public/server-settings",
     tags=["public_server_settings"],
 )
 router.include_router(

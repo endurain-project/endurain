@@ -71,7 +71,7 @@ export async function fetchGearComponents(
   signal?: AbortSignal,
 ): Promise<GearComponent[]> {
   const response = await apiFetch<Schemas['Page_GearComponentRead_']>(
-    `/gear_components/gear_id/${gearId}`,
+    `/gear-components/gears/${gearId}`,
     { signal },
   )
   return (response.items ?? []).map(mapGearComponent)
@@ -88,7 +88,7 @@ export async function fetchGearComponents(
 export async function fetchGearComponentTypes(
   signal?: AbortSignal,
 ): Promise<GearComponentTypeLists> {
-  return apiFetch<GearComponentTypeLists>('/gear_components/types', { signal })
+  return apiFetch<GearComponentTypeLists>('/gear-components/types', { signal })
 }
 
 /**
@@ -103,7 +103,7 @@ export async function createGearComponent(input: GearComponentInput): Promise<Ge
     gear_id: input.gearId,
     ...toComponentWireFields(input),
   }
-  const dto = await apiFetch<GearComponentDto>('/gear_components', {
+  const dto = await apiFetch<GearComponentDto>('/gear-components', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -130,7 +130,7 @@ export async function updateGearComponent(
     ...fields,
     ...(purchase_date === null ? {} : { purchase_date }),
   }
-  const dto = await apiFetch<GearComponentDto>(`/gear_components/${id}`, {
+  const dto = await apiFetch<GearComponentDto>(`/gear-components/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
     headers: version == null ? {} : { 'If-Match': `"${version}"` },
@@ -146,5 +146,5 @@ export async function updateGearComponent(
  * @throws {HttpError} When the request fails.
  */
 export async function deleteGearComponent(id: number): Promise<void> {
-  await apiFetch<void>(`/gear_components/${id}`, { method: 'DELETE', responseType: 'void' })
+  await apiFetch<void>(`/gear-components/${id}`, { method: 'DELETE', responseType: 'void' })
 }

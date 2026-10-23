@@ -58,7 +58,7 @@ export async function fetchNotifications(
  * @throws {HttpError} When the request fails.
  */
 export async function markNotificationRead(id: number): Promise<void> {
-  await apiFetch<void>(`/notifications/${id}/mark_as_read`, {
+  await apiFetch<void>(`/notifications/${id}/read`, {
     method: 'PUT',
     responseType: 'void',
   })
@@ -71,7 +71,7 @@ export async function markNotificationRead(id: number): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function markAllNotificationsRead(): Promise<void> {
-  await apiFetch<void>(`/notifications/mark_all_as_read`, {
+  await apiFetch<void>(`/notifications/read`, {
     method: 'PUT',
     responseType: 'void',
   })

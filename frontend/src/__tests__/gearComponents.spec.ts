@@ -141,7 +141,7 @@ describe('gear-component service requests', () => {
     const result = await fetchGearComponents(5)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gear_components/gear_id/5',
+      '/gear-components/gears/5',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedComponent])
@@ -164,7 +164,7 @@ describe('gear-component service requests', () => {
     const result = await fetchGearComponentTypes()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gear_components/types',
+      '/gear-components/types',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual(types)
@@ -175,7 +175,7 @@ describe('gear-component service requests', () => {
 
     await createGearComponent(componentInput)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
       body: JSON.stringify(expectedComponentWire),
     })
@@ -187,7 +187,7 @@ describe('gear-component service requests', () => {
     await updateGearComponent(7, componentInput, 2)
 
     const [path, init] = vi.mocked(apiFetch).mock.calls[0]!
-    expect(path).toBe('/gear_components/7')
+    expect(path).toBe('/gear-components/7')
     expect(init).toMatchObject({ method: 'PATCH', headers: { 'If-Match': '"2"' } })
     const { gear_id: _gearId, ...expected } = expectedComponentWire
     expect(JSON.parse(init!.body as string)).toEqual(expected)
@@ -198,7 +198,7 @@ describe('gear-component service requests', () => {
 
     await deleteGearComponent(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components/7', {
       method: 'DELETE',
       responseType: 'void',
     })

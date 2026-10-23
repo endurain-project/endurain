@@ -93,7 +93,7 @@ describe('GearComponentFormDialog submit', () => {
     await flushPromises()
 
     expect(apiFetch).toHaveBeenCalledTimes(1)
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
       body: JSON.stringify({
         gear_id: 5,

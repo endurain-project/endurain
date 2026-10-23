@@ -139,7 +139,7 @@ export function toServerSettingsWire(settings: ServerSettingsUpdate): ServerSett
  * @throws {HttpError} When the request fails.
  */
 export async function fetchServerSettings(signal?: AbortSignal): Promise<ServerSettings> {
-  const dto = await apiFetch<ServerSettingsDto>('/server_settings', { signal })
+  const dto = await apiFetch<ServerSettingsDto>('/server-settings', { signal })
   return mapServerSettings(dto)
 }
 
@@ -152,7 +152,7 @@ export async function fetchServerSettings(signal?: AbortSignal): Promise<ServerS
  */
 export async function fetchTileMapsTemplates(signal?: AbortSignal): Promise<TileMapsTemplate[]> {
   const dtos = await apiFetch<TileMapsTemplateDto[] | null>(
-    '/public/server_settings/tile_maps_templates',
+    '/public/server-settings/tile-maps-templates',
     {
       signal,
     },
@@ -172,7 +172,7 @@ export async function fetchTileMapsTemplates(signal?: AbortSignal): Promise<Tile
 export async function updateServerSettings(
   settings: ServerSettingsUpdate,
 ): Promise<ServerSettings> {
-  const dto = await apiFetch<ServerSettingsDto>('/server_settings', {
+  const dto = await apiFetch<ServerSettingsDto>('/server-settings', {
     method: 'PUT',
     headers: { 'If-Match': `"${settings.version}"` },
     body: JSON.stringify(toServerSettingsWire(settings)),
@@ -192,7 +192,7 @@ export async function updateServerSettings(
 export async function uploadLoginPhoto(file: File): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)
-  await apiFetch('/server_settings/upload/login', {
+  await apiFetch('/server-settings/login-photo', {
     method: 'POST',
     body: formData,
     responseType: 'void',
@@ -205,7 +205,7 @@ export async function uploadLoginPhoto(file: File): Promise<void> {
  * @throws {HttpError} When the deletion fails.
  */
 export async function deleteLoginPhoto(): Promise<void> {
-  await apiFetch('/server_settings/upload/login', {
+  await apiFetch('/server-settings/login-photo', {
     method: 'DELETE',
     responseType: 'void',
   })
@@ -220,7 +220,7 @@ export async function deleteLoginPhoto(): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchEmailStatus(signal?: AbortSignal): Promise<EmailStatusDto> {
-  return apiFetch<EmailStatusDto>('/server_settings/email', { signal })
+  return apiFetch<EmailStatusDto>('/server-settings/email', { signal })
 }
 
 /**
@@ -233,7 +233,7 @@ export async function fetchEmailStatus(signal?: AbortSignal): Promise<EmailStatu
  *   server did not accept the message.
  */
 export async function sendTestEmail(): Promise<string> {
-  const result = await apiFetch<{ message: string }>('/server_settings/email/test', {
+  const result = await apiFetch<{ message: string }>('/server-settings/email/test', {
     method: 'POST',
   })
   return result.message
@@ -288,7 +288,7 @@ export function toMailSettingsWire(settings: MailSettingsUpdate): MailSettingsEd
  * @throws {HttpError} When the request fails.
  */
 export async function fetchMailSettings(signal?: AbortSignal): Promise<MailSettings> {
-  const dto = await apiFetch<MailSettingsDto>('/server_settings/email/settings', { signal })
+  const dto = await apiFetch<MailSettingsDto>('/server-settings/email/settings', { signal })
   return mapMailSettings(dto)
 }
 
@@ -302,7 +302,7 @@ export async function fetchMailSettings(signal?: AbortSignal): Promise<MailSetti
  * @throws {HttpError} `400` when the configuration is not usable or a field is env-managed, `412` when the copy is stale.
  */
 export async function updateMailSettings(settings: MailSettingsUpdate): Promise<MailSettings> {
-  const dto = await apiFetch<MailSettingsDto>('/server_settings/email/settings', {
+  const dto = await apiFetch<MailSettingsDto>('/server-settings/email/settings', {
     method: 'PUT',
     headers: { 'If-Match': `"${settings.version}"` },
     body: JSON.stringify(toMailSettingsWire(settings)),

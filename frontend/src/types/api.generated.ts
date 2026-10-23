@@ -1087,7 +1087,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear_components": {
+    "/api/v1/gear-components": {
         parameters: {
             query?: never;
             header?: never;
@@ -1111,7 +1111,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear_components/gear_id/{gear_id}": {
+    "/api/v1/gear-components/gears/{gear_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1122,7 +1122,7 @@ export interface paths {
          * Read Gear Components Gear Id
          * @description Retrieve one page of a gear's components with the distance and time each has accumulated.
          */
-        get: operations["read_gear_components_gear_id_api_v1_gear_components_gear_id__gear_id__get"];
+        get: operations["read_gear_components_gear_id_api_v1_gear_components_gears__gear_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1131,7 +1131,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear_components/types": {
+    "/api/v1/gear-components/types": {
         parameters: {
             query?: never;
             header?: never;
@@ -1151,7 +1151,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear_components/{gear_component_id}": {
+    "/api/v1/gear-components/{gear_component_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2322,36 +2322,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/notifications/mark_all_as_read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Mark All Notifications As Read
-         * @description Mark all of the user's notifications as read.
-         *
-         *     Args:
-         *         request: The incoming request, used by the rate limiter.
-         *         _check_scopes: Dependency that checks if the user has the required
-         *             scopes.
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None.
-         */
-        put: operations["mark_all_notifications_as_read_api_v1_notifications_mark_all_as_read_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/notifications/number": {
         parameters: {
             query?: never;
@@ -2374,6 +2344,36 @@ export interface paths {
          */
         get: operations["read_notifications_number_api_v1_notifications_number_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark All Notifications As Read
+         * @description Mark all of the user's notifications as read.
+         *
+         *     Args:
+         *         request: The incoming request, used by the rate limiter.
+         *         _check_scopes: Dependency that checks if the user has the required
+         *             scopes.
+         *         token_user_id: ID of the user from the access token.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         None.
+         */
+        put: operations["mark_all_notifications_as_read_api_v1_notifications_read_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2411,7 +2411,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/notifications/{notification_id}/mark_as_read": {
+    "/api/v1/notifications/{notification_id}/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -2434,7 +2434,7 @@ export interface paths {
          *     Returns:
          *         None.
          */
-        put: operations["mark_notification_as_read_api_v1_notifications__notification_id__mark_as_read_put"];
+        put: operations["mark_notification_as_read_api_v1_notifications__notification_id__read_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3844,7 +3844,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/server_settings": {
+    "/api/v1/public/server-settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -3874,7 +3874,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/server_settings/login_photo": {
+    "/api/v1/public/server-settings/login-photo": {
         parameters: {
             query?: never;
             header?: never;
@@ -3910,7 +3910,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/server_settings/tile_maps_templates": {
+    "/api/v1/public/server-settings/tile-maps-templates": {
         parameters: {
             query?: never;
             header?: never;
@@ -3967,7 +3967,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings": {
+    "/api/v1/server-settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -4016,7 +4016,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings/email": {
+    "/api/v1/server-settings/email": {
         parameters: {
             query?: never;
             header?: never;
@@ -4044,7 +4044,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings/email/settings": {
+    "/api/v1/server-settings/email/settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -4086,8 +4086,8 @@ export interface paths {
          *         Updated mail settings, without the password.
          *
          *     Raises:
-         *         InvalidInputError: 400 if a field is set by an environment variable or the
-         *             configuration is not usable.
+         *         InvalidInputError: 400 if the configuration is not usable.
+         *         ConflictError: 409 if a field is set by an environment variable.
          *         PreconditionFailedError: 412 if the settings changed since the client read them.
          */
         put: operations["edit_mail_settings_api_v1_server_settings_email_settings_put"];
@@ -4098,7 +4098,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings/email/test": {
+    "/api/v1/server-settings/email/test": {
         parameters: {
             query?: never;
             header?: never;
@@ -4134,7 +4134,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings/upload/login": {
+    "/api/v1/server-settings/login-photo": {
         parameters: {
             query?: never;
             header?: never;
@@ -4158,7 +4158,7 @@ export interface paths {
          *     Returns:
          *         A confirmation message.
          */
-        post: operations["upload_login_photo_api_v1_server_settings_upload_login_post"];
+        post: operations["upload_login_photo_api_v1_server_settings_login_photo_post"];
         /**
          * Delete Login Photo
          * @description Delete custom login page photo.
@@ -4170,7 +4170,7 @@ export interface paths {
          *         storage: The platform storage provider.
          *         db: Database session.
          */
-        delete: operations["delete_login_photo_api_v1_server_settings_upload_login_delete"];
+        delete: operations["delete_login_photo_api_v1_server_settings_login_photo_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5608,8 +5608,8 @@ export interface components {
             /** Username */
             username: string;
         };
-        /** Body_upload_login_photo_api_v1_server_settings_upload_login_post */
-        Body_upload_login_photo_api_v1_server_settings_upload_login_post: {
+        /** Body_upload_login_photo_api_v1_server_settings_login_photo_post */
+        Body_upload_login_photo_api_v1_server_settings_login_photo_post: {
             /** File */
             file: string;
         };
@@ -13990,7 +13990,7 @@ export interface operations {
             };
         };
     };
-    read_gear_components_gear_id_api_v1_gear_components_gear_id__gear_id__get: {
+    read_gear_components_gear_id_api_v1_gear_components_gears__gear_id__get: {
         parameters: {
             query?: {
                 active?: boolean | null;
@@ -15867,33 +15867,6 @@ export interface operations {
             };
         };
     };
-    mark_all_notifications_as_read_api_v1_notifications_mark_all_as_read_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     read_notifications_number_api_v1_notifications_number_get: {
         parameters: {
             query?: never;
@@ -15911,6 +15884,33 @@ export interface operations {
                 content: {
                     "application/json": number;
                 };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    mark_all_notifications_as_read_api_v1_notifications_read_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {
@@ -15963,7 +15963,7 @@ export interface operations {
             };
         };
     };
-    mark_notification_as_read_api_v1_notifications__notification_id__mark_as_read_put: {
+    mark_notification_as_read_api_v1_notifications__notification_id__read_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -18100,7 +18100,7 @@ export interface operations {
             };
         };
     };
-    upload_login_photo_api_v1_server_settings_upload_login_post: {
+    upload_login_photo_api_v1_server_settings_login_photo_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -18109,7 +18109,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_login_photo_api_v1_server_settings_upload_login_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_login_photo_api_v1_server_settings_login_photo_post"];
             };
         };
         responses: {
@@ -18144,7 +18144,7 @@ export interface operations {
             };
         };
     };
-    delete_login_photo_api_v1_server_settings_upload_login_delete: {
+    delete_login_photo_api_v1_server_settings_login_photo_delete: {
         parameters: {
             query?: never;
             header?: never;

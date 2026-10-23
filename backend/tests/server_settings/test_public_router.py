@@ -100,7 +100,7 @@ class TestListTileMapsTemplatesPublic:
         mock_get_templates.return_value = mock_templates
 
         # Act
-        response = fast_api_client_public.get("/server_settings/public/tile_maps_templates")
+        response = fast_api_client_public.get("/server_settings/public/tile-maps-templates")
 
         # Assert
         assert response.status_code == 200
@@ -116,7 +116,7 @@ class TestListTileMapsTemplatesPublic:
         mock_get_templates.return_value = []
 
         # Act
-        response = fast_api_client_public.get("/server_settings/public/tile_maps_templates")
+        response = fast_api_client_public.get("/server_settings/public/tile-maps-templates")
 
         # Assert
         assert response.status_code == 200
@@ -133,7 +133,7 @@ class TestReadLoginPhoto:
         mock_version.return_value = 3
         mock_read.return_value = (b"\x89PNG", "image/png")
 
-        response = fast_api_client_public.get("/server_settings/public/login_photo")
+        response = fast_api_client_public.get("/server_settings/public/login-photo")
 
         assert response.status_code == 200
         assert response.content == b"\x89PNG"
@@ -148,7 +148,7 @@ class TestReadLoginPhoto:
     ):
         mock_version.return_value = 3
 
-        response = fast_api_client_public.get("/server_settings/public/login_photo", headers={"If-None-Match": '"3"'})
+        response = fast_api_client_public.get("/server_settings/public/login-photo", headers={"If-None-Match": '"3"'})
 
         assert response.status_code == 304
         assert response.content == b""
@@ -160,7 +160,7 @@ class TestReadLoginPhoto:
         mock_version.return_value = None
         core_exceptions.register_exception_handlers(fast_api_app_public)
 
-        response = fast_api_client_public.get("/server_settings/public/login_photo")
+        response = fast_api_client_public.get("/server_settings/public/login-photo")
 
         assert response.status_code == 404
         mock_read.assert_not_called()
@@ -172,6 +172,6 @@ class TestReadLoginPhoto:
         mock_read.return_value = None
         core_exceptions.register_exception_handlers(fast_api_app_public)
 
-        response = fast_api_client_public.get("/server_settings/public/login_photo")
+        response = fast_api_client_public.get("/server_settings/public/login-photo")
 
         assert response.status_code == 404
