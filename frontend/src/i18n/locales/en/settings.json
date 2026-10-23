@@ -404,6 +404,7 @@
     "photo": {
       "title": "Login photo",
       "description": "A custom image shown on the login screen",
+      "previewAlt": "Current login photo",
       "add": "Upload login photo",
       "replace": "Replace login photo",
       "delete": "Remove login photo",

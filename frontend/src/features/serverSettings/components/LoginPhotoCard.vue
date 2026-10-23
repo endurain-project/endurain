@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ImageUp, Trash2 } from '@lucide/vue'
 
@@ -11,8 +11,9 @@ import {
   useDeleteLoginPhotoMutation,
   useUploadLoginPhotoMutation,
 } from '@/features/serverSettings/composables/useServerSettings'
+import { getApiBaseUrl } from '@/services/runtime'
 
-defineProps<{
+const props = defineProps<{
   /** Whether a custom login photo is currently configured. */
   loginPhotoSet: boolean
 }>()
@@ -24,6 +25,12 @@ const deleteMutation = useDeleteLoginPhotoMutation()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDeleteOpen = ref(false)
+// Bumped after each upload so the browser refetches the photo instead of serving its cached copy.
+const previewVersion = ref(Date.now())
+
+const previewUrl = computed(
+  () => `${getApiBaseUrl()}/public/server-settings/login-photo?v=${previewVersion.value}`,
+)
 
 /** Opens the native file picker. */
 function pickFile(): void {
@@ -49,7 +56,10 @@ function onFileChange(event: Event): void {
     return
   }
   uploadMutation.mutate(file, {
-    onSuccess: () => toasts.success(t('settings.server.photo.uploadSuccess')),
+    onSuccess: () => {
+      previewVersion.value = Date.now()
+      toasts.success(t('settings.server.photo.uploadSuccess'))
+    },
     onError: () => toasts.error(t('settings.server.photo.uploadError')),
   })
 }
@@ -72,6 +82,13 @@ function confirmDelete(): void {
       <h2 class="text-card-heading">{{ t('settings.server.photo.title') }}</h2>
       <p class="text-body">{{ t('settings.server.photo.description') }}</p>
     </div>
+
+    <img
+      v-if="props.loginPhotoSet"
+      :src="previewUrl"
+      :alt="t('settings.server.photo.previewAlt')"
+      class="aspect-video w-full max-w-sm rounded-md border border-border object-cover"
+    />
 
     <input
       ref="fileInput"
