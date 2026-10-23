@@ -367,6 +367,29 @@
       "sent": "测试邮件已发送",
       "failed": "无法发送测试邮件",
       "failedUnknown": "请查看服务器日志了解详情。"
+    },
+    "envLocked": "由 {name} 设置",
+    "envSection": "此处的部分设置由环境变量（{names}）决定。请从环境中移除这些变量，以便在此处编辑相应设置。",
+    "unsaved": "未保存的更改",
+    "discard": "放弃",
+    "tabs": {
+      "label": "服务器设置分区",
+      "general": "常规",
+      "access": "访问与安全",
+      "maps": "地图与位置",
+      "email": "电子邮件",
+      "unsaved": "有未保存的更改"
+    },
+    "search": {
+      "placeholder": "搜索设置…",
+      "noResults": "未找到设置"
+    },
+    "leave": {
+      "title": "不保存就离开？",
+      "description": "你有未保存的更改。离开此页面后这些更改将丢失。",
+      "confirm": "不保存并离开",
+      "stay": "留在此页面",
+      "close": "关闭"
     }
   },
   "idp": {

@@ -367,6 +367,29 @@
       "sent": "Probna e-poruka poslana",
       "failed": "Probnu e-poruku nije bilo moguće poslati",
       "failedUnknown": "Detalje potražite u zapisnicima poslužitelja."
+    },
+    "envLocked": "Postavljeno varijablom {name}",
+    "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
+    "unsaved": "Nespremljene promjene",
+    "discard": "Odbaci",
+    "tabs": {
+      "label": "Odjeljci postavki poslužitelja",
+      "general": "Općenito",
+      "access": "Pristup i sigurnost",
+      "maps": "Karte i lokacija",
+      "email": "E-pošta",
+      "unsaved": "Sadrži nespremljene promjene"
+    },
+    "search": {
+      "placeholder": "Pretraži postavke…",
+      "noResults": "Nema pronađenih postavki"
+    },
+    "leave": {
+      "title": "Napustiti bez spremanja?",
+      "description": "Imate nespremljene promjene. Ako napustite stranicu, bit će izgubljene.",
+      "confirm": "Napusti bez spremanja",
+      "stay": "Ostani na stranici",
+      "close": "Zatvori"
     }
   },
   "idp": {

@@ -367,6 +367,29 @@
       "sent": "Correu de prova enviat",
       "failed": "No s'ha pogut enviar el correu de prova",
       "failedUnknown": "Consulta els registres del servidor per a més detalls."
+    },
+    "envLocked": "Definit per {name}",
+    "envSection": "Alguns paràmetres d'aquí els defineixen variables d'entorn ({names}). Elimina-les de l'entorn per editar aquests paràmetres aquí.",
+    "unsaved": "Canvis sense desar",
+    "discard": "Descarta",
+    "tabs": {
+      "label": "Seccions de la configuració del servidor",
+      "general": "General",
+      "access": "Accés i seguretat",
+      "maps": "Mapes i ubicació",
+      "email": "Correu electrònic",
+      "unsaved": "Té canvis sense desar"
+    },
+    "search": {
+      "placeholder": "Cerca paràmetres…",
+      "noResults": "No s'ha trobat cap paràmetre"
+    },
+    "leave": {
+      "title": "Sortir sense desar?",
+      "description": "Tens canvis sense desar. Si surts d'aquesta pàgina es perdran.",
+      "confirm": "Surt sense desar",
+      "stay": "Queda't a la pàgina",
+      "close": "Tanca"
     }
   },
   "idp": {

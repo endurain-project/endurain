@@ -1,817 +1,210 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { LoaderCircle } from '@lucide/vue'
+import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 
-import type {
-  ServerSettings,
-  ServerSettingsFormValues,
-  TileMapsTemplate,
-} from '@/features/serverSettings/types'
-import type { Validator } from '@/utils/validators'
+import type { ServerSettings, TileMapsTemplate } from '@/features/serverSettings/types'
 
-import { Alert } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { FormField } from '@/components/ui/form-field'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { useForm } from '@/composables/useForm'
-import { useToasts } from '@/composables/useToasts'
-import EnvManagedHint from '@/features/serverSettings/components/EnvManagedHint.vue'
-import { useUpdateServerSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
-import { HttpError } from '@/services/http'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
+import ServerSettingsSearch from '@/features/serverSettings/components/ServerSettingsSearch.vue'
+import AccessTab from '@/features/serverSettings/components/tabs/AccessTab.vue'
+import GeneralTab from '@/features/serverSettings/components/tabs/GeneralTab.vue'
+import MapsTab from '@/features/serverSettings/components/tabs/MapsTab.vue'
+import UnsavedChangesBar from '@/features/serverSettings/components/UnsavedChangesBar.vue'
+import {
+  provideServerSettingsForm,
+  useServerSettingsForm,
+} from '@/features/serverSettings/composables/useServerSettingsForm'
+import type { SettingsSearchResult } from '@/features/serverSettings/searchIndex'
+import {
+  parseSettingsTab,
+  SETTINGS_TABS,
+  type SettingsTab,
+} from '@/features/serverSettings/settingsTabs'
 
 const props = defineProps<{
   /** The loaded server settings; seeds the form (the parent mounts this only after load). */
   settings: ServerSettings
-  /** Available tile-server presets for the maps section. */
+  /** Available tile-server presets for the maps tab. */
   templates: TileMapsTemplate[]
 }>()
 
+/**
+ * The server settings page body: a search box, the tabs, and one form shared
+ * across the General, Access and Maps tabs so a single save and a single
+ * unsaved-changes state cover them. The Email tab keeps its own form and save.
+ * The active tab lives in the `?tab=` query so it can be linked and survives the
+ * rebuild that follows a save.
+ */
 const { t } = useI18n()
-const toasts = useToasts()
-const updateMutation = useUpdateServerSettingsMutation()
+const route = useRoute()
+const router = useRouter()
 
-/** Records-per-page options offered in the list (mirrors v1). */
-const NUM_RECORDS_OPTIONS = [5, 10, 25, 50, 100] as const
-/** Minimum-length options for regular users: 8–20 (mirrors v1). */
-const PASSWORD_REGULAR_LENGTHS = Array.from({ length: 13 }, (_, index) => index + 8)
-/** Minimum-length options for admin users: 8–25 (mirrors v1). */
-const PASSWORD_ADMIN_LENGTHS = Array.from({ length: 18 }, (_, index) => index + 8)
-/** Sentinel id for the "custom" (manually edited) tile server. */
-const CUSTOM_TEMPLATE = 'custom'
-/** Public hosts each geocoding service uses when none is set; shown as the host placeholder. */
-const GEOCODING_DEFAULT_HOSTS: Record<string, string> = {
-  nominatim: 'nominatim.openstreetmap.org',
-  photon: 'photon.komoot.io',
-}
-/** Highest accepted geocoding rate limit (requests per second). */
-const MAX_GEOCODING_RATE_LIMIT = 100
-/** Accepted ranges of the session policy numbers (mirrors the backend bounds). */
-const IDLE_HOURS_RANGE = { min: 1, max: 8760 } as const
-const ABSOLUTE_HOURS_RANGE = { min: 1, max: 8760 } as const
-const ACCESS_MINUTES_RANGE = { min: 1, max: 1440 } as const
-const REFRESH_DAYS_RANGE = { min: 1, max: 365 } as const
-const RETENTION_DAYS_RANGE = { min: 0, max: 3650 } as const
-/** Placeholders every valid tile URL template must contain. */
-const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
+const form = useServerSettingsForm(props)
+provideServerSettingsForm(form)
+const { isDirty, isValid, isSubmitting, dirtyTabs, handleSubmit, discard } = form
+
+const root = ref<HTMLElement | null>(null)
+const mailDirty = ref(false)
+const hasUnsaved = computed(() => isDirty.value || mailDirty.value)
+
+const activeTab = computed(() => parseSettingsTab(route.query.tab))
 
 /**
- * Projects the loaded settings onto the form-editable subset. `id` and
- * `loginPhotoSet` are intentionally excluded: they round-trip from the freshest
- * server state at save time, never from a stale form value. The tile API key starts
- * empty: the backend never returns it, and an empty field keeps the stored one.
+ * Whether a tab holds unsaved edits.
  *
- * @param settings - The loaded server settings.
- * @returns The editable form values.
+ * @param tab - The tab to check.
+ * @returns True when the tab has edits.
  */
-function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
-  return {
-    units: settings.units,
-    currency: settings.currency,
-    numRecordsPerPage: settings.numRecordsPerPage,
-    publicShareableLinks: settings.publicShareableLinks,
-    publicShareableLinksUserInfo: settings.publicShareableLinksUserInfo,
-    signupEnabled: settings.signupEnabled,
-    signupRequireAdminApproval: settings.signupRequireAdminApproval,
-    signupRequireEmailVerification: settings.signupRequireEmailVerification,
-    ssoEnabled: settings.ssoEnabled,
-    localLoginEnabled: settings.localLoginEnabled,
-    ssoAutoRedirect: settings.ssoAutoRedirect,
-    tileserverUrl: settings.tileserverUrl,
-    tileserverAttribution: settings.tileserverAttribution,
-    tileserverApiKey: '',
-    removeTileserverApiKey: false,
-    tileserverRegenerateThumbnailsOnChange: settings.tileserverRegenerateThumbnailsOnChange,
-    mapBackgroundColor: settings.mapBackgroundColor,
-    passwordType: settings.passwordType,
-    passwordLengthRegularUsers: settings.passwordLengthRegularUsers,
-    passwordLengthAdminUsers: settings.passwordLengthAdminUsers,
-    geocodingService: settings.geocodingService,
-    geocodingHost: settings.geocodingHost ?? '',
-    geocodingUseHttps: settings.geocodingUseHttps,
-    geocodingRateLimit: String(settings.geocodingRateLimit),
-    geocodingApiKey: '',
-    removeGeocodingApiKey: false,
-    sessionIdleTimeoutEnabled: settings.sessionIdleTimeoutEnabled,
-    sessionIdleTimeoutHours: String(settings.sessionIdleTimeoutHours),
-    sessionAbsoluteTimeoutHours: String(settings.sessionAbsoluteTimeoutHours),
-    accessTokenExpireMinutes: String(settings.accessTokenExpireMinutes),
-    refreshTokenExpireDays: String(settings.refreshTokenExpireDays),
-    readNotificationRetentionDays: String(settings.readNotificationRetentionDays),
+function isTabDirty(tab: SettingsTab): boolean {
+  return tab === 'email' ? mailDirty.value : dirtyTabs.value.has(tab)
+}
+
+/**
+ * Switches tab by updating the URL, keeping any other query params.
+ *
+ * @param value - The tab the user picked.
+ * @returns Resolves once the navigation settles.
+ */
+async function selectTab(value: string | number): Promise<void> {
+  await router.replace({ query: { ...route.query, tab: parseSettingsTab(value) } })
+}
+
+/** Classes that flash a ring around the element a search result points at. */
+const HIGHLIGHT_CLASSES = ['ring-2', 'ring-ring', 'ring-offset-2', 'ring-offset-background']
+const HIGHLIGHT_MS = 1500
+
+/**
+ * Jumps to a search result: opens its tab, scrolls the setting into view,
+ * focuses its control and briefly highlights it. A setting that is not on the
+ * page right now (for example a field of another geocoding service) falls back
+ * to its section.
+ *
+ * @param result - The chosen search result.
+ */
+async function jumpTo(result: SettingsSearchResult): Promise<void> {
+  await selectTab(result.entry.tab)
+  await nextTick()
+  const { id, sectionId } = result.entry
+  const target =
+    root.value?.querySelector<HTMLElement>(`[data-setting="${id}"]`) ??
+    (sectionId ? root.value?.querySelector<HTMLElement>(`[data-setting="${sectionId}"]`) : null)
+  if (!target) {
+    return
   }
-}
-
-/**
- * Validates a whole number within an inclusive range.
- *
- * @param range - The inclusive bounds.
- * @param message - Error when the value is not a whole number in range.
- * @returns A validator for the numeric field.
- */
-function integerRangeValidator(
-  range: { readonly min: number; readonly max: number },
-  message: string,
-): Validator<string> {
-  return (value) => {
-    const number = Number(value.trim())
-    return value.trim() !== '' &&
-      Number.isInteger(number) &&
-      number >= range.min &&
-      number <= range.max
-      ? null
-      : message
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+  if (id !== sectionId) {
+    target.querySelector<HTMLElement>('input, select, textarea')?.focus({ preventScroll: true })
   }
+  target.classList.add(...HIGHLIGHT_CLASSES)
+  setTimeout(() => target.classList.remove(...HIGHLIGHT_CLASSES), HIGHLIGHT_MS)
 }
 
-/**
- * Validates the geocoding rate limit: a number from 0 to 100.
- *
- * @param message - Error when the value is not a valid rate limit.
- * @returns A validator for the rate-limit field.
- */
-function rateLimitValidator(message: string): Validator<string> {
-  return (value) => {
-    const rate = Number(value.trim())
-    return value.trim() !== '' &&
-      Number.isFinite(rate) &&
-      rate >= 0 &&
-      rate <= MAX_GEOCODING_RATE_LIMIT
-      ? null
-      : message
-  }
-}
-
-/**
- * The environment variable that sets a field, or undefined when it is editable.
- *
- * @param field - The backend field name (snake_case, as in `env_managed`).
- * @returns The variable name.
- */
-function envVar(field: string): string | undefined {
-  return props.settings.envManaged[field]
-}
-
-/**
- * The hint under an env-managed field, naming the variable that sets it.
- *
- * @param field - The backend field name.
- * @returns The hint, or undefined when the field is editable.
- */
-function envHint(field: string): string | undefined {
-  const name = envVar(field)
-  return name ? t('settings.server.envManaged', { name }) : undefined
-}
-
-/**
- * Validates the tile URL template: non-empty and containing the `{z}/{x}/{y}`
- * placeholders. The backend enforces the full rule set (HTTPS, blocked
- * schemes) authoritatively; this is fast client feedback for the common case.
- *
- * @param requiredMessage - Error when the field is empty.
- * @param placeholderMessage - Error when a coordinate placeholder is missing.
- * @returns A validator for the tile URL field.
- */
-function tileUrlValidator(requiredMessage: string, placeholderMessage: string): Validator<string> {
-  return (value) => {
-    const trimmed = value.trim()
-    if (!trimmed) {
-      return requiredMessage
+const leaveTarget = ref<RouteLocationNormalized | null>(null)
+const leaveOpen = computed({
+  get: () => leaveTarget.value !== null,
+  set: (open: boolean) => {
+    if (!open) {
+      leaveTarget.value = null
     }
-    return TILE_PLACEHOLDERS.every((placeholder) => trimmed.includes(placeholder))
-      ? null
-      : placeholderMessage
-  }
-}
-
-/**
- * Finds the preset whose URL matches the given template, or the `custom`
- * sentinel when none does.
- *
- * @param url - The current tile URL template.
- * @returns The matching preset id, or `custom`.
- */
-function detectTemplate(url: string): string {
-  return (
-    props.templates.find((template) => template.urlTemplate === url)?.templateId ?? CUSTOM_TEMPLATE
-  )
-}
-
-/**
- * Persists the whole settings record, merging the form edits over the freshest
- * server state so `id` and `loginPhotoSet` round-trip untouched. Outcomes are
- * surfaced as toasts; the error is not rethrown, so no inline submit error
- * banner appears.
- *
- * @param formValues - The validated form values.
- */
-async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
-  const {
-    tileserverApiKey,
-    removeTileserverApiKey,
-    geocodingApiKey,
-    removeGeocodingApiKey,
-    geocodingHost,
-    geocodingRateLimit,
-    sessionIdleTimeoutHours,
-    sessionAbsoluteTimeoutHours,
-    accessTokenExpireMinutes,
-    refreshTokenExpireDays,
-    readNotificationRetentionDays,
-    ...editable
-  } = formValues
-  // undefined keeps the stored key, null removes it, a string replaces it.
-  const apiKey = removeTileserverApiKey ? null : tileserverApiKey.trim() || undefined
-  const geocodingKey = removeGeocodingApiKey ? null : geocodingApiKey.trim() || undefined
-  try {
-    await updateMutation.mutateAsync({
-      ...props.settings,
-      ...editable,
-      geocodingHost: geocodingHost.trim() || null,
-      geocodingRateLimit: Number(geocodingRateLimit.trim()),
-      sessionIdleTimeoutHours: Number(sessionIdleTimeoutHours.trim()),
-      sessionAbsoluteTimeoutHours: Number(sessionAbsoluteTimeoutHours.trim()),
-      accessTokenExpireMinutes: Number(accessTokenExpireMinutes.trim()),
-      refreshTokenExpireDays: Number(refreshTokenExpireDays.trim()),
-      readNotificationRetentionDays: Number(readNotificationRetentionDays.trim()),
-      tileserverApiKey: apiKey,
-      geocodingApiKey: geocodingKey,
-    })
-    toasts.success(t('settings.server.saveSuccess'))
-  } catch (error) {
-    // 412 is a refusal to overwrite: another admin saved since this form was loaded.
-    toasts.error(
-      error instanceof HttpError && error.status === 412
-        ? t('settings.server.staleError')
-        : t('settings.server.saveError'),
-    )
-  }
-}
-
-/**
- * The out-of-range message for a numeric session setting.
- *
- * @param range - The inclusive bounds.
- * @returns The translated message.
- */
-function rangeMessage(range: { readonly min: number; readonly max: number }): string {
-  return t('settings.server.session.invalidRange', range)
-}
-
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur } =
-  useForm<ServerSettingsFormValues>({
-    initialValues: toFormValues(props.settings),
-    validators: {
-      tileserverUrl: tileUrlValidator(
-        t('settings.server.maps.urlRequired'),
-        t('settings.server.maps.urlInvalid'),
-      ),
-      geocodingRateLimit: rateLimitValidator(t('settings.server.geocoding.rateLimitInvalid')),
-      sessionIdleTimeoutHours: integerRangeValidator(
-        IDLE_HOURS_RANGE,
-        rangeMessage(IDLE_HOURS_RANGE),
-      ),
-      sessionAbsoluteTimeoutHours: (value: string): string | null =>
-        integerRangeValidator(ABSOLUTE_HOURS_RANGE, rangeMessage(ABSOLUTE_HOURS_RANGE))(value) ??
-        (Number(value.trim()) < Number(values.sessionIdleTimeoutHours.trim())
-          ? t('settings.server.session.absoluteBelowIdle')
-          : null),
-      accessTokenExpireMinutes: integerRangeValidator(
-        ACCESS_MINUTES_RANGE,
-        rangeMessage(ACCESS_MINUTES_RANGE),
-      ),
-      refreshTokenExpireDays: integerRangeValidator(
-        REFRESH_DAYS_RANGE,
-        rangeMessage(REFRESH_DAYS_RANGE),
-      ),
-      readNotificationRetentionDays: integerRangeValidator(
-        RETENTION_DAYS_RANGE,
-        rangeMessage(RETENTION_DAYS_RANGE),
-      ),
-    },
-    onSubmit: submitForm,
-  })
-
-const isGeocodeService = computed(() => values.geocodingService === 'geocode')
-const geocodingHostPlaceholder = computed(
-  () => GEOCODING_DEFAULT_HOSTS[values.geocodingService] ?? '',
-)
-
-const selectedTemplate = ref(detectTemplate(props.settings.tileserverUrl))
-const isCustomTemplate = computed(() => selectedTemplate.value === CUSTOM_TEMPLATE)
-const selectedTemplateData = computed(
-  () => props.templates.find((template) => template.templateId === selectedTemplate.value) ?? null,
-)
-
-// Applying a preset fills the URL/attribution/background and clears the API key
-// (presets either embed it or need it configured elsewhere); the three fields
-// are then read-only until the user switches back to "custom".
-watch(selectedTemplate, (templateId) => {
-  if (templateId === CUSTOM_TEMPLATE) {
-    return
-  }
-  const template = props.templates.find((entry) => entry.templateId === templateId)
-  if (!template) {
-    return
-  }
-  values.tileserverUrl = template.urlTemplate
-  values.tileserverAttribution = template.attribution
-  values.tileserverApiKey = ''
-  values.removeTileserverApiKey = props.settings.tileserverApiKeySet
-  values.mapBackgroundColor = template.mapBackgroundColor
+  },
 })
+let allowLeave = false
+
+// Leaving the page with edits held back asks first; the user's choice resumes the navigation.
+onBeforeRouteLeave((to) => {
+  if (allowLeave || !hasUnsaved.value) {
+    return true
+  }
+  leaveTarget.value = to
+  return false
+})
+
+/** Resumes the navigation the guard held back. */
+function confirmLeave(): void {
+  const target = leaveTarget.value
+  allowLeave = true
+  leaveTarget.value = null
+  if (target) {
+    void router.push(target.fullPath)
+  }
+}
+
+/**
+ * Asks the browser to confirm closing or reloading the tab while edits are unsaved.
+ *
+ * @param event - The `beforeunload` event.
+ */
+function warnBeforeUnload(event: BeforeUnloadEvent): void {
+  if (hasUnsaved.value) {
+    event.preventDefault()
+  }
+}
+
+onMounted(() => window.addEventListener('beforeunload', warnBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
 </script>
 
 <template>
-  <form class="flex flex-col gap-3" novalidate @submit.prevent="handleSubmit">
-    <!-- General -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.general.title') }}</h2>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField :label="t('settings.server.general.units')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.units" :disabled="isSubmitting">
-              <option value="metric">{{ t('settings.server.general.unitsMetric') }}</option>
-              <option value="imperial">{{ t('settings.server.general.unitsImperial') }}</option>
-            </Select>
-          </template>
-        </FormField>
-
-        <FormField :label="t('settings.server.general.currency')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.currency" :disabled="isSubmitting">
-              <option value="euro">{{ t('settings.server.general.currencyEuro') }}</option>
-              <option value="dollar">{{ t('settings.server.general.currencyDollar') }}</option>
-              <option value="pound">{{ t('settings.server.general.currencyPound') }}</option>
-            </Select>
-          </template>
-        </FormField>
-
-        <FormField :label="t('settings.server.general.numRecords')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.numRecordsPerPage" :disabled="isSubmitting">
-              <option v-for="size in NUM_RECORDS_OPTIONS" :key="size" :value="size">
-                {{ size }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-      </div>
-    </Card>
-
-    <!-- Password policy -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.password.title') }}</h2>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField :label="t('settings.server.password.type')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.passwordType" :disabled="isSubmitting">
-              <option value="strict">{{ t('settings.server.password.typeStrict') }}</option>
-              <option value="length_only">
-                {{ t('settings.server.password.typeLengthOnly') }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-
-        <FormField :label="t('settings.server.password.lengthRegular')">
-          <template #default="{ fieldId }">
-            <Select
-              :id="fieldId"
-              v-model="values.passwordLengthRegularUsers"
-              :disabled="isSubmitting"
-            >
-              <option v-for="length in PASSWORD_REGULAR_LENGTHS" :key="length" :value="length">
-                {{ length }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-
-        <FormField :label="t('settings.server.password.lengthAdmin')">
-          <template #default="{ fieldId }">
-            <Select
-              :id="fieldId"
-              v-model="values.passwordLengthAdminUsers"
-              :disabled="isSubmitting"
-            >
-              <option v-for="length in PASSWORD_ADMIN_LENGTHS" :key="length" :value="length">
-                {{ length }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-      </div>
-    </Card>
-
-    <!-- Sessions -->
-    <Card class="flex flex-col gap-3">
-      <div class="flex flex-col gap-1">
-        <h2 class="text-card-heading">{{ t('settings.server.session.title') }}</h2>
-        <p class="text-body">{{ t('settings.server.session.description') }}</p>
-      </div>
-
-      <Switch
-        v-model="values.sessionIdleTimeoutEnabled"
-        :disabled="isSubmitting || Boolean(envVar('session_idle_timeout_enabled'))"
-      >
-        {{ t('settings.server.session.timeoutsEnabled') }}
-      </Switch>
-      <EnvManagedHint :name="envVar('session_idle_timeout_enabled')" />
-
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FormField
-          :label="t('settings.server.session.idleHours')"
-          :hint="
-            envHint('session_idle_timeout_hours') ?? t('settings.server.session.idleHoursHint')
-          "
-          :error="errors.sessionIdleTimeoutHours"
+  <div ref="root" class="flex flex-col gap-3">
+    <Tabs class="flex flex-col gap-3" :model-value="activeTab" @update:model-value="selectTab">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <TabsList
+          class="w-full overflow-x-auto sm:w-auto"
+          :aria-label="t('settings.server.tabs.label')"
         >
-          <template #default="{ fieldId, describedBy, invalid }">
-            <Input
-              :id="fieldId"
-              v-model="values.sessionIdleTimeoutHours"
-              :aria-describedby="describedBy"
-              :aria-invalid="invalid"
-              type="text"
-              inputmode="numeric"
-              maxlength="4"
-              :disabled="
-                isSubmitting ||
-                !values.sessionIdleTimeoutEnabled ||
-                Boolean(envVar('session_idle_timeout_hours'))
-              "
-              @blur="handleBlur('sessionIdleTimeoutHours')"
-            />
-          </template>
-        </FormField>
-
-        <FormField
-          :label="t('settings.server.session.absoluteHours')"
-          :hint="
-            envHint('session_absolute_timeout_hours') ??
-            t('settings.server.session.absoluteHoursHint')
-          "
-          :error="errors.sessionAbsoluteTimeoutHours"
-        >
-          <template #default="{ fieldId, describedBy, invalid }">
-            <Input
-              :id="fieldId"
-              v-model="values.sessionAbsoluteTimeoutHours"
-              :aria-describedby="describedBy"
-              :aria-invalid="invalid"
-              type="text"
-              inputmode="numeric"
-              maxlength="4"
-              :disabled="
-                isSubmitting ||
-                !values.sessionIdleTimeoutEnabled ||
-                Boolean(envVar('session_absolute_timeout_hours'))
-              "
-              @blur="handleBlur('sessionAbsoluteTimeoutHours')"
-            />
-          </template>
-        </FormField>
-
-        <FormField
-          :label="t('settings.server.session.accessMinutes')"
-          :hint="envHint('access_token_expire_minutes')"
-          :error="errors.accessTokenExpireMinutes"
-        >
-          <template #default="{ fieldId, describedBy, invalid }">
-            <Input
-              :id="fieldId"
-              v-model="values.accessTokenExpireMinutes"
-              :aria-describedby="describedBy"
-              :aria-invalid="invalid"
-              type="text"
-              inputmode="numeric"
-              maxlength="4"
-              :disabled="isSubmitting || Boolean(envVar('access_token_expire_minutes'))"
-              @blur="handleBlur('accessTokenExpireMinutes')"
-            />
-          </template>
-        </FormField>
-
-        <FormField
-          :label="t('settings.server.session.refreshDays')"
-          :hint="envHint('refresh_token_expire_days')"
-          :error="errors.refreshTokenExpireDays"
-        >
-          <template #default="{ fieldId, describedBy, invalid }">
-            <Input
-              :id="fieldId"
-              v-model="values.refreshTokenExpireDays"
-              :aria-describedby="describedBy"
-              :aria-invalid="invalid"
-              type="text"
-              inputmode="numeric"
-              maxlength="3"
-              :disabled="isSubmitting || Boolean(envVar('refresh_token_expire_days'))"
-              @blur="handleBlur('refreshTokenExpireDays')"
-            />
-          </template>
-        </FormField>
-      </div>
-    </Card>
-
-    <!-- Data retention -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.retention.title') }}</h2>
-      <FormField
-        :label="t('settings.server.retention.readNotifications')"
-        :hint="
-          envHint('read_notification_retention_days') ??
-          t('settings.server.retention.readNotificationsHint')
-        "
-        :error="errors.readNotificationRetentionDays"
-      >
-        <template #default="{ fieldId, describedBy, invalid }">
-          <Input
-            :id="fieldId"
-            v-model="values.readNotificationRetentionDays"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            type="text"
-            inputmode="numeric"
-            maxlength="4"
-            :disabled="isSubmitting || Boolean(envVar('read_notification_retention_days'))"
-            @blur="handleBlur('readNotificationRetentionDays')"
-          />
-        </template>
-      </FormField>
-    </Card>
-
-    <!-- Registration -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.signup.title') }}</h2>
-      <Switch v-model="values.signupEnabled" :disabled="isSubmitting">
-        {{ t('settings.server.signup.enabled') }}
-      </Switch>
-      <Switch v-model="values.signupRequireAdminApproval" :disabled="isSubmitting">
-        {{ t('settings.server.signup.adminApproval') }}
-      </Switch>
-      <Switch v-model="values.signupRequireEmailVerification" :disabled="isSubmitting">
-        {{ t('settings.server.signup.emailVerification') }}
-      </Switch>
-    </Card>
-
-    <!-- Authentication -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.sso.title') }}</h2>
-      <Switch v-model="values.ssoEnabled" :disabled="isSubmitting">
-        {{ t('settings.server.sso.enabled') }}
-      </Switch>
-      <Alert kind="info">{{ t('settings.server.sso.enabledInfo') }}</Alert>
-      <Switch v-model="values.localLoginEnabled" :disabled="isSubmitting">
-        {{ t('settings.server.sso.localLogin') }}
-      </Switch>
-      <Alert v-if="!values.localLoginEnabled" kind="warning">
-        {{ t('settings.server.sso.localLoginWarning') }}
-      </Alert>
-      <Switch v-model="values.ssoAutoRedirect" :disabled="isSubmitting">
-        {{ t('settings.server.sso.autoRedirect') }}
-      </Switch>
-      <Alert kind="info">{{ t('settings.server.sso.autoRedirectInfo') }}</Alert>
-    </Card>
-
-    <!-- Public sharing -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.sharing.title') }}</h2>
-      <Switch v-model="values.publicShareableLinks" :disabled="isSubmitting">
-        {{ t('settings.server.sharing.enabled') }}
-      </Switch>
-      <Alert v-if="values.publicShareableLinks" kind="warning">
-        {{ t('settings.server.sharing.enabledWarning') }}
-      </Alert>
-      <Switch
-        v-model="values.publicShareableLinksUserInfo"
-        :disabled="isSubmitting || !values.publicShareableLinks"
-      >
-        {{ t('settings.server.sharing.userInfo') }}
-      </Switch>
-      <Alert
-        v-if="values.publicShareableLinks && values.publicShareableLinksUserInfo"
-        kind="warning"
-      >
-        {{ t('settings.server.sharing.userInfoWarning') }}
-      </Alert>
-    </Card>
-
-    <!-- Maps -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.maps.title') }}</h2>
-
-      <FormField :label="t('settings.server.maps.template')">
-        <template #default="{ fieldId }">
-          <Select :id="fieldId" v-model="selectedTemplate" :disabled="isSubmitting">
-            <option
-              v-for="template in templates"
-              :key="template.templateId"
-              :value="template.templateId"
-            >
-              {{ template.name }}
-            </option>
-            <option :value="CUSTOM_TEMPLATE">{{ t('settings.server.maps.templateCustom') }}</option>
-          </Select>
-        </template>
-      </FormField>
-
-      <Alert v-if="!isCustomTemplate && selectedTemplateData?.requiresApiKeyBackend" kind="warning">
-        {{ t('settings.server.maps.apiKeyBackendWarning') }}
-      </Alert>
-      <Alert v-if="!isCustomTemplate && selectedTemplateData?.requiresApiKeyFrontend" kind="info">
-        {{ t('settings.server.maps.apiKeyFrontendWarning') }}
-      </Alert>
-
-      <FormField
-        :label="t('settings.server.maps.url')"
-        :hint="t('settings.server.maps.urlHint')"
-        :error="errors.tileserverUrl"
-      >
-        <template #default="{ fieldId, describedBy, invalid }">
-          <Input
-            :id="fieldId"
-            v-model="values.tileserverUrl"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            type="text"
-            inputmode="url"
-            maxlength="2048"
-            :disabled="isSubmitting || !isCustomTemplate"
-            @blur="handleBlur('tileserverUrl')"
-          />
-        </template>
-      </FormField>
-
-      <FormField :label="t('settings.server.maps.attribution')">
-        <template #default="{ fieldId }">
-          <Input
-            :id="fieldId"
-            v-model="values.tileserverAttribution"
-            type="text"
-            maxlength="1024"
-            :disabled="isSubmitting || !isCustomTemplate"
-          />
-        </template>
-      </FormField>
-
-      <FormField :label="t('settings.server.maps.apiKey')">
-        <template #default="{ fieldId }">
-          <Input
-            :id="fieldId"
-            v-model="values.tileserverApiKey"
-            type="password"
-            maxlength="256"
-            autocomplete="off"
-            :placeholder="
-              settings.tileserverApiKeySet ? t('settings.server.maps.apiKeyStored') : ''
-            "
-            :disabled="isSubmitting || values.removeTileserverApiKey"
-          />
-        </template>
-      </FormField>
-      <Switch
-        v-if="settings.tileserverApiKeySet"
-        v-model="values.removeTileserverApiKey"
-        :disabled="isSubmitting"
-      >
-        {{ t('settings.server.maps.apiKeyRemove') }}
-      </Switch>
-      <Alert kind="warning">{{ t('settings.server.maps.apiKeyWarning') }}</Alert>
-
-      <div class="flex flex-col gap-1">
-        <Label for="server-map-bg-color">{{ t('settings.server.maps.backgroundColor') }}</Label>
-        <div class="flex items-center gap-3">
-          <input
-            id="server-map-bg-color"
-            v-model="values.mapBackgroundColor"
-            type="color"
-            class="h-9 w-16 cursor-pointer rounded-input border border-input bg-background p-1 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="isSubmitting || !isCustomTemplate"
-          />
-          <span class="text-body tabular-nums">{{ values.mapBackgroundColor }}</span>
-        </div>
-      </div>
-
-      <Switch v-model="values.tileserverRegenerateThumbnailsOnChange" :disabled="isSubmitting">
-        {{ t('settings.server.maps.regenerateThumbnails') }}
-      </Switch>
-    </Card>
-
-    <!-- Reverse geocoding -->
-    <Card class="flex flex-col gap-3">
-      <div class="flex flex-col gap-1">
-        <h2 class="text-card-heading">{{ t('settings.server.geocoding.title') }}</h2>
-        <p class="text-body">{{ t('settings.server.geocoding.description') }}</p>
-      </div>
-
-      <FormField
-        :label="t('settings.server.geocoding.service')"
-        :hint="envHint('geocoding_service')"
-      >
-        <template #default="{ fieldId, describedBy }">
-          <Select
-            :id="fieldId"
-            v-model="values.geocodingService"
-            :aria-describedby="describedBy"
-            :disabled="isSubmitting || Boolean(envVar('geocoding_service'))"
+          <TabsTrigger
+            v-for="tab in SETTINGS_TABS"
+            :key="tab"
+            :value="tab"
+            class="whitespace-nowrap"
           >
-            <option value="nominatim">{{ t('settings.server.geocoding.serviceNominatim') }}</option>
-            <option value="photon">{{ t('settings.server.geocoding.servicePhoton') }}</option>
-            <option value="geocode">{{ t('settings.server.geocoding.serviceGeocode') }}</option>
-          </Select>
-        </template>
-      </FormField>
-
-      <template v-if="!isGeocodeService">
-        <FormField
-          :label="t('settings.server.geocoding.host')"
-          :hint="envHint('geocoding_host') ?? t('settings.server.geocoding.hostHint')"
-        >
-          <template #default="{ fieldId, describedBy }">
-            <Input
-              :id="fieldId"
-              v-model="values.geocodingHost"
-              :aria-describedby="describedBy"
-              type="text"
-              maxlength="253"
-              autocomplete="off"
-              :placeholder="geocodingHostPlaceholder"
-              :disabled="isSubmitting || Boolean(envVar('geocoding_host'))"
+            {{ t(`settings.server.tabs.${tab}`) }}
+            <span
+              v-if="isTabDirty(tab)"
+              role="img"
+              class="ml-2 size-2 rounded-full bg-brand"
+              :aria-label="t('settings.server.tabs.unsaved')"
             />
-          </template>
-        </FormField>
+          </TabsTrigger>
+        </TabsList>
+        <ServerSettingsSearch @select="jumpTo" />
+      </div>
 
-        <Switch
-          v-model="values.geocodingUseHttps"
-          :disabled="isSubmitting || Boolean(envVar('geocoding_use_https'))"
-        >
-          {{ t('settings.server.geocoding.useHttps') }}
-        </Switch>
-        <EnvManagedHint :name="envVar('geocoding_use_https')" />
-      </template>
+      <!-- Every panel stays mounted so the Email form keeps its edits while another tab is open. -->
+      <TabsContent value="general" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <GeneralTab />
+      </TabsContent>
+      <TabsContent value="access" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <AccessTab />
+      </TabsContent>
+      <TabsContent value="maps" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <MapsTab />
+      </TabsContent>
+      <TabsContent value="email" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <EmailCard @dirty-change="mailDirty = $event" />
+      </TabsContent>
+    </Tabs>
 
-      <FormField
-        :label="t('settings.server.geocoding.rateLimit')"
-        :hint="envHint('geocoding_rate_limit') ?? t('settings.server.geocoding.rateLimitHint')"
-        :error="errors.geocodingRateLimit"
-      >
-        <template #default="{ fieldId, describedBy, invalid }">
-          <Input
-            :id="fieldId"
-            v-model="values.geocodingRateLimit"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            type="text"
-            inputmode="decimal"
-            maxlength="6"
-            :disabled="isSubmitting || Boolean(envVar('geocoding_rate_limit'))"
-            @blur="handleBlur('geocodingRateLimit')"
-          />
-        </template>
-      </FormField>
+    <UnsavedChangesBar
+      v-if="isDirty"
+      :saving="isSubmitting"
+      :can-save="isValid"
+      @save="handleSubmit"
+      @discard="discard"
+    />
 
-      <template v-if="isGeocodeService">
-        <FormField
-          :label="t('settings.server.geocoding.apiKey')"
-          :hint="envHint('geocoding_api_key')"
-        >
-          <template #default="{ fieldId, describedBy }">
-            <Input
-              :id="fieldId"
-              v-model="values.geocodingApiKey"
-              :aria-describedby="describedBy"
-              type="password"
-              maxlength="256"
-              autocomplete="off"
-              :placeholder="
-                settings.geocodingApiKeySet ? t('settings.server.geocoding.apiKeyStored') : ''
-              "
-              :disabled="
-                isSubmitting || values.removeGeocodingApiKey || Boolean(envVar('geocoding_api_key'))
-              "
-            />
-          </template>
-        </FormField>
-        <Switch
-          v-if="settings.geocodingApiKeySet"
-          v-model="values.removeGeocodingApiKey"
-          :disabled="isSubmitting || Boolean(envVar('geocoding_api_key'))"
-        >
-          {{ t('settings.server.geocoding.apiKeyRemove') }}
-        </Switch>
-      </template>
-    </Card>
-
-    <div class="flex justify-begin">
-      <Button type="submit" class="w-full sm:w-auto" :disabled="!isValid || isSubmitting">
-        <LoaderCircle v-if="isSubmitting" class="size-4 animate-spin" aria-hidden="true" />
-        {{ isSubmitting ? t('settings.server.saving') : t('settings.server.save') }}
-      </Button>
-    </div>
-  </form>
+    <ConfirmDialog
+      v-model:open="leaveOpen"
+      :title="t('settings.server.leave.title')"
+      :description="t('settings.server.leave.description')"
+      :confirm-label="t('settings.server.leave.confirm')"
+      :cancel-label="t('settings.server.leave.stay')"
+      :close-label="t('settings.server.leave.close')"
+      @confirm="confirmLeave"
+    />
+  </div>
 </template>

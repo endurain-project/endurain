@@ -367,6 +367,29 @@
       "sent": "E-mail de teste enviado",
       "failed": "Não foi possível enviar o e-mail de teste",
       "failedUnknown": "Consulta os registos do servidor para mais detalhes."
+    },
+    "envLocked": "Definido por {name}",
+    "envSection": "Algumas definições aqui são definidas por variáveis de ambiente ({names}). Remova-as do ambiente para editar essas definições aqui.",
+    "unsaved": "Alterações não guardadas",
+    "discard": "Descartar",
+    "tabs": {
+      "label": "Secções das definições do servidor",
+      "general": "Geral",
+      "access": "Acesso e segurança",
+      "maps": "Mapas e localização",
+      "email": "Email",
+      "unsaved": "Tem alterações não guardadas"
+    },
+    "search": {
+      "placeholder": "Pesquisar definições…",
+      "noResults": "Nenhuma definição encontrada"
+    },
+    "leave": {
+      "title": "Sair sem guardar?",
+      "description": "Tem alterações não guardadas. Se sair desta página, serão perdidas.",
+      "confirm": "Sair sem guardar",
+      "stay": "Ficar na página",
+      "close": "Fechar"
     }
   },
   "idp": {

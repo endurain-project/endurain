@@ -10,5 +10,5 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <p v-if="name" class="text-hint">{{ t('settings.server.envManaged', { name }) }}</p>
+  <p v-if="name" class="text-hint">{{ t('settings.server.envLocked', { name }) }}</p>
 </template>

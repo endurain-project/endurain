@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
@@ -14,12 +14,18 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { useToasts } from '@/composables/useToasts'
+import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
 import { useUpdateMailSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
 import { HttpError } from '@/services/http'
 
 const props = defineProps<{
   /** The loaded mail settings; seeds the form (the parent mounts this only after load). */
   settings: MailSettings
+}>()
+
+const emit = defineEmits<{
+  /** Whether the form holds unsaved edits; fires whenever that changes. */
+  dirtyChange: [dirty: boolean]
 }>()
 
 const { t } = useI18n()
@@ -81,7 +87,7 @@ function envVar(field: string): string | undefined {
  */
 function envHint(field: string): string | undefined {
   const name = envVar(field)
-  return name ? t('settings.server.envManaged', { name }) : undefined
+  return name ? t('settings.server.envLocked', { name }) : undefined
 }
 
 /**
@@ -118,23 +124,28 @@ async function submitForm(formValues: MailSettingsFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur } =
+const { values, errors, isValid, isDirty, isSubmitting, handleSubmit, handleBlur } =
   useForm<MailSettingsFormValues>({
     initialValues: toFormValues(props.settings),
     validators: { port: portValidator(t('settings.server.email.portInvalid')) },
     onSubmit: submitForm,
   })
 
-const allEnvManaged = computed(() => Object.keys(props.settings.envManaged).length > 0)
+const envNames = computed(() => [...new Set(Object.values(props.settings.envManaged))])
+
+watch(isDirty, (dirty) => emit('dirtyChange', dirty))
+// The parent rebuilds this form after a save; clear its flag with the old instance.
+onBeforeUnmount(() => emit('dirtyChange', false))
 </script>
 
 <template>
   <form class="flex flex-col gap-3" novalidate @submit.prevent="handleSubmit">
-    <Alert v-if="allEnvManaged" kind="info">{{ t('settings.server.email.envManagedInfo') }}</Alert>
+    <EnvManagedNotice :names="envNames" />
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <FormField
         class="sm:col-span-2"
+        data-setting="email-host"
         :label="t('settings.server.email.host')"
         :hint="envHint('host') ?? t('settings.server.email.hostHint')"
       >
@@ -152,6 +163,7 @@ const allEnvManaged = computed(() => Object.keys(props.settings.envManaged).leng
       </FormField>
 
       <FormField
+        data-setting="email-port"
         :label="t('settings.server.email.port')"
         :hint="envHint('port')"
         :error="errors.port"
@@ -172,7 +184,11 @@ const allEnvManaged = computed(() => Object.keys(props.settings.envManaged).leng
       </FormField>
     </div>
 
-    <FormField :label="t('settings.server.email.security')" :hint="envHint('security')">
+    <FormField
+      data-setting="email-security"
+      :label="t('settings.server.email.security')"
+      :hint="envHint('security')"
+    >
       <template #default="{ fieldId, describedBy }">
         <Select
           :id="fieldId"
@@ -191,7 +207,11 @@ const allEnvManaged = computed(() => Object.keys(props.settings.envManaged).leng
     </Alert>
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <FormField :label="t('settings.server.email.username')" :hint="envHint('username')">
+      <FormField
+        data-setting="email-username"
+        :label="t('settings.server.email.username')"
+        :hint="envHint('username')"
+      >
         <template #default="{ fieldId, describedBy }">
           <Input
             :id="fieldId"
@@ -205,7 +225,11 @@ const allEnvManaged = computed(() => Object.keys(props.settings.envManaged).leng
         </template>
       </FormField>
 
-      <FormField :label="t('settings.server.email.password')" :hint="envHint('password')">
+      <FormField
+        data-setting="email-password"
+        :label="t('settings.server.email.password')"
+        :hint="envHint('password')"
+      >
         <template #default="{ fieldId, describedBy }">
           <Input
             :id="fieldId"
@@ -229,6 +253,7 @@ const allEnvManaged = computed(() => Object.keys(props.settings.envManaged).leng
     </Switch>
 
     <FormField
+      data-setting="email-from-address"
       :label="t('settings.server.email.fromAddress')"
       :hint="envHint('from_address') ?? t('settings.server.email.fromAddressHint')"
     >

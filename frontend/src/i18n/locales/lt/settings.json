@@ -367,6 +367,29 @@
       "sent": "Bandomasis laiškas išsiųstas",
       "failed": "Bandomojo laiško nepavyko išsiųsti",
       "failedUnknown": "Daugiau informacijos rasite serverio žurnaluose."
+    },
+    "envLocked": "Nustatyta kintamuoju {name}",
+    "envSection": "Kai kuriuos čia esančius nustatymus nustato aplinkos kintamieji ({names}). Pašalinkite juos iš aplinkos, kad galėtumėte tuos nustatymus redaguoti čia.",
+    "unsaved": "Neišsaugoti pakeitimai",
+    "discard": "Atmesti",
+    "tabs": {
+      "label": "Serverio nustatymų skiriai",
+      "general": "Bendra",
+      "access": "Prieiga ir saugumas",
+      "maps": "Žemėlapiai ir vieta",
+      "email": "El. paštas",
+      "unsaved": "Yra neišsaugotų pakeitimų"
+    },
+    "search": {
+      "placeholder": "Ieškoti nustatymų…",
+      "noResults": "Nustatymų nerasta"
+    },
+    "leave": {
+      "title": "Išeiti neišsaugojus?",
+      "description": "Turite neišsaugotų pakeitimų. Išėjus iš šio puslapio jie bus prarasti.",
+      "confirm": "Išeiti neišsaugojus",
+      "stay": "Likti puslapyje",
+      "close": "Uždaryti"
     }
   },
   "idp": {

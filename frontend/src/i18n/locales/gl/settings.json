@@ -367,6 +367,29 @@
       "sent": "Correo de proba enviado",
       "failed": "Non se puido enviar o correo de proba",
       "failedUnknown": "Consulta os rexistros do servidor para ver máis detalles."
+    },
+    "envLocked": "Definido por {name}",
+    "envSection": "Algúns axustes de aquí defínense mediante variables de contorno ({names}). Elimínaas do contorno para editar eses axustes aquí.",
+    "unsaved": "Cambios sen gardar",
+    "discard": "Descartar",
+    "tabs": {
+      "label": "Seccións dos axustes do servidor",
+      "general": "Xeral",
+      "access": "Acceso e seguranza",
+      "maps": "Mapas e localización",
+      "email": "Correo electrónico",
+      "unsaved": "Ten cambios sen gardar"
+    },
+    "search": {
+      "placeholder": "Buscar axustes…",
+      "noResults": "Non se atoparon axustes"
+    },
+    "leave": {
+      "title": "Saír sen gardar?",
+      "description": "Tes cambios sen gardar. Se sáes desta páxina perderanse.",
+      "confirm": "Saír sen gardar",
+      "stay": "Quedar na páxina",
+      "close": "Pechar"
     }
   },
   "idp": {

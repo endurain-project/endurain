@@ -367,6 +367,29 @@
       "sent": "Test-e-mail verzonden",
       "failed": "De test-e-mail kon niet worden verzonden",
       "failedUnknown": "Bekijk de serverlogs voor details."
+    },
+    "envLocked": "Ingesteld door {name}",
+    "envSection": "Sommige instellingen hier worden ingesteld door omgevingsvariabelen ({names}). Verwijder ze uit de omgeving om die instellingen hier te bewerken.",
+    "unsaved": "Niet-opgeslagen wijzigingen",
+    "discard": "Verwerpen",
+    "tabs": {
+      "label": "Secties van de serverinstellingen",
+      "general": "Algemeen",
+      "access": "Toegang en beveiliging",
+      "maps": "Kaarten en locatie",
+      "email": "E-mail",
+      "unsaved": "Bevat niet-opgeslagen wijzigingen"
+    },
+    "search": {
+      "placeholder": "Instellingen zoeken…",
+      "noResults": "Geen instellingen gevonden"
+    },
+    "leave": {
+      "title": "Verlaten zonder op te slaan?",
+      "description": "Je hebt niet-opgeslagen wijzigingen. Als je deze pagina verlaat, gaan ze verloren.",
+      "confirm": "Verlaten zonder op te slaan",
+      "stay": "Op de pagina blijven",
+      "close": "Sluiten"
     }
   },
   "idp": {

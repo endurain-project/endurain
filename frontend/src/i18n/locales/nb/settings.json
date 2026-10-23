@@ -367,6 +367,29 @@
       "sent": "Test-e-post sendt",
       "failed": "Test-e-posten kunne ikke sendes",
       "failedUnknown": "Se serverloggene for detaljer."
+    },
+    "envLocked": "Angitt av {name}",
+    "envSection": "Noen innstillinger her angis av miljøvariabler ({names}). Fjern dem fra miljøet for å redigere dem her.",
+    "unsaved": "Ulagrede endringer",
+    "discard": "Forkast",
+    "tabs": {
+      "label": "Seksjoner i serverinnstillingene",
+      "general": "Generelt",
+      "access": "Tilgang og sikkerhet",
+      "maps": "Kart og posisjon",
+      "email": "E-post",
+      "unsaved": "Har ulagrede endringer"
+    },
+    "search": {
+      "placeholder": "Søk i innstillinger…",
+      "noResults": "Fant ingen innstillinger"
+    },
+    "leave": {
+      "title": "Forlate uten å lagre?",
+      "description": "Du har ulagrede endringer. Hvis du forlater siden, går de tapt.",
+      "confirm": "Forlat uten å lagre",
+      "stay": "Bli på siden",
+      "close": "Lukk"
     }
   },
   "idp": {

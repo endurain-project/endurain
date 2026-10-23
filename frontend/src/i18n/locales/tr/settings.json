@@ -367,6 +367,29 @@
       "sent": "Test e-postası gönderildi",
       "failed": "Test e-postası gönderilemedi",
       "failedUnknown": "Ayrıntılar için sunucu günlüklerine bakın."
+    },
+    "envLocked": "{name} tarafından ayarlanıyor",
+    "envSection": "Buradaki bazı ayarlar ortam değişkenleriyle ({names}) belirleniyor. Bu ayarları burada düzenlemek için değişkenleri ortamdan kaldırın.",
+    "unsaved": "Kaydedilmemiş değişiklikler",
+    "discard": "Vazgeç",
+    "tabs": {
+      "label": "Sunucu ayarları bölümleri",
+      "general": "Genel",
+      "access": "Erişim ve güvenlik",
+      "maps": "Haritalar ve konum",
+      "email": "E-posta",
+      "unsaved": "Kaydedilmemiş değişiklikler içeriyor"
+    },
+    "search": {
+      "placeholder": "Ayarlarda ara…",
+      "noResults": "Ayar bulunamadı"
+    },
+    "leave": {
+      "title": "Kaydetmeden ayrılınsın mı?",
+      "description": "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan ayrılırsanız kaybolacaklar.",
+      "confirm": "Kaydetmeden ayrıl",
+      "stay": "Sayfada kal",
+      "close": "Kapat"
     }
   },
   "idp": {

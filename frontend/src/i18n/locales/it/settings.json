@@ -367,6 +367,29 @@
       "sent": "E-mail di prova inviata",
       "failed": "Impossibile inviare l'e-mail di prova",
       "failedUnknown": "Controlla i log del server per i dettagli."
+    },
+    "envLocked": "Impostato da {name}",
+    "envSection": "Alcune impostazioni qui sono definite da variabili d'ambiente ({names}). Rimuovile dall'ambiente per modificarle qui.",
+    "unsaved": "Modifiche non salvate",
+    "discard": "Annulla modifiche",
+    "tabs": {
+      "label": "Sezioni delle impostazioni del server",
+      "general": "Generale",
+      "access": "Accesso e sicurezza",
+      "maps": "Mappe e posizione",
+      "email": "Email",
+      "unsaved": "Contiene modifiche non salvate"
+    },
+    "search": {
+      "placeholder": "Cerca impostazioni…",
+      "noResults": "Nessuna impostazione trovata"
+    },
+    "leave": {
+      "title": "Uscire senza salvare?",
+      "description": "Hai modifiche non salvate. Se lasci questa pagina andranno perse.",
+      "confirm": "Esci senza salvare",
+      "stay": "Resta nella pagina",
+      "close": "Chiudi"
     }
   },
   "idp": {

@@ -2,8 +2,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
-import LoginPhotoCard from '@/features/serverSettings/components/LoginPhotoCard.vue'
 import ServerSettingsForm from '@/features/serverSettings/components/ServerSettingsForm.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -58,8 +56,6 @@ const templates = computed(() => templatesQuery.data.value ?? [])
     <template v-else-if="settings">
       <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
       <ServerSettingsForm :key="settings.version" :settings="settings" :templates="templates" />
-      <LoginPhotoCard :login-photo-set="settings.loginPhotoSet" />
-      <EmailCard />
     </template>
   </div>
 </template>

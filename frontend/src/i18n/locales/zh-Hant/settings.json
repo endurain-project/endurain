@@ -367,6 +367,29 @@
       "sent": "測試郵件已寄出",
       "failed": "無法寄出測試郵件",
       "failedUnknown": "請查看伺服器日誌了解詳情。"
+    },
+    "envLocked": "由 {name} 設定",
+    "envSection": "此處的部分設定由環境變數（{names}）決定。請從環境中移除這些變數，以便在此處編輯相應設定。",
+    "unsaved": "未儲存的變更",
+    "discard": "捨棄",
+    "tabs": {
+      "label": "伺服器設定分區",
+      "general": "一般",
+      "access": "存取與安全性",
+      "maps": "地圖與位置",
+      "email": "電子郵件",
+      "unsaved": "有未儲存的變更"
+    },
+    "search": {
+      "placeholder": "搜尋設定…",
+      "noResults": "找不到設定"
+    },
+    "leave": {
+      "title": "不儲存就離開？",
+      "description": "你有未儲存的變更。離開此頁面後這些變更將會遺失。",
+      "confirm": "不儲存並離開",
+      "stay": "留在此頁面",
+      "close": "關閉"
     }
   },
   "idp": {

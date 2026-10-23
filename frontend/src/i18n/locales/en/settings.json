@@ -278,6 +278,29 @@
     "saveSuccess": "Server settings updated",
     "saveError": "Couldn't update the server settings. Please try again.",
     "staleError": "These settings were changed by someone else while you were editing. Your changes were not saved. Reload the page to see the current values.",
+    "envLocked": "Set by {name}",
+    "envSection": "Some settings here are set by environment variables ({names}). Remove them from the environment to edit those settings here.",
+    "unsaved": "Unsaved changes",
+    "discard": "Discard",
+    "tabs": {
+      "label": "Server settings sections",
+      "general": "General",
+      "access": "Access & security",
+      "maps": "Maps & location",
+      "email": "Email",
+      "unsaved": "Has unsaved changes"
+    },
+    "search": {
+      "placeholder": "Search settings…",
+      "noResults": "No settings found"
+    },
+    "leave": {
+      "title": "Leave without saving?",
+      "description": "You have unsaved changes. If you leave this page they will be lost.",
+      "confirm": "Leave without saving",
+      "stay": "Stay on page",
+      "close": "Close"
+    },
     "loadError": {
       "title": "Couldn't load server settings",
       "description": "Something went wrong while loading the server settings. You can try again.",
@@ -422,12 +445,10 @@
       "passwordRemove": "Remove the stored password",
       "fromAddress": "Sender address",
       "fromAddressHint": "Leave empty to use the username.",
-      "envManagedInfo": "These settings come from environment variables. Remove them from the environment to edit them here.",
       "save": "Save mail settings",
       "saveSuccess": "Mail settings saved",
       "saveError": "The mail settings could not be saved"
-    },
-    "envManaged": "Set by the {name} environment variable. Remove it to edit this setting here."
+    }
   },
   "idp": {
     "title": "Identity providers",

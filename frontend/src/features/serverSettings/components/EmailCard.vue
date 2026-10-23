@@ -16,6 +16,11 @@ import {
 } from '@/features/serverSettings/composables/useServerSettings'
 import { HttpError } from '@/services/http'
 
+const emit = defineEmits<{
+  /** Whether the mail form holds unsaved edits; fires whenever that changes. */
+  dirtyChange: [dirty: boolean]
+}>()
+
 const { t } = useI18n()
 const toasts = useToasts()
 const statusQuery = useEmailStatusQuery()
@@ -42,7 +47,7 @@ function sendTest(): void {
 </script>
 
 <template>
-  <Card class="flex flex-col gap-3">
+  <Card class="flex flex-col gap-3" data-setting="section-email">
     <div class="flex flex-col gap-1">
       <h2 class="text-card-heading">{{ t('settings.server.email.title') }}</h2>
       <p class="text-body">{{ t('settings.server.email.description') }}</p>
@@ -57,6 +62,7 @@ function sendTest(): void {
       v-else-if="settingsQuery.data.value"
       :key="settingsQuery.data.value.version"
       :settings="settingsQuery.data.value"
+      @dirty-change="emit('dirtyChange', $event)"
     />
 
     <Skeleton v-if="statusQuery.isPending.value" class="h-9 w-full" />
