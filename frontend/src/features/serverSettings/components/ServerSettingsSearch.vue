@@ -111,7 +111,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onWindowKeydown))
 </script>
 
 <template>
-  <div class="relative w-full sm:w-72">
+  <div class="relative w-full lg:w-72">
     <Search
       class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
       aria-hidden="true"

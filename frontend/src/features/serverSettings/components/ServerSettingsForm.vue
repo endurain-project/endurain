@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Check, ChevronDown } from '@lucide/vue'
 import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 
 import type { ServerSettings, TileMapsTemplate } from '@/features/serverSettings/types'
 
+import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
 import ServerSettingsSearch from '@/features/serverSettings/components/ServerSettingsSearch.vue'
@@ -151,17 +159,39 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnloa
 <template>
   <div ref="root" class="flex flex-col gap-3">
     <Tabs class="flex flex-col gap-3" :model-value="activeTab" @update:model-value="selectTab">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <TabsList
-          class="w-full overflow-x-auto sm:w-auto"
-          :aria-label="t('settings.server.tabs.label')"
-        >
-          <TabsTrigger
-            v-for="tab in SETTINGS_TABS"
-            :key="tab"
-            :value="tab"
-            class="whitespace-nowrap"
-          >
+      <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+        <!-- Below lg: a menu button, like the settings zone menu above, instead of a tab row. -->
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" class="w-full justify-between lg:hidden">
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="truncate">{{ t(`settings.server.tabs.${activeTab}`) }}</span>
+                <span
+                  v-if="isTabDirty(activeTab)"
+                  role="img"
+                  class="size-2 shrink-0 rounded-full bg-brand"
+                  :aria-label="t('settings.server.tabs.unsaved')"
+                />
+              </span>
+              <ChevronDown class="size-4 shrink-0 opacity-60" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" class="w-56">
+            <DropdownMenuItem v-for="tab in SETTINGS_TABS" :key="tab" @select="selectTab(tab)">
+              <span class="truncate">{{ t(`settings.server.tabs.${tab}`) }}</span>
+              <span
+                v-if="isTabDirty(tab)"
+                role="img"
+                class="size-2 shrink-0 rounded-full bg-brand"
+                :aria-label="t('settings.server.tabs.unsaved')"
+              />
+              <Check v-if="tab === activeTab" class="ml-auto size-4 shrink-0" aria-hidden="true" />
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <TabsList class="hidden lg:inline-flex" :aria-label="t('settings.server.tabs.label')">
+          <TabsTrigger v-for="tab in SETTINGS_TABS" :key="tab" :value="tab">
             {{ t(`settings.server.tabs.${tab}`) }}
             <span
               v-if="isTabDirty(tab)"
