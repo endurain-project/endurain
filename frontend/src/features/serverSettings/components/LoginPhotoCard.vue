@@ -83,12 +83,24 @@ function confirmDelete(): void {
       <p class="text-body">{{ t('settings.server.photo.description') }}</p>
     </div>
 
-    <img
+    <!-- Mirrors the photo column of AuthScreenLayout: square crop, scrim and taglines. -->
+    <div
       v-if="props.loginPhotoSet"
-      :src="previewUrl"
-      :alt="t('settings.server.photo.previewAlt')"
-      class="aspect-video w-full max-w-sm rounded-md border border-border object-cover"
-    />
+      class="relative aspect-square w-full max-w-xs overflow-hidden rounded-input"
+    >
+      <img
+        :src="previewUrl"
+        :alt="t('settings.server.photo.previewAlt')"
+        class="size-full object-cover"
+      />
+      <div
+        class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/75"
+      ></div>
+      <div class="absolute inset-x-0 bottom-0 p-4 text-body leading-snug text-white">
+        <p>{{ t('login.tagline1') }}</p>
+        <p>{{ t('login.tagline2') }}</p>
+      </div>
+    </div>
 
     <input
       ref="fileInput"
