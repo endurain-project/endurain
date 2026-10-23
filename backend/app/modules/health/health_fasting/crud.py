@@ -16,10 +16,10 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.timezone as core_timezone
+import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
-import modules.health.utils as health_utils
 import modules.users.users.utils as users_utils
 
 # Private internal helpers
@@ -119,7 +119,7 @@ def get_health_fasting_number_by_user_id(
     if interval is not None:
         stmt = stmt.where(
             health_fasting_models.HealthFasting.fast_start_time
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
+            >= health_computation.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     return db.execute(stmt).scalar_one()
@@ -188,7 +188,7 @@ def get_health_fasting_by_user_id(
     if interval is not None:
         stmt = stmt.where(
             health_fasting_models.HealthFasting.fast_start_time
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
+            >= health_computation.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     stmt = stmt.order_by(desc(health_fasting_models.HealthFasting.fast_start_time))
@@ -323,7 +323,7 @@ def get_completed_fasting_dates_by_user_id(user_id: int, db: Session) -> list[da
     Raises:
         HTTPException: If database error occurs.
     """
-    fast_date = health_utils.local_date_expression(
+    fast_date = health_computation.local_date_expression(
         health_fasting_models.HealthFasting.fast_start_time,
         users_utils.resolve_user_timezone(user_id, db),
     )

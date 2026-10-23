@@ -86,6 +86,22 @@ def local_today(user_id: int, db: Session) -> date:
     return users_utils.user_local_today(user_id, db)
 
 
+def resolve_timezone(user_id: int, db: Session) -> str:
+    """Return the user's IANA timezone, falling back to the server default.
+
+    Consumers that bucket timestamps into calendar days (health entries) resolve
+    the zone here instead of reading ``users.timezone`` themselves.
+
+    Args:
+        user_id: The user whose timezone to resolve.
+        db: Database session.
+
+    Returns:
+        An IANA timezone name.
+    """
+    return users_utils.resolve_user_timezone(user_id, db)
+
+
 def timezone_or_default(timezone: str | None) -> str:
     """Return the given IANA timezone, or the server default when it is unset.
 

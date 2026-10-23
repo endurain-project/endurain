@@ -1,4 +1,7 @@
-"""Utility functions for health-related operations."""
+"""Pure date and SQL helpers shared by the health packages.
+
+Owns no table and calls no module, so every health package can use it.
+"""
 
 from datetime import date, timedelta
 

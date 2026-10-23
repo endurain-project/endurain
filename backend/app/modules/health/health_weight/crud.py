@@ -6,11 +6,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.utils as health_weight_utils
-import modules.health.utils as health_utils
 import modules.users.users.utils as users_utils
 
 # Private internal helpers
@@ -133,7 +133,7 @@ def get_health_weight_number_by_user_id(
     if interval is not None:
         stmt = stmt.where(
             health_weight_models.HealthWeight.date
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
+            >= health_computation.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     return db.execute(stmt).scalar_one()
@@ -202,7 +202,7 @@ def get_health_weight_by_user_id(
     if interval is not None:
         stmt = stmt.where(
             health_weight_models.HealthWeight.date
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
+            >= health_computation.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     stmt = stmt.order_by(desc(health_weight_models.HealthWeight.date))
