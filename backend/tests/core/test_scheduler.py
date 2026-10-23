@@ -218,3 +218,13 @@ class TestStopScheduler:
 
             stop_scheduler()
             mock_scheduler.shutdown.assert_not_called()
+
+
+def test_run_once_with_a_lock_runs_the_job_only_under_that_lock():
+    import core.scheduler as core_scheduler
+
+    with patch.object(core_scheduler.scheduler, "add_job") as add_job:
+        core_scheduler.run_once(print, job_id="job", description="job", lock_name="lock")
+
+    assert add_job.call_args.args[0] is core_scheduler._run_locked_job
+    assert add_job.call_args.kwargs["args"] == ("lock", print)

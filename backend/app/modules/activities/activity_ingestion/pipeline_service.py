@@ -208,8 +208,8 @@ def store_activities_from_file(
 
     # CPU-bound + sync I/O parsing (gpxpy, geopy, timezonefinder). This runs
     # directly: every entry point reaches here on a worker thread (a sync route
-    # on Starlette's threadpool, the bulk-import ThreadPoolExecutor, or
-    # ``asyncio.to_thread`` from the Garmin sync), never on the main event loop.
+    # on Starlette's threadpool, the bulk-import ThreadPoolExecutor, or a provider
+    # sync job), never on the main event loop.
     parsed_file = parse_file(
         token_user_id,
         file_extension,

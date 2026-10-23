@@ -235,8 +235,8 @@ MODULES: tuple[RuntimeModule, ...] = (
         startup_tasks=(
             StartupTask(
                 "retrieve_recent_garmin_health",
-                "Retrieving last day health stats from Garmin Connect on startup",
-                garmin_scheduled_jobs.retrieve_recent_health,
+                "Scheduling the last day health stats pull from Garmin Connect",
+                garmin_scheduled_jobs.schedule_recent_health,
             ),
         ),
     ),

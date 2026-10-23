@@ -127,15 +127,3 @@ def get_default_gear_for_activity_type(user_id: int, activity_type: int, db: Ses
         The gear id, or ``None`` when the user has no default for this type.
     """
     return users_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
-
-
-def list_users(db: Session) -> list[users_schema.UsersRead]:
-    """Return every user.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        All users.
-    """
-    return users_crud.get_all_users(db)

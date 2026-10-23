@@ -71,9 +71,10 @@ def garminconnect_mfa_code(
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
     mfa_codes: garmin_dependencies.GarminMFACodeStoreDep,
+    link_states: garmin_dependencies.GarminLinkStateStoreDep,
 ) -> garmin_schema.MFAAccepted:
     """Hand the MFA code to the Garmin Connect login waiting for it."""
-    return garmin_service.submit_mfa_code(token_user_id, mfa_request.mfa_code, mfa_codes)
+    return garmin_service.submit_mfa_code(token_user_id, mfa_request.mfa_code, mfa_codes, link_states)
 
 
 @router.get(
@@ -116,7 +117,7 @@ def garminconnect_retrieve_gear(
     """Sync the user's Garmin Connect gear in the background."""
     background_tasks.add_task(garmin_gear_service.get_user_gear, token_user_id)
     return garmin_schema.GarminDetail(
-        detail=f"Garmin Connect gear will be processed in the background for for {token_user_id}"
+        detail=f"Garmin Connect gear will be processed in the background for {token_user_id}"
     )
 
 
@@ -133,7 +134,7 @@ def garminconnect_retrieve_health_days(
     """Sync the user's Garmin Connect health data for a date range in the background."""
     background_tasks.add_task(garmin_health_service.sync_health_for_dates, start_date, end_date, token_user_id)
     return garmin_schema.GarminDetail(
-        detail=f"Garmin Connect health data will be processed in the background for for {token_user_id}"
+        detail=f"Garmin Connect health data will be processed in the background for {token_user_id}"
     )
 
 

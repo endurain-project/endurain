@@ -186,16 +186,16 @@ def fetch_and_process_activities_by_dates(
 
 
 def get_user_garminconnect_activities_by_dates(
+    user_id: int,
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
 ) -> list[activity_schema.ActivityRead] | None:
     """Fetch and store one user's Garmin Connect activities recorded in a window.
 
     Args:
+        user_id: The user to sync.
         start_date: Start of the window.
         end_date: End of the window.
-        user_id: The user to sync.
 
     Returns:
         The stored activities, or ``None`` when Garmin Connect is not linked or

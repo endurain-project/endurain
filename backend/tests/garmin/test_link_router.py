@@ -86,3 +86,25 @@ def test_status_is_scoped_to_the_caller():
     link_states.begin(1)
 
     assert client.get("/garminconnect/link/status").status_code == 404
+
+
+def test_an_mfa_code_with_no_login_waiting_is_a_conflict():
+    client, link_states = _client()
+    link_states.begin(1)
+
+    assert client.post("/garminconnect/mfa", json={"mfa_code": "123456"}).status_code == 409
+
+
+def test_an_mfa_code_is_accepted_while_the_login_waits():
+    client, link_states = _client()
+    link_states.begin(1)
+    link_states.set_status(1, garmin_constants.LinkStatus.MFA_REQUIRED)
+
+    assert client.post("/garminconnect/mfa", json={"mfa_code": "123456"}).status_code == 200
+
+
+def test_oversized_credentials_and_codes_are_rejected():
+    client, _ = _client()
+
+    assert client.post("/garminconnect/link", json={**_BODY, "password": "x" * 1000}).status_code == 422
+    assert client.post("/garminconnect/mfa", json={"mfa_code": "1" * 100}).status_code == 422

@@ -51,6 +51,14 @@ class TestBegin:
 
         assert store.begin(1) is True
 
+    def test_the_claim_holds_even_when_the_state_entry_is_gone(self):
+        state = MemoryState()
+        store = link_state_store.GarminLinkStateStore(state=state)
+        store.begin(1)
+        state.delete(store._key(1))
+
+        assert store.begin(1) is False
+
     def test_users_do_not_block_each_other(self):
         store = _store()
         store.begin(1)

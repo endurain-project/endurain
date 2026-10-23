@@ -5,6 +5,7 @@ syncs live in :mod:`modules.garmin.activity_service`, :mod:`modules.garmin.gear_
 :mod:`modules.garmin.health_service`.
 """
 
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
@@ -33,7 +34,37 @@ logger = core_logger.get_logger(__name__)
 
 # Logins run here, not on the request threadpool: one waits up to MFA_WAIT_SECONDS for the
 # user's code, and a few users linking at once must not leave the API without worker threads.
-_LINK_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="garmin-link")
+# A login past this capacity is refused rather than queued: a queued one would outlive its
+# polled state while holding the user's credentials in memory.
+MAX_CONCURRENT_LINKS = 4
+_LINK_EXECUTOR = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LINKS, thread_name_prefix="garmin-link")
+_link_slots = threading.BoundedSemaphore(MAX_CONCURRENT_LINKS)
+
+
+def shutdown_link_executor(*, wait: bool = False) -> None:
+    """Stop accepting link attempts and release the login threads.
+
+    Args:
+        wait: Whether to wait for logins still running.
+    """
+    _LINK_EXECUTOR.shutdown(wait=wait, cancel_futures=True)
+
+
+def _http_failure(err: requests.exceptions.HTTPError) -> garmin_constants.LinkFailure:
+    """Classify an HTTP error from a login by who is at fault.
+
+    Args:
+        err: The error Garmin Connect's login raised.
+
+    Returns:
+        ``INVALID_CREDENTIALS`` for 401/403, ``TOO_MANY_REQUESTS`` for 429, else ``INTERNAL``.
+    """
+    status_code = err.response.status_code if err.response is not None else None
+    if status_code in (401, 403):
+        return garmin_constants.LinkFailure.INVALID_CREDENTIALS
+    if status_code == 429:
+        return garmin_constants.LinkFailure.TOO_MANY_REQUESTS
+    return garmin_constants.LinkFailure.INTERNAL
 
 
 def wait_for_mfa_code(
@@ -87,13 +118,20 @@ def start_link(
 
     Raises:
         ConflictError: When an attempt for this user is already running.
+        ServiceUnavailableError: When every login thread of this process is busy.
     """
-    if not link_states.begin(user_id):
-        raise core_exceptions.ConflictError("A Garmin Connect link is already in progress")
-
-    _LINK_EXECUTOR.submit(
-        link_garminconnect, user_id, login.username, login.password, mfa_codes, link_states, login.is_cn
-    )
+    if not _link_slots.acquire(blocking=False):
+        raise core_exceptions.ServiceUnavailableError("Too many Garmin Connect links in progress; try again shortly")
+    try:
+        if not link_states.begin(user_id):
+            raise core_exceptions.ConflictError("A Garmin Connect link is already in progress")
+        future = _LINK_EXECUTOR.submit(
+            link_garminconnect, user_id, login.username, login.password, mfa_codes, link_states, login.is_cn
+        )
+    except BaseException:
+        _link_slots.release()
+        raise
+    future.add_done_callback(lambda _: _link_slots.release())
     return garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.PENDING)
 
 
@@ -120,13 +158,15 @@ def link_garminconnect(
     """
     # A code left by an earlier attempt must not answer this one's prompt.
     mfa_codes.delete_code(user_id)
+    mfa_prompted = False
+
+    def prompt_mfa() -> str | None:
+        nonlocal mfa_prompted
+        mfa_prompted = True
+        return wait_for_mfa_code(user_id, mfa_codes, link_states)
+
     try:
-        garmin = garminconnect.Garmin(
-            email=email,
-            password=password,
-            is_cn=is_cn,
-            prompt_mfa=lambda: wait_for_mfa_code(user_id, mfa_codes, link_states),
-        )
+        garmin = garminconnect.Garmin(email=email, password=password, is_cn=is_cn, prompt_mfa=prompt_mfa)
         garmin.login()
 
         if not garmin.client.di_token:
@@ -138,14 +178,15 @@ def link_garminconnect(
                 garmin_token_utils.serialize_garmin_token(garmin.client, is_cn),
                 db,
             )
-    except (
-        garminconnect.GarminConnectAuthenticationError,
-        requests.exceptions.HTTPError,
-    ) as err:
+    except garminconnect.GarminConnectAuthenticationError as err:
         logger.error("There was an authentication error using Garmin Connect. Check credentials", exc_info=err)
         link_states.set_status(
             user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS
         )
+    except requests.exceptions.HTTPError as err:
+        reason = _http_failure(err)
+        logger.error("Garmin Connect answered the link attempt with an HTTP error", exc_info=err)
+        link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, reason)
     except garminconnect.GarminConnectTooManyRequestsError:
         logger.warning(
             "Garmin Connect refused the link attempt: too many requests",
@@ -154,13 +195,19 @@ def link_garminconnect(
         link_states.set_status(
             user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.TOO_MANY_REQUESTS
         )
-    except TypeError:
+    except TypeError as err:
         # The library fails this way when the MFA prompt returns no code or a wrong one.
-        logger.warning(
-            "Garmin Connect link failed on the MFA code",
-            extra=core_logger.context(user_id=user_id),
-        )
-        link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
+        if not mfa_prompted:
+            logger.error("Internal error while linking Garmin Connect", exc_info=err)
+            link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
+        else:
+            logger.warning(
+                "Garmin Connect link failed on the MFA code",
+                extra=core_logger.context(user_id=user_id),
+            )
+            link_states.set_status(
+                user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA
+            )
     except Exception as err:
         logger.error("Internal error while linking Garmin Connect", exc_info=err)
         link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
@@ -196,6 +243,7 @@ def submit_mfa_code(
     user_id: int,
     mfa_code: str,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
+    link_states: garmin_link_state_store.GarminLinkStateStore,
 ) -> garmin_schema.MFAAccepted:
     """Hand the user's MFA code to the login waiting for it.
 
@@ -203,10 +251,17 @@ def submit_mfa_code(
         user_id: The user linking Garmin Connect.
         mfa_code: The code the user entered.
         mfa_codes: Shared store the code lands in.
+        link_states: Shared store of the link attempt's state.
 
     Returns:
         The acknowledgement.
+
+    Raises:
+        ConflictError: When no login is waiting for a code.
     """
+    state = link_states.get(user_id)
+    if state is None or state.status != garmin_constants.LinkStatus.MFA_REQUIRED:
+        raise core_exceptions.ConflictError("No Garmin Connect login is waiting for an MFA code")
     mfa_codes.add_code(user_id, mfa_code)
     return garmin_schema.MFAAccepted(message="MFA code received successfully")
 
@@ -309,21 +364,18 @@ def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Ga
     """
     try:
         user_integrations = fetch_user_integrations_and_validate_token(user_id, db)
+    except core_exceptions.NotFoundError:
+        logger.warning("Garmin Connect user has no integrations record", extra=core_logger.context(user_id=user_id))
+        return None
 
-        if user_integrations is None:
-            logger.info(
-                "Garmin Connect not linked",
-                extra=core_logger.context(user_id=user_id),
-            )
-            return None
-
-        return garmin_token_utils.login_garminconnect_using_tokens(user_integrations.garminconnect_token)
-    except Exception as err:
-        logger.error(
-            "Error in get_user_garminconnect_client",
-            exc_info=err,
+    if user_integrations is None:
+        logger.info(
+            "Garmin Connect not linked",
+            extra=core_logger.context(user_id=user_id),
         )
         return None
+
+    return garmin_token_utils.login_garminconnect_using_tokens(user_integrations.garminconnect_token)
 
 
 def unlink_expired_account(user_id: int, db: Session) -> None:

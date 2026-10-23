@@ -31,6 +31,10 @@ def _garmin(login=None, has_token=True):
     return garmin
 
 
+def _http_error(status_code: int) -> requests.exceptions.HTTPError:
+    return requests.exceptions.HTTPError(response=MagicMock(status_code=status_code))
+
+
 def _link(stores, garmin):
     mfa_codes, link_states = stores
     link_states.begin(1)
@@ -62,9 +66,13 @@ class TestLinkGarminconnect:
         ("error", "reason"),
         [
             (garminconnect.GarminConnectAuthenticationError("no"), Failure.INVALID_CREDENTIALS),
-            (requests.exceptions.HTTPError("401"), Failure.INVALID_CREDENTIALS),
             (garminconnect.GarminConnectTooManyRequestsError("slow down"), Failure.TOO_MANY_REQUESTS),
-            (TypeError("mfa"), Failure.INCORRECT_MFA),
+            (_http_error(401), Failure.INVALID_CREDENTIALS),
+            (_http_error(403), Failure.INVALID_CREDENTIALS),
+            (_http_error(429), Failure.TOO_MANY_REQUESTS),
+            (_http_error(503), Failure.INTERNAL),
+            (requests.exceptions.ConnectionError("down"), Failure.INTERNAL),
+            (TypeError("not an mfa problem"), Failure.INTERNAL),
             (RuntimeError("boom"), Failure.INTERNAL),
         ],
     )
@@ -72,6 +80,22 @@ class TestLinkGarminconnect:
         _link(stores, _garmin(login=error))
 
         assert stores[1].get(1) == link_state_store.LinkState(status=Status.FAILED, reason=reason)
+
+    def test_a_failure_after_the_mfa_prompt_is_an_incorrect_code(self, stores):
+        link_states = stores[1]
+        garmin = _garmin()
+        prompts = []
+
+        def login():
+            prompts.append(garmin_service.garminconnect.Garmin.call_args.kwargs["prompt_mfa"]())
+            raise TypeError("no code")
+
+        garmin.login.side_effect = login
+        with patch.object(garmin_service, "wait_for_mfa_code", return_value=None):
+            _link(stores, garmin)
+
+        assert prompts == [None]
+        assert link_states.get(1).reason == Failure.INCORRECT_MFA
 
     def test_the_mfa_code_is_always_cleared(self, stores):
         stores[0].add_code(1, "stale")
@@ -119,6 +143,45 @@ def test_starting_a_link_hands_it_to_the_dedicated_executor(stores):
         garmin_service.start_link(1, garmin_schema.GarminLogin(username="me", password="pw"), *stores)
 
     executor.submit.assert_called_once_with(garmin_service.link_garminconnect, 1, "me", "pw", *stores, False)
+
+
+def test_a_link_beyond_the_capacity_is_refused_and_leaves_no_attempt_behind(stores):
+    login = garmin_schema.GarminLogin(username="me", password="pw")
+    with patch.object(garmin_service, "_LINK_EXECUTOR"):
+        for user_id in range(garmin_service.MAX_CONCURRENT_LINKS):
+            garmin_service.start_link(user_id, login, *stores)
+
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
+            garmin_service.start_link(99, login, *stores)
+
+    assert stores[1].get(99) is None
+
+
+def test_a_refused_duplicate_link_gives_its_slot_back(stores):
+    login = garmin_schema.GarminLogin(username="me", password="pw")
+    with patch.object(garmin_service, "_LINK_EXECUTOR"):
+        garmin_service.start_link(1, login, *stores)
+        for _ in range(garmin_service.MAX_CONCURRENT_LINKS + 1):
+            with pytest.raises(core_exceptions.ConflictError):
+                garmin_service.start_link(1, login, *stores)
+
+
+class TestSubmitMfaCode:
+    def test_a_code_is_taken_while_the_login_waits_for_it(self, stores):
+        stores[1].begin(1)
+        stores[1].set_status(1, Status.MFA_REQUIRED)
+
+        garmin_service.submit_mfa_code(1, "123456", *stores)
+
+        assert stores[0].get_code(1) == "123456"
+
+    def test_a_code_with_no_login_waiting_is_a_conflict(self, stores):
+        stores[1].begin(1)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            garmin_service.submit_mfa_code(1, "123456", *stores)
+
+        assert stores[0].has_code(1) is False
 
 
 class TestLinkStatus:
