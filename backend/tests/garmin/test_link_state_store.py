@@ -5,10 +5,11 @@ from unittest.mock import MagicMock
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
+import modules.garmin.constants as garmin_constants
 import modules.garmin.link_state_store as link_state_store
 
-Status = link_state_store.LinkStatus
-Failure = link_state_store.LinkFailure
+Status = garmin_constants.LinkStatus
+Failure = garmin_constants.LinkFailure
 
 
 def _store() -> link_state_store.GarminLinkStateStore:
@@ -74,6 +75,3 @@ class TestState:
         state.set.side_effect = StateBackendUnavailableError("down")
 
         link_state_store.GarminLinkStateStore(state=state).set_status(1, Status.COMPLETED)
-
-    def test_the_singleton_accessor_returns_the_module_store(self):
-        assert link_state_store.get_garmin_link_state_store() is link_state_store.garmin_link_state_store

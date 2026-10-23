@@ -1,4 +1,4 @@
-"""Tests for the Garmin Connect link flow in garmin.utils."""
+"""Tests for the Garmin Connect link flow in garmin_service."""
 
 from unittest.mock import MagicMock, patch
 
@@ -7,12 +7,15 @@ import pytest
 import requests
 from jasil.backends.state_memory import MemoryState
 
+import core.exceptions as core_exceptions
+import modules.garmin.constants as garmin_constants
 import modules.garmin.link_state_store as link_state_store
 import modules.garmin.mfa_code_store as mfa_code_store
-import modules.garmin.utils as garmin_utils
+import modules.garmin.schema as garmin_schema
+import modules.garmin.service as garmin_service
 
-Status = link_state_store.LinkStatus
-Failure = link_state_store.LinkFailure
+Status = garmin_constants.LinkStatus
+Failure = garmin_constants.LinkFailure
 
 
 @pytest.fixture
@@ -32,12 +35,12 @@ def _link(stores, garmin):
     mfa_codes, link_states = stores
     link_states.begin(1)
     with (
-        patch.object(garmin_utils.garminconnect, "Garmin", return_value=garmin) as factory,
-        patch.object(garmin_utils.core_database, "SessionLocal"),
-        patch.object(garmin_utils.user_integrations_crud, "link_garminconnect_account") as save,
-        patch.object(garmin_utils, "serialize_garmin_token", return_value={"di_token": "enc"}),
+        patch.object(garmin_service.garminconnect, "Garmin", return_value=garmin) as factory,
+        patch.object(garmin_service.core_database, "SessionLocal"),
+        patch.object(garmin_service.user_integrations_integration, "link_garminconnect_account") as save,
+        patch.object(garmin_service.garmin_token_utils, "serialize_garmin_token", return_value={"di_token": "enc"}),
     ):
-        garmin_utils.link_garminconnect(1, "me@example.com", "pw", mfa_codes, link_states, True)
+        garmin_service.link_garminconnect(1, "me@example.com", "pw", mfa_codes, link_states, True)
     return factory, save
 
 
@@ -98,21 +101,51 @@ class TestWaitForMfaCode:
         link_states.set_status = lambda user_id, status, reason=None: (states.append(status), real_set(user_id, status))
         mfa_codes.add_code(1, "123456")
 
-        assert garmin_utils.wait_for_mfa_code(1, mfa_codes, link_states) == "123456"
+        assert garmin_service.wait_for_mfa_code(1, mfa_codes, link_states) == "123456"
         assert states == [Status.MFA_REQUIRED, Status.PENDING]
 
     def test_no_code_in_time_returns_none_and_stays_waiting(self, stores):
         mfa_codes, link_states = stores
         link_states.begin(1)
 
-        with patch.object(garmin_utils, "MFA_WAIT_SECONDS", 2), patch.object(garmin_utils.time, "sleep"):
-            assert garmin_utils.wait_for_mfa_code(1, mfa_codes, link_states) is None
+        with patch.object(garmin_constants, "MFA_WAIT_SECONDS", 2), patch.object(garmin_service.time, "sleep"):
+            assert garmin_service.wait_for_mfa_code(1, mfa_codes, link_states) is None
 
         assert link_states.get(1).status == Status.MFA_REQUIRED
 
 
 def test_starting_a_link_hands_it_to_the_dedicated_executor(stores):
-    with patch.object(garmin_utils, "_LINK_EXECUTOR") as executor:
-        garmin_utils.start_garminconnect_link(1, "me", "pw", *stores, False)
+    with patch.object(garmin_service, "_LINK_EXECUTOR") as executor:
+        garmin_service.start_link(1, garmin_schema.GarminLogin(username="me", password="pw"), *stores)
 
-    executor.submit.assert_called_once_with(garmin_utils.link_garminconnect, 1, "me", "pw", *stores, False)
+    executor.submit.assert_called_once_with(garmin_service.link_garminconnect, 1, "me", "pw", *stores, False)
+
+
+class TestLinkStatus:
+    def test_an_expired_attempt_is_not_found(self, stores):
+        with pytest.raises(core_exceptions.NotFoundError):
+            garmin_service.get_link_status(1, stores[1])
+
+    def test_a_recorded_attempt_is_reported(self, stores):
+        stores[1].begin(1)
+
+        assert garmin_service.get_link_status(1, stores[1]).status == Status.PENDING
+
+
+class TestFetchUserIntegrationsAndValidateToken:
+    def test_a_user_without_integrations_is_not_found(self):
+        with (
+            patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=None),
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            garmin_service.fetch_user_integrations_and_validate_token(1, MagicMock())
+
+    def test_an_unlinked_user_has_no_integrations_to_use(self):
+        unlinked = MagicMock(garminconnect_token=None)
+        with patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=unlinked):
+            assert garmin_service.fetch_user_integrations_and_validate_token(1, MagicMock()) is None
+
+    def test_a_linked_user_is_returned(self):
+        linked = MagicMock(garminconnect_token={"di_token": "enc"})
+        with patch.object(garmin_service.user_integrations_integration, "get_user_integrations", return_value=linked):
+            assert garmin_service.fetch_user_integrations_and_validate_token(1, MagicMock()) is linked

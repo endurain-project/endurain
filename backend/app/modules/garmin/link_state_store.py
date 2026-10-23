@@ -14,39 +14,20 @@ Interface::
 """
 
 import json
-from enum import StrEnum
 
-import jasil.runtime as platform_runtime
 from jasil.providers import StateBackendUnavailableError, StateProvider
 from pydantic import BaseModel
 
 import core.hashing as core_hashing
 import core.logger as core_logger
+import modules.garmin.constants as garmin_constants
 
 logger = core_logger.get_logger(__name__)
 
 _LINK_STATE_KEY_PREFIX = "endurain:garmin:link:state"
-# Must exceed the 65-second login timeout in garmin/utils.py, so a live attempt never expires
+# Must exceed the login timeout (MFA_WAIT_SECONDS plus the login itself), so a live attempt never expires
 # under the poller. A dead replica's attempt expires after this, which also frees a retry.
 _DEFAULT_TTL_SECONDS: int = 120
-
-
-class LinkStatus(StrEnum):
-    """Where a Garmin Connect link attempt is."""
-
-    PENDING = "pending"
-    MFA_REQUIRED = "mfa_required"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-class LinkFailure(StrEnum):
-    """Why a Garmin Connect link attempt failed, for the client to word."""
-
-    INVALID_CREDENTIALS = "invalid_credentials"
-    INCORRECT_MFA = "incorrect_mfa"
-    TOO_MANY_REQUESTS = "too_many_requests"
-    INTERNAL = "internal"
 
 
 class LinkState(BaseModel):
@@ -57,37 +38,30 @@ class LinkState(BaseModel):
         reason: Why it failed; set only when ``status`` is ``FAILED``.
     """
 
-    status: LinkStatus
-    reason: LinkFailure | None = None
+    status: garmin_constants.LinkStatus
+    reason: garmin_constants.LinkFailure | None = None
 
 
-_FINISHED = (LinkStatus.COMPLETED, LinkStatus.FAILED)
+_FINISHED = (garmin_constants.LinkStatus.COMPLETED, garmin_constants.LinkStatus.FAILED)
 
 
 class GarminLinkStateStore:
-    """
-    Garmin link attempt state backed by the platform ``StateProvider``.
+    """Garmin link attempt state backed by the platform ``StateProvider``.
 
     Attributes:
-        _state_override: Explicit provider (tests); ``None`` resolves the
-            process-wide provider lazily at call time.
+        _state: The platform state provider.
         _ttl_seconds: State lifetime in seconds.
     """
 
-    def __init__(self, state: StateProvider | None = None, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
-        """
-        Initialize the link state store.
+    def __init__(self, state: StateProvider, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
+        """Initialize the link state store.
 
         Args:
-            state: Optional explicit state provider (defaults to the process-wide one).
+            state: The platform state provider.
             ttl_seconds: How long each state remains readable.
         """
-        self._state_override = state
+        self._state = state
         self._ttl_seconds = ttl_seconds
-
-    @property
-    def _state(self) -> StateProvider:
-        return self._state_override if self._state_override is not None else platform_runtime.get_state()
 
     def _key(self, user_id: int) -> str:
         """Build the storage key for a user's link attempt."""
@@ -97,8 +71,7 @@ class GarminLinkStateStore:
         self._state.set(self._key(user_id), state.model_dump_json().encode(), ttl_seconds=self._ttl_seconds)
 
     def begin(self, user_id: int) -> bool:
-        """
-        Start a link attempt unless one is still running.
+        """Start a link attempt unless one is still running.
 
         A finished attempt (completed or failed) is replaced, so the user can retry
         straight after a failure.
@@ -112,7 +85,7 @@ class GarminLinkStateStore:
         Raises:
             StateBackendUnavailableError: When storage is unavailable.
         """
-        pending = LinkState(status=LinkStatus.PENDING)
+        pending = LinkState(status=garmin_constants.LinkStatus.PENDING)
         if self._state.set_if_absent(self._key(user_id), pending.model_dump_json().encode(), self._ttl_seconds):
             return True
         current = self.get(user_id)
@@ -121,9 +94,10 @@ class GarminLinkStateStore:
         self._write(user_id, pending)
         return True
 
-    def set_status(self, user_id: int, status: LinkStatus, reason: LinkFailure | None = None) -> None:
-        """
-        Record a link attempt's progress or outcome.
+    def set_status(
+        self, user_id: int, status: garmin_constants.LinkStatus, reason: garmin_constants.LinkFailure | None = None
+    ) -> None:
+        """Record a link attempt's progress or outcome.
 
         A failure to record is logged, not raised: the attempt itself must still finish, and
         the entry expires on its own.
@@ -139,8 +113,7 @@ class GarminLinkStateStore:
             logger.warning("Failed to record the Garmin link state", exc_info=err)
 
     def get(self, user_id: int) -> LinkState | None:
-        """
-        Read a user's link attempt state.
+        """Read a user's link attempt state.
 
         Args:
             user_id: Authenticated user ID.
@@ -153,16 +126,3 @@ class GarminLinkStateStore:
         """
         value = self._state.get(self._key(user_id))
         return LinkState(**json.loads(value)) if value is not None else None
-
-
-garmin_link_state_store = GarminLinkStateStore()
-
-
-def get_garmin_link_state_store() -> GarminLinkStateStore:
-    """
-    Return the module-level Garmin link state store instance.
-
-    Returns:
-        The global :data:`garmin_link_state_store` singleton.
-    """
-    return garmin_link_state_store

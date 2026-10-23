@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import modules.garmin.activity_utils as activity_utils
+import modules.garmin.activity_service as activity_utils
 
 
 def _make_garminconnect_client(activity_id: int = 12345) -> Mock:
@@ -56,7 +56,7 @@ def _patch_common(monkeypatch):
         "get_activity_by_garminconnect_id",
         Mock(return_value=None),
     )
-    monkeypatch.setattr(activity_utils.garmin_gear_utils, "resolve_synced_gear_id", Mock(return_value=None))
+    monkeypatch.setattr(activity_utils.garmin_gear_service, "resolve_synced_gear_id", Mock(return_value=None))
     monkeypatch.setattr(
         activity_utils.file_uploads,
         "save_validated_bytes_sync",
@@ -158,9 +158,9 @@ class TestExtractionFailureLogging:
 
         assert _call(client) is None
 
-        message = activity_utils.logger.warning.call_args.args[0]
-        assert "extraction failed" in message
-        assert "ValueError" in message
+        call = activity_utils.logger.warning.call_args
+        assert "extraction failed" in call.args[0]
+        assert call.kwargs["extra"]["error_type"] == "ValueError"
 
 
 class TestWorkDirectoryIsPrivate:

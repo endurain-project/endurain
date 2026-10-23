@@ -39,6 +39,7 @@ import modules.activities.activity_workout_steps.integration_service as activity
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
+import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
@@ -227,6 +228,17 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=notifications_subscriber_registry.register_all_notification_durable_handlers,
         nets=notifications_subscriber_registry.NOTIFICATION_DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=notifications_scheduled_jobs.recurring_jobs,
+    ),
+    RuntimeModule(
+        name="garmin",
+        recurring_jobs=garmin_scheduled_jobs.recurring_jobs,
+        startup_tasks=(
+            StartupTask(
+                "retrieve_recent_garmin_health",
+                "Retrieving last day health stats from Garmin Connect on startup",
+                garmin_scheduled_jobs.retrieve_recent_health,
+            ),
+        ),
     ),
     RuntimeModule(
         name="websocket",

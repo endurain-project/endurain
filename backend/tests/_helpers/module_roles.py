@@ -25,6 +25,7 @@ import pathlib
 CONVERTED_MODULES: tuple[str, ...] = (
     "activities",
     "followers",
+    "garmin",
     "gears",
     "notifications",
     "server_settings",
@@ -37,7 +38,6 @@ CONVERTED_MODULES: tuple[str, ...] = (
 #: module cannot start life silently outside the rules.
 UNCONVERTED_MODULES: tuple[str, ...] = (
     "auth",
-    "garmin",
     "health",
     "strava",
     "users",

@@ -1,4 +1,3 @@
-import asyncio
 import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -50,9 +49,7 @@ import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
-import modules.garmin.health_utils as garmin_health_utils
-import modules.garmin.provider_registry as garmin_provider_registry
-import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
+import modules.garmin.integration_service as garmin_integration
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
 import modules.strava.provider_registry as strava_provider_registry
@@ -134,11 +131,6 @@ def _run_alembic_migrations() -> None:
                     lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _MIGRATION_LOCK_KEY})
             finally:
                 lock_connection.execute(text("RESET lock_timeout"))
-
-
-async def _retrieve_recent_garmin_health() -> None:
-    """Backfill the last day of Garmin Connect health stats."""
-    await asyncio.to_thread(garmin_health_utils.retrieve_garminconnect_users_health_for_days, 1)
 
 
 def _purge_expired_tokens() -> None:
@@ -248,7 +240,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Providers register themselves with ingestion; ingestion imports none of
     # them. Must also happen in worker.py, where refresh jobs are claimed.
     strava_provider_registry.register_activity_provider()
-    garmin_provider_registry.register_activity_provider()
+    garmin_integration.register_activity_provider()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -275,7 +267,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
             *auth_scheduled_jobs.recurring_jobs(),
             *runtime_module_registry.recurring_jobs(),
             *strava_scheduled_jobs.recurring_jobs(),
-            *garmin_scheduled_jobs.recurring_jobs(),
         ]
     )
 
@@ -318,14 +309,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Phase 2: best-effort background syncs and clean-up. Provider activity syncs
     # are queued per user by activity ingestion's startup task below, so startup
     # does not wait on every user's provider round trips.
-    logger.info(
-        "Retrieving last day health stats from Garmin Connect on startup", extra=core_logger.context(console=True)
-    )
-    await _safe_run_async(
-        "retrieve_recent_garmin_health",
-        _retrieve_recent_garmin_health,
-    )
-
     logger.info(
         "Purging expired tokens (password reset, sign-up, OAuth state, IdP link)",
         extra=core_logger.context(console=True),

@@ -91,10 +91,3 @@ class TestGarminMFACodeStoreUnavailable:
     def test_delete_code_swallows_outage(self):
         # delete_code is best-effort (entries expire via TTL), so an outage must not raise.
         self._failing_store().delete_code(1)
-
-
-class TestGetGarminMFACodeStore:
-    """get_garmin_mfa_code_store: returns the module singleton."""
-
-    def test_returns_singleton(self):
-        assert mfa_code_store.get_garmin_mfa_code_store() is mfa_code_store.garmin_mfa_code_store

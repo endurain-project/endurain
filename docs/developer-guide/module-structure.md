@@ -738,7 +738,7 @@ the conformance test's allowlist.
 
 ### Pilot status and what the next conversion owns
 
-`activities`, `followers`, `gears`, `notifications`, `server_settings` and `websocket` are the only modules converted so far. The
+`activities`, `followers`, `garmin`, `gears`, `notifications`, `server_settings` and `websocket` are the only modules converted so far. The
 remaining modules are listed in `UNCONVERTED_MODULES` so that
 `TestModuleInventory` keeps them visible rather than silently exempt, and are
 converted one at a time with the `convert-module` skill. The items below need
@@ -782,8 +782,12 @@ limitations rather than half-done:
   where a module being converted lists its files.
 - **Subscribers reaching past a surface.** Followers holds no subscribers; its
   notification handlers live in `modules/notifications` and subscribe to
-  `followers.events` (`TestLayerRules`). `garmin`, `strava` and
+  `followers.events` (`TestLayerRules`). `strava` and
   `users.users_profile` still import another module's `utils`/`manager` directly.
+- **Forwarding surfaces on unconverted peers.** `garmin` reaches `users_integrations`, `health_sleep`,
+  `health_steps`, `health_weight` and `users.users` through small `integration_service.py` files that only
+  forward to their `crud`. Those `crud` functions still commit and raise `HTTPException`; the surfaces get
+  their real shape when the owning modules are converted.
 - **Legacy model scan.** Converted modules declare their ORM module in
   `model_registry.py` and use scalar foreign keys with database `ON DELETE`
   behaviour. `app/model_registry.py` keeps a filesystem scan only for modules not

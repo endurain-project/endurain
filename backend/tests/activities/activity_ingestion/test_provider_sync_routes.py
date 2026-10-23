@@ -6,16 +6,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
-import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.constants as garmin_constants
 import modules.garmin.router as garmin_router
+import modules.garmin.service as garmin_service
 import modules.strava.provider_registry as strava_provider_registry
 import modules.strava.router as strava_router
 
 _CASES = [
     pytest.param(
         garmin_router.garminconnect_retrieve_activities_days,
-        garmin_router,
-        garmin_provider_registry.PROVIDER_NAME,
+        garmin_service,
+        garmin_constants.PROVIDER_NAME,
         id="garmin",
     ),
     pytest.param(

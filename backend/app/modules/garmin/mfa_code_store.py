@@ -18,7 +18,6 @@ Interface::
 
 from typing import NoReturn
 
-import jasil.runtime as platform_runtime
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.exceptions as core_exceptions
@@ -28,13 +27,12 @@ import core.logger as core_logger
 logger = core_logger.get_logger(__name__)
 
 _GARMIN_MFA_KEY_PREFIX = "endurain:garmin:mfa:code"
-# TTL must exceed the MFA_WAIT_SECONDS a login waits for a code in garmin/utils.py.
+# TTL must exceed the MFA_WAIT_SECONDS a login waits for a code.
 _DEFAULT_TTL_SECONDS: int = 90
 
 
 class GarminMFACodeStoreUnavailableError(core_exceptions.ServiceUnavailableError):
-    """
-    Raised when the Garmin MFA code storage backend cannot be reached.
+    """Raised when the Garmin MFA code storage backend cannot be reached.
 
     Attributes:
         None.
@@ -42,8 +40,7 @@ class GarminMFACodeStoreUnavailableError(core_exceptions.ServiceUnavailableError
 
 
 def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
-    """
-    Log a storage outage and re-raise it as a Garmin-store error.
+    """Log a storage outage and re-raise it as a Garmin-store error.
 
     Args:
         operation: Storage operation that failed.
@@ -52,13 +49,16 @@ def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) 
     Raises:
         GarminMFACodeStoreUnavailableError: Always raised.
     """
-    logger.error(f"Garmin MFA code storage failed: {operation}", exc_info=err)
+    logger.error(
+        "Garmin MFA code storage failed",
+        exc_info=err,
+        extra=core_logger.context(operation=operation),
+    )
     raise GarminMFACodeStoreUnavailableError("Garmin MFA code storage is unavailable") from err
 
 
 def _user_id_digest(user_id: int) -> str:
-    """
-    Hash a user ID for storage key names.
+    """Hash a user ID for storage key names.
 
     Args:
         user_id: User ID to hash.
@@ -73,37 +73,29 @@ def _user_id_digest(user_id: int) -> str:
 
 
 class GarminMFACodeStore:
-    """
-    Temporary Garmin MFA code storage backed by the platform ``StateProvider``.
+    """Temporary Garmin MFA code storage backed by the platform ``StateProvider``.
 
     Attributes:
-        _state_override: Explicit provider (tests); ``None`` resolves the
-            process-wide provider lazily at call time.
+        _state: The platform state provider.
         _ttl_seconds: Code lifetime in seconds.
     """
 
-    def __init__(self, state: StateProvider | None = None, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
-        """
-        Initialize the Garmin MFA code store.
+    def __init__(self, state: StateProvider, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
+        """Initialize the Garmin MFA code store.
 
         Args:
-            state: Optional explicit state provider (defaults to the process-wide one).
+            state: The platform state provider.
             ttl_seconds: How long each stored code remains valid.
         """
-        self._state_override = state
+        self._state = state
         self._ttl_seconds = ttl_seconds
-
-    @property
-    def _state(self) -> StateProvider:
-        return self._state_override if self._state_override is not None else platform_runtime.get_state()
 
     def _key(self, user_id: int) -> str:
         """Build the storage key for a user's pending MFA code."""
         return f"{_GARMIN_MFA_KEY_PREFIX}:{_user_id_digest(user_id)}"
 
     def add_code(self, user_id: int, code: str) -> None:
-        """
-        Store a Garmin MFA code with TTL.
+        """Store a Garmin MFA code with TTL.
 
         Args:
             user_id: Authenticated user ID.
@@ -116,11 +108,13 @@ class GarminMFACodeStore:
             self._state.set(self._key(user_id), code.encode(), ttl_seconds=self._ttl_seconds)
         except StateBackendUnavailableError as err:
             _raise_store_unavailable("add Garmin MFA code", err)
-        logger.debug(f"Stored Garmin MFA code for user {user_id}")
+        logger.debug(
+            "Stored Garmin MFA code",
+            extra=core_logger.context(user_id=user_id),
+        )
 
     def get_code(self, user_id: int) -> str | None:
-        """
-        Retrieve a Garmin MFA code.
+        """Retrieve a Garmin MFA code.
 
         Args:
             user_id: Authenticated user ID.
@@ -138,8 +132,7 @@ class GarminMFACodeStore:
         return value.decode() if value is not None else None
 
     def delete_code(self, user_id: int) -> None:
-        """
-        Remove the Garmin MFA code for a user.
+        """Remove the Garmin MFA code for a user.
 
         Failures are swallowed because the entry expires via TTL anyway.
 
@@ -155,8 +148,7 @@ class GarminMFACodeStore:
             logger.warning("Failed to delete Garmin MFA code; entry will expire naturally via TTL", exc_info=err)
 
     def has_code(self, user_id: int) -> bool:
-        """
-        Return True when a non-expired code exists for a user.
+        """Return True when a non-expired code exists for a user.
 
         Args:
             user_id: Authenticated user ID.
@@ -173,8 +165,7 @@ class GarminMFACodeStore:
             _raise_store_unavailable("check Garmin MFA code", err)
 
     def clear_all(self) -> None:
-        """
-        Remove all Garmin MFA codes.
+        """Remove all Garmin MFA codes.
 
         Raises:
             GarminMFACodeStoreUnavailableError: When storage is unavailable.
@@ -183,19 +174,3 @@ class GarminMFACodeStore:
             self._state.delete_prefix(f"{_GARMIN_MFA_KEY_PREFIX}:")
         except StateBackendUnavailableError as err:
             _raise_store_unavailable("clear Garmin MFA codes", err)
-
-
-garmin_mfa_code_store = GarminMFACodeStore()
-
-
-def get_garmin_mfa_code_store() -> GarminMFACodeStore:
-    """
-    Return the module-level Garmin MFA code store instance.
-
-    Returns:
-        The global :data:`garmin_mfa_code_store` singleton.
-
-    Raises:
-        None.
-    """
-    return garmin_mfa_code_store

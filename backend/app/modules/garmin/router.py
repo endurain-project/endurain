@@ -1,4 +1,6 @@
-from datetime import UTC, date, datetime
+"""Garmin Connect routes: account linking, MFA, and activity, gear and health sync."""
+
+from datetime import date
 from typing import Annotated
 
 import jasil.providers as platform_providers
@@ -7,24 +9,15 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
-import core.exceptions as core_exceptions
-import core.logger as core_logger
 import core.rate_limit as core_rate_limit
-import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
-import modules.garmin.gear_utils as garmin_gear_utils
-import modules.garmin.health_utils as garmin_health_utils
-import modules.garmin.link_state_store as garmin_link_state_store
-import modules.garmin.mfa_code_store as garmin_mfa_code_store
-import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.dependencies as garmin_dependencies
+import modules.garmin.gear_service as garmin_gear_service
+import modules.garmin.health_service as garmin_health_service
 import modules.garmin.schema as garmin_schema
-import modules.garmin.utils as garmin_utils
-import modules.users.users_integrations.crud as user_integrations_crud
+import modules.garmin.service as garmin_service
 
-logger = core_logger.get_logger(__name__)
-
-# Define the API router
 router = APIRouter()
 
 
@@ -33,20 +26,16 @@ router = APIRouter()
     status_code=202,
     response_model=garmin_schema.GarminLinkStatus,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def garminconnect_link(
+    request: Request,
     garmin_user: garmin_schema.GarminLogin,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    mfa_codes: Annotated[
-        garmin_mfa_code_store.GarminMFACodeStore,
-        Depends(garmin_mfa_code_store.get_garmin_mfa_code_store),
-    ],
-    link_states: Annotated[
-        garmin_link_state_store.GarminLinkStateStore,
-        Depends(garmin_link_state_store.get_garmin_link_state_store),
-    ],
+    mfa_codes: garmin_dependencies.GarminMFACodeStoreDep,
+    link_states: garmin_dependencies.GarminLinkStateStoreDep,
 ) -> garmin_schema.GarminLinkStatus:
     """Start linking a Garmin Connect account and return at once.
 
@@ -54,18 +43,7 @@ def garminconnect_link(
     ``mfa_required``, submit the code to ``POST /garminconnect/mfa`` and keep polling until it
     reports ``completed`` or ``failed``. A second request while one is running is answered 409.
     """
-    if not link_states.begin(token_user_id):
-        raise core_exceptions.ConflictError("A Garmin Connect link is already in progress")
-
-    garmin_utils.start_garminconnect_link(
-        token_user_id,
-        garmin_user.username,
-        garmin_user.password,
-        mfa_codes,
-        link_states,
-        garmin_user.is_cn,
-    )
-    return garmin_schema.GarminLinkStatus(status=garmin_link_state_store.LinkStatus.PENDING)
+    return garmin_service.start_link(token_user_id, garmin_user, mfa_codes, link_states)
 
 
 @router.get(
@@ -77,33 +55,25 @@ def garminconnect_link_status(
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    link_states: Annotated[
-        garmin_link_state_store.GarminLinkStateStore,
-        Depends(garmin_link_state_store.get_garmin_link_state_store),
-    ],
+    link_states: garmin_dependencies.GarminLinkStateStoreDep,
 ) -> garmin_schema.GarminLinkStatus:
     """Report where the authenticated user's Garmin Connect link attempt is."""
-    state = link_states.get(token_user_id)
-    if state is None:
-        raise core_exceptions.NotFoundError("No Garmin Connect link in progress")
-    return garmin_schema.GarminLinkStatus(status=state.status, reason=state.reason)
+    return garmin_service.get_link_status(token_user_id, link_states)
 
 
-@router.post("/mfa")
-async def garminconnect_mfa_code(
+@router.post("/mfa", response_model=garmin_schema.MFAAccepted)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def garminconnect_mfa_code(
+    request: Request,
     mfa_request: garmin_schema.MFARequest,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    mfa_codes: Annotated[
-        garmin_mfa_code_store.GarminMFACodeStore,
-        Depends(garmin_mfa_code_store.get_garmin_mfa_code_store),
-    ],
-):
-    # Store the MFA code
-    mfa_codes.add_code(token_user_id, mfa_request.mfa_code)
-    return {"message": "MFA code received successfully"}
+    mfa_codes: garmin_dependencies.GarminMFACodeStoreDep,
+) -> garmin_schema.MFAAccepted:
+    """Hand the MFA code to the Garmin Connect login waiting for it."""
+    return garmin_service.submit_mfa_code(token_user_id, mfa_request.mfa_code, mfa_codes)
 
 
 @router.get(
@@ -132,72 +102,45 @@ def garminconnect_retrieve_activities_days(
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
-    if start_date > end_date:
-        raise core_exceptions.InvalidInputError("start_date must not be after end_date")
-
-    job = activity_ingestion_integration.request_provider_sync(
-        token_user_id,
-        garmin_provider_registry.PROVIDER_NAME,
-        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
-        storage,
-        db,
-    )
-    logger.info(f"Garmin Connect activities queued for user {token_user_id}")
-    return job
+    return garmin_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
 
 
-@router.get("/gear", status_code=202)
-async def garminconnect_retrieve_gear(
+@router.get("/gear", status_code=202, response_model=garmin_schema.GarminDetail)
+def garminconnect_retrieve_gear(
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
     background_tasks: BackgroundTasks,
-):
-    # Process strava activities in the background
-    background_tasks.add_task(
-        garmin_gear_utils.get_user_gear,
-        token_user_id,
+) -> garmin_schema.GarminDetail:
+    """Sync the user's Garmin Connect gear in the background."""
+    background_tasks.add_task(garmin_gear_service.get_user_gear, token_user_id)
+    return garmin_schema.GarminDetail(
+        detail=f"Garmin Connect gear will be processed in the background for for {token_user_id}"
     )
 
-    # Return success message and status code 202
-    logger.info(f"Garmin Connect gear will be processed in the background for user {token_user_id}")
-    return {"detail": f"Garmin Connect gear will be processed in the background for for {token_user_id}"}
 
-
-@router.get(
-    "/health",
-    status_code=202,
-)
-async def garminconnect_retrieve_health_days(
+@router.get("/health", status_code=202, response_model=garmin_schema.GarminDetail)
+def garminconnect_retrieve_health_days(
     start_date: date,
     end_date: date,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
-):
-    start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=UTC)
-    end_datetime = datetime.combine(end_date, datetime.max.time(), tzinfo=UTC)
-
-    # Process Garmin Connect activities in the background
-    background_tasks.add_task(
-        garmin_health_utils.get_user_garminconnect_health_by_dates,
-        start_datetime,
-        end_datetime,
-        token_user_id,
+) -> garmin_schema.GarminDetail:
+    """Sync the user's Garmin Connect health data for a date range in the background."""
+    background_tasks.add_task(garmin_health_service.sync_health_for_dates, start_date, end_date, token_user_id)
+    return garmin_schema.GarminDetail(
+        detail=f"Garmin Connect health data will be processed in the background for for {token_user_id}"
     )
 
-    # Return success message and status code 202
-    logger.info(f"Garmin Connect health data will be processed in the background for user {token_user_id}")
-    return {"detail": f"Garmin Connect health data will be processed in the background for for {token_user_id}"}
 
-
-@router.delete("/unlink")
-async def garminconnect_unlink(
+@router.delete("/unlink", response_model=garmin_schema.GarminDetail)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def garminconnect_unlink(
+    request: Request,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
@@ -206,9 +149,6 @@ async def garminconnect_unlink(
         Session,
         Depends(core_database.get_db),
     ],
-):
-    # unlink garmin connect account
-    user_integrations_crud.unlink_garminconnect_account(token_user_id, db)
-
-    # Return success message
-    return {"detail": f"Garmin Connect unlinked for user {token_user_id} successfully"}
+) -> garmin_schema.GarminDetail:
+    """Unlink the user's Garmin Connect account."""
+    return garmin_service.unlink_account(token_user_id, db)

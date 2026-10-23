@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-import modules.garmin.health_utils as health_utils
+import modules.garmin.health_service as health_utils
 import modules.health.health_sleep.schema as health_sleep_schema
 
 DAY = datetime(2026, 9, 29, tzinfo=UTC)
@@ -29,9 +29,9 @@ def _run(payload: dict, existing: MagicMock | None) -> tuple[int, MagicMock, Mag
     client = MagicMock()
     client.get_sleep_data.return_value = payload
     with (
-        patch.object(health_utils.health_sleep_crud, "get_health_sleep_by_date_and_user_id", return_value=existing),
-        patch.object(health_utils.health_sleep_crud, "edit_health_sleep") as edit,
-        patch.object(health_utils.health_sleep_crud, "create_health_sleep") as create,
+        patch.object(health_utils.health_sleep_integration, "get_health_sleep_by_date", return_value=existing),
+        patch.object(health_utils.health_sleep_integration, "edit_health_sleep") as edit,
+        patch.object(health_utils.health_sleep_integration, "create_health_sleep") as create,
     ):
         count = health_utils.fetch_and_process_sleep_by_dates(client, DAY, DAY, 1, MagicMock())
     return count, edit, create

@@ -1,16 +1,34 @@
+"""Garmin Connect request and response shapes."""
+
 from pydantic import BaseModel
 
-import modules.garmin.link_state_store as garmin_link_state_store
+import modules.garmin.constants as garmin_constants
 
 
 class GarminLogin(BaseModel):
+    """Credentials a user submits to link Garmin Connect."""
+
     username: str
     password: str
     is_cn: bool = False
 
 
 class MFARequest(BaseModel):
+    """The MFA code a user submits to finish a link attempt."""
+
     mfa_code: str
+
+
+class MFAAccepted(BaseModel):
+    """Acknowledgement that an MFA code was stored."""
+
+    message: str
+
+
+class GarminDetail(BaseModel):
+    """A human-readable outcome of a Garmin Connect request."""
+
+    detail: str
 
 
 class GarminLinkStatus(BaseModel):
@@ -22,5 +40,5 @@ class GarminLinkStatus(BaseModel):
         reason: Why the attempt failed; set only when ``status`` is ``failed``.
     """
 
-    status: garmin_link_state_store.LinkStatus
-    reason: garmin_link_state_store.LinkFailure | None = None
+    status: garmin_constants.LinkStatus
+    reason: garmin_constants.LinkFailure | None = None
