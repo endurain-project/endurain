@@ -20,5 +20,5 @@ Storage, events, jobs, schedules and nets are covered in `platform-jasil.md`; th
 
 Review the code or diff against every row and report:
 
-1. Blockers: severity (critical blocks scaling or zero-downtime deploys, moderate affects UX or operations, low is worth fixing), `file:line`, current behavior, why it fails with several replicas, fix.
+1. Findings: severity (critical blocks scaling or zero-downtime deploys, moderate affects UX or operations, low is worth fixing), `file:line`, current behavior, why it fails with several replicas, fix.
 2. Rows checked and clear, so coverage is visible.

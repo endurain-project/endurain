@@ -68,7 +68,7 @@ npm run gen:api      # after backend API changes
 - Ask for clarification when scope is unclear instead of assuming extra deliverables.
 - A change touching more than one module or both stacks starts with a short task list in chat for approval; keep plans in chat or `devdocs/`, never in tracked files.
 - Bug fixes and new behavior start with a failing test.
-- Done means the checks in the stack skill ran and their output was read; say which ran and which did not.
+- Done means the checks that apply to what changed ran and their output was read; say which ran and which did not (stack checks do not apply to docs, `AGENTS.md` or skill-only changes).
 - Before reporting a larger change done, compare the diff to the request and remove anything not asked for.
 
 ## Backend invariants
