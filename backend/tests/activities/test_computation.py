@@ -17,6 +17,7 @@ from modules.activities.computation import (
     calculate_instant_speed,
     calculate_np,
     calculate_pace,
+    calculate_pace_from_duration,
     calculate_robust_max,
     compute_elevation_gain_and_loss,
     smooth_elevation_stream,
@@ -189,6 +190,23 @@ class TestCalculatePace:
             first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
             last_waypoint_time=datetime(2024, 1, 15, 8, 25, 0),
         )
+        assert result == 1500.0 / 5000
+
+
+class TestCalculatePaceFromDuration:
+    def test_returns_zero_when_distance_zero(self):
+        assert calculate_pace_from_duration(distance=0, duration_seconds=600) == 0
+
+    def test_returns_zero_when_duration_non_positive(self):
+        assert calculate_pace_from_duration(distance=5000, duration_seconds=0) == 0
+        assert calculate_pace_from_duration(distance=5000, duration_seconds=-10) == 0
+
+    def test_calculates_pace_correctly(self):
+        result = calculate_pace_from_duration(distance=10000, duration_seconds=3600)
+        assert result == 3600.0 / 10000
+
+    def test_calculates_pace_with_fractional_duration(self):
+        result = calculate_pace_from_duration(distance=5000, duration_seconds=1500)
         assert result == 1500.0 / 5000
 
 

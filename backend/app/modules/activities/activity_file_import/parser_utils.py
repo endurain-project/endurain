@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import itertools
+import statistics
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, TypedDict
 
@@ -17,6 +19,21 @@ if TYPE_CHECKING:
 
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
+
+# Minimum gap in seconds between two consecutive trackpoints that counts as a
+# recording pause. GPS devices record every 1-5 s (smart recording modes
+# occasionally stretch further), so 15 s tolerates dropped fixes while real
+# pauses (issue #571) are typically well above it. Gaps strictly greater than
+# the pause threshold are excluded from timer time and from the distance
+# accumulated across the gap.
+PAUSE_DETECTION_THRESHOLD_SECONDS: float = 15.0
+
+# Sparse tracks (e.g. 30 s or 60 s battery-saving recording) sample above the
+# minimum, so the pause threshold is this many times the track's median
+# sampling interval when that is larger. Below the minimum gap count a median
+# cannot tell sparse sampling from a pause, so the minimum threshold applies.
+PAUSE_DETECTION_SAMPLING_FACTOR: float = 3.0
+PAUSE_DETECTION_MIN_GAPS_FOR_MEDIAN: int = 3
 
 # Canonical keys present in every activity file payload's waypoint streams.
 # Used as documentation and for IDE hint support.
@@ -548,3 +565,58 @@ def compute_distance_from_waypoints(lat_lon_waypoints: list[dict]) -> float:
             (current_point["lat"], current_point["lon"]),
         ).meters
     return total
+
+
+def pause_threshold_seconds(times: list[datetime]) -> float:
+    """Return the gap in seconds above which a trackpoint gap is a pause.
+
+    The threshold is ``PAUSE_DETECTION_SAMPLING_FACTOR`` times the median
+    positive gap between consecutive timestamps, but never below
+    ``PAUSE_DETECTION_THRESHOLD_SECONDS``. The median is unaffected by the
+    few long gaps that real pauses produce. With fewer than
+    ``PAUSE_DETECTION_MIN_GAPS_FOR_MEDIAN`` positive gaps the minimum is
+    returned.
+
+    Args:
+        times: Trackpoint timestamps in recording order, without ``None``
+            entries.
+
+    Returns:
+        The pause threshold in seconds.
+    """
+    gaps = [(b - a).total_seconds() for a, b in itertools.pairwise(times)]
+    positive_gaps = [gap for gap in gaps if gap > 0]
+    if len(positive_gaps) < PAUSE_DETECTION_MIN_GAPS_FOR_MEDIAN:
+        return PAUSE_DETECTION_THRESHOLD_SECONDS
+    return max(
+        PAUSE_DETECTION_THRESHOLD_SECONDS,
+        PAUSE_DETECTION_SAMPLING_FACTOR * statistics.median(positive_gaps),
+    )
+
+
+def compute_moving_time_from_times(times: list[datetime]) -> float:
+    """Compute moving time in seconds from ordered trackpoint timestamps.
+
+    Sums the delta from the latest timestamp seen so far to each next one,
+    skipping pause gaps (deltas above ``pause_threshold_seconds``, issue
+    #571). Duplicate or out-of-order timestamps add nothing and do not
+    become the baseline.
+
+    Args:
+        times: Trackpoint timestamps in recording order, without ``None``
+            entries.
+
+    Returns:
+        Moving time in seconds. ``0.0`` if fewer than two timestamps.
+    """
+    threshold = pause_threshold_seconds(times)
+    moving_time = 0.0
+    baseline = times[0] if times else None
+    for time in times[1:]:
+        delta = (time - baseline).total_seconds()
+        if delta <= 0:
+            continue
+        if delta <= threshold:
+            moving_time += delta
+        baseline = time
+    return moving_time

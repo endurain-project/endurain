@@ -82,6 +82,13 @@ def _parse_laps(
                 lap_gain, lap_loss = activities_computation.sum_elevation_deltas(lap_ele)
                 lap_ascent, lap_descent = round(lap_gain), round(lap_loss)
 
+        lap_elapsed = (lap.end_time - lap.start_time).total_seconds() if lap.start_time and lap.end_time else None
+        # Timer time excludes recording pauses (issue #571); fall back to
+        # elapsed for laps without usable trackpoint timestamps.
+        lap_moving = activity_file_import_parser_utils.compute_moving_time_from_times(
+            [tp.time for tp in lap.trackpoints if tp.time is not None]
+        )
+
         laps.append(
             {
                 "start_time": core_timezone.to_utc_aware(lap.start_time),
@@ -89,12 +96,8 @@ def _parse_laps(
                 "start_position_long": (lap.trackpoints[0].longitude),
                 "end_position_lat": (lap.trackpoints[-1].latitude),
                 "end_position_long": (lap.trackpoints[-1].longitude),
-                "total_elapsed_time": (
-                    (lap.end_time - lap.start_time).total_seconds() if lap.start_time and lap.end_time else None
-                ),
-                "total_timer_time": (
-                    (lap.end_time - lap.start_time).total_seconds() if lap.start_time and lap.end_time else None
-                ),
+                "total_elapsed_time": lap_elapsed,
+                "total_timer_time": lap_moving if lap_moving > 0 else lap_elapsed,
                 "total_distance": (round(lap.distance) if lap.distance else None),
                 "total_calories": (round(lap.calories) if lap.calories else None),
                 "avg_heart_rate": (round(lap.hr_avg) if lap.hr_avg else None),
@@ -128,19 +131,10 @@ def _extract_waypoints(
         tcx_file: Parsed TCX file object.
 
     Returns:
-        Dict with lat_lon, hr, cad, ele, power,
-        vel, and pace waypoint lists.
+        Dict with lat_lon, hr, cad, ele, power, vel, and pace waypoint
+        lists, plus pause-split ``lat_lon_segments`` and the accumulated
+        ``moving_time`` in seconds.
     """
-    lat_lon_waypoints = [
-        {
-            "time": core_timezone.format_utc(tp["time"]),
-            "lat": tp["latitude"],
-            "lon": tp["longitude"],
-        }
-        for tp in trackpoints
-        if tp.get("time") is not None
-    ]
-
     hr_waypoints = [
         {
             "time": core_timezone.format_utc(tp["time"]),
@@ -186,11 +180,25 @@ def _extract_waypoints(
         if (hasattr(tp, "tpx_ext") and "Watts" in tp.tpx_ext and tp.time is not None)
     ]
 
+    lat_lon_waypoints: list[dict] = []
+    lat_lon_segments: list[list[dict]] = []
     vel_waypoints: list[dict] = []
     pace_waypoints: list[dict] = []
+    moving_time = 0.0
+    pause_threshold = activity_file_import_parser_utils.pause_threshold_seconds(
+        [tp["time"] for tp in trackpoints if tp["time"] is not None]
+    )
+    segment_start_idx = 0
     last_time = None
     prev_lat = None
     prev_lon = None
+
+    def _close_segment() -> int:
+        """Flush the open pause-split sub-segment when it has two points."""
+        segment_waypoints = lat_lon_waypoints[segment_start_idx:]
+        if len(segment_waypoints) >= 2:
+            lat_lon_segments.append(segment_waypoints)
+        return len(lat_lon_waypoints)
 
     for tp in trackpoints:
         lat = tp["latitude"]
@@ -200,7 +208,30 @@ def _extract_waypoints(
         if time_val is None:
             continue
 
+        if last_time is not None:
+            delta = (time_val - last_time).total_seconds()
+            if delta > pause_threshold:
+                # Recording pause (issue #571): split the GPS track so the
+                # gap contributes neither distance nor speed, and keep the
+                # gap out of the moving time.
+                segment_start_idx = _close_segment()
+                last_time = None
+                prev_lat = None
+                prev_lon = None
+            elif delta > 0:
+                moving_time += delta
+            # Non-positive deltas (duplicate/out-of-order timestamps) add
+            # nothing and leave the previous point as the baseline below.
+
         timestamp = core_timezone.format_utc(time_val)
+
+        lat_lon_waypoints.append(
+            {
+                "time": timestamp,
+                "lat": lat,
+                "lon": lon,
+            }
+        )
 
         instant_speed = activities_computation.calculate_instant_speed(
             last_time,
@@ -226,14 +257,19 @@ def _extract_waypoints(
             "pace",
         )
 
-        prev_lat, prev_lon, last_time = (
-            lat,
-            lon,
-            time_val,
-        )
+        if last_time is None or time_val > last_time:
+            prev_lat, prev_lon, last_time = (
+                lat,
+                lon,
+                time_val,
+            )
+
+    _close_segment()
 
     return {
         "lat_lon_waypoints": lat_lon_waypoints,
+        "lat_lon_segments": lat_lon_segments,
+        "moving_time": moving_time,
         "hr_waypoints": hr_waypoints,
         "cad_waypoints": cad_waypoints,
         "ele_waypoints": ele_waypoints,
@@ -259,6 +295,7 @@ def _build_activity(
     norm_power: float | None,
     elevation_gain: int | None = None,
     elevation_loss: int | None = None,
+    timer_time: float | None = None,
 ) -> activity_contracts.ActivityCore:
     """Construct an ActivityCore ingestion contract from parsed TCX data.
 
@@ -282,6 +319,8 @@ def _build_activity(
         norm_power: Normalized power or None.
         elevation_gain: Smoothed elevation gain in metres or None.
         elevation_loss: Smoothed elevation loss in metres or None.
+        timer_time: Active (moving) time in seconds, or None to fall back
+            to the wall-clock elapsed time.
 
     Returns:
         Populated Activity Pydantic schema.
@@ -307,7 +346,7 @@ def _build_activity(
         start_time=start_time,
         end_time=end_time,
         total_elapsed_time=elapsed,
-        total_timer_time=elapsed,
+        total_timer_time=timer_time if timer_time else elapsed,
         city=city,
         town=town,
         country=country,
@@ -384,19 +423,32 @@ def parse_tcx_file(
 
         lat_lon_wp = waypoints["lat_lon_waypoints"]
         power_wp = waypoints["power_waypoints"]
+        # Pause-derived values are parser-internal: keep them out of the
+        # payload's waypoint streams.
+        lat_lon_segments = waypoints.pop("lat_lon_segments")
+        moving_time = waypoints.pop("moving_time", 0.0)
 
         distance = round(tcx_file.distance) if tcx_file.distance else 0
         if not distance and lat_lon_wp:
             # Some TCX sources omit the summary Distance element even when a
             # GPS track is present. Fall back to the geodesic sum over the
-            # track, mirroring the FIT/GPX importers.
-            distance = round(activity_file_import_parser_utils.compute_distance_from_waypoints(lat_lon_wp))
+            # pause-split track segments, mirroring the FIT/GPX importers
+            # (issue #571: the hop across a pause is not travelled distance).
+            distance = round(
+                sum(
+                    activity_file_import_parser_utils.compute_distance_from_waypoints(segment_waypoints)
+                    for segment_waypoints in lat_lon_segments
+                )
+            )
+
+        timer_time = moving_time
+        if not timer_time and tcx_file.start_time and tcx_file.end_time:
+            timer_time = (tcx_file.end_time - tcx_file.start_time).total_seconds()
 
         if lat_lon_wp:
-            pace = activities_computation.calculate_pace(
+            pace = activities_computation.calculate_pace_from_duration(
                 distance,
-                trackpoints[0]["time"],
-                trackpoints[-1]["time"],
+                timer_time,
             )
 
             timezone = activity_file_import_parser_utils.resolve_timezone_from_lat_lon(
@@ -438,6 +490,7 @@ def parse_tcx_file(
             norm_power=norm_power,
             elevation_gain=elevation_gain,
             elevation_loss=elevation_loss,
+            timer_time=moving_time,
         )
 
         waypoints_combined = {

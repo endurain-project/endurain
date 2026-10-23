@@ -274,6 +274,29 @@ def calculate_pace(
     return pace_seconds_per_meter
 
 
+def calculate_pace_from_duration(
+    distance: float,
+    duration_seconds: float,
+) -> float:
+    """Compute average pace (seconds per meter) from an active duration.
+
+    Mirrors the FIT importer semantics (pace = timer time / distance) so
+    GPX/TCX imports exclude recording pauses from pace (issue #571).
+
+    Args:
+        distance: Total distance in meters.
+        duration_seconds: Active (timer) time in seconds.
+
+    Returns:
+        Pace in s/m, or 0 when ``distance`` is 0 or the duration is not
+        positive.
+    """
+    if distance == 0 or duration_seconds <= 0:
+        return 0
+
+    return duration_seconds / distance
+
+
 def calculate_avg_and_max(data: list[dict], stream_type: str, exclude_zeros: bool = False) -> tuple[float, float]:
     """Compute the mean and max of ``stream_type`` across waypoints.
 

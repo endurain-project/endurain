@@ -51,6 +51,8 @@ class ParseState:
     ele_gain: float | None = None
     ele_loss: float | None = None
     pace: float = 0
+    moving_time: float = 0.0
+    pause_threshold: float = activity_file_import_parser_utils.PAUSE_DETECTION_THRESHOLD_SECONDS
     first_waypoint_time: datetime | None = None
     last_waypoint_time: datetime | None = None
     gear_id: int | None = None
@@ -69,6 +71,7 @@ class ParseState:
     prev_longitude: float | None = None
     prev_waypoint_time: datetime | None = None
     lat_lon_segments: list[list[dict]] = field(default_factory=list)
+    segment_start_idx: int = 0
     is_lat_lon_set: bool = False
     is_elevation_set: bool = False
     is_power_set: bool = False
@@ -81,6 +84,31 @@ class ParseState:
         self.prev_latitude = None
         self.prev_longitude = None
         self.prev_waypoint_time = None
+
+    def close_segment(self) -> None:
+        """Flush waypoints accumulated since the last segment boundary.
+
+        Appends the open sub-segment to ``lat_lon_segments`` when it holds
+        at least two points (shorter runs carry no distance or laps), then
+        advances the segment cursor. Called at ``<trkseg>`` ends and at
+        detected pause boundaries (issue #571).
+        """
+        segment_waypoints = self.lat_lon_waypoints[self.segment_start_idx :]
+        if len(segment_waypoints) >= 2:
+            self.lat_lon_segments.append(segment_waypoints)
+        self.segment_start_idx = len(self.lat_lon_waypoints)
+
+    def effective_timer_time(self) -> float:
+        """Return moving time, falling back to wall-clock elapsed time.
+
+        The fallback keeps summary-only or fully-paused tracks from
+        reporting a zero timer time.
+        """
+        if self.moving_time > 0:
+            return self.moving_time
+        if self.first_waypoint_time is None or self.last_waypoint_time is None:
+            return 0.0
+        return (self.last_waypoint_time - self.first_waypoint_time).total_seconds()
 
 
 class ParsedGpxData(TypedDict):
@@ -304,6 +332,19 @@ def _process_trackpoint(
     if time is None:
         return
 
+    if state.prev_waypoint_time is not None:
+        delta = (time - state.prev_waypoint_time).total_seconds()
+        if delta > state.pause_threshold:
+            # Recording pause (issue #571): split the segment so the gap
+            # contributes neither distance nor speed, and keep the gap out
+            # of the moving time.
+            state.close_segment()
+            state.reset_segment()
+        elif delta > 0:
+            state.moving_time += delta
+        # Non-positive deltas (duplicate/out-of-order timestamps) add nothing
+        # and leave the previous point as the baseline below.
+
     if elevation is not None:
         state.is_elevation_set = True
 
@@ -395,9 +436,10 @@ def _process_trackpoint(
         "pace",
     )
 
-    state.prev_latitude = latitude
-    state.prev_longitude = longitude
-    state.prev_waypoint_time = time
+    if state.prev_waypoint_time is None or time > state.prev_waypoint_time:
+        state.prev_latitude = latitude
+        state.prev_longitude = longitude
+        state.prev_waypoint_time = time
     state.last_waypoint_time = time
 
 
@@ -416,10 +458,9 @@ def _compute_derived_metrics(
         state.ele_gain = gain
         state.ele_loss = loss
 
-    state.pace = activities_computation.calculate_pace(
+    state.pace = activities_computation.calculate_pace_from_duration(
         state.distance,
-        state.first_waypoint_time,
-        state.last_waypoint_time,
+        state.effective_timer_time(),
     )
 
     state.activity_type = activity_constants.define_activity_type(
@@ -492,7 +533,7 @@ def _build_activity_schema(
         end_time=core_timezone.to_utc_second(state.last_waypoint_time),
         timezone=state.timezone,
         total_elapsed_time=elapsed,
-        total_timer_time=elapsed,
+        total_timer_time=state.effective_timer_time(),
         city=state.city,
         town=state.town,
         country=state.country,
@@ -557,6 +598,16 @@ def parse_gpx_file(
             if not gpx.tracks:
                 raise core_exceptions.InvalidInputError("Invalid GPX file - no tracks found in the GPX file")
 
+            state.pause_threshold = activity_file_import_parser_utils.pause_threshold_seconds(
+                [
+                    point.time
+                    for track in gpx.tracks
+                    for segment in track.segments
+                    for point in segment.points
+                    if point.time is not None
+                ]
+            )
+
             for track in gpx.tracks:
                 _process_track_metadata(track, gpx, state)
 
@@ -565,19 +616,16 @@ def parse_gpx_file(
 
                 for segment in track.segments:
                     state.reset_segment()
-                    segment_start = len(state.lat_lon_waypoints)
 
                     for point in segment.points:
                         _process_trackpoint(point, state)
 
-                    segment_waypoints = state.lat_lon_waypoints[segment_start:]
-                    if len(segment_waypoints) >= 2:
-                        state.lat_lon_segments.append(segment_waypoints)
+                    state.close_segment()
 
         if state.first_waypoint_time is None or state.last_waypoint_time is None:
             raise core_exceptions.InvalidInputError("Invalid GPX file - no trackpoints with valid time data found")
 
-        if not state.lat_lon_segments:
+        if not state.lat_lon_segments and len(state.lat_lon_waypoints) < 2:
             raise core_exceptions.InvalidInputError(
                 "Invalid GPX file - no valid segments with at least two timed GPS trackpoints found"
             )
