@@ -119,6 +119,8 @@ WARNING: Failed to resolve TRUSTED_PROXIES hostname 'nonexistent': [Errno -3] Te
 
 **Uvicorn forwarded headers:** with `BEHIND_PROXY=true` the container entrypoint also translates `TRUSTED_PROXIES` into uvicorn's `FORWARDED_ALLOW_IPS`, which is what makes `request.client` and the uvicorn access log (visible in `docker logs`) show the real client address instead of the proxy. Hostnames are resolved once at container start for this list, so a proxy that changes IP afterwards is only picked up on the next Endurain restart — the application's own client IP detection (rate limiting, sessions, audit logs) keeps working because it re-resolves hostnames periodically. When `TRUSTED_PROXIES` is unset, uvicorn keeps its default of trusting only `127.0.0.1` and logs a warning at startup. Setting `FORWARDED_ALLOW_IPS` explicitly in the container environment overrides this translation.
 
+**Abuse and DDoS protection:** Endurain rate limits requests per user (or per client IP when unauthenticated) and caps upload sizes, but it does not absorb volumetric floods. Run it behind a reverse proxy or CDN that limits connections and request rates per client, caps request body size, and sets header and body timeouts so slow clients cannot hold connections open. Keep `RATE_LIMIT_ENABLED` at `true` and set `TRUSTED_PROXIES` correctly: a wrong value lets clients spoof their IP to evade limits, or puts every client in the proxy's single bucket.
+
 Table below shows the obligatory environment variables for postgres container. You should set them based on what was also set for the Endurain container.
 
 | Environemnt variable  | Default value | Optional | Notes |
