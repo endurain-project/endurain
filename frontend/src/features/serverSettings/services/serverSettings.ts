@@ -25,6 +25,7 @@ import { apiFetch } from '@/services/http'
 export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
   return {
     id: dto.id,
+    version: dto.version,
     units: dto.units,
     currency: dto.currency,
     numRecordsPerPage: dto.num_records_per_page,
@@ -166,13 +167,14 @@ export async function fetchTileMapsTemplates(signal?: AbortSignal): Promise<Tile
  *
  * @param settings - The full settings to persist.
  * @returns The updated server settings, mapped to the clean model.
- * @throws {HttpError} When the request fails (e.g. invalid tile-server URL).
+ * @throws {HttpError} When the request fails (e.g. invalid tile-server URL), including 412 when the copy is stale.
  */
 export async function updateServerSettings(
   settings: ServerSettingsUpdate,
 ): Promise<ServerSettings> {
   const dto = await apiFetch<ServerSettingsDto>('/server_settings', {
     method: 'PUT',
+    headers: { 'If-Match': `"${settings.version}"` },
     body: JSON.stringify(toServerSettingsWire(settings)),
   })
   return mapServerSettings(dto)
@@ -245,6 +247,7 @@ export async function sendTestEmail(): Promise<string> {
  */
 export function mapMailSettings(dto: MailSettingsDto): MailSettings {
   return {
+    version: dto.version,
     host: dto.host,
     port: dto.port,
     security: dto.security,
@@ -296,11 +299,12 @@ export async function fetchMailSettings(signal?: AbortSignal): Promise<MailSetti
  *
  * @param settings - The mail settings to persist.
  * @returns The updated mail settings, mapped to the clean model.
- * @throws {HttpError} `400` when the configuration is not usable or a field is env-managed.
+ * @throws {HttpError} `400` when the configuration is not usable or a field is env-managed, `412` when the copy is stale.
  */
 export async function updateMailSettings(settings: MailSettingsUpdate): Promise<MailSettings> {
   const dto = await apiFetch<MailSettingsDto>('/server_settings/email/settings', {
     method: 'PUT',
+    headers: { 'If-Match': `"${settings.version}"` },
     body: JSON.stringify(toMailSettingsWire(settings)),
   })
   return mapMailSettings(dto)

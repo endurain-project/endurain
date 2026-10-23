@@ -242,11 +242,9 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
             ),
         )
         raise core_exceptions.AccessConcealedError("Follow relationship not found")
-    # Read before the delete: only a request that was still pending has a notification to take back.
-    existing = followers_crud.get_follower_for_user_id_and_target_user_id(follower_id, followee_id, db)
-    was_pending = existing is not None and existing.status == followers_constants.FollowStatus.PENDING
-    followers_crud.delete_follower(follower_id, followee_id, db)
-    if was_pending:
+    deleted_status = followers_crud.delete_follower(follower_id, followee_id, db)
+    # Only a request that was still pending has a notification to take back.
+    if deleted_status == followers_constants.FollowStatus.PENDING:
         followers_event_publishers.publish_follower_request_removed(
             follower_id, followee_id, db, commit=db.commit, source="api:delete_follow_relationship"
         )
@@ -298,6 +296,7 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
 
     Raises:
         InvalidInputError: If the requester targets themselves.
+        TooManyRequestsError: If the target already has the maximum pending requests.
         ConflictError: If the relationship already exists.
         NotFoundError: If the target user does not exist.
     """
@@ -306,6 +305,15 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
         # notifications.
         raise core_exceptions.InvalidInputError("Cannot follow yourself")
 
+    if (
+        followers_crud.count_pending_requests_for_user_id(target_user_id, db)
+        >= followers_constants.MAX_PENDING_REQUESTS
+    ):
+        logger.warning(
+            "Refused a follow request: the target has too many pending",
+            extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
+        )
+        raise core_exceptions.TooManyRequestsError("This user has too many pending follow requests")
     follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
     followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db, commit=db.commit)
     logger.info(

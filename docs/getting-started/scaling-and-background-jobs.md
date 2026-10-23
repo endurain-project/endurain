@@ -181,6 +181,9 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 - A worker killed mid-job is not noticed instantly: its job is requeued once the lease expires and the reaper (which runs every minute) sees it, so expect it to finish a few minutes late rather than be lost.
 - A single job is abandoned after 30 minutes of running, even while its worker is healthy; it is handed back to the reaper like a job whose worker died.
 - Dead-lettered jobs are kept for review and are never pruned automatically.
+- Each API process keeps at most five live-update sockets per user (the oldest is closed), so with several replicas a user can hold up to five per replica.
+- After an admin changes the map tile server, the replica that handled the save allows the new tile domain in its content security policy at once; the other replicas pick it up within 30 seconds, so maps from a new tile server can be blocked there for that long.
+- A database statement that waits more than 30 seconds for a row lock fails instead of waiting, and a request that cannot get a database connection within 30 seconds fails.
 
 ## Sizing
 

@@ -49,6 +49,7 @@ class ServerSettings(Base):
         access_token_expire_minutes: Access token lifetime in minutes.
         refresh_token_expire_days: Refresh token lifetime in days.
         read_notification_retention_days: Days after which read notifications are purged (0 - never).
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
     """
 
     __tablename__ = "server_settings"
@@ -233,6 +234,17 @@ class ServerSettings(Base):
         comment="Days after which read notifications are purged (0 - never)",
     )
 
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+
     __table_args__ = (
         CheckConstraint("id = 1", name="single_row_check"),
         CheckConstraint(
@@ -259,6 +271,7 @@ class MailSettings(Base):
         username: Authentication username.
         password: Authentication password (encrypted).
         from_address: Sender address; the username is used when NULL.
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
     """
 
     __tablename__ = "mail_settings"
@@ -305,6 +318,17 @@ class MailSettings(Base):
         nullable=True,
         comment="Sender address (NULL - the username is used)",
     )
+
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
 
     __table_args__ = (
         CheckConstraint("id = 1", name="mail_settings_single_row_check"),

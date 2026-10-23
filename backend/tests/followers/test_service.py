@@ -58,6 +58,7 @@ class TestFollowUser:
         from modules.followers.service import follow_user
 
         db = MagicMock()
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
         mock_crud.create_follower.return_value = FollowRelationshipRead(follower_id=1, followee_id=2, status="pending")
 
         result = follow_user(1, 2, db)
@@ -78,6 +79,23 @@ class TestFollowUser:
             follow_user(1, 1, db)
 
         assert e.value.status_code == 400
+        mock_crud.create_follower.assert_not_called()
+        mock_pub.publish_follower_requested.assert_not_called()
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_target_with_too_many_pending_requests_is_refused(self, mock_crud, mock_pub):
+        import core.exceptions as core_exceptions
+        from modules.followers.constants import MAX_PENDING_REQUESTS
+        from modules.followers.service import follow_user
+
+        db = MagicMock()
+        mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as e:
+            follow_user(1, 2, db)
+
+        assert e.value.status_code == 429
         mock_crud.create_follower.assert_not_called()
         mock_pub.publish_follower_requested.assert_not_called()
 
@@ -111,6 +129,7 @@ class TestDeleteRelationship:
         [("pending", True), ("accepted", False)],
     )
     def test_only_a_pending_request_publishes_its_removal(self, status, published):
+        from modules.followers.constants import FollowStatus
         from modules.followers.service import delete_relationship
 
         db = MagicMock()
@@ -118,7 +137,7 @@ class TestDeleteRelationship:
             patch("modules.followers.service.followers_crud") as crud,
             patch("modules.followers.service.followers_event_publishers") as pub,
         ):
-            crud.get_follower_for_user_id_and_target_user_id.return_value = MagicMock(status=status)
+            crud.delete_follower.return_value = FollowStatus(status)
             delete_relationship(2, 1, 1, db)
 
         assert pub.publish_follower_request_removed.called is published

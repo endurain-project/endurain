@@ -156,7 +156,7 @@ export async function searchGearsByNickname(
  */
 export async function fetchGearById(id: number, signal?: AbortSignal): Promise<GearDetail | null> {
   try {
-    const dto = await apiFetch<GearDetailDto | null>(`/gears/id/${id}`, { signal })
+    const dto = await apiFetch<GearDetailDto | null>(`/gears/${id}`, { signal })
     return dto ? mapGearDetail(dto) : null
   } catch (error) {
     if (error instanceof HttpError && error.status === 404) return null

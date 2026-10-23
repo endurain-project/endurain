@@ -95,6 +95,7 @@ async function submitForm(formValues: MailSettingsFormValues): Promise<void> {
   const password = formValues.removePassword ? null : formValues.password || undefined
   try {
     await updateMutation.mutateAsync({
+      version: props.settings.version,
       host: formValues.host.trim() || null,
       port: Number(formValues.port.trim()),
       security: formValues.security,
@@ -106,6 +107,11 @@ async function submitForm(formValues: MailSettingsFormValues): Promise<void> {
     values.removePassword = false
     toasts.success(t('settings.server.email.saveSuccess'))
   } catch (error) {
+    // 412 is a refusal to overwrite: another admin saved since this form was loaded.
+    if (error instanceof HttpError && error.status === 412) {
+      toasts.error(t('settings.server.staleError'))
+      return
+    }
     const detail =
       error instanceof HttpError && typeof error.detail === 'string' ? error.detail : null
     toasts.error(detail ?? t('settings.server.email.saveError'))

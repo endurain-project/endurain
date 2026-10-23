@@ -22,6 +22,7 @@ import { useForm } from '@/composables/useForm'
 import { useToasts } from '@/composables/useToasts'
 import EnvManagedHint from '@/features/serverSettings/components/EnvManagedHint.vue'
 import { useUpdateServerSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
+import { HttpError } from '@/services/http'
 
 const props = defineProps<{
   /** The loaded server settings; seeds the form (the parent mounts this only after load). */
@@ -240,8 +241,13 @@ async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
       geocodingApiKey: geocodingKey,
     })
     toasts.success(t('settings.server.saveSuccess'))
-  } catch {
-    toasts.error(t('settings.server.saveError'))
+  } catch (error) {
+    // 412 is a refusal to overwrite: another admin saved since this form was loaded.
+    toasts.error(
+      error instanceof HttpError && error.status === 412
+        ? t('settings.server.staleError')
+        : t('settings.server.saveError'),
+    )
   }
 }
 

@@ -1,6 +1,5 @@
 """Unauthenticated routes exposing the public subset of server settings."""
 
-import hashlib
 from typing import Annotated
 
 import jasil.providers as platform_providers
@@ -9,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
@@ -81,7 +81,8 @@ def read_login_photo(
 
     The login screen renders before anyone is signed in, so the photo is public by
     design; it is one admin-chosen image, not user data. The response carries an
-    ETag, so a client that already holds the photo gets a 304 without the body.
+    ETag derived from the settings version, so a client that already holds the photo
+    gets a 304 without storage being read.
 
     Args:
         request: The HTTP request, for its ``If-None-Match`` header.
@@ -94,12 +95,16 @@ def read_login_photo(
     Raises:
         NotFoundError: 404 when no custom photo is stored.
     """
-    photo = server_settings_service.read_login_photo(storage, db)
+    version = server_settings_service.get_login_photo_version(db)
+    if version is None:
+        raise core_exceptions.NotFoundError("Login photo not found")
+    etag = core_etag.format_etag(version)
+    headers = {"Cache-Control": f"public, max-age={_LOGIN_PHOTO_CACHE_MAX_AGE}", "ETag": etag}
+    # Answered from the settings row alone: a client that holds the photo costs no storage read.
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
+    photo = server_settings_service.read_login_photo(storage)
     if photo is None:
         raise core_exceptions.NotFoundError("Login photo not found")
     data, media_type = photo
-    etag = f'"{hashlib.sha256(data).hexdigest()[:32]}"'
-    headers = {"Cache-Control": f"public, max-age={_LOGIN_PHOTO_CACHE_MAX_AGE}", "ETag": etag}
-    if request.headers.get("if-none-match") == etag:
-        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(content=data, media_type=media_type, headers=headers)

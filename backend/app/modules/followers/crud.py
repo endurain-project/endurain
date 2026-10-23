@@ -1,10 +1,8 @@
 """CRUD operations for follower relationships."""
 
-from typing import Any, cast
-
-from sqlalchemy import CursorResult, delete, func, select, update
+from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -48,6 +46,88 @@ def _is_duplicate_pair(err: IntegrityError) -> bool:
     return "unique" in str(err.orig).lower()
 
 
+def _filtered(
+    column: InstrumentedAttribute[int],
+    user_id: int,
+    accepted_only: bool,
+    pending_only: bool,
+) -> Select[tuple[followers_models.Follower]]:
+    """Select the follow rows where ``column`` is the user, optionally of one status.
+
+    Args:
+        column: ``followee_id`` to list a user's followers, ``follower_id`` to list who they follow.
+        user_id: The user the rows belong to.
+        accepted_only: Keep only accepted relationships.
+        pending_only: Keep only pending requests.
+
+    Returns:
+        The unordered, unpaged select.
+    """
+    stmt = select(followers_models.Follower).where(column == user_id)
+    if accepted_only:
+        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
+    if pending_only:
+        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.PENDING.value)
+    return stmt
+
+
+def _page(
+    column: InstrumentedAttribute[int],
+    user_id: int,
+    db: Session,
+    *,
+    page_number: int,
+    num_records: int,
+    accepted_only: bool = False,
+    pending_only: bool = False,
+) -> list[followers_schema.FollowRelationshipRead]:
+    """Load one page of follow rows, ordered by ``id`` so paging is stable.
+
+    Args:
+        column: See :func:`_filtered`.
+        user_id: The user the rows belong to.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+        accepted_only: Keep only accepted relationships.
+        pending_only: Keep only pending requests.
+
+    Returns:
+        The follow relationships on this page (empty list if none).
+    """
+    stmt = (
+        _filtered(column, user_id, accepted_only, pending_only)
+        .order_by(followers_models.Follower.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
+
+
+def _count(
+    column: InstrumentedAttribute[int],
+    user_id: int,
+    db: Session,
+    *,
+    accepted_only: bool = False,
+    pending_only: bool = False,
+) -> int:
+    """Count follow rows without loading them.
+
+    Args:
+        column: See :func:`_filtered`.
+        user_id: The user the rows belong to.
+        db: Database session.
+        accepted_only: Count only accepted relationships.
+        pending_only: Count only pending requests.
+
+    Returns:
+        The number of matching relationships.
+    """
+    stmt = select(func.count()).select_from(_filtered(column, user_id, accepted_only, pending_only).subquery())
+    return db.scalar(stmt) or 0
+
+
 def get_all_followers_by_user_id(
     user_id: int,
     db: Session,
@@ -72,11 +152,14 @@ def get_all_followers_by_user_id(
     Returns:
         The follow relationships on this page (empty list if none).
     """
-    stmt = select(followers_models.Follower).where(followers_models.Follower.followee_id == user_id)
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
-    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
+    return _page(
+        followers_models.Follower.followee_id,
+        user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=accepted_only,
+    )
 
 
 def get_all_following_by_user_id(
@@ -102,11 +185,14 @@ def get_all_following_by_user_id(
     Returns:
         The follow relationships on this page (empty list if none).
     """
-    stmt = select(followers_models.Follower).where(followers_models.Follower.follower_id == user_id)
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
-    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
+    return _page(
+        followers_models.Follower.follower_id,
+        user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=accepted_only,
+    )
 
 
 def get_pending_requests_for_user_id(
@@ -127,17 +213,14 @@ def get_pending_requests_for_user_id(
     Returns:
         The pending requests (empty list if none).
     """
-    stmt = (
-        select(followers_models.Follower)
-        .where(
-            followers_models.Follower.followee_id == user_id,
-            followers_models.Follower.status == followers_constants.FollowStatus.PENDING.value,
-        )
-        .order_by(followers_models.Follower.id)
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
+    return _page(
+        followers_models.Follower.followee_id,
+        user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        pending_only=True,
     )
-    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
 
 
 def count_pending_requests_for_user_id(user_id: int, db: Session) -> int:
@@ -150,11 +233,7 @@ def count_pending_requests_for_user_id(user_id: int, db: Session) -> int:
     Returns:
         The number of pending requests.
     """
-    stmt = select(func.count(followers_models.Follower.id)).where(
-        followers_models.Follower.followee_id == user_id,
-        followers_models.Follower.status == followers_constants.FollowStatus.PENDING.value,
-    )
-    return db.scalar(stmt) or 0
+    return _count(followers_models.Follower.followee_id, user_id, db, pending_only=True)
 
 
 def count_followers_by_user_id(user_id: int, db: Session, *, accepted_only: bool = False) -> int:
@@ -168,14 +247,7 @@ def count_followers_by_user_id(user_id: int, db: Session, *, accepted_only: bool
     Returns:
         Number of follow relationships.
     """
-    stmt = (
-        select(func.count())
-        .select_from(followers_models.Follower)
-        .where(followers_models.Follower.followee_id == user_id)
-    )
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    return db.scalar(stmt) or 0
+    return _count(followers_models.Follower.followee_id, user_id, db, accepted_only=accepted_only)
 
 
 def count_following_by_user_id(user_id: int, db: Session, *, accepted_only: bool = False) -> int:
@@ -189,14 +261,7 @@ def count_following_by_user_id(user_id: int, db: Session, *, accepted_only: bool
     Returns:
         Number of follow relationships.
     """
-    stmt = (
-        select(func.count())
-        .select_from(followers_models.Follower)
-        .where(followers_models.Follower.follower_id == user_id)
-    )
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    return db.scalar(stmt) or 0
+    return _count(followers_models.Follower.follower_id, user_id, db, accepted_only=accepted_only)
 
 
 def get_follower_for_user_id_and_target_user_id(
@@ -361,7 +426,7 @@ def delete_follower(
     db: Session,
     *,
     status: followers_constants.FollowStatus | None = None,
-) -> None:
+) -> followers_constants.FollowStatus:
     """Stage the deletion of a follow relationship between two users.
 
     Flushes without committing, like :func:`create_follower` and
@@ -374,19 +439,26 @@ def delete_follower(
         status: When given, only delete the row if it is in this state. Declining
             a request must not double as removing an accepted follower.
 
+    Returns:
+        The status the deleted row had, read from the delete itself so it cannot
+        differ from what was removed.
+
     Raises:
         NotFoundError: If no matching follower record exists.
     """
-    stmt = delete(followers_models.Follower).where(
-        followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.followee_id == target_user_id,
+    stmt = (
+        delete(followers_models.Follower)
+        .where(
+            followers_models.Follower.follower_id == user_id,
+            followers_models.Follower.followee_id == target_user_id,
+        )
+        .returning(followers_models.Follower.status)
     )
     if status is not None:
         stmt = stmt.where(followers_models.Follower.status == status.value)
-    result = cast("CursorResult[Any]", db.execute(stmt))
-
-    if result.rowcount == 0:
+    deleted_status = db.execute(stmt).scalar_one_or_none()
+    if deleted_status is None:
         raise core_exceptions.NotFoundError("Follower record not found")
-
     db.flush()
     _invalidate_followee_cache(db)
+    return followers_constants.FollowStatus(deleted_status)

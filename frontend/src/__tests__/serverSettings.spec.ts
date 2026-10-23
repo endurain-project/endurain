@@ -32,6 +32,7 @@ vi.mock('@/services/http', () => ({
 function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSettingsDto {
   return {
     id: 1,
+    version: 3,
     units: 'metric',
     currency: 'euro',
     num_records_per_page: 25,
@@ -72,6 +73,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
 function makeMailDto(overrides: Partial<MailSettingsDto> = {}): MailSettingsDto {
   return {
     id: 1,
+    version: 2,
     host: 'mail.example.com',
     port: 587,
     security: 'starttls',
@@ -101,6 +103,7 @@ describe('mapServerSettings', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     expect(mapServerSettings(makeSettingsDto())).toEqual({
       id: 1,
+      version: 3,
       units: 'metric',
       currency: 'euro',
       numRecordsPerPage: 25,
@@ -170,6 +173,7 @@ describe('toServerSettingsWire', () => {
     const settings = mapServerSettings(makeSettingsDto())
     const {
       id: _id,
+      version: _version,
       login_photo_set: _loginPhotoSet,
       tileserver_api_key_set: _keySet,
       geocoding_api_key_set: _geoKeySet,
@@ -267,6 +271,7 @@ describe('server settings service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/server_settings', {
       method: 'PUT',
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify(toServerSettingsWire(settings)),
     })
   })
@@ -322,6 +327,7 @@ describe('server settings service requests', () => {
 describe('mapMailSettings', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     expect(mapMailSettings(makeMailDto())).toEqual({
+      version: 2,
       host: 'mail.example.com',
       port: 587,
       security: 'starttls',
@@ -339,6 +345,7 @@ describe('mapMailSettings', () => {
 
 describe('toMailSettingsWire', () => {
   const update = {
+    version: 2,
     host: 'mail.example.com',
     port: 465,
     security: 'ssl' as const,
@@ -384,6 +391,7 @@ describe('mail settings service requests', () => {
     vi.mocked(apiFetch).mockResolvedValue(makeMailDto({ port: 465 }))
 
     const settings = await updateMailSettings({
+      version: 2,
       host: 'mail.example.com',
       port: 465,
       security: 'ssl',
@@ -394,6 +402,7 @@ describe('mail settings service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/settings', {
       method: 'PUT',
+      headers: { 'If-Match': '"2"' },
       body: JSON.stringify({
         host: 'mail.example.com',
         port: 465,

@@ -277,6 +277,7 @@
     "saving": "Saving…",
     "saveSuccess": "Server settings updated",
     "saveError": "Couldn't update the server settings. Please try again.",
+    "staleError": "These settings were changed by someone else while you were editing. Your changes were not saved. Reload the page to see the current values.",
     "loadError": {
       "title": "Couldn't load server settings",
       "description": "Something went wrong while loading the server settings. You can try again.",

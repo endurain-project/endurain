@@ -137,6 +137,15 @@ class PreconditionFailedError(DomainError):
     default_detail = "Precondition Failed"
 
 
+class TooManyRequestsError(DomainError):
+    """A per-resource limit is reached, as opposed to the caller's request rate."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "too-many-requests"
+    title = "Too Many Requests"
+    default_detail = "Too Many Requests"
+
+
 class UnsupportedFormatError(DomainError):
     """The supplied payload is in a format this endpoint cannot process."""
 

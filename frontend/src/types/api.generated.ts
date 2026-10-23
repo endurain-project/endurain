@@ -1212,7 +1212,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gears/id/{gear_id}": {
+    "/api/v1/gears/{gear_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1223,23 +1223,7 @@ export interface paths {
          * Read Gear Id
          * @description Retrieve a gear by ID with its total distance, time and components cost.
          */
-        get: operations["read_gear_id_api_v1_gears_id__gear_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gears/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["read_gear_id_api_v1_gears__gear_id__get"];
         put?: never;
         post?: never;
         /**
@@ -3903,7 +3887,8 @@ export interface paths {
          *
          *     The login screen renders before anyone is signed in, so the photo is public by
          *     design; it is one admin-chosen image, not user data. The response carries an
-         *     ETag, so a client that already holds the photo gets a 304 without the body.
+         *     ETag derived from the settings version, so a client that already holds the photo
+         *     gets a 304 without storage being read.
          *
          *     Args:
          *         request: The HTTP request, for its ``If-None-Match`` header.
@@ -3995,6 +3980,10 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:read scope.
          *
+         *     Args:
+         *         db: Database session.
+         *         response: The response, which carries the ETag.
+         *
          *     Returns:
          *         Current server settings configuration. The tile API key is never returned,
          *         only whether one is stored.
@@ -4005,13 +3994,16 @@ export interface paths {
          * @description Update server settings.
          *
          *     Requires admin authentication with server_settings:write scope. The body replaces
-         *     the whole configuration; only the tile API key may be omitted, which keeps the
-         *     stored one.
+         *     the whole configuration; only the API keys may be omitted, which keeps the stored
+         *     ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
+         *     a stale tag is refused with 412 rather than reverting an admin who saved in between.
          *
          *     Args:
          *         request: The HTTP request object.
          *         server_settings_attributes: Settings to update.
          *         db: Database session.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition, or None.
          *
          *     Returns:
          *         Updated server settings configuration, without the tile API key.
@@ -4067,6 +4059,7 @@ export interface paths {
          *
          *     Args:
          *         db: Database session.
+         *         response: The response, which carries the ETag.
          *
          *     Returns:
          *         The mail settings. The password is never returned, only whether one is stored;
@@ -4079,11 +4072,15 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:write scope. The body replaces
          *     the whole configuration; only the password may be omitted, which keeps the stored one.
+         *     Send ``If-Match`` with the ETag from the read to make the write conditional; a stale
+         *     tag is refused with 412.
          *
          *     Args:
          *         request: The HTTP request object.
          *         mail_settings_attributes: Settings to update.
          *         db: Database session.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition, or None.
          *
          *     Returns:
          *         Updated mail settings, without the password.
@@ -4091,6 +4088,7 @@ export interface paths {
          *     Raises:
          *         InvalidInputError: 400 if a field is set by an environment variable or the
          *             configuration is not usable.
+         *         PreconditionFailedError: 412 if the settings changed since the client read them.
          */
         put: operations["edit_mail_settings_api_v1_server_settings_email_settings_put"];
         post?: never;
@@ -4935,6 +4933,17 @@ export interface components {
         ActivitiesBulkEdit: {
             /** Visibility */
             visibility?: number | null;
+        };
+        /**
+         * ActivitiesBulkEditRead
+         * @description Result of a bulk edit across a user's activities.
+         *
+         *     Attributes:
+         *         updated: Number of activities the edit changed.
+         */
+        ActivitiesBulkEditRead: {
+            /** Updated */
+            updated: number;
         };
         /**
          * ActivityEdit
@@ -8885,6 +8894,7 @@ export interface components {
          *
          *     Attributes:
          *         id: Unique identifier (always 1, singleton pattern).
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          *         host: Mail server hostname, or null when mail is disabled.
          *         port: Mail server port.
          *         security: Connection security.
@@ -8918,6 +8928,11 @@ export interface components {
             security: components["schemas"]["MailSecurity"];
             /** Username */
             username: string | null;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             */
+            version: number;
         };
         /**
          * MailSettingsEdit
@@ -9444,6 +9459,7 @@ export interface components {
          *     Attributes:
          *         id: Unique identifier (always 1, singleton pattern).
          *         login_photo_set: Whether a custom login photo is configured.
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          *         tileserver_api_key_set: Whether a tile API key is stored.
          *         geocoding_api_key_set: Whether a geocoding API key is stored.
          *         env_managed: Field name to the environment variable that sets it; those
@@ -9607,6 +9623,11 @@ export interface components {
             tileserver_url: string;
             /** @description Units (metric, imperial) */
             units: components["schemas"]["Units"];
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             */
+            version: number;
         };
         /**
          * ServerSettingsEdit
@@ -11686,20 +11707,6 @@ export interface components {
             username: string;
         };
         /**
-         * VisibilityUpdateRead
-         * @description Result of a bulk visibility change across a user's activities.
-         *
-         *     Attributes:
-         *         detail: Human-readable outcome of the operation.
-         *         updated: Number of activities whose visibility changed.
-         */
-        VisibilityUpdateRead: {
-            /** Detail */
-            detail: string;
-            /** Updated */
-            updated: number;
-        };
-        /**
          * WeekDay
          * @description Days of the week enumeration.
          *
@@ -12107,7 +12114,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["VisibilityUpdateRead"];
+                    "application/json": components["schemas"]["ActivitiesBulkEditRead"];
                 };
             };
             /** @description Validation Error */
@@ -14229,7 +14236,7 @@ export interface operations {
             };
         };
     };
-    read_gear_id_api_v1_gears_id__gear_id__get: {
+    read_gear_id_api_v1_gears__gear_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -17919,7 +17926,9 @@ export interface operations {
     edit_server_settings_api_v1_server_settings_put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -18019,7 +18028,9 @@ export interface operations {
     edit_mail_settings_api_v1_server_settings_email_settings_put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

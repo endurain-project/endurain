@@ -185,7 +185,7 @@ describe('gear service requests', () => {
   it('maps a single gear detail and returns null when absent', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
     await expect(fetchGearById(5)).resolves.toBeNull()
-    expect(apiFetch).toHaveBeenCalledWith('/gears/id/5', expect.objectContaining({}))
+    expect(apiFetch).toHaveBeenCalledWith('/gears/5', expect.objectContaining({}))
   })
 
   it('creates a gear via a POST with the snake-cased payload', async () => {

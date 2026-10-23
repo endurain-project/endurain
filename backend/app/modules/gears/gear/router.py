@@ -47,7 +47,7 @@ def list_gears(
 
 
 @router.get(
-    "/id/{gear_id}",
+    "/{gear_id}",
     response_model=gears_schema.GearDetailRead,
 )
 def read_gear_id(

@@ -184,22 +184,22 @@ def list_user_activities(
 
 @router.patch(
     "",
-    response_model=activity_schema.VisibilityUpdateRead,
+    response_model=activity_schema.ActivitiesBulkEditRead,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_activities(
     request: Request,
     body: activity_schema.ActivitiesBulkEdit,
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
-) -> activity_schema.VisibilityUpdateRead:
+) -> activity_schema.ActivitiesBulkEditRead:
     """Apply a bulk edit across all of the authenticated user's activities.
 
     A PATCH on the collection with the change in the body, rather than the
@@ -211,10 +211,7 @@ def edit_activities(
     Rejected as invalid input when the body asks for no change at all.
     """
     updated = activity_service.bulk_edit_activities(token_user_id, body, db)
-    return activity_schema.VisibilityUpdateRead(
-        detail=f"Visibility changed to {body.visibility} for all user activities",
-        updated=updated,
-    )
+    return activity_schema.ActivitiesBulkEditRead(updated=updated)
 
 
 @router.get(

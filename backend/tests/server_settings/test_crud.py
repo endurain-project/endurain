@@ -4,7 +4,7 @@ Tests for server_settings.crud module.
 This module tests the persistence of the singleton server settings row.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,6 +22,7 @@ def _settings_row(**overrides):
         public_shareable_links=False,
         public_shareable_links_user_info=False,
         login_photo_set=False,
+        version=1,
         currency="euro",
         num_records_per_page=25,
         signup_enabled=False,
@@ -161,13 +162,15 @@ class TestSetLoginPhoto:
     """Test suite for set_login_photo function."""
 
     def test_set_login_photo_stages_the_flag(self, mock_db):
-        """Test the flag is flushed, not committed."""
+        """Test the flag is flushed, not committed, and marked modified so the version moves."""
         row = _settings_row()
         _mock_row(mock_db, row)
 
-        server_settings_crud.set_login_photo(True, mock_db)
+        with patch.object(server_settings_crud, "flag_modified") as flag_modified:
+            server_settings_crud.set_login_photo(True, mock_db)
 
         assert row.login_photo_set is True
+        flag_modified.assert_called_once_with(row, "login_photo_set")
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
@@ -181,7 +184,14 @@ class TestSetLoginPhoto:
 
 def _mail_row(**overrides):
     values = dict(
-        id=1, host="mail.example.com", port=587, security="starttls", username=None, password=None, from_address=None
+        id=1,
+        version=1,
+        host="mail.example.com",
+        port=587,
+        security="starttls",
+        username=None,
+        password=None,
+        from_address=None,
     )
     values.update(overrides)
     row = MagicMock(spec=server_settings_models.MailSettings)

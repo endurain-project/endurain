@@ -24,6 +24,7 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
     """Settings as the crud layer returns them (the tile API key still encrypted)."""
     values = dict(
         id=1,
+        version=1,
         units="metric",
         public_shareable_links=False,
         public_shareable_links_user_info=False,
@@ -62,7 +63,7 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
 
 def _full_edit(stored: server_settings_schema.ServerSettingsRead, **overrides):
     """The whole record, the way the frontend sends it on every save (key in plain text)."""
-    body = stored.model_dump(exclude={"id", "login_photo_set"})
+    body = stored.model_dump(exclude={"id", "login_photo_set", "version"})
     body["tileserver_api_key"] = "plain-old"
     body.update(overrides)
     return server_settings_schema.ServerSettingsEdit(**body)
@@ -213,7 +214,38 @@ class TestOnlyRealChangesCount:
         ) as read:
             server_settings_service.edit_server_settings(_full_edit(edit_env.stored, currency="dollar"), db)
 
-        read.assert_called_once_with(db, for_update=True)
+        assert [call.kwargs for call in read.call_args_list] == [{"for_update": False}, {"for_update": True}]
+
+    def test_the_dns_check_runs_before_the_row_is_locked(self, edit_env):
+        """A slow resolver must not hold the settings lock."""
+        order = []
+        edit_env.dns.side_effect = lambda *a, **k: order.append("dns")
+
+        def read(db, for_update=False):
+            order.append("lock" if for_update else "read")
+            return edit_env.stored
+
+        with patch.object(server_settings_service.server_settings_crud, "get_server_settings", side_effect=read):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, tileserver_url="https://other.example.com/{z}/{x}/{y}.png"), MagicMock()
+            )
+
+        assert order == ["read", "dns", "lock"]
+
+    def test_a_stale_if_match_is_refused_and_writes_nothing(self, edit_env):
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, currency="dollar"), MagicMock(), if_match='"99"'
+            )
+
+        edit_env.write.assert_not_called()
+
+    def test_the_current_if_match_is_accepted(self, edit_env):
+        server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, currency="dollar"), MagicMock(), if_match='"1"'
+        )
+
+        edit_env.write.assert_called_once()
 
 
 class TestGeocodingSettingsOnWrite:
@@ -760,22 +792,23 @@ class TestLoginPhoto:
 
         db.commit.assert_called_once()
 
-    def test_read_returns_none_when_not_set_without_calling_storage(self):
-        storage = MagicMock()
-
+    def test_version_is_none_when_no_photo_is_set(self):
         with patch.object(
-            server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=False)
+            server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=False, version=5)
         ):
-            assert server_settings_service.read_login_photo(storage, MagicMock()) is None
+            assert server_settings_service.get_login_photo_version(MagicMock()) is None
 
-        storage.get.assert_not_called()
+    def test_version_is_the_settings_version_when_a_photo_is_set(self):
+        with patch.object(
+            server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=True, version=5)
+        ):
+            assert server_settings_service.get_login_photo_version(MagicMock()) == 5
 
     def test_read_returns_none_when_missing(self):
         storage = MagicMock()
         storage.get.return_value = None
 
-        with patch.object(server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=True)):
-            assert server_settings_service.read_login_photo(storage, MagicMock()) is None
+        assert server_settings_service.read_login_photo(storage) is None
 
     @pytest.mark.parametrize(
         "data,media_type",
@@ -785,8 +818,7 @@ class TestLoginPhoto:
         storage = MagicMock()
         storage.get.return_value = data
 
-        with patch.object(server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=True)):
-            assert server_settings_service.read_login_photo(storage, MagicMock()) == (data, media_type)
+        assert server_settings_service.read_login_photo(storage) == (data, media_type)
 
 
 def _mail_row(**overrides) -> server_settings_schema.MailSettingsRead:
@@ -806,7 +838,7 @@ def _mail_row(**overrides) -> server_settings_schema.MailSettingsRead:
 
 def _mail_edit(stored: server_settings_schema.MailSettingsRead, **overrides):
     """The whole mail record, the way the frontend sends it (password omitted unless given)."""
-    body = stored.model_dump(exclude={"id", "password"})
+    body = stored.model_dump(exclude={"id", "password", "version"})
     body.update(overrides)
     return server_settings_schema.MailSettingsEdit(**body)
 
@@ -849,6 +881,14 @@ class TestEditMailSettings:
         server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock())
 
         assert mail_env.read.call_args.kwargs == {"for_update": True}
+
+    def test_a_stale_if_match_is_refused_and_writes_nothing(self, mail_env):
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            server_settings_service.edit_mail_settings(
+                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match='"9"'
+            )
+
+        mail_env.write.assert_not_called()
 
     def test_an_omitted_password_keeps_the_stored_token(self, mail_env):
         db = MagicMock()

@@ -2,6 +2,7 @@
 
 import ipaddress
 import os
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import Any
 from urllib.parse import urlparse
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.cryptography as core_cryptography
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.geocoding as core_geocoding
@@ -423,29 +425,43 @@ def _changed_fields(
     return changed
 
 
-def _validate_geocoding(
+def _require_geocoding_key(
     attributes: server_settings_schema.ServerSettingsEdit,
     current: server_settings_schema.ServerSettingsRead,
 ) -> None:
-    """Refuse a geocoding configuration the substrate would not use.
+    """Refuse geocode.maps.co without an API key.
 
     Args:
         attributes: The request body.
         current: The settings as stored.
 
     Raises:
-        InvalidInputError: If the host is one the server must not dial, or the
-            geocode.maps.co service has no API key.
+        InvalidInputError: If the geocode.maps.co service has no API key.
+    """
+    if core_geocoding.GeocodingService(attributes.geocoding_service) != core_geocoding.GeocodingService.GEOCODE:
+        return
+    has_key = (
+        attributes.geocoding_api_key
+        if _GEOCODING_API_KEY_FIELD in attributes.model_fields_set
+        else current.geocoding_api_key
+    )
+    if not has_key:
+        raise core_exceptions.InvalidInputError("geocode.maps.co needs an API key")
+
+
+def _reject_unsafe_geocoding_host(attributes: server_settings_schema.ServerSettingsEdit) -> None:
+    """Refuse a self-hosted geocoding host the server must not dial.
+
+    Resolves DNS, so callers run it without holding the settings row lock.
+
+    Args:
+        attributes: The request body.
+
+    Raises:
+        InvalidInputError: If the host is one the server must not dial.
     """
     service = core_geocoding.GeocodingService(attributes.geocoding_service)
     if service == core_geocoding.GeocodingService.GEOCODE:
-        has_key = (
-            attributes.geocoding_api_key
-            if _GEOCODING_API_KEY_FIELD in attributes.model_fields_set
-            else current.geocoding_api_key
-        )
-        if not has_key:
-            raise core_exceptions.InvalidInputError("geocode.maps.co needs an API key")
         return
     scheme = "https" if attributes.geocoding_use_https else "http"
     host = attributes.geocoding_host or core_geocoding.DEFAULT_HOSTS[service]
@@ -482,37 +498,22 @@ def get_geocoding_config(db: Session) -> core_geocoding.GeocodingConfig | None:
     )
 
 
-def edit_server_settings(
-    attributes: server_settings_schema.ServerSettingsEdit,
-    db: Session,
-) -> server_settings_schema.ServerSettingsAdminRead:
-    """Persist settings and publish a tile-settings fact when the tile source changed.
-
-    The settings row is locked for the whole edit, so two concurrent saves apply one
-    after the other, each compared against what the previous one stored. Only fields
-    whose value differs from the stored one count as changed: a client
-    that sends the whole record on every save does not trigger a tile-settings
-    event, a thumbnail regeneration or a DNS lookup for settings it did not touch.
+def _refuse_env_managed(
+    changed_fields: set[str], env_managed: dict[str, str], order: Iterable[str] | None = None
+) -> None:
+    """Refuse a change to a field an environment variable sets.
 
     Args:
-        attributes: The settings to apply.
-        db: Database session.
-
-    Returns:
-        The updated settings, as an admin read returns them.
+        changed_fields: The fields the request changes.
+        env_managed: Field name to the environment variable that sets it.
+        order: The order to name the fields in; sorted when omitted.
 
     Raises:
-        InvalidInputError: If the tile server URL cannot be dialled safely.
-        ServiceUnavailableError: If the settings row does not exist.
+        InvalidInputError: If a changed field is set by an environment variable.
     """
-    current = get_server_settings(db, for_update=True)
-    changed_fields = _changed_fields(attributes, current)
-    if not changed_fields:
-        db.rollback()
-        return _to_admin_read(current)
-
-    env_managed = server_settings_env_managed()
-    managed_changes = sorted(changed_fields & env_managed.keys())
+    managed_changes = [
+        field for field in (order or sorted(env_managed)) if field in changed_fields & env_managed.keys()
+    ]
     if managed_changes:
         raise core_exceptions.InvalidInputError(
             "; ".join(
@@ -520,10 +521,57 @@ def edit_server_settings(
                 for field in managed_changes
             )
         )
-    if "tileserver_url" in changed_fields:
+
+
+def edit_server_settings(
+    attributes: server_settings_schema.ServerSettingsEdit,
+    db: Session,
+    *,
+    if_match: str | None = None,
+) -> server_settings_schema.ServerSettingsAdminRead:
+    """Persist settings and publish a tile-settings fact when the tile source changed.
+
+    The checks that resolve DNS run before the settings row is locked, so a slow
+    resolver never holds the lock. The row is then locked for the rest of the edit, so
+    two concurrent saves apply one after the other, each compared against what the
+    previous one stored. Only fields whose value differs from the stored one count as
+    changed: a client that sends the whole record on every save does not trigger a
+    tile-settings event, a thumbnail regeneration or a DNS lookup for settings it did
+    not touch.
+
+    Args:
+        attributes: The settings to apply.
+        db: Database session.
+        if_match: The ``If-Match`` precondition, or None.
+
+    Returns:
+        The updated settings, as an admin read returns them.
+
+    Raises:
+        InvalidInputError: If the tile server URL cannot be dialled safely.
+        PreconditionFailedError: If the settings changed since the client read them.
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    snapshot = get_server_settings(db)
+    # End the read transaction: the network checks below must not pin a connection snapshot.
+    db.rollback()
+    core_etag.require_if_match(if_match, snapshot.version, "server settings")
+    snapshot_changes = _changed_fields(attributes, snapshot)
+    if "tileserver_url" in snapshot_changes:
         _reject_unsafe_tileserver(attributes.tileserver_url)
+    if snapshot_changes & _GEOCODING_FIELDS:
+        _reject_unsafe_geocoding_host(attributes)
+
+    current = get_server_settings(db, for_update=True)
+    core_etag.require_if_match(if_match, current.version, "server settings")
+    changed_fields = _changed_fields(attributes, current)
+    if not changed_fields:
+        db.rollback()
+        return _to_admin_read(current)
+
+    _refuse_env_managed(changed_fields, server_settings_env_managed())
     if changed_fields & _GEOCODING_FIELDS:
-        _validate_geocoding(attributes, current)
+        _require_geocoding_key(attributes, current)
     # An unchanged key keeps its stored token instead of being re-encrypted.
     stored_secrets = {
         field: _encrypt_secret(getattr(attributes, field)) if field in changed_fields else getattr(current, field)
@@ -634,21 +682,34 @@ def delete_login_photo(storage: platform_providers.StorageProvider, db: Session)
     logger.info("Login photo deleted")
 
 
-def read_login_photo(storage: platform_providers.StorageProvider, db: Session) -> tuple[bytes, str] | None:
-    """Return the custom login page photo.
+def get_login_photo_version(db: Session) -> int | None:
+    """Return the settings version that identifies the current login photo.
 
-    The settings flag is checked first, so a server without a custom photo never
-    calls storage for the unauthenticated login-page request.
+    Every photo upload or removal bumps the settings version, so it serves as the
+    photo's entity tag without reading the image.
 
     Args:
-        storage: The platform storage provider.
         db: Database session.
 
     Returns:
-        The image bytes and their media type, or None when no photo is set or stored.
+        The version, or None when no custom photo is set.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
     """
-    if not get_server_settings(db).login_photo_set:
-        return None
+    settings = get_server_settings(db)
+    return settings.version if settings.login_photo_set else None
+
+
+def read_login_photo(storage: platform_providers.StorageProvider) -> tuple[bytes, str] | None:
+    """Return the custom login page photo.
+
+    Args:
+        storage: The platform storage provider.
+
+    Returns:
+        The image bytes and their media type, or None when no photo is stored.
+    """
     data = storage.get(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA, server_settings_constants.LOGIN_PHOTO_STORAGE_KEY
     )
@@ -812,6 +873,8 @@ def _changed_mail_fields(
 def edit_mail_settings(
     attributes: server_settings_schema.MailSettingsEdit,
     db: Session,
+    *,
+    if_match: str | None = None,
 ) -> server_settings_schema.MailSettingsAdminRead:
     """Validate and persist the mail settings.
 
@@ -821,6 +884,7 @@ def edit_mail_settings(
     Args:
         attributes: The settings to apply.
         db: Database session.
+        if_match: The ``If-Match`` precondition, or None.
 
     Returns:
         The updated settings, as an admin read returns them.
@@ -828,25 +892,17 @@ def edit_mail_settings(
     Raises:
         InvalidInputError: If a changed field is set by an environment variable, or the
             resulting configuration is not usable.
+        PreconditionFailedError: If the mail settings changed since the client read them.
         ServiceUnavailableError: If the settings row does not exist.
     """
     current = _get_mail_settings(db, for_update=True)
+    core_etag.require_if_match(if_match, current.version, "mail settings")
     changed_fields = _changed_mail_fields(attributes, current)
     if not changed_fields:
         db.rollback()
         return _to_mail_admin_read(current)
 
-    env_managed = mail_env_managed()
-    managed_changes = [
-        field for field in server_settings_constants.MAIL_ENV_VARS if field in changed_fields & env_managed.keys()
-    ]
-    if managed_changes:
-        raise core_exceptions.InvalidInputError(
-            "; ".join(
-                f"{field} is set by the {env_managed[field]} environment variable; remove it to edit this setting here"
-                for field in managed_changes
-            )
-        )
+    _refuse_env_managed(changed_fields, mail_env_managed(), server_settings_constants.MAIL_ENV_VARS)
 
     if _MAIL_CREDENTIAL_FIELD in attributes.model_fields_set:
         plain_password = attributes.password

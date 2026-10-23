@@ -43,7 +43,11 @@ db_url = URL.create(
 # session timezone (driven by the container TZ env var),
 # which shifts stored instants when TZ != UTC. Forcing UTC
 # makes storage deterministic regardless of deployment TZ.
-_connect_args: dict = {"options": "-c timezone=utc"}
+# A row lock held by a stuck transaction fails the waiting statement after
+# _LOCK_TIMEOUT_SECONDS instead of parking a request thread (and its pooled connection)
+# for as long as the holder lives.
+_LOCK_TIMEOUT_SECONDS = 30
+_connect_args: dict = {"options": f"-c timezone=utc -c lock_timeout={_LOCK_TIMEOUT_SECONDS}s"}
 
 # Optional TLS for the database connection (OWASP A02 —
 # Cryptographic Failures). Opt-in via the DB_SSLMODE env
@@ -67,7 +71,7 @@ engine = create_engine(
     db_url,
     pool_size=20,
     max_overflow=40,
-    pool_timeout=180,
+    pool_timeout=30,
     pool_recycle=3600,
     pool_pre_ping=True,
     connect_args=_connect_args,

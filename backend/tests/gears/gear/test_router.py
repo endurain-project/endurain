@@ -81,16 +81,16 @@ class TestReadById:
     def test_the_version_is_sent_as_the_etag(self, mock_detail, client):
         mock_detail.return_value = schema.GearDetailRead(**_read(version=7).model_dump())
 
-        assert client.get("/gears/id/1", headers=_HEADERS).headers["ETag"] == '"7"'
+        assert client.get("/gears/1", headers=_HEADERS).headers["ETag"] == '"7"'
 
     @patch("modules.gears.gear.service.read_gear_detail")
     def test_unknown_gear_is_not_found(self, mock_detail, client):
         mock_detail.side_effect = core_exceptions.NotFoundError("Gear not found")
 
-        assert client.get("/gears/id/999", headers=_HEADERS).status_code == 404
+        assert client.get("/gears/999", headers=_HEADERS).status_code == 404
 
     def test_a_non_positive_id_is_rejected(self, client):
-        assert client.get("/gears/id/0", headers=_HEADERS).status_code == 422
+        assert client.get("/gears/0", headers=_HEADERS).status_code == 422
 
 
 class TestWrites:

@@ -373,6 +373,7 @@ class ServerSettingsRead(ServerSettingsEdit):
     Attributes:
         id: Unique identifier (always 1, singleton pattern).
         login_photo_set: Whether a custom login photo is configured.
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
     """
 
     # Wider than the edit cap: the stored value is the Fernet token, which this model also reads.
@@ -388,6 +389,7 @@ class ServerSettingsRead(ServerSettingsEdit):
     )
     id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter")
 
 
 class ServerSettingsAdminRead(
@@ -398,6 +400,7 @@ class ServerSettingsAdminRead(
     Attributes:
         id: Unique identifier (always 1, singleton pattern).
         login_photo_set: Whether a custom login photo is configured.
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
         tileserver_api_key_set: Whether a tile API key is stored.
         geocoding_api_key_set: Whether a geocoding API key is stored.
         env_managed: Field name to the environment variable that sets it; those
@@ -408,6 +411,7 @@ class ServerSettingsAdminRead(
 
     id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
     login_photo_set: StrictBool = Field(..., description="Is login photo set (true - yes, false - no)")
+    version: StrictInt = Field(..., ge=1, description="Optimistic-concurrency counter")
     tileserver_api_key_set: StrictBool = Field(
         ..., description="Is a tile server API key stored (true - yes, false - no)"
     )
@@ -543,6 +547,7 @@ class MailSettingsRead(MailSettingsEdit):
 
     Attributes:
         id: Unique identifier (always 1, singleton pattern).
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid", use_enum_values=True)
@@ -550,6 +555,7 @@ class MailSettingsRead(MailSettingsEdit):
     # Wider than the edit cap: the stored value is the Fernet token, which this model also reads.
     password: StrictStr | None = Field(default=None, max_length=512, description="Mail server password")
     id: StrictInt = Field(..., description="Unique identifier for mail settings (always 1)")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter")
 
 
 class MailSettingsAdminRead(BaseModel):
@@ -557,6 +563,7 @@ class MailSettingsAdminRead(BaseModel):
 
     Attributes:
         id: Unique identifier (always 1, singleton pattern).
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
         host: Mail server hostname, or null when mail is disabled.
         port: Mail server port.
         security: Connection security.
@@ -568,6 +575,7 @@ class MailSettingsAdminRead(BaseModel):
     """
 
     id: StrictInt
+    version: StrictInt = Field(..., ge=1, description="Optimistic-concurrency counter")
     host: StrictStr | None
     port: StrictInt
     security: core_mail.MailSecurity

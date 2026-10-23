@@ -7,7 +7,9 @@ import jasil.providers as platform_providers
 from fastapi import (
     APIRouter,
     Depends,
+    Header,
     Request,
+    Response,
     Security,
     UploadFile,
     status,
@@ -16,6 +18,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -41,16 +44,24 @@ def read_server_settings(
         Session,
         Depends(core_database.get_db),
     ],
+    response: Response,
 ) -> server_settings_schema.ServerSettingsAdminRead:
     """Get current server settings.
 
     Requires admin authentication with server_settings:read scope.
 
+    Args:
+        db: Database session.
+        response: The response, which carries the ETag.
+
     Returns:
         Current server settings configuration. The tile API key is never returned,
         only whether one is stored.
     """
-    return server_settings_service.get_server_settings_for_admin(db)
+    settings = server_settings_service.get_server_settings_for_admin(db)
+    # The tag the client echoes back in If-Match when it later saves.
+    response.headers["ETag"] = core_etag.format_etag(settings.version)
+    return settings
 
 
 @router.put(
@@ -70,26 +81,32 @@ def edit_server_settings(
         Session,
         Depends(core_database.get_db),
     ],
+    response: Response,
+    if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None,
 ) -> server_settings_schema.ServerSettingsAdminRead:
     """Update server settings.
 
     Requires admin authentication with server_settings:write scope. The body replaces
-    the whole configuration; only the tile API key may be omitted, which keeps the
-    stored one.
+    the whole configuration; only the API keys may be omitted, which keeps the stored
+    ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
+    a stale tag is refused with 412 rather than reverting an admin who saved in between.
 
     Args:
         request: The HTTP request object.
         server_settings_attributes: Settings to update.
         db: Database session.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition, or None.
 
     Returns:
         Updated server settings configuration, without the tile API key.
     """
-    updated = server_settings_service.edit_server_settings(server_settings_attributes, db)
+    updated = server_settings_service.edit_server_settings(server_settings_attributes, db, if_match=if_match)
     # This process applies the new CSP tile domains at once; the other processes poll for them.
     request.app.state.allowed_tile_domains = server_settings_service.allowed_tile_domains_for_url(
         updated.tileserver_url
     )
+    response.headers["ETag"] = core_etag.format_etag(updated.version)
     return updated
 
 
@@ -208,6 +225,7 @@ def read_mail_settings(
         Session,
         Depends(core_database.get_db),
     ],
+    response: Response,
 ) -> server_settings_schema.MailSettingsAdminRead:
     """Get the mail server settings.
 
@@ -215,12 +233,15 @@ def read_mail_settings(
 
     Args:
         db: Database session.
+        response: The response, which carries the ETag.
 
     Returns:
         The mail settings. The password is never returned, only whether one is stored;
         ``env_managed`` names the fields an environment variable currently sets.
     """
-    return server_settings_service.get_mail_settings_for_admin(db)
+    mail_settings = server_settings_service.get_mail_settings_for_admin(db)
+    response.headers["ETag"] = core_etag.format_etag(mail_settings.version)
+    return mail_settings
 
 
 @router.put(
@@ -240,16 +261,22 @@ def edit_mail_settings(
         Session,
         Depends(core_database.get_db),
     ],
+    response: Response,
+    if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None,
 ) -> server_settings_schema.MailSettingsAdminRead:
     """Update the mail server settings.
 
     Requires admin authentication with server_settings:write scope. The body replaces
     the whole configuration; only the password may be omitted, which keeps the stored one.
+    Send ``If-Match`` with the ETag from the read to make the write conditional; a stale
+    tag is refused with 412.
 
     Args:
         request: The HTTP request object.
         mail_settings_attributes: Settings to update.
         db: Database session.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition, or None.
 
     Returns:
         Updated mail settings, without the password.
@@ -257,8 +284,11 @@ def edit_mail_settings(
     Raises:
         InvalidInputError: 400 if a field is set by an environment variable or the
             configuration is not usable.
+        PreconditionFailedError: 412 if the settings changed since the client read them.
     """
-    return server_settings_service.edit_mail_settings(mail_settings_attributes, db)
+    updated = server_settings_service.edit_mail_settings(mail_settings_attributes, db, if_match=if_match)
+    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    return updated
 
 
 @router.post(

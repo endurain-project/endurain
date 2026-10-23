@@ -34,6 +34,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * touch the raw DTO.
  *
  * @property id - Stable singleton identifier (always 1; round-tripped).
+ * @property version - Row version behind the `ETag`, echoed as `If-Match` on save so a stale form is refused.
  * @property units - Default measurement system for new users.
  * @property currency - Default currency for new users.
  * @property numRecordsPerPage - Server-enforced page size for paginated lists.
@@ -69,6 +70,7 @@ export type GeocodingService = Schemas['GeocodingService']
  */
 export interface ServerSettings {
   id: number
+  version: number
   units: Units
   currency: Currency
   numRecordsPerPage: number
@@ -127,8 +129,8 @@ export interface TileMapsTemplate {
 }
 
 /**
- * The form-editable subset of {@link ServerSettings}. Excludes `id` (constant)
- * and `loginPhotoSet` (managed by the separate upload/delete actions), both of
+ * The form-editable subset of {@link ServerSettings}. Excludes `id` (constant),
+ * `version` and `loginPhotoSet` (managed by the separate upload/delete actions), both of
  * which round-trip from the freshest server state at save time. The API keys
  * are write-only: `tileserverApiKey` / `geocodingApiKey` hold a newly typed key
  * (empty keeps the stored one) and `removeTileserverApiKey` /
@@ -139,6 +141,7 @@ export interface TileMapsTemplate {
 export type ServerSettingsFormValues = Omit<
   ServerSettings,
   | 'id'
+  | 'version'
   | 'loginPhotoSet'
   | 'tileserverApiKeySet'
   | 'geocodingApiKeySet'
@@ -192,6 +195,7 @@ export type MailSecurity = Schemas['MailSecurity']
  * The clean, camel-cased mail-server settings. Mapped from {@link MailSettingsDto}
  * at the service boundary so components never touch the raw DTO.
  *
+ * @property version - Row version behind the `ETag`, echoed as `If-Match` on save so a stale form is refused.
  * @property host - Mail server hostname, or null when mail is disabled.
  * @property port - Mail server port.
  * @property security - How the connection is secured.
@@ -201,6 +205,7 @@ export type MailSecurity = Schemas['MailSecurity']
  * @property envManaged - Field name to the environment variable that sets it; those fields are read-only.
  */
 export interface MailSettings {
+  version: number
   host: string | null
   port: number
   security: MailSecurity

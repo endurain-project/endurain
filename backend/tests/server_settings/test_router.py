@@ -25,6 +25,7 @@ class TestReadServerSettings:
         # Arrange
         mock_settings = server_settings_schema.ServerSettingsAdminRead(
             id=1,
+            version=4,
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
@@ -100,6 +101,7 @@ class TestEditServerSettings:
         # Arrange
         mock_updated_settings = server_settings_schema.ServerSettingsAdminRead(
             id=1,
+            version=4,
             units="imperial",
             public_shareable_links=True,
             public_shareable_links_user_info=True,
@@ -178,6 +180,7 @@ class TestEditServerSettings:
         assert data["units"] == "imperial"
         assert data["num_records_per_page"] == 50
         assert "tileserver_api_key" not in data
+        assert response.headers["etag"] == '"4"'
         assert fast_api_app.state.allowed_tile_domains[-1] == "https://tiles.example.com"
 
     @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
@@ -357,6 +360,7 @@ class TestEmail:
 def _mail_admin_read(**overrides) -> server_settings_schema.MailSettingsAdminRead:
     values = dict(
         id=1,
+        version=1,
         host="mail.example.com",
         port=587,
         security="starttls",

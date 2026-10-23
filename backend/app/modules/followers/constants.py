@@ -22,3 +22,8 @@ class FollowStatus(StrEnum):
 
     PENDING = "pending"
     ACCEPTED = "accepted"
+
+
+#: Follow requests a user may have waiting for their decision. Past it, new requests are refused, so a
+#: script cannot flood one user with requests and notifications.
+MAX_PENDING_REQUESTS = 200
