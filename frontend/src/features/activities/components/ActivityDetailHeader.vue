@@ -145,7 +145,7 @@ const showPrivateNotes = computed(
         v-if="isOwner"
         class="flex w-full flex-row flex-wrap items-center justify-end gap-2 md:w-auto md:max-w-[55%]"
       >
-        <ActivityGearCard />
+        <ActivityGearCard :activity="activity" />
         <div
           class="flex flex-row items-center gap-1 max-md:absolute max-md:top-0 max-md:end-0 max-md:z-10"
         >
