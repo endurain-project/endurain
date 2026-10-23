@@ -51,7 +51,7 @@ class _TrackingSession:
 def _patch_common(monkeypatch):
     """Patch dependencies shared by every test in this module."""
     _TrackingSession.open_count = 0
-    monkeypatch.setattr(activity_utils, "SessionLocal", _TrackingSession)
+    monkeypatch.setattr(activity_utils.core_database, "SessionLocal", _TrackingSession)
     monkeypatch.setattr(
         activity_utils.activity_integration,
         "get_activity_by_garminconnect_id",
@@ -193,7 +193,7 @@ def test_an_auth_rejection_while_downloading_unlinks_the_account_and_stops_the_w
     session = garmin_service.GarminSession(Mock(), {"di_token": "enc"})
     session.client.get_activities_by_date.return_value = [{"activityId": 1}, {"activityId": 2}]
     with (
-        patch.object(activity_utils, "SessionLocal"),
+        patch.object(activity_utils.core_database, "SessionLocal"),
         patch.object(activity_utils.activity_integration, "get_activity_by_garminconnect_id", return_value=None),
         patch.object(
             activity_utils,

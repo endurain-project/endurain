@@ -183,13 +183,22 @@ def link_garminconnect(
             )
             db.commit()
     except garminconnect.GarminConnectAuthenticationError as err:
-        logger.error("There was an authentication error using Garmin Connect. Check credentials", exc_info=err)
+        logger.warning(
+            "Garmin Connect refused the credentials",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
         link_states.set_status(
             user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS
         )
     except requests.exceptions.HTTPError as err:
         reason = _http_failure(err)
-        logger.error("Garmin Connect answered the link attempt with an HTTP error", exc_info=err)
+        log = logger.error if reason == garmin_constants.LinkFailure.INTERNAL else logger.warning
+        log(
+            "Garmin Connect answered the link attempt with an HTTP error",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id, reason=reason),
+        )
         link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, reason)
     except garminconnect.GarminConnectTooManyRequestsError:
         logger.warning(
@@ -202,7 +211,9 @@ def link_garminconnect(
     except TypeError as err:
         # The library fails this way when the MFA prompt returns no code or a wrong one.
         if not mfa_prompted:
-            logger.error("Internal error while linking Garmin Connect", exc_info=err)
+            logger.error(
+                "Internal error while linking Garmin Connect", exc_info=err, extra=core_logger.context(user_id=user_id)
+            )
             link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
         else:
             logger.warning(
@@ -213,7 +224,9 @@ def link_garminconnect(
                 user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA
             )
     except Exception as err:
-        logger.error("Internal error while linking Garmin Connect", exc_info=err)
+        logger.error(
+            "Internal error while linking Garmin Connect", exc_info=err, extra=core_logger.context(user_id=user_id)
+        )
         link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
     else:
         link_states.set_status(user_id, garmin_constants.LinkStatus.COMPLETED)

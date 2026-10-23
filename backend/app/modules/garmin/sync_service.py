@@ -68,6 +68,9 @@ def _validate_range(start_date: date, end_date: date, max_days: int | None = Non
 def run_sync(payload: garmin_events.SyncRequestedPayload, states: garmin_sync_state_store.GarminSyncStateStore) -> None:
     """Run one queued sync and record its outcome. Blocking; call it from a worker, never a request.
 
+    A sync that could not run because the account is not linked or Garmin Connect rejected its
+    token is recorded as failed and not raised: a retry would meet the same answer.
+
     Args:
         payload: What to sync.
         states: Shared store of the sync's state.
@@ -76,15 +79,17 @@ def run_sync(payload: garmin_events.SyncRequestedPayload, states: garmin_sync_st
         Exception: Whatever the sync raised, after recording it as failed, so a durable worker retries it.
     """
     states.set_status(payload.user_id, payload.kind, garmin_constants.SyncStatus.RUNNING)
+    synced = False
     try:
         if payload.kind == garmin_constants.SyncKind.GEAR:
-            garmin_gear_service.get_user_gear(payload.user_id)
+            synced = garmin_gear_service.get_user_gear(payload.user_id)
         elif payload.start_date is not None and payload.end_date is not None:
-            garmin_health_service.sync_health_for_dates(payload.start_date, payload.end_date, payload.user_id)
+            synced = garmin_health_service.sync_health_for_dates(payload.start_date, payload.end_date, payload.user_id)
     except Exception:
         states.set_status(payload.user_id, payload.kind, garmin_constants.SyncStatus.FAILED)
         raise
-    states.set_status(payload.user_id, payload.kind, garmin_constants.SyncStatus.COMPLETED)
+    outcome = garmin_constants.SyncStatus.COMPLETED if synced else garmin_constants.SyncStatus.FAILED
+    states.set_status(payload.user_id, payload.kind, outcome)
 
 
 def _finish_local(future: Future) -> None:

@@ -5,7 +5,7 @@ login in a thread that eventually calls back for an MFA code, while the user
 submits that code via a separate HTTP request.  In a multi-worker deployment
 these two requests may land on different processes, so the code is kept in the
 platform ``StateProvider`` (an in-process dict under ``local``, Redis under
-``distributed``) — this module no longer knows or cares which backend is used.
+``distributed``).
 
 Interface::
 

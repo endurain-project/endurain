@@ -6,6 +6,7 @@ from datetime import datetime
 
 import garminconnect
 
+import core.database as core_database
 import core.file_uploads as file_uploads
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
@@ -13,7 +14,6 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.garmin.gear_service as garmin_gear_service
 import modules.garmin.service as garmin_service
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
@@ -82,7 +82,7 @@ def _download_and_ingest_activity(
             return stored
 
         for full_file_path in extracted_paths:
-            with SessionLocal() as db:
+            with core_database.SessionLocal() as db:
                 parsed_result = activity_ingestion_integration.ingest_activity_file(
                     user_id=user_id,
                     file_path=str(full_file_path),
@@ -155,16 +155,16 @@ def fetch_and_process_activities_by_dates(
     for activity in garmin_activities:
         activity_id = activity["activityId"]
 
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             already_stored = activity_integration.get_activity_by_garminconnect_id(activity_id, user_id, db)
         if already_stored:
-            logger.info(
+            logger.debug(
                 "Activity already stored in the database",
                 extra=core_logger.context(user_id=user_id, activity_id=activity_id),
             )
             continue
 
-        logger.info(
+        logger.debug(
             "Processing activity",
             extra=core_logger.context(user_id=user_id, activity_id=activity_id),
         )
@@ -201,7 +201,7 @@ def get_user_garminconnect_activities_by_dates(
     """
     session = None
     try:
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             session = garmin_service.get_user_garminconnect_session(user_id, db)
 
         if session is None:

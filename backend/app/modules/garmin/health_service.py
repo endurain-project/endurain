@@ -8,6 +8,7 @@ import garminconnect
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.logger as core_logger
 import modules.garmin.service as garmin_service
 import modules.health.health_sleep.integration_service as health_sleep_integration
@@ -16,7 +17,6 @@ import modules.health.health_steps.integration_service as health_steps_integrati
 import modules.health.health_steps.schema as health_steps_schema
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.health_weight.schema as health_weight_schema
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
@@ -52,41 +52,6 @@ def _sleep_score(score: dict | None) -> health_sleep_schema.SleepScore | None:
     return health_sleep_schema.SleepScore(key) if key in health_sleep_schema.SleepScore._value2member_map_ else None
 
 
-def _fetch(
-    fetch: Callable[[], Any],
-    what: str,
-    user_id: int,
-    start_date: date,
-    end_date: date,
-) -> Any | None:
-    """Call Garmin Connect for one kind of health data, treating a failed call as no data.
-
-    Args:
-        fetch: The Garmin Connect call.
-        what: What is being fetched, for the log.
-        user_id: The data's owner.
-        start_date: First day requested.
-        end_date: Last day requested.
-
-    Returns:
-        The payload, or ``None`` when the call failed.
-
-    Raises:
-        GarminConnectAuthenticationError: When Garmin Connect rejects the session.
-    """
-    try:
-        return fetch()
-    except garminconnect.GarminConnectAuthenticationError:
-        raise
-    except Exception as err:
-        logger.error(
-            "Error fetching Garmin Connect health data for user",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id, what=what, start_date=start_date, end_date=end_date),
-        )
-        return None
-
-
 def _upsert(
     user_id: int,
     record: BaseModel,
@@ -116,7 +81,7 @@ def _upsert(
         True when the record was stored, False when an existing one was kept.
     """
     fields = record.model_dump()
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         existing = get(user_id, str(fields["date"]), db)
         if existing and keep_existing is not None and keep_existing(existing):
             logger.info(
@@ -155,13 +120,7 @@ def fetch_and_process_bc_by_dates(
     Returns:
         Number of body composition records processed.
     """
-    garmin_bc = _fetch(
-        lambda: garminconnect_client.get_body_composition(str(start_date.date()), str(end_date.date())),
-        "body composition",
-        user_id,
-        start_date.date(),
-        end_date.date(),
-    )
+    garmin_bc = garminconnect_client.get_body_composition(str(start_date.date()), str(end_date.date()))
 
     if not garmin_bc or not garmin_bc.get("dateWeightList"):
         logger.info(
@@ -221,15 +180,9 @@ def fetch_and_process_ds_by_dates(
     Returns:
         Number of daily steps records processed.
     """
-    garmin_ds = _fetch(
-        lambda: garminconnect_client.get_daily_steps(str(start_date.date()), str(end_date.date())),
-        "daily steps",
-        user_id,
-        start_date.date(),
-        end_date.date(),
-    )
+    garmin_ds = garminconnect_client.get_daily_steps(str(start_date.date()), str(end_date.date()))
 
-    if not garmin_ds or not garmin_ds[0].get("totalSteps"):
+    if not garmin_ds:
         logger.info(
             "No new Garmin Connect daily steps found",
             extra=core_logger.context(user_id=user_id, start_date=start_date.date(), end_date=end_date.date()),
@@ -396,13 +349,7 @@ def fetch_and_process_sleep_by_dates(
 
     # get_sleep_data only supports a single date
     for day in _each_day(start_date, end_date):
-        garmin_sleep = _fetch(
-            lambda day=day: garminconnect_client.get_sleep_data(day.isoformat()),
-            "sleep data",
-            user_id,
-            day,
-            day,
-        )
+        garmin_sleep = garminconnect_client.get_sleep_data(day.isoformat())
 
         sleep_dto = garmin_sleep.get("dailySleepDTO") if garmin_sleep else None
         # For a date without sleep Garmin still returns a DTO whose fields are all null
@@ -433,7 +380,7 @@ def get_user_garminconnect_health_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-) -> None:
+) -> bool:
     """Fetch and store one user's Garmin Connect health data for a window.
 
     No session is open while Garmin is being called; each record is stored in its own short
@@ -444,14 +391,18 @@ def get_user_garminconnect_health_by_dates(
         start_date: Start of the window.
         end_date: End of the window.
         user_id: The user to sync.
+
+    Returns:
+        True when the data was synced, False when the account is not linked or Garmin Connect
+        rejected its token.
     """
     session = None
     try:
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             session = garmin_service.get_user_garminconnect_session(user_id, db)
 
         if session is None:
-            return
+            return False
         garminconnect_client = session.client
 
         logger.info(
@@ -469,26 +420,31 @@ def get_user_garminconnect_health_by_dates(
                 "Garmin Connect health data processed",
                 extra=core_logger.context(user_id=user_id, what=what, count=count),
             )
+        return True
     except garminconnect.GarminConnectAuthenticationError as err:
         garmin_service.handle_rejected_token(user_id, session, err)
+        return False
     finally:
         if session is not None:
             garmin_service.save_refreshed_token(user_id, session)
 
 
-def sync_health_for_dates(start_date: date, end_date: date, user_id: int) -> None:
+def sync_health_for_dates(start_date: date, end_date: date, user_id: int) -> bool:
     """Fetch and store one user's Garmin Connect health data for whole days.
 
     Args:
         start_date: First day to fetch.
         end_date: Last day to fetch, inclusive.
         user_id: The user to sync.
+
+    Returns:
+        True when the data was synced, False when the account is not linked or was rejected.
     """
     logger.info(
         "Garmin Connect health data will be processed in the background",
         extra=core_logger.context(user_id=user_id),
     )
-    get_user_garminconnect_health_by_dates(
+    return get_user_garminconnect_health_by_dates(
         datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
         datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
         user_id,

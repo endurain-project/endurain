@@ -34,8 +34,8 @@ def login_garminconnect_using_tokens(token: dict) -> garminconnect.Garmin | None
         garminconnect.GarminConnectConnectionError,
         requests.exceptions.HTTPError,
     ) as err:
-        logger.error(
-            "There was an authentication error using Garmin Connect",
+        logger.warning(
+            "Garmin Connect rejected the stored session",
             exc_info=err,
         )
         return None

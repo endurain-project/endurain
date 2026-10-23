@@ -31,7 +31,7 @@ def _run(payload: dict, existing: MagicMock | None) -> tuple[int, MagicMock, Mag
     client = MagicMock()
     client.get_sleep_data.return_value = payload
     with (
-        patch.object(health_utils, "SessionLocal"),
+        patch.object(health_utils.core_database, "SessionLocal"),
         patch.object(health_utils.health_sleep_integration, "get_health_sleep_by_date", return_value=existing),
         patch.object(health_utils.health_sleep_integration, "edit_health_sleep") as edit,
         patch.object(health_utils.health_sleep_integration, "create_health_sleep") as create,
@@ -103,7 +103,7 @@ class TestNoSessionAcrossGarminCalls:
         session_factory = _CountingSessions()
 
         with (
-            patch.object(health_utils, "SessionLocal", session_factory),
+            patch.object(health_utils.core_database, "SessionLocal", session_factory),
             patch.object(health_utils.health_sleep_integration, "get_health_sleep_by_date", return_value=None),
             patch.object(health_utils.health_sleep_integration, "create_health_sleep"),
         ):
@@ -134,7 +134,7 @@ class TestExpiredToken:
 
         session = health_utils.garmin_service.GarminSession(client, {"di_token": "enc"})
         with (
-            patch.object(health_utils, "SessionLocal"),
+            patch.object(health_utils.core_database, "SessionLocal"),
             patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=session),
             patch.object(health_utils.garmin_service, "handle_rejected_token") as unlink,
         ):
@@ -145,7 +145,7 @@ class TestExpiredToken:
 
     def test_an_unlinked_user_is_skipped(self):
         with (
-            patch.object(health_utils, "SessionLocal"),
+            patch.object(health_utils.core_database, "SessionLocal"),
             patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=None),
             patch.object(health_utils, "fetch_and_process_bc_by_dates") as fetch,
         ):
@@ -158,7 +158,7 @@ class TestFailuresPropagate:
     def test_an_unexpected_failure_reaches_the_caller_so_a_worker_retries(self):
         session = health_utils.garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
         with (
-            patch.object(health_utils, "SessionLocal"),
+            patch.object(health_utils.core_database, "SessionLocal"),
             patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=session),
             patch.object(health_utils, "fetch_and_process_bc_by_dates", side_effect=RuntimeError("boom")),
             patch.object(health_utils.garmin_service, "save_refreshed_token") as save,
@@ -182,9 +182,50 @@ class TestUpsert:
             "update_schema": health_utils.health_steps_schema.HealthStepsUpdate,
             "create_schema": health_utils.health_steps_schema.HealthStepsCreate,
         }
-        with patch.object(health_utils, "SessionLocal"):
+        with patch.object(health_utils.core_database, "SessionLocal"):
             health_utils._upsert(1, record, get=lambda *_: MagicMock(id=7), **kwargs)
             health_utils._upsert(1, record, get=lambda *_: None, **kwargs)
 
         assert edit.call_args.args[1].id == 7
         create.assert_called_once()
+
+
+class TestDailySteps:
+    def test_a_zero_step_first_day_does_not_hide_the_rest_of_the_range(self):
+        client = MagicMock()
+        client.get_daily_steps.return_value = [
+            {"calendarDate": "2026-09-28", "totalSteps": 0},
+            {"calendarDate": "2026-09-29", "totalSteps": 500},
+        ]
+        with patch.object(health_utils, "_upsert") as upsert:
+            count = health_utils.fetch_and_process_ds_by_dates(client, DAY, DAY, 1)
+
+        assert count == 2
+        assert upsert.call_count == 2
+
+
+class TestFetchFailures:
+    def test_a_garmin_error_reaches_the_caller_instead_of_reading_as_no_data(self):
+        client = MagicMock()
+        client.get_body_composition.side_effect = RuntimeError("429")
+
+        with pytest.raises(RuntimeError):
+            health_utils.fetch_and_process_bc_by_dates(client, DAY, DAY, 1)
+
+    def test_a_sync_reports_whether_it_ran(self):
+        session = health_utils.garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
+        with (
+            patch.object(health_utils.core_database, "SessionLocal"),
+            patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=session),
+            patch.object(health_utils, "fetch_and_process_bc_by_dates", return_value=0),
+            patch.object(health_utils, "fetch_and_process_ds_by_dates", return_value=0),
+            patch.object(health_utils, "fetch_and_process_sleep_by_dates", return_value=0),
+            patch.object(health_utils.garmin_service, "save_refreshed_token"),
+        ):
+            assert health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1) is True
+
+        with (
+            patch.object(health_utils.core_database, "SessionLocal"),
+            patch.object(health_utils.garmin_service, "get_user_garminconnect_session", return_value=None),
+        ):
+            assert health_utils.get_user_garminconnect_health_by_dates(DAY, DAY, 1) is False

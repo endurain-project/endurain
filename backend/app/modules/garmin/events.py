@@ -4,7 +4,7 @@ from datetime import date
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 
 import modules.garmin.constants as garmin_constants
 
@@ -32,3 +32,17 @@ class SyncRequestedPayload(VersionedPayload):
     kind: garmin_constants.SyncKind
     start_date: date | None = None
     end_date: date | None = None
+
+    @model_validator(mode="after")
+    def _health_needs_a_range(self) -> "SyncRequestedPayload":
+        """Require the date range a health sync reads.
+
+        Returns:
+            The validated payload.
+
+        Raises:
+            ValueError: When a health sync carries no start or end date.
+        """
+        if self.kind == garmin_constants.SyncKind.HEALTH and (self.start_date is None or self.end_date is None):
+            raise ValueError("A health sync needs start_date and end_date")
+        return self

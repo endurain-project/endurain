@@ -177,6 +177,18 @@ class TestRunSync:
         assert states.get(1, Kind.GEAR).status == Status.FAILED
         assert states.begin(1, Kind.GEAR) is True
 
+    def test_a_sync_that_did_not_run_is_recorded_as_failed_without_a_retry(self, states):
+        states.begin(1, Kind.GEAR)
+        with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False):
+            garmin_sync_service.run_sync(garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.GEAR), states)
+
+        assert states.get(1, Kind.GEAR).status == Status.FAILED
+        assert states.begin(1, Kind.GEAR) is True
+
+    def test_a_health_payload_needs_a_date_range(self):
+        with pytest.raises(ValueError):
+            garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.HEALTH)
+
 
 class TestRecentHealth:
     def test_with_durable_jobs_each_linked_user_is_queued_for_a_worker(self, durable, states):
@@ -207,6 +219,7 @@ class TestRecentHealth:
         def sync(_start, _end, user_id):
             if user_id == 1:
                 raise RuntimeError("boom")
+            return True
 
         with (
             patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[1, 2], []]),
