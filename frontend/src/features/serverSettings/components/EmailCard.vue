@@ -52,7 +52,12 @@ function sendTest(): void {
     <Alert v-else-if="settingsQuery.isError.value" kind="error">
       {{ t('settings.server.email.settingsLoadError') }}
     </Alert>
-    <MailSettingsForm v-else-if="settingsQuery.data.value" :settings="settingsQuery.data.value" />
+    <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
+    <MailSettingsForm
+      v-else-if="settingsQuery.data.value"
+      :key="settingsQuery.data.value.version"
+      :settings="settingsQuery.data.value"
+    />
 
     <Skeleton v-if="statusQuery.isPending.value" class="h-9 w-full" />
 

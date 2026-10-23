@@ -282,8 +282,8 @@ def edit_mail_settings(
         Updated mail settings, without the password.
 
     Raises:
-        InvalidInputError: 400 if a field is set by an environment variable or the
-            configuration is not usable.
+        InvalidInputError: 400 if the configuration is not usable.
+        ConflictError: 409 if a field is set by an environment variable.
         PreconditionFailedError: 412 if the settings changed since the client read them.
     """
     updated = server_settings_service.edit_mail_settings(mail_settings_attributes, db, if_match=if_match)

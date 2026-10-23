@@ -1,6 +1,8 @@
 """Application composition for installed module runtime contributions."""
 
 import contextvars
+import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -46,6 +48,9 @@ import modules.server_settings.integration_service as server_settings_integratio
 import modules.websocket.subscriber_registry as websocket_subscriber_registry
 
 logger = core_logger.get_logger(__name__)
+
+#: How long the mail and geocoding settings are reused before the database is read again.
+_SETTINGS_CACHE_SECONDS = 5.0
 
 # Small on purpose: derived work (thumbnails, cleanup, notifications) must not
 # compete with request threads for the process.
@@ -337,10 +342,37 @@ def _load_geocoding_settings() -> jasil_settings.GeocodingSettings:
         return core_geocoding.to_geocoding_settings(server_settings_integration.get_geocoding_config(db))
 
 
+def _cached[T](load: Callable[[], T]) -> Callable[[], T]:
+    """Cache a settings loader for a few seconds in this process.
+
+    The substrate asks for the settings on every send and every lookup; without this each
+    call would open a database session. A failed load is not cached. Another replica's
+    change is seen within ``_SETTINGS_CACHE_SECONDS``.
+
+    Args:
+        load: The loader to cache.
+
+    Returns:
+        A loader that reloads at most once per ``_SETTINGS_CACHE_SECONDS``.
+    """
+    lock = threading.Lock()
+    cached: tuple[float, T] | None = None
+
+    def read() -> T:
+        nonlocal cached
+        with lock:
+            now = time.monotonic()
+            if cached is None or now - cached[0] >= _SETTINGS_CACHE_SECONDS:
+                cached = (now, load())
+            return cached[1]
+
+    return read
+
+
 def runtime_sources() -> jasil_settings.RuntimeSources:
     """Return the callables the substrate uses to read operator-edited settings at runtime.
 
     Returns:
         The runtime sources, shared by the API and the standalone worker.
     """
-    return jasil_settings.RuntimeSources(mail=_load_mail_settings, geocoding=_load_geocoding_settings)
+    return jasil_settings.RuntimeSources(mail=_cached(_load_mail_settings), geocoding=_cached(_load_geocoding_settings))

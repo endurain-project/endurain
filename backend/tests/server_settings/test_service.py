@@ -372,7 +372,7 @@ class TestServerSettingsEnvManaged:
                 "server_settings_env_managed",
                 return_value={"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"},
             ),
-            pytest.raises(core_exceptions.InvalidInputError) as exc_info,
+            pytest.raises(core_exceptions.ConflictError) as exc_info,
         ):
             server_settings_service.edit_server_settings(
                 _full_edit(edit_env.stored, geocoding_rate_limit=2.0), MagicMock()
@@ -571,7 +571,7 @@ class TestSessionEnvManaged:
                 "server_settings_env_managed",
                 return_value={"access_token_expire_minutes": "ACCESS_TOKEN_EXPIRE_MINUTES"},
             ),
-            pytest.raises(core_exceptions.InvalidInputError) as exc_info,
+            pytest.raises(core_exceptions.ConflictError) as exc_info,
         ):
             server_settings_service.edit_server_settings(
                 _full_edit(edit_env.stored, access_token_expire_minutes=30), MagicMock()
@@ -677,7 +677,7 @@ class TestRetention:
                 "server_settings_env_managed",
                 return_value={"read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"},
             ),
-            pytest.raises(core_exceptions.InvalidInputError) as exc_info,
+            pytest.raises(core_exceptions.ConflictError) as exc_info,
         ):
             server_settings_service.edit_server_settings(
                 _full_edit(edit_env.stored, read_notification_retention_days=30), MagicMock()
@@ -874,7 +874,7 @@ class TestEditMailSettings:
 
         mail_env.write.assert_not_called()
         db.commit.assert_not_called()
-        db.rollback.assert_called_once()
+        assert db.rollback.call_count == 2
         assert result.host == "mail.example.com"
 
     def test_the_row_is_locked_for_the_edit(self, mail_env):
@@ -895,7 +895,7 @@ class TestEditMailSettings:
 
         server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), db)
 
-        assert mail_env.write.call_args.args[0].password == "enc-old"
+        assert "password" not in mail_env.write.call_args.args[0].model_fields_set
         db.commit.assert_called_once()
 
     def test_an_unchanged_password_keeps_its_stored_token(self, mail_env):
@@ -953,7 +953,7 @@ class TestEditMailSettings:
     def test_a_change_to_an_env_managed_field_is_refused(self, mail_env):
         mail_env.managed.return_value = {"host": "SMTP_HOST", "port": "SMTP_PORT"}
 
-        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+        with pytest.raises(core_exceptions.ConflictError) as exc_info:
             server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock())
 
         assert "port is set by the SMTP_PORT environment variable" in exc_info.value.detail
@@ -1282,3 +1282,29 @@ class TestGetServerSettingsForPublic:
 
         assert "signup_require_admin_approval" not in dumped
         assert "tileserver_api_key" not in dumped
+
+
+class TestEditMailSettingsLocking:
+    """The validation that can resolve DNS runs before the settings row is locked."""
+
+    def test_validation_runs_before_the_row_is_locked(self, mail_env):
+        calls = []
+        mail_env.read.side_effect = lambda db, **kwargs: (calls.append(("read", kwargs)), mail_env.stored)[1]
+        with patch.object(
+            server_settings_service.core_mail,
+            "mail_problems",
+            side_effect=lambda config: calls.append(("dns", {})) or [],
+        ):
+            server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock())
+
+        assert [name for name, _ in calls] == ["read", "dns", "read"]
+        assert calls[-1][1] == {"for_update": True}
+
+    def test_a_password_replaced_meanwhile_is_refused(self, mail_env):
+        later = mail_env.stored.model_copy(update={"password": "enc-new"})
+        mail_env.read.side_effect = [mail_env.stored, later]
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock())
+
+        mail_env.write.assert_not_called()

@@ -92,10 +92,10 @@ class TestFollowUser:
         db = MagicMock()
         mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
 
-        with pytest.raises(core_exceptions.TooManyRequestsError) as e:
+        with pytest.raises(core_exceptions.ConflictError) as e:
             follow_user(1, 2, db)
 
-        assert e.value.status_code == 429
+        assert e.value.status_code == 409
         mock_crud.create_follower.assert_not_called()
         mock_pub.publish_follower_requested.assert_not_called()
 

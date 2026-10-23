@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 import jasil.providers as platform_providers
 from fastapi import HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -42,15 +43,7 @@ _SECRET_FIELDS = {_API_KEY_FIELD: _API_KEY_LABEL, _GEOCODING_API_KEY_FIELD: _GEO
 _GEOCODING_FIELDS = frozenset(server_settings_constants.GEOCODING_ENV_VARS)
 _MAIL_CREDENTIAL_FIELD = "password"
 _MAIL_CREDENTIAL_LABEL = "SMTP password"
-_SMTP_ENV_VARS = (
-    "SMTP_HOST",
-    "SMTP_PORT",
-    "SMTP_USERNAME",
-    "SMTP_PASSWORD",
-    "SMTP_FROM",
-    "SMTP_SECURE",
-    "SMTP_SECURE_TYPE",
-)
+_SMTP_ENV_VARS = (*server_settings_constants.MAIL_ENV_VARS.values(), "SMTP_SECURE_TYPE")
 #: Environment variables read through ``core_config.read_secret``, which also accepts a ``_FILE`` variant.
 _FILE_SECRET_ENV_VARS = frozenset({"SMTP_PASSWORD"})
 
@@ -399,30 +392,45 @@ def get_allowed_tile_domains(db: Session) -> list[str]:
 
 
 def _changed_fields(
-    attributes: server_settings_schema.ServerSettingsEdit,
-    current: server_settings_schema.ServerSettingsRead,
+    attributes: BaseModel,
+    current: BaseModel,
+    secret_fields: dict[str, str],
 ) -> set[str]:
     """Return the sent fields whose value differs from the stored one.
 
-    The API keys are compared in plain text, since the stored token is encrypted
-    and a fresh encryption of the same key never matches it. A stored key that can
-    no longer be decrypted counts as changed, so it can always be replaced or removed.
+    The secrets are compared in plain text, since the stored token is encrypted
+    and a fresh encryption of the same secret never matches it. A stored secret that
+    can no longer be decrypted counts as changed, so it can always be replaced or removed.
 
     Args:
         attributes: The request body.
         current: The settings as stored.
+        secret_fields: Write-only secret field name to what it is called in messages.
 
     Returns:
         The names of the fields the request actually changes.
     """
     changed: set[str] = set()
     for field, value in attributes.model_dump(exclude_unset=True).items():
-        if field in _SECRET_FIELDS:
-            if _secret_changed(getattr(current, field), value, _SECRET_FIELDS[field]):
+        if field in secret_fields:
+            if _secret_changed(getattr(current, field), value, secret_fields[field]):
                 changed.add(field)
         elif getattr(current, field) != value:
             changed.add(field)
     return changed
+
+
+def _differing(current: BaseModel, target: dict[str, Any]) -> dict[str, Any]:
+    """Return the target fields whose value differs from the stored one.
+
+    Args:
+        current: The settings as stored.
+        target: Field name to the value it should have.
+
+    Returns:
+        The fields to write.
+    """
+    return {field: value for field, value in target.items() if getattr(current, field) != value}
 
 
 def _require_geocoding_key(
@@ -509,13 +517,13 @@ def _refuse_env_managed(
         order: The order to name the fields in; sorted when omitted.
 
     Raises:
-        InvalidInputError: If a changed field is set by an environment variable.
+        ConflictError: If a changed field is set by an environment variable.
     """
     managed_changes = [
         field for field in (order or sorted(env_managed)) if field in changed_fields & env_managed.keys()
     ]
     if managed_changes:
-        raise core_exceptions.InvalidInputError(
+        raise core_exceptions.ConflictError(
             "; ".join(
                 f"{field} is set by the {env_managed[field]} environment variable; remove it to edit this setting here"
                 for field in managed_changes
@@ -549,6 +557,7 @@ def edit_server_settings(
 
     Raises:
         InvalidInputError: If the tile server URL cannot be dialled safely.
+        ConflictError: If a changed field is set by an environment variable.
         PreconditionFailedError: If the settings changed since the client read them.
         ServiceUnavailableError: If the settings row does not exist.
     """
@@ -556,7 +565,7 @@ def edit_server_settings(
     # End the read transaction: the network checks below must not pin a connection snapshot.
     db.rollback()
     core_etag.require_if_match(if_match, snapshot.version, "server settings")
-    snapshot_changes = _changed_fields(attributes, snapshot)
+    snapshot_changes = _changed_fields(attributes, snapshot, _SECRET_FIELDS)
     if "tileserver_url" in snapshot_changes:
         _reject_unsafe_tileserver(attributes.tileserver_url)
     if snapshot_changes & _GEOCODING_FIELDS:
@@ -564,7 +573,7 @@ def edit_server_settings(
 
     current = get_server_settings(db, for_update=True)
     core_etag.require_if_match(if_match, current.version, "server settings")
-    changed_fields = _changed_fields(attributes, current)
+    changed_fields = _changed_fields(attributes, current, _SECRET_FIELDS)
     if not changed_fields:
         db.rollback()
         return _to_admin_read(current)
@@ -698,6 +707,8 @@ def get_login_photo_version(db: Session) -> int | None:
         ServiceUnavailableError: If the settings row does not exist.
     """
     settings = get_server_settings(db)
+    # End the read transaction: the caller may go on to read storage.
+    db.rollback()
     return settings.version if settings.login_photo_set else None
 
 
@@ -788,6 +799,37 @@ def _to_mail_admin_read(
     )
 
 
+def _build_mail_config(
+    host: str,
+    port: int,
+    security: str,
+    from_address: str | None,
+    username: str | None,
+    password: str | None,
+) -> core_mail.MailConfig:
+    """Build the mail configuration, defaulting the sender to the username.
+
+    Args:
+        host: Mail server hostname.
+        port: Mail server port.
+        security: Connection security.
+        from_address: Sender address, or None to use the username.
+        username: Authentication username.
+        password: Authentication password in plain text.
+
+    Returns:
+        The mail configuration.
+    """
+    return core_mail.MailConfig(
+        host=host,
+        port=port,
+        security=core_mail.MailSecurity(security),
+        from_address=from_address or username or "",
+        username=username,
+        password=password,
+    )
+
+
 def _mail_config_from_row(row: server_settings_schema.MailSettingsRead) -> core_mail.MailConfig | None:
     """Build the ready-to-use mail configuration from the stored row.
 
@@ -802,13 +844,13 @@ def _mail_config_from_row(row: server_settings_schema.MailSettingsRead) -> core_
     """
     if not row.host:
         return None
-    return core_mail.MailConfig(
-        host=row.host,
-        port=row.port,
-        security=core_mail.MailSecurity(row.security),
-        from_address=row.from_address or row.username or "",
-        username=row.username,
-        password=_decrypt_secret(row.password, _MAIL_CREDENTIAL_LABEL),
+    return _build_mail_config(
+        row.host,
+        row.port,
+        row.security,
+        row.from_address,
+        row.username,
+        _decrypt_secret(row.password, _MAIL_CREDENTIAL_LABEL),
     )
 
 
@@ -832,6 +874,22 @@ def get_mail_config(db: Session) -> core_mail.MailConfig | None:
     return _mail_config_from_row(row)
 
 
+def is_mail_configured(db: Session) -> bool:
+    """Return whether a mail server is set, without validating it.
+
+    Cheap enough for unauthenticated routes: no decryption and no DNS lookup. The settings
+    are validated when saved or imported, and the mail provider validates again on send.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        True when a mail host is stored.
+    """
+    row = server_settings_crud.get_mail_settings(db)
+    return row is not None and bool(row.host)
+
+
 def get_mail_settings_for_admin(db: Session) -> server_settings_schema.MailSettingsAdminRead:
     """Return the mail settings for an admin to view, without the password.
 
@@ -847,29 +905,6 @@ def get_mail_settings_for_admin(db: Session) -> server_settings_schema.MailSetti
     return _to_mail_admin_read(_get_mail_settings(db))
 
 
-def _changed_mail_fields(
-    attributes: server_settings_schema.MailSettingsEdit,
-    current: server_settings_schema.MailSettingsRead,
-) -> set[str]:
-    """Return the sent mail fields whose value differs from the stored one.
-
-    Args:
-        attributes: The request body.
-        current: The settings as stored.
-
-    Returns:
-        The names of the fields the request actually changes.
-    """
-    changed: set[str] = set()
-    for field, value in attributes.model_dump(exclude_unset=True).items():
-        if field == _MAIL_CREDENTIAL_FIELD:
-            if _secret_changed(current.password, value, _MAIL_CREDENTIAL_LABEL):
-                changed.add(field)
-        elif getattr(current, field) != value:
-            changed.add(field)
-    return changed
-
-
 def edit_mail_settings(
     attributes: server_settings_schema.MailSettingsEdit,
     db: Session,
@@ -878,8 +913,10 @@ def edit_mail_settings(
 ) -> server_settings_schema.MailSettingsAdminRead:
     """Validate and persist the mail settings.
 
-    The row is locked for the whole edit, so two concurrent saves apply one after the
-    other. Only fields whose value differs from the stored one count as changed.
+    Validation can resolve DNS, so it runs on a snapshot before the settings row is
+    locked; a slow resolver never holds the lock. The row is then locked for the rest of
+    the edit, so two concurrent saves apply one after the other. Only fields whose value
+    differs from the stored one count as changed.
 
     Args:
         attributes: The settings to apply.
@@ -890,45 +927,50 @@ def edit_mail_settings(
         The updated settings, as an admin read returns them.
 
     Raises:
-        InvalidInputError: If a changed field is set by an environment variable, or the
-            resulting configuration is not usable.
+        InvalidInputError: If the resulting configuration is not usable.
+        ConflictError: If a changed field is set by an environment variable.
         PreconditionFailedError: If the mail settings changed since the client read them.
         ServiceUnavailableError: If the settings row does not exist.
     """
-    current = _get_mail_settings(db, for_update=True)
-    core_etag.require_if_match(if_match, current.version, "mail settings")
-    changed_fields = _changed_mail_fields(attributes, current)
-    if not changed_fields:
-        db.rollback()
-        return _to_mail_admin_read(current)
-
-    _refuse_env_managed(changed_fields, mail_env_managed(), server_settings_constants.MAIL_ENV_VARS)
-
-    if _MAIL_CREDENTIAL_FIELD in attributes.model_fields_set:
-        plain_password = attributes.password
-        # An unchanged password keeps its stored token instead of being re-encrypted.
-        stored_password = (
-            _encrypt_secret(plain_password) if _MAIL_CREDENTIAL_FIELD in changed_fields else current.password
-        )
-    else:
-        plain_password = _decrypt_secret(current.password, _MAIL_CREDENTIAL_LABEL)
-        stored_password = current.password
-
+    snapshot = _get_mail_settings(db)
+    # End the read transaction: the validation below may resolve DNS.
+    db.rollback()
+    core_etag.require_if_match(if_match, snapshot.version, "mail settings")
+    keeps_password = _MAIL_CREDENTIAL_FIELD not in attributes.model_fields_set
+    plain_password = (
+        _decrypt_secret(snapshot.password, _MAIL_CREDENTIAL_LABEL) if keeps_password else attributes.password
+    )
     if attributes.host:
         problems = core_mail.mail_problems(
-            core_mail.MailConfig(
-                host=attributes.host,
-                port=attributes.port,
-                security=core_mail.MailSecurity(attributes.security),
-                from_address=attributes.from_address or attributes.username or "",
-                username=attributes.username,
-                password=plain_password,
+            _build_mail_config(
+                attributes.host,
+                attributes.port,
+                attributes.security,
+                attributes.from_address,
+                attributes.username,
+                plain_password,
             )
         )
         if problems:
             raise core_exceptions.InvalidInputError("; ".join(problems))
 
-    attributes = attributes.model_copy(update={_MAIL_CREDENTIAL_FIELD: stored_password})
+    current = _get_mail_settings(db, for_update=True)
+    core_etag.require_if_match(if_match, current.version, "mail settings")
+    if keeps_password and current.password != snapshot.password:
+        # The password the validation used is no longer the stored one.
+        raise core_exceptions.PreconditionFailedError("The mail settings were modified by someone else; retry")
+    changed_fields = _changed_fields(attributes, current, {_MAIL_CREDENTIAL_FIELD: _MAIL_CREDENTIAL_LABEL})
+    if not changed_fields:
+        db.rollback()
+        return _to_mail_admin_read(current)
+
+    _refuse_env_managed(changed_fields, mail_env_managed(), server_settings_constants.MAIL_ENV_VARS)
+    if not keeps_password:
+        # An unchanged password keeps its stored token instead of being re-encrypted.
+        stored_password = (
+            _encrypt_secret(plain_password) if _MAIL_CREDENTIAL_FIELD in changed_fields else current.password
+        )
+        attributes = attributes.model_copy(update={_MAIL_CREDENTIAL_FIELD: stored_password})
     updated = server_settings_crud.edit_mail_settings(attributes, db)
     db.commit()
     logger.info("Mail settings updated", extra=core_logger.context(changed_fields=sorted(changed_fields)))
@@ -996,6 +1038,8 @@ def send_test_email(admin: users_schema.UsersRead, mail: platform_providers.Mail
         core_i18n.normalize_locale(admin.preferred_language),
     )
     message = platform_providers.MailMessage(to=[admin.email], subject=subject, text=text_content, html=html_content)
+    # End the read transaction: the mail server may take a while to answer.
+    db.rollback()
     try:
         mail.send(message)
     except platform_providers.MailError as err:
@@ -1033,13 +1077,13 @@ def _import_mail_env(db: Session) -> list[str]:
         security = core_mail.MailSecurity.STARTTLS
 
     problems = core_mail.mail_problems(
-        core_mail.MailConfig(
-            host=settings.SMTP_HOST or "",
-            port=settings.SMTP_PORT,
-            security=security,
-            from_address=settings.SMTP_FROM or settings.SMTP_USERNAME or "",
-            username=settings.SMTP_USERNAME,
-            password=password,
+        _build_mail_config(
+            settings.SMTP_HOST or "",
+            settings.SMTP_PORT,
+            security.value,
+            settings.SMTP_FROM,
+            settings.SMTP_USERNAME,
+            password,
         )
     )
     if problems:
@@ -1058,7 +1102,7 @@ def _import_mail_env(db: Session) -> list[str]:
         "username": settings.SMTP_USERNAME,
         "from_address": settings.SMTP_FROM,
     }
-    changes: dict[str, Any] = {field: value for field, value in target.items() if getattr(current, field) != value}
+    changes = _differing(current, target)
     if _secret_changed(current.password, password, _MAIL_CREDENTIAL_LABEL):
         changes[_MAIL_CREDENTIAL_FIELD] = _encrypt_secret(password)
     if changes:
@@ -1108,6 +1152,15 @@ def _import_geocoding_env(db: Session) -> list[str]:
         # An unset host variable means the service's default host, not the default the settings carry.
         host = getattr(settings, host_var) if _env_var_is_set(host_var) else None
         use_https = getattr(settings, https_var)
+        try:
+            host = server_settings_schema.ServerSettingsGeocoding.validate_geocoding_host(host)
+        except ValueError:
+            logger.error(
+                "The geocoding host variable is not a hostname or IP address with an optional port, so the stored "
+                "geocoding settings were left unchanged",
+                extra=core_logger.context(console=True),
+            )
+            return names
     api_key = None if settings.GEOCODES_MAPS_API == "changeme" else settings.GEOCODES_MAPS_API
 
     current = get_server_settings(db, for_update=True)
@@ -1117,7 +1170,7 @@ def _import_geocoding_env(db: Session) -> list[str]:
         "geocoding_use_https": use_https,
         "geocoding_rate_limit": settings.REVERSE_GEO_RATE_LIMIT,
     }
-    changes: dict[str, Any] = {field: value for field, value in target.items() if getattr(current, field) != value}
+    changes = _differing(current, target)
     if _secret_changed(current.geocoding_api_key, api_key, _GEOCODING_API_KEY_LABEL):
         changes[_GEOCODING_API_KEY_FIELD] = _encrypt_secret(api_key)
     if changes:
@@ -1160,7 +1213,7 @@ def _import_session_env(db: Session) -> list[str]:
         for field, name in server_settings_constants.SESSION_ENV_VARS.items()
         if name in names
     }
-    changes: dict[str, Any] = {field: value for field, value in targets.items() if getattr(current, field) != value}
+    changes = _differing(current, targets)
     idle = changes.get("session_idle_timeout_hours", current.session_idle_timeout_hours)
     absolute = changes.get("session_absolute_timeout_hours", current.session_absolute_timeout_hours)
     if absolute < idle:

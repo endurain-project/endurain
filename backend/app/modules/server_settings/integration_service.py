@@ -114,15 +114,15 @@ def get_mail_config(db: Session) -> core_mail.MailConfig | None:
 
 
 def is_mail_configured(db: Session) -> bool:
-    """Return whether outgoing email is configured and usable.
+    """Return whether a mail server is configured, cheap enough for unauthenticated routes.
 
     Args:
         db: Database session.
 
     Returns:
-        True when mail settings are stored and valid.
+        True when a mail host is stored. The settings were validated when saved.
     """
-    return server_settings_service.get_email_status(db).configured
+    return server_settings_service.is_mail_configured(db)
 
 
 def get_geocoding_config(db: Session) -> core_geocoding.GeocodingConfig | None:

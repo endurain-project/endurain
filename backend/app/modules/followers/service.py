@@ -296,8 +296,8 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
 
     Raises:
         InvalidInputError: If the requester targets themselves.
-        TooManyRequestsError: If the target already has the maximum pending requests.
-        ConflictError: If the relationship already exists.
+        ConflictError: If the relationship already exists or the target already has the maximum
+            pending requests.
         NotFoundError: If the target user does not exist.
     """
     if requester_user_id == target_user_id:
@@ -313,7 +313,7 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
             "Refused a follow request: the target has too many pending",
             extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
         )
-        raise core_exceptions.TooManyRequestsError("This user has too many pending follow requests")
+        raise core_exceptions.ConflictError("This user has too many pending follow requests")
     follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
     followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db, commit=db.commit)
     logger.info(

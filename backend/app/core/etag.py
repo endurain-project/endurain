@@ -61,6 +61,25 @@ def parse_if_match(header: str) -> set[str]:
     return tags
 
 
+def matches_if_none_match(header: str | None, version: int) -> bool:
+    """Return whether an ``If-None-Match`` header names the current version.
+
+    Weak comparison applies (RFC 9110 §13.1.2), so a ``W/`` prefix, which proxies add, still
+    matches, as does ``*``.
+
+    Args:
+        header: The request's ``If-None-Match`` value, if any.
+        version: The stored row's version.
+
+    Returns:
+        True when the client's cached copy is current.
+    """
+    if header is None:
+        return False
+    tags = {candidate.strip().removeprefix("W/").strip('"') for candidate in header.split(",")}
+    return _WILDCARD in tags or str(version) in tags
+
+
 def require_if_match(header: str | None, current_version: int | None, resource: str) -> None:
     """Enforce an ``If-Match`` precondition against the stored version.
 

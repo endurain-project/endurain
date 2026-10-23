@@ -85,6 +85,8 @@ class TestServerSettingsModel:
         assert {c.name for c in constraints} == {
             "single_row_check",
             "geocoding_service_check",
+            "geocoding_rate_limit_check",
+            "session_absolute_not_below_idle_check",
             "session_idle_timeout_hours_check",
             "session_absolute_timeout_hours_check",
             "access_token_expire_minutes_check",

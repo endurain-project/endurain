@@ -183,6 +183,8 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 - Dead-lettered jobs are kept for review and are never pruned automatically.
 - Each API process keeps at most five live-update sockets per user (the oldest is closed), so with several replicas a user can hold up to five per replica.
 - After an admin changes the map tile server, the replica that handled the save allows the new tile domain in its content security policy at once; the other replicas pick it up within 30 seconds, so maps from a new tile server can be blocked there for that long.
+- Until the deprecated `SMTP_*`, geocoding, session and retention environment variables are removed (v0.22.0), give every replica the same values: each API start saves its own environment into the database, and which fields an admin may edit depends on the replica that answers.
+- The mail and geocoding settings are cached for five seconds in each process, so an admin change reaches every replica within that time.
 - A database statement that waits more than 30 seconds for a row lock fails instead of waiting, and a request that cannot get a database connection within 30 seconds fails.
 
 ## Sizing

@@ -8,6 +8,7 @@ from sqlalchemy.orm.attributes import flag_modified
 import core.exceptions as core_exceptions
 import modules.server_settings.models as server_settings_models
 import modules.server_settings.schema as server_settings_schema
+import modules.server_settings.serializers as server_settings_serializers
 
 _SINGLETON_ID = 1
 
@@ -84,7 +85,7 @@ def get_server_settings(db: Session, *, for_update: bool = False) -> server_sett
     row = _find_singleton(server_settings_models.ServerSettings, db, for_update=for_update)
     if row is None:
         return None
-    return server_settings_schema.ServerSettingsRead.model_validate(row)
+    return server_settings_serializers.to_server_settings_read(row)
 
 
 def edit_server_settings(
@@ -106,7 +107,7 @@ def edit_server_settings(
     """
     row = _lock_singleton(server_settings_models.ServerSettings, "Server", db)
     _apply(row, server_settings, db)
-    return server_settings_schema.ServerSettingsRead.model_validate(row)
+    return server_settings_serializers.to_server_settings_read(row)
 
 
 def set_login_photo(is_set: bool, db: Session) -> None:
@@ -140,7 +141,7 @@ def get_mail_settings(db: Session, *, for_update: bool = False) -> server_settin
     row = _find_singleton(server_settings_models.MailSettings, db, for_update=for_update)
     if row is None:
         return None
-    return server_settings_schema.MailSettingsRead.model_validate(row)
+    return server_settings_serializers.to_mail_settings_read(row)
 
 
 def edit_mail_settings(
@@ -162,4 +163,4 @@ def edit_mail_settings(
     """
     row = _lock_singleton(server_settings_models.MailSettings, "Mail", db)
     _apply(row, mail_settings, db)
-    return server_settings_schema.MailSettingsRead.model_validate(row)
+    return server_settings_serializers.to_mail_settings_read(row)

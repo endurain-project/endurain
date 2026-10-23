@@ -256,6 +256,10 @@ class ServerSettings(Base):
         ),
         CheckConstraint("access_token_expire_minutes BETWEEN 1 AND 1440", name="access_token_expire_minutes_check"),
         CheckConstraint("refresh_token_expire_days BETWEEN 1 AND 365", name="refresh_token_expire_days_check"),
+        CheckConstraint(
+            "session_absolute_timeout_hours >= session_idle_timeout_hours", name="session_absolute_not_below_idle_check"
+        ),
+        CheckConstraint("geocoding_rate_limit BETWEEN 0 AND 100", name="geocoding_rate_limit_check"),
         CheckConstraint("geocoding_service IN ('nominatim', 'photon', 'geocode')", name="geocoding_service_check"),
     )
 

@@ -101,7 +101,7 @@ def read_login_photo(
     etag = core_etag.format_etag(version)
     headers = {"Cache-Control": f"public, max-age={_LOGIN_PHOTO_CACHE_MAX_AGE}", "ETag": etag}
     # Answered from the settings row alone: a client that holds the photo costs no storage read.
-    if request.headers.get("if-none-match") == etag:
+    if core_etag.matches_if_none_match(request.headers.get("if-none-match"), version):
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     photo = server_settings_service.read_login_photo(storage)
     if photo is None:

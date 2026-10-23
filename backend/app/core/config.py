@@ -537,13 +537,16 @@ class Settings(BaseSettings):
         if v is None or v == "":
             return 1.0
         try:
-            return float(v)
+            rate = float(v)
         except (TypeError, ValueError):
+            rate = -1.0
+        if not 0 <= rate <= 100:
             logger.warning(
-                "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number; defaulting to 1.0",
+                "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number from 0 to 100; defaulting to 1.0",
                 extra=core_logger.context(console=True),
             )
             return 1.0
+        return rate
 
     @model_validator(mode="after")
     def _fill_filesystem_defaults(self) -> Self:

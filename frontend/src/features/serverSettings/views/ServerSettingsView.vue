@@ -56,7 +56,8 @@ const templates = computed(() => templatesQuery.data.value ?? [])
     </Card>
 
     <template v-else-if="settings">
-      <ServerSettingsForm :settings="settings" :templates="templates" />
+      <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
+      <ServerSettingsForm :key="settings.version" :settings="settings" :templates="templates" />
       <LoginPhotoCard :login-photo-set="settings.loginPhotoSet" />
       <EmailCard />
     </template>
