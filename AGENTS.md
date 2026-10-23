@@ -17,6 +17,8 @@ Deployment: Docker multi-stage image (amd64, arm64).
 | Writing or editing a skill | `.agents/skills/skill-authoring/SKILL.md` |
 | Module rules and file roles | `docs/developer-guide/module-structure.md` |
 | Identity and auth boundary | `docs/developer-guide/auth-boundary.md` |
+| Events, subscribers and reconciliation nets | `docs/developer-guide/events-and-subscribers.md` |
+| Activity ingestion pipeline | `docs/developer-guide/activity-ingestion.md` |
 | Visual design | `docs/developer-guide/brand-and-ux-guidelines.md` |
 | Scaling, jobs, storage settings | `docs/getting-started/scaling-and-background-jobs.md` |
 

@@ -44,6 +44,9 @@ uv run pytest tests/architecture -q --no-cov
 uv run ruff format --check . && uv run ruff check .
 ```
 
+CI runs the full `uv run pytest` with the 80% coverage gate, so run it without `--no-cov` before a PR.
+`uv run hatch run typecheck` (mypy) is available but is not a CI gate.
+
 ## Repo hygiene
 
 - Do only what was asked: no extra docs, summaries or READMEs.

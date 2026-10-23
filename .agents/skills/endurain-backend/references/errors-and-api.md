@@ -18,6 +18,8 @@
 | `UnsupportedFormatError` | 406 | Payload format cannot be processed |
 | `UnsupportedMediaTypeError` | 415 | File media type not accepted |
 | `PayloadTooLargeError` | 413 | Payload exceeds the accepted size (upload caps) |
+| `ServiceUnavailableError` | 503 | A capability the request depends on is not configured or not reachable |
+| `UpstreamError` | 502 | An external system the server called (mail relay, provider) failed |
 | `ProcessingError` | 500 | Internal failure the caller cannot fix |
 
 - New kind: subclass `DomainError` with `status_code`, `code`, `title`, `default_detail`.
