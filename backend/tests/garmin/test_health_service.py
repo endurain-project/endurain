@@ -202,6 +202,80 @@ class TestStore:
         upsert.assert_not_called()
 
 
+class TestBodyCompositionOwnership:
+    """A weight record the user entered, or another source wrote, is never replaced."""
+
+    @staticmethod
+    def _run(existing):
+        client = MagicMock()
+        client.get_body_composition.return_value = {
+            "dateWeightList": [
+                {
+                    "calendarDate": "2026-09-29",
+                    "weight": 70000,
+                    "bmi": 22.0,
+                    "bodyFat": 15.0,
+                    "bodyWater": 55.0,
+                    "boneMass": 3000,
+                    "muscleMass": 30000,
+                    "physiqueRating": None,
+                    "visceralFat": None,
+                }
+            ]
+        }
+        with (
+            patch.object(health_utils.core_database, "SessionLocal"),
+            patch.object(health_utils.health_weight_integration, "get_health_weight_by_date", return_value=existing),
+            patch.object(health_utils.health_weight_integration, "upsert_health_weight") as upsert,
+        ):
+            count = health_utils.fetch_and_process_bc_by_dates(client, DAY, DAY, 1)
+        return count, upsert
+
+    def test_a_manual_record_is_kept(self):
+        count, upsert = self._run(MagicMock(source=None))
+
+        assert count == 0
+        upsert.assert_not_called()
+
+    def test_a_garmin_record_is_updated(self):
+        count, upsert = self._run(MagicMock(source="garmin"))
+
+        assert count == 1
+        upsert.assert_called_once()
+
+    def test_a_missing_record_is_stored(self):
+        count, upsert = self._run(None)
+
+        assert count == 1
+        upsert.assert_called_once()
+
+
+class TestDailyStepsOwnership:
+    @staticmethod
+    def _run(existing):
+        client = MagicMock()
+        client.get_daily_steps.return_value = [{"calendarDate": "2026-09-29", "totalSteps": 500}]
+        with (
+            patch.object(health_utils.core_database, "SessionLocal"),
+            patch.object(health_utils.health_steps_integration, "get_health_steps_by_date", return_value=existing),
+            patch.object(health_utils.health_steps_integration, "upsert_health_steps") as upsert,
+        ):
+            count = health_utils.fetch_and_process_ds_by_dates(client, DAY, DAY, 1)
+        return count, upsert
+
+    def test_a_manual_record_is_kept(self):
+        count, upsert = self._run(MagicMock(source=None))
+
+        assert count == 0
+        upsert.assert_not_called()
+
+    def test_a_garmin_record_is_updated(self):
+        count, upsert = self._run(MagicMock(source="garmin"))
+
+        assert count == 1
+        upsert.assert_called_once()
+
+
 class TestDailySteps:
     def test_a_zero_step_first_day_does_not_hide_the_rest_of_the_range(self):
         client = MagicMock()
@@ -209,7 +283,7 @@ class TestDailySteps:
             {"calendarDate": "2026-09-28", "totalSteps": 0},
             {"calendarDate": "2026-09-29", "totalSteps": 500},
         ]
-        with patch.object(health_utils, "_store") as upsert:
+        with patch.object(health_utils, "_store", return_value=True) as upsert:
             count = health_utils.fetch_and_process_ds_by_dates(client, DAY, DAY, 1)
 
         assert count == 2

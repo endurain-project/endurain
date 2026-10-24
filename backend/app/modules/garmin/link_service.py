@@ -9,7 +9,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import garminconnect
-import requests
 
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -40,23 +39,6 @@ def shutdown_link_executor(*, wait: bool = False) -> None:
         wait: Whether to wait for logins still running.
     """
     _LINK_EXECUTOR.shutdown(wait=wait, cancel_futures=True)
-
-
-def _http_failure(err: requests.exceptions.HTTPError) -> garmin_constants.LinkFailure:
-    """Classify an HTTP error from a login by who is at fault.
-
-    Args:
-        err: The error Garmin Connect's login raised.
-
-    Returns:
-        ``INVALID_CREDENTIALS`` for 401/403, ``TOO_MANY_REQUESTS`` for 429, else ``INTERNAL``.
-    """
-    status_code = err.response.status_code if err.response is not None else None
-    if status_code in (401, 403):
-        return garmin_constants.LinkFailure.INVALID_CREDENTIALS
-    if status_code == 429:
-        return garmin_constants.LinkFailure.TOO_MANY_REQUESTS
-    return garmin_constants.LinkFailure.INTERNAL
 
 
 def wait_for_mfa_code(
@@ -183,19 +165,14 @@ def link_garminconnect(
             )
             db.commit()
     except garminconnect.GarminConnectAuthenticationError as err:
+        # The library raises this for a refused password and for a refused MFA code alike.
+        reason = (
+            garmin_constants.LinkFailure.INCORRECT_MFA
+            if mfa_prompted
+            else garmin_constants.LinkFailure.INVALID_CREDENTIALS
+        )
         logger.warning(
-            "Garmin Connect refused the credentials",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id),
-        )
-        link_states.set_status(
-            user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS
-        )
-    except requests.exceptions.HTTPError as err:
-        reason = _http_failure(err)
-        log = logger.error if reason == garmin_constants.LinkFailure.INTERNAL else logger.warning
-        log(
-            "Garmin Connect answered the link attempt with an HTTP error",
+            "Garmin Connect refused the link attempt",
             exc_info=err,
             extra=core_logger.context(user_id=user_id, reason=reason),
         )
@@ -208,21 +185,6 @@ def link_garminconnect(
         link_states.set_status(
             user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.TOO_MANY_REQUESTS
         )
-    except TypeError as err:
-        # The library fails this way when the MFA prompt returns no code or a wrong one.
-        if not mfa_prompted:
-            logger.error(
-                "Internal error while linking Garmin Connect", exc_info=err, extra=core_logger.context(user_id=user_id)
-            )
-            link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
-        else:
-            logger.warning(
-                "Garmin Connect link failed on the MFA code",
-                extra=core_logger.context(user_id=user_id),
-            )
-            link_states.set_status(
-                user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA
-            )
     except Exception as err:
         logger.error(
             "Internal error while linking Garmin Connect", exc_info=err, extra=core_logger.context(user_id=user_id)

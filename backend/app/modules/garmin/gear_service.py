@@ -25,21 +25,21 @@ def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: 
         user_id: The gear's owner.
 
     Returns:
-        The number of gear pieces processed.
+        The number of gear pieces that were not stored yet.
     """
     last_used_device = garminconnect_client.get_device_last_used()
     gears = garminconnect_client.get_gear(last_used_device["userProfileNumber"])
 
     with core_database.SessionLocal() as db:
-        processed_gears = [process_gear(gear, user_id, db) for gear in gears]
-        gears_integration.create_multiple_gears(processed_gears, user_id, db)
+        new_gears = [new_gear for gear in gears if (new_gear := process_gear(gear, user_id, db)) is not None]
+        gears_integration.create_multiple_gears(new_gears, user_id, db)
         db.commit()
 
     logger.info(
         "Garmin Connect gear processed",
-        extra=core_logger.context(user_id=user_id, count=len(processed_gears)),
+        extra=core_logger.context(user_id=user_id, count=len(new_gears)),
     )
-    return len(processed_gears)
+    return len(new_gears)
 
 
 def process_gear(gear: dict, user_id: int, db: Session) -> gears_schema.GearCreate | None:
@@ -145,10 +145,6 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     # Get user gears
     gears = gears_integration.get_gear_user(user_id, db)
 
-    # Skip if no gears
-    if gears is None:
-        return 0
-
     # Build {activity_id: gear_id} for all activities with a match
     gear_assignments: dict[int, int | None] = {}
     for activity in activities:
@@ -182,19 +178,14 @@ def get_user_gear(user_id: int) -> bool:
         extra=core_logger.context(user_id=user_id),
     )
 
-    with core_database.SessionLocal() as db:
-        session = garmin_service.get_user_garminconnect_session(user_id, db)
-
-    if session is None:
-        return False
-
-    try:
-        fetch_and_process_gear(session.client, user_id)
-    except garminconnect.GarminConnectAuthenticationError as err:
-        garmin_service.handle_rejected_token(user_id, session, err)
-        return False
-    finally:
-        garmin_service.save_refreshed_token(user_id, session)
+    with garmin_service.linked_session(user_id) as session:
+        if session is None:
+            return False
+        try:
+            fetch_and_process_gear(session.client, user_id)
+        except garminconnect.GarminConnectAuthenticationError as err:
+            garmin_service.handle_rejected_token(user_id, session, err)
+            return False
 
     with core_database.SessionLocal() as db:
         # The account may have been unlinked while the gear was being fetched

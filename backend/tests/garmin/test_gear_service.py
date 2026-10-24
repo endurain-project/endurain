@@ -82,3 +82,20 @@ def test_gear_sync_stays_off_when_the_account_was_unlinked_meanwhile():
 
     assert synced is False
     sync_flag.assert_not_called()
+
+
+def test_only_gear_not_stored_yet_is_counted():
+    client = MagicMock()
+    client.get_device_last_used.return_value = {"userProfileNumber": 5}
+    client.get_gear.return_value = [{"uuid": "known"}, {"uuid": "new"}]
+    new_gear = MagicMock()
+
+    with (
+        patch.object(garmin_gear_service.core_database, "SessionLocal"),
+        patch.object(garmin_gear_service, "process_gear", side_effect=[None, new_gear]),
+        patch.object(garmin_gear_service.gears_integration, "create_multiple_gears") as create,
+    ):
+        count = garmin_gear_service.fetch_and_process_gear(client, 1)
+
+    assert count == 1
+    assert create.call_args.args[0] == [new_gear]

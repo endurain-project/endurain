@@ -4,7 +4,7 @@ from datetime import date
 from typing import Annotated
 
 import jasil.providers as platform_providers
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -161,7 +161,7 @@ def garminconnect_sync_status(
     return garmin_sync_service.get_sync_status(token_user_id, kind, sync_states)
 
 
-@router.delete("/link", response_model=garmin_schema.GarminDetail)
+@router.delete("/link", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def garminconnect_unlink(
     request: Request,
@@ -173,6 +173,6 @@ def garminconnect_unlink(
         Session,
         Depends(core_database.get_db),
     ],
-) -> garmin_schema.GarminDetail:
+) -> None:
     """Unlink the user's Garmin Connect account."""
-    return garmin_service.unlink_account(token_user_id, db)
+    garmin_service.unlink_account(token_user_id, db)

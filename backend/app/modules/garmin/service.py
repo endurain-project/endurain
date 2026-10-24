@@ -5,6 +5,8 @@ Linking lives in :mod:`modules.garmin.link_service`. The activity, gear and heal
 :mod:`modules.garmin.health_service`.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import NamedTuple
 
 import garminconnect
@@ -13,7 +15,6 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.garmin.schema as garmin_schema
 import modules.garmin.token_utils as garmin_token_utils
 import modules.notifications.integration_service as notifications_integration
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -22,15 +23,12 @@ import modules.users.users_integrations.schema as user_integrations_schema
 logger = core_logger.get_logger(__name__)
 
 
-def unlink_account(user_id: int, db: Session) -> garmin_schema.GarminDetail:
+def unlink_account(user_id: int, db: Session) -> None:
     """Unlink a user's Garmin Connect account.
 
     Args:
         user_id: The user unlinking Garmin Connect.
         db: Database session.
-
-    Returns:
-        The outcome message.
     """
     user_integrations_integration.unlink_garminconnect_account(user_id, db)
     db.commit()
@@ -38,7 +36,6 @@ def unlink_account(user_id: int, db: Session) -> garmin_schema.GarminDetail:
         "Garmin Connect unlinked",
         extra=core_logger.context(user_id=user_id),
     )
-    return garmin_schema.GarminDetail(detail="Garmin Connect unlinked successfully")
 
 
 def get_linked_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead | None:
@@ -78,7 +75,7 @@ class GarminSession(NamedTuple):
     token: dict
 
 
-def _restore_session(user_id: int, db: Session) -> GarminSession | None:
+def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession | None:
     """Restore the session of a linked user from the token stored for them.
 
     Args:
@@ -89,7 +86,8 @@ def _restore_session(user_id: int, db: Session) -> GarminSession | None:
         The session, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
 
     Raises:
-        UndecryptableError: When the stored token cannot be decrypted with the configured key.
+        UndecryptableError: When the stored token cannot be decrypted with the configured key. The
+            account stays linked: the fault is the key, not the token.
     """
     try:
         user_integrations = get_linked_user_integrations(user_id, db)
@@ -109,32 +107,28 @@ def _restore_session(user_id: int, db: Session) -> GarminSession | None:
     return GarminSession(client, token) if client is not None else None
 
 
-def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession | None:
-    """Return an authenticated Garmin Connect session for a linked user.
+@contextmanager
+def linked_session(user_id: int) -> Iterator[GarminSession | None]:
+    """Yield a linked user's session with no database session open, then store its refreshed token.
 
-    A stored token the configured key cannot read is as dead as one Garmin Connect rejected:
-    the account is unlinked and the user told to link it again.
+    The token is stored whether the body succeeds or raises, so the next sync restores a live one.
+    Rejection by Garmin Connect is the body's to handle, as what follows it differs per sync.
 
     Args:
         user_id: The user whose Garmin Connect account to use.
-        db: Database session, which this commits when it unlinks the account.
 
-    Returns:
-        The session, or ``None`` when Garmin Connect is not linked or the stored session is unusable.
+    Yields:
+        The session, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
     """
+    with core_database.SessionLocal() as db:
+        session = get_user_garminconnect_session(user_id, db)
+    if session is None:
+        yield None
+        return
     try:
-        return _restore_session(user_id, db)
-    except core_exceptions.UndecryptableError as err:
-        logger.warning(
-            "Garmin Connect token cannot be decrypted. Unlinking account. User must re-link",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id),
-        )
-        # The stored token is the one that failed, so it is the one to compare on the unlink.
-        user_integrations = get_linked_user_integrations(user_id, db)
-        if user_integrations is not None:
-            unlink_expired_account(user_id, user_integrations.garminconnect_token, db)
-        return None
+        yield session
+    finally:
+        save_refreshed_token(user_id, session)
 
 
 def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Garmin | None:
@@ -150,13 +144,8 @@ def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Ga
         The client, or ``None`` when Garmin Connect is not linked or the stored session is unusable.
     """
     try:
-        session = _restore_session(user_id, db)
-    except core_exceptions.UndecryptableError as err:
-        logger.warning(
-            "Garmin Connect token cannot be decrypted",
-            exc_info=err,
-            extra=core_logger.context(user_id=user_id),
-        )
+        session = get_user_garminconnect_session(user_id, db)
+    except core_exceptions.UndecryptableError:
         return None
     return session.client if session is not None else None
 
@@ -180,7 +169,11 @@ def save_refreshed_token(user_id: int, session: GarminSession) -> None:
                 db.commit()
                 logger.info("Garmin Connect token refreshed", extra=core_logger.context(user_id=user_id))
     except Exception as err:
-        logger.error("Failed to store the refreshed Garmin Connect token", exc_info=err)
+        logger.error(
+            "Failed to store the refreshed Garmin Connect token",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
 
 
 def linked_user_ids(after_id: int, limit: int) -> list[int]:
@@ -205,7 +198,7 @@ def handle_rejected_token(user_id: int, session: GarminSession, err: Exception) 
         session: The session the sync used.
         err: The authentication error Garmin Connect raised.
     """
-    logger.error(
+    logger.warning(
         "Garmin Connect token expired. Unlinking account. User must re-link",
         exc_info=err,
         extra=core_logger.context(user_id=user_id),

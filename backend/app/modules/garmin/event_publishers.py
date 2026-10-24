@@ -19,6 +19,7 @@ def publish_sync_requested(
     db: Session,
     *,
     commit: Callable[[], None],
+    source: str,
 ) -> None:
     """Publish ``garmin.sync_requested`` so a durable worker runs the sync.
 
@@ -32,12 +33,13 @@ def publish_sync_requested(
         end_date: Last day of the range, for a health sync.
         db: The session to stage the event on.
         commit: Zero-arg commit callable that ends the caller's transaction.
+        source: Who asked for the sync, as recorded on the event.
     """
     payload = garmin_events.SyncRequestedPayload(user_id=user_id, kind=kind, start_date=start_date, end_date=end_date)
     platform_publisher.publish_committing(
         garmin_events.GARMIN_SYNC_REQUESTED,
         payload.model_dump(mode="json"),
-        source="api:garmin_sync",
+        source=source,
         db=db,
         commit=commit,
         metadata={core_event_metadata.META_USER_ID: user_id},

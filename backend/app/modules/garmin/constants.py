@@ -18,6 +18,14 @@ SYNC_TTL_SECONDS = 30 * 60
 # Syncs the in-process pool may hold, running or queued, when durable jobs are off.
 MAX_PENDING_LOCAL_SYNCS = 50
 
+# How long the scheduled pull waits for a pool slot before it stops: it runs on the scheduler
+# thread, so it can wait for the pool to drain where a request is refused at once.
+SCHEDULED_SLOT_WAIT_SECONDS = 600
+
+# Event sources recorded on a queued sync, by who asked for it.
+SYNC_SOURCE_API = "api:garmin_sync"
+SYNC_SOURCE_SCHEDULER = "scheduler:garmin_health_sync"
+
 # Longest health range one request may ask for: each day is a Garmin round trip.
 MAX_HEALTH_RANGE_DAYS = 31
 

@@ -164,10 +164,11 @@ def test_a_non_numeric_mfa_code_is_rejected():
 def test_unlinking_is_a_delete_on_the_link():
     client, _ = _client()
     with patch("modules.garmin.service.unlink_account") as unlink:
-        unlink.return_value = garmin_schema.GarminDetail(detail="ok")
         response = client.delete("/garminconnect/link")
 
-    assert response.status_code == 200
+    assert response.status_code == 204
+    assert response.content == b""
+    unlink.assert_called_once()
 
 
 def test_a_reversed_health_range_is_a_client_error():

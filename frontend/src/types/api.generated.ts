@@ -1313,6 +1313,7 @@ export interface paths {
          * @description Edit an existing fasting record.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_fasting: Fasting data to update.
          *         _check_scopes: Security dependency for health:write scope.
          *         token_user_id: User ID from the access token.
@@ -1327,6 +1328,7 @@ export interface paths {
          * @description Create a new fasting session.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_fasting: Fasting data to create.
          *         _check_scopes: Security dependency for health:write scope.
          *         token_user_id: User ID from the access token.
@@ -1336,7 +1338,7 @@ export interface paths {
          *         Created HealthFastingRead record.
          *
          *     Raises:
-         *         HTTPException: If user already has an active fast.
+         *         InvalidInputError: If user already has an active fast.
          */
         post: operations["create_health_fasting_api_v1_health_fasting_post"];
         delete?: never;
@@ -1422,7 +1424,7 @@ export interface paths {
          *         HealthFastingRead for the specified record.
          *
          *     Raises:
-         *         HTTPException: If record not found.
+         *         NotFoundError: If record not found.
          */
         get: operations["read_health_fasting_by_id_api_v1_health_fasting__health_fasting_id__get"];
         put?: never;
@@ -1432,6 +1434,7 @@ export interface paths {
          * @description Delete a fasting record.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_fasting_id: ID of the fasting record to delete.
          *         _check_scopes: Security dependency for health:write scope.
          *         token_user_id: User ID from the access token.
@@ -1457,6 +1460,7 @@ export interface paths {
          * @description Complete or end a fasting session.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_fasting_id: ID of the fasting record to complete.
          *         complete_data: Completion data with end time and status.
          *         _check_scopes: Security dependency for health:write scope.
@@ -1510,6 +1514,7 @@ export interface paths {
          * @description Edit an existing poop record.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_poop: Poop data to update.
          *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
@@ -1530,6 +1535,7 @@ export interface paths {
          *     per day.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_poop: Poop data to create.
          *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
@@ -1576,6 +1582,7 @@ export interface paths {
          * @description Delete a poop record for the authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_poop_id: ID of the poop record to delete.
          *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
@@ -1637,6 +1644,7 @@ export interface paths {
          *     Requires 'health:write' scope for authorization.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
          *             containing the new values for the health sleep record.
          *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
@@ -1663,6 +1671,7 @@ export interface paths {
          *     based on whether sleep data exists for the given date.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create
          *             or update, including the date and sleep duration.
          *         _check_scopes (Callable): Security dependency that verifies the user has
@@ -1673,9 +1682,6 @@ export interface paths {
          *
          *     Returns:
          *         health_sleep_schema.HealthSleepRead: The created or updated health sleep data.
-         *
-         *     Raises:
-         *         HTTPException: 400 error if the date field is not provided in the request.
          */
         post: operations["create_health_sleep_api_v1_health_sleep_post"];
         delete?: never;
@@ -1702,6 +1708,7 @@ export interface paths {
          *     identified by the access token. The user must have 'health:write' scope permission.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_sleep_id (int): The unique identifier of the health sleep record to delete.
          *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
          *         token_user_id (int): The user ID extracted from the access token.
@@ -1731,7 +1738,7 @@ export interface paths {
         };
         /**
          * Read Health Daily Stats
-         * @description Retrieve health daily stats and last weight record.
+         * @description Retrieve the user's health dashboard for today.
          *
          *     Args:
          *         _check_scopes: Security dependency that validates the user has
@@ -1808,6 +1815,7 @@ export interface paths {
          *     Requires 'health:write' scope for authorization.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_steps (health_steps_schema.HealthSteps): The health steps data to be updated,
          *             containing the new values for the health steps record.
          *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
@@ -1834,6 +1842,7 @@ export interface paths {
          *     based on whether steps data exists for the given date.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_steps (health_steps_schema.HealthSteps): The health steps data to create
          *             or update, including the date and step count.
          *         _check_scopes (Callable): Security dependency that verifies the user has
@@ -1844,9 +1853,6 @@ export interface paths {
          *
          *     Returns:
          *         health_steps_schema.HealthSteps: The created or updated health steps data.
-         *
-         *     Raises:
-         *         HTTPException: 400 error if the date field is not provided in the request.
          */
         post: operations["create_health_steps_api_v1_health_steps_post"];
         delete?: never;
@@ -1873,6 +1879,7 @@ export interface paths {
          *     identified by the access token. The user must have 'health:write' scope permission.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_steps_id (int): The unique identifier of the health steps record to delete.
          *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
          *         token_user_id (int): The user ID extracted from the access token.
@@ -1933,10 +1940,9 @@ export interface paths {
          *     weight goals, activity targets, or other health metrics.
          *
          *     Args:
-         *         health_targets (
-         *             health_targets_schema.HealthTargetsUpdate): The
-         *             health targets data to be updated, containing the
-         *             new values for various health metrics.
+         *         request: The incoming request, read by the rate limiter.
+         *         health_targets: The health targets to update, containing the new values for
+         *             the health metrics.
          *         _check_scopes (Callable): Security dependency that
          *             verifies the user has 'health:write' scope
          *             permission.
@@ -2000,6 +2006,7 @@ export interface paths {
          * @description Edit an existing water intake record.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_water: Water intake data to update.
          *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
@@ -2020,6 +2027,7 @@ export interface paths {
          *     updated instead of creating a duplicate.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_water: Water intake data to create.
          *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
@@ -2027,9 +2035,6 @@ export interface paths {
          *
          *     Returns:
          *         Created or updated HealthWaterRead record.
-         *
-         *     Raises:
-         *         HTTPException: 400 if date field is not provided.
          */
         post: operations["create_health_water_api_v1_health_water_post"];
         delete?: never;
@@ -2053,6 +2058,7 @@ export interface paths {
          * @description Delete a water intake record for the authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_water_id: ID of the water intake record.
          *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
@@ -2115,6 +2121,7 @@ export interface paths {
          *     health weight record in the database.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_weight (health_weight_schema.HealthWeight): The health weight data
          *             to be updated, containing the weight information and associated metadata.
          *         _check_scopes (Callable): Security dependency that verifies the user has
@@ -2127,8 +2134,8 @@ export interface paths {
          *         The updated health weight record from the database.
          *
          *     Raises:
-         *         HTTPException: If the user doesn't have permission to edit the weight entry
-         *             or if the entry doesn't exist.
+         *         PermissionDeniedError: If the record names another user.
+         *         NotFoundError: If the entry doesn't exist.
          */
         put: operations["edit_health_weight_api_v1_health_weight_put"];
         /**
@@ -2139,6 +2146,7 @@ export interface paths {
          *     or updates an existing record if one is already present for that date.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_weight (health_weight_schema.HealthWeightCreate): The health weight data to create or update.
          *             Must include a date field.
          *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
@@ -2147,9 +2155,6 @@ export interface paths {
          *
          *     Returns:
          *         health_weight_schema.HealthWeightRead: The created or updated health weight record.
-         *
-         *     Raises:
-         *         HTTPException: 400 error if the date field is not provided in the request.
          */
         post: operations["create_health_weight_api_v1_health_weight_post"];
         delete?: never;
@@ -2176,6 +2181,7 @@ export interface paths {
          *     the 'health:write' scope for authorization.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_weight_id (int): The unique identifier of the health weight entry to delete.
          *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
          *         token_user_id (int): The user ID extracted from the access token, used to ensure
@@ -2186,8 +2192,7 @@ export interface paths {
          *         None: This function does not return any value upon successful deletion.
          *
          *     Raises:
-         *         HTTPException: May raise various HTTP exceptions (e.g., 404 if entry not found,
-         *             403 if unauthorized) through the CRUD layer.
+         *         NotFoundError: If the entry doesn't exist for the user.
          */
         delete: operations["delete_health_weight_api_v1_health_weight__health_weight_id__delete"];
         options?: never;
@@ -6973,10 +6978,9 @@ export interface components {
         };
         /**
          * HealthSleepCreate
-         * @description Validator for HealthSleepCreate model that automatically sets the date field.
+         * @description Schema for creating a health sleep record.
          *
-         *     This validator runs after model initialization to ensure that if no date
-         *     is provided, it defaults to today's date.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthSleepCreate: {
             /**
@@ -7629,10 +7633,9 @@ export interface components {
         };
         /**
          * HealthStepsCreate
-         * @description Validator for HealthStepsCreate model that automatically sets the date field.
+         * @description Schema for creating a health steps record.
          *
-         *     This validator runs after model initialization to ensure that if no date
-         *     is provided, it defaults to today's date.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthStepsCreate: {
             /**
@@ -7866,7 +7869,7 @@ export interface components {
          * HealthWaterCreate
          * @description Schema for creating a new water intake record.
          *
-         *     Automatically sets the date to today if not provided.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthWaterCreate: {
             /**
@@ -7991,10 +7994,9 @@ export interface components {
         };
         /**
          * HealthWeightCreate
-         * @description Validator for HealthWeightCreate model that automatically sets the date field.
+         * @description Schema for creating a health weight record.
          *
-         *     This validator runs after model initialization to ensure that if no date
-         *     is provided, it defaults to today's date.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthWeightCreate: {
             /**
@@ -14050,13 +14052,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["GarminDetail"];
-                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {

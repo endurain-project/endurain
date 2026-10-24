@@ -96,13 +96,9 @@ def _download_and_ingest_activity(
                         activity_name=activity_name,
                     ),
                 )
+            # Ingestion logs a file it could not store and answers None, so the window moves on.
             if parsed_result:
                 stored.extend(parsed_result)
-            else:
-                logger.warning(
-                    "Failed to parse Garmin activity file",
-                    extra=core_logger.context(user_id=user_id, activity_id=activity_id, file_name=full_file_path.name),
-                )
     return stored
 
 
@@ -117,7 +113,8 @@ def fetch_and_process_activities_by_dates(
     Runs on a worker thread. Garmin round trips run with no session open; the
     duplicate check and the store each open a short one. An activity failing does
     not stop the rest of the window, but the first failure is raised once the
-    window is done, so the refresh job fails and is retried, as for any provider.
+    window is done, so the refresh job fails and is retried, as for any provider. A file ingestion
+    could not store is logged by ingestion and skipped, and does not fail the window.
 
     Args:
         session: The user's authenticated Garmin Connect session.
@@ -203,11 +200,7 @@ def get_user_garminconnect_activities_by_dates(
     Raises:
         Exception: Whatever the sync raised, so the refresh job fails and is retried.
     """
-    session = None
-    try:
-        with core_database.SessionLocal() as db:
-            session = garmin_service.get_user_garminconnect_session(user_id, db)
-
+    with garmin_service.linked_session(user_id) as session:
         if session is None:
             return None
 
@@ -221,6 +214,3 @@ def get_user_garminconnect_activities_by_dates(
             extra=core_logger.context(user_id=user_id, count=len(processed) if processed else 0),
         )
         return processed
-    finally:
-        if session is not None:
-            garmin_service.save_refreshed_token(user_id, session)

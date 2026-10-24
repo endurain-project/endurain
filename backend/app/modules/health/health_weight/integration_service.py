@@ -23,6 +23,20 @@ def get_latest_health_weight(user_id: int, db: Session) -> health_weight_schema.
     return health_weight_crud.get_latest_weight_by_user_id(user_id, db)
 
 
+def get_health_weight_by_date(user_id: int, date: str, db: Session) -> health_weight_schema.HealthWeightRead | None:
+    """Return a user's weight record for a date, or ``None``.
+
+    Args:
+        user_id: The record's owner.
+        date: The record's date.
+        db: Database session.
+
+    Returns:
+        The record, or ``None``.
+    """
+    return health_weight_crud.get_health_weight_by_date_and_user_id(user_id, date, db)
+
+
 def list_health_weight(user_id: int, db: Session) -> list[health_weight_schema.HealthWeightRead]:
     """Return all of a user's weight records, newest first.
 
