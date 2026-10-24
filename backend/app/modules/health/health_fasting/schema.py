@@ -1,5 +1,4 @@
-"""
-Pydantic schemas for health fasting data.
+"""Pydantic schemas for health fasting data.
 
 This module defines the request/response schemas for fasting tracking,
 including validation rules and enumerations for fasting types and statuses.
@@ -21,8 +20,7 @@ import modules.health.schema as health_schema
 
 
 class Source(Enum):
-    """
-    Enumeration of data sources for fasting records.
+    """Enumeration of data sources for fasting records.
 
     Attributes:
         MANUAL: Manually entered fasting data.
@@ -34,8 +32,7 @@ class Source(Enum):
 
 
 class FastingType(Enum):
-    """
-    Enumeration of fasting protocol types.
+    """Enumeration of fasting protocol types.
 
     Attributes:
         IF_16_8: 16-hour fast with 8-hour eating window.
@@ -61,8 +58,7 @@ class FastingType(Enum):
 
 
 class FastingStatus(Enum):
-    """
-    Enumeration of fasting session statuses.
+    """Enumeration of fasting session statuses.
 
     Attributes:
         IN_PROGRESS: Fasting session is currently active.
@@ -78,8 +74,7 @@ class FastingStatus(Enum):
 
 
 class HealthFastingBase(BaseModel):
-    """
-    Base schema for health fasting data.
+    """Base schema for health fasting data.
 
     Attributes:
         fast_start_time: Start time of fast.
@@ -138,16 +133,14 @@ class HealthFastingBase(BaseModel):
 
 
 class HealthFastingCreate(HealthFastingBase):
-    """
-    Schema for creating a new fasting session.
+    """Schema for creating a new fasting session.
 
     Requires start time and sets defaults for status.
     """
 
     @model_validator(mode="after")
     def set_defaults_and_validate(self) -> "HealthFastingCreate":
-        """
-        Validate required fields and set defaults.
+        """Validate required fields and set defaults.
 
         Returns:
             The validated model instance with defaults set.
@@ -165,8 +158,7 @@ class HealthFastingCreate(HealthFastingBase):
 
 
 class HealthFastingRead(HealthFastingBase):
-    """
-    Schema for reading a fasting record.
+    """Schema for reading a fasting record.
 
     Attributes:
         id: Unique identifier for the fasting record.
@@ -184,16 +176,14 @@ class HealthFastingRead(HealthFastingBase):
 
 
 class HealthFastingUpdate(HealthFastingRead):
-    """
-    Schema for updating a fasting record.
+    """Schema for updating a fasting record.
 
     Inherits from HealthFastingRead for consistency with read operations.
     """
 
 
 class HealthFastingComplete(BaseModel):
-    """
-    Schema for completing or ending a fasting session.
+    """Schema for completing or ending a fasting session.
 
     Attributes:
         fast_end_time: End time of fast.
@@ -207,6 +197,7 @@ class HealthFastingComplete(BaseModel):
     )
     status: FastingStatus = Field(
         default=FastingStatus.COMPLETED,
+        validate_default=True,
         description="Final status of the fasting session",
     )
     notes: StrictStr | None = Field(
@@ -223,8 +214,7 @@ class HealthFastingComplete(BaseModel):
 
 
 class HealthFastingListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health fasting records.
+    """Response model for listing health fasting records.
 
     Extends the base HealthListResponse to provide a typed response containing
     a list of fasting records. This model is used when returning multiple
@@ -242,8 +232,7 @@ class HealthFastingListResponse(health_schema.HealthListResponse):
 
 
 class HealthFastingStatsResponse(BaseModel):
-    """
-    Response model for fasting statistics.
+    """Response model for fasting statistics.
 
     Attributes:
         total_fasts: Total number of completed fasts.

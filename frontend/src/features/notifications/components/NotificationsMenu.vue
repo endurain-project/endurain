@@ -66,6 +66,14 @@ watch(
   },
 )
 
+// The preview does not poll (the badge already does), so opening the panel refetches it: a push
+// that was lost never leaves stale rows in front of the user.
+watch(open, (isOpen) => {
+  if (isOpen) {
+    void refetch()
+  }
+})
+
 /** Optimistically marks one notification read (explicit action, never on open). */
 function onMarkRead(id: number): void {
   markReadMutation.mutate(id)

@@ -110,8 +110,12 @@ def check_auth_scopes(
         )
 
 
+#: The authenticated caller's user id, taken from the access token's ``sub`` claim.
+CurrentUserId = Annotated[int, Depends(get_sub_from_access_token)]
+
 __all__ = [
     "AuthContext",
+    "CurrentUserId",
     "StepUpStore",
     "check_auth_scopes",
     "check_scopes",

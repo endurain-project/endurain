@@ -3,9 +3,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.pagination as core_pagination
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
@@ -21,10 +20,7 @@ router = APIRouter()
 )
 def list_public_activity_streams(
     activity_id: activity_dependencies.ActivityId,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
 ) -> activity_streams_schema.ActivityStreamsPage:
     """Return one page of a publicly shared activity's streams, with the matching total."""
@@ -43,10 +39,7 @@ def list_public_activity_streams(
 def read_public_activity_stream(
     activity_id: activity_dependencies.ActivityId,
     stream_type: activity_streams_dependencies.StreamType,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> activity_streams_schema.ActivityStreamsRead:
     """Get a public stream by type for an activity.
 

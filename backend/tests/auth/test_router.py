@@ -16,6 +16,14 @@ import modules.auth._internal.token_manager as auth_token_manager
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.router as auth_router
 
+
+@pytest.fixture(autouse=True)
+def _session_policy(session_policy):
+    """Serve the default session policy instead of reading it from the database."""
+    with patch("modules.auth.router.server_settings_integration.get_session_policy", return_value=session_policy):
+        yield
+
+
 # ------------------------------------------------------------------
 # Fixtures
 # ------------------------------------------------------------------

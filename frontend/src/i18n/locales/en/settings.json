@@ -277,6 +277,31 @@
     "saving": "Saving…",
     "saveSuccess": "Server settings updated",
     "saveError": "Couldn't update the server settings. Please try again.",
+    "staleError": "These settings were changed by someone else while you were editing. Your changes were not saved. Reload the page to see the current values.",
+    "envLocked": "Set by {name}",
+    "envSection": "Some settings here are set by environment variables ({names}). Remove them from the environment to edit those settings here.",
+    "unsaved": "Unsaved changes",
+    "discard": "Discard",
+    "tabs": {
+      "label": "Server settings sections",
+      "general": "General",
+      "access": "Access & security",
+      "maps": "Maps & location",
+      "email": "Email",
+      "logs": "Logs",
+      "unsaved": "Has unsaved changes"
+    },
+    "search": {
+      "placeholder": "Search settings…",
+      "noResults": "No settings found"
+    },
+    "leave": {
+      "title": "Leave without saving?",
+      "description": "You have unsaved changes. If you leave this page they will be lost.",
+      "confirm": "Leave without saving",
+      "stay": "Stay on page",
+      "close": "Close"
+    },
     "loadError": {
       "title": "Couldn't load server settings",
       "description": "Something went wrong while loading the server settings. You can try again.",
@@ -300,6 +325,24 @@
       "typeLengthOnly": "Length only",
       "lengthRegular": "Minimum length regular users",
       "lengthAdmin": "Minimum length admin users"
+    },
+    "session": {
+      "title": "Sessions",
+      "description": "Changes apply to new sign-ins and to the next token refresh. Tokens already issued keep their lifetime.",
+      "timeoutsEnabled": "Enforce session timeouts",
+      "idleHours": "Idle timeout (hours)",
+      "idleHoursHint": "A session ends after this many hours without activity.",
+      "absoluteHours": "Absolute timeout (hours)",
+      "absoluteHoursHint": "A session ends after this many hours, whatever its activity. Not shorter than the idle timeout.",
+      "accessMinutes": "Access token lifetime (minutes)",
+      "refreshDays": "Refresh token lifetime (days)",
+      "invalidRange": "Enter a whole number between {min} and {max}.",
+      "absoluteBelowIdle": "Must not be shorter than the idle timeout."
+    },
+    "retention": {
+      "title": "Data retention",
+      "readNotifications": "Delete read notifications after (days)",
+      "readNotificationsHint": "0 keeps read notifications forever. Unread notifications are never deleted."
     },
     "signup": {
       "title": "Registration",
@@ -335,13 +378,34 @@
       "urlInvalid": "URL must include the z, x and y tile placeholders",
       "attribution": "Attribution",
       "apiKey": "Tile server API key",
-      "apiKeyWarning": "The API key is stored encrypted. Leave blank if your tile server doesn't need one.",
+      "apiKeyWarning": "The API key is stored encrypted and never shown again. Leave blank to keep the current key, or if your tile server doesn't need one.",
+      "apiKeyStored": "A key is stored",
+      "apiKeyRemove": "Remove the stored API key",
       "backgroundColor": "Map background color",
       "regenerateThumbnails": "Regenerate activity thumbnails when map settings change"
+    },
+    "geocoding": {
+      "title": "Reverse geocoding",
+      "description": "Turns activity coordinates into place names. Changes apply without a restart.",
+      "service": "Service",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Hostname with an optional port, without a scheme. A host on a private network must be listed in SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Connect over HTTPS",
+      "rateLimit": "Requests per second",
+      "rateLimitHint": "0 turns throttling off. Keep 1 for the public Nominatim and Photon services.",
+      "rateLimitInvalid": "Enter a number between 0 and 100.",
+      "apiKey": "API key",
+      "apiKeyStored": "A key is stored. Leave empty to keep it.",
+      "apiKeyRemove": "Remove the stored API key",
+      "apiKeyRequired": "geocode.maps.co needs an API key."
     },
     "photo": {
       "title": "Login photo",
       "description": "A custom image shown on the login screen",
+      "previewAlt": "Current login photo",
       "add": "Upload login photo",
       "replace": "Replace login photo",
       "delete": "Remove login photo",
@@ -355,9 +419,33 @@
       "cancel": "Cancel",
       "close": "Close"
     },
+    "logs": {
+      "title": "Server logs",
+      "description": "The newest records of the application log. Logs from deployments that run several processes are collected by your platform instead.",
+      "level": "Minimum level",
+      "allLevels": "All levels",
+      "search": "Search",
+      "searchPlaceholder": "Text, logger or request ID…",
+      "live": "Live",
+      "refresh": "Refresh",
+      "download": "Download",
+      "downloadError": "Couldn't download the log file.",
+      "clear": "Clear",
+      "cleared": "Logs cleared",
+      "clearError": "Couldn't clear the logs.",
+      "clearConfirm": {
+        "title": "Clear the server logs?",
+        "description": "This permanently deletes the log file and its rotated backups. Download the log first if you may need it. The action itself is recorded in the new log.",
+        "confirm": "Clear logs",
+        "cancel": "Cancel",
+        "close": "Close"
+      },
+      "loadError": "Couldn't load the logs.",
+      "empty": "No log records found"
+    },
     "email": {
       "title": "Email",
-      "description": "Endurain sends password reset and sign-up emails through the SMTP server configured in the environment.",
+      "description": "Endurain sends password reset and sign-up emails through the mail server configured here.",
       "statusLoadError": "Couldn't check the email configuration.",
       "configured": "Email is configured.",
       "notConfigured": "Email is not configured:",
@@ -366,7 +454,26 @@
       "sendHint": "The test email is sent to your own address.",
       "sent": "Test email sent",
       "failed": "The test email could not be sent",
-      "failedUnknown": "Check the server logs for details."
+      "failedUnknown": "Check the server logs for details.",
+      "settingsLoadError": "Couldn't load the mail settings.",
+      "host": "Host",
+      "hostHint": "Leave empty to turn email off.",
+      "port": "Port",
+      "portInvalid": "Enter a port between 1 and 65535.",
+      "security": "Connection security",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "None (private relay only)",
+      "securityNoneWarning": "Without encryption, only a mail server on a private or loopback address is accepted, and a username and password cannot be used.",
+      "username": "Username",
+      "password": "Password",
+      "passwordStored": "A password is stored. Leave empty to keep it.",
+      "passwordRemove": "Remove the stored password",
+      "fromAddress": "Sender address",
+      "fromAddressHint": "Leave empty to use the username.",
+      "save": "Save mail settings",
+      "saveSuccess": "Mail settings saved",
+      "saveError": "The mail settings could not be saved"
     }
   },
   "idp": {

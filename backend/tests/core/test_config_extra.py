@@ -7,8 +7,10 @@ from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
+from pydantic import ValidationError
 
 import core.config as core_config
+from core.config import Settings
 
 
 class TestLookLikeIp:
@@ -44,6 +46,7 @@ class TestSettings:
 
         s = Settings(_env_file=None)
         assert s.LOG_LEVEL == "info"
+        assert s.LOG_WEBSOCKET_FRAMES is False
         assert s.ENVIRONMENT == "production"
         assert s.TZ == "UTC"
         assert s.ENDURAIN_HOST == "http://localhost:8080"
@@ -715,18 +718,6 @@ class TestCheckRequiredEnvVars:
         ):
             check_required_env_vars()
 
-    def test_email_not_configured(self):
-        from core.config import check_required_env_vars
-
-        with (
-            patch.dict(os.environ, self._minimal_env(), clear=True),
-            patch("core.config.logger") as mock_log,
-        ):
-            check_required_env_vars()
-
-        info_calls = [c for c in mock_log.method_calls if "Email not configured" in str(c)]
-        assert len(info_calls) >= 1
-
     def test_secret_via_file_variant(self):
         from core.config import check_required_env_vars
 
@@ -790,7 +781,7 @@ class TestModuleLevelConstants:
     def test_api_version(self):
         from core.config import API_VERSION
 
-        assert API_VERSION == "v0.20.1"
+        assert API_VERSION == "v0.21.0-beta1"
 
     def test_license_constants(self):
         from core.config import LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL
@@ -936,3 +927,42 @@ class TestBulkImportDirectoriesArePerUser:
             assert core_config.bulk_import_dir_for("7") == "/data/bulk_import/7"
             with pytest.raises(ValueError):
                 core_config.bulk_import_dir_for("../2")
+
+
+class TestSessionPolicySettings:
+    """The deprecated session and token variables keep the bounds the database enforces."""
+
+    def test_defaults_are_the_documented_ones(self):
+        s = Settings(_env_file=None)
+        assert (s.ACCESS_TOKEN_EXPIRE_MINUTES, s.REFRESH_TOKEN_EXPIRE_DAYS) == (15, 7)
+        assert (s.SESSION_IDLE_TIMEOUT_ENABLED, s.SESSION_IDLE_TIMEOUT_HOURS, s.SESSION_ABSOLUTE_TIMEOUT_HOURS) == (
+            False,
+            1,
+            24,
+        )
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 0),
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
+            ("READ_NOTIFICATION_RETENTION_DAYS", -1),
+            ("READ_NOTIFICATION_RETENTION_DAYS", 3651),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 0),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 8761),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 0),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 8761),
+        ],
+    )
+    def test_out_of_range_values_fail_settings_construction(self, name, value):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, **{name: value})
+
+    def test_values_are_read_from_the_environment(self):
+        with patch.dict(os.environ, {"ACCESS_TOKEN_EXPIRE_MINUTES": "30", "SESSION_IDLE_TIMEOUT_ENABLED": "true"}):
+            s = Settings(_env_file=None)
+        assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
+        assert s.SESSION_IDLE_TIMEOUT_ENABLED is True
+        assert {"ACCESS_TOKEN_EXPIRE_MINUTES", "SESSION_IDLE_TIMEOUT_ENABLED"} <= s.model_fields_set

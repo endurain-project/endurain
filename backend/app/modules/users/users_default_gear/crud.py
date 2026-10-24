@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
-import modules.gears.gear.dependencies as gears_dependencies
+import modules.gears.gear.integration_service as gears_integration
 import modules.users.users_default_gear.models as users_default_gear_models
 import modules.users.users_default_gear.schema as users_default_gear_schema
 
@@ -170,7 +170,7 @@ def edit_user_default_gear(
     db_users_default_gear = _get_user_default_gear_model_by_user_id_or_404(user_id, db)
 
     user_default_gear_data: dict[str, Any] = user_default_gear.model_dump(exclude_unset=True, exclude={"user_id", "id"})
-    gears_dependencies.require_owned_gears(user_id, user_default_gear_data.values(), db)
+    gears_integration.require_owned_gears(user_id, user_default_gear_data.values(), db)
     for key, value in user_default_gear_data.items():
         setattr(db_users_default_gear, key, value)
 

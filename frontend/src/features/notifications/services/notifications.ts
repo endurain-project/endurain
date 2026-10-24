@@ -1,4 +1,5 @@
 import type { Notification, NotificationDto } from '@/features/notifications/types'
+import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
 
@@ -21,7 +22,7 @@ export type NotificationsPage = {
 export function mapNotification(dto: NotificationDto): Notification {
   return {
     id: dto.id,
-    type: dto.type ?? null,
+    type: dto.type,
     read: dto.read,
     options: dto.options ?? null,
     createdAt: dto.created_at ?? null,
@@ -42,11 +43,11 @@ export async function fetchNotifications(
   { page, numRecords }: NotificationsPage,
   signal?: AbortSignal,
 ): Promise<Notification[]> {
-  const dtos = await apiFetch<NotificationDto[] | null>(
-    `/notifications/page_number/${page}/num_records/${numRecords}`,
+  const result = await apiFetch<Schemas['Page_NotificationRead_']>(
+    `/notifications?page_number=${page}&num_records=${numRecords}`,
     { signal },
   )
-  return (dtos ?? []).map(mapNotification)
+  return result.items.map(mapNotification)
 }
 
 /**
@@ -57,7 +58,7 @@ export async function fetchNotifications(
  * @throws {HttpError} When the request fails.
  */
 export async function markNotificationRead(id: number): Promise<void> {
-  await apiFetch<void>(`/notifications/${id}/mark_as_read`, {
+  await apiFetch<void>(`/notifications/${id}/read`, {
     method: 'PUT',
     responseType: 'void',
   })
@@ -70,7 +71,7 @@ export async function markNotificationRead(id: number): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function markAllNotificationsRead(): Promise<void> {
-  await apiFetch<void>(`/notifications/mark_all_as_read`, {
+  await apiFetch<void>(`/notifications/read`, {
     method: 'PUT',
     responseType: 'void',
   })

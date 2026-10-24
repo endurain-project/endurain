@@ -42,27 +42,27 @@ The job state is in PostgreSQL. Connect with `psql` (or Adminer) and query it re
 
 ```sql
 -- How many jobs are in each state
-SELECT status, count(*) FROM processing_jobs GROUP BY status;
+SELECT status, count(*) FROM jasil_processing_jobs GROUP BY status;
 
 -- Jobs that gave up, newest first
 SELECT subscriber_id, event_type, attempts, last_error, updated_at
-FROM processing_jobs
+FROM jasil_processing_jobs
 WHERE status = 'dead_letter'
 ORDER BY updated_at DESC
 LIMIT 20;
 ```
 
-`processing_jobs.status` is `pending`, `claimed`, `completed` or `dead_letter`. A failed job returns to `pending` with a later `available_at` (exponential backoff) until `attempts` reaches the maximum (`JOBS_MAX_ATTEMPTS`), then it becomes `dead_letter`. `last_error` holds the most recent failure.
+`jasil_processing_jobs.status` is `pending`, `claimed`, `completed` or `dead_letter`. A failed job returns to `pending` with a later `available_at` (exponential backoff) until `attempts` reaches the maximum (`JOBS_MAX_ATTEMPTS`), then it becomes `dead_letter`. `last_error` holds the most recent failure.
 
 Dead-lettered jobs are kept for review and never pruned automatically. For derived work the scheduled backfills repair the result anyway. An upload or provider refresh that dead-lettered is a command the user can simply start again.
 
 ## Follow one event
 
-When `EVENT_LOG_ENABLED=true` (the default), each event's lifecycle is recorded in `event_log`:
+When `EVENT_LOG_ENABLED=true` (the default), each event's lifecycle is recorded in `jasil_event_log`:
 
 ```sql
 SELECT event_type, status, handler_name, retry_count, error_message, created_at
-FROM event_log
+FROM jasil_event_log
 WHERE event_metadata ->> 'request_id' = '<request_id>'
 ORDER BY created_at;
 ```

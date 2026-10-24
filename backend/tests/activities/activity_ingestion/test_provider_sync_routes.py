@@ -6,16 +6,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
-import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.constants as garmin_constants
 import modules.garmin.router as garmin_router
+import modules.garmin.sync_service as garmin_sync_service
 import modules.strava.provider_registry as strava_provider_registry
 import modules.strava.router as strava_router
 
 _CASES = [
     pytest.param(
         garmin_router.garminconnect_retrieve_activities_days,
-        garmin_router,
-        garmin_provider_registry.PROVIDER_NAME,
+        garmin_sync_service,
+        garmin_constants.PROVIDER_NAME,
         id="garmin",
     ),
     pytest.param(
@@ -37,7 +38,7 @@ def _call(route, **overrides):
         "storage": "storage",
     }
     if route is strava_router.strava_retrieve_activities_days:
-        kwargs.update(_validate_access_token=None, _check_scopes=None)
+        kwargs.update(_validate_access_token=None)
     kwargs.update(overrides)
     return route(**kwargs)
 

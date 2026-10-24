@@ -8,7 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 if TYPE_CHECKING:
-    from modules.gears.gear.models import Gear
     from modules.users.users.models import Users
 
 
@@ -40,22 +39,6 @@ class UsersDefaultGear(Base):
         snowboard_gear_id: Default gear for snowboard activities.
         windsurf_gear_id: Default gear for windsurf activities.
         user: Relationship to Users model.
-        run_gear: Relationship to run Gear model.
-        trail_run_gear: Relationship to trail run Gear model.
-        virtual_run_gear: Relationship to virtual run Gear model.
-        ride_gear: Relationship to ride Gear model.
-        gravel_ride_gear: Relationship to gravel ride Gear model.
-        mtb_ride_gear: Relationship to MTB ride Gear model.
-        virtual_ride_gear: Relationship to virtual ride Gear
-            model.
-        ows_gear: Relationship to OWS Gear model.
-        walk_gear: Relationship to walk Gear model.
-        hike_gear: Relationship to hike Gear model.
-        tennis_gear: Relationship to tennis Gear model.
-        alpine_ski_gear: Relationship to alpine ski Gear model.
-        nordic_ski_gear: Relationship to nordic ski Gear model.
-        snowboard_gear: Relationship to snowboard Gear model.
-        windsurf_gear: Relationship to windsurf Gear model.
     """
 
     __tablename__ = "users_default_gear"
@@ -163,19 +146,3 @@ class UsersDefaultGear(Base):
 
     # Relationships
     users: Mapped["Users"] = relationship(back_populates="users_default_gear")
-
-    run_gear: Mapped["Gear | None"] = relationship(foreign_keys=[run_gear_id])
-    trail_run_gear: Mapped["Gear | None"] = relationship(foreign_keys=[trail_run_gear_id])
-    virtual_run_gear: Mapped["Gear | None"] = relationship(foreign_keys=[virtual_run_gear_id])
-    ride_gear: Mapped["Gear | None"] = relationship(foreign_keys=[ride_gear_id])
-    gravel_ride_gear: Mapped["Gear | None"] = relationship(foreign_keys=[gravel_ride_gear_id])
-    mtb_ride_gear: Mapped["Gear | None"] = relationship(foreign_keys=[mtb_ride_gear_id])
-    virtual_ride_gear: Mapped["Gear | None"] = relationship(foreign_keys=[virtual_ride_gear_id])
-    ows_gear: Mapped["Gear | None"] = relationship(foreign_keys=[ows_gear_id])
-    walk_gear: Mapped["Gear | None"] = relationship(foreign_keys=[walk_gear_id])
-    hike_gear: Mapped["Gear | None"] = relationship(foreign_keys=[hike_gear_id])
-    tennis_gear: Mapped["Gear | None"] = relationship(foreign_keys=[tennis_gear_id])
-    alpine_ski_gear: Mapped["Gear | None"] = relationship(foreign_keys=[alpine_ski_gear_id])
-    nordic_ski_gear: Mapped["Gear | None"] = relationship(foreign_keys=[nordic_ski_gear_id])
-    snowboard_gear: Mapped["Gear | None"] = relationship(foreign_keys=[snowboard_gear_id])
-    windsurf_gear: Mapped["Gear | None"] = relationship(foreign_keys=[windsurf_gear_id])

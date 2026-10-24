@@ -381,6 +381,8 @@ def link_garminconnect_account(
     """
     Link a Garmin Connect account by storing token.
 
+    The caller commits.
+
     Args:
         user_id: The ID of the user.
         token: Garmin Connect token data.
@@ -398,10 +400,6 @@ def link_garminconnect_account(
 
     # Store Garmin Connect token
     db_user_integrations.garminconnect_token = token
-
-    # Commit the changes to the database
-    db.commit()
-    db.refresh(db_user_integrations)
 
 
 @core_decorators.handle_db_errors
@@ -438,6 +436,8 @@ def unlink_garminconnect_account(user_id: int, db: Session) -> None:
     """
     Unlink a Garmin Connect account by clearing OAuth tokens.
 
+    The caller commits.
+
     Args:
         user_id: The ID of the user to unlink.
         db: SQLAlchemy database session.
@@ -456,9 +456,74 @@ def unlink_garminconnect_account(user_id: int, db: Session) -> None:
     db_user_integrations.garminconnect_token = None
     db_user_integrations.garminconnect_sync_gear = False
 
-    # Commit the changes to the database
-    db.commit()
-    db.refresh(db_user_integrations)
+
+@core_decorators.handle_db_errors
+def unlink_garminconnect_account_if_token(user_id: int, token: dict, db: Session) -> bool:
+    """
+    Unlink a Garmin Connect account only while it still holds the given token.
+
+    The row is locked while the token is compared, so a link made in the meantime is
+    never cleared by a caller that holds the previous token. The caller commits.
+
+    Args:
+        user_id: The ID of the user to unlink.
+        token: The stored token the caller found to be rejected.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the account was unlinked, False when the stored token has changed or
+        is already cleared.
+
+    Raises:
+        HTTPException: 500 error if database operation fails.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or db_user_integrations.garminconnect_token != token:
+        return False
+
+    db_user_integrations.garminconnect_token = None
+    db_user_integrations.garminconnect_sync_gear = False
+    return True
+
+
+@core_decorators.handle_db_errors
+def replace_garminconnect_token_if_token(user_id: int, old_token: dict, new_token: dict, db: Session) -> bool:
+    """
+    Replace a Garmin Connect token only while it is still the given one.
+
+    The row is locked while the token is compared, so a token refreshed by a finished sync never
+    overwrites one linked in the meantime. The caller commits.
+
+    Args:
+        user_id: The ID of the user.
+        old_token: The stored token the new one was refreshed from.
+        new_token: The refreshed token to store.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the token was replaced, False when the stored token has changed or is cleared.
+
+    Raises:
+        HTTPException: 500 error if database operation fails.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or db_user_integrations.garminconnect_token != old_token:
+        return False
+
+    db_user_integrations.garminconnect_token = new_token
+    return True
 
 
 @core_decorators.handle_db_errors

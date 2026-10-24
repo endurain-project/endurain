@@ -7,10 +7,9 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
 
 import core.config as core_config
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
@@ -26,6 +25,7 @@ import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.utils as auth_sessions_utils
 import modules.auth.utils as auth_utils
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
 
@@ -75,7 +75,7 @@ def _build_link_result_url(redirect_path: str | None, idp_name: str | None, *, s
     response_model=list[idp_schema.IdentityProviderPublic],
     status_code=status.HTTP_200_OK,
 )
-async def get_enabled_identity_providers(db: Annotated[Session, Depends(core_database.get_db)]):
+async def get_enabled_identity_providers(db: core_dependencies.DbSession):
     """
     Retrieve a list of enabled identity providers from the database.
 
@@ -102,7 +102,7 @@ async def get_enabled_identity_providers(db: Annotated[Session, Depends(core_dat
 async def initiate_login(
     idp_slug: str,
     request: Request,
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
     code_challenge: Annotated[
         str,
         Query(
@@ -233,7 +233,7 @@ async def handle_callback(
         auth_token_manager.TokenManager,
         Depends(auth_token_manager.get_token_manager),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
     code: str = Query(..., description="Authorization code from IdP"),
     state: str = Query(..., description="State parameter for CSRF protection"),
 ):
@@ -367,6 +367,7 @@ async def handle_callback(
             None,
             password_hasher,
             db,
+            datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
             oauth_state_id=oauth_state.id,
         )
 
@@ -433,7 +434,7 @@ async def exchange_tokens_for_session(
         auth_token_manager.TokenManager,
         Depends(auth_token_manager.get_token_manager),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
 ):
     """
     Exchange a PKCE code verifier for JWT tokens.
@@ -585,7 +586,9 @@ async def exchange_tokens_for_session(
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = auth_utils.create_tokens(user, token_manager, session_id)
+        ) = auth_utils.create_tokens(
+            user, token_manager, server_settings_integration.get_session_policy(db), session_id
+        )
 
         # Calculate expires_in from access token expiration
         expires_in = int((access_token_exp - datetime.now(UTC)).total_seconds())
@@ -624,7 +627,7 @@ async def exchange_tokens_for_session(
         # issue a non-Secure refresh cookie when that env var was
         # missing or mis-set in production.
         if client_type == "web":
-            auth_utils.set_refresh_token_cookie(response, refresh_token)
+            auth_utils.set_refresh_token_cookie(response, refresh_token, refresh_token_exp)
 
         # Note: tokens_exchanged was flipped atomically together
         # with the refresh-token hash above, so no second write is

@@ -30,6 +30,7 @@ def test_concurrent_deliveries_of_one_event_create_one_notification(pg_factory):
                 ),
                 db,
             )
+            db.commit()
             created.append(was_created)
 
     threads = [threading.Thread(target=deliver) for _ in range(6)]

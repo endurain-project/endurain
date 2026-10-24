@@ -20,6 +20,7 @@ from io import BytesIO
 from typing import Any
 
 import jasil.runtime as platform_runtime
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -31,13 +32,13 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.contributor_registry as activities_contributor_registry
-import modules.gears.gear.crud as gear_crud
+import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear.schema as gear_schema
-import modules.gears.gear_components.crud as gear_components_crud
+import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.gears.gear_components.schema as gear_components_schema
-import modules.health.health_targets.crud as health_targets_crud
+import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_targets.schema as health_targets_schema
-import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.health_weight.schema as health_weight_schema
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
@@ -51,7 +52,6 @@ import modules.users.users_integrations.schema as users_integrations_schema
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 import modules.users.users_profile.utils as profile_utils
-import modules.websocket.manager as websocket_manager
 from modules.users.users_profile.exceptions import (
     ActivityLimitError,
     FileFormatError,
@@ -148,7 +148,6 @@ class ImportService:
     Attributes:
         user_id: ID of user to import data for.
         db: Database session.
-        websocket_manager: WebSocket manager for updates.
         counts: Dictionary tracking imported item counts.
         performance_config: Performance configuration.
     """
@@ -157,12 +156,10 @@ class ImportService:
         self,
         user_id: int,
         db: Session,
-        websocket_manager: websocket_manager.WebSocketManager,
         performance_config: ImportPerformanceConfig | None = None,
     ):
         self.user_id = user_id
         self.db = db
-        self.websocket_manager = websocket_manager
         self.counts = profile_utils.initialize_operation_counts(include_user_count=False)
         self.performance_config: ImportPerformanceConfig = (
             performance_config or ImportPerformanceConfig.get_auto_config()
@@ -412,14 +409,48 @@ class ImportService:
             gear_data["user_id"] = self.user_id
             original_id = gear_data.get("id")
             gear_data.pop("id", None)
+            gear_data.pop("version", None)
 
-            gear = gear_schema.GearCreate(**gear_data)
-            new_gear = gear_crud.create_gear(gear, self.user_id, self.db)
-            gears_id_mapping[original_id] = new_gear.id
+            try:
+                gear = gear_schema.GearCreate(**gear_data)
+            except ValidationError:
+                logger.warning("Skipped an invalid gear")
+                continue
+            gears_id_mapping[original_id] = self._import_gear(gear)
             self.counts["gears"] += 1
 
+        # The gear surface stages; the importer owns the commit.
+        self.db.commit()
         logger.info(f"Imported {self.counts['gears']} gears")
         return gears_id_mapping
+
+    def _import_gear(self, gear: gear_schema.GearCreate) -> int:
+        """Import one gear, tolerating what the user already has.
+
+        A gear whose nickname the user already has maps onto that gear. A provider gear
+        ID the user already holds on another gear is dropped, so the archive cannot make
+        the import fail.
+
+        Args:
+            gear: The gear from the archive.
+
+        Returns:
+            The ID of the gear the archived one maps to.
+        """
+        existing = gear_integration.get_gear_user_by_nickname(self.user_id, gear.nickname, self.db)
+        if existing is not None:
+            return existing.id
+        try:
+            with self.db.begin_nested():
+                return gear_integration.create_gear(gear, self.user_id, self.db).id
+        except core_exceptions.ConflictError:
+            existing = gear_integration.get_gear_user_by_nickname(self.user_id, gear.nickname, self.db)
+            if existing is not None:
+                return existing.id
+            logger.warning("Dropped the provider gear IDs of an imported gear that are already taken")
+        without_ids = gear.model_copy(update={"strava_gear_id": None, "garminconnect_gear_id": None})
+        with self.db.begin_nested():
+            return gear_integration.create_gear(without_ids, self.user_id, self.db).id
 
     async def collect_and_import_gear_components_data(
         self, gear_components_data: list[Any], gears_id_mapping: dict[int, int]
@@ -436,18 +467,30 @@ class ImportService:
             return
 
         for gear_component_data in gear_components_data:
-            gear_component_data["gear_id"] = (
-                gears_id_mapping.get(gear_component_data["gear_id"])
-                if gear_component_data.get("gear_id") in gears_id_mapping
-                else None
-            )
+            new_gear_id = gears_id_mapping.get(gear_component_data.get("gear_id"))
+            if new_gear_id is None:
+                logger.warning("Skipped a gear component whose gear is not in the archive")
+                continue
+            gear_component_data["gear_id"] = new_gear_id
 
-            gear_component_data.pop("id", None)
+            for owner_or_derived in ("id", "version", "user_id", "current_distance", "current_time"):
+                gear_component_data.pop(owner_or_derived, None)
 
-            gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
-            gear_components_crud.create_gear_component(gear_component, self.user_id, self.db)
+            try:
+                gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
+            except ValidationError:
+                logger.warning("Skipped an invalid gear component")
+                continue
+            if not gear_components_schema.is_retired_after_purchase(
+                gear_component.purchase_date, gear_component.retired_date
+            ):
+                logger.warning("Skipped a gear component retired on or before its purchase date")
+                continue
+            gear_components_integration.create_gear_component(gear_component, self.user_id, self.db)
             self.counts["gear_components"] += 1
 
+        # The gear component surface stages; the importer owns the commit.
+        self.db.commit()
         logger.info(f"Imported {self.counts['gear_components']} gear components")
 
     async def collect_and_import_user_data(
@@ -901,7 +944,8 @@ class ImportService:
                             health_weight[field] = None
 
                 data = health_weight_schema.HealthWeightCreate(**health_weight)
-                health_weight_crud.create_health_weight(self.user_id, data, self.db)
+                health_weight_integration.upsert_health_weight(self.user_id, data, self.db)
+                self.db.commit()
                 self.counts["health_weight"] += 1
             logger.info(f"Imported {self.counts['health_weight']} health weight records")
         else:
@@ -910,7 +954,7 @@ class ImportService:
         # Import health targets
         if health_targets_data:
             for target_data in health_targets_data:
-                current_health_target = health_targets_crud.get_health_targets_by_user_id(self.user_id, self.db)
+                current_health_target = health_targets_integration.get_health_targets(self.user_id, self.db)
 
                 # Convert string numeric values to floats/ints
                 if isinstance(target_data.get("weight"), str):
@@ -934,7 +978,8 @@ class ImportService:
                     target_data.pop("id", None)
 
                 target = health_targets_schema.HealthTargetsUpdate(**target_data)
-                health_targets_crud.edit_health_target(target, self.user_id, self.db)
+                health_targets_integration.edit_health_targets(target, self.user_id, self.db)
+                self.db.commit()
                 self.counts["health_targets"] += 1
             logger.info(f"Imported {self.counts['health_targets']} health targets")
         else:

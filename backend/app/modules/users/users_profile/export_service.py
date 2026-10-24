@@ -27,10 +27,10 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.contributor_registry as activities_contributor_registry
-import modules.gears.gear.crud as gear_crud
-import modules.gears.gear_components.crud as gear_components_crud
-import modules.health.health_targets.crud as health_targets_crud
-import modules.health.health_weight.crud as health_weight_crud
+import modules.gears.gear.integration_service as gear_integration
+import modules.gears.gear_components.integration_service as gear_components_integration
+import modules.health.health_targets.integration_service as health_targets_integration
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.users.users.signing as users_signing
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.schema as user_default_gear_schema
@@ -477,7 +477,7 @@ class ExportService:
         try:
             # Collect and write gears
             try:
-                gears = gear_crud.get_gear_user(self.user_id, self.db)
+                gears = gear_integration.get_gear_user(self.user_id, self.db)
                 if gears:
                     gears_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(g) for g in gears]
                     users_profile_utils.write_json_to_zip(zipf, "data/gears.json", gears_dicts, self.counts)
@@ -489,7 +489,7 @@ class ExportService:
 
             # Collect and write gear components
             try:
-                gear_components = gear_components_crud.get_gear_components_user(self.user_id, self.db)
+                gear_components = gear_components_integration.get_gear_components_user(self.user_id, self.db)
                 if gear_components:
                     gear_components_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(gc) for gc in gear_components]
                     users_profile_utils.write_json_to_zip(
@@ -521,7 +521,7 @@ class ExportService:
         try:
             # Collect and write health data
             try:
-                health_weight = health_weight_crud.get_all_health_weight_by_user_id(self.user_id, self.db)
+                health_weight = health_weight_integration.list_health_weight(self.user_id, self.db)
                 if health_weight:
                     health_weight_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(hd) for hd in health_weight]
                     users_profile_utils.write_json_to_zip(
@@ -538,7 +538,7 @@ class ExportService:
 
             # Collect and write health targets
             try:
-                health_targets = health_targets_crud.get_health_targets_by_user_id(self.user_id, self.db)
+                health_targets = health_targets_integration.get_health_targets(self.user_id, self.db)
                 if health_targets:
                     # health_targets is a single object, not a list
                     health_targets_dict = users_profile_utils.sqlalchemy_obj_to_dict(health_targets)

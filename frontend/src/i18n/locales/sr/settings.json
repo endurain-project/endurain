@@ -367,6 +367,29 @@
       "sent": "Probna e-poruka poslata",
       "failed": "Probna e-poruka nije mogla da se pošalje",
       "failedUnknown": "Detalje potražite u evidenciji servera."
+    },
+    "envLocked": "Postavljeno promenljivom {name}",
+    "envSection": "Neka podešavanja ovde određuju promenljive okruženja ({names}). Uklonite ih iz okruženja da biste ta podešavanja mogli da menjate ovde.",
+    "unsaved": "Nesačuvane izmene",
+    "discard": "Odbaci",
+    "tabs": {
+      "label": "Odeljci podešavanja servera",
+      "general": "Opšte",
+      "access": "Pristup i bezbednost",
+      "maps": "Mape i lokacija",
+      "email": "E-pošta",
+      "unsaved": "Sadrži nesačuvane izmene"
+    },
+    "search": {
+      "placeholder": "Pretraži podešavanja…",
+      "noResults": "Nijedno podešavanje nije pronađeno"
+    },
+    "leave": {
+      "title": "Napustiti stranicu bez čuvanja?",
+      "description": "Imate nesačuvane izmene. Ako napustite ovu stranicu, biće izgubljene.",
+      "confirm": "Napusti bez čuvanja",
+      "stay": "Ostani na stranici",
+      "close": "Zatvori"
     }
   },
   "idp": {

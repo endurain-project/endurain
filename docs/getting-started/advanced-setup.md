@@ -15,6 +15,8 @@ Endurain provides a Docker image for simplified deployment. To get started, chec
 ## Supported Environment Variables
 Table below shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
+Variables marked as deprecated have moved to the admin settings. On every start, Endurain saves the value of each deprecated variable that is set to the database, but only when it differs from the stored value, and logs one warning naming the variables. While a variable is set, the setting it controls is read-only in Settings > Server. Remove the deprecated variables from your environment after the first start. From v0.22.0 Endurain refuses to start while any of them is set.
+
 | Environment variable  | Default value | Optional | Notes |
 | --- | --- | --- | --- |
 | LOCAL_PATH | /var/opt/endurain | Yes | Root directory for Docker volume mounts. Controls where activity files, images, logs, and database data are stored on the host. |
@@ -24,13 +26,13 @@ Table below shows supported environment variables. Variables marked with optiona
 | DATA_DIR | `/app/backend/data` | Yes | You will only need to change this value if installing using bare metal method |
 | LOGS_DIR | `/app/backend/logs` | Yes | You will only need to change this value if installing using bare metal method |
 | ENDURAIN_HOST | No default set | `No` | Required for internal communication and Strava. For Strava https must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
-| REVERSE_GEO_PROVIDER | nominatim | Yes | Defines reverse geo provider. Expects <a href="https://geocode.maps.co/">geocode</a>, photon or nominatim. photon can be the <a href="https://photon.komoot.io">SaaS by komoot</a> or a self hosted version like a <a href="https://github.com/rtuszik/photon-docker">self hosted version</a>. Like photon, Nominatim can be the <a href="https://nominatim.openstreetmap.org/">SaaS</a> or a self hosted version |
-| PHOTON_API_HOST | photon.komoot.io | Yes | API host for photon. By default it uses the <a href="https://photon.komoot.io">SaaS by komoot</a> |
-| PHOTON_API_USE_HTTPS | true | Yes | Protocol used by photon. By default uses HTTPS to be inline with what <a href="https://photon.komoot.io">SaaS by komoot</a> expects |
-| NOMINATIM_API_HOST | nominatim.openstreetmap.org | Yes | API host for Nominatim. By default it uses the <a href="https://nominatim.openstreetmap.org">SaaS</a> |
-| NOMINATIM_API_USE_HTTPS | true | Yes | Protocol used by Nominatim. By default uses HTTPS to be inline with what <a href="https://nominatim.openstreetmap.org">SaaS</a> expects |
-| GEOCODES_MAPS_API | changeme | Yes | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
-| REVERSE_GEO_RATE_LIMIT | 1 | Yes | Change this if you have a paid Geocode maps tier. Other providers also use this variable. Keep it as is if you use photon or Nominatim to keep 1 request per second | 
+| REVERSE_GEO_PROVIDER | nominatim | Yes | Deprecated in v0.21: imported into Settings > Server > Reverse geocoding on startup, removed in v0.22. Defines reverse geo provider. Expects <a href="https://geocode.maps.co/">geocode</a>, photon or nominatim. photon can be the <a href="https://photon.komoot.io">SaaS by komoot</a> or a self hosted version like a <a href="https://github.com/rtuszik/photon-docker">self hosted version</a>. Like photon, Nominatim can be the <a href="https://nominatim.openstreetmap.org/">SaaS</a> or a self hosted version |
+| PHOTON_API_HOST | photon.komoot.io | Yes | Deprecated in v0.21: imported into Settings > Server > Reverse geocoding on startup, removed in v0.22. API host for photon. By default it uses the <a href="https://photon.komoot.io">SaaS by komoot</a> |
+| PHOTON_API_USE_HTTPS | true | Yes | Deprecated in v0.21: imported into Settings > Server > Reverse geocoding on startup, removed in v0.22. Protocol used by photon. By default uses HTTPS to be inline with what <a href="https://photon.komoot.io">SaaS by komoot</a> expects |
+| NOMINATIM_API_HOST | nominatim.openstreetmap.org | Yes | Deprecated in v0.21: imported into Settings > Server > Reverse geocoding on startup, removed in v0.22. API host for Nominatim. By default it uses the <a href="https://nominatim.openstreetmap.org">SaaS</a> |
+| NOMINATIM_API_USE_HTTPS | true | Yes | Deprecated in v0.21: imported into Settings > Server > Reverse geocoding on startup, removed in v0.22. Protocol used by Nominatim. By default uses HTTPS to be inline with what <a href="https://nominatim.openstreetmap.org">SaaS</a> expects |
+| GEOCODES_MAPS_API | changeme | Yes | Deprecated in v0.21: imported into Settings > Server > Reverse geocoding on startup, removed in v0.22. <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
+| REVERSE_GEO_RATE_LIMIT | 1 | Yes | Deprecated in v0.21: imported into Settings > Server > Reverse geocoding on startup, removed in v0.22. Change this if you have a paid Geocode maps tier. Other providers also use this variable. Keep it as is if you use photon or Nominatim to keep 1 request per second | 
 | DB_HOST | postgres | Yes | postgres |
 | DB_PORT | 5432 | Yes | 3306 or 5432 |
 | DB_USER | endurain | Yes | N/A |
@@ -40,21 +42,23 @@ Table below shows supported environment variables. Variables marked with optiona
 | SECRET_KEY | No default set | `No` | Run `openssl rand -hex 32` on a terminal or use the [Secret Generators](../tools.md#secret-generators) tool. Example output is `69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3`. Alternatively, use `SECRET_KEY_FILE` for Docker secrets |
 | FERNET_KEY | No default set | `No` | Run `openssl rand -base64 32` on a terminal or use the base64 tool in the [Secret Generators](../tools.md#secret-generators). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=`. Alternatively, use `FERNET_KEY_FILE` for Docker secrets |
 | ALGORITHM | HS256 | Yes | Currently only HS256 is supported |
-| ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes |
-| REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days |
-| SESSION_IDLE_TIMEOUT_ENABLED | false | Yes | Enforce idle timeouts (supported values are `true` and `false`) |
-| SESSION_IDLE_TIMEOUT_HOURS | 1 | Yes | Time in hours |
-| SESSION_ABSOLUTE_TIMEOUT_HOURS | 24 | Yes | Time in hours |
+| ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in minutes |
+| REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in days |
+| SESSION_IDLE_TIMEOUT_ENABLED | false | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Enforce idle timeouts (supported values are `true` and `false`) |
+| SESSION_IDLE_TIMEOUT_HOURS | 1 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in hours |
+| SESSION_ABSOLUTE_TIMEOUT_HOURS | 24 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in hours |
 | BEHIND_PROXY | false | Yes | Change to true if behind reverse proxy |
 | ENVIRONMENT | production | Yes | `production`, `demo` and `development` allowed. `development` allows connections from localhost:8080 and localhost:5173 at the CORS level. `demo` equals to `production` except it does not return user sessions. **`production` and `demo` set the `Secure` flag on all authentication cookies (refresh token and OAuth/SSO session), so Endurain must be served over HTTPS (directly or via a reverse proxy terminating TLS) for login, session refresh, and SSO to work** |
-| SMTP_HOST | No default set | Yes | The SMTP host of your email provider. Example `smtp.protonmail.ch`. If the SMTP settings are invalid, email is disabled and a warning naming the setting is logged at startup. Failed emails are only retried when `JOBS_ENABLED=true` |
-| SMTP_PORT | 587 | Yes | The SMTP port of your email provider. Default is 587 |
-| SMTP_USERNAME | No default set | Yes | The username of your SMTP email provider, probably your email address |
-| SMTP_PASSWORD | No default set | Yes | The password of your SMTP email provider. Some providers allow the use of your account password, others require the creation of an app password. Please refer to your provider documentation. Alternatively, use `SMTP_PASSWORD_FILE` for Docker secrets |
-| SMTP_FROM | No default set | Yes | Sets the "From" address on outgoing emails. If unset, `SMTP_USERNAME` is used. Accepts `address` or `Name <address>`; a bare address is sent as `Endurain <address>`. Set this when your provider requires a verified sender that differs from the login username (e.g. Brevo) |
-| SMTP_SECURE | true | Yes | By default it uses secure communications. Accepted values are `true` and `false`. `false` (no TLS) is only allowed for a private or loopback `SMTP_HOST` and cannot be combined with `SMTP_USERNAME`/`SMTP_PASSWORD` |
-| SMTP_SECURE_TYPE | starttls | Yes | If SMTP_SECURE is set you can set the communication type. Accepted values are `starttls` and `ssl` |
+| SMTP_HOST | No default set | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. The SMTP host of your email provider. Example `smtp.protonmail.ch`. If the SMTP settings are invalid, email is disabled and a warning naming the setting is logged at startup. Failed emails are only retried when `JOBS_ENABLED=true` |
+| SMTP_PORT | 587 | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. The SMTP port of your email provider. Default is 587 |
+| SMTP_USERNAME | No default set | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. The username of your SMTP email provider, probably your email address |
+| SMTP_PASSWORD | No default set | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. The password of your SMTP email provider. Some providers allow the use of your account password, others require the creation of an app password. Please refer to your provider documentation. Alternatively, use `SMTP_PASSWORD_FILE` for Docker secrets |
+| SMTP_FROM | No default set | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. Sets the "From" address on outgoing emails. If unset, `SMTP_USERNAME` is used. Accepts `address` or `Name <address>`; a bare address is sent as `Endurain <address>`. Set this when your provider requires a verified sender that differs from the login username (e.g. Brevo) |
+| SMTP_SECURE | true | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. By default it uses secure communications. Accepted values are `true` and `false`. `false` (no TLS) is only allowed for a private or loopback `SMTP_HOST` and cannot be combined with `SMTP_USERNAME`/`SMTP_PASSWORD` |
+| SMTP_SECURE_TYPE | starttls | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. If SMTP_SECURE is set you can set the communication type. Accepted values are `starttls` and `ssl` |
 | LOG_LEVEL | info | Yes | Supported levels: critical, error, warning, info, debug, trace |
+| LOG_ACCESS | false | Yes | Set to `true` to log every API request (Uvicorn access log). Hidden by default. Applies when the container starts through the bundled `start.sh` |
+| LOG_WEBSOCKET_FRAMES | false | Yes | Set to `true` to log the websocket PING/PONG keepalive frames shown at `LOG_LEVEL=debug`. Hidden by default |
 | ALLOWED_REDIRECT_SCHEMES | `endurain` | Yes | Comma-separated list of custom URI schemes allowed as SSO redirect targets for mobile apps using the system browser (e.g., `endurain,gadgetbridge`). Defaults to `endurain` when unset. If set, only the configured schemes are allowed (no implicit merge with `endurain`). Only relative paths (e.g., `/dashboard`) are accepted when no custom scheme is used. External `http`/`https` URLs are always rejected regardless of this setting. See [Mobile SSO with PKCE](../integrate/oauth-sso-pkce.md#mobile-sso-with-pkce) |
 | TRUSTED_PROXIES | "*" | Yes | Comma-separated list of trusted proxy IPs, CIDR ranges, or hostnames for correct client IP detection when `BEHIND_PROXY` is `true`. Defaults to `["*"]` (all proxies trusted) in development and `[]` in production and demo. **Hostname support:** You can use hostnames (e.g., `proxy.internal` or Docker container names like `caddy`) which are resolved to IPs at application startup and refreshed periodically in memory. This is useful in Docker deployments where container IPs may change on restart. If a hostname cannot be resolved, a warning is logged and the entry is skipped (graceful degradation). |
 | SSRF_ALLOWED_HOSTS | No default set | Yes | Comma-separated allowlist of exact hostnames (case-insensitive) and/or explicit IP CIDR ranges that may resolve to private/internal addresses for admin-configured outbound calls (currently OIDC discovery and JWKS fetch only). Enables self-hosted identity providers (Authentik, Pocket ID, Keycloak, ...) reachable only over a private network. Example: `auth.internal.example.com,10.10.0.0/24,fd00::/64`. Wildcards (`*`) are rejected; CIDRs must be at least `/8` for IPv4 and `/32` for IPv6. Every allowlisted outbound call is audit-logged at INFO. Does not affect other outbound calls (geocoding, etc.) |
@@ -64,9 +68,10 @@ Table below shows supported environment variables. Variables marked with optiona
 | WEB_WORKERS | 1 | No | Number of web-server worker processes. When `> 1`, shared state (Redis) is required even under the `local` profile. |
 | STATE_URI | No default set | No | Explicit override for the shared ephemeral-state backend (rate-limit counters, login/step-up lockout, pending-MFA, MFA setup secrets, Garmin MFA codes, websocket tickets). Takes precedence over `REDIS_URL`. `memory://` or `redis://…`. |
 | REDIS_URL | No default set | No | Shared Redis DSN for every Redis capability with no explicit URI. Required for `distributed` or `WEB_WORKERS > 1`. |
-| EVENT_LOG_RETENTION_DAYS | 90 | Yes | Age in days after which event-log observability rows are pruned by a scheduled cleanup (runs daily and once at startup). The `event_log` table records every background event's lifecycle for diagnostics; it is best-effort and safe to lose, so every row older than this is removed. Set to `0` (or negative) to disable pruning and keep rows forever. |
+| EVENT_LOG_RETENTION_DAYS | 90 | Yes | Age in days after which event-log observability rows are pruned by a scheduled cleanup (runs daily and once at startup). The `jasil_event_log` table records every background event's lifecycle for diagnostics; it is best-effort and safe to lose, so every row older than this is removed. Set to `0` (or negative) to disable pruning and keep rows forever. |
 | STORAGE_URI, EVENTS_URI, LOCK_URI, JOBS_ENABLED, JOBS_*, APP_ROLE | see page | Yes | Blob storage, event bus, coordination lock and the durable job queue. Documented in [Scaling and background jobs](scaling-and-background-jobs.md). |
-| JOBS_RETENTION_DAYS | 90 | Yes | Age in days after which completed durable-job bookkeeping is pruned by the same scheduled cleanup: relayed outbox rows and completed background-job rows. In-flight work (pending/running jobs, unrelayed outbox rows) and dead-lettered jobs (kept for review) are never pruned. Only relevant when the durable job queue is enabled. Set to `0` (or negative) to disable pruning. |
+| JOBS_RETENTION_DAYS | 90 | Yes | Age in days after which completed durable-job bookkeeping is pruned by the same scheduled cleanup: relayed outbox rows and completed background-job rows. In-flight work (pending/running jobs, unrelayed outbox rows) and dead-lettered jobs (kept for review) are never pruned. Only relevant when the durable job queue is enabled. Accepts 0 to 3650; set to `0` to disable pruning. |
+| READ_NOTIFICATION_RETENTION_DAYS | 90 | Yes | Deprecated in v0.21: imported into Settings > Server > Data retention on startup, removed in v0.22. Age in days after which read notifications are purged by a daily scheduled cleanup. Unread notifications are never purged. Accepts 0 to 3650; set to `0` to disable pruning. |
 | ALLOW_API_KEY_QUERY_PARAM | false | Yes | Allow API keys to be passed as a `?api_key=` query parameter. Disabled by default because query-string credentials appear in server access logs, reverse-proxy logs, and browser history. Enable only for integrations that cannot set custom request headers (e.g. some webhook senders). The `X-API-Key` header is always preferred. When enabled, every request that uses the query parameter emits a warning in the application log. |
 
 ### TRUSTED_PROXIES Examples
@@ -119,6 +124,8 @@ WARNING: Failed to resolve TRUSTED_PROXIES hostname 'nonexistent': [Errno -3] Te
 
 **Uvicorn forwarded headers:** with `BEHIND_PROXY=true` the container entrypoint also translates `TRUSTED_PROXIES` into uvicorn's `FORWARDED_ALLOW_IPS`, which is what makes `request.client` and the uvicorn access log (visible in `docker logs`) show the real client address instead of the proxy. Hostnames are resolved once at container start for this list, so a proxy that changes IP afterwards is only picked up on the next Endurain restart — the application's own client IP detection (rate limiting, sessions, audit logs) keeps working because it re-resolves hostnames periodically. When `TRUSTED_PROXIES` is unset, uvicorn keeps its default of trusting only `127.0.0.1` and logs a warning at startup. Setting `FORWARDED_ALLOW_IPS` explicitly in the container environment overrides this translation.
 
+**Abuse and DDoS protection:** Endurain rate limits requests per user (or per client IP when unauthenticated) and caps upload sizes, but it does not absorb volumetric floods. Run it behind a reverse proxy or CDN that limits connections and request rates per client, caps request body size, and sets header and body timeouts so slow clients cannot hold connections open. Keep `RATE_LIMIT_ENABLED` at `true` and set `TRUSTED_PROXIES` correctly: a wrong value lets clients spoof their IP to evade limits, or puts every client in the proxy's single bucket.
+
 Table below shows the obligatory environment variables for postgres container. You should set them based on what was also set for the Endurain container.
 
 | Environemnt variable  | Default value | Optional | Notes |
@@ -140,7 +147,9 @@ Frontend dependencies:
 By default, Endurain sessions last 7 days without enforcing idle timeouts.
 For enhanced security, you can enable automatic session expiration:
 
-**Environment Variables:**
+These settings are edited in Settings > Server > Sessions. The environment variables below are deprecated: they are imported into the settings on startup and removed in v0.22.
+
+**Environment Variables (deprecated):**
 
 - `SESSION_IDLE_TIMEOUT_ENABLED`: Enable timeout enforcement (default: `false`)
 - `SESSION_IDLE_TIMEOUT_HOURS`: Logout after inactivity (default: `1`)
@@ -224,10 +233,11 @@ Docker image runs as a non-root user (`app`). For named Docker volumes, permissi
 
 ## Image personalization
 
-It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the data/server_images directory for image persistence on container updates and:
+It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the data/server_images directory for image persistence on container updates (with local storage; with object storage the image is kept there) and:
 
  - Set the image in the server settings zone of the settings page
  - A square image is expected. Default one uses 1000px vs 1000px
+ - PNG, JPEG, GIF or WebP, up to 5 MB
 
 
 ## Map tile server
@@ -237,7 +247,7 @@ Administrators choose the map tiles in the server settings page, under the maps 
 Two parts of Endurain request tiles, and they treat the URL and the API key differently:
 
 - **Maps in the browser** use the tile URL as it is saved. The URL is part of the public server settings, which can be read without signing in, and the browser sends it to the tile provider. Anything written in the URL, including a key, is therefore visible to anyone who can reach the server.
-- **Map thumbnails** are rendered by the backend. It uses the tile URL and, if set, the **Tile server API key** field. The key is stored encrypted and is never sent to the browser.
+- **Map thumbnails** are rendered by the backend. It uses the tile URL and, if set, the **Tile server API key** field. The key is stored encrypted and is never sent to the browser, not even to the settings page: the field stays empty after saving, and leaving it empty keeps the stored key.
 
 How the backend sends the key for thumbnails:
 

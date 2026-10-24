@@ -1,18 +1,15 @@
+"""SQLAlchemy ORM model for per-user health targets."""
+
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Numeric
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class HealthTargets(Base):
-    """
-    User health targets configuration.
+    """User health targets configuration.
 
     Attributes:
         id: Primary key.
@@ -23,7 +20,6 @@ class HealthTargets(Base):
         fasting: Target fasting duration in seconds.
         water_ml: Target daily water intake in milliliters.
         poop_count: Target daily bowel movement count.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "health_targets"
@@ -65,6 +61,3 @@ class HealthTargets(Base):
         nullable=True,
         comment="Target daily bowel movement count",
     )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_targets")

@@ -1,143 +1,142 @@
+from datetime import date as datetime_date
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 
+import core.exceptions as core_exceptions
 import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_poop.models as health_poop_models
 import modules.health.health_poop.schema as health_poop_schema
 
 
-def _make_poop_mock(record_id=1, user_id=1, **kwargs):
-    """Create a HealthPoop mock with all required schema attributes set."""
-    mock = MagicMock(spec=health_poop_models.HealthPoop)
-    mock.id = record_id
-    mock.user_id = user_id
-    mock.date_time = kwargs.get("date_time", datetime(2024, 1, 15, 10, 0, 0))
-    mock.bristol_type = kwargs.get("bristol_type")
-    mock.color = kwargs.get("color")
-    mock.notes = kwargs.get("notes")
-    mock.source = kwargs.get("source")
-    return mock
+@pytest.fixture(autouse=True)
+def passthrough_serializers():
+    """Return ORM rows untouched: the serializer is covered by the schema tests."""
+    serializers = health_poop_crud.health_poop_serializers
+    with (
+        patch.object(serializers, "to_read_schema", side_effect=lambda row: row),
+        patch.object(serializers, "to_read_schemas", side_effect=lambda rows: rows),
+    ):
+        yield
 
 
-class TestGetHealthPoopNumber:
-    def test_success(self, mock_db):
-        mock_db.execute.return_value.scalar_one.return_value = 3
-        result = health_poop_crud.get_health_poop_number_by_user_id(1, mock_db)
-        assert result == 3
+def _row(record_id: int = 1) -> MagicMock:
+    row = MagicMock(spec=health_poop_models.HealthPoop)
+    row.id = record_id
+    row.user_id = 1
+    row.date_time = datetime(2024, 1, 15, 10, 0, 0)
+    return row
 
 
-class TestGetHealthPoopByID:
-    def test_found(self, mock_db):
-        mock_poop = _make_poop_mock()
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_poop
-        result = health_poop_crud.get_health_poop_by_id_and_user_id(1, 1, mock_db)
-        assert result.id == 1
-
-    def test_not_found(self, mock_db):
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-        result = health_poop_crud.get_health_poop_by_id_and_user_id(999, 1, mock_db)
-        assert result is None
+def _returns_scalars(mock_db, rows):
+    mock_db.execute.return_value.scalars.return_value.all.return_value = rows
 
 
-class TestGetHealthPoopByUserID:
-    def test_with_pagination(self, mock_db):
-        mock_poop = _make_poop_mock()
-        mock_db.execute.return_value.scalars.return_value.all.return_value = [mock_poop]
-        result = health_poop_crud.get_health_poop_by_user_id(1, mock_db, page_number=1, num_records=10)
+def _returns_one(mock_db, row):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+
+
+class TestReads:
+    def test_number_counts(self, mock_db):
+        mock_db.execute.return_value.scalar_one.return_value = 4
+
+        assert health_poop_crud.get_health_poop_number_by_user_id(1, mock_db) == 4
+
+    def test_number_with_a_lower_bound(self, mock_db):
+        mock_db.execute.return_value.scalar_one.return_value = 1
+
+        health_poop_crud.get_health_poop_number_by_user_id(1, mock_db, datetime_date(2024, 1, 1))
+
+        assert "health_poop.date_time >=" in str(mock_db.execute.call_args.args[0])
+
+    def test_list_paginates_and_bounds(self, mock_db):
+        _returns_scalars(mock_db, [_row()])
+
+        result = health_poop_crud.get_health_poop_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1))
+
         assert len(result) == 1
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "LIMIT 10 OFFSET 10" in compiled
+        assert "health_poop.date_time >=" in compiled
 
-    def test_no_pagination(self, mock_db):
-        mock_poop = _make_poop_mock()
-        mock_db.execute.return_value.scalars.return_value.all.return_value = [mock_poop]
-        result = health_poop_crud.get_health_poop_by_user_id(1, mock_db)
-        assert len(result) == 1
+    def test_by_id_found(self, mock_db):
+        _returns_one(mock_db, _row())
 
+        assert health_poop_crud.get_health_poop_by_id_and_user_id(1, 1, mock_db).id == 1
 
-class TestGetHealthPoopByDate:
-    def test_success(self, mock_db):
-        mock_poop = _make_poop_mock()
-        mock_db.execute.return_value.scalars.return_value.all.return_value = [mock_poop]
-        result = health_poop_crud.get_health_poop_by_date_and_user_id(1, "2024-01-15", mock_db)
-        assert len(result) == 1
+    def test_by_id_not_found(self, mock_db):
+        _returns_one(mock_db, None)
 
-    def test_empty(self, mock_db):
-        mock_db.execute.return_value.scalars.return_value.all.return_value = []
-        result = health_poop_crud.get_health_poop_by_date_and_user_id(1, "2024-01-15", mock_db)
-        assert result == []
+        assert health_poop_crud.get_health_poop_by_id_and_user_id(9, 1, mock_db) is None
+
+    def test_by_date_resolves_the_day_in_the_given_timezone(self, mock_db):
+        _returns_scalars(mock_db, [_row(), _row(2)])
+
+        result = health_poop_crud.get_health_poop_by_date_and_user_id(1, "2024-01-15", "Asia/Tokyo", mock_db)
+
+        assert len(result) == 2
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "Asia/Tokyo" in compiled
 
 
 class TestCreateHealthPoop:
-    def test_success(self, mock_db):
-        poop_data = health_poop_schema.HealthPoopCreate(
-            date_time=datetime(2024, 1, 15, 10, 0, 0),
-        )
-        mock_db_poop = _make_poop_mock()
+    def test_stages_without_committing(self, mock_db):
+        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
 
-        with patch.object(health_poop_models, "HealthPoop", return_value=mock_db_poop):
-            result = health_poop_crud.create_health_poop(1, poop_data, mock_db)
-            assert result.id == 1
-            mock_db.add.assert_called_once()
-            mock_db.commit.assert_called_once()
+        with patch.object(health_poop_models, "HealthPoop", return_value=_row()) as model:
+            health_poop_crud.create_health_poop(1, record, mock_db)
 
-    def test_integrity_error(self, mock_db):
-        poop_data = health_poop_schema.HealthPoopCreate(
-            date_time=datetime(2024, 1, 15, 10, 0, 0),
-        )
-        with patch.object(health_poop_models, "HealthPoop", side_effect=IntegrityError("dup", None, None)):
-            with pytest.raises(HTTPException) as e:
-                health_poop_crud.create_health_poop(1, poop_data, mock_db)
-            assert e.value.status_code == 409
+        assert model.call_args.kwargs["user_id"] == 1
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
+
+    def test_integrity_error_is_a_conflict(self, mock_db):
+        mock_db.flush.side_effect = IntegrityError("constraint", None, None)
+        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
+
+        with (
+            patch.object(health_poop_models, "HealthPoop", return_value=_row()),
+            pytest.raises(core_exceptions.ConflictError),
+        ):
+            health_poop_crud.create_health_poop(1, record, mock_db)
 
 
 class TestEditHealthPoop:
-    def test_success(self, mock_db):
-        update_data = health_poop_schema.HealthPoopUpdate(
-            id=1,
-            user_id=1,
-            date_time=datetime(2024, 1, 15, 10, 0, 0),
-        )
-        mock_db_poop = _make_poop_mock()
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_poop
-        result = health_poop_crud.edit_health_poop(1, update_data, mock_db)
-        assert result is not None
-        mock_db.commit.assert_called_once()
+    def test_updates_the_given_fields_and_stages(self, mock_db):
+        row = _row()
+        _returns_one(mock_db, row)
+        update = health_poop_schema.HealthPoopUpdate(id=1, user_id=1, notes="ok")
 
-    def test_not_found(self, mock_db):
-        update_data = health_poop_schema.HealthPoopUpdate(
-            id=999,
-            user_id=1,
-            date_time=datetime(2024, 1, 15, 10, 0, 0),
-        )
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-        with pytest.raises(HTTPException) as e:
-            health_poop_crud.edit_health_poop(1, update_data, mock_db)
-        assert e.value.status_code == 404
+        health_poop_crud.edit_health_poop(1, update, mock_db)
 
-    def test_wrong_user(self, mock_db):
-        update_data = health_poop_schema.HealthPoopUpdate(
-            id=1,
-            user_id=2,
-            date_time=datetime(2024, 1, 15, 10, 0, 0),
-        )
-        with pytest.raises(HTTPException) as e:
-            health_poop_crud.edit_health_poop(1, update_data, mock_db)
-        assert e.value.status_code == 403
+        assert row.notes == "ok"
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
+
+    def test_unknown_record_is_not_found(self, mock_db):
+        _returns_one(mock_db, None)
+        update = health_poop_schema.HealthPoopUpdate(id=9, user_id=1, notes="ok")
+
+        with pytest.raises(core_exceptions.NotFoundError, match="Health poop not found"):
+            health_poop_crud.edit_health_poop(1, update, mock_db)
 
 
 class TestDeleteHealthPoop:
-    def test_success(self, mock_db):
-        mock_db_poop = _make_poop_mock()
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_poop
-        health_poop_crud.delete_health_poop(1, 1, mock_db)
-        mock_db.delete.assert_called_once_with(mock_db_poop)
-        mock_db.commit.assert_called_once()
+    def test_deletes_and_stages(self, mock_db):
+        row = _row()
+        _returns_one(mock_db, row)
 
-    def test_not_found(self, mock_db):
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-        with pytest.raises(HTTPException) as e:
-            health_poop_crud.delete_health_poop(1, 999, mock_db)
-        assert e.value.status_code == 404
+        health_poop_crud.delete_health_poop(1, 1, mock_db)
+
+        mock_db.delete.assert_called_once_with(row)
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
+
+    def test_unknown_record_is_not_found(self, mock_db):
+        _returns_one(mock_db, None)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_poop_crud.delete_health_poop(1, 9, mock_db)
+        mock_db.delete.assert_not_called()

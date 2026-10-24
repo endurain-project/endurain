@@ -279,15 +279,13 @@ ActivityPage = core_pagination.Page[ActivityRead]
 ActivityFeedPage = core_pagination.CursorPage[ActivityRead]
 
 
-class VisibilityUpdateRead(BaseModel):
-    """Result of a bulk visibility change across a user's activities.
+class ActivitiesBulkEditRead(BaseModel):
+    """Result of a bulk edit across a user's activities.
 
     Attributes:
-        detail: Human-readable outcome of the operation.
-        updated: Number of activities whose visibility changed.
+        updated: Number of activities the edit changed.
     """
 
-    detail: str
     updated: int
 
 

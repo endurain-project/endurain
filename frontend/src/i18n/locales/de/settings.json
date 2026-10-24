@@ -367,6 +367,29 @@
       "sent": "Test-E-Mail gesendet",
       "failed": "Die Test-E-Mail konnte nicht gesendet werden",
       "failedUnknown": "Details findest du in den Serverlogs."
+    },
+    "envLocked": "Festgelegt durch {name}",
+    "envSection": "Einige Einstellungen hier werden durch Umgebungsvariablen ({names}) festgelegt. Entferne sie aus der Umgebung, um diese Einstellungen hier zu bearbeiten.",
+    "unsaved": "Nicht gespeicherte Änderungen",
+    "discard": "Verwerfen",
+    "tabs": {
+      "label": "Bereiche der Servereinstellungen",
+      "general": "Allgemein",
+      "access": "Zugang & Sicherheit",
+      "maps": "Karten & Standort",
+      "email": "E-Mail",
+      "unsaved": "Enthält nicht gespeicherte Änderungen"
+    },
+    "search": {
+      "placeholder": "Einstellungen suchen…",
+      "noResults": "Keine Einstellungen gefunden"
+    },
+    "leave": {
+      "title": "Ohne Speichern verlassen?",
+      "description": "Du hast nicht gespeicherte Änderungen. Wenn du diese Seite verlässt, gehen sie verloren.",
+      "confirm": "Ohne Speichern verlassen",
+      "stay": "Auf der Seite bleiben",
+      "close": "Schließen"
     }
   },
   "idp": {

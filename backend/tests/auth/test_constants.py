@@ -12,29 +12,11 @@ class TestJWTConstants:
         assert isinstance(auth_constants.JWT_ALGORITHM, str)
         assert auth_constants.JWT_ALGORITHM in ["HS256", "HS384", "HS512"]
 
-    def test_access_token_expiry_is_positive(self):
-        """Test that access token expiry is a positive integer."""
-        assert auth_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES > 0
-        assert isinstance(auth_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES, int)
-
-    def test_refresh_token_expiry_is_positive(self):
-        """Test that refresh token expiry is a positive integer."""
-        assert auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS > 0
-        assert isinstance(auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS, int)
-
     def test_secret_key_is_set(self):
         """Test that SECRET_KEY is configured."""
         assert auth_constants.JWT_SECRET_KEY is not None
         assert isinstance(auth_constants.JWT_SECRET_KEY, str)
         assert len(auth_constants.JWT_SECRET_KEY) >= 32
-
-    def test_session_timeout_constants(self):
-        """Test that session timeout constants are valid."""
-        assert isinstance(auth_constants.SESSION_IDLE_TIMEOUT_ENABLED, bool)
-        assert auth_constants.SESSION_IDLE_TIMEOUT_HOURS >= 0
-        assert isinstance(auth_constants.SESSION_IDLE_TIMEOUT_HOURS, int)
-        assert auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS > 0
-        assert isinstance(auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS, int)
 
 
 class TestScopeConstants:
@@ -97,6 +79,8 @@ class TestScopeConstants:
         assert isinstance(auth_constants.SERVER_SETTINGS_ADMIN_SCOPE, tuple)
         assert "server_settings:read" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
         assert "server_settings:write" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
+        assert "server_settings:logs" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
+        assert "server_settings:logs_clear" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
 
     def test_scope_dict_contains_all_scopes(self):
         """Test that SCOPE_DICT contains descriptions for all defined scopes."""
@@ -180,7 +164,5 @@ class TestScopeConstants:
         actually execute it since constants are already initialized.
         """
         # Verify constants are set correctly
-        assert auth_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES > 0
-        assert auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS > 0
         assert auth_constants.JWT_SECRET_KEY is not None
         assert len(auth_constants.JWT_SECRET_KEY) >= 32

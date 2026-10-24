@@ -1534,9 +1534,9 @@ class TestSumGearUsageByWindow:
         assert "activities.user_id = 1" in sql
 
     def _window(self, **overrides):
-        import modules.activities.activity.contracts as contracts
+        import modules.gears.contracts as gears_contracts
 
-        return contracts.GearUsageWindow(**{"key": 1, "start_date": date(2024, 5, 1), **overrides})
+        return gears_contracts.UsageWindow(**{"key": 1, "start_date": date(2024, 5, 1), **overrides})
 
     def test_window_compares_the_activitys_local_date(self):
         sql = self._emitted_sql([self._window(end_date=date(2024, 6, 1))])
@@ -1580,3 +1580,28 @@ class TestSumGearUsageByWindow:
         assert result[1].time == 60.0
         # A window that matched nothing still reports zeroes rather than going missing.
         assert result[2].distance == 0.0
+
+
+class TestClearGearFromActivities:
+    def test_nothing_is_returned_when_no_activity_carries_the_gear(self):
+        import modules.activities.activity.crud as crud
+
+        db = MagicMock()
+        db.execute.return_value.all.return_value = []
+
+        assert crud.clear_gear_from_activities(5, 1, db) == []
+        assert db.execute.call_count == 1
+
+    def test_one_update_scoped_to_the_owner_bumps_the_version(self):
+        import modules.activities.activity.crud as crud
+
+        db = MagicMock()
+        db.execute.return_value.all.return_value = [(4,), (3,)]
+
+        assert crud.clear_gear_from_activities(5, 1, db) == [3, 4]
+        (update,) = (call.args[0] for call in db.execute.call_args_list)
+        compiled = str(update.compile(dialect=postgresql.dialect()))
+        assert "version" in compiled
+        assert "user_id" in compiled
+        assert " IN " not in compiled
+        assert "FOR UPDATE" not in compiled

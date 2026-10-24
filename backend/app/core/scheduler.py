@@ -166,7 +166,7 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
     )
 
 
-def run_once(func: Callable[..., object], *, job_id: str, description: str) -> None:
+def run_once(func: Callable[..., object], *, job_id: str, description: str, lock_name: str | None = None) -> None:
     """
     Queue a one-shot job on the scheduler's own executor.
 
@@ -175,6 +175,8 @@ def run_once(func: Callable[..., object], *, job_id: str, description: str) -> N
         job_id: Fixed APScheduler job ID, so repeated calls coalesce into a
             single pending run.
         description: Human-readable description, used in log messages.
+        lock_name: Distributed lock the run must hold, or ``None`` when every
+            replica may run it.
 
     Returns:
         None.
@@ -182,10 +184,14 @@ def run_once(func: Callable[..., object], *, job_id: str, description: str) -> N
     Raises:
         None.
     """
+    args: tuple[object, ...] = ()
+    if lock_name is not None:
+        func, args = _run_locked_job, (lock_name, func)
     try:
         scheduler.add_job(
             func,
             "date",
+            args=args,
             id=job_id,
             replace_existing=True,
             misfire_grace_time=None,

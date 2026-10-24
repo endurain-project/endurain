@@ -78,9 +78,12 @@ export function useCreateGearComponentMutation() {
  * @returns The TanStack Query mutation for updating a component.
  */
 export function useUpdateGearComponentMutation() {
-  return useInvalidatingMutation<GearComponent, { id: number; input: GearComponentInput }>({
+  return useInvalidatingMutation<
+    GearComponent,
+    { id: number; input: GearComponentInput; version?: number }
+  >({
     mutationKey: queryKeys.gears.componentsLists(),
-    mutationFn: ({ id, input }) => updateGearComponent(id, input),
+    mutationFn: ({ id, input, version }) => updateGearComponent(id, input, version),
     invalidateKey: queryKeys.gears.all(),
   })
 }

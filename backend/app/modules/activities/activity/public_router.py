@@ -1,14 +1,10 @@
 """FastAPI routes for the activities module (public, unauthenticated)."""
 
-from typing import Annotated
-
 from fastapi import (
     APIRouter,
-    Depends,
 )
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
@@ -23,10 +19,7 @@ router = APIRouter()
 )
 def read_public_activity(
     activity_id: activity_dependencies.ActivityId,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> activity_schema.ActivityRead:
     """Return a public activity by ID.
 

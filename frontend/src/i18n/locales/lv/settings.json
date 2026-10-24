@@ -367,6 +367,29 @@
       "sent": "Testa e-pasts nosūtīts",
       "failed": "Testa e-pastu neizdevās nosūtīt",
       "failedUnknown": "Sīkāku informāciju skatiet servera žurnālos."
+    },
+    "envLocked": "Iestatīts ar {name}",
+    "envSection": "Dažus šeit redzamos iestatījumus nosaka vides mainīgie ({names}). Noņemiet tos no vides, lai šos iestatījumus varētu labot šeit.",
+    "unsaved": "Nesaglabātas izmaiņas",
+    "discard": "Atmest",
+    "tabs": {
+      "label": "Servera iestatījumu sadaļas",
+      "general": "Vispārīgi",
+      "access": "Piekļuve un drošība",
+      "maps": "Kartes un atrašanās vieta",
+      "email": "E-pasts",
+      "unsaved": "Ir nesaglabātas izmaiņas"
+    },
+    "search": {
+      "placeholder": "Meklēt iestatījumus…",
+      "noResults": "Iestatījumi nav atrasti"
+    },
+    "leave": {
+      "title": "Pamest lapu bez saglabāšanas?",
+      "description": "Jums ir nesaglabātas izmaiņas. Ja pametīsiet šo lapu, tās tiks zaudētas.",
+      "confirm": "Pamest bez saglabāšanas",
+      "stay": "Palikt lapā",
+      "close": "Aizvērt"
     }
   },
   "idp": {

@@ -7,13 +7,12 @@ key, signed URL) lives in ``signing.py``. Keeping this module purely
 bytes-in/bytes-out means the read path never has to import the rendering stack.
 """
 
-import re
 from urllib.parse import urlparse
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.route_map as core_route_map
-from core.route_map import RouteMapRenderRequest
+from core.route_map import RouteMapRenderRequest, normalise_tile_url
 
 logger = core_logger.get_logger(__name__)
 
@@ -60,40 +59,6 @@ def _is_stadia_url(url: str) -> bool:
     """
     host = (urlparse(url).hostname or "").lower()
     return host == "stadiamaps.com" or host.endswith(".stadiamaps.com")
-
-
-def _normalise_tile_url(url: str) -> str:
-    """Convert a Leaflet tile URL template to staticmap format.
-
-    staticmap uses Python's str.format() with only {z}, {x}, {y}
-    substitutions. Any other placeholders (e.g. {s} for subdomains,
-    {r} for retina tiles) cause a KeyError at render time.
-
-    This function:
-    - Replaces {s} with the literal subdomain 'a'
-    - Removes {r} (retina suffix — not needed for thumbnails)
-    - Escapes any remaining unknown placeholders so they are
-      passed through as literal strings.
-
-    Args:
-        url: Leaflet-style tile URL template.
-
-    Returns:
-        Tile URL safe for use with staticmap.
-    """
-    # The OSM default no longer uses {s}, but custom providers and older
-    # stored URLs may; staticmap can't rotate subdomains, so pin it to 'a'.
-    url = re.sub(r"\{s\}", "a", url)
-    # Remove {r} retina placeholder (e.g. Stadia Maps)
-    url = re.sub(r"\{r\}", "", url)
-    # Escape any remaining unknown {placeholders} that are not
-    # the three staticmap knows about ({z}, {x}, {y})
-    url = re.sub(
-        r"\{(?!z\}|x\}|y\})([^}]+)\}",
-        lambda m: "{{" + m.group(1) + "}}",
-        url,
-    )
-    return url
 
 
 DEFAULT_USER_AGENT = "Endurain - StaticMap backend thumbnail generator"
@@ -150,7 +115,7 @@ def render_activity_thumbnail(
         # staticmap expects (longitude, latitude) order
         coords = [(float(wp["lon"]), float(wp["lat"])) for wp in waypoints]
 
-        normalised_url = _normalise_tile_url(tile_url)
+        normalised_url = normalise_tile_url(tile_url)
 
         # Build request headers; inject Authorization when an API
         # key is present (e.g. Stadia Maps requires backend auth).

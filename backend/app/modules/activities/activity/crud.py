@@ -35,6 +35,7 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity.query as activity_query
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.serializers as activity_serializers
+import modules.gears.contracts as gears_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -714,7 +715,7 @@ def get_user_activities_by_gear_id_and_user_id_with_pagination(
     )
 
 
-def sum_gear_usage(gear_id: int, user_id: int, db: Session) -> activity_contracts.ActivityUsageTotals:
+def sum_gear_usage(gear_id: int, user_id: int, db: Session) -> gears_contracts.UsageTotals:
     """Total distance and moving time a user recorded against a gear.
 
     Lives here rather than in the gears module so the activities table is only
@@ -734,22 +735,22 @@ def sum_gear_usage(gear_id: int, user_id: int, db: Session) -> activity_contract
         func.coalesce(func.sum(activity_models.Activity.total_timer_time), 0),
     ).where(activity_models.Activity.gear_id == gear_id, activity_models.Activity.user_id == user_id)
     distance, moving_time = db.execute(stmt).one()
-    return activity_contracts.ActivityUsageTotals(distance=float(distance), time=float(moving_time))
+    return gears_contracts.UsageTotals(distance=float(distance), time=float(moving_time))
 
 
 def sum_gear_usage_by_window(
     gear_id: int,
     user_id: int,
-    windows: Sequence[activity_contracts.GearUsageWindow],
+    windows: Sequence[gears_contracts.UsageWindow],
     db: Session,
-) -> dict[int, activity_contracts.ActivityUsageTotals]:
+) -> dict[int, gears_contracts.UsageTotals]:
     """Total distance and moving time per date window for one gear.
 
     Answers "how far has each component of this gear been ridden?" in a single
     pass over the gear's activities: each window contributes a pair of conditional
     sums, so adding a component costs two more aggregate expressions rather than
     another round trip. Windows are matched against each activity's **local** date
-    (see :class:`~modules.activities.activity.contracts.GearUsageWindow`).
+    (see :class:`~modules.gears.contracts.UsageWindow`).
 
     Only the gear owner's own activities count, as in :func:`sum_gear_usage`.
 
@@ -784,7 +785,7 @@ def sum_gear_usage_by_window(
     row = db.execute(stmt).one()
 
     return {
-        window.key: activity_contracts.ActivityUsageTotals(
+        window.key: gears_contracts.UsageTotals(
             distance=float(row[index * 2]),
             time=float(row[index * 2 + 1]),
         )
@@ -1484,7 +1485,7 @@ def edit_activity(
     db_activity = db.execute(stmt).scalar_one_or_none()
     if db_activity is None:
         raise core_exceptions.NotFoundError("Activity not found")
-    core_etag.require_if_match(if_match, db_activity.version)
+    core_etag.require_if_match(if_match, db_activity.version, "activity")
 
     for key, value in activity_serializers.to_update_values(activity_attributes).items():
         setattr(db_activity, key, value)
@@ -1582,6 +1583,28 @@ def bulk_set_activities_gear_id(
         )
         updated_ids.extend(row_id for (row_id,) in db.execute(stmt).all())
     return updated_ids
+
+
+def clear_gear_from_activities(gear_id: int, user_id: int, db: Session) -> list[int]:
+    """Stage unassigning a gear from every activity of a user that carries it.
+
+    Args:
+        gear_id: Gear ID to unassign.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The IDs of the updated activities, so the caller can publish one event per row.
+    """
+    stmt = (
+        sa_update(activity_models.Activity)
+        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.gear_id == gear_id)
+        # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
+        # change it should have invalidated.
+        .values(gear_id=None, version=activity_models.Activity.version + 1)
+        .returning(activity_models.Activity.id)
+    )
+    return sorted(row_id for (row_id,) in db.execute(stmt).all())
 
 
 def delete_activity(activity_id: int, user_id: int, db: Session) -> None:

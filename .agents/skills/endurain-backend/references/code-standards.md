@@ -33,7 +33,8 @@ Enforced by ruff `D` with `convention = "google"` on the converted modules (`act
 
 ## FastAPI
 - `response_model` on every JSON endpoint; a route that returns bytes declares `responses=` with its media type instead (`TestRouteConventions`). Status 200 (GET), 201 (POST create), 202 (POST accepted for background processing), 204 (DELETE).
-- Auth through `Depends()`.
+- Identity and the session come from shared aliases: `auth_dependencies.CurrentUserId` and `core_dependencies.DbSession`. Define a new alias beside its dependency once a third route uses it; do not repeat `Annotated[..., Depends(...)]` inline.
+- A scope check whose result is unused goes in the decorator (`dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])]`), never as an unused `_check_scopes` parameter, so it stays out of the signature and the OpenAPI description.
 - Constrain a path or query parameter on its type (`core.dependencies.PositiveId`, an enum, `AfterValidator`), not with a `Depends` function that raises `HTTPException`; `TestRouteConventions` fails on one in a converted module.
 - Endpoint docstring says what, not how. It is exempt from `Args`/`Returns`/`Raises`: FastAPI publishes it as the OpenAPI description and it is copied into `api.generated.ts`, so parameter names such as `_check_scopes` would become public API text.
 - Route handlers are plain `def`, never `async def` (a blocking call in an async handler stalls the event loop; `test_no_route_handler_is_async`). Handle uploads with `core.file_uploads.save_validated_upload_sync`.

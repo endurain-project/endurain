@@ -1,78 +1,38 @@
-"""
-CRUD operations for health fasting records.
+"""CRUD operations for health fasting records."""
 
-This module provides database operations for creating, reading, updating,
-and deleting fasting session records.
-"""
-
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
-from typing import overload
 
-from fastapi import HTTPException, status
 from sqlalchemy import desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
-import core.timezone as core_timezone
-import modules.health.constants as health_constants
+import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
 import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
-import modules.health.utils as health_utils
-import modules.users.users.utils as users_utils
+import modules.health.health_fasting.serializers as health_fasting_serializers
 
-# Private internal helpers
-
-
-@overload
-def _transform_health_fasting(
-    health_fasting: health_fasting_models.HealthFasting,
-) -> health_fasting_schema.HealthFastingRead: ...
+_IN_PROGRESS = health_fasting_schema.FastingStatus.IN_PROGRESS.value
+_COMPLETED = health_fasting_schema.FastingStatus.COMPLETED.value
 
 
-@overload
-def _transform_health_fasting(
-    health_fasting: list[health_fasting_models.HealthFasting],
-) -> list[health_fasting_schema.HealthFastingRead]: ...
-
-
-def _transform_health_fasting(
-    health_fasting: health_fasting_models.HealthFasting | list[health_fasting_models.HealthFasting],
-) -> health_fasting_schema.HealthFastingRead | list[health_fasting_schema.HealthFastingRead]:
-    """
-    Transform a health fasting or list of health fasting to a Pydantic schema.
-
-    Args:
-        health_poop: The health poop ORM instance or list of instances.
-
-    Returns:
-        The health fasting(s) as a schema.
-    """
-    if isinstance(health_fasting, list):
-        return [health_fasting_schema.HealthFastingRead.model_validate(hw) for hw in health_fasting]
-    return health_fasting_schema.HealthFastingRead.model_validate(health_fasting)
-
-
-@core_decorators.handle_db_errors
-def _get_health_fasting_model_by_id_and_user_id_or_404(
+def _get_model_by_id_and_user_id(
     health_fasting_id: int, user_id: int, db: Session
 ) -> health_fasting_models.HealthFasting:
-    """
-    Retrieve health fasting record model by ID and user ID.
+    """Load a user's fasting row by id.
 
     Args:
-        health_fasting_id: Health fasting record ID to fetch.
-        user_id: User ID to fetch record for.
+        health_fasting_id: The record to load.
+        user_id: The record's owner.
         db: Database session.
 
     Returns:
-        Mapped ``HealthFasting`` ORM instance.
+        The ORM row.
 
     Raises:
-        HTTPException: If database error occurs.
+        NotFoundError: If the user has no such record.
     """
-    # Get the health_fasting from the database
     stmt = select(health_fasting_models.HealthFasting).where(
         health_fasting_models.HealthFasting.id == health_fasting_id,
         health_fasting_models.HealthFasting.user_id == user_id,
@@ -80,258 +40,194 @@ def _get_health_fasting_model_by_id_and_user_id_or_404(
     db_health_fasting = db.execute(stmt).scalar_one_or_none()
 
     if db_health_fasting is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health fasting not found",
-        )
+        raise core_exceptions.NotFoundError("Health fasting not found")
 
     return db_health_fasting
 
 
-# Public CRUD functions
-
-
-@core_decorators.handle_db_errors
-def get_health_fasting_number_by_user_id(
-    user_id: int, db: Session, interval: health_constants.Interval | None = None
-) -> int:
-    """
-    Retrieve total count of health fasting records for a user. If interval is
-    provided, count only records starting from the calculated start date.
+def get_health_fasting_number_by_user_id(user_id: int, db: Session, since: date | None = None) -> int:
+    """Count a user's fasting records.
 
     Args:
-        user_id: User ID to count records for.
+        user_id: The records' owner.
         db: Database session.
-        interval: Optional filter by goal interval.
+        since: Count only records started on or after this date.
 
     Returns:
-        Total number of health fasting records.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The number of records.
     """
     stmt = (
         select(func.count())
         .select_from(health_fasting_models.HealthFasting)
         .where(health_fasting_models.HealthFasting.user_id == user_id)
     )
-
-    if interval is not None:
-        stmt = stmt.where(
-            health_fasting_models.HealthFasting.fast_start_time
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
-        )
+    if since is not None:
+        stmt = stmt.where(health_fasting_models.HealthFasting.fast_start_time >= since)
 
     return db.execute(stmt).scalar_one()
 
 
-@core_decorators.handle_db_errors
 def get_health_fasting_by_id_and_user_id(
     health_fasting_id: int, user_id: int, db: Session
 ) -> health_fasting_schema.HealthFastingRead | None:
-    """
-    Retrieve fasting record by ID and user ID.
+    """Retrieve a user's fasting record by id.
 
     Args:
-        health_fasting_id: Fasting record ID to fetch.
-        user_id: User ID to fetch record for.
+        health_fasting_id: The record to fetch.
+        user_id: The record's owner.
         db: Database session.
 
     Returns:
-        HealthFasting schema if found, None otherwise.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The record, or ``None``.
     """
     stmt = select(health_fasting_models.HealthFasting).where(
         health_fasting_models.HealthFasting.id == health_fasting_id,
         health_fasting_models.HealthFasting.user_id == user_id,
     )
     db_health_fasting = db.execute(stmt).scalar_one_or_none()
-    return _transform_health_fasting(db_health_fasting) if db_health_fasting else None
+
+    return health_fasting_serializers.to_read_schema(db_health_fasting) if db_health_fasting else None
 
 
-@core_decorators.handle_db_errors
 def get_health_fasting_by_user_id(
     user_id: int,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
-    interval: health_constants.Interval | None = None,
+    since: date | None = None,
 ) -> list[health_fasting_schema.HealthFastingRead]:
-    """
-    Retrieve health fasting records for a specific user with optional
-        pagination and filtering.
+    """Retrieve a user's fasting records, optionally paginated and bounded.
 
     Args:
-        user_id (int): The ID of the user whose health fasting records are to
-            be retrieved.
-        db (Session): The database session used to execute the query.
-        page_number (int | None, optional): The page number for pagination
-            (1-indexed).
-            If provided, num_records must also be provided. Defaults to None.
-        num_records (int | None, optional): The number of records per page.
-            If provided, page_number must also be provided. Defaults to None.
-        interval (health_constants.Interval | None, optional): The time
-            interval to filter records.
-            If provided, only records from the start of the interval to present
-            are returned. Defaults to None.
+        user_id: The records' owner.
+        db: Database session.
+        page_number: 1-based page; paginates only together with ``num_records``.
+        num_records: Records per page.
+        since: Return only records started on or after this date.
 
     Returns:
-        list[health_fasting_schema.HealthFastingRead]: A list of health fasting
-            records sorted by fast_start_time in descending order, optionally
-            paginated.
+        The records ordered by start time descending.
     """
-    # Get the health_fasting from the database
     stmt = select(health_fasting_models.HealthFasting).where(health_fasting_models.HealthFasting.user_id == user_id)
 
-    if interval is not None:
-        stmt = stmt.where(
-            health_fasting_models.HealthFasting.fast_start_time
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
-        )
+    if since is not None:
+        stmt = stmt.where(health_fasting_models.HealthFasting.fast_start_time >= since)
 
     stmt = stmt.order_by(desc(health_fasting_models.HealthFasting.fast_start_time))
+
     if page_number is not None and num_records is not None:
         stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
 
-    db_health_fastings = db.execute(stmt).scalars().all()
-    return _transform_health_fasting(list(db_health_fastings))
+    return health_fasting_serializers.to_read_schemas(list(db.execute(stmt).scalars().all()))
 
 
-@core_decorators.handle_db_errors
 def get_active_fasting_by_user_id(user_id: int, db: Session) -> health_fasting_schema.HealthFastingRead | None:
-    """
-    Retrieve the active (in_progress) fasting session for a user.
+    """Retrieve a user's in-progress fasting session.
 
     Args:
-        user_id: User ID to fetch active fast for.
+        user_id: The session's owner.
         db: Database session.
 
     Returns:
-        HealthFastingRead schema if active fast exists, None otherwise.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The active session, or ``None``.
     """
     stmt = (
         select(health_fasting_models.HealthFasting)
         .where(
             health_fasting_models.HealthFasting.user_id == user_id,
-            health_fasting_models.HealthFasting.status == "in_progress",
+            health_fasting_models.HealthFasting.status == _IN_PROGRESS,
         )
         .order_by(desc(health_fasting_models.HealthFasting.fast_start_time))
     )
     db_health_fasting = db.execute(stmt).scalar_one_or_none()
-    return _transform_health_fasting(db_health_fasting) if db_health_fasting else None
+
+    return health_fasting_serializers.to_read_schema(db_health_fasting) if db_health_fasting else None
 
 
-@core_decorators.handle_db_errors
 def get_completed_fasting_count(user_id: int, db: Session) -> int:
-    """
-    Get the count of completed fasting sessions for a user.
+    """Count a user's completed fasting sessions.
 
     Args:
-        user_id: User ID to count completed fasts for.
+        user_id: The sessions' owner.
         db: Database session.
 
     Returns:
-        Number of completed fasting sessions.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The number of completed sessions.
     """
     stmt = (
         select(func.count())
         .select_from(health_fasting_models.HealthFasting)
         .where(
             health_fasting_models.HealthFasting.user_id == user_id,
-            health_fasting_models.HealthFasting.status == "completed",
+            health_fasting_models.HealthFasting.status == _COMPLETED,
         )
     )
     return db.execute(stmt).scalar_one()
 
 
-@core_decorators.handle_db_errors
 def get_total_fasting_seconds(user_id: int, db: Session) -> int:
-    """
-    Get total fasting duration in seconds for a user.
+    """Sum the duration of a user's completed fasting sessions.
 
     Args:
-        user_id: User ID to calculate total for.
+        user_id: The sessions' owner.
         db: Database session.
 
     Returns:
-        Total fasting duration in seconds.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The total duration in seconds.
     """
     stmt = (
         select(func.coalesce(func.sum(health_fasting_models.HealthFasting.actual_duration_seconds), 0))
         .select_from(health_fasting_models.HealthFasting)
         .where(
             health_fasting_models.HealthFasting.user_id == user_id,
-            health_fasting_models.HealthFasting.status == "completed",
+            health_fasting_models.HealthFasting.status == _COMPLETED,
         )
     )
     return db.execute(stmt).scalar_one() or 0
 
 
-@core_decorators.handle_db_errors
 def get_avg_fasting_duration(user_id: int, db: Session) -> int | None:
-    """
-    Get average fasting duration in seconds for a user.
+    """Average the duration of a user's completed fasting sessions.
 
     Args:
-        user_id: User ID to calculate average for.
+        user_id: The sessions' owner.
         db: Database session.
 
     Returns:
-        Average fasting duration in seconds, None if no data.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The average duration in seconds, or ``None`` without data.
     """
     stmt = (
         select(func.avg(health_fasting_models.HealthFasting.actual_duration_seconds))
         .select_from(health_fasting_models.HealthFasting)
         .where(
             health_fasting_models.HealthFasting.user_id == user_id,
-            health_fasting_models.HealthFasting.status == "completed",
+            health_fasting_models.HealthFasting.status == _COMPLETED,
         )
     )
     result: Decimal | None = db.execute(stmt).scalar_one()
     return int(result) if result else None
 
 
-@core_decorators.handle_db_errors
-def get_completed_fasting_dates_by_user_id(user_id: int, db: Session) -> list[date]:
-    """
-    Get the distinct dates a user completed a fast, sorted ascending.
+def get_completed_fasting_dates_by_user_id(user_id: int, tz_name: str, db: Session) -> list[date]:
+    """List the distinct local dates on which a user started a completed fast.
 
-    Selects only the date component directly from the database so the
-    streak calculation does not have to materialize full records.
+    Selects only the date component so a streak calculation does not have to
+    materialize full records.
 
     Args:
-        user_id: User ID to fetch completed fasting dates for.
+        user_id: The sessions' owner.
+        tz_name: IANA timezone the dates are bucketed in.
         db: Database session.
 
     Returns:
-        Sorted list of distinct dates with a completed fast.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The distinct dates, ascending.
     """
-    fast_date = health_utils.local_date_expression(
-        health_fasting_models.HealthFasting.fast_start_time,
-        users_utils.resolve_user_timezone(user_id, db),
-    )
+    fast_date = health_computation.local_date_expression(health_fasting_models.HealthFasting.fast_start_time, tz_name)
     stmt = (
         select(fast_date)
         .where(
             health_fasting_models.HealthFasting.user_id == user_id,
-            health_fasting_models.HealthFasting.status == "completed",
+            health_fasting_models.HealthFasting.status == _COMPLETED,
         )
         .distinct()
         .order_by(fast_date)
@@ -339,154 +235,114 @@ def get_completed_fasting_dates_by_user_id(user_id: int, db: Session) -> list[da
     return list(db.execute(stmt).scalars().all())
 
 
-@core_decorators.handle_db_errors
 def create_health_fasting(
-    user_id: int,
-    health_fasting: health_fasting_schema.HealthFastingCreate,
-    db: Session,
+    user_id: int, health_fasting: health_fasting_schema.HealthFastingCreate, db: Session
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Create a new fasting session for a user.
+    """Stage a new fasting session for a user.
 
     Args:
-        user_id: User ID to create the fasting session for.
-        health_fasting: Fasting data to create.
+        user_id: The session's owner.
+        health_fasting: The session to create.
         db: Database session.
 
     Returns:
-        Created HealthFastingRead schema.
+        The staged session.
 
     Raises:
-        HTTPException: If database error or duplicate entry.
+        ConflictError: If the insert violates a database constraint.
     """
+    db_health_fasting = health_fasting_models.HealthFasting(
+        **health_fasting.model_dump(exclude_none=False),
+        user_id=user_id,
+    )
+
     try:
-        db_health_fasting = health_fasting_models.HealthFasting(
-            **health_fasting.model_dump(exclude_none=False),
-            user_id=user_id,
-        )
-
         db.add(db_health_fasting)
-        db.commit()
+        db.flush()
         db.refresh(db_health_fasting)
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError("Failed to create fasting record. Database integrity error.") from err
 
-        return _transform_health_fasting(db_health_fasting)
-    except IntegrityError as integrity_error:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Failed to create fasting record. Database integrity error.",
-        ) from integrity_error
+    return health_fasting_serializers.to_read_schema(db_health_fasting)
 
 
-@core_decorators.handle_db_errors
 def edit_health_fasting(
-    user_id: int,
-    health_fasting: health_fasting_schema.HealthFastingUpdate,
-    db: Session,
+    user_id: int, health_fasting: health_fasting_schema.HealthFastingUpdate, db: Session
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Edit an existing fasting record for a user.
+    """Stage an update to a user's fasting record.
 
     Args:
-        user_id: User ID who owns the fasting record.
-        health_fasting: Fasting data to update.
+        user_id: The record's owner.
+        health_fasting: The record with its changes.
         db: Database session.
 
     Returns:
-        Updated HealthFasting model.
+        The updated record.
 
     Raises:
-        HTTPException: If record not found or permission denied.
+        NotFoundError: If the user has no such record.
     """
-    if health_fasting.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot edit fasting record for another user.",
-        )
+    db_health_fasting = _get_model_by_id_and_user_id(health_fasting.id, user_id, db)
 
-    db_health_fasting = _get_health_fasting_model_by_id_and_user_id_or_404(health_fasting.id, user_id, db)
-
-    health_fasting_data = health_fasting.model_dump(exclude_unset=True)
-    for key, value in health_fasting_data.items():
+    for key, value in health_fasting.model_dump(exclude_unset=True).items():
         setattr(db_health_fasting, key, value)
 
-    db.commit()
+    db.flush()
     db.refresh(db_health_fasting)
 
-    return _transform_health_fasting(db_health_fasting)
+    return health_fasting_serializers.to_read_schema(db_health_fasting)
 
 
-@core_decorators.handle_db_errors
-def complete_health_fasting(
+def end_health_fasting(
     user_id: int,
     health_fasting_id: int,
-    complete_data: health_fasting_schema.HealthFastingComplete,
+    fast_end_time: datetime,
+    status: str,
+    actual_duration_seconds: int,
+    notes: str | None,
     db: Session,
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Complete or end a fasting session.
+    """Stage the end of a user's fasting session.
 
     Args:
-        user_id: User ID who owns the fasting record.
-        health_fasting_id: ID of the fasting record to complete.
-        complete_data: Completion data including end time and status.
+        user_id: The session's owner.
+        health_fasting_id: The session to end.
+        fast_end_time: When the fast ended.
+        status: The session's final status.
+        actual_duration_seconds: How long the fast lasted.
+        notes: Notes to store; left as they are when empty.
         db: Database session.
 
     Returns:
-        Updated HealthFasting model.
+        The ended session.
 
     Raises:
-        HTTPException: If record not found or not in progress.
+        NotFoundError: If the user has no such session.
     """
-    db_health_fasting = _get_health_fasting_model_by_id_and_user_id_or_404(health_fasting_id, user_id, db)
+    db_health_fasting = _get_model_by_id_and_user_id(health_fasting_id, user_id, db)
 
-    if db_health_fasting.status != "in_progress":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Fasting session is not in progress",
-        )
+    db_health_fasting.fast_end_time = fast_end_time
+    db_health_fasting.status = status
+    db_health_fasting.actual_duration_seconds = actual_duration_seconds
+    if notes:
+        db_health_fasting.notes = notes
 
-    # Calculate actual duration. Normalize the client-supplied end time to
-    # aware UTC first: a payload without an offset yields a naive datetime, and
-    # subtracting it from the aware value loaded from the timestamptz column
-    # raises TypeError — which ``handle_db_errors`` does not catch, so it
-    # surfaced as an unhandled 500.
-    start_time = core_timezone.to_utc_aware(db_health_fasting.fast_start_time)
-    end_time = core_timezone.to_utc_aware(complete_data.fast_end_time)
-
-    # Calculate actual_duration in seconds
-    actual_duration = int((end_time - start_time).total_seconds())
-
-    # Update the record
-    db_health_fasting.fast_end_time = end_time
-    db_health_fasting.status = getattr(complete_data.status, "value", complete_data.status)
-    db_health_fasting.actual_duration_seconds = actual_duration
-    if complete_data.notes:
-        db_health_fasting.notes = complete_data.notes
-
-    db.commit()
+    db.flush()
     db.refresh(db_health_fasting)
 
-    return _transform_health_fasting(db_health_fasting)
+    return health_fasting_serializers.to_read_schema(db_health_fasting)
 
 
-@core_decorators.handle_db_errors
 def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> None:
-    """
-    Delete a fasting record for a user.
+    """Stage the deletion of a user's fasting record.
 
     Args:
-        user_id: User ID who owns the fasting record.
-        health_fasting_id: Fasting record ID to delete.
+        user_id: The record's owner.
+        health_fasting_id: The record to delete.
         db: Database session.
 
-    Returns:
-        None
-
     Raises:
-        HTTPException: If record not found.
+        NotFoundError: If the user has no such record.
     """
-    db_health_fasting = _get_health_fasting_model_by_id_and_user_id_or_404(health_fasting_id, user_id, db)
-
-    db.delete(db_health_fasting)
-    db.commit()
+    db.delete(_get_model_by_id_and_user_id(health_fasting_id, user_id, db))
+    db.flush()

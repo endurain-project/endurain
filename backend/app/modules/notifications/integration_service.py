@@ -1,130 +1,86 @@
 """The notifications surface consumed by other modules.
 
-Notifications are raised *about* things that happen elsewhere, so almost every
-producer is another module. Each gets one named operation here rather than
-reaching into ``utils`` — a grab-bag that also holds the module's own routes'
-helpers and its websocket plumbing.
+Notifications are raised *about* things that happen elsewhere, so the producers
+that are not events are other modules. Each gets one named operation here.
 
-Every operation is synchronous and writes only the notification **row**. The
-live websocket push is the caller's concern (dispatched onto the main loop), so
-these are safe to run on a durable-job worker thread where there is no loop and
-no connection registry.
+Every operation is synchronous and **stages** the notification rows: the caller
+owns the transaction, commits, and then pushes the live hint with
+:func:`push_notification`. Nothing here touches the connection registry, so these
+are safe to run where there is no event loop.
 """
 
 from sqlalchemy.orm import Session
 
-import core.logger as core_logger
+import modules.notifications.constants as notifications_constants
+import modules.notifications.crud as notifications_crud
 import modules.notifications.schema as notifications_schema
-import modules.notifications.utils as notifications_utils
+import modules.notifications.service as notifications_service
+import modules.users.users.integration_service as users_integration
+import modules.users.users.schema as users_schema
+import modules.websocket.integration_service as websocket_integration
 
-logger = core_logger.get_logger(__name__)
 
-
-def create_activity_created_notification(
-    user_id: int,
-    activity_id: int,
-    duplicate_start_time: bool,
-    source_event_id: str,
-    db: Session,
-) -> tuple[notifications_schema.NotificationRead, str, bool]:
-    """
-    Record the notification for a newly stored activity.
+def push_notification(user_id: int, notification: notifications_schema.NotificationRead, ws_message: str) -> None:
+    """Tell a user's browser that a committed notification awaits.
 
     Args:
-        user_id: The owner to notify.
-        activity_id: The stored activity.
-        duplicate_start_time: Whether the activity duplicates an existing
-            activity's start time, which selects the duplicate variant.
-        source_event_id: Stable durable event identifier.
-        db: Database session.
-
-    Returns:
-        The notification row, the websocket message type the caller should push,
-        and whether this call created it (False for a redelivered event).
+        user_id: The user who owns the notification.
+        notification: The notification, already committed.
+        ws_message: The websocket message type returned when it was staged or recorded.
     """
-    return notifications_utils.create_activity_created_notification(
-        user_id,
-        activity_id,
-        duplicate_start_time,
-        source_event_id,
-        db,
-    )
+    websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
 
 
 def create_garmin_token_expired_notification(
     user_id: int,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str]:
-    """
-    Record the notification that a Garmin Connect account was unlinked.
+    """Stage the notification that a Garmin Connect account was unlinked.
 
     Args:
         user_id: The user whose account was unlinked.
         db: Database session.
 
     Returns:
-        The created notification row and the websocket message type the caller
-        should push.
-
-    Raises:
-        None.
+        The staged notification and the websocket message type the caller should
+        push once it has committed.
     """
-    return notifications_utils.create_garmin_token_expired_notification_row(user_id, db)
+    notification = notifications_crud.create_notification(
+        notifications_schema.NotificationCreate(
+            user_id=user_id,
+            type=notifications_constants.NotificationType.GARMIN_TOKEN_EXPIRED,
+            options={},
+        ),
+        db,
+    )
+    return notification, notifications_constants.GARMIN_UNLINKED_WS_MESSAGE
 
 
-def create_follow_request_notification(
-    requester_user_id: int,
-    target_user_id: int,
-    source_event_id: str,
+def create_admin_sign_up_approval_notifications(
+    user: users_schema.UsersRead,
     db: Session,
-) -> tuple[notifications_schema.NotificationRead, str, bool]:
-    """
-    Record the notification for a new follow request.
+) -> list[tuple[notifications_schema.NotificationRead, str]]:
+    """Stage a sign-up approval request notification for every admin.
 
     Args:
-        requester_user_id: The user who asked to follow, named in the notification.
-        target_user_id: The user to notify, who owns the notification row.
-        source_event_id: Stable durable event identifier.
+        user: The user requesting sign-up, named in each notification.
         db: Database session.
 
     Returns:
-        The notification row, websocket message type, and whether it was created.
-
-    Raises:
-        HTTPException: 404 when the requesting user no longer exists.
+        One staged notification per admin, each with the websocket message type
+        the caller should push once it has committed.
     """
-    return notifications_utils.create_new_follower_request_notification(
-        requester_user_id,
-        target_user_id,
-        source_event_id,
-        db,
-    )
-
-
-def create_follow_accepted_notification(
-    accepter_user_id: int,
-    requester_user_id: int,
-    source_event_id: str,
-    db: Session,
-) -> tuple[notifications_schema.NotificationRead, str, bool]:
-    """
-    Record the notification for an accepted follow request.
-
-    Args:
-        accepter_user_id: The user who accepted, named in the notification.
-        requester_user_id: The original requester to notify, who owns the row.
-        source_event_id: Stable durable event identifier.
-        db: Database session.
-
-    Returns:
-        The notification row, websocket message type, and whether it was created.
-
-    Raises:
-        HTTPException: 404 when the accepting user no longer exists.
-    """
-    return notifications_utils.create_accepted_follower_request_notification(
-        accepter_user_id,
-        requester_user_id,
-        source_event_id,
-        db,
-    )
+    return [
+        (
+            notifications_crud.create_notification(
+                notifications_schema.NotificationCreate(
+                    user_id=admin.id,
+                    type=notifications_constants.NotificationType.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST,
+                    options=notifications_service.user_reference_options(user),
+                ),
+                db,
+            ),
+            notifications_constants.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_WS_MESSAGE,
+        )
+        for admin in users_integration.list_admin_users(db)
+    ]

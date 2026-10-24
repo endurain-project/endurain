@@ -4,15 +4,13 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
     Query,
     Security,
     status,
 )
-from sqlalchemy.orm import Session
 
 import core.config as core_config
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.logger as core_logger
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.sessions.crud as auth_sessions_crud
@@ -35,7 +33,7 @@ async def read_sessions_user(
         None,
         Security(auth_dependencies.check_scopes, scopes=["sessions:read"]),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
 ) -> list[auth_sessions_schema.UsersSessionsRead]:
     """
     Retrieve all sessions associated with a specific user.
@@ -66,7 +64,7 @@ async def delete_session_user(
         None,
         Security(auth_dependencies.check_scopes, scopes=["sessions:write"]),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
 ) -> None:
     """
     Delete a user session.
@@ -96,7 +94,7 @@ async def delete_sessions_user(
         None,
         Security(auth_dependencies.check_scopes, scopes=["sessions:write"]),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
     exclude_session_id: Annotated[
         str | None,
         Query(description="Session to keep intact (e.g. the caller's current session)"),

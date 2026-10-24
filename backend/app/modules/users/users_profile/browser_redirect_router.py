@@ -15,9 +15,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.logger as core_logger
 import core.network as core_network
 import modules.auth.identity_providers.service as idp_service
@@ -40,10 +39,7 @@ async def link_identity_provider(
     idp_id: int,
     link_token: Annotated[str, Query(alias="link_token")],
     request: Request,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
     identity_service: Annotated[
         auth_identity_service.IdentityService,
         Depends(auth_identity_service.get_identity_service),

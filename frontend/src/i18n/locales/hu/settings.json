@@ -367,6 +367,29 @@
       "sent": "A teszt e-mail elküldve",
       "failed": "A teszt e-mailt nem sikerült elküldeni",
       "failedUnknown": "A részleteket a szerver naplóiban találod."
+    },
+    "envLocked": "{name} állítja be",
+    "envSection": "Az itteni beállítások egy részét környezeti változók ({names}) határozzák meg. Töröld őket a környezetből, hogy itt szerkeszthesd ezeket a beállításokat.",
+    "unsaved": "Nem mentett módosítások",
+    "discard": "Elvetés",
+    "tabs": {
+      "label": "A szerverbeállítások szakaszai",
+      "general": "Általános",
+      "access": "Hozzáférés és biztonság",
+      "maps": "Térképek és helyadatok",
+      "email": "E-mail",
+      "unsaved": "Nem mentett módosításokat tartalmaz"
+    },
+    "search": {
+      "placeholder": "Beállítások keresése…",
+      "noResults": "Nincs találat"
+    },
+    "leave": {
+      "title": "Mentés nélkül elhagyod az oldalt?",
+      "description": "Nem mentett módosításaid vannak. Ha elhagyod az oldalt, elvesznek.",
+      "confirm": "Elhagyás mentés nélkül",
+      "stay": "Maradok az oldalon",
+      "close": "Bezárás"
     }
   },
   "idp": {

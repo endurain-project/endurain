@@ -280,11 +280,27 @@ _OUTBOUND_SURFACE_STEMS = frozenset({"identity_service"})
 
 #: Layer-rule exceptions as ``{(importer, imported): reason}``, in dotted paths
 #: rooted at ``app``. Every entry is a deliberate seam; anything else fails.
-_LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {}
+_LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
+    (
+        "modules.health.health_fasting.crud",
+        "modules.health.computation",
+    ): (
+        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
+    (
+        "modules.health.health_poop.crud",
+        "modules.health.computation",
+    ): (
+        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
+}
 
 #: Top-level modules that sit below another, as ``{module: modules it may not import}``.
 _MUST_NOT_IMPORT: dict[str, tuple[str, ...]] = {
     "followers": ("modules.activities",),
+    "gears": ("modules.activities",),
 }
 
 
@@ -377,6 +393,11 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
     "activity_media.integration_service.attach_media_bytes": (
         "A race on the unique media hash leaves the session unusable until it is rolled back, so the "
         "write has to own the rollback before it looks up the winner."
+    ),
+    "server_settings.integration_service.import_deprecated_env_settings": (
+        "The API's boot import of deprecated environment variables: it opens its own session at startup, "
+        "locks the settings rows, writes only what differs and commits once, so replicas booting together "
+        "serialise on the lock; there is no caller transaction to join."
     ),
 }
 
@@ -928,7 +949,7 @@ class TestLayerRules:
         )
 
     def test_lower_modules_do_not_import_the_modules_above_them(self):
-        """Followers sits below activities, which consumes it, never the reverse."""
+        """Followers and gears sit below activities, which consumes them, never the reverse."""
         offenders = sorted(
             f"{importer} -> {imported}"
             for _path, importer, imported, _role_ in _layer_imports()

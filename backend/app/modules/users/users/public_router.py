@@ -4,9 +4,8 @@ from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import modules.users.users.crud as users_crud
 import modules.users.users.dependencies as users_dependencies
 import modules.users.users.schema as users_schema
@@ -23,10 +22,7 @@ router = APIRouter()
 def read_users_id(
     user_id: int,
     _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> users_schema.UsersRead | None:
     """
     Get public user info by ID.

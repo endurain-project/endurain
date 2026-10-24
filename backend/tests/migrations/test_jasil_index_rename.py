@@ -29,7 +29,7 @@ def _canonical_comments() -> dict[tuple[str, str], str]:
     if not jasil_orm.is_models_mapped():
         jasil_orm.map_models()
     tables = jasil_orm.get_active_base().metadata.tables
-    return {(table, column): tables[table].columns[column].comment for table, column in _LEGACY_COMMENTS}
+    return {(table, column): tables[f"jasil_{table}"].columns[column].comment for table, column in _LEGACY_COMMENTS}
 
 
 def _migration_module():

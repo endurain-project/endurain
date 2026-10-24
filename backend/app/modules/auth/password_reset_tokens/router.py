@@ -8,9 +8,8 @@ from fastapi import (
     Request,
     status,
 )
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
@@ -29,10 +28,7 @@ router = APIRouter()
 def request_password_reset(
     request: Request,
     request_data: password_reset_tokens_schema.PasswordResetRequest,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> password_reset_tokens_schema.PasswordResetResponse:
     """
     Handle a password reset request.
@@ -69,10 +65,7 @@ async def confirm_password_reset(
         auth_identity_service.IdentityService,
         Depends(auth_identity_service.get_identity_service),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> password_reset_tokens_schema.PasswordResetResponse:
     """
     Confirm a password reset using a token and new password.

@@ -367,6 +367,29 @@
       "sent": "Test-e-post skickad",
       "failed": "Test-e-posten kunde inte skickas",
       "failedUnknown": "Se serverloggarna för mer information."
+    },
+    "envLocked": "Anges av {name}",
+    "envSection": "Vissa inställningar här anges av miljövariabler ({names}). Ta bort dem från miljön för att redigera de inställningarna här.",
+    "unsaved": "Osparade ändringar",
+    "discard": "Förkasta",
+    "tabs": {
+      "label": "Avsnitt i serverinställningarna",
+      "general": "Allmänt",
+      "access": "Åtkomst och säkerhet",
+      "maps": "Kartor och plats",
+      "email": "E-post",
+      "unsaved": "Har osparade ändringar"
+    },
+    "search": {
+      "placeholder": "Sök inställningar…",
+      "noResults": "Inga inställningar hittades"
+    },
+    "leave": {
+      "title": "Lämna utan att spara?",
+      "description": "Du har osparade ändringar. Om du lämnar sidan går de förlorade.",
+      "confirm": "Lämna utan att spara",
+      "stay": "Stanna på sidan",
+      "close": "Stäng"
     }
   },
   "idp": {

@@ -2,7 +2,7 @@
 
 import hmac
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import Enum
 
 from fastapi import (
@@ -16,11 +16,12 @@ from user_agents import parse
 import core.logger as core_logger
 import core.network as core_network
 import modules.auth._internal.password_hasher as auth_password_hasher
-import modules.auth.constants as auth_constants
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.models as auth_sessions_models
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.auth.token_hashing as token_hashing
+import modules.server_settings.contracts as server_settings_contracts
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.schema as users_schema
 from core.database import SessionLocal
 
@@ -100,28 +101,30 @@ def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
 
 def validate_session_timeout(
     session: auth_sessions_models.UsersSessions,
+    policy: server_settings_contracts.SessionPolicy,
 ) -> None:
     """
     Validate session hasn't exceeded idle or absolute timeout.
 
-    Only enforces when SESSION_IDLE_TIMEOUT_ENABLED=true.
+    Only enforces while the policy has timeouts enabled.
     Checks idle timeout (last_activity_at) and absolute
     timeout (created_at).
 
     Args:
         session: The session to validate.
+        policy: The session policy holding the timeouts.
 
     Raises:
         HTTPException: 401 if session has timed out.
     """
     # Skip validation if timeouts are disabled
-    if not auth_constants.SESSION_IDLE_TIMEOUT_ENABLED:
+    if policy.idle_timeout is None or policy.absolute_timeout is None:
         return
 
     now = datetime.now(UTC)
 
     # Check idle timeout
-    idle_limit = session.last_activity_at + timedelta(hours=auth_constants.SESSION_IDLE_TIMEOUT_HOURS)
+    idle_limit = session.last_activity_at + policy.idle_timeout
     if now > idle_limit:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -130,7 +133,7 @@ def validate_session_timeout(
         )
 
     # Check absolute timeout
-    absolute_limit = session.created_at + timedelta(hours=auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS)
+    absolute_limit = session.created_at + policy.absolute_timeout
     if now > absolute_limit:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -245,6 +248,7 @@ def create_session(
     refresh_token: str | None,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
+    expires_at: datetime,
     oauth_state_id: str | None = None,
     csrf_token: str | None = None,
 ) -> None:
@@ -258,15 +262,13 @@ def create_session(
         refresh_token: Refresh token to associate or None.
         password_hasher: Utility to hash tokens.
         db: Database session for storing.
+        expires_at: When the refresh token, and so the session, expires.
         oauth_state_id: Optional OAuth state ID for PKCE.
         csrf_token: Plain CSRF token to hash and store.
 
     Raises:
         HTTPException: If database error occurs.
     """
-    # Calculate the refresh token expiration date
-    exp = datetime.now(UTC) + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
-
     # Compute HMAC-SHA256 of the CSRF token if provided
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
 
@@ -276,7 +278,7 @@ def create_session(
         user,
         request,
         password_hasher.hash_password(refresh_token) if refresh_token else None,
-        exp,
+        expires_at,
         oauth_state_id,
         csrf_hash,
     )
@@ -291,6 +293,7 @@ def edit_session(
     new_refresh_token: str,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
+    expires_at: datetime,
     new_csrf_token: str | None = None,
 ) -> None:
     """
@@ -302,14 +305,12 @@ def edit_session(
         new_refresh_token: New refresh token to set.
         password_hasher: Utility for hashing tokens.
         db: Database session for committing changes.
+        expires_at: When the new refresh token, and so the session, expires.
         new_csrf_token: Plain CSRF token to hash and store.
 
     Raises:
         HTTPException: If database error occurs.
     """
-    # Calculate the refresh token expiration date
-    exp = datetime.now(UTC) + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
-
     # Compute HMAC-SHA256 of the new CSRF token if provided
     csrf_hash = _hash_csrf_token(new_csrf_token) if new_csrf_token else None
 
@@ -317,7 +318,7 @@ def edit_session(
     updated_session = edit_session_object(
         request,
         password_hasher.hash_password(new_refresh_token),
-        exp,
+        expires_at,
         session,
         csrf_hash,
     )
@@ -390,18 +391,18 @@ def cleanup_idle_sessions() -> None:
     Clean up idle sessions exceeding timeout threshold.
 
     Removes sessions inactive longer than the configured idle
-    timeout period. Only runs if SESSION_IDLE_TIMEOUT_ENABLED.
+    timeout period. Only runs while the session policy has timeouts enabled.
     Logs count of cleaned sessions.
 
     Raises:
         HTTPException: If database error occurs.
     """
-    if not auth_constants.SESSION_IDLE_TIMEOUT_ENABLED:
-        return
-
     with SessionLocal() as db:
         try:
-            cutoff_time = datetime.now(UTC) - timedelta(hours=auth_constants.SESSION_IDLE_TIMEOUT_HOURS)
+            idle_timeout = server_settings_integration.get_session_policy(db).idle_timeout
+            if idle_timeout is None:
+                return
+            cutoff_time = datetime.now(UTC) - idle_timeout
 
             # Delete sessions with last_activity_at older than cutoff
             deleted_count = auth_sessions_crud.delete_idle_sessions(cutoff_time, db)

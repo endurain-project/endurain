@@ -31,6 +31,7 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
     purchaseValue: dto.purchase_value ?? null,
     currentDistance: dto.current_distance ?? 0,
     currentTime: dto.current_time ?? 0,
+    version: dto.version ?? 1,
   }
 }
 
@@ -44,7 +45,6 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
  */
 function toComponentWireFields(input: GearComponentInput) {
   return {
-    gear_id: input.gearId,
     type: input.type,
     brand: input.brand,
     model: input.model,
@@ -58,7 +58,8 @@ function toComponentWireFields(input: GearComponentInput) {
 
 /**
  * Fetches the components attached to a gear, each enriched with accumulated
- * distance/time by the backend.
+ * distance/time by the backend. The backend serves up to 200 per page, which one
+ * gear's components never reach.
  *
  * @param gearId - The parent gear id.
  * @param signal - Optional abort signal for cancellation.
@@ -69,10 +70,11 @@ export async function fetchGearComponents(
   gearId: number,
   signal?: AbortSignal,
 ): Promise<GearComponent[]> {
-  const dtos = await apiFetch<GearComponentDto[] | null>(`/gear_components/gear_id/${gearId}`, {
-    signal,
-  })
-  return (dtos ?? []).map(mapGearComponent)
+  const response = await apiFetch<Schemas['Page_GearComponentRead_']>(
+    `/gear-components/gears/${gearId}`,
+    { signal },
+  )
+  return (response.items ?? []).map(mapGearComponent)
 }
 
 /**
@@ -86,7 +88,7 @@ export async function fetchGearComponents(
 export async function fetchGearComponentTypes(
   signal?: AbortSignal,
 ): Promise<GearComponentTypeLists> {
-  return apiFetch<GearComponentTypeLists>('/gear_components/types', { signal })
+  return apiFetch<GearComponentTypeLists>('/gear-components/types', { signal })
 }
 
 /**
@@ -97,8 +99,11 @@ export async function fetchGearComponentTypes(
  * @throws {HttpError} When the request fails.
  */
 export async function createGearComponent(input: GearComponentInput): Promise<GearComponent> {
-  const payload: Schemas['GearComponentCreate'] = toComponentWireFields(input)
-  const dto = await apiFetch<GearComponentDto>('/gear_components', {
+  const payload: Schemas['GearComponentCreate'] = {
+    gear_id: input.gearId,
+    ...toComponentWireFields(input),
+  }
+  const dto = await apiFetch<GearComponentDto>('/gear-components', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -110,17 +115,25 @@ export async function createGearComponent(input: GearComponentInput): Promise<Ge
  *
  * @param id - The component id to update.
  * @param input - The clean component input.
+ * @param version - The row version the form was loaded at, for `If-Match`.
  * @returns The updated component, mapped to the clean model.
- * @throws {HttpError} When the request fails.
+ * @throws {HttpError} When the request fails, including 412 when the copy is stale.
  */
 export async function updateGearComponent(
   id: number,
   input: GearComponentInput,
+  version?: number,
 ): Promise<GearComponent> {
-  const payload: Schemas['GearComponentUpdate'] = { ...toComponentWireFields(input), id }
-  const dto = await apiFetch<GearComponentDto>('/gear_components', {
-    method: 'PUT',
+  // `purchase_date` cannot be cleared on the backend, so it is left out of the partial update when empty.
+  const { purchase_date, ...fields } = toComponentWireFields(input)
+  const payload: Schemas['GearComponentUpdate'] = {
+    ...fields,
+    ...(purchase_date === null ? {} : { purchase_date }),
+  }
+  const dto = await apiFetch<GearComponentDto>(`/gear-components/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
+    headers: version == null ? {} : { 'If-Match': `"${version}"` },
   })
   return mapGearComponent(dto)
 }
@@ -133,5 +146,5 @@ export async function updateGearComponent(
  * @throws {HttpError} When the request fails.
  */
 export async function deleteGearComponent(id: number): Promise<void> {
-  await apiFetch<void>(`/gear_components/${id}`, { method: 'DELETE', responseType: 'void' })
+  await apiFetch<void>(`/gear-components/${id}`, { method: 'DELETE', responseType: 'void' })
 }

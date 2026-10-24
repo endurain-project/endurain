@@ -1,4 +1,5 @@
 import contextlib
+from datetime import timedelta
 from importlib import import_module
 from unittest.mock import MagicMock
 
@@ -7,11 +8,13 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
 import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.token_manager as auth_token_manager
 import modules.auth.dependencies as auth_dependencies
+import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
 
 # Variables and constants
@@ -59,6 +62,17 @@ def password_hasher() -> auth_password_hasher.PasswordHasher:
 
 
 @pytest.fixture
+def session_policy() -> server_settings_contracts.SessionPolicy:
+    """The default session policy: 15-minute access tokens, 7-day refresh tokens, no timeouts."""
+    return server_settings_contracts.SessionPolicy(
+        access_token_ttl=timedelta(minutes=15),
+        refresh_token_ttl=timedelta(days=7),
+        idle_timeout=None,
+        absolute_timeout=None,
+    )
+
+
+@pytest.fixture
 def token_manager() -> auth_token_manager.TokenManager:
     """
     Creates and returns a auth_token_manager.TokenManager instance configured with a test secret key.
@@ -77,7 +91,10 @@ def mock_db() -> MagicMock:
     Returns:
         MagicMock: A mock object with the specification of a SQLAlchemy Session.
     """
-    return MagicMock(spec=Session)
+    db = MagicMock(spec=Session)
+    # A real savepoint rolls back and re-raises; a bare mock context manager would swallow the error.
+    db.begin_nested.return_value.__exit__.return_value = False
+    return db
 
 
 @pytest.fixture
@@ -209,6 +226,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     """
 
     app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
 
     # Include any routers you have configured
     for dotted in DEFAULT_ROUTER_MODULES:

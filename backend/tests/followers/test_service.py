@@ -58,6 +58,7 @@ class TestFollowUser:
         from modules.followers.service import follow_user
 
         db = MagicMock()
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
         mock_crud.create_follower.return_value = FollowRelationshipRead(follower_id=1, followee_id=2, status="pending")
 
         result = follow_user(1, 2, db)
@@ -78,6 +79,23 @@ class TestFollowUser:
             follow_user(1, 1, db)
 
         assert e.value.status_code == 400
+        mock_crud.create_follower.assert_not_called()
+        mock_pub.publish_follower_requested.assert_not_called()
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_target_with_too_many_pending_requests_is_refused(self, mock_crud, mock_pub):
+        import core.exceptions as core_exceptions
+        from modules.followers.constants import MAX_PENDING_REQUESTS
+        from modules.followers.service import follow_user
+
+        db = MagicMock()
+        mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
+
+        with pytest.raises(core_exceptions.ConflictError) as e:
+            follow_user(1, 2, db)
+
+        assert e.value.status_code == 409
         mock_crud.create_follower.assert_not_called()
         mock_pub.publish_follower_requested.assert_not_called()
 
@@ -105,6 +123,30 @@ class TestDeleteRelationship:
 
         crud.delete_follower.assert_called_once_with(1, 2, db)
         db.commit.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "status,published",
+        [("pending", True), ("accepted", False)],
+    )
+    def test_only_a_pending_request_publishes_its_removal(self, status, published):
+        from modules.followers.constants import FollowStatus
+        from modules.followers.service import delete_relationship
+
+        db = MagicMock()
+        with (
+            patch("modules.followers.service.followers_crud") as crud,
+            patch("modules.followers.service.followers_event_publishers") as pub,
+        ):
+            crud.delete_follower.return_value = FollowStatus(status)
+            delete_relationship(2, 1, 1, db)
+
+        assert pub.publish_follower_request_removed.called is published
+        if published:
+            pub.publish_follower_request_removed.assert_called_once_with(
+                1, 2, db, commit=db.commit, source="api:delete_follow_relationship"
+            )
+        else:
+            db.commit.assert_called_once()
 
     def test_removing_a_follower_deletes_the_same_row(self):
         """Same row, opposite caller — the reason these are one operation."""
@@ -142,6 +184,20 @@ class TestRejectFollowRequest:
 
         crud.delete_follower.assert_called_once_with(2, 1, db, status=FollowStatus.PENDING)
         db.commit.assert_called_once()
+
+    def test_publishes_the_removal(self):
+        from modules.followers.service import reject_follow_request
+
+        db = MagicMock()
+        with (
+            patch("modules.followers.service.followers_crud"),
+            patch("modules.followers.service.followers_event_publishers") as pub,
+        ):
+            reject_follow_request(1, 2, db)
+
+        pub.publish_follower_request_removed.assert_called_once_with(
+            2, 1, db, commit=db.commit, source="api:reject_follow_request"
+        )
 
 
 class TestListAcceptedFolloweeIds:

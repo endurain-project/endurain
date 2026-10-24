@@ -1,148 +1,166 @@
-from typing import overload
+"""CRUD operations for server settings."""
 
-from fastapi import HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
-import core.cryptography as core_cryptography
-import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 import modules.server_settings.models as server_settings_models
 import modules.server_settings.schema as server_settings_schema
+import modules.server_settings.serializers as server_settings_serializers
 
-# Private internal helpers
-
-
-@overload
-def _transform_server_settings(
-    server_settings: server_settings_models.ServerSettings,
-) -> server_settings_schema.ServerSettingsRead: ...
+_SINGLETON_ID = 1
 
 
-@overload
-def _transform_server_settings(
-    server_settings: list[server_settings_models.ServerSettings],
-) -> list[server_settings_schema.ServerSettingsRead]: ...
-
-
-def _transform_server_settings(
-    server_settings: server_settings_models.ServerSettings | list[server_settings_models.ServerSettings],
-) -> server_settings_schema.ServerSettingsRead | list[server_settings_schema.ServerSettingsRead]:
-    """
-    Transform a server settings or list of server settings to a Pydantic schema.
-
-     Args:
-        server_settings: The server settings ORM instance or list of instances.
-
-     Returns:
-        The server settings(s) as a schema.
-    """
-    if isinstance(server_settings, list):
-        return [server_settings_schema.ServerSettingsRead.model_validate(s) for s in server_settings]
-    return server_settings_schema.ServerSettingsRead.model_validate(server_settings)
-
-
-@core_decorators.handle_db_errors
-def _get_server_settings_model_or_404(db: Session) -> server_settings_models.ServerSettings:
-    """
-    Retrieve singleton server settings from database.
+def _find_singleton[RowT: server_settings_models.ServerSettings | server_settings_models.MailSettings](
+    model: type[RowT], db: Session, *, for_update: bool = False
+) -> RowT | None:
+    """Load a singleton settings row.
 
     Args:
+        model: The settings model to load.
+        db: Database session.
+        for_update: Lock the row until the transaction ends, so concurrent writers
+            (other workers or replicas included) queue instead of overwriting each other.
+
+    Returns:
+        The mapped instance, or None if the row does not exist.
+    """
+    stmt = select(model).where(model.id == _SINGLETON_ID)
+    if for_update:
+        # A locked read must see what the previous holder committed, not a stale loaded copy.
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def _lock_singleton[RowT: server_settings_models.ServerSettings | server_settings_models.MailSettings](
+    model: type[RowT], label: str, db: Session
+) -> RowT:
+    """Load a singleton settings row for writing, locked, or fail.
+
+    Args:
+        model: The settings model to load.
+        label: What the row holds, named in the failure message.
         db: Database session.
 
     Returns:
-        ServerSettings ORM instance.
+        The mapped instance.
 
     Raises:
-        HTTPException: If database error occurs.
+        ServiceUnavailableError: If the settings row does not exist.
     """
-    # Get the server settings from the database
-    stmt = select(server_settings_models.ServerSettings).where(server_settings_models.ServerSettings.id == 1)
-    db_server_settings = db.execute(stmt).scalar_one_or_none()
-
-    if db_server_settings is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server settings not found.",
-        )
-
-    return db_server_settings
+    row = _find_singleton(model, db, for_update=True)
+    if row is None:
+        raise core_exceptions.ServiceUnavailableError(f"{label} settings are not initialised.")
+    return row
 
 
-# Public CRUD functions
+def _apply(
+    row: server_settings_models.ServerSettings | server_settings_models.MailSettings, fields: BaseModel, db: Session
+) -> None:
+    """Write the fields that were set onto a locked row and flush.
 
-
-@core_decorators.handle_db_errors
-def get_server_settings(db: Session) -> server_settings_schema.ServerSettingsRead | None:
+    Args:
+        row: The locked settings row.
+        fields: The request body; only the fields that were set are written.
+        db: Database session.
     """
-    Retrieve singleton server settings from database.
+    for key, value in fields.model_dump(exclude_unset=True).items():
+        setattr(row, key, value)
+    db.flush()
+    db.refresh(row)
+
+
+def get_server_settings(db: Session, *, for_update: bool = False) -> server_settings_schema.ServerSettingsRead | None:
+    """Retrieve the singleton server settings.
 
     Args:
         db: Database session.
+        for_update: Lock the row until the transaction ends; for a read that decides a write.
 
     Returns:
-        ServerSettingsRead schema or None if not found.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The settings as stored (the tile API key stays encrypted), or None if not found.
     """
-    # Get the server settings from the database
-    stmt = select(server_settings_models.ServerSettings).where(server_settings_models.ServerSettings.id == 1)
-    db_server_settings = db.execute(stmt).scalar_one_or_none()
-    return _transform_server_settings(db_server_settings) if db_server_settings else None
+    row = _find_singleton(server_settings_models.ServerSettings, db, for_update=for_update)
+    if row is None:
+        return None
+    return server_settings_serializers.to_server_settings_read(row)
 
 
-@core_decorators.handle_db_errors
 def edit_server_settings(
     server_settings: server_settings_schema.ServerSettingsEdit,
     db: Session,
-    *,
-    commit: bool = True,
 ) -> server_settings_schema.ServerSettingsRead:
-    """
-    Update server settings in database.
+    """Stage an update of the server settings.
 
     Args:
-        server_settings: New settings to apply.
+        server_settings: The fields to apply; only the ones that were set are written.
+            A tile API key must already be encrypted.
         db: Database session.
 
     Returns:
-        Updated ServerSettingsRead schema.
+        The updated settings as stored.
 
     Raises:
-        HTTPException: If settings not found or database error.
+        ServiceUnavailableError: If the settings row does not exist.
     """
-    # Get the server_settings from the database
-    db_server_settings = _get_server_settings_model_or_404(db)
-
-    if server_settings.tileserver_api_key is not None:
-        # Encrypt the tile server API key before storing
-        encrypted_api_key = core_cryptography.encrypt_token_fernet(server_settings.tileserver_api_key)
-        server_settings.tileserver_api_key = encrypted_api_key
-
-    # Dictionary of the fields to update if they are not None
-    server_settings_data = server_settings.model_dump(exclude_unset=True)
-    # Iterate over the fields and update the db_user dynamically
-    for key, value in server_settings_data.items():
-        setattr(db_server_settings, key, value)
-
-    if commit:
-        db.commit()
-    else:
-        db.flush()
-    # Refresh the object to ensure it reflects database state
-    db.refresh(db_server_settings)
-
-    return _transform_server_settings(db_server_settings)
+    row = _lock_singleton(server_settings_models.ServerSettings, "Server", db)
+    _apply(row, server_settings, db)
+    return server_settings_serializers.to_server_settings_read(row)
 
 
-@core_decorators.handle_db_errors
-def update_server_settings_login_photo_set(is_set: bool, db: Session) -> None:
-    # Get the server_settings from the database
-    db_server_settings = _get_server_settings_model_or_404(db)
+def set_login_photo(is_set: bool, db: Session) -> None:
+    """Stage whether a custom login photo is configured.
 
-    db_server_settings.login_photo_set = is_set
+    Args:
+        is_set: True when a login photo exists.
+        db: Database session.
 
-    # Commit the transaction
-    db.commit()
-    # Refresh the object to ensure it reflects database state
-    db.refresh(db_server_settings)
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    row = _lock_singleton(server_settings_models.ServerSettings, "Server", db)
+    row.login_photo_set = is_set
+    # A new photo leaves the flag as it was; flagging it forces the UPDATE that bumps the version,
+    # which is the photo's entity tag.
+    flag_modified(row, "login_photo_set")
+    db.flush()
+
+
+def get_mail_settings(db: Session, *, for_update: bool = False) -> server_settings_schema.MailSettingsRead | None:
+    """Retrieve the singleton mail settings.
+
+    Args:
+        db: Database session.
+        for_update: Lock the row until the transaction ends; for a read that decides a write.
+
+    Returns:
+        The settings as stored (the password stays encrypted), or None if not found.
+    """
+    row = _find_singleton(server_settings_models.MailSettings, db, for_update=for_update)
+    if row is None:
+        return None
+    return server_settings_serializers.to_mail_settings_read(row)
+
+
+def edit_mail_settings(
+    mail_settings: server_settings_schema.MailSettingsEdit,
+    db: Session,
+) -> server_settings_schema.MailSettingsRead:
+    """Stage an update of the mail settings.
+
+    Args:
+        mail_settings: The fields to apply; only the ones that were set are written.
+            A password must already be encrypted.
+        db: Database session.
+
+    Returns:
+        The updated settings as stored.
+
+    Raises:
+        ServiceUnavailableError: If the settings row does not exist.
+    """
+    row = _lock_singleton(server_settings_models.MailSettings, "Mail", db)
+    _apply(row, mail_settings, db)
+    return server_settings_serializers.to_mail_settings_read(row)

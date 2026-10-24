@@ -152,7 +152,7 @@ class TestParseActivitiesManifest:
 
 
 def _gear(monkeypatch, items):
-    monkeypatch.setattr(bulk_import_utils.gears_crud, "get_gear_user", lambda uid, db: items)
+    monkeypatch.setattr(bulk_import_utils.gears_integration, "get_gear_user", lambda uid, db: items)
 
 
 def test_gear_dictionary_normal(monkeypatch):

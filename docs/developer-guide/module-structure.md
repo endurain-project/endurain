@@ -5,8 +5,8 @@ make each module **replaceable**. A module can move to another distribution, or
 be replaced by another implementation, because callers import only surfaces the
 module deliberately publishes.
 
-`modules/activities` is a composition namespace containing several independent
-modules (`activity`, `activity_laps`, `activity_streams`, and so on).
+`modules/activities` and `modules/health` are composition namespaces containing several independent
+modules (`activity`, `activity_laps`, `activity_streams`, `health_weight`, `health_sleep`, and so on).
 `modules/followers` is the reference for a module that stays flat. A new module
 follows one of these shapes; the existing modules are converted one at a time as
 they are reworked (see [Known debt](#known-debt)).
@@ -440,6 +440,7 @@ it rather than the platform importing it. Three worked examples live in the tree
 | Bulk import needed Strava-export semantics | `BulkImportFormat` is a registered layout (which members are activity files, the drop folder, how to build the source); `modules.strava.bulk_import_source` registers one and `StravaBulkImportSource` subclasses `BulkImportSource`. |
 | Activity ingestion/profile restore needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
 | Returning an activity needed its thumbnail's URL | `activity.service` asks `contributor_registry.resolve_thumbnail_url` for each activity it hands a client; `activity_thumbnail` registers the resolver at composition time. The stored key never leaves the server. |
+| Gear totals needed the distance and time activities recorded, and activities needs gear ownership checks | `gears` sits below activities. It states the questions in `gears/contributors.py` and keeps the answers in `gears/contributor_registry.py`; `module_registry.configure_gear_contributors` installs the activities readers in both entrypoints. |
 
 The shape is always the same: the lower layer owns the *seam* (a registry, a base
 class, a protocol), the higher layer owns the *implementation*, and a composition
@@ -737,22 +738,22 @@ the conformance test's allowlist.
 
 ### Pilot status and what the next conversion owns
 
-`activities` and `followers` are the only modules converted so far. The
+`activities`, `followers`, `garmin`, `gears`, `health`, `notifications`, `server_settings` and `websocket` are the only modules converted so far. The
 remaining modules are listed in `UNCONVERTED_MODULES` so that
 `TestModuleInventory` keeps them visible rather than silently exempt, and are
 converted one at a time with the `convert-module` skill. The items below need
-changes outside the two converted modules, so they are recorded here as accepted
+changes outside the converted modules, so they are recorded here as accepted
 limitations rather than half-done:
 
-- **Top-level cycles.** `users` ⇄ `activities` (profile export/import consumes
-  activities; activities consumes `users.integration_service`) and, by the
-  contracts' own description, `gears` ⇄ `activities`. The planned fix is the
+- **Top-level cycles.** `users` ⇄ `activities`: profile export/import consumes
+  activities, and activities consumes `users.integration_service`. The planned fix is the
   contributor pattern the activity children already use: `users_profile`
   export/import asks each module for its section instead of importing them.
-  A `layers` contract (core, identity, followers/gears/health, activities,
-  providers) then states the module-level direction once. Every edge that closes
-  a cycle lives in `users` or `gears`; the activities side already publishes the
-  contributor surface, so the cycles stay until those modules are changed.
+  `gears` no longer closes a cycle: it sits below activities (`_MUST_NOT_IMPORT`), states the
+  required usage questions in `gears/contributors.py`, and `module_registry.configure_gear_contributors`
+  installs the activities answers. A `layers` contract (core, identity, followers/gears/health,
+  activities, providers) can then state the module-level direction once. The remaining edge that
+  closes a cycle lives in `users`.
 - **Layer rules for unconverted modules.** `TestLayerRules` covers converted
   modules only. An unconverted module is outside it until converted, and the
   `auth-boundary` contract is the one generic rule over every module:
@@ -764,27 +765,40 @@ limitations rather than half-done:
   separate composition surfaces on purpose: they have different consumers
   (the HTTP app and Alembic), and the legacy model scan keeps the model seam
   distinct until the unconverted modules are gone.
-- **Namespace-level code in `health`.** `health` has `router.py`, `schema.py`
-  and `utils.py` beside its sub-packages, which conflicts with "a composition
-  namespace is not an implementation boundary".
+- **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`),
+  `computation.py` (pure date and SQL helpers) and `schema.py` (the shared `HealthListResponse` base),
+  and nothing else. `schema.py` stays because replacing it with `core.pagination.Page` would change
+  the list response every client reads. `health_fasting.crud` and `health_poop.crud` import
+  `computation.local_date_expression` through `_LAYER_EXCEPTIONS`, because day bucketing must be
+  written once.
+- **`users` ⇄ `health`.** `health` services read the user's height, timezone and "today" through
+  `users.integration_service`, and `users` creates default targets, recalculates BMI and exports and
+  imports health records through the `health_targets` and `health_weight` surfaces. Only the
+  contributor pattern described under *Top-level cycles* removes the second half.
+- **Missing dates default in `service`.** A health record created without a date is filed under today
+  in the server's configured timezone (`settings.TZ`), because the request carries none. The
+  athlete's own timezone would be correct near local midnight, but changing it is a behaviour change,
+  so it was not made during the conversion.
 - **`auth` naming.** `identity_service.py` and `_internal/` instead of
   `integration_service.py` and the filename vocabulary, as described above.
   The generic boundary rule needs a special case until it is aligned.
 
 - **Persistence layers calling other modules.** Converted modules ask nothing of
   another bounded context below `service` (`TestLayerRules`). The unconverted ones still do,
-  for example `health.*.crud` reaching `users.users.utils` and
-  `notifications.utils` reaching `users` and `websocket`.
+  for example `users` and `strava`.
 - **Persistence ending transactions.** Converted modules stage with `flush()` and
   let `service` (or the job, importer or `migration_service` that owns the unit of
-  work) commit. Unconverted modules (`auth`, `users`, `gears`, …) are outside
+  work) commit. Unconverted modules (`auth`, `users`, …) are outside
   `test_crud_does_not_end_transactions`; `_CRUD_TRANSACTION_DEBT` is empty and is
   where a module being converted lists its files.
 - **Subscribers reaching past a surface.** Followers holds no subscribers; its
   notification handlers live in `modules/notifications` and subscribe to
-  `followers.events` (`TestLayerRules`). `garmin`, `strava`,
-  `auth.sign_up_tokens` and `users.users_profile` still import another module's
-  `utils`/`manager` directly.
+  `followers.events` (`TestLayerRules`). `strava` and
+  `users.users_profile` still import another module's `utils`/`manager` directly.
+- **Forwarding surfaces on unconverted peers.** `garmin` reaches `users_integrations` and `users.users`
+  through small `integration_service.py` files that only forward to their `crud`. Those `crud` functions
+  still commit and raise `HTTPException`; the surfaces get their real shape when the owning modules are
+  converted. The `health_*` surfaces already have it: they stage, and `garmin` commits.
 - **Legacy model scan.** Converted modules declare their ORM module in
   `model_registry.py` and use scalar foreign keys with database `ON DELETE`
   behaviour. `app/model_registry.py` keeps a filesystem scan only for modules not

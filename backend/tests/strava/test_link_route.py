@@ -27,7 +27,6 @@ def _link(token_user_id: int, owner_id: int = 1):
                     state="s",
                     code="c",
                     _validate_access_token=None,
-                    _check_scopes=None,
                     token_user_id=token_user_id,
                     db=MagicMock(),
                 )

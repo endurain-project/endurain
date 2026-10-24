@@ -105,4 +105,4 @@ The entry points read this registry. They import your `subscriber_registry`, nev
 
 - Run `PYTHONPATH=app uv run lint-imports` and `uv run pytest tests/architecture -q` from `backend/`. They enforce the module boundaries, the registry and the reconciliation nets.
 - Run with `JOBS_ENABLED=false` (best-effort bus) and `JOBS_ENABLED=true` (outbox and worker). A subscriber that works in only one mode is not done.
-- Follow the event with `event_log` and `processing_jobs`; see [Troubleshooting](../getting-started/troubleshooting.md#follow-one-event).
+- Follow the event with `jasil_event_log` and `jasil_processing_jobs`; see [Troubleshooting](../getting-started/troubleshooting.md#follow-one-event).

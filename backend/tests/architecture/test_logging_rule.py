@@ -60,10 +60,16 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "activities/activity_file_import/tcx_utils.py": "Parser anomalies the file itself carries.",
     "activities/activity_ingestion/background.py": "Owns the in-process pool, whose failures nothing else would see.",
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
+    "garmin/mfa_code_store.py": "Reports a storage outage and a code it could not delete, which have no caller to tell.",
+    "garmin/state_store.py": "Reports a state it could not record or a claim it could not release; the attempt itself must still finish.",
+    "garmin/token_utils.py": "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None.",
+    "websocket/manager.py": "Owns the connection registry; an eviction and a failed send have no caller to report to.",
+    "websocket/ticket_store.py": "Reports a storage outage and an unreadable ticket value it cannot attribute to a request.",
 }
 
-#: Modules whose ``console=True`` records are operator-facing: bulk-import progress and migrations.
-_CONSOLE_ALLOWED_PREFIXES = ("activities/activity_ingestion/",)
+#: Modules whose ``console=True`` records are operator-facing: bulk-import progress, migrations and the boot
+#: import of deprecated settings.
+_CONSOLE_ALLOWED_PREFIXES = ("activities/activity_ingestion/", "server_settings/")
 _CONSOLE_ALLOWED_ROLES = frozenset({"migration_service"})
 
 #: Exceptions a service raises to refuse a request. Raising one is a decision, and the rule says a refusal

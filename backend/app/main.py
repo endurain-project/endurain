@@ -1,4 +1,5 @@
 import os
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import cast
@@ -22,12 +23,13 @@ import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
 import core.async_bridge as core_async_bridge
 import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
@@ -47,11 +49,9 @@ import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
-import modules.garmin.health_utils as garmin_health_utils
-import modules.garmin.provider_registry as garmin_provider_registry
-import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
-import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.utils as server_settings_utils
+import modules.garmin.integration_service as garmin_integration
+import modules.server_settings.constants as server_settings_constants
+import modules.server_settings.integration_service as server_settings_integration
 import modules.strava.provider_registry as strava_provider_registry
 import modules.strava.scheduled_jobs as strava_scheduled_jobs
 from api import router as api_router
@@ -97,6 +97,11 @@ async def _safe_run_async[T, **P](
         return None
 
 
+# Arbitrary constant identifying the migration lock among the database's advisory locks.
+_MIGRATION_LOCK_KEY = 7_203_419_001
+_MIGRATION_LOCK_TIMEOUT_SECONDS = 600
+
+
 def _run_alembic_migrations() -> None:
     """Run Alembic upgrade to head.
 
@@ -107,12 +112,25 @@ def _run_alembic_migrations() -> None:
     # Disable Alembic's own logger configuration to
     # avoid conflicts with FastAPI / our main logger.
     alembic_cfg.attributes["configure_logger"] = False
-    command.upgrade(alembic_cfg, "head")
-
-
-async def _retrieve_recent_garmin_health() -> None:
-    """Backfill the last day of Garmin Connect health stats."""
-    await garmin_health_utils.retrieve_garminconnect_users_health_for_days(1)
+    # Replicas start together; the session-level advisory lock makes one migrate while
+    # the others wait, then find the schema already at head.
+    # AUTOCOMMIT keeps the connection out of a transaction, so an idle-in-transaction timeout cannot end
+    # the session (and release the lock) during a slow migration.
+    with core_database.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as lock_connection:
+        locked = False
+        try:
+            # A replica waits for the one migrating, but not forever if that one hangs.
+            lock_connection.execute(text(f"SET lock_timeout = '{_MIGRATION_LOCK_TIMEOUT_SECONDS}s'"))
+            lock_connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _MIGRATION_LOCK_KEY})
+            locked = True
+            command.upgrade(alembic_cfg, "head")
+        finally:
+            # The connection goes back to the pool; do not leave the timeout on it, even when the wait timed out.
+            try:
+                if locked:
+                    lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _MIGRATION_LOCK_KEY})
+            finally:
+                lock_connection.execute(text("RESET lock_timeout"))
 
 
 def _purge_expired_tokens() -> None:
@@ -123,23 +141,37 @@ def _purge_expired_tokens() -> None:
     idp_link_token_utils.delete_idp_link_expired_tokens_from_db()
 
 
+def _read_allowed_tile_domains() -> list[str]:
+    """Read the CSP tile domains in a short-lived session.
+
+    Returns:
+        The built-in tile domains plus the configured custom tile server's.
+    """
+    with SessionLocal() as db:
+        return server_settings_integration.get_allowed_tile_domains(db)
+
+
 def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
     """Populate ``app.state.allowed_tile_domains`` for CSP.
+
+    The security-headers middleware re-reads it periodically, so an edit made in
+    another process reaches this one too.
 
     Falls back to the built-in default provider list if
     the database lookup fails so the application can
     still serve requests with a safe CSP.
     """
-    with SessionLocal() as db:
-        try:
-            fastapi_app.state.allowed_tile_domains = server_settings_utils.get_allowed_tile_domains(db)
-            allowed_tile_domains = fastapi_app.state.allowed_tile_domains
-            logger.info(f"Allowed tile domains: {allowed_tile_domains}", extra=core_logger.context(console=True))
-        except Exception as err:
-            logger.error(f"Error initializing tile domains, using defaults: {type(err).__name__}", exc_info=err)
-            # Fallback to built-in providers so CSP
-            # remains restrictive but functional.
-            fastapi_app.state.allowed_tile_domains = server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
+    fastapi_app.state.allowed_tile_domains_loader = _read_allowed_tile_domains
+    fastapi_app.state.allowed_tile_domains_read_at = time.monotonic()
+    try:
+        fastapi_app.state.allowed_tile_domains = _read_allowed_tile_domains()
+        allowed_tile_domains = fastapi_app.state.allowed_tile_domains
+        logger.info(f"Allowed tile domains: {allowed_tile_domains}", extra=core_logger.context(console=True))
+    except Exception as err:
+        logger.error(f"Error initializing tile domains, using defaults: {type(err).__name__}", exc_info=err)
+        # Fallback to built-in providers so CSP
+        # remains restrictive but functional.
+        fastapi_app.state.allowed_tile_domains = server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
 
 
 async def _resolve_trusted_proxy_hostnames() -> dict[str, list[str]]:
@@ -180,7 +212,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
 
     # Build the platform substrate (providers + backends) and attach it to app state.
-    platform = platform_container.build_platform(substrate_settings)
+    platform = platform_container.build_platform(substrate_settings, sources=runtime_module_registry.runtime_sources())
     fastapi_app.state.platform = platform
 
     # Publish it process-wide so background work (scheduler, Garmin login thread)
@@ -202,21 +234,31 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # writes durable derived state declares a reconciliation net (scheduled backfill)
     # in that module.
     runtime_module_registry.configure_activity_contributors()
+    runtime_module_registry.configure_gear_contributors()
     runtime_module_registry.register_bus_subscribers(platform.events)
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)
     # Providers register themselves with ingestion; ingestion imports none of
     # them. Must also happen in worker.py, where refresh jobs are claimed.
     strava_provider_registry.register_activity_provider()
-    garmin_provider_registry.register_activity_provider()
+    garmin_integration.register_activity_provider()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
     platform.events.start()
 
+    # Subscribe this process to the realtime hint channel and start receiving: a hint
+    # published by any replica or by the worker is pushed here when this process holds
+    # the user's socket. The worker never does this; it only publishes.
+    runtime_module_registry.register_realtime_subscribers(platform.realtime)
+    platform.realtime.start()
+
     # Phase 1: critical pre-flight tasks.
     _run_alembic_migrations()
     core_migrations.bootstrap_substrate_schema()
     await core_migrations.check_migrations()
+    # Before anything can send mail: save deprecated environment variables into the database.
+    with SessionLocal() as db:
+        server_settings_integration.import_deprecated_env_settings(db)
     # The composition root collects each module's own declaration; the scheduler
     # knows how to schedule, never what.
     core_scheduler.start_scheduler(
@@ -225,7 +267,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
             *auth_scheduled_jobs.recurring_jobs(),
             *runtime_module_registry.recurring_jobs(),
             *strava_scheduled_jobs.recurring_jobs(),
-            *garmin_scheduled_jobs.recurring_jobs(),
         ]
     )
 
@@ -269,14 +310,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # are queued per user by activity ingestion's startup task below, so startup
     # does not wait on every user's provider round trips.
     logger.info(
-        "Retrieving last day health stats from Garmin Connect on startup", extra=core_logger.context(console=True)
-    )
-    await _safe_run_async(
-        "retrieve_recent_garmin_health",
-        _retrieve_recent_garmin_health,
-    )
-
-    logger.info(
         "Purging expired tokens (password reset, sign-up, OAuth state, IdP link)",
         extra=core_logger.context(console=True),
     )
@@ -317,6 +350,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     # Stop the bulk-import background pool (no-op when it was never started, i.e.
     # when durable jobs handle imports instead).
     activity_ingestion_integration.shutdown_background_ingestion()
+    garmin_integration.shutdown_executors()
     runtime_module_registry.shutdown_deferred_subscribers()
 
     # Stop the SSRF hostname-resolution pool (no-op when no lookup ever ran).
@@ -408,6 +442,8 @@ def create_app() -> FastAPI:
     else:
         cors_allow_origins = [core_config.settings.ENDURAIN_HOST]
 
+    # The websocket handshake is not covered by CORS, so its route checks the same list.
+    fastapi_app.state.cors_allow_origins = cors_allow_origins
     fastapi_app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_allow_origins,
@@ -455,11 +491,6 @@ def create_app() -> FastAPI:
 
     # Static mounts must be registered before the
     # catch-all frontend route included by api_router.
-    fastapi_app.mount(
-        f"/{core_config.SERVER_IMAGES_DIR}",
-        StaticFiles(directory=core_config.SERVER_IMAGES_DIR),
-        name="server_images",
-    )
     # NOTE: activity thumbnails, activity media and user photos are intentionally
     # NOT mounted as public static files. Each is served by a token-gated route
     # (modules.activities.activity_thumbnail.public_router,

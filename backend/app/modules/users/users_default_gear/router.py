@@ -1,11 +1,8 @@
 """User default gear API endpoints."""
 
-from typing import Annotated
+from fastapi import APIRouter, status
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
-
-import core.database as core_database
+import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.schema as user_default_gear_schema
@@ -20,14 +17,8 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
 )
 async def read_user_default_gear(
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> user_default_gear_schema.UsersDefaultGearRead | None:
     """
     Retrieve default gear settings for authenticated user.
@@ -49,14 +40,8 @@ async def read_user_default_gear(
 )
 async def edit_user_default_gear(
     user_default_gear: user_default_gear_schema.UsersDefaultGearUpdate,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> user_default_gear_schema.UsersDefaultGearRead:
     """
     Update default gear settings for authenticated user.

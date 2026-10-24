@@ -12,10 +12,13 @@ Deployment: Docker multi-stage image (amd64, arm64).
 | Backend code or tests | `.agents/skills/endurain-backend/SKILL.md` |
 | Frontend code or tests | `.agents/skills/endurain-frontend/SKILL.md` |
 | Converting a module to the module structure | `.agents/skills/convert-module/SKILL.md` |
+| Fixing a bug, failing test or CI failure | `.agents/skills/debugging/SKILL.md` |
 | Commit messages and PRs | `.agents/skills/conventional-commits/SKILL.md` |
 | Writing or editing a skill | `.agents/skills/skill-authoring/SKILL.md` |
 | Module rules and file roles | `docs/developer-guide/module-structure.md` |
 | Identity and auth boundary | `docs/developer-guide/auth-boundary.md` |
+| Events, subscribers and reconciliation nets | `docs/developer-guide/events-and-subscribers.md` |
+| Activity ingestion pipeline | `docs/developer-guide/activity-ingestion.md` |
 | Visual design | `docs/developer-guide/brand-and-ux-guidelines.md` |
 | Scaling, jobs, storage settings | `docs/getting-started/scaling-and-background-jobs.md` |
 
@@ -55,8 +58,8 @@ npm run gen:api      # after backend API changes
 
 - Do only what was asked; no extra docs, summaries, READMEs or "helpful" files.
 - Prefer existing patterns, utilities and files over new ones.
-- KISS: pick the simplest design that works; no indirection, abstraction layer or option without a current need.
-- YAGNI: build only what the task needs now; no speculative parameters, flags, hooks, config or extension points.
+- KISS: pick the simplest design that solves the underlying problem; no indirection, abstraction layer or option without a current need. Simple means few moving parts, not a small diff or a patch over the symptom.
+- YAGNI: build only what the task needs now; no speculative parameters, flags, hooks, config or extension points. What you do build must be complete and proper, not a stub or shortcut.
 - DRY: reuse an existing helper, schema, composable or primitive before writing another; extract shared code at the third repetition, not the second, and only when the copies change for the same reason.
 - Do not change Dockerfiles, CI workflows, port numbers, environment variables or framework versions unless asked.
 - Never run `git commit` (or any commit-creating command) unless the user explicitly asks; staging for inspection is fine.
@@ -65,6 +68,32 @@ npm run gen:api      # after backend API changes
 - All `UploadFile` handling goes through `backend/app/core/file_uploads.py`; never build filesystem paths from user filenames.
 - No hardcoded secrets; read configuration from environment variables.
 - Ask for clarification when scope is unclear instead of assuming extra deliverables.
+- A change touching more than one module or both stacks starts with a short task list in chat for approval; keep plans in chat or `devdocs/`, never in tracked files.
+- Bug fixes and new behavior start with a failing test.
+- Done means the checks that apply to what changed ran and their output was read; say which ran and which did not (stack checks do not apply to docs, `AGENTS.md` or skill-only changes).
+- Before reporting a larger change done, compare the diff to the request and remove anything not asked for.
+
+## Fixing problems
+
+- Fix the root cause, not the symptom. Before changing code, state the cause you found and the evidence for it.
+- Do not add workarounds: no special-case branches, swallowed exceptions, retries or sleeps to hide a failure, `type: ignore` / `# noqa`, test skips or loosened assertions, or defensive checks that mask bad state upstream.
+- If the proper fix is larger than the request (touches other modules, changes a boundary, needs a refactor), stop and ask before editing. Present the options:
+  1. Proper fix: what it changes and why it is the right one.
+  2. Minimal fix: what it leaves broken or the debt it creates.
+
+  Recommend one. Never apply the minimal option without the user's choice.
+- If unsure whether a fix is a workaround, treat it as one and ask.
+
+## Building features
+
+- Build the feature the way the architecture intends: correct module, layering and boundaries per the developer guide, even when a shortcut would be quicker.
+- Do not take shortcuts: no placeholder or stubbed logic, hardcoded values, TODOs standing in for required behavior, copy-pasted code instead of reuse, logic in the wrong layer, or skipped tests, validation, error handling, migrations, i18n or generated API types.
+- Before writing code, state the approach and the files it touches. If more than one reasonable design exists, or the proper design is larger than the request implies, stop and ask. Present the options:
+  1. Proper design: what it involves and why it fits the architecture.
+  2. Simpler design: what it cuts or defers, and the debt it creates.
+
+  Recommend one. Never apply the simpler option without the user's choice.
+- Scope still applies: complete means done properly, not bigger. Do not add features, options or files that were not requested.
 
 ## Backend invariants
 

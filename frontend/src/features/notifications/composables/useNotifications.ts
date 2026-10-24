@@ -24,6 +24,14 @@ import {
 const DEFAULT_PAGE_SIZE = 25
 
 /**
+ * How often the unread badge re-checks the server. A realtime push is only a hint and
+ * can be lost (another replica holds the socket, or the connection dropped), so this
+ * slow poll lets a missed notification surface on its own. TanStack Query pauses it
+ * while the tab is hidden.
+ */
+export const UNREAD_POLL_INTERVAL_MS = 60_000
+
+/**
  * Read path for the notifications list — the canonical server-state pattern:
  * a service function (`fetchNotifications`) + a key from the central
  * {@link queryKeys} factory, consumed through TanStack Query so callers inherit
@@ -84,7 +92,8 @@ export function useInfiniteNotificationsQuery(pageSize: number = DEFAULT_PAGE_SI
  * this counts unread rows in the most recent page client-side via `select`.
  * Stored under {@link queryKeys.notifications.unreadCount} (outside the `list`
  * prefix) so the optimistic updater never touches it; the mark-read mutation's
- * `onSettled` invalidation refreshes it for the authoritative count.
+ * `onSettled` invalidation refreshes it for the authoritative count. It also polls
+ * every {@link UNREAD_POLL_INTERVAL_MS}, so a lost realtime push self-heals.
  *
  * @param pageSize - How many recent notifications to inspect for unread rows.
  * @returns A TanStack Query result whose `data` is the unread count.
@@ -96,6 +105,7 @@ export function useUnreadNotificationsCount(pageSize: number = DEFAULT_PAGE_SIZE
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: ({ signal }) => fetchNotifications({ page: 1, numRecords: pageSize }, signal),
     enabled: isAuthenticated,
+    refetchInterval: UNREAD_POLL_INTERVAL_MS,
     select: (list) => list.reduce((count, item) => (item.read ? count : count + 1), 0),
   })
 }

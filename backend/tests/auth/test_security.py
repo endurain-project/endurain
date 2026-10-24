@@ -1,5 +1,6 @@
 """Tests for the auth._internal.internal_dependencies module."""
 
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -149,7 +150,7 @@ class TestAccessTokenValidation:
         """Test successful access token validation."""
         # Create a valid token
         _, access_token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS
+            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Should not raise an exception
@@ -267,7 +268,7 @@ class TestRefreshTokenValidation:
     def test_validate_refresh_token_success(self, token_manager, sample_user_read):
         """Test successful refresh token validation."""
         _, refresh_token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.REFRESH
+            "session-id", sample_user_read, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
         )
 
         # Should not raise an exception
@@ -316,7 +317,7 @@ class TestGetSubFromRefreshToken:
     def test_get_sub_from_valid_refresh_token(self, token_manager, sample_user_read):
         """Test extracting user ID from valid refresh token."""
         _, refresh_token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.REFRESH
+            "session-id", sample_user_read, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
         )
 
         sub = auth_security.get_sub_from_refresh_token(refresh_token, token_manager)
@@ -331,7 +332,7 @@ class TestGetSidFromRefreshToken:
         """Test extracting session ID from valid refresh token."""
         session_id = "test-session-456"
         _, refresh_token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.REFRESH
+            session_id, sample_user_read, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
         )
 
         sid = auth_security.get_sid_from_refresh_token(refresh_token, token_manager)

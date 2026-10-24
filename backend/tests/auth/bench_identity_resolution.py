@@ -15,6 +15,7 @@ Baseline numbers recorded on 2026-05-25:
 """
 
 import time
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -156,9 +157,7 @@ class TestResolveFromAccessTokenBenchmark:
         does not introduce unexpected overhead on the hot path.
         """
         _, access_token = token_manager.create_token(
-            "bench-session",
-            sample_user_read,
-            auth_token_manager.TokenType.ACCESS,
+            "bench-session", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         start = time.perf_counter()
@@ -197,9 +196,7 @@ class TestResolveFromAccessTokenBenchmark:
         )
 
         _, access_token = token_manager.create_token(
-            "bench-session",
-            sample_user_read,
-            auth_token_manager.TokenType.ACCESS,
+            "bench-session", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         with (

@@ -3,9 +3,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.pagination as core_pagination
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_laps.schema as activity_laps_schema
@@ -20,7 +19,7 @@ router = APIRouter()
 )
 def list_public_activity_laps(
     activity_id: activity_dependencies.ActivityId,
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
 ) -> activity_laps_schema.ActivityLapsPage:
     """Return one page of public laps for an activity exposed via shareable link."""

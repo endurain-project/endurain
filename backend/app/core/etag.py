@@ -11,7 +11,16 @@ actually saw. The version travels as an ETag, which is the standard HTTP
 mechanism for exactly this and needs no bespoke field in every payload.
 """
 
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
+
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
+
 import core.exceptions as core_exceptions
+import core.logger as core_logger
+
+logger = core_logger.get_logger(__name__)
 
 # The header a client echoes back from a previous response to make its write
 # conditional (RFC 9110 §13.1.1).
@@ -41,18 +50,37 @@ def parse_if_match(header: str) -> set[str]:
         header: The raw header value, which may be a comma-separated list.
 
     Returns:
-        The tags, unquoted and with any weak-comparison prefix removed.
+        The unquoted tags. Weak tags (``W/"7"``) are left out: ``If-Match`` requires strong
+        comparison (RFC 9110 §13.1.1), so a weak tag never matches.
     """
     tags = set()
     for candidate in header.split(","):
         tag = candidate.strip()
-        if tag.startswith("W/"):
-            tag = tag[2:]
-        tags.add(tag.strip('"'))
+        if not tag.startswith("W/"):
+            tags.add(tag.strip('"'))
     return tags
 
 
-def require_if_match(header: str | None, current_version: int | None) -> None:
+def matches_if_none_match(header: str | None, version: int) -> bool:
+    """Return whether an ``If-None-Match`` header names the current version.
+
+    Weak comparison applies (RFC 9110 §13.1.2), so a ``W/`` prefix, which proxies add, still
+    matches, as does ``*``.
+
+    Args:
+        header: The request's ``If-None-Match`` value, if any.
+        version: The stored row's version.
+
+    Returns:
+        True when the client's cached copy is current.
+    """
+    if header is None:
+        return False
+    tags = {candidate.strip().removeprefix("W/").strip('"') for candidate in header.split(",")}
+    return _WILDCARD in tags or str(version) in tags
+
+
+def require_if_match(header: str | None, current_version: int | None, resource: str) -> None:
     """Enforce an ``If-Match`` precondition against the stored version.
 
     A missing header is allowed: requiring it would break every existing client
@@ -62,6 +90,7 @@ def require_if_match(header: str | None, current_version: int | None) -> None:
     Args:
         header: The request's ``If-Match`` value, if any.
         current_version: The stored row's version.
+        resource: What the row is, named in the refusal message.
 
     Returns:
         None.
@@ -76,4 +105,37 @@ def require_if_match(header: str | None, current_version: int | None) -> None:
     if _WILDCARD in accepted:
         return
     if current_version is None or str(current_version) not in accepted:
-        raise core_exceptions.PreconditionFailedError("The activity was modified by someone else; re-read it and retry")
+        raise core_exceptions.PreconditionFailedError(
+            f"The {resource} was modified by someone else; re-read it and retry"
+        )
+
+
+@contextmanager
+def refuse_stale_write(
+    db: Session, resource: str, still_exists: Callable[[], bool], not_found_message: str
+) -> Generator[None]:
+    """Turn a write that lost the version race at flush time into a refusal.
+
+    Args:
+        db: Database session, rolled back when the race was lost.
+        resource: What the row is, named in the refusal message.
+        still_exists: Reads, after the rollback, whether the row can still be found.
+        not_found_message: The message when the row was deleted meanwhile.
+
+    Yields:
+        None; the guarded block is the write and, where the caller needs it, the commit.
+
+    Raises:
+        NotFoundError: When the row is gone.
+        PreconditionFailedError: When the row changed since the client read it.
+    """
+    try:
+        yield
+    except StaleDataError as err:
+        db.rollback()
+        if not still_exists():
+            raise core_exceptions.NotFoundError(not_found_message) from err
+        logger.warning("Rejected a stale write", extra=core_logger.context(resource=resource))
+        raise core_exceptions.PreconditionFailedError(
+            f"The {resource} was modified by someone else; re-read it and retry"
+        ) from err

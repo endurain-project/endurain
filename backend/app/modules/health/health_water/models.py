@@ -1,5 +1,4 @@
-"""
-SQLAlchemy models for health water intake tracking.
+"""SQLAlchemy models for health water intake tracking.
 
 This module defines the database models for storing user daily
 water intake data, including consumption amount and data source.
@@ -7,20 +6,15 @@ water intake data, including consumption amount and data source.
 
 from datetime import date as date_type
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class HealthWater(Base):
-    """
-    User daily water intake tracking data.
+    """User daily water intake tracking data.
 
     Attributes:
         id: Primary key, auto-incremented unique identifier.
@@ -28,16 +22,13 @@ class HealthWater(Base):
         date: Calendar date for the water intake record.
         amount_ml: Total water consumed in milliliters.
         source: Source of the water intake data.
-        user: Relationship to the Users model.
 
     Table:
         health_water
-
-    Relationships:
-        - Many-to-One with Users model through user_id
     """
 
     __tablename__ = "health_water"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_health_water_user_date"),)
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -64,6 +55,3 @@ class HealthWater(Base):
         nullable=True,
         comment="Source of the health water data",
     )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_water")

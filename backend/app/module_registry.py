@@ -1,17 +1,24 @@
 """Application composition for installed module runtime contributions."""
 
 import contextvars
+import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+import jasil.settings as jasil_settings
 from jasil.jobs.reconciliation import DurableSubscriberNet
 from jasil.jobs.registry import JobHandlerRegistry
-from jasil.providers import EventBusProvider
+from jasil.providers import EventBusProvider, RealtimeProvider
 
 import core.config as core_config
+import core.database as core_database
+import core.geocoding as core_geocoding
 import core.logger as core_logger
+import core.mail as core_mail
 import core.scheduler as core_scheduler
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
 import modules.activities.activity_file_storage.scheduled_jobs as activity_file_storage_scheduled_jobs
 import modules.activities.activity_file_storage.subscriber_registry as activity_file_storage_subscriber_registry
@@ -32,9 +39,20 @@ import modules.activities.activity_workout_steps.integration_service as activity
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
+import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
+import modules.garmin.subscriber_registry as garmin_subscriber_registry
+import modules.gears.contributor_registry as gears_contributor_registry
+import modules.gears.contributors as gears_contributors
+import modules.gears.gear_components.integration_service as gear_components_integration
+import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
+import modules.server_settings.integration_service as server_settings_integration
+import modules.websocket.subscriber_registry as websocket_subscriber_registry
 
 logger = core_logger.get_logger(__name__)
+
+#: How long the mail and geocoding settings are reused before the database is read again.
+_SETTINGS_CACHE_SECONDS = 5.0
 
 # Small on purpose: derived work (thumbnails, cleanup, notifications) must not
 # compete with request threads for the process.
@@ -110,6 +128,7 @@ class _DeferredSubscriptions:
 
 
 RegisterBus = Callable[[EventBusProvider], None]
+RegisterRealtime = Callable[[RealtimeProvider], None]
 RegisterDurable = Callable[[JobHandlerRegistry], None]
 RecurringJobs = Callable[[], tuple[core_scheduler.ScheduledJob, ...]]
 
@@ -129,6 +148,7 @@ class RuntimeModule:
 
     name: str
     register_bus: RegisterBus | None = None
+    register_realtime: RegisterRealtime | None = None
     register_durable: RegisterDurable | None = None
     nets: tuple[DurableSubscriberNet, ...] = ()
     recurring_jobs: RecurringJobs | None = None
@@ -208,6 +228,24 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_bus=notifications_subscriber_registry.register_all_notification_bus_subscribers,
         register_durable=notifications_subscriber_registry.register_all_notification_durable_handlers,
         nets=notifications_subscriber_registry.NOTIFICATION_DURABLE_SUBSCRIBER_NETS,
+        recurring_jobs=notifications_scheduled_jobs.recurring_jobs,
+    ),
+    RuntimeModule(
+        name="garmin",
+        register_durable=garmin_subscriber_registry.register_durable_handlers,
+        nets=garmin_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        recurring_jobs=garmin_scheduled_jobs.recurring_jobs,
+        startup_tasks=(
+            StartupTask(
+                "retrieve_recent_garmin_health",
+                "Scheduling the last day health stats pull from Garmin Connect",
+                garmin_scheduled_jobs.schedule_recent_health,
+            ),
+        ),
+    ),
+    RuntimeModule(
+        name="websocket",
+        register_realtime=websocket_subscriber_registry.register_realtime_subscribers,
     ),
 )
 
@@ -239,6 +277,18 @@ def configure_activity_contributors() -> None:
     activities_contributor_registry.register_thumbnail_url_resolver(activity_thumbnail_integration.thumbnail_url)
 
 
+def configure_gear_contributors() -> None:
+    """Install the readers the gears namespace asks the activities and component packages to answer."""
+    gears_contributor_registry.register(
+        gears_contributors.GearReaders(
+            usage=activity_integration.get_gear_usage_totals,
+            usage_by_window=activity_integration.get_gear_usage_totals_by_window,
+            components_cost=gear_components_integration.get_gear_components_total_cost,
+            clear_activities_gear=activity_integration.clear_activities_gear,
+        )
+    )
+
+
 def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register bus subscribers from every installed module.
 
@@ -252,6 +302,16 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     for module in MODULES:
         if module.register_bus is not None:
             module.register_bus(target)  # type: ignore[arg-type]
+
+
+def register_realtime_subscribers(realtime: RealtimeProvider) -> None:
+    """Subscribe the process to the realtime hint channel from every installed module.
+
+    Only the API calls this: the worker holds no sockets and just publishes.
+    """
+    for module in MODULES:
+        if module.register_realtime is not None:
+            module.register_realtime(realtime)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -269,3 +329,65 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
 def startup_tasks() -> tuple[StartupTask, ...]:
     """Collect best-effort startup tasks from every installed module."""
     return tuple(task for module in MODULES for task in module.startup_tasks)
+
+
+def _load_mail_settings() -> jasil_settings.MailSettings:
+    """Read the operator-edited mail settings for the substrate to apply.
+
+    Reads and maps only: the substrate validates the result and decides what a failed
+    read or an invalid configuration means.
+
+    Returns:
+        The stored mail settings; unset when mail is disabled.
+    """
+    with core_database.SessionLocal() as db:
+        return core_mail.to_mail_settings(server_settings_integration.get_mail_config(db))
+
+
+def _load_geocoding_settings() -> jasil_settings.GeocodingSettings:
+    """Read the operator-edited geocoding settings for the substrate to apply.
+
+    Reads and maps only: the substrate validates the result and decides what a failed
+    read or an unusable configuration means.
+
+    Returns:
+        The stored geocoding settings; unset when the settings are unavailable.
+    """
+    with core_database.SessionLocal() as db:
+        return core_geocoding.to_geocoding_settings(server_settings_integration.get_geocoding_config(db))
+
+
+def _cached[T](load: Callable[[], T]) -> Callable[[], T]:
+    """Cache a settings loader for a few seconds in this process.
+
+    The substrate asks for the settings on every send and every lookup; without this each
+    call would open a database session. A failed load is not cached. Another replica's
+    change is seen within ``_SETTINGS_CACHE_SECONDS``.
+
+    Args:
+        load: The loader to cache.
+
+    Returns:
+        A loader that reloads at most once per ``_SETTINGS_CACHE_SECONDS``.
+    """
+    lock = threading.Lock()
+    cached: tuple[float, T] | None = None
+
+    def read() -> T:
+        nonlocal cached
+        with lock:
+            now = time.monotonic()
+            if cached is None or now - cached[0] >= _SETTINGS_CACHE_SECONDS:
+                cached = (now, load())
+            return cached[1]
+
+    return read
+
+
+def runtime_sources() -> jasil_settings.RuntimeSources:
+    """Return the callables the substrate uses to read operator-edited settings at runtime.
+
+    Returns:
+        The runtime sources, shared by the API and the standalone worker.
+    """
+    return jasil_settings.RuntimeSources(mail=_cached(_load_mail_settings), geocoding=_cached(_load_geocoding_settings))

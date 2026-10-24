@@ -8,11 +8,9 @@ core router fully parser- and provider-agnostic (enforced by the import-linter c
 ``activities-parsing-boundary``).
 """
 
-from collections.abc import Callable
 from functools import partial
 from typing import Annotated
 
-import jasil.providers as platform_providers
 from fastapi import (
     APIRouter,
     Depends,
@@ -23,9 +21,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy.orm import Session
 
-import core.database as core_database
 import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
 import core.rate_limit as core_rate_limit
@@ -47,6 +43,12 @@ api_upload_router = APIRouter()
     "/upload",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    dependencies=[
+        Security(
+            auth_dependencies.check_auth_scopes,
+            scopes=["activities:upload"],
+        )
+    ],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_uploaded_file(
@@ -56,21 +58,8 @@ def create_activity_with_uploaded_file(
         Depends(auth_dependencies.get_user_id_from_auth),
     ],
     file: UploadFile,
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_auth_scopes,
-            scopes=["activities:upload"],
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    storage: Annotated[
-        platform_providers.StorageProvider,
-        Depends(core_dependencies.get_storage),
-    ],
+    db: core_dependencies.DbSession,
+    storage: core_dependencies.Storage,
     idempotency_key: Annotated[
         str | None,
         Header(
@@ -115,6 +104,12 @@ def create_activity_with_uploaded_file(
 @api_upload_router.get(
     "/ingestion-jobs/{job_id}",
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    dependencies=[
+        Security(
+            auth_dependencies.check_auth_scopes,
+            scopes=["activities:upload"],
+        )
+    ],
 )
 def read_activity_ingestion_job(
     job_id: activity_ingestion_dependencies.JobId,
@@ -122,17 +117,7 @@ def read_activity_ingestion_job(
         int,
         Depends(auth_dependencies.get_user_id_from_auth),
     ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_auth_scopes,
-            scopes=["activities:upload"],
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Read the state of one of your ingestion requests.
 
@@ -150,21 +135,15 @@ def read_activity_ingestion_job(
     "/bulk-import",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_bulk_import_from_archive(
     request: Request,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
     file: UploadFile,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    storage: Annotated[
-        platform_providers.StorageProvider,
-        Depends(core_dependencies.get_storage),
-    ],
+    db: core_dependencies.DbSession,
+    storage: core_dependencies.Storage,
     source: Annotated[
         str,
         Query(
@@ -198,20 +177,14 @@ def create_bulk_import_from_archive(
     "/bulk-import/folder",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_bulk_import_from_folder(
     request: Request,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    storage: Annotated[
-        platform_providers.StorageProvider,
-        Depends(core_dependencies.get_storage),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    storage: core_dependencies.Storage,
     source: Annotated[
         str,
         Query(
@@ -238,23 +211,14 @@ def create_bulk_import_from_folder(
     "/refresh",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def refresh_activities(
     request: Request,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    storage: Annotated[
-        platform_providers.StorageProvider,
-        Depends(core_dependencies.get_storage),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    storage: core_dependencies.Storage,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Queue a sync of the last 24h from the linked providers (Strava/Garmin).
 

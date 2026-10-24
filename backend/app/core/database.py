@@ -7,6 +7,7 @@ from datetime import datetime
 import jasil.orm as jasil_orm
 from sqlalchemy import DateTime, create_engine, func
 from sqlalchemy.engine.url import URL
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -42,7 +43,11 @@ db_url = URL.create(
 # session timezone (driven by the container TZ env var),
 # which shifts stored instants when TZ != UTC. Forcing UTC
 # makes storage deterministic regardless of deployment TZ.
-_connect_args: dict = {"options": "-c timezone=utc"}
+# A row lock held by a stuck transaction fails the waiting statement after
+# _LOCK_TIMEOUT_SECONDS instead of parking a request thread (and its pooled connection)
+# for as long as the holder lives.
+_LOCK_TIMEOUT_SECONDS = 30
+_connect_args: dict = {"options": f"-c timezone=utc -c lock_timeout={_LOCK_TIMEOUT_SECONDS}s"}
 
 # Optional TLS for the database connection (OWASP A02 —
 # Cryptographic Failures). Opt-in via the DB_SSLMODE env
@@ -116,6 +121,19 @@ class TimestampMixin:
         onupdate=func.now(),
         nullable=False,
     )
+
+
+def violated_constraint(err: IntegrityError) -> str | None:
+    """Name the constraint an integrity error violated.
+
+    Args:
+        err: The integrity error raised by a flush.
+
+    Returns:
+        The constraint name the driver reports, or None when it reports none (as SQLite does),
+        in which case a caller has only the error text to go on.
+    """
+    return getattr(getattr(err.orig, "diag", None), "constraint_name", None)
 
 
 def get_db() -> Generator[Session]:

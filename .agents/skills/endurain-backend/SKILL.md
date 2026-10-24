@@ -33,6 +33,7 @@ cannot drift. What an agent most often gets wrong:
 | Raising errors, endpoints, pagination, rate limits, API changes | `references/errors-and-api.md` |
 | Handling uploads, access control, secrets, outbound requests | `references/security.md` |
 | Writing or fixing tests | `references/testing.md` |
+| Reviewing code for horizontal scaling (replicas, shared state, durable work) | `references/scaling-review.md` |
 
 ## Before finishing a structural change
 
@@ -42,6 +43,9 @@ PYTHONPATH=app uv run lint-imports
 uv run pytest tests/architecture -q --no-cov
 uv run ruff format --check . && uv run ruff check .
 ```
+
+CI runs the full `uv run pytest` with the 80% coverage gate, so run it without `--no-cov` before a PR.
+`uv run hatch run typecheck` (mypy) is available but is not a CI gate.
 
 ## Repo hygiene
 

@@ -13,6 +13,17 @@ from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role, role
 _ROOT = pathlib.Path("app/modules")
 _CONVERTED = tuple(_ROOT / name for name in CONVERTED_MODULES)
 
+_APP = pathlib.Path("app")
+
+#: Dependencies that have a shared alias, mapped to the alias a parameter must use instead of repeating
+#: ``Annotated[..., Depends(<dependency>)]``.
+_DEPENDENCY_ALIASES = {
+    "core_database.get_db": "core_dependencies.DbSession",
+    "auth_dependencies.get_sub_from_access_token": "auth_dependencies.CurrentUserId",
+    "core_dependencies.get_storage": "core_dependencies.Storage",
+    "core_dependencies.get_platform_state": "core_dependencies.PlatformState",
+}
+
 _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete"})
 _WRITE_METHODS = frozenset({"post", "put", "patch", "delete"})
 
@@ -124,6 +135,57 @@ class TestRouteConventions:
                         offenders.append(f"{path.relative_to(_ROOT).as_posix()}::{function.name}({argument.arg})")
 
         assert offenders == [], "Type the path parameter with an alias from dependencies:\n  " + "\n  ".join(offenders)
+
+    def test_shared_dependencies_are_injected_through_their_alias(self):
+        """A parameter uses ``DbSession``/``CurrentUserId``/``Storage``/``PlatformState``, not an inline ``Depends``.
+
+        Repeating ``Annotated[..., Depends(...)]`` on every route lets the same dependency drift
+        into several spellings; the alias keeps one definition to change.
+        """
+        offenders: list[str] = []
+        for path in sorted(_APP.rglob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text())):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                arguments = node.args
+                for argument in arguments.posonlyargs + arguments.args + arguments.kwonlyargs:
+                    if argument.annotation is None:
+                        continue
+                    for call in ast.walk(argument.annotation):
+                        if (
+                            isinstance(call, ast.Call)
+                            and isinstance(call.func, ast.Name)
+                            and call.func.id == "Depends"
+                            and call.args
+                            and ast.unparse(call.args[0]) in _DEPENDENCY_ALIASES
+                        ):
+                            alias = _DEPENDENCY_ALIASES[ast.unparse(call.args[0])]
+                            offenders.append(
+                                f"{path.relative_to(_APP).as_posix()}::{node.name}({argument.arg}) -> {alias}"
+                            )
+
+        assert offenders == [], "Use the shared alias instead of an inline Depends:\n  " + "\n  ".join(offenders)
+
+    def test_scope_checks_are_declared_on_the_route_decorator(self):
+        """A scope check nobody reads goes in ``dependencies=[Security(...)]``, not a ``_check_scopes`` parameter.
+
+        The parameter would appear in the function signature and in its docstring, which FastAPI
+        publishes as the OpenAPI description.
+        """
+        offenders = [
+            f"{path.relative_to(_APP).as_posix()}::{node.name}"
+            for path in sorted(_APP.rglob("*.py"))
+            for node in ast.walk(ast.parse(path.read_text()))
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and any(
+                argument.arg == "_check_scopes"
+                for argument in node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+            )
+        ]
+
+        assert offenders == [], (
+            "Move the Security(...) scope check to the route's dependencies=[...]:\n  " + "\n  ".join(offenders)
+        )
 
 
 class TestSignatureConventions:

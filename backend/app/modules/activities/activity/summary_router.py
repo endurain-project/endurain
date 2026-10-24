@@ -7,14 +7,12 @@ of activities, and the period is a query parameter, not a path segment, because
 ``year``/``lifetime`` are four views of one resource, not four resources.
 """
 
-from collections.abc import Callable
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Security
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import modules.activities.activity.summary_schema as activity_summary_schema
 import modules.activities.activity.summary_service as activity_summary_service
 import modules.auth.dependencies as auth_dependencies
@@ -25,11 +23,11 @@ router = APIRouter()
 @router.get(
     "",
     response_model=activity_summary_schema.SummaryResponse,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def read_activity_summary(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     period: Annotated[str, Query(pattern="^(week|month|year|lifetime)$")] = "week",
     anchor_date: Annotated[
         date | None,

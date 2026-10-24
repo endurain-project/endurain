@@ -20,18 +20,18 @@ def _assert_everything_completed_exactly_once(cluster, job_ids, *, workers: int)
     assert cluster.scalar("SELECT count(*) FROM activities") == len(job_ids), "one activity per upload"
 
     assert cluster.wait_for_durable_jobs(len(job_ids) * (1 + len(_DERIVED_SUBSCRIBERS))), cluster.query(
-        "SELECT subscriber_id, status FROM processing_jobs"
+        "SELECT subscriber_id, status FROM jasil_processing_jobs"
     )
-    per_subscriber = dict(cluster.query("SELECT subscriber_id, count(*) FROM processing_jobs GROUP BY 1"))
+    per_subscriber = dict(cluster.query("SELECT subscriber_id, count(*) FROM jasil_processing_jobs GROUP BY 1"))
     assert per_subscriber.pop("activity_ingestion.uploaded_file") == len(job_ids)
     assert per_subscriber == dict.fromkeys(_DERIVED_SUBSCRIBERS, len(job_ids))
 
-    outcomes = dict(cluster.query("SELECT outcome, count(*) FROM job_attempts GROUP BY 1"))
+    outcomes = dict(cluster.query("SELECT outcome, count(*) FROM jasil_job_attempts GROUP BY 1"))
     assert set(outcomes) == {"completed"}, f"no retries, reclaims or supersessions expected: {outcomes}"
-    assert not cluster.query("SELECT job_id FROM job_attempts GROUP BY 1 HAVING count(*) > 1"), "no job ran twice"
+    assert not cluster.query("SELECT job_id FROM jasil_job_attempts GROUP BY 1 HAVING count(*) > 1"), "no job ran twice"
 
     registered = cluster.query(
-        "SELECT stopped_at IS NULL, now() - last_heartbeat_at < interval '30 seconds' FROM job_workers"
+        "SELECT stopped_at IS NULL, now() - last_heartbeat_at < interval '30 seconds' FROM jasil_job_workers"
     )
     assert registered == [(True, True)] * workers, "every worker registered with a live heartbeat"
     assert cluster.error_lines() == []

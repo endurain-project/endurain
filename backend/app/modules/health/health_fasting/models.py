@@ -1,25 +1,19 @@
-"""
-SQLAlchemy models for health fasting tracking.
+"""SQLAlchemy models for health fasting tracking.
 
 This module defines the database models for storing user fasting sessions,
 including timing, duration, type, and status information.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class HealthFasting(Base):
-    """
-    User fasting session tracking data.
+    """User fasting session tracking data.
 
     Attributes:
         id: Primary key.
@@ -32,7 +26,6 @@ class HealthFasting(Base):
         status: Current status of the fasting session.
         notes: Optional notes about the fasting session.
         source: Data source for the record.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "health_fasting"
@@ -86,6 +79,3 @@ class HealthFasting(Base):
         nullable=True,
         comment="Data source (manual, garmin, etc.)",
     )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_fasting")

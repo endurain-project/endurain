@@ -18,6 +18,8 @@
 | `UnsupportedFormatError` | 406 | Payload format cannot be processed |
 | `UnsupportedMediaTypeError` | 415 | File media type not accepted |
 | `PayloadTooLargeError` | 413 | Payload exceeds the accepted size (upload caps) |
+| `ServiceUnavailableError` | 503 | A capability the request depends on is not configured or not reachable |
+| `UpstreamError` | 502 | An external system the server called (mail relay, provider) failed |
 | `ProcessingError` | 500 | Internal failure the caller cannot fix |
 
 - New kind: subclass `DomainError` with `status_code`, `code`, `title`, `default_detail`.
@@ -36,7 +38,7 @@
 
 - `response_model` on every JSON route (bytes routes declare `responses=` with the media type); status 200 GET, 201 POST create, 202 POST accepted for background processing, 204 DELETE.
 - Routers validate and delegate; domain rules live in `service`.
-- Authorization through `Depends`/`Security(auth_dependencies.check_scopes, scopes=[...])`.
+- Authorization through `dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])]` on the route decorator; the caller's id through `auth_dependencies.CurrentUserId`.
 - Blob routes addressed by a signed capability token answer 404, not 403, for a bad token, and log a WARNING.
 
 ## Pagination

@@ -1,704 +1,183 @@
-from unittest.mock import MagicMock, patch
-
 import pytest
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 import core.exceptions as core_exceptions
-from tests._helpers.db import setup_mock_execute
-from tests._helpers.models import mock_model
+import modules.gears.gear.crud as crud
+import modules.gears.gear.schema as schema
+from tests._helpers.gears import gear_create
 
 
-class TestGetGearUserById:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
+def _page(db, *, user_id: int = 1, **filters):
+    return crud.get_gear_users_with_pagination(user_id, db, **filters)
 
-        g = mock_model(m.Gear, id=1, user_id=1)
-        setup_mock_execute(mock_db, return_one_or_none=g)
-        r = crud.get_gear_user_by_id(user_id=1, gear_id=1, db=mock_db)
-        assert r is g
 
-    def test_not_found(self, mock_db):
-        import modules.gears.gear.crud as crud
+class TestReads:
+    def test_a_gear_is_visible_only_to_its_owner(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
 
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        r = crud.get_gear_user_by_id(user_id=1, gear_id=999, db=mock_db)
-        assert r is None
+        assert crud.get_gear_user_by_id(1, created.id, db) == created
+        assert crud.get_gear_user_by_id(2, created.id, db) is None
+        assert crud.get_gear_user(2, db) == []
 
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_nickname_lookup_ignores_case_and_surrounding_space(self, db):
+        crud.create_gear(gear_create("Road Bike"), 1, db)
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_user_by_id(user_id=1, gear_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert crud.get_gear_user_by_nickname(1, "  road BIKE ", db).nickname == "Road Bike"
+        assert crud.get_gear_user_by_nickname(1, "road", db) is None
+        assert [g.nickname for g in _page(db, nickname_contains="ROAD")] == ["Road Bike"]
 
+    @pytest.mark.parametrize(("term", "expected"), [("%", ["100% Bike"]), ("_", ["Gravel_1"]), ("bike", ["100% Bike"])])
+    def test_like_wildcards_in_the_search_text_match_literally(self, term, expected, db):
+        crud.create_gear(gear_create("100% Bike"), 1, db)
+        crud.create_gear(gear_create("Gravel_1"), 1, db)
 
-class TestGetGearActivityStats:
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
+        assert [g.nickname for g in _page(db, nickname_contains=term)] == expected
 
-        mock_db.execute.return_value.one.return_value = (50000.0, 7200.0)
-        r = crud.get_gear_activity_stats(gear_id=1, user_id=1, db=mock_db)
-        assert r == {"total_distance": 50000.0, "total_time": 7200.0}
+    def test_gears_of_a_type_are_ordered_by_nickname(self, db):
+        crud.create_gear(gear_create("B bike"), 1, db)
+        crud.create_gear(gear_create("A bike"), 1, db)
+        crud.create_gear(gear_create("Shoes", gear_type=schema.GearType.SHOES), 1, db)
 
-    def test_zero_values(self, mock_db):
-        import modules.gears.gear.crud as crud
+        assert [g.nickname for g in _page(db, gear_type=schema.GearType.BIKE)] == ["A bike", "B bike"]
+        assert crud.get_gears_number(1, db, gear_type=schema.GearType.BIKE) == 2
 
-        mock_db.execute.return_value.one.return_value = (0.0, 0.0)
-        r = crud.get_gear_activity_stats(gear_id=1, user_id=1, db=mock_db)
-        assert r == {"total_distance": 0.0, "total_time": 0.0}
+    def test_filters_narrow_the_total_and_the_page_together(self, db):
+        for name in ("Bike A", "Bike B", "Bike C"):
+            crud.create_gear(gear_create(name), 1, db)
 
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
+        assert crud.get_gears_number(1, db, nickname_contains="bike") == 3
+        assert len(_page(db, nickname_contains="bike", num_records=2)) == 2
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_activity_stats(gear_id=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+    def test_provider_ids_resolve_within_the_owner(self, db):
+        crud.create_gear(gear_create(strava_gear_id="b1", garminconnect_gear_id="g1"), 1, db)
 
+        assert crud.get_gear_by_strava_id_from_user_id("b1", 1, db).nickname == "Road Bike"
+        assert crud.get_gear_by_strava_id_from_user_id("b1", 2, db) is None
+        assert crud.get_gear_by_garminconnect_id_from_user_id("g1", 1, db).nickname == "Road Bike"
+        assert crud.get_gear_by_garminconnect_id_from_user_id("missing", 1, db) is None
 
-class TestGetGearComponentsTotalCost:
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_pagination_and_the_inactive_filter_apply_to_page_and_count(self, db):
+        for name, active in (("A", True), ("B", False), ("C", True)):
+            crud.create_gear(gear_create(name, active=active), 1, db)
 
-        mock_db.execute.return_value.scalar_one.return_value = 1500.0
-        r = crud.get_gear_components_total_cost(gear_id=1, user_id=1, db=mock_db)
-        assert r == 1500.0
+        assert crud.get_gears_number(1, db) == 3
+        assert crud.get_gears_number(1, db, show_inactive=False) == 2
+        page = crud.get_gear_users_with_pagination(1, db, page_number=2, num_records=2)
+        assert [g.nickname for g in page] == ["C"]
+        active_only = crud.get_gear_users_with_pagination(1, db, show_inactive=False)
+        assert [g.nickname for g in active_only] == ["A", "C"]
 
-    def test_zero(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_existing_nicknames_are_reported_normalized(self, db):
+        crud.create_gear(gear_create("Road Bike"), 1, db)
+        crud.create_gear(gear_create("Other"), 2, db)
 
-        mock_db.execute.return_value.scalar_one.return_value = 0.0
-        r = crud.get_gear_components_total_cost(gear_id=1, user_id=1, db=mock_db)
-        assert r == 0.0
+        assert crud.get_existing_nicknames(1, {"road bike", "other"}, db) == {"road bike"}
 
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_components_total_cost(gear_id=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+class TestWrites:
+    def test_create_trims_text_and_sets_the_owner(self, db):
+        created = crud.create_gear(gear_create("  Road Bike  ", brand=" Trek "), 7, db)
 
+        assert (created.nickname, created.brand, created.user_id) == ("Road Bike", "Trek", 7)
 
-class TestGetGearsNumber:
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_the_owner_comes_from_the_caller_not_the_payload(self, db):
+        created = crud.create_gear(gear_create(user_id=99), 7, db)
 
-        mock_db.execute.return_value.scalar_one.return_value = 42
-        r = crud.get_gears_number(user_id=1, db=mock_db)
-        assert r == 42
+        assert created.user_id == 7
 
-    def test_zero(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_a_nickname_is_unique_per_user_regardless_of_case(self, db):
+        crud.create_gear(gear_create("Road Bike"), 1, db)
+        crud.create_gear(gear_create("Road Bike"), 2, db)
 
-        mock_db.execute.return_value.scalar_one.return_value = 0
-        r = crud.get_gears_number(user_id=1, db=mock_db)
-        assert r == 0
+        with pytest.raises(core_exceptions.ConflictError, match="nickname"):
+            crud.create_gear(gear_create(" ROAD bike "), 1, db)
 
-    def test_hide_inactive(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_a_taken_provider_id_is_a_conflict(self, db):
+        crud.create_gear(gear_create("One", strava_gear_id="b1"), 1, db)
 
-        mock_db.execute.return_value.scalar_one.return_value = 9
-        r = crud.get_gears_number(user_id=1, db=mock_db, show_inactive=False)
-        assert r == 9
+        with pytest.raises(core_exceptions.ConflictError, match="Strava or Garmin Connect ID"):
+            crud.create_gear(gear_create("Two", strava_gear_id="b1"), 1, db)
 
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_the_same_provider_id_is_allowed_for_another_user(self, db):
+        crud.create_gear(gear_create("One", strava_gear_id="b1"), 1, db)
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gears_number(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert crud.create_gear(gear_create("One", strava_gear_id="b1"), 2, db).strava_gear_id == "b1"
 
-
-class TestGetGearUsersWithPagination:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success_defaults(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
+    def test_create_gears_stages_every_gear(self, db):
+        crud.create_gears([gear_create("A"), gear_create("B")], 1, db)
 
-        g = mock_model(m.Gear, id=1, user_id=1)
-        setup_mock_execute(mock_db, return_scalars_all=[g])
-        r = crud.get_gear_users_with_pagination(user_id=1, db=mock_db)
-        assert r == [g]
+        assert crud.get_gears_number(1, db) == 2
 
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success_paginated(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
+    def test_writes_stage_without_committing(self, db):
+        crud.create_gear(gear_create(), 1, db)
+        db.rollback()
 
-        g = mock_model(m.Gear, id=1, user_id=1)
-        setup_mock_execute(mock_db, return_scalars_all=[g])
-        r = crud.get_gear_users_with_pagination(user_id=1, db=mock_db, page_number=1, num_records=10)
-        assert r == [g]
+        assert crud.get_gear_user(1, db) == []
 
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success_hide_inactive(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
+    def test_edit_changes_sent_fields_and_never_the_owner(self, db):
+        created = crud.create_gear(gear_create(brand="Trek"), 1, db)
 
-        g = mock_model(m.Gear, id=1, user_id=1, active=True)
-        setup_mock_execute(mock_db, return_scalars_all=[g])
-        r = crud.get_gear_users_with_pagination(user_id=1, db=mock_db, show_inactive=False)
-        assert r == [g]
+        updated = crud.edit_gear(created.id, schema.GearUpdate(nickname=" Gravel "), 1, db)
 
-    def test_empty(self, mock_db):
-        import modules.gears.gear.crud as crud
+        assert (updated.nickname, updated.brand, updated.user_id) == ("Gravel", "Trek", 1)
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_gear_users_with_pagination(user_id=1, db=mock_db)
-        assert r == []
+    def test_edit_clears_a_nullable_field_sent_as_null(self, db):
+        created = crud.create_gear(gear_create(brand="Trek", purchase_value=10.0), 1, db)
 
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
+        updated = crud.edit_gear(created.id, schema.GearUpdate(brand=None, purchase_value=None), 1, db)
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_users_with_pagination(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert (updated.brand, updated.purchase_value) == (None, None)
 
+    def test_edit_bumps_the_version_and_honours_if_match(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
 
-class TestGetGearUser:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
+        updated = crud.edit_gear(created.id, schema.GearUpdate(brand="Trek"), 1, db, if_match=f'"{created.version}"')
 
-        g = mock_model(m.Gear, id=1, user_id=1)
-        setup_mock_execute(mock_db, return_scalars_all=[g])
-        r = crud.get_gear_user(user_id=1, db=mock_db)
-        assert r == [g]
+        assert updated.version == created.version + 1
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.edit_gear(created.id, schema.GearUpdate(brand="Giant"), 1, db, if_match=f'"{created.version}"')
 
-    def test_empty(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_edit_onto_a_taken_nickname_is_a_conflict(self, db):
+        crud.create_gear(gear_create("Taken"), 1, db)
+        mine = crud.create_gear(gear_create("Mine"), 1, db)
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_gear_user(user_id=1, db=mock_db)
-        assert r == []
+        with pytest.raises(core_exceptions.ConflictError, match="nickname"):
+            crud.edit_gear(mine.id, schema.GearUpdate(nickname="taken"), 1, db)
 
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
+    def test_update_and_create_requests_reject_provider_ids_and_blank_nicknames(self):
+        with pytest.raises(ValueError):
+            schema.GearUpdate(nickname="x", strava_gear_id="b1")
+        with pytest.raises(ValueError):
+            schema.GearCreateRequest(gear_type=1, nickname="x", garminconnect_gear_id="g1")
+        with pytest.raises(ValueError):
+            schema.GearCreateRequest(gear_type=1, nickname="   ")
+        with pytest.raises(ValueError):
+            schema.GearUpdate(nickname=None)
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_user(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+    def test_edit_of_a_foreign_gear_is_not_found(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
 
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.edit_gear(created.id, schema.GearUpdate(nickname="x"), 2, db)
 
-class TestGetGearUserContainsNickname:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
+    def test_delete_removes_the_gear(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
 
-        g = mock_model(m.Gear, id=1, nickname="Mountain Bike")
-        setup_mock_execute(mock_db, return_scalars_all=[g])
-        r = crud.get_gear_user_contains_nickname(user_id=1, nickname="mountain", db=mock_db)
-        assert r == [g]
+        crud.delete_gear(created.id, 1, db)
 
-    def test_empty(self, mock_db):
-        import modules.gears.gear.crud as crud
+        assert crud.get_gear_user_by_id(1, created.id, db) is None
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_gear_user_contains_nickname(user_id=1, nickname="nonexistent", db=mock_db)
-        assert r == []
+    def test_delete_of_a_foreign_gear_is_not_found(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
 
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.delete_gear(created.id, 2, db)
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_user_contains_nickname(user_id=1, nickname="test", db=mock_db)
-        assert e.value.status_code == 500
+    def test_strava_gear_is_deleted_per_owner(self, db):
+        crud.create_gear(gear_create("S", strava_gear_id="b1"), 1, db)
+        crud.create_gear(gear_create("G", garminconnect_gear_id="g1"), 1, db)
+        crud.create_gear(gear_create("S2", strava_gear_id="b2"), 2, db)
 
+        crud.delete_all_strava_gear_for_user(1, db)
 
-class TestGetGearUserByNickname:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        g = mock_model(m.Gear, id=1, nickname="Road Bike")
-        setup_mock_execute(mock_db, return_one_or_none=g)
-        r = crud.get_gear_user_by_nickname(user_id=1, nickname="Road Bike", db=mock_db)
-        assert r is g
-
-    def test_not_found(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        r = crud.get_gear_user_by_nickname(user_id=1, nickname="Unknown", db=mock_db)
-        assert r is None
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_user_by_nickname(user_id=1, nickname="Test", db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetGearByTypeAndUser:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        g = mock_model(m.Gear, id=1, gear_type=1)
-        setup_mock_execute(mock_db, return_scalars_all=[g])
-        r = crud.get_gear_by_type_and_user(gear_type=1, user_id=1, db=mock_db)
-        assert r == [g]
-
-    def test_empty(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_gear_by_type_and_user(gear_type=1, user_id=1, db=mock_db)
-        assert r == []
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_by_type_and_user(gear_type=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetGearByStravaIdFromUserId:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        g = mock_model(m.Gear, id=1, strava_gear_id="strava_123")
-        setup_mock_execute(mock_db, return_one_or_none=g)
-        r = crud.get_gear_by_strava_id_from_user_id(gear_strava_id="strava_123", user_id=1, db=mock_db)
-        assert r is g
-
-    def test_not_found(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        r = crud.get_gear_by_strava_id_from_user_id(gear_strava_id="strava_999", user_id=1, db=mock_db)
-        assert r is None
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_by_strava_id_from_user_id(gear_strava_id="strava_123", user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetGearByGarminconnectIdFromUserId:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        g = mock_model(m.Gear, id=1, garminconnect_gear_id="garmin_123")
-        setup_mock_execute(mock_db, return_one_or_none=g)
-        r = crud.get_gear_by_garminconnect_id_from_user_id(gear_garminconnect_id="garmin_123", user_id=1, db=mock_db)
-        assert r is g
-
-    def test_not_found(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        r = crud.get_gear_by_garminconnect_id_from_user_id(gear_garminconnect_id="garmin_999", user_id=1, db=mock_db)
-        assert r is None
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_by_garminconnect_id_from_user_id(gear_garminconnect_id="garmin_123", user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-@pytest.fixture
-def patched_gear():
-    """Patch Gear so instances are mocked but columns stay real."""
-    from modules.gears.gear.models import Gear as RealGear
-
-    with patch("modules.gears.gear.crud.gears_models.Gear") as mock_gear:
-        mock_gear.nickname = RealGear.nickname
-        mock_gear.user_id = RealGear.user_id
-        yield mock_gear
-
-
-class TestCreateMultipleGears:
-    def test_success_single(self, mock_db, patched_gear):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        execute_mock = setup_mock_execute(mock_db)
-        execute_mock.all.return_value = []
-
-        gear = s.GearCreate(nickname="Test", gear_type=1)
-        crud.create_multiple_gears([gear], user_id=1, db=mock_db)
-        mock_db.add_all.assert_called_once()
-        mock_db.commit.assert_called_once()
-
-    def test_success_multiple(self, mock_db, patched_gear):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        execute_mock = setup_mock_execute(mock_db)
-        execute_mock.all.return_value = []
-
-        gears_list = [
-            s.GearCreate(nickname="Bike", gear_type=1),
-            s.GearCreate(nickname="Shoes", gear_type=2),
-        ]
-        crud.create_multiple_gears(gears_list, user_id=1, db=mock_db)
-        assert mock_db.add_all.call_count == 1
-        mock_db.commit.assert_called_once()
-
-    @patch("modules.gears.gear.crud.logger")
-    def test_dedup_by_nickname(self, mock_log, mock_db, patched_gear):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        execute_mock = setup_mock_execute(mock_db)
-        execute_mock.all.return_value = []
-
-        gears_list = [
-            s.GearCreate(nickname="Bike", gear_type=1),
-            s.GearCreate(nickname="bike", gear_type=1),
-        ]
-        crud.create_multiple_gears(gears_list, user_id=1, db=mock_db)
-        mock_db.add_all.assert_called_once()
-        assert len(mock_log.method_calls) == 1
-
-    def test_skip_existing(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        execute_mock = setup_mock_execute(mock_db)
-        execute_mock.all.return_value = [("Existing",)]
-
-        gear = s.GearCreate(nickname="Existing", gear_type=1)
-        crud.create_multiple_gears([gear], user_id=1, db=mock_db)
-        mock_db.add_all.assert_not_called()
-
-    def test_empty_input(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        crud.create_multiple_gears([], user_id=1, db=mock_db)
-        mock_db.add_all.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    def test_all_invalid(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        crud.create_multiple_gears([None, None], user_id=1, db=mock_db)
-        mock_db.add_all.assert_not_called()
-
-    def test_integrity_error(self, mock_db, patched_gear):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        execute_mock = setup_mock_execute(mock_db)
-        execute_mock.all.return_value = []
-        mock_db.commit.side_effect = IntegrityError("stmt", "params", "orig")
-
-        gear = s.GearCreate(nickname="Test", gear_type=1)
-        with pytest.raises(HTTPException) as e:
-            crud.create_multiple_gears([gear], user_id=1, db=mock_db)
-        assert e.value.status_code == 409
-        mock_db.rollback.assert_called_once()
-
-    def test_db_error(self, mock_db, patched_gear):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        execute_mock = setup_mock_execute(mock_db)
-        execute_mock.all.return_value = []
-        mock_db.commit.side_effect = SQLAlchemyError("err")
-
-        gear = s.GearCreate(nickname="Test", gear_type=1)
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.create_multiple_gears([gear], user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestCreateGear:
-    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
-    @patch("modules.gears.gear.crud._transform_gears")
-    @patch("modules.gears.gear.crud.gears_models.Gear")
-    def test_success(self, mock_gear_cls, mock_transform, mock_get_by_nick, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        mock_get_by_nick.return_value = None
-        transformed = MagicMock()
-        mock_transform.return_value = transformed
-
-        gear = s.GearCreate(nickname="New Gear", gear_type=1)
-        r = crud.create_gear(gear=gear, user_id=1, db=mock_db)
-        assert r is transformed
-        mock_db.add.assert_called_once()
-        added = mock_db.add.call_args.args[0]
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once_with(added)
-        mock_transform.assert_called_once_with(added)
-
-    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
-    def test_already_exists(self, mock_get_by_nick, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        mock_get_by_nick.return_value = MagicMock()
-
-        gear = s.GearCreate(nickname="Exists", gear_type=1)
-        with pytest.raises(HTTPException) as e:
-            crud.create_gear(gear=gear, user_id=1, db=mock_db)
-        assert e.value.status_code == 409
-
-    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
-    @patch("modules.gears.gear.crud.gears_models.Gear")
-    def test_integrity_error(self, mock_gear_cls, mock_get_by_nick, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        mock_get_by_nick.return_value = None
-        mock_db.commit.side_effect = IntegrityError("stmt", "params", "orig")
-
-        gear = s.GearCreate(nickname="New Gear", gear_type=1)
-        with pytest.raises(HTTPException) as e:
-            crud.create_gear(gear=gear, user_id=1, db=mock_db)
-        assert e.value.status_code == 409
-        mock_db.rollback.assert_called_once()
-
-    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
-    @patch("modules.gears.gear.crud.gears_models.Gear")
-    def test_db_error(self, mock_gear_cls, mock_get_by_nick, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.schema as s
-
-        mock_get_by_nick.return_value = None
-        mock_db.add.side_effect = SQLAlchemyError("err")
-
-        gear = s.GearCreate(nickname="New Gear", gear_type=1)
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.create_gear(gear=gear, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestEditGear:
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        db_gear = MagicMock(spec=m.Gear)
-        db_gear.id = 1
-        setup_mock_execute(mock_db, return_one_or_none=db_gear)
-
-        from pydantic import BaseModel
-
-        class GearUpdate(BaseModel):
-            id: int = 1
-            nickname: str = "Updated+Bike"
-            brand: str = "Trek"
-            model: str = "Domane"
-            gear_type: int = 1
-            active: bool = True
-            initial_kms: float = 100.0
-            purchase_value: float = 3000.0
-            strava_gear_id: str = "strava_1"
-            garminconnect_gear_id: str | None = None
-            created_at: str | None = None
-
-        r = crud.edit_gear(gear=GearUpdate(), user_id=1, db=mock_db)
-        assert r is db_gear
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once_with(db_gear)
-
-    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
-    def test_trims_text_and_skips_immutable_and_none(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        db_gear = MagicMock(spec=m.Gear)
-        db_gear.id = 1
-        setup_mock_execute(mock_db, return_one_or_none=db_gear)
-
-        from pydantic import BaseModel
-
-        class GearUpdate(BaseModel):
-            id: int = 1
-            nickname: str = ""
-            brand: str | None = None
-            active: bool | None = None
-            created_at: str | None = None
-
-        gear = GearUpdate(
-            id=99,
-            nickname="  Updated Bike  ",
-            brand=None,
-            active=True,
-            created_at=None,
-        )
-        crud.edit_gear(gear=gear, user_id=1, db=mock_db)
-
-        # Text fields are trimmed before assignment
-        assert db_gear.nickname == "Updated Bike"
-        # Non-None values are applied
-        assert db_gear.active is True
-        # Immutable id is never overwritten from the payload
-        assert db_gear.id == 1
-        mock_db.commit.assert_called_once()
-
-    def test_not_found(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-
-        from pydantic import BaseModel
-
-        class GearUpdate(BaseModel):
-            id: int = 999
-            nickname: str = "Ghost"
-            brand: str | None = None
-
-        with pytest.raises(HTTPException) as e:
-            crud.edit_gear(gear=GearUpdate(), user_id=1, db=mock_db)
-        assert e.value.status_code == 404
-
-    def test_db_error_execute(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-
-        from pydantic import BaseModel
-
-        class GearUpdate(BaseModel):
-            id: int = 999
-            nickname: str = "Ghost"
-            brand: str | None = None
-
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.edit_gear(gear=GearUpdate(), user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-    def test_db_error_commit(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        db_gear = MagicMock(spec=m.Gear)
-        db_gear.id = 1
-        setup_mock_execute(mock_db, return_one_or_none=db_gear)
-        mock_db.commit.side_effect = SQLAlchemyError("err")
-
-        from pydantic import BaseModel
-
-        class GearUpdate(BaseModel):
-            id: int = 1
-            nickname: str = "Updated"
-            brand: str | None = None
-            model: str | None = None
-            gear_type: int | None = None
-            created_at: object = None
-            active: bool | None = None
-            initial_kms: float | None = None
-            purchase_value: float | None = None
-            strava_gear_id: str | None = None
-            garminconnect_gear_id: str | None = None
-
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.edit_gear(gear=GearUpdate(), user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestDeleteGear:
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-        import modules.gears.gear.models as m
-
-        db_gear = MagicMock(spec=m.Gear)
-        setup_mock_execute(mock_db, return_one_or_none=db_gear)
-        crud.delete_gear(gear_id=1, user_id=1, db=mock_db)
-        mock_db.delete.assert_called_once_with(db_gear)
-        mock_db.commit.assert_called_once()
-
-    def test_not_found(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        with pytest.raises(HTTPException) as e:
-            crud.delete_gear(gear_id=999, user_id=1, db=mock_db)
-        assert e.value.status_code == 404
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.delete_gear(gear_id=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestDeleteAllStravaGearForUser:
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        r = MagicMock()
-        r.rowcount = 3
-        mock_db.execute.return_value = r
-        crud.delete_all_strava_gear_for_user(user_id=1, db=mock_db)
-        mock_db.commit.assert_called_once()
-
-    def test_no_deletions(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        r = MagicMock()
-        r.rowcount = 0
-        mock_db.execute.return_value = r
-        crud.delete_all_strava_gear_for_user(user_id=1, db=mock_db)
-        mock_db.commit.assert_called_once()
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.delete_all_strava_gear_for_user(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestDeleteAllGarminconnectGearForUser:
-    def test_success(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        r = MagicMock()
-        r.rowcount = 2
-        mock_db.execute.return_value = r
-        crud.delete_all_garminconnect_gear_for_user(user_id=1, db=mock_db)
-        mock_db.commit.assert_called_once()
-
-    def test_no_deletions(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        r = MagicMock()
-        r.rowcount = 0
-        mock_db.execute.return_value = r
-        crud.delete_all_garminconnect_gear_for_user(user_id=1, db=mock_db)
-        mock_db.commit.assert_called_once()
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.delete_all_garminconnect_gear_for_user(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert [g.nickname for g in crud.get_gear_user(1, db)] == ["G"]
+        assert len(crud.get_gear_user(2, db)) == 1

@@ -1,20 +1,17 @@
+"""SQLAlchemy ORM model for health sleep records."""
+
 from datetime import date as date_type
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class HealthSleep(Base):
-    """
-    User sleep tracking data with metrics and quality scores.
+    """User sleep tracking data with metrics and quality scores.
 
     Attributes:
         id: Primary key.
@@ -58,10 +55,10 @@ class HealthSleep(Base):
         light_percentage_score: Light percentage score.
         avg_sleep_stress: Average sleep stress.
         sleep_stress_score: Sleep stress score.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "health_sleep"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_health_sleep_user_date"),)
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -246,6 +243,3 @@ class HealthSleep(Base):
         nullable=True,
         comment="Sleep stress score",
     )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_sleep")

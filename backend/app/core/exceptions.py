@@ -137,6 +137,15 @@ class PreconditionFailedError(DomainError):
     default_detail = "Precondition Failed"
 
 
+class TooManyRequestsError(DomainError):
+    """A per-resource limit is reached, as opposed to the caller's request rate."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "too-many-requests"
+    title = "Too Many Requests"
+    default_detail = "Too Many Requests"
+
+
 class UnsupportedFormatError(DomainError):
     """The supplied payload is in a format this endpoint cannot process."""
 
@@ -193,6 +202,21 @@ class ProcessingError(DomainError):
     code = "internal-error"
     title = "Internal Server Error"
     default_detail = "Internal Server Error"
+
+
+class CryptographyError(ProcessingError):
+    """Encrypting or decrypting a secret failed, or the configured key cannot be used.
+
+    The response is as opaque as :class:`ProcessingError`: the cause belongs in the log.
+    """
+
+
+class UndecryptableError(CryptographyError):
+    """A stored secret was not produced by the configured key, or is corrupt.
+
+    Unlike a missing or malformed key, this concerns one value: the secret has to be entered
+    again, and retrying the same operation meets the same answer.
+    """
 
 
 def build_problem_response(

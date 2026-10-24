@@ -89,8 +89,8 @@ def geocode_and_store_activity_location(activity_id: int, geocoding: GeocodingPr
 
     if activity_integration.set_activity_location(
         activity_id,
-        location.city,
-        location.town,
+        location.locality,
+        location.sublocality,
         location.country,
         db,
     ):
@@ -159,13 +159,13 @@ def backfill_missing_activity_locations(
             lookups += 1
             first_waypoint = waypoints[0]
             location = reverse_geocode(geocoding, first_waypoint.get("lat"), first_waypoint.get("lon"))
-            if location is None or not (location.city or location.town or location.country):
+            if location is None or not (location.locality or location.sublocality or location.country):
                 unresolved.append(ref.id)
                 continue
             if activity_integration.set_activity_location(
                 ref.id,
-                location.city,
-                location.town,
+                location.locality,
+                location.sublocality,
                 location.country,
                 db,
             ):

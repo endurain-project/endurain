@@ -3,6 +3,17 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import core.exceptions as core_exceptions
+from modules.health.health_fasting.schema import (
+    HealthFastingListResponse,
+    HealthFastingRead,
+    HealthFastingStatsResponse,
+)
+
+_SERVICE = "modules.health.health_fasting.router.health_fasting_service"
+_HEADERS = {"Authorization": "Bearer x"}
+_START = {"fast_start_time": "2024-01-15T08:00:00Z"}
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -11,6 +22,7 @@ def _build_app(mock_db):
     import modules.health.health_fasting.router as router
 
     app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
     app.include_router(router.router, prefix="/health_fasting")
 
     def _mock():
@@ -26,188 +38,154 @@ def _build_app(mock_db):
     return app
 
 
+def _client(mock_db) -> TestClient:
+    return TestClient(_build_app(mock_db))
+
+
 class TestReadHealthFastingAllPagination:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_user_id")
-    def test_list_success(self, mock_get, mock_get_number, mock_db):
-        from modules.health.health_fasting.schema import HealthFastingRead
+    @patch(f"{_SERVICE}.list_health_fasting")
+    def test_list_success(self, mock_list, mock_db):
+        mock_list.return_value = HealthFastingListResponse(total=1, records=[HealthFastingRead(id=1, user_id=1)])
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [HealthFastingRead(id=1, user_id=1)]
-        mock_get_number.return_value = 1
+        response = _client(mock_db).get("/health_fasting", headers=_HEADERS)
 
-        response = client.get("/health_fasting", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 1
+        assert response.json()["total"] == 1
 
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_user_id")
-    def test_list_empty(self, mock_get, mock_get_number, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
-        mock_get_number.return_value = 0
+    @patch(f"{_SERVICE}.list_health_fasting")
+    def test_passes_pagination_and_interval_through(self, mock_list, mock_db):
+        mock_list.return_value = HealthFastingListResponse(total=0, records=[])
 
-        response = client.get("/health_fasting", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 0
-        assert data["records"] == []
+        _client(mock_db).get("/health_fasting?page_number=2&num_records=10&interval=last_30_days", headers=_HEADERS)
+
+        args = mock_list.call_args.args
+        assert args[0] == 1
+        assert args[2:4] == (2, 10)
+        assert args[4].value == "last_30_days"
 
 
 class TestReadActiveFasting:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
-    def test_active_success(self, mock_get, mock_db):
-        from modules.health.health_fasting.schema import HealthFastingRead
+    @patch(f"{_SERVICE}.get_active_fasting")
+    def test_active(self, mock_active, mock_db):
+        mock_active.return_value = HealthFastingRead(id=1, user_id=1)
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = HealthFastingRead(id=1, user_id=1)
+        response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 
-        response = client.get("/health_fasting/active", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        assert response.json()["id"] == 1
 
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
-    def test_active_none(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+    @patch(f"{_SERVICE}.get_active_fasting", return_value=None)
+    def test_none(self, _active, mock_db):
+        response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 
-        response = client.get("/health_fasting/active", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json() is None
 
 
 class TestReadFastingStats:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_avg_fasting_duration")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_total_fasting_seconds")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_completed_fasting_count")
-    @patch("modules.health.health_fasting.router.health_fasting_utils.calculate_streaks")
-    def test_stats_success(
-        self, mock_streaks, mock_completed_count, mock_total_seconds, mock_avg_dur, mock_started, mock_db
-    ):
-        client = TestClient(_build_app(mock_db))
-        mock_completed_count.return_value = 10
-        mock_total_seconds.return_value = 864000
-        mock_avg_dur.return_value = 86400
-        mock_streaks.return_value = (3, 10)
-        mock_started.return_value = 12
+    @patch(f"{_SERVICE}.get_fasting_stats")
+    def test_stats(self, mock_stats, mock_db):
+        mock_stats.return_value = HealthFastingStatsResponse(
+            total_fasts=3,
+            current_streak=2,
+            longest_streak=3,
+            avg_duration_seconds=50000,
+            total_fasting_seconds=150000,
+            completion_rate=75.0,
+        )
 
-        response = client.get("/health_fasting/stats", headers={"Authorization": "Bearer x"})
+        response = _client(mock_db).get("/health_fasting/stats", headers=_HEADERS)
+
         assert response.status_code == 200
-        data = response.json()
-        assert data["total_fasts"] == 10
-        assert data["current_streak"] == 3
-        assert data["longest_streak"] == 10
-        assert data["completion_rate"] == 83.3
-
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_avg_fasting_duration")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_total_fasting_seconds")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_completed_fasting_count")
-    @patch("modules.health.health_fasting.router.health_fasting_utils.calculate_streaks")
-    def test_stats_zero_started(
-        self, mock_streaks, mock_completed_count, mock_total_seconds, mock_avg_dur, mock_started, mock_db
-    ):
-        client = TestClient(_build_app(mock_db))
-        mock_completed_count.return_value = 0
-        mock_total_seconds.return_value = 0
-        mock_avg_dur.return_value = 0
-        mock_streaks.return_value = (0, 0)
-        mock_started.return_value = 0
-
-        response = client.get("/health_fasting/stats", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json()["completion_rate"] == 0.0
+        assert response.json()["completion_rate"] == 75.0
 
 
 class TestReadFastingById:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_id_and_user_id")
+    @patch(f"{_SERVICE}.get_health_fasting")
     def test_success(self, mock_get, mock_db):
-        from modules.health.health_fasting.schema import HealthFastingRead
-
-        client = TestClient(_build_app(mock_db))
         mock_get.return_value = HealthFastingRead(id=1, user_id=1)
 
-        response = client.get("/health_fasting/1", headers={"Authorization": "Bearer x"})
+        response = _client(mock_db).get("/health_fasting/1", headers=_HEADERS)
+
         assert response.status_code == 200
+        assert mock_get.call_args.args[:2] == (1, 1)
 
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_id_and_user_id")
+    @patch(f"{_SERVICE}.get_health_fasting")
     def test_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+        mock_get.side_effect = core_exceptions.NotFoundError("Fasting record not found")
 
-        response = client.get("/health_fasting/999", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 404
+        assert _client(mock_db).get("/health_fasting/999", headers=_HEADERS).status_code == 404
 
 
 class TestCreateHealthFasting:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.create_health_fasting")
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
-    def test_create_success(self, mock_active, mock_create, mock_db):
-        from modules.health.health_fasting.schema import HealthFastingRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_active.return_value = None
+    @patch(f"{_SERVICE}.create_health_fasting")
+    def test_create_success(self, mock_create, mock_db):
         mock_create.return_value = HealthFastingRead(id=1, user_id=1)
 
-        response = client.post(
-            "/health_fasting",
-            json={"fast_start_time": "2024-01-15T08:00:00Z"},
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 201
+        assert _client(mock_db).post("/health_fasting", json=_START, headers=_HEADERS).status_code == 201
 
-    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
-    def test_create_already_active(self, mock_active, mock_db):
-        from modules.health.health_fasting.schema import HealthFastingRead
+    @patch(f"{_SERVICE}.create_health_fasting")
+    def test_already_active_is_400(self, mock_create, mock_db):
+        mock_create.side_effect = core_exceptions.InvalidInputError("User already has an active fasting session.")
 
-        client = TestClient(_build_app(mock_db))
-        mock_active.return_value = HealthFastingRead(id=1, user_id=1)
-
-        response = client.post(
-            "/health_fasting",
-            json={"fast_start_time": "2024-01-15T08:00:00Z"},
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 400
+        assert _client(mock_db).post("/health_fasting", json=_START, headers=_HEADERS).status_code == 400
 
 
 class TestEditHealthFasting:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.edit_health_fasting")
+    @patch(f"{_SERVICE}.edit_health_fasting")
     def test_edit_success(self, mock_edit, mock_db):
-        from modules.health.health_fasting.schema import HealthFastingRead
-
-        client = TestClient(_build_app(mock_db))
         mock_edit.return_value = HealthFastingRead(id=1, user_id=1)
 
-        response = client.put(
-            "/health_fasting",
-            json={"id": 1, "user_id": 1},
-            headers={"Authorization": "Bearer x"},
-        )
+        response = _client(mock_db).put("/health_fasting", json={"id": 1, "user_id": 1}, headers=_HEADERS)
+
         assert response.status_code == 200
+
+    @patch(f"{_SERVICE}.edit_health_fasting")
+    def test_another_users_record_is_403(self, mock_edit, mock_db):
+        mock_edit.side_effect = core_exceptions.PermissionDeniedError("Cannot edit fasting record for another user.")
+
+        response = _client(mock_db).put("/health_fasting", json={"id": 1, "user_id": 2}, headers=_HEADERS)
+
+        assert response.status_code == 403
 
 
 class TestCompleteHealthFasting:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.complete_health_fasting")
+    @patch(f"{_SERVICE}.complete_health_fasting")
     def test_complete_success(self, mock_complete, mock_db):
-        from modules.health.health_fasting.schema import HealthFastingRead
-
-        client = TestClient(_build_app(mock_db))
         mock_complete.return_value = HealthFastingRead(id=1, user_id=1)
 
-        response = client.post(
+        response = _client(mock_db).post(
             "/health_fasting/1/complete",
-            json={"fast_end_time": "2024-01-15T10:00:00Z"},
-            headers={"Authorization": "Bearer x"},
+            json={"fast_end_time": "2024-01-16T08:00:00Z", "status": "completed"},
+            headers=_HEADERS,
         )
+
         assert response.status_code == 200
+        assert mock_complete.call_args.args[:2] == (1, 1)
+
+    @patch(f"{_SERVICE}.complete_health_fasting")
+    def test_not_in_progress_is_400(self, mock_complete, mock_db):
+        mock_complete.side_effect = core_exceptions.InvalidInputError("Fasting session is not in progress")
+
+        response = _client(mock_db).post(
+            "/health_fasting/1/complete",
+            json={"fast_end_time": "2024-01-16T08:00:00Z", "status": "completed"},
+            headers=_HEADERS,
+        )
+
+        assert response.status_code == 400
 
 
 class TestDeleteHealthFasting:
-    @patch("modules.health.health_fasting.router.health_fasting_crud.delete_health_fasting")
+    @patch(f"{_SERVICE}.delete_health_fasting")
     def test_delete_success(self, mock_delete, mock_db):
-        client = TestClient(_build_app(mock_db))
+        response = _client(mock_db).delete("/health_fasting/1", headers=_HEADERS)
 
-        response = client.delete("/health_fasting/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204
+        assert mock_delete.call_args.args[:2] == (1, 1)
+
+    @patch(f"{_SERVICE}.delete_health_fasting")
+    def test_not_found_is_404(self, mock_delete, mock_db):
+        mock_delete.side_effect = core_exceptions.NotFoundError("Health fasting not found")
+
+        assert _client(mock_db).delete("/health_fasting/9", headers=_HEADERS).status_code == 404

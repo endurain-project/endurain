@@ -38,6 +38,7 @@ const createdDto: GearComponentDto = {
   purchase_value: 45,
   current_distance: 0,
   current_time: 0,
+  version: 1,
 }
 
 /** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form
@@ -92,7 +93,7 @@ describe('GearComponentFormDialog submit', () => {
     await flushPromises()
 
     expect(apiFetch).toHaveBeenCalledTimes(1)
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
       body: JSON.stringify({
         gear_id: 5,

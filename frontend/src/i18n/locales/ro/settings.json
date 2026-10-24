@@ -367,6 +367,29 @@
       "sent": "E-mail de test trimis",
       "failed": "E-mailul de test nu a putut fi trimis",
       "failedUnknown": "Consultă jurnalele serverului pentru detalii."
+    },
+    "envLocked": "Setat de {name}",
+    "envSection": "Unele setări de aici sunt definite de variabile de mediu ({names}). Elimină-le din mediu pentru a edita aceste setări aici.",
+    "unsaved": "Modificări nesalvate",
+    "discard": "Renunță",
+    "tabs": {
+      "label": "Secțiunile setărilor serverului",
+      "general": "General",
+      "access": "Acces și securitate",
+      "maps": "Hărți și locație",
+      "email": "E-mail",
+      "unsaved": "Conține modificări nesalvate"
+    },
+    "search": {
+      "placeholder": "Caută în setări…",
+      "noResults": "Nu s-a găsit nicio setare"
+    },
+    "leave": {
+      "title": "Părăsești pagina fără salvare?",
+      "description": "Ai modificări nesalvate. Dacă părăsești această pagină, vor fi pierdute.",
+      "confirm": "Părăsește fără salvare",
+      "stay": "Rămâi pe pagină",
+      "close": "Închide"
     }
   },
   "idp": {

@@ -8,7 +8,8 @@ wiring is asserted rather than assumed.
 import pytest
 
 import modules.activities.activity_ingestion.provider_registry as provider_registry
-import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.constants as garmin_constants
+import modules.garmin.integration_service as garmin_provider_registry
 import modules.strava.provider_registry as strava_provider_registry
 
 
@@ -28,7 +29,7 @@ class TestProviderRegistration:
     def test_garmin_registers_itself(self):
         garmin_provider_registry.register_activity_provider()
 
-        assert [p.name for p in provider_registry.registered()] == [garmin_provider_registry.PROVIDER_NAME]
+        assert [p.name for p in provider_registry.registered()] == [garmin_constants.PROVIDER_NAME]
 
     def test_the_two_providers_do_not_collide(self):
         strava_provider_registry.register_activity_provider()

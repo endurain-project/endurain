@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 import core.file_uploads as core_file_uploads
 import core.timezone as core_timezone
-import modules.health.health_targets.crud as health_targets_crud
+import modules.health.health_targets.integration_service as health_targets_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.signing as users_signing
@@ -119,7 +119,8 @@ def create_user_default_data(
     users_privacy_settings_crud.create_user_privacy_settings(user_id, db)
 
     # Create the user health targets
-    health_targets_crud.create_health_targets(user_id, db)
+    health_targets_integration.create_health_targets(user_id, db)
+    db.commit()
 
     # Create the user default gear
     user_default_gear_crud.create_user_default_gear(user_id, db)

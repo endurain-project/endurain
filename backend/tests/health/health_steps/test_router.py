@@ -1,350 +1,127 @@
 from datetime import date as datetime_date
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import patch
 
-from fastapi import HTTPException, status
+import core.exceptions as core_exceptions
+import modules.health.health_steps.schema as health_steps_schema
 
-import modules.health.health_steps.models as health_steps_models
+_SERVICE = "modules.health.health_steps.router.health_steps_service"
+_HEADERS = {"Authorization": "Bearer mock_token"}
+
+
+def _record(record_id: int = 1, day: int = 15, steps: int = 10000) -> health_steps_schema.HealthStepsRead:
+    return health_steps_schema.HealthStepsRead(id=record_id, user_id=1, date=datetime_date(2024, 1, day), steps=steps)
 
 
 class TestReadHealthStepsAll:
-    """
-    Test suite for read_health_steps_all endpoint.
-    """
-
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
-    def test_read_health_steps_all_success(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
-        """
-        Test successful retrieval of all health steps records with total count.
-        """
-        # Arrange
-        mock_steps1 = MagicMock(spec=health_steps_models.HealthSteps)
-        mock_steps1.id = 1
-        mock_steps1.user_id = 1
-        mock_steps1.date = datetime_date(2024, 1, 15)
-        mock_steps1.steps = 10000
-        mock_steps1.source = None
-
-        mock_steps2 = MagicMock(spec=health_steps_models.HealthSteps)
-        mock_steps2.id = 2
-        mock_steps2.user_id = 1
-        mock_steps2.date = datetime_date(2024, 1, 16)
-        mock_steps2.steps = 12000
-        mock_steps2.source = None
-
-        mock_get_all.return_value = [mock_steps1, mock_steps2]
-        mock_get_number.return_value = 2
-
-        # Act
-        response = fast_api_client.get(
-            "/health_steps",
-            headers={"Authorization": "Bearer mock_token"},
+    @patch(f"{_SERVICE}.list_health_steps")
+    def test_returns_the_page_and_total(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = health_steps_schema.HealthStepsListResponse(
+            total=2, records=[_record(1, 15, 10000), _record(2, 16, 12000)]
         )
 
-        # Assert
+        response = fast_api_client.get("/health_steps", headers=_HEADERS)
+
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 2
-        assert len(data["records"]) == 2
+        assert [r["steps"] for r in data["records"]] == [10000, 12000]
 
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
-    def test_read_health_steps_all_empty(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
-        """
-        Test retrieval when user has no health steps records.
-        """
-        # Arrange
-        mock_get_all.return_value = []
-        mock_get_number.return_value = 0
+    @patch(f"{_SERVICE}.list_health_steps")
+    def test_empty(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = health_steps_schema.HealthStepsListResponse(total=0, records=[])
 
-        # Act
-        response = fast_api_client.get(
-            "/health_steps",
-            headers={"Authorization": "Bearer mock_token"},
+        response = fast_api_client.get("/health_steps", headers=_HEADERS)
+
+        assert response.status_code == 200
+        assert response.json()["records"] == []
+
+    @patch(f"{_SERVICE}.list_health_steps")
+    def test_passes_pagination_and_interval_through(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = health_steps_schema.HealthStepsListResponse(
+            total=0, num_records=10, page_number=2, records=[]
         )
 
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 0
-        assert data["records"] == []
-
-
-class TestReadHealthStepsAllPagination:
-    """
-    Test suite for read_health_steps_all_pagination endpoint.
-    """
-
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
-    def test_read_health_steps_all_pagination_success(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
-    ):
-        """
-        Test successful retrieval of paginated health steps records with total count.
-        """
-        # Arrange
-        mock_steps1 = MagicMock(spec=health_steps_models.HealthSteps)
-        mock_steps1.id = 1
-        mock_steps1.user_id = 1
-        mock_steps1.date = datetime_date(2024, 1, 15)
-        mock_steps1.steps = 10000
-        mock_steps1.source = None
-
-        mock_get_paginated.return_value = [mock_steps1]
-        mock_get_number.return_value = 10
-
-        # Act
         response = fast_api_client.get(
-            "/health_steps?page_number=1&num_records=5",
-            headers={"Authorization": "Bearer mock_token"},
+            "/health_steps?page_number=2&num_records=10&interval=last_30_days", headers=_HEADERS
         )
 
-        # Assert
         assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 10
-        assert data["num_records"] == 5
-        assert data["page_number"] == 1
-        assert len(data["records"]) == 1
-
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
-    def test_read_health_steps_all_pagination_different_page(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
-    ):
-        """
-        Test paginated retrieval with different page numbers.
-        """
-        # Arrange
-        mock_get_paginated.return_value = []
-        mock_get_number.return_value = 20
-
-        # Act
-        response = fast_api_client.get(
-            "/health_steps?page_number=2&num_records=10",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 20
-        assert data["num_records"] == 10
-        assert data["page_number"] == 2
-        assert data["records"] == []
-        mock_get_paginated.assert_called_once_with(1, ANY, 2, 10, None)
+        args = mock_list.call_args.args
+        assert args[0] == 1
+        assert args[2:4] == (2, 10)
+        assert args[4].value == "last_30_days"
 
 
 class TestCreateHealthSteps:
-    """
-    Test suite for create_health_steps endpoint.
-    """
+    @patch(f"{_SERVICE}.create_health_steps")
+    def test_creates(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.return_value = _record(steps=9000)
 
-    @patch("modules.health.health_steps.router.health_steps_crud.create_health_steps")
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
-    def test_create_health_steps_success(
-        self,
-        mock_get_by_date,
-        mock_create,
-        fast_api_client,
-        fast_api_app,
-    ):
-        """
-        Test successful creation of health steps entry.
-        """
-        # Arrange
-        mock_get_by_date.return_value = None
-        created_steps = MagicMock()
-        created_steps.id = 1
-        created_steps.user_id = 1
-        created_steps.date = datetime_date(2024, 1, 15)
-        created_steps.steps = 10000
-        created_steps.source = None
-        mock_create.return_value = created_steps
+        response = fast_api_client.post("/health_steps", json={"date": "2024-01-15", "steps": 9000}, headers=_HEADERS)
 
-        # Act
-        response = fast_api_client.post(
-            "/health_steps",
-            json={
-                "date": "2024-01-15",
-                "steps": 10000,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
         assert response.status_code == 201
-        data = response.json()
-        assert data["steps"] == 10000
+        assert response.json()["steps"] == 9000
 
-    @patch("modules.health.health_steps.router.health_steps_crud.edit_health_steps")
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
-    def test_create_health_steps_updates_existing(self, mock_get_by_date, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test creating health steps when entry exists updates it.
-        """
-        # Arrange
-        existing_steps = MagicMock()
-        existing_steps.id = 1
-        mock_get_by_date.return_value = existing_steps
+    @patch(f"{_SERVICE}.create_health_steps")
+    def test_conflict_is_409(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.side_effect = core_exceptions.ConflictError("Duplicate entry error")
 
-        updated_steps = MagicMock()
-        updated_steps.id = 1
-        updated_steps.user_id = 1
-        updated_steps.date = datetime_date(2024, 1, 15)
-        updated_steps.steps = 12000
-        updated_steps.source = None
-        mock_edit.return_value = updated_steps
+        response = fast_api_client.post("/health_steps", json={"date": "2024-01-15", "steps": 9000}, headers=_HEADERS)
 
-        # Act
-        response = fast_api_client.post(
-            "/health_steps",
-            json={
-                "date": "2024-01-15",
-                "steps": 12000,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 201
-        mock_edit.assert_called_once()
-
-    @patch("modules.health.health_steps.router.health_steps_crud.create_health_steps")
-    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
-    def test_create_health_steps_missing_date_uses_today(
-        self, mock_get_by_date, mock_create, fast_api_client, fast_api_app
-    ):
-        """
-        Test creating health steps without date uses today's date automatically.
-        """
-        # Arrange
-        mock_get_by_date.return_value = None
-        created_steps = MagicMock()
-        created_steps.id = 1
-        created_steps.user_id = 1
-        created_steps.date = None  # Will be set by schema
-        created_steps.steps = 10000
-        created_steps.source = None
-        mock_create.return_value = created_steps
-
-        # Act
-        response = fast_api_client.post(
-            "/health_steps",
-            json={
-                "steps": 10000,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert - Now succeeds since HealthStepsCreate auto-fills date
-        assert response.status_code == 201
-        mock_create.assert_called_once()
+        assert response.status_code == 409
 
 
 class TestEditHealthSteps:
-    """
-    Test suite for edit_health_steps endpoint.
-    """
+    @patch(f"{_SERVICE}.edit_health_steps")
+    def test_edits(self, mock_edit, fast_api_client, fast_api_app):
+        mock_edit.return_value = _record(steps=11000)
 
-    @patch("modules.health.health_steps.router.health_steps_crud.edit_health_steps")
-    def test_edit_health_steps_success(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test successful edit of health steps entry.
-        """
-        # Arrange
-        updated_steps = MagicMock()
-        updated_steps.id = 1
-        updated_steps.user_id = 1
-        updated_steps.date = datetime_date(2024, 1, 15)
-        updated_steps.steps = 12000
-        updated_steps.source = None
-        mock_edit.return_value = updated_steps
-
-        # Act
         response = fast_api_client.put(
             "/health_steps",
-            json={
-                "id": 1,
-                "user_id": 1,
-                "date": "2024-01-15",
-                "steps": 12000,
-            },
-            headers={"Authorization": "Bearer mock_token"},
+            json={"id": 1, "user_id": 1, "date": "2024-01-15", "steps": 11000},
+            headers=_HEADERS,
         )
 
-        # Assert
         assert response.status_code == 200
-        data = response.json()
-        assert data["steps"] == 12000
+        assert response.json()["steps"] == 11000
 
-    @patch("modules.health.health_steps.router.health_steps_crud.edit_health_steps")
-    def test_edit_health_steps_not_found(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test edit when health steps not found.
-        """
-        # Arrange
-        mock_edit.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health steps not found",
-        )
+    @patch(f"{_SERVICE}.edit_health_steps")
+    def test_not_found_is_404(self, mock_edit, fast_api_client, fast_api_app):
+        mock_edit.side_effect = core_exceptions.NotFoundError("Health steps not found")
 
-        # Act
         response = fast_api_client.put(
             "/health_steps",
-            json={
-                "id": 999,
-                "user_id": 1,
-                "date": "2024-01-15",
-                "steps": 12000,
-            },
-            headers={"Authorization": "Bearer mock_token"},
+            json={"id": 999, "user_id": 1, "date": "2024-01-15", "steps": 11000},
+            headers=_HEADERS,
         )
 
-        # Assert
         assert response.status_code == 404
+
+    @patch(f"{_SERVICE}.edit_health_steps")
+    def test_another_users_record_is_403(self, mock_edit, fast_api_client, fast_api_app):
+        mock_edit.side_effect = core_exceptions.PermissionDeniedError("Cannot edit health steps for another user.")
+
+        response = fast_api_client.put(
+            "/health_steps",
+            json={"id": 1, "user_id": 2, "date": "2024-01-15", "steps": 11000},
+            headers=_HEADERS,
+        )
+
+        assert response.status_code == 403
 
 
 class TestDeleteHealthSteps:
-    """
-    Test suite for delete_health_steps endpoint.
-    """
+    @patch(f"{_SERVICE}.delete_health_steps")
+    def test_deletes(self, mock_delete, fast_api_client, fast_api_app):
+        response = fast_api_client.delete("/health_steps/1", headers=_HEADERS)
 
-    @patch("modules.health.health_steps.router.health_steps_crud.delete_health_steps")
-    def test_delete_health_steps_success(self, mock_delete, fast_api_client, fast_api_app):
-        """
-        Test successful deletion of health steps entry.
-        """
-        # Arrange
-        mock_delete.return_value = None
-
-        # Act
-        response = fast_api_client.delete(
-            "/health_steps/1",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(1, 1, ANY)
+        assert mock_delete.call_args.args[:2] == (1, 1)
 
-    @patch("modules.health.health_steps.router.health_steps_crud.delete_health_steps")
-    def test_delete_health_steps_not_found(self, mock_delete, fast_api_client, fast_api_app):
-        """
-        Test deletion when health steps not found.
-        """
-        # Arrange
-        mock_delete.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health steps with id 999 for user 1 not found",
-        )
+    @patch(f"{_SERVICE}.delete_health_steps")
+    def test_not_found_is_404(self, mock_delete, fast_api_client, fast_api_app):
+        mock_delete.side_effect = core_exceptions.NotFoundError("Health steps not found")
 
-        # Act
-        response = fast_api_client.delete(
-            "/health_steps/999",
-            headers={"Authorization": "Bearer mock_token"},
-        )
+        response = fast_api_client.delete("/health_steps/999", headers=_HEADERS)
 
-        # Assert
         assert response.status_code == 404

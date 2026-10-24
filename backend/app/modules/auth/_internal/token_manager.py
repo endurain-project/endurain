@@ -56,7 +56,7 @@ class TokenManager:
         get_token_claim(token: str, claim: str) -> str | list[str] | int:
         decode_token(token: str) -> dict:
         validate_token_expiration(token: str, expected_type: TokenType) -> None:
-        create_token(session_id: str, user: users_schema.UsersRead, token_type: TokenType) -> tuple[datetime, str]:
+        create_token(session_id: str, user: users_schema.UsersRead, token_type: TokenType, ttl: timedelta) -> tuple[datetime, str]:
         create_csrf_token() -> str:
             Generates a secure random CSRF (Cross-Site Request Forgery) token.
         HTTPException: Raised for invalid, expired, or missing claims in JWT tokens.
@@ -341,6 +341,7 @@ class TokenManager:
         session_id: str,
         user: users_schema.UsersRead,
         token_type: TokenType,
+        ttl: timedelta,
     ) -> tuple[datetime, str]:
         """
         Creates a JWT token for a user session with appropriate access scope
@@ -352,6 +353,7 @@ class TokenManager:
                 details.
             token_type (TokenType): The type of token to create (access or
                 refresh).
+            ttl (timedelta): How long the token lives, from the session policy.
 
         Returns:
             tuple[datetime, str]: A tuple containing the token's expiration
@@ -366,9 +368,7 @@ class TokenManager:
         else:
             scope = auth_constants.ADMIN_ACCESS_SCOPE
 
-        exp = datetime.now(UTC) + timedelta(minutes=auth_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-        if token_type == TokenType.REFRESH:
-            exp = datetime.now(UTC) + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+        exp = datetime.now(UTC) + ttl
 
         # Set now
         now = int(datetime.now(UTC).timestamp())

@@ -9,7 +9,7 @@ import core.logger as core_logger
 import core.text_imports as core_text_imports
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
-import modules.gears.gear.crud as gears_crud
+import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
 import modules.strava.athlete_utils as strava_athlete_utils
 import modules.strava.utils as strava_utils
@@ -68,7 +68,8 @@ def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> 
         return 0
 
     # Save the gear to the database
-    gears_crud.create_multiple_gears(strava_gear, user_id, db)
+    gears_integration.create_multiple_gears(strava_gear, user_id, db)
+    db.commit()
 
     # Return the number of activities processed
     return len(strava_gear)
@@ -78,7 +79,7 @@ def process_gear(
     gear, gear_type: str, user_id: int, strava_client: Client, db: Session
 ) -> gears_schema.GearCreate | None:
     # Get the gear by strava id from user id
-    gear_db = gears_crud.get_gear_by_strava_id_from_user_id(gear.id, user_id, db)
+    gear_db = gears_integration.get_gear_by_strava_id(gear.id, user_id, db)
 
     # Skip existing gear
     if gear_db:
@@ -125,7 +126,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
         return 0
 
     # Get user gears
-    gears = gears_crud.get_gear_user(user_id, db)
+    gears = gears_integration.get_gear_user(user_id, db)
 
     # Skip if no gears
     if gears is None:
@@ -354,7 +355,7 @@ def transform_csv_shoe_gear_to_schema_gear(
             proposed_name_is_already_present = True
             while proposed_name_is_already_present:
                 proposed_name = core_config.STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE + str(newnumber)
-                gear_check = gears_crud.get_gear_user_by_nickname(token_user_id, proposed_name, db)
+                gear_check = gears_integration.get_gear_user_by_nickname(token_user_id, proposed_name, db)
                 if gear_check is not None:
                     newnumber += 1
                 else:

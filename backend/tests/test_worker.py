@@ -37,15 +37,17 @@ class TestRunWorkerProcess:
         # as the API does, or the substrate would read all-defaults settings.
         built = platform_settings.build_jasil_settings.return_value
         substrate_settings.configure.assert_called_once_with(built)
-        container.build_platform.assert_called_once_with(built)
+        container.build_platform.assert_called_once_with(built, sources=module_registry.runtime_sources.return_value)
         runtime.set_active_platform.assert_called_once()
         # Every activity durable handler must be registered via the shared surface
         # so the worker can resolve any claimed job — the SAME call main.startup_event
         # makes, so the two entrypoints cannot drift.
         module_registry.configure_activity_contributors.assert_called_once_with()
         module_registry.register_durable_handlers.assert_called_once_with(jobs_registry.registry)
-        assert module_registry.method_calls[:2] == [
+        module_registry.configure_gear_contributors.assert_called_once_with()
+        assert module_registry.method_calls[1:4] == [
             call.configure_activity_contributors(),
+            call.configure_gear_contributors(),
             call.register_durable_handlers(jobs_registry.registry),
         ]
         install_signals.assert_called_once_with(stop)

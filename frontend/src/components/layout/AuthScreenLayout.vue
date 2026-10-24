@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 
+import { APP_VERSION } from '@/constants/appVersion'
+
 /**
  * Presentational split-card shell shared by the login and sign-up screens: a
  * brand photo column (with a legibility scrim and taglines) on large screens,
@@ -44,6 +46,7 @@ const { t } = useI18n()
 
       <div class="flex min-h-[520px] flex-col justify-center px-2 py-6 sm:px-6 lg:px-8">
         <slot />
+        <p class="mt-6 text-center text-meta text-muted-foreground">{{ APP_VERSION }}</p>
       </div>
     </div>
   </section>

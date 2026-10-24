@@ -43,7 +43,7 @@ class TestStoreAndGet:
         legacy_file.parent.mkdir(parents=True)
         legacy_file.write_bytes(b"legacy")
 
-        storage = LocalStorage(str(tmp_path))
+        storage = LocalStorage(str(tmp_path), legacy_layout=True)
         assert activity_file_storage_integration.get_activity_file(1, storage) == ("1.gpx", b"legacy")
 
 

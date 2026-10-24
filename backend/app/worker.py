@@ -26,7 +26,7 @@ import core.logger as core_logger
 import core.platform_settings as core_platform_settings
 import model_registry as orm_model_registry
 import module_registry as runtime_module_registry
-import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.integration_service as garmin_integration
 import modules.strava.provider_registry as strava_provider_registry
 
 logger = core_logger.get_logger(__name__)
@@ -69,7 +69,7 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     worker_settings = core_config.settings.model_copy(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
     substrate_settings = core_platform_settings.build_jasil_settings(worker_settings)
     jasil_settings.configure(substrate_settings)
-    platform = platform_container.build_platform(substrate_settings)
+    platform = platform_container.build_platform(substrate_settings, sources=runtime_module_registry.runtime_sources())
     platform_runtime.set_active_platform(platform)
     # Register every activity durable-job handler so this worker can resolve any
     # claimed job's subscriber_id back to a handler. Uses the SAME shared surface
@@ -77,12 +77,13 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # cannot drift — a handler registered in one but not the other would leave its
     # jobs unresolvable (and dead-lettered) on a dedicated worker.
     runtime_module_registry.configure_activity_contributors()
+    runtime_module_registry.configure_gear_contributors()
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)
     # Same reason, for the refresh job: it pulls from whichever providers are
     # registered, and a provider registered in the API but not here would make a
     # refresh claimed by this worker silently return nothing.
     strava_provider_registry.register_activity_provider()
-    garmin_provider_registry.register_activity_provider()
+    garmin_integration.register_activity_provider()
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     try:

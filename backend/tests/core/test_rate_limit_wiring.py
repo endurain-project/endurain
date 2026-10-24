@@ -40,9 +40,21 @@ import modules.auth.router as auth_router
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
 import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
+import modules.gears.gear.router as gear_router
+import modules.gears.gear_components.router as gear_components_router
+import modules.health.health_fasting.router as health_fasting_router
+import modules.health.health_poop.router as health_poop_router
+import modules.health.health_sleep.router as health_sleep_router
+import modules.health.health_steps.router as health_steps_router
+import modules.health.health_targets.router as health_targets_router
+import modules.health.health_water.router as health_water_router
+import modules.health.health_weight.router as health_weight_router
+import modules.notifications.router as notifications_router
+import modules.server_settings.logs_router as server_settings_logs_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users_profile.router as users_profile_router
+import modules.websocket.router as websocket_router
 
 
 def _registered_limits(func) -> list[str]:
@@ -85,6 +97,11 @@ _TIERED_ENDPOINTS = [
         id="password-reset-confirm",
     ),
     pytest.param(server_settings_router.send_test_email, core_rate_limit.SENSITIVE, id="server-settings-test-email"),
+    pytest.param(server_settings_router.edit_server_settings, core_rate_limit.WRITE, id="server-settings-edit"),
+    pytest.param(server_settings_router.edit_mail_settings, core_rate_limit.WRITE, id="server-settings-edit-mail"),
+    pytest.param(server_settings_router.upload_login_photo, core_rate_limit.UPLOAD, id="server-settings-upload-login"),
+    pytest.param(server_settings_router.delete_login_photo, core_rate_limit.WRITE, id="server-settings-delete-login"),
+    pytest.param(server_settings_logs_router.clear_logs, core_rate_limit.WRITE, id="server-settings-clear-logs"),
     pytest.param(idp_public_router.initiate_login, core_rate_limit.SENSITIVE, id="oidc-initiate"),
     pytest.param(idp_public_router.handle_callback, core_rate_limit.SENSITIVE, id="oidc-callback"),
     pytest.param(
@@ -133,15 +150,53 @@ _TIERED_ENDPOINTS = [
         core_rate_limit.PROVIDER_SYNC,
         id="garmin-retrieve-activities",
     ),
+    pytest.param(garmin_router.garminconnect_retrieve_gear, core_rate_limit.PROVIDER_SYNC, id="garmin-retrieve-gear"),
+    pytest.param(
+        garmin_router.garminconnect_retrieve_health_days, core_rate_limit.PROVIDER_SYNC, id="garmin-retrieve-health"
+    ),
+    pytest.param(garmin_router.garminconnect_link, core_rate_limit.WRITE, id="garmin-link"),
+    pytest.param(garmin_router.garminconnect_mfa_code, core_rate_limit.WRITE, id="garmin-mfa"),
+    pytest.param(garmin_router.garminconnect_unlink, core_rate_limit.WRITE, id="garmin-unlink"),
     pytest.param(activity_media_router.create_activity_media, core_rate_limit.UPLOAD, id="media-upload"),
     pytest.param(activity_media_router.delete_activity_media, core_rate_limit.WRITE, id="media-delete"),
     pytest.param(activity_router.edit_activity, core_rate_limit.WRITE, id="activity-edit"),
     pytest.param(activity_router.edit_activities, core_rate_limit.WRITE, id="activity-bulk-edit"),
     pytest.param(activity_router.delete_activity, core_rate_limit.WRITE, id="activity-delete"),
+    pytest.param(websocket_router.issue_ws_ticket, core_rate_limit.WRITE, id="websocket-ticket"),
     pytest.param(followers_router.follow_user, core_rate_limit.WRITE, id="follow-user"),
     pytest.param(followers_router.accept_follow_request, core_rate_limit.WRITE, id="accept-follow-request"),
     pytest.param(followers_router.reject_follow_request, core_rate_limit.WRITE, id="reject-follow-request"),
     pytest.param(followers_router.delete_follow_relationship, core_rate_limit.WRITE, id="unfollow"),
+    pytest.param(health_fasting_router.create_health_fasting, core_rate_limit.WRITE, id="health-fasting-create"),
+    pytest.param(health_fasting_router.edit_health_fasting, core_rate_limit.WRITE, id="health-fasting-edit"),
+    pytest.param(health_fasting_router.complete_health_fasting, core_rate_limit.WRITE, id="health-fasting-complete"),
+    pytest.param(health_fasting_router.delete_health_fasting, core_rate_limit.WRITE, id="health-fasting-delete"),
+    pytest.param(health_poop_router.create_health_poop, core_rate_limit.WRITE, id="health-poop-create"),
+    pytest.param(health_poop_router.edit_health_poop, core_rate_limit.WRITE, id="health-poop-edit"),
+    pytest.param(health_poop_router.delete_health_poop, core_rate_limit.WRITE, id="health-poop-delete"),
+    pytest.param(health_sleep_router.create_health_sleep, core_rate_limit.WRITE, id="health-sleep-create"),
+    pytest.param(health_sleep_router.edit_health_sleep, core_rate_limit.WRITE, id="health-sleep-edit"),
+    pytest.param(health_sleep_router.delete_health_sleep, core_rate_limit.WRITE, id="health-sleep-delete"),
+    pytest.param(health_steps_router.create_health_steps, core_rate_limit.WRITE, id="health-steps-create"),
+    pytest.param(health_steps_router.edit_health_steps, core_rate_limit.WRITE, id="health-steps-edit"),
+    pytest.param(health_steps_router.delete_health_steps, core_rate_limit.WRITE, id="health-steps-delete"),
+    pytest.param(health_targets_router.update_health_targets, core_rate_limit.WRITE, id="health-targets-update"),
+    pytest.param(health_water_router.create_health_water, core_rate_limit.WRITE, id="health-water-create"),
+    pytest.param(health_water_router.edit_health_water, core_rate_limit.WRITE, id="health-water-edit"),
+    pytest.param(health_water_router.delete_health_water, core_rate_limit.WRITE, id="health-water-delete"),
+    pytest.param(health_weight_router.create_health_weight, core_rate_limit.WRITE, id="health-weight-create"),
+    pytest.param(health_weight_router.edit_health_weight, core_rate_limit.WRITE, id="health-weight-edit"),
+    pytest.param(health_weight_router.delete_health_weight, core_rate_limit.WRITE, id="health-weight-delete"),
+    pytest.param(gear_router.create_gear, core_rate_limit.WRITE, id="gear-create"),
+    pytest.param(gear_router.edit_gear, core_rate_limit.WRITE, id="gear-edit"),
+    pytest.param(gear_router.delete_gear, core_rate_limit.WRITE, id="gear-delete"),
+    pytest.param(gear_components_router.create_gear_component, core_rate_limit.WRITE, id="gear-component-create"),
+    pytest.param(gear_components_router.edit_gear_component, core_rate_limit.WRITE, id="gear-component-edit"),
+    pytest.param(gear_components_router.delete_component_gear, core_rate_limit.WRITE, id="gear-component-delete"),
+    pytest.param(notifications_router.mark_notification_as_read, core_rate_limit.WRITE, id="notification-mark-read"),
+    pytest.param(
+        notifications_router.mark_all_notifications_as_read, core_rate_limit.WRITE, id="notification-mark-all-read"
+    ),
 ]
 
 

@@ -22,7 +22,7 @@ SHOES = b"Shoe Name,Shoe Brand,Shoe Model\nPegasus,Nike,Pegasus\n"
 class TestImportBikes:
     def test_creates_the_listed_bikes_for_the_caller(self):
         db = MagicMock()
-        with patch.object(strava_router.gears_crud, "create_multiple_gears") as create:
+        with patch.object(strava_router.gears_integration, "create_multiple_gears") as create:
             strava_router.import_bikes_from_strava_export(
                 request=MagicMock(), file=_upload(BIKES), token_user_id=7, db=db
             )
@@ -61,7 +61,7 @@ class TestImportShoes:
     def test_creates_the_listed_shoes_for_the_caller(self):
         db = MagicMock()
         with (
-            patch.object(strava_router.gears_crud, "create_multiple_gears") as create,
+            patch.object(strava_router.gears_integration, "create_multiple_gears") as create,
             patch.object(strava_router.strava_gear_utils, "transform_csv_shoe_gear_to_schema_gear") as transform,
         ):
             transform.return_value = ["shoe"]

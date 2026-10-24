@@ -8,23 +8,18 @@ from pydantic import (
     Field,
     StrictBool,
     StrictInt,
-    field_serializer,
 )
+
+import modules.notifications.constants as notifications_constants
 
 
 class NotificationBase(BaseModel):
-    """
-    Base schema for notification data.
+    """Base schema for notification data.
 
     Attributes:
-        type: Type of the notification.
         options: Additional metadata for the notification.
     """
 
-    type: StrictInt | None = Field(
-        default=None,
-        description="Type of the notification",
-    )
     options: dict | None = Field(
         default=None,
         description="Additional notification metadata",
@@ -38,13 +33,18 @@ class NotificationBase(BaseModel):
 
 
 class NotificationCreate(NotificationBase):
-    """
-    Schema for creating a notification record.
+    """Schema for creating a notification record.
 
     Attributes:
+        type: Type of the notification.
         user_id: FK to user.
+        source_event_id: Durable event ID for idempotent creation.
     """
 
+    type: notifications_constants.NotificationType = Field(
+        ...,
+        description="Type of the notification",
+    )
     user_id: StrictInt = Field(
         ...,
         ge=1,
@@ -58,17 +58,18 @@ class NotificationCreate(NotificationBase):
 
 
 class NotificationRead(NotificationBase):
-    """
-    Schema for reading a notification record.
+    """Schema for reading a notification record.
 
     Attributes:
         id: Unique notification identifier.
+        type: Type of the notification.
         user_id: FK to user.
         read: Whether the notification has been read.
         created_at: Timestamp of creation.
     """
 
     id: StrictInt = Field(..., description="Unique notification ID")
+    type: StrictInt = Field(..., description="Type of the notification")
     user_id: StrictInt = Field(
         ...,
         ge=1,
@@ -82,18 +83,3 @@ class NotificationRead(NotificationBase):
         default=None,
         description="Timestamp of creation",
     )
-
-    @field_serializer("created_at")
-    def serialize_created_at(self, value: datetime | None) -> str | None:
-        """
-        Serialize created_at as date string.
-
-        Args:
-            value: The datetime value to serialize.
-
-        Returns:
-            Date string in YYYY-MM-DD format or None.
-        """
-        if value is None:
-            return None
-        return value.strftime("%Y-%m-%d")

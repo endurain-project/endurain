@@ -20,11 +20,12 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
+import core.sanitization as core_sanitization
 import modules.activities.activity.integration_service as activity_integration
 import modules.auth.password_policy as auth_password_policy
-import modules.health.health_weight.utils as health_weight_utils
+import modules.health.health_weight.integration_service as health_weight_integration
+import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.utils as server_settings_utils
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.signing as users_signing
@@ -132,7 +133,10 @@ def _persist_user_edits(
 
     if recalculate_bmi_on_height_change and height_before != db_users.height:
         # Update the user's health data
-        health_weight_utils.calculate_bmi_all_user_entries(db_users.id, db)
+        health_weight_integration.recalculate_bmi_for_user(
+            db_users.id, float(db_users.height) if db_users.height is not None else None, db
+        )
+        db.commit()
 
     return _transform_users(db_users)
 
@@ -375,8 +379,7 @@ def get_user_by_username(
     normalized_username = unquote(username).replace("+", " ").lower()
 
     if contains:
-        # Escape LIKE special characters to prevent SQL injection
-        escaped_username = normalized_username.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+        escaped_username = core_sanitization.escape_like(normalized_username)
 
         # Query users with username containing the search term
         stmt = select(users_models.Users).where(
@@ -431,7 +434,7 @@ def get_user_by_id(user_id: int, db: Session, public_check: bool = False) -> use
     """
     if public_check:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
+        server_settings = server_settings_integration.get_server_settings(db)
 
         # Return None if public sharable links are disabled
         if not server_settings.public_shareable_links or not server_settings.public_shareable_links_user_info:
@@ -487,7 +490,7 @@ def create_user(
         user.email = user.email.lower()
 
         # Get server settings to determine password policy
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
+        server_settings = server_settings_integration.get_server_settings(db)
 
         # Normalize access_type to string value
         access_type_value = users_schema.normalize_access_type(user.access_type)

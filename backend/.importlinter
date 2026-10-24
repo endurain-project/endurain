@@ -45,8 +45,8 @@ forbidden_modules =
 # and the composition root (``main``) hands the collected list to
 # ``start_scheduler``.
 # One exception is recorded here so it is reviewed rather than assumed:
-# ``core.middleware`` reads the server-settings SCHEMA (a data shape, not
-# behaviour) to type the settings it stamps onto the request.
+# ``core.middleware`` reads the server-settings CONSTANTS (the built-in tile
+# domains, plain data) as the CSP fallback before any domains are loaded.
 [importlinter:contract:core-not-domain]
 name = Core must not import domain modules
 type = forbidden
@@ -56,7 +56,7 @@ source_modules =
 forbidden_modules =
     modules
 ignore_imports =
-    core.middleware -> modules.server_settings.schema
+    core.middleware -> modules.server_settings.constants
 
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis
@@ -191,7 +191,7 @@ forbidden_modules =
 # adapters are for app/migrations only and must never become a general-purpose
 # domain dependency.
 [importlinter:contract:activities-migration-surfaces-are-private]
-name = Activity migration services are consumed only by application migrations
+name = Module migration services are consumed only by application migrations
 type = forbidden
 allow_indirect_imports = True
 source_modules =
@@ -199,6 +199,8 @@ source_modules =
     core
 forbidden_modules =
     modules.activities.*.migration_service
+    modules.garmin.migration_service
+    modules.health.*.migration_service
 
 # Provider modules describe users data with the read schemas the users CRUD actually
 # returns, never the ORM models: the runtime value is already a DTO, so naming the

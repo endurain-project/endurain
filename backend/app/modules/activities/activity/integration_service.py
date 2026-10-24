@@ -19,6 +19,7 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
+import modules.gears.contracts as gears_contracts
 
 ChildCollection = activity_child_collection_service.ChildCollection
 
@@ -113,7 +114,21 @@ def bulk_set_activities_gear(
     )
 
 
-def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> activity_contracts.ActivityUsageTotals:
+def clear_activities_gear(gear_id: int, user_id: int, db: Session) -> int:
+    """Unassign a gear from every activity of a user that carries it; the caller commits.
+
+    Args:
+        gear_id: The gear being removed.
+        user_id: The owning user id.
+        db: Database session.
+
+    Returns:
+        The number of activities updated.
+    """
+    return activity_service.clear_activities_gear(gear_id, user_id, db, source="api:delete_gear")
+
+
+def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> gears_contracts.UsageTotals:
     """Return the total distance and moving time a user recorded against a gear.
 
     Args:
@@ -130,9 +145,9 @@ def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> activity_c
 def get_gear_usage_totals_by_window(
     gear_id: int,
     user_id: int,
-    windows: Sequence[activity_contracts.GearUsageWindow],
+    windows: Sequence[gears_contracts.UsageWindow],
     db: Session,
-) -> dict[int, activity_contracts.ActivityUsageTotals]:
+) -> dict[int, gears_contracts.UsageTotals]:
     """Return per-window usage totals for one gear, in a single query.
 
     Used to attribute a gear's activities to whichever component was fitted at

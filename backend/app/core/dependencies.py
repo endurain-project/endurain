@@ -4,11 +4,17 @@ from typing import Annotated
 
 import jasil.providers as platform_providers
 import jasil.runtime as platform_runtime
-from fastapi import HTTPException, Path, Query, status
+from fastapi import Depends, HTTPException, Path, Query, status
+from sqlalchemy.orm import Session
+
+import core.database as core_database
 
 #: A path-parameter id that must be positive. Declared on the parameter's type, so FastAPI rejects a
 #: bad value with the standard validation problem document and publishes the bound in OpenAPI.
 PositiveId = Annotated[int, Path(gt=0)]
+
+#: The request-scoped database session. Rolled back on an unhandled error and closed afterwards by ``get_db``.
+DbSession = Annotated[Session, Depends(core_database.get_db)]
 
 
 def get_storage() -> platform_providers.StorageProvider:
@@ -22,6 +28,27 @@ def get_storage() -> platform_providers.StorageProvider:
         The storage provider.
     """
     return platform_runtime.get_active_platform().storage
+
+
+#: The active platform's blob-storage provider, injected into a route or dependency.
+Storage = Annotated[platform_providers.StorageProvider, Depends(get_storage)]
+
+
+def get_platform_state() -> platform_providers.StateProvider:
+    """
+    Return the active platform's ephemeral-state provider.
+
+    Routers declare it with ``Depends`` so the provider reaches services and stores as
+    an argument and a test can override it without patching the runtime.
+
+    Returns:
+        The state provider.
+    """
+    return platform_runtime.get_state()
+
+
+#: The active platform's ephemeral-state provider, injected into a route or dependency.
+PlatformState = Annotated[platform_providers.StateProvider, Depends(get_platform_state)]
 
 
 def get_mail() -> platform_providers.MailProvider:

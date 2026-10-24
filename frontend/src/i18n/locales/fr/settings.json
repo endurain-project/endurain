@@ -367,6 +367,29 @@
       "sent": "E-mail de test envoyé",
       "failed": "L'e-mail de test n'a pas pu être envoyé",
       "failedUnknown": "Consultez les journaux du serveur pour plus de détails."
+    },
+    "envLocked": "Défini par {name}",
+    "envSection": "Certains réglages ici sont définis par des variables d'environnement ({names}). Retirez-les de l'environnement pour modifier ces réglages ici.",
+    "unsaved": "Modifications non enregistrées",
+    "discard": "Annuler les modifications",
+    "tabs": {
+      "label": "Sections des réglages du serveur",
+      "general": "Général",
+      "access": "Accès et sécurité",
+      "maps": "Cartes et localisation",
+      "email": "E-mail",
+      "unsaved": "Contient des modifications non enregistrées"
+    },
+    "search": {
+      "placeholder": "Rechercher un réglage…",
+      "noResults": "Aucun réglage trouvé"
+    },
+    "leave": {
+      "title": "Quitter sans enregistrer ?",
+      "description": "Vous avez des modifications non enregistrées. Si vous quittez cette page, elles seront perdues.",
+      "confirm": "Quitter sans enregistrer",
+      "stay": "Rester sur la page",
+      "close": "Fermer"
     }
   },
   "idp": {

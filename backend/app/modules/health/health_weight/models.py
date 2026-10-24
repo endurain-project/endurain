@@ -1,19 +1,16 @@
+"""SQLAlchemy ORM model for health weight records."""
+
 from datetime import date as date_type
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class HealthWeight(Base):
-    """
-    User health weight and body composition data.
+    """User health weight and body composition data.
 
     Attributes:
         id: Primary key.
@@ -29,10 +26,10 @@ class HealthWeight(Base):
         visceral_fat: Visceral fat rating.
         metabolic_age: Calculated metabolic age.
         source: Data source.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "health_weight"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_health_weight_user_date"),)
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -97,6 +94,3 @@ class HealthWeight(Base):
         nullable=True,
         comment="Source of the health weight data",
     )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_weight")

@@ -367,6 +367,29 @@
       "sent": "Wiadomość testowa wysłana",
       "failed": "Nie udało się wysłać wiadomości testowej",
       "failedUnknown": "Szczegóły znajdziesz w logach serwera."
+    },
+    "envLocked": "Ustawione przez {name}",
+    "envSection": "Niektóre ustawienia tutaj są ustawiane przez zmienne środowiskowe ({names}). Usuń je ze środowiska, aby edytować te ustawienia tutaj.",
+    "unsaved": "Niezapisane zmiany",
+    "discard": "Odrzuć",
+    "tabs": {
+      "label": "Sekcje ustawień serwera",
+      "general": "Ogólne",
+      "access": "Dostęp i bezpieczeństwo",
+      "maps": "Mapy i lokalizacja",
+      "email": "E-mail",
+      "unsaved": "Zawiera niezapisane zmiany"
+    },
+    "search": {
+      "placeholder": "Szukaj ustawień…",
+      "noResults": "Nie znaleziono ustawień"
+    },
+    "leave": {
+      "title": "Opuścić stronę bez zapisywania?",
+      "description": "Masz niezapisane zmiany. Jeśli opuścisz tę stronę, zostaną utracone.",
+      "confirm": "Opuść bez zapisywania",
+      "stay": "Zostań na stronie",
+      "close": "Zamknij"
     }
   },
   "idp": {

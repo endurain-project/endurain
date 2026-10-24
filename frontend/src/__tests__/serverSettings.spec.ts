@@ -1,17 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ServerSettingsDto, TileMapsTemplateDto } from '@/features/serverSettings/types'
+import type {
+  MailSettingsDto,
+  ServerSettingsDto,
+  TileMapsTemplateDto,
+} from '@/features/serverSettings/types'
 
 import { apiFetch } from '@/services/http'
 import {
   deleteLoginPhoto,
   fetchEmailStatus,
+  fetchMailSettings,
   fetchServerSettings,
   fetchTileMapsTemplates,
+  mapMailSettings,
   mapServerSettings,
   mapTileMapsTemplate,
   sendTestEmail,
+  toMailSettingsWire,
   toServerSettingsWire,
+  updateMailSettings,
   updateServerSettings,
   uploadLoginPhoto,
 } from '@/features/serverSettings/services/serverSettings'
@@ -24,6 +32,7 @@ vi.mock('@/services/http', () => ({
 function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSettingsDto {
   return {
     id: 1,
+    version: 3,
     units: 'metric',
     currency: 'euro',
     num_records_per_page: 25,
@@ -38,12 +47,40 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     sso_auto_redirect: false,
     tileserver_url: 'https://tile.test/{z}/{x}/{y}.png',
     tileserver_attribution: '© Test',
-    tileserver_api_key: 'secret-key',
+    tileserver_api_key_set: true,
     tileserver_regenerate_thumbnails_on_change: false,
     map_background_color: '#dddddd',
     password_type: 'strict',
     password_length_regular_users: 8,
     password_length_admin_users: 12,
+    geocoding_service: 'nominatim',
+    geocoding_host: null,
+    geocoding_use_https: true,
+    geocoding_rate_limit: 1,
+    session_idle_timeout_enabled: false,
+    session_idle_timeout_hours: 1,
+    session_absolute_timeout_hours: 24,
+    access_token_expire_minutes: 15,
+    refresh_token_expire_days: 7,
+    read_notification_retention_days: 90,
+    geocoding_api_key_set: false,
+    env_managed: {},
+    ...overrides,
+  }
+}
+
+/** Builds a full `MailSettingsAdminRead` wire payload, overridable per case. */
+function makeMailDto(overrides: Partial<MailSettingsDto> = {}): MailSettingsDto {
+  return {
+    id: 1,
+    version: 2,
+    host: 'mail.example.com',
+    port: 587,
+    security: 'starttls',
+    username: 'me@example.com',
+    from_address: null,
+    password_set: true,
+    env_managed: { host: 'SMTP_HOST' },
     ...overrides,
   }
 }
@@ -66,6 +103,7 @@ describe('mapServerSettings', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     expect(mapServerSettings(makeSettingsDto())).toEqual({
       id: 1,
+      version: 3,
       units: 'metric',
       currency: 'euro',
       numRecordsPerPage: 25,
@@ -80,19 +118,39 @@ describe('mapServerSettings', () => {
       ssoAutoRedirect: false,
       tileserverUrl: 'https://tile.test/{z}/{x}/{y}.png',
       tileserverAttribution: '© Test',
-      tileserverApiKey: 'secret-key',
+      tileserverApiKeySet: true,
       tileserverRegenerateThumbnailsOnChange: false,
       mapBackgroundColor: '#dddddd',
       passwordType: 'strict',
       passwordLengthRegularUsers: 8,
       passwordLengthAdminUsers: 12,
+      geocodingService: 'nominatim',
+      geocodingHost: null,
+      geocodingUseHttps: true,
+      geocodingRateLimit: 1,
+      sessionIdleTimeoutEnabled: false,
+      sessionIdleTimeoutHours: 1,
+      sessionAbsoluteTimeoutHours: 24,
+      accessTokenExpireMinutes: 15,
+      refreshTokenExpireDays: 7,
+      readNotificationRetentionDays: 90,
+      geocodingApiKeySet: false,
+      envManaged: {},
     })
   })
 
-  it('normalizes a missing API key to null', () => {
+  it('exposes only whether an API key is stored', () => {
+    expect(mapServerSettings(makeSettingsDto()).tileserverApiKeySet).toBe(true)
+    expect(mapServerSettings(makeSettingsDto()) as object).not.toHaveProperty('tileserverApiKey')
+    expect(mapServerSettings(makeSettingsDto()) as object).not.toHaveProperty('geocodingApiKey')
     expect(
-      mapServerSettings(makeSettingsDto({ tileserver_api_key: null })).tileserverApiKey,
-    ).toBeNull()
+      mapServerSettings(makeSettingsDto({ geocoding_api_key_set: true })).geocodingApiKeySet,
+    ).toBe(true)
+  })
+
+  it('carries the env-managed map', () => {
+    const dto = makeSettingsDto({ env_managed: { geocoding_host: 'PHOTON_API_HOST' } })
+    expect(mapServerSettings(dto).envManaged).toEqual({ geocoding_host: 'PHOTON_API_HOST' })
   })
 })
 
@@ -111,9 +169,72 @@ describe('mapTileMapsTemplate', () => {
 })
 
 describe('toServerSettingsWire', () => {
-  it('round-trips every field so the full record is replaced', () => {
+  it('round-trips every editable field so the full record is replaced', () => {
     const settings = mapServerSettings(makeSettingsDto())
-    expect(toServerSettingsWire(settings)).toEqual(makeSettingsDto())
+    const {
+      id: _id,
+      version: _version,
+      login_photo_set: _loginPhotoSet,
+      tileserver_api_key_set: _keySet,
+      geocoding_api_key_set: _geoKeySet,
+      env_managed: _envManaged,
+      ...editable
+    } = makeSettingsDto()
+    expect(toServerSettingsWire(settings)).toEqual(editable)
+  })
+
+  it('omits the API key to keep it, and sends null to remove it', () => {
+    const settings = mapServerSettings(makeSettingsDto())
+    expect(toServerSettingsWire(settings)).not.toHaveProperty('tileserver_api_key')
+    expect(toServerSettingsWire({ ...settings, tileserverApiKey: null })).toHaveProperty(
+      'tileserver_api_key',
+      null,
+    )
+    expect(toServerSettingsWire({ ...settings, tileserverApiKey: 'new-key' })).toHaveProperty(
+      'tileserver_api_key',
+      'new-key',
+    )
+  })
+
+  it('omits the geocoding key to keep it, and sends null to remove it', () => {
+    const settings = mapServerSettings(makeSettingsDto())
+    expect(toServerSettingsWire(settings)).not.toHaveProperty('geocoding_api_key')
+    expect(toServerSettingsWire({ ...settings, geocodingApiKey: null })).toHaveProperty(
+      'geocoding_api_key',
+      null,
+    )
+    expect(toServerSettingsWire({ ...settings, geocodingApiKey: 'geo-key' })).toHaveProperty(
+      'geocoding_api_key',
+      'geo-key',
+    )
+  })
+
+  it('sends the session policy fields', () => {
+    const wire = toServerSettingsWire(
+      mapServerSettings(
+        makeSettingsDto({ session_idle_timeout_enabled: true, access_token_expire_minutes: 30 }),
+      ),
+    )
+    expect(wire).toMatchObject({
+      session_idle_timeout_enabled: true,
+      session_idle_timeout_hours: 1,
+      session_absolute_timeout_hours: 24,
+      access_token_expire_minutes: 30,
+      refresh_token_expire_days: 7,
+      read_notification_retention_days: 90,
+    })
+  })
+
+  it('never sends the env-managed map or the key-stored flags', () => {
+    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()))
+    expect(wire).not.toHaveProperty('env_managed')
+    expect(wire).not.toHaveProperty('geocoding_api_key_set')
+  })
+
+  it('never sends the read-only id or login-photo flag', () => {
+    const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()))
+    expect(wire).not.toHaveProperty('id')
+    expect(wire).not.toHaveProperty('login_photo_set')
   })
 })
 
@@ -127,14 +248,14 @@ describe('server settings service requests', () => {
 
     const settings = await fetchServerSettings()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings', { signal: undefined })
     expect(settings.numRecordsPerPage).toBe(25)
   })
 
   it('fetchTileMapsTemplates maps the list and tolerates a null payload', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([makeTemplateDto()])
     expect(await fetchTileMapsTemplates()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/tile_maps_templates', {
+    expect(apiFetch).toHaveBeenCalledWith('/public/server-settings/tile-maps-templates', {
       signal: undefined,
     })
 
@@ -148,8 +269,9 @@ describe('server settings service requests', () => {
 
     await updateServerSettings(settings)
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings', {
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings', {
       method: 'PUT',
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify(toServerSettingsWire(settings)),
     })
   })
@@ -165,7 +287,7 @@ describe('server settings service requests', () => {
     await uploadLoginPhoto(file)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/server_settings/upload/login',
+      '/server-settings/login-photo',
       expect.objectContaining({ method: 'POST', responseType: 'void' }),
     )
     expect(capturedBody).toBeInstanceOf(FormData)
@@ -177,19 +299,19 @@ describe('server settings service requests', () => {
 
     await deleteLoginPhoto()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/upload/login', {
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/login-photo', {
       method: 'DELETE',
       responseType: 'void',
     })
   })
 
   it('fetchEmailStatus reads the email status endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ configured: false, problems: ['SMTP_HOST is not set'] })
+    vi.mocked(apiFetch).mockResolvedValue({ configured: false, problems: ['Host is not set'] })
 
     const status = await fetchEmailStatus()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email', { signal: undefined })
-    expect(status).toEqual({ configured: false, problems: ['SMTP_HOST is not set'] })
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email', { signal: undefined })
+    expect(status).toEqual({ configured: false, problems: ['Host is not set'] })
   })
 
   it('sendTestEmail POSTs to the test endpoint and returns the confirmation message', async () => {
@@ -197,7 +319,99 @@ describe('server settings service requests', () => {
 
     const message = await sendTestEmail()
 
-    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/test', { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email/test', { method: 'POST' })
     expect(message).toBe('Test email sent to admin@example.com.')
+  })
+})
+
+describe('mapMailSettings', () => {
+  it('maps the wire shape to the clean camel-cased model', () => {
+    expect(mapMailSettings(makeMailDto())).toEqual({
+      version: 2,
+      host: 'mail.example.com',
+      port: 587,
+      security: 'starttls',
+      username: 'me@example.com',
+      fromAddress: null,
+      passwordSet: true,
+      envManaged: { host: 'SMTP_HOST' },
+    })
+  })
+
+  it('exposes only whether a password is stored', () => {
+    expect(mapMailSettings(makeMailDto())).not.toHaveProperty('password')
+  })
+})
+
+describe('toMailSettingsWire', () => {
+  const update = {
+    version: 2,
+    host: 'mail.example.com',
+    port: 465,
+    security: 'ssl' as const,
+    username: null,
+    fromAddress: 'noreply@example.com',
+  }
+
+  it('sends every field so the full record is replaced', () => {
+    expect(toMailSettingsWire(update)).toEqual({
+      host: 'mail.example.com',
+      port: 465,
+      security: 'ssl',
+      username: null,
+      from_address: 'noreply@example.com',
+    })
+  })
+
+  it('omits the password to keep it, and sends null to remove it', () => {
+    expect(toMailSettingsWire(update)).not.toHaveProperty('password')
+    expect(toMailSettingsWire({ ...update, password: null })).toHaveProperty('password', null)
+    expect(toMailSettingsWire({ ...update, password: 'new-secret' })).toHaveProperty(
+      'password',
+      'new-secret',
+    )
+  })
+})
+
+describe('mail settings service requests', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('fetchMailSettings reads the mail settings endpoint and maps the response', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeMailDto())
+
+    const settings = await fetchMailSettings()
+
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email/settings', { signal: undefined })
+    expect(settings.passwordSet).toBe(true)
+  })
+
+  it('updateMailSettings PUTs the wire body and maps the response', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeMailDto({ port: 465 }))
+
+    const settings = await updateMailSettings({
+      version: 2,
+      host: 'mail.example.com',
+      port: 465,
+      security: 'ssl',
+      username: null,
+      fromAddress: null,
+      password: 'new-secret',
+    })
+
+    expect(apiFetch).toHaveBeenCalledWith('/server-settings/email/settings', {
+      method: 'PUT',
+      headers: { 'If-Match': '"2"' },
+      body: JSON.stringify({
+        host: 'mail.example.com',
+        port: 465,
+        security: 'ssl',
+        username: null,
+        from_address: null,
+        password: 'new-secret',
+      }),
+    })
+    expect(settings.port).toBe(465)
   })
 })

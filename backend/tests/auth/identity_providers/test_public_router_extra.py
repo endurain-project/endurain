@@ -2,10 +2,21 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import modules.auth.identity_providers.public_router as public_router
+
+
+@pytest.fixture(autouse=True)
+def _session_policy(session_policy):
+    """Serve the default session policy instead of reading it from the database."""
+    with patch(
+        "modules.auth.identity_providers.public_router.server_settings_integration.get_session_policy",
+        return_value=session_policy,
+    ):
+        yield
 
 
 def _build_app(mock_db) -> TestClient:
@@ -245,7 +256,9 @@ class TestTokenExchange:
         mock_validate_pkce.assert_called_once()
         mock_get_user_or_404.assert_called_once_with(42, mock_db)
         mock_check_active.assert_called_once_with(user)
-        mock_create_tokens.assert_called_once_with(user, mock_create_tokens.call_args.args[1], "session-id")
+        mock_create_tokens.assert_called_once_with(
+            user, mock_create_tokens.call_args.args[1], mock_create_tokens.call_args.args[2], "session-id"
+        )
 
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
     @patch("modules.auth.identity_providers.public_router.auth_utils.create_tokens")

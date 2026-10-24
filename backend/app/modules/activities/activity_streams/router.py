@@ -1,12 +1,10 @@
 """Authenticated activity stream endpoints."""
 
-from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.pagination as core_pagination
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
@@ -20,24 +18,17 @@ router = APIRouter()
 @router.get(
     "/streams",
     response_model=activity_streams_schema.ActivityStreamsPage,
-)
-def list_activity_streams(
-    activity_id: activity_dependencies.ActivityId,
-    _check_scopes: Annotated[
-        Callable,
+    dependencies=[
         Security(
             auth_dependencies.check_scopes,
             scopes=["activities:read"],
-        ),
+        )
     ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+)
+def list_activity_streams(
+    activity_id: activity_dependencies.ActivityId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
 ) -> activity_streams_schema.ActivityStreamsPage:
     """Return one page of the given activity's streams, with the matching total."""
@@ -53,25 +44,18 @@ def list_activity_streams(
 @router.get(
     "/streams/{stream_type}",
     response_model=activity_streams_schema.ActivityStreamsRead,
+    dependencies=[
+        Security(
+            auth_dependencies.check_scopes,
+            scopes=["activities:read"],
+        )
+    ],
 )
 def read_activity_stream(
     activity_id: activity_dependencies.ActivityId,
     stream_type: activity_streams_dependencies.StreamType,
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["activities:read"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> activity_streams_schema.ActivityStreamsRead:
     """Get a specific stream type for an activity.
 

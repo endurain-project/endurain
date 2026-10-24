@@ -367,6 +367,29 @@
       "sent": "Test-e-mail sendt",
       "failed": "Test-e-mailen kunne ikke sendes",
       "failedUnknown": "Se serverlogfilerne for detaljer."
+    },
+    "envLocked": "Angivet af {name}",
+    "envSection": "Nogle indstillinger her angives af miljøvariabler ({names}). Fjern dem fra miljøet for at redigere dem her.",
+    "unsaved": "Ugemte ændringer",
+    "discard": "Kassér",
+    "tabs": {
+      "label": "Sektioner i serverindstillingerne",
+      "general": "Generelt",
+      "access": "Adgang og sikkerhed",
+      "maps": "Kort og placering",
+      "email": "E-mail",
+      "unsaved": "Har ugemte ændringer"
+    },
+    "search": {
+      "placeholder": "Søg i indstillinger…",
+      "noResults": "Ingen indstillinger fundet"
+    },
+    "leave": {
+      "title": "Forlad uden at gemme?",
+      "description": "Du har ugemte ændringer. Hvis du forlader siden, går de tabt.",
+      "confirm": "Forlad uden at gemme",
+      "stay": "Bliv på siden",
+      "close": "Luk"
     }
   },
   "idp": {

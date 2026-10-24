@@ -3,9 +3,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
 import modules.auth._internal.services.step_up_service as step_up_service
 import modules.auth.api_keys.crud as auth_api_keys_crud
@@ -29,7 +28,7 @@ async def get_user_api_keys(
         int,
         Depends(auth_internal_dependencies.get_sub_from_access_token),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
 ) -> list[api_keys_schema.UsersApiKeyRead]:
     """
     Retrieve all API keys for the authenticated user.
@@ -64,7 +63,7 @@ async def create_user_api_key(
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
 ) -> api_keys_schema.UsersApiKeyCreated:
     """
     Create a new API key for the authenticated user.
@@ -143,7 +142,7 @@ async def revoke_user_api_key(
         int,
         Depends(auth_internal_dependencies.get_sub_from_access_token),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
 ) -> None:
     """
     Revoke an API key (soft-disable).
@@ -176,7 +175,7 @@ async def delete_user_api_key(
         int,
         Depends(auth_internal_dependencies.get_sub_from_access_token),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    db: core_dependencies.DbSession,
 ) -> None:
     """
     Permanently delete an API key.

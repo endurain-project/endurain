@@ -48,7 +48,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -59,6 +58,7 @@ class TestServerSettingsBase:
             tileserver_attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -73,7 +73,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -84,6 +83,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -96,7 +96,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -107,6 +106,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -118,7 +118,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -129,6 +128,7 @@ class TestServerSettingsBase:
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -140,7 +140,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -151,6 +150,7 @@ class TestServerSettingsBase:
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -163,7 +163,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -174,6 +173,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -186,7 +186,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -197,6 +196,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -210,7 +210,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -221,6 +220,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -232,7 +232,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -243,6 +242,7 @@ class TestServerSettingsBase:
             tileserver_attribution="Test",
             map_background_color="#FF0000",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -255,7 +255,6 @@ class TestServerSettingsBase:
                 units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
-                login_photo_set=False,
                 currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
@@ -266,6 +265,7 @@ class TestServerSettingsBase:
                 tileserver_attribution="Test",
                 map_background_color="red",
                 password_type="strict",
+                tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             )
@@ -277,7 +277,6 @@ class TestServerSettingsBase:
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
@@ -288,6 +287,7 @@ class TestServerSettingsBase:
             tileserver_attribution='&copy; <a href="https://example.com">Example</a>',
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -295,44 +295,15 @@ class TestServerSettingsBase:
         assert "href=" in settings.tileserver_attribution
 
 
-class TestServerSettings:
-    """Tests for ServerSettings schema."""
-
-    def test_server_settings_with_id(self):
-        """Test ServerSettings schema with id field."""
-        settings = server_settings_schema.ServerSettings(
-            id=1,
-            units=server_settings_schema.Units.METRIC,
-            public_shareable_links=False,
-            public_shareable_links_user_info=False,
-            login_photo_set=False,
-            currency=server_settings_schema.Currency.EURO,
-            num_records_per_page=25,
-            signup_enabled=False,
-            sso_enabled=False,
-            local_login_enabled=True,
-            sso_auto_redirect=False,
-            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            tileserver_attribution="Test",
-            map_background_color="#dddddd",
-            password_type="strict",
-            password_length_regular_users=8,
-            password_length_admin_users=12,
-        )
-        assert settings.id == 1
-
-
 class TestServerSettingsEdit:
     """Tests for ServerSettingsEdit schema."""
 
-    def test_server_settings_edit_with_signup_fields(self):
-        """Test ServerSettingsEdit includes signup requirement fields."""
-        settings = server_settings_schema.ServerSettingsEdit(
-            id=1,
+    @staticmethod
+    def _values(**overrides):
+        values = dict(
             units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
-            login_photo_set=False,
             currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=True,
@@ -345,11 +316,50 @@ class TestServerSettingsEdit:
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
+            tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
+            geocoding_service="nominatim",
+            geocoding_host=None,
+            geocoding_use_https=True,
+            geocoding_rate_limit=1.0,
+            session_idle_timeout_enabled=False,
+            session_idle_timeout_hours=1,
+            session_absolute_timeout_hours=24,
+            access_token_expire_minutes=15,
+            refresh_token_expire_days=7,
+            read_notification_retention_days=90,
         )
+        values.update(overrides)
+        return values
+
+    def test_server_settings_edit_with_signup_fields(self):
+        """Test ServerSettingsEdit includes signup requirement fields."""
+        settings = server_settings_schema.ServerSettingsEdit(**self._values())
         assert settings.signup_require_admin_approval is True
         assert settings.signup_require_email_verification is False
+
+    @pytest.mark.parametrize("field,value", [("id", 1), ("login_photo_set", False)])
+    def test_edit_rejects_fields_it_does_not_own(self, field, value):
+        """The row id and the login-photo flag are not writable through the edit body."""
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**self._values(**{field: value}))
+
+    def test_edit_api_key_is_capped_so_the_encrypted_token_fits_the_column(self):
+        """A plain key over 256 characters would not fit once encrypted."""
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**self._values(tileserver_api_key="k" * 257))
+
+
+class TestServerSettingsRead:
+    """Tests for ServerSettingsRead schema."""
+
+    def test_read_carries_id_and_login_photo_flag(self):
+        """The read view adds the singleton id and the login-photo flag."""
+        values = TestServerSettingsEdit._values(id=1, login_photo_set=True)
+        settings = server_settings_schema.ServerSettingsRead(**values)
+        assert settings.id == 1
+        assert settings.login_photo_set is True
 
 
 class TestTileMapsTemplate:
@@ -384,3 +394,109 @@ class TestTileMapsTemplate:
                 requires_api_key_backend=False,
             )
         assert "map_background_color" in str(exc_info.value)
+
+
+class TestGeocodingFields:
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            (None, None),
+            ("", None),
+            ("  ", None),
+            ("Nominatim.Example.org", "nominatim.example.org"),
+            ("nominatim.example.org:8080", "nominatim.example.org:8080"),
+            ("10.0.0.5:2322", "10.0.0.5:2322"),
+            ("[::1]:8080", "[::1]:8080"),
+        ],
+    )
+    def test_host_is_normalised(self, host, expected):
+        values = TestServerSettingsEdit._values(geocoding_host=host)
+
+        assert server_settings_schema.ServerSettingsEdit(**values).geocoding_host == expected
+
+    @pytest.mark.parametrize("host", ["https://example.org", "example.org/path", "exa mple.org", "a@b.org", "-bad.org"])
+    def test_host_with_a_scheme_path_or_junk_is_rejected(self, host):
+        values = TestServerSettingsEdit._values(geocoding_host=host)
+
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**values)
+
+    @pytest.mark.parametrize(("field", "value"), [("geocoding_service", "bing"), ("geocoding_rate_limit", -1)])
+    def test_invalid_values_are_rejected(self, field, value):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(**{field: value}))
+
+    def test_rate_limit_zero_is_allowed_and_101_is_not(self):
+        server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(geocoding_rate_limit=0))
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(geocoding_rate_limit=101))
+
+    def test_the_api_key_is_capped_for_the_encrypted_column(self):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(geocoding_api_key="k" * 257))
+
+    def test_the_public_settings_do_not_carry_geocoding(self):
+        assert not any(
+            name.startswith("geocoding") for name in server_settings_schema.ServerSettingsReadPublic.model_fields
+        )
+
+
+class TestSessionPolicyFields:
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("session_idle_timeout_hours", 0),
+            ("session_idle_timeout_hours", 8761),
+            ("session_absolute_timeout_hours", 8761),
+            ("access_token_expire_minutes", 0),
+            ("access_token_expire_minutes", 1441),
+            ("refresh_token_expire_days", 0),
+            ("refresh_token_expire_days", 366),
+        ],
+    )
+    def test_out_of_range_values_are_rejected(self, field, value):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(**{field: value}))
+
+    def test_the_bounds_themselves_are_accepted(self):
+        server_settings_schema.ServerSettingsEdit(
+            **TestServerSettingsEdit._values(
+                session_idle_timeout_hours=1,
+                session_absolute_timeout_hours=8760,
+                access_token_expire_minutes=1440,
+                refresh_token_expire_days=365,
+            )
+        )
+
+    def test_absolute_timeout_shorter_than_idle_is_rejected(self):
+        with pytest.raises(ValidationError, match="absolute"):
+            server_settings_schema.ServerSettingsEdit(
+                **TestServerSettingsEdit._values(session_idle_timeout_hours=10, session_absolute_timeout_hours=5)
+            )
+
+    def test_equal_timeouts_are_accepted(self):
+        server_settings_schema.ServerSettingsEdit(
+            **TestServerSettingsEdit._values(session_idle_timeout_hours=5, session_absolute_timeout_hours=5)
+        )
+
+    def test_the_public_settings_do_not_carry_the_session_policy(self):
+        public = server_settings_schema.ServerSettingsReadPublic.model_fields
+        assert not {"access_token_expire_minutes", "session_idle_timeout_enabled"} & set(public)
+
+
+class TestRetentionField:
+    @pytest.mark.parametrize("value", [-1, 3651])
+    def test_out_of_range_values_are_rejected(self, value):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(
+                **TestServerSettingsEdit._values(read_notification_retention_days=value)
+            )
+
+    @pytest.mark.parametrize("value", [0, 3650])
+    def test_the_bounds_are_accepted(self, value):
+        server_settings_schema.ServerSettingsEdit(
+            **TestServerSettingsEdit._values(read_notification_retention_days=value)
+        )
+
+    def test_the_public_settings_do_not_carry_it(self):
+        assert "read_notification_retention_days" not in server_settings_schema.ServerSettingsReadPublic.model_fields

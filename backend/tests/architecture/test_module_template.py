@@ -16,6 +16,10 @@ import module_registry as runtime_module_registry
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.model_registry as activities_model_registry
 import modules.followers.model_registry as followers_model_registry
+import modules.gears.model_registry as gears_model_registry
+import modules.health.model_registry as health_model_registry
+import modules.notifications.model_registry as notifications_model_registry
+import modules.server_settings.model_registry as server_settings_model_registry
 
 _MODULES_DIR = Path(__file__).resolve().parents[2] / "app" / "modules"
 _APP_DIR = _MODULES_DIR.parent
@@ -56,6 +60,10 @@ def _absolute_imports(path: Path) -> set[str]:
 #: test below fails on an entry that has grown a surface, so the list cannot
 #: outlive the exemption.
 _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
+    "health_dashboard": (
+        "Read-only and top of the health namespace: it consolidates the other health packages' "
+        "surfaces into the daily dashboard route. Nothing calls it."
+    ),
     "activity_geocoding": (
         "Purely reactive: it geocodes on the activity.created event (subscribers) and "
         "reconciles on a schedule (scheduled_jobs), both wired by app/module_registry.py. "
@@ -85,9 +93,9 @@ def test_every_module_exposes_one_cross_module_surface_name() -> None:
 def test_exempt_packages_publish_no_surface() -> None:
     """An exemption is for a package with no surface; delete it once one exists."""
     stale = [
-        name
-        for name in _NO_CROSS_MODULE_SURFACE
-        if (_MODULES_DIR / "activities" / name / "integration_service.py").is_file()
+        package.name
+        for package in _TEMPLATE_PACKAGES
+        if package.name in _NO_CROSS_MODULE_SURFACE and (package / "integration_service.py").is_file()
     ]
     assert not stale, f"Remove from _NO_CROSS_MODULE_SURFACE, they now have a surface: {', '.join(stale)}"
 
@@ -113,8 +121,28 @@ def test_model_registries_collect_every_converted_model() -> None:
     }
     assert set(activities_model_registry.MODEL_MODULES) == expected_activities
     assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
+    expected_gears = {
+        f"modules.gears.{package.name}.models"
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "gears" and (package / "models.py").is_file()
+    }
+    assert set(gears_model_registry.MODEL_MODULES) == expected_gears
+    expected_health = {
+        f"modules.health.{package.name}.models"
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "health" and (package / "models.py").is_file()
+    }
+    assert set(health_model_registry.MODEL_MODULES) == expected_health
+    assert set(notifications_model_registry.MODEL_MODULES) == {"modules.notifications.models"}
+    assert set(server_settings_model_registry.MODEL_MODULES) == {"modules.server_settings.models"}
     assert (
-        expected_activities | set(followers_model_registry.MODEL_MODULES) == app_model_registry._CONVERTED_MODEL_MODULES
+        expected_activities
+        | set(followers_model_registry.MODEL_MODULES)
+        | expected_gears
+        | expected_health
+        | set(notifications_model_registry.MODEL_MODULES)
+        | set(server_settings_model_registry.MODEL_MODULES)
+        == app_model_registry._CONVERTED_MODEL_MODULES
     )
 
 
@@ -217,7 +245,13 @@ def _is_route(node: ast.AsyncFunctionDef) -> bool:
     """Return whether a function carries an ``@router.<method>(...)`` decorator."""
     for decorator in node.decorator_list:
         call = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(call, ast.Attribute) and isinstance(call.value, ast.Name) and "router" in call.value.id:
+        if (
+            isinstance(call, ast.Attribute)
+            and isinstance(call.value, ast.Name)
+            and "router" in call.value.id
+            # A WebSocket endpoint is a coroutine by Starlette's contract; it has no sync form.
+            and call.attr != "websocket"
+        ):
             return True
     return False
 

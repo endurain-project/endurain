@@ -3,9 +3,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.timezone as core_timezone
 import modules.auth.dependencies as auth_dependencies
 import modules.users.users.utils as users_utils
@@ -24,8 +23,8 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
 )
 async def get_user_goals(
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     interval: Annotated[
         user_goals_schema.Interval | None,
         Query(description="Filter by goal interval"),
@@ -67,8 +66,8 @@ async def get_user_goals(
     status_code=status.HTTP_200_OK,
 )
 async def get_user_goals_results(
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> list[user_goals_schema.UsersGoalProgress] | None:
     """
     Calculate and retrieve goal progress for authenticated user.
@@ -92,8 +91,8 @@ async def get_user_goals_results(
 )
 async def create_user_goal(
     user_goal: user_goals_schema.UsersGoalCreate,
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> user_goals_schema.UsersGoalRead:
     """
     Create a new goal for the authenticated user.
@@ -116,8 +115,8 @@ async def create_user_goal(
 )
 async def update_user_goal(
     user_goal: user_goals_schema.UsersGoalUpdate,
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> user_goals_schema.UsersGoalRead:
     """
     Update an existing goal for the authenticated user.
@@ -136,8 +135,8 @@ async def update_user_goal(
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_user_goal(
     goal_id: int,
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     _: None = Depends(user_goals_dependencies.validate_goal_id),
 ) -> None:
     """

@@ -8,7 +8,10 @@ import type {
 } from '@/features/gears/types'
 import type { Schemas } from '@/types'
 
-import { apiFetch } from '@/services/http'
+import { apiFetch, HttpError } from '@/services/http'
+
+/** Largest page the list endpoint serves; the filtered lookups fetch one such page. */
+const MAX_NUM_RECORDS = 200
 
 /** Pagination + filter input for a gears list request. */
 export interface GearsListParams {
@@ -42,6 +45,7 @@ export function mapGear(dto: GearDto): Gear {
     purchaseValue: dto.purchase_value ?? null,
     stravaGearId: dto.strava_gear_id ?? null,
     garminConnectGearId: dto.garminconnect_gear_id ?? null,
+    version: dto.version ?? 1,
   }
 }
 
@@ -99,13 +103,32 @@ export async function fetchGears(
     num_records: String(numRecords),
     show_inactive: String(showInactive),
   })
-  const response = await apiFetch<Schemas['GearsListResponse']>(`/gears?${params.toString()}`, {
+  const response = await apiFetch<Schemas['Page_GearRead_']>(`/gears?${params.toString()}`, {
     signal,
   })
   return {
-    records: (response.records ?? []).map(mapGear),
+    records: (response.items ?? []).map(mapGear),
     total: response.total,
   }
+}
+
+/**
+ * Fetches up to one maximum-size page of the user's gears matching the given list filters.
+ *
+ * @param filters - Query-string filters (`gear_type`, `nickname_contains`).
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The matching gears, mapped to the clean model.
+ * @throws {HttpError} When the request fails.
+ */
+async function fetchGearsMatching(
+  filters: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<Gear[]> {
+  const params = new URLSearchParams({ num_records: String(MAX_NUM_RECORDS), ...filters })
+  const response = await apiFetch<Schemas['Page_GearRead_']>(`/gears?${params.toString()}`, {
+    signal,
+  })
+  return (response.items ?? []).map(mapGear)
 }
 
 /**
@@ -120,11 +143,7 @@ export async function searchGearsByNickname(
   nickname: string,
   signal?: AbortSignal,
 ): Promise<Gear[]> {
-  const dtos = await apiFetch<GearDto[] | null>(
-    `/gears/nickname/contains/${encodeURIComponent(nickname)}`,
-    { signal },
-  )
-  return (dtos ?? []).map(mapGear)
+  return fetchGearsMatching({ nickname_contains: nickname }, signal)
 }
 
 /**
@@ -136,8 +155,13 @@ export async function searchGearsByNickname(
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGearById(id: number, signal?: AbortSignal): Promise<GearDetail | null> {
-  const dto = await apiFetch<GearDetailDto | null>(`/gears/id/${id}`, { signal })
-  return dto ? mapGearDetail(dto) : null
+  try {
+    const dto = await apiFetch<GearDetailDto | null>(`/gears/${id}`, { signal })
+    return dto ? mapGearDetail(dto) : null
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 404) return null
+    throw error
+  }
 }
 
 /**
@@ -150,8 +174,7 @@ export async function fetchGearById(id: number, signal?: AbortSignal): Promise<G
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGearsByType(gearType: number, signal?: AbortSignal): Promise<Gear[]> {
-  const dtos = await apiFetch<GearDto[] | null>(`/gears/type/${gearType}`, { signal })
-  return (dtos ?? []).map(mapGear)
+  return fetchGearsMatching({ gear_type: String(gearType) }, signal)
 }
 
 /**
@@ -162,7 +185,7 @@ export async function fetchGearsByType(gearType: number, signal?: AbortSignal): 
  * @throws {HttpError} When the request fails.
  */
 export async function createGear(input: GearInput): Promise<Gear> {
-  const payload: Schemas['GearCreate'] = toGearWireFields(input)
+  const payload: Schemas['GearCreateRequest'] = toGearWireFields(input)
   const dto = await apiFetch<GearDto>('/gears', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -173,16 +196,26 @@ export async function createGear(input: GearInput): Promise<Gear> {
 /**
  * Updates an existing gear and returns the persisted record.
  *
+ * `created_at` and `initial_kms` cannot be cleared on the backend, so they are left out of
+ * the partial update when empty.
+ *
  * @param id - The gear id to update.
  * @param input - The clean gear input.
+ * @param version - The row version the form was loaded at, for `If-Match`.
  * @returns The updated gear, mapped to the clean model.
- * @throws {HttpError} When the request fails.
+ * @throws {HttpError} When the request fails, including 412 when the copy is stale.
  */
-export async function updateGear(id: number, input: GearInput): Promise<Gear> {
-  const payload: Schemas['GearUpdate'] = { ...toGearWireFields(input), id }
-  const dto = await apiFetch<GearDto>('/gears', {
-    method: 'PUT',
+export async function updateGear(id: number, input: GearInput, version?: number): Promise<Gear> {
+  const { created_at, initial_kms, ...fields } = toGearWireFields(input)
+  const payload: Schemas['GearUpdate'] = {
+    ...fields,
+    ...(created_at === null ? {} : { created_at }),
+    ...(initial_kms === null ? {} : { initial_kms }),
+  }
+  const dto = await apiFetch<GearDto>(`/gears/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
+    headers: version == null ? {} : { 'If-Match': `"${version}"` },
   })
   return mapGear(dto)
 }

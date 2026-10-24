@@ -356,3 +356,35 @@ class TestXSSPrevention:
         assert ("href=" in result) is expected_kept
         # The text always survives; only the dangerous attribute is dropped.
         assert "x</a>" in result
+
+
+class TestEscapeLike:
+    def test_escape_percent(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("100%")
+        assert result == "100\\%"
+
+    def test_escape_underscore(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("test_name")
+        assert result == "test\\_name"
+
+    def test_escape_backslash(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("foo\\bar")
+        assert result == "foo\\\\bar"
+
+    def test_no_escaping_needed(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("hello")
+        assert result == "hello"
+
+    def test_escape_all(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("a%b_c\\d")
+        assert result == "a\\%b\\_c\\\\d"

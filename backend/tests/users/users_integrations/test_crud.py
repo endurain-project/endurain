@@ -482,7 +482,7 @@ class TestLinkGarminConnectAccount:
 
         # Assert
         assert mock_integrations.garminconnect_token == token
-        mock_db.commit.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     def test_link_garminconnect_account_not_found(self, mock_db):
         """Test linking when integrations not found."""
@@ -555,7 +555,7 @@ class TestUnlinkGarminConnectAccount:
         # Assert
         assert mock_integrations.garminconnect_token is None
         assert mock_integrations.garminconnect_sync_gear is False
-        mock_db.commit.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     def test_unlink_garminconnect_account_not_found(self, mock_db):
         """Test unlinking when integrations not found."""
@@ -568,6 +568,40 @@ class TestUnlinkGarminConnectAccount:
                 user_integrations_crud.unlink_garminconnect_account(1, mock_db)
 
             assert exc_info.value.status_code == 404
+
+
+class TestUnlinkGarminConnectAccountIfToken:
+    """Test suite for unlink_garminconnect_account_if_token function."""
+
+    def test_unlinks_while_the_stored_token_is_the_rejected_one(self, mock_db):
+        """The account is cleared, without committing, when the token is unchanged."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.garminconnect_token = {"di_token": "old"}
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.unlink_garminconnect_account_if_token(1, {"di_token": "old"}, mock_db)
+
+        assert result is True
+        assert mock_integrations.garminconnect_token is None
+        assert mock_integrations.garminconnect_sync_gear is False
+        mock_db.commit.assert_not_called()
+
+    def test_keeps_a_token_linked_since(self, mock_db):
+        """A token replaced by a new link is left alone."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.garminconnect_token = {"di_token": "new"}
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.unlink_garminconnect_account_if_token(1, {"di_token": "old"}, mock_db)
+
+        assert result is False
+        assert mock_integrations.garminconnect_token == {"di_token": "new"}
+
+    def test_returns_false_without_integrations(self, mock_db):
+        """A user with no integrations row is not unlinked."""
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+        assert user_integrations_crud.unlink_garminconnect_account_if_token(1, {}, mock_db) is False
 
 
 class TestEditUserIntegrations:
@@ -791,35 +825,6 @@ class TestSetUserStravaSyncGearDBError:
             mock_db.rollback.assert_called_once()
 
 
-class TestLinkGarminConnectAccountDBError:
-    """Additional database error tests for link_garminconnect_account."""
-
-    def test_link_garminconnect_account_db_error_on_commit(self, mock_db):
-        """Test database error during commit in link_garminconnect_account.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status on commit error
-            - Transaction is rolled back
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud.get_user_integrations_by_user_id") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.commit.side_effect = SQLAlchemyError("Commit failed")
-            mock_db.rollback = MagicMock()
-
-            # Act & Assert
-            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-                user_integrations_crud.link_garminconnect_account(1, {"key": "value"}, mock_db)
-
-            assert exc_info.value.status_code == 500
-            mock_db.rollback.assert_called_once()
-
-
 class TestSetUserGarminConnectSyncGearDBError:
     """Additional database error tests for set_user_garminconnect_sync_gear."""
 
@@ -849,30 +854,32 @@ class TestSetUserGarminConnectSyncGearDBError:
             mock_db.rollback.assert_called_once()
 
 
-class TestUnlinkGarminConnectAccountDBError:
-    """Additional database error tests for unlink_garminconnect_account."""
+class TestReplaceGarminConnectTokenIfToken:
+    """Test suite for replace_garminconnect_token_if_token function."""
 
-    def test_unlink_garminconnect_account_db_error_on_commit(self, mock_db):
-        """Test database error during commit in unlink_garminconnect_account.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status on commit error
-            - Transaction is rolled back
-        """
-        # Arrange
+    def test_replaces_while_the_stored_token_is_the_old_one(self, mock_db):
+        """The refreshed token is stored, without committing."""
         mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.garminconnect_token = {"di_token": "old"}
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        with patch("modules.users.users_integrations.crud.get_user_integrations_by_user_id") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.commit.side_effect = SQLAlchemyError("Commit failed")
-            mock_db.rollback = MagicMock()
+        result = user_integrations_crud.replace_garminconnect_token_if_token(
+            1, {"di_token": "old"}, {"di_token": "new"}, mock_db
+        )
 
-            # Act & Assert
-            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-                user_integrations_crud.unlink_garminconnect_account(1, mock_db)
+        assert result is True
+        assert mock_integrations.garminconnect_token == {"di_token": "new"}
+        mock_db.commit.assert_not_called()
 
-            assert exc_info.value.status_code == 500
-            mock_db.rollback.assert_called_once()
+    def test_keeps_a_token_linked_since(self, mock_db):
+        """A re-linked token is not overwritten by a refresh of the previous one."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.garminconnect_token = {"di_token": "relinked"}
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.replace_garminconnect_token_if_token(
+            1, {"di_token": "old"}, {"di_token": "new"}, mock_db
+        )
+
+        assert result is False
+        assert mock_integrations.garminconnect_token == {"di_token": "relinked"}

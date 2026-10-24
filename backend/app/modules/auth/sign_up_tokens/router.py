@@ -9,21 +9,17 @@ from fastapi import (
     Request,
     status,
 )
-from fastapi.concurrency import run_in_threadpool
-from sqlalchemy.orm import Session
 
-import core.database as core_database
-import core.mail as core_mail
+import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
-import modules.notifications.utils as notifications_utils
-import modules.server_settings.utils as server_settings_utils
+import modules.notifications.integration_service as notifications_integration
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
-import modules.websocket.manager as websocket_manager
 
 # Define the API router
 router = APIRouter()
@@ -35,17 +31,14 @@ router = APIRouter()
     response_model=sign_up_tokens_schema.SignUpResponse,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-async def signup(
+def signup(
     request: Request,
     user: users_schema.UsersSignup,
     identity_service: Annotated[
         auth_identity_service.IdentityService,
         Depends(auth_identity_service.get_identity_service),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> sign_up_tokens_schema.SignUpResponse:
     """
     Handle user sign-up request.
@@ -63,7 +56,7 @@ async def signup(
         HTTPException: 403 if sign-up is disabled.
     """
     # Get server settings to check if signup is enabled
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    server_settings = server_settings_integration.get_server_settings(db)
 
     # Check if signup is enabled
     if not server_settings.signup_enabled:
@@ -85,7 +78,7 @@ async def signup(
 
     if server_settings.signup_require_email_verification:
         # Send the sign-up email
-        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_verification_email, created_user.id, db)
+        sign_up_tokens_utils.request_sign_up_verification_email(created_user.id, db)
         message += " Email sent with verification instructions."
         email_verification_required = True
     if server_settings.signup_require_admin_approval:
@@ -105,17 +98,10 @@ async def signup(
     response_model=sign_up_tokens_schema.SignUpResponse,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-async def verify_email(
+def verify_email(
     request: Request,
     confirm_data: sign_up_tokens_schema.SignUpConfirm,
-    websocket_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ) -> sign_up_tokens_schema.SignUpResponse:
     """
     Verify user email via sign-up token.
@@ -123,7 +109,6 @@ async def verify_email(
     Args:
         request: Incoming HTTP request.
         confirm_data: Token confirmation payload.
-        websocket_manager: WebSocket notification manager.
         db: Database session.
 
     Returns:
@@ -133,7 +118,7 @@ async def verify_email(
         HTTPException: 412 if email verification is not enabled.
     """
     # Get server settings
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    server_settings = server_settings_integration.get_server_settings(db)
     if not server_settings.signup_require_email_verification:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
@@ -144,18 +129,18 @@ async def verify_email(
     user_id = sign_up_tokens_utils.use_sign_up_token(confirm_data.token, db)
     users_crud.verify_user_email(user_id, server_settings, db)
 
-    if core_mail.is_mail_configured():
+    if server_settings_integration.is_mail_configured(db):
         user: users_schema.UsersRead | None = users_crud.get_user_by_id(user_id, db)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
-        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_admin_approval_emails, user.id, db)
-        notif_coro = notifications_utils.create_admin_new_sign_up_approval_request_notification(
-            user, websocket_manager, db
-        )
-        await notif_coro
+        sign_up_tokens_utils.request_sign_up_admin_approval_emails(user.id, db)
+        notifications = notifications_integration.create_admin_sign_up_approval_notifications(user, db)
+        db.commit()
+        for notification, ws_message in notifications:
+            notifications_integration.push_notification(notification.user_id, notification, ws_message)
 
     # Return appropriate response based on server configuration
     message = "Email verified successfully."

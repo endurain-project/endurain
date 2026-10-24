@@ -367,6 +367,29 @@
       "sent": "Testna e-pošta poslana",
       "failed": "Testne e-pošte ni bilo mogoče poslati",
       "failedUnknown": "Podrobnosti poiščite v dnevnikih strežnika."
+    },
+    "envLocked": "Nastavljeno s spremenljivko {name}",
+    "envSection": "Nekatere nastavitve tukaj določajo okoljske spremenljivke ({names}). Odstranite jih iz okolja, da boste te nastavitve lahko urejali tukaj.",
+    "unsaved": "Neshranjene spremembe",
+    "discard": "Zavrzi",
+    "tabs": {
+      "label": "Razdelki nastavitev strežnika",
+      "general": "Splošno",
+      "access": "Dostop in varnost",
+      "maps": "Zemljevidi in lokacija",
+      "email": "E-pošta",
+      "unsaved": "Vsebuje neshranjene spremembe"
+    },
+    "search": {
+      "placeholder": "Išči nastavitve…",
+      "noResults": "Nastavitev ni bilo mogoče najti"
+    },
+    "leave": {
+      "title": "Zapustiti brez shranjevanja?",
+      "description": "Imate neshranjene spremembe. Če zapustite stran, bodo izgubljene.",
+      "confirm": "Zapusti brez shranjevanja",
+      "stay": "Ostani na strani",
+      "close": "Zapri"
     }
   },
   "idp": {

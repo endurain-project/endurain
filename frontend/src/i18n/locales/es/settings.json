@@ -367,6 +367,29 @@
       "sent": "Correo de prueba enviado",
       "failed": "No se pudo enviar el correo de prueba",
       "failedUnknown": "Consulta los registros del servidor para más detalles."
+    },
+    "envLocked": "Definido por {name}",
+    "envSection": "Algunos ajustes de aquí los definen variables de entorno ({names}). Elimínalas del entorno para editar esos ajustes aquí.",
+    "unsaved": "Cambios sin guardar",
+    "discard": "Descartar",
+    "tabs": {
+      "label": "Secciones de los ajustes del servidor",
+      "general": "General",
+      "access": "Acceso y seguridad",
+      "maps": "Mapas y ubicación",
+      "email": "Correo electrónico",
+      "unsaved": "Tiene cambios sin guardar"
+    },
+    "search": {
+      "placeholder": "Buscar ajustes…",
+      "noResults": "No se encontraron ajustes"
+    },
+    "leave": {
+      "title": "¿Salir sin guardar?",
+      "description": "Tienes cambios sin guardar. Si sales de esta página se perderán.",
+      "confirm": "Salir sin guardar",
+      "stay": "Quedarse en la página",
+      "close": "Cerrar"
     }
   },
   "idp": {

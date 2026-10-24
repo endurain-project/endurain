@@ -367,6 +367,29 @@
       "sent": "Testisähköposti lähetetty",
       "failed": "Testisähköpostia ei voitu lähettää",
       "failedUnknown": "Katso lisätiedot palvelimen lokeista."
+    },
+    "envLocked": "Määritetty muuttujalla {name}",
+    "envSection": "Jotkin tämän osion asetukset on määritetty ympäristömuuttujilla ({names}). Poista ne ympäristöstä, jos haluat muokata niitä täällä.",
+    "unsaved": "Tallentamattomia muutoksia",
+    "discard": "Hylkää",
+    "tabs": {
+      "label": "Palvelinasetusten osiot",
+      "general": "Yleiset",
+      "access": "Käyttö ja turvallisuus",
+      "maps": "Kartat ja sijainti",
+      "email": "Sähköposti",
+      "unsaved": "Sisältää tallentamattomia muutoksia"
+    },
+    "search": {
+      "placeholder": "Hae asetuksia…",
+      "noResults": "Asetuksia ei löytynyt"
+    },
+    "leave": {
+      "title": "Poistutaanko tallentamatta?",
+      "description": "Sinulla on tallentamattomia muutoksia. Ne menetetään, jos poistut sivulta.",
+      "confirm": "Poistu tallentamatta",
+      "stay": "Pysy sivulla",
+      "close": "Sulje"
     }
   },
   "idp": {

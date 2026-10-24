@@ -8,7 +8,6 @@ Literal paths are declared before ``/{activity_id}`` so FastAPI matches them
 first.
 """
 
-from collections.abc import Callable
 from datetime import date
 from typing import Annotated
 
@@ -22,9 +21,7 @@ from fastapi import (
     Security,
     status,
 )
-from sqlalchemy.orm import Session
 
-import core.database as core_database
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.pagination as core_pagination
@@ -41,11 +38,11 @@ router = APIRouter()
 @router.get(
     "",
     response_model=activity_schema.ActivityPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_own_activities(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     activity_type: activity_dependencies.ActivityTypeFilter = None,
     start_date: Annotated[date | None, Query()] = None,
@@ -73,11 +70,11 @@ def list_own_activities(
 @router.get(
     "/types",
     response_model=dict[int, str],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_activity_types(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> dict[int, str]:
     """Return the distinct activity types the user has recorded, keyed by type code."""
     return activity_service.list_activity_types(token_user_id, db)
@@ -86,11 +83,11 @@ def list_activity_types(
 @router.get(
     "/feed",
     response_model=activity_schema.ActivityFeedPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_following_feed(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     cursor: Annotated[str | None, Query()] = None,
     num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
 ) -> activity_schema.ActivityFeedPage:
@@ -106,12 +103,12 @@ def list_following_feed(
 @router.get(
     "/gears/{gear_id}",
     response_model=activity_schema.ActivityPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_gear_activities(
     gear_id: core_dependencies.PositiveId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
 ) -> activity_schema.ActivityPage:
     """List the authenticated user's activities for a gear, with the matching total."""
@@ -127,12 +124,12 @@ def list_gear_activities(
 @router.get(
     "/users/{user_id}/stats",
     response_model=activity_schema.ActivityStatsRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def read_user_activity_stats(
     user_id: core_dependencies.PositiveId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     period: Annotated[str, Query(pattern="^(week|month)$")] = "week",
     anchor_date: Annotated[
         date | None,
@@ -152,12 +149,12 @@ def read_user_activity_stats(
 @router.get(
     "/users/{user_id}",
     response_model=activity_schema.ActivityPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_user_activities(
     user_id: core_dependencies.PositiveId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     activity_type: activity_dependencies.ActivityTypeFilter = None,
     start_date: Annotated[date | None, Query()] = None,
@@ -184,22 +181,16 @@ def list_user_activities(
 
 @router.patch(
     "",
-    response_model=activity_schema.VisibilityUpdateRead,
+    response_model=activity_schema.ActivitiesBulkEditRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_activities(
     request: Request,
     body: activity_schema.ActivitiesBulkEdit,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> activity_schema.VisibilityUpdateRead:
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> activity_schema.ActivitiesBulkEditRead:
     """Apply a bulk edit across all of the authenticated user's activities.
 
     A PATCH on the collection with the change in the body, rather than the
@@ -211,27 +202,18 @@ def edit_activities(
     Rejected as invalid input when the body asks for no change at all.
     """
     updated = activity_service.bulk_edit_activities(token_user_id, body, db)
-    return activity_schema.VisibilityUpdateRead(
-        detail=f"Visibility changed to {body.visibility} for all user activities",
-        updated=updated,
-    )
+    return activity_schema.ActivitiesBulkEditRead(updated=updated)
 
 
 @router.get(
     "/{activity_id}",
     response_model=activity_schema.ActivityRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def read_activity(
     activity_id: activity_dependencies.ActivityId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     response: Response,
 ) -> activity_schema.ActivityRead:
     """Read a single activity the requester owns or is permitted to see."""
@@ -245,21 +227,15 @@ def read_activity(
 @router.patch(
     "/{activity_id}",
     response_model=activity_schema.ActivityRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_activity(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
     activity_attributes: activity_schema.ActivityEdit,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     response: Response,
     if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None,
 ) -> activity_schema.ActivityRead:
@@ -279,20 +255,14 @@ def edit_activity(
     "/{activity_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_activity(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> None:
     """Delete one of the authenticated user's activities.
 

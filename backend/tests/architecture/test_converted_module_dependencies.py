@@ -27,13 +27,20 @@ _IMPORTLINTER = pathlib.Path(".importlinter")
 #: application-wide state or wiring and are the ones to shrink, or to move into
 #: ``jasil`` when they are generic enough to be shared by other products.
 _ALLOWED_CORE: dict[str, str] = {
+    "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
     "core.calendar": "Period boundaries for activity summaries.",
+    "core.cryptography": "Encrypts and decrypts the tile-provider API key at rest.",
+    "core.email_templates": "The shared layout the test email is wrapped in.",
     "core.etag": "Conditional-response helpers for activity routes.",
     "core.event_metadata": "Event envelope metadata shared by every publisher.",
     "core.exceptions": "The domain error vocabulary raised by crud and service.",
     "core.file_uploads": "The only path an ``UploadFile`` may take.",
+    "core.geocoding": "The reverse-geocoding configuration shape the settings store and the substrate is fed.",
     "core.hashing": "Content digests for upload and media deduplication.",
+    "core.i18n": "Localises the test email.",
     "core.logger": "Structured logging.",
+    "core.mail": "The mail configuration shape the settings store, and its validation wording.",
+    "core.network": "The SSRF check on a tile server URL before it is saved.",
     "core.pagination": "Page and cursor primitives.",
     "core.sanitization": "Cleaning user-supplied text before storage.",
     "core.signing": "The token-signing primitive behind thumbnail URLs.",

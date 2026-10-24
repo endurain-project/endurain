@@ -367,6 +367,29 @@
       "sent": "Testovací e-mail odeslán",
       "failed": "Testovací e-mail se nepodařilo odeslat",
       "failedUnknown": "Podrobnosti najdete v logech serveru."
+    },
+    "envLocked": "Nastaveno proměnnou {name}",
+    "envSection": "Některá nastavení zde jsou určena proměnnými prostředí ({names}). Odeberte je z prostředí, abyste tato nastavení mohli upravit zde.",
+    "unsaved": "Neuložené změny",
+    "discard": "Zahodit",
+    "tabs": {
+      "label": "Sekce nastavení serveru",
+      "general": "Obecné",
+      "access": "Přístup a zabezpečení",
+      "maps": "Mapy a poloha",
+      "email": "E-mail",
+      "unsaved": "Obsahuje neuložené změny"
+    },
+    "search": {
+      "placeholder": "Hledat nastavení…",
+      "noResults": "Nastavení nenalezena"
+    },
+    "leave": {
+      "title": "Odejít bez uložení?",
+      "description": "Máte neuložené změny. Pokud stránku opustíte, budou ztraceny.",
+      "confirm": "Odejít bez uložení",
+      "stay": "Zůstat na stránce",
+      "close": "Zavřít"
     }
   },
   "idp": {

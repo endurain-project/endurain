@@ -4,6 +4,7 @@ import type { DateRange } from '@/features/integrations/types'
 
 import { apiFetch } from '@/services/http'
 import {
+  fetchGarminLinkStatus,
   linkGarmin,
   retrieveGarminActivities,
   retrieveGarminGear,
@@ -122,13 +123,28 @@ describe('garmin service', () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
   })
 
-  it('linkGarmin POSTs the credentials', async () => {
-    await linkGarmin({ username: 'rider', password: 'pw', isCn: false })
+  it('linkGarmin POSTs the credentials and returns the initial status', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ status: 'pending', reason: null })
+
+    const status = await linkGarmin({ username: 'rider', password: 'pw', isCn: false })
+
     expect(apiFetch).toHaveBeenCalledWith('/garminconnect/link', {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: false }),
-      responseType: 'void',
     })
+    expect(status).toEqual({ status: 'pending', reason: null })
+  })
+
+  it('fetchGarminLinkStatus GETs the link status path', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ status: 'mfa_required', reason: null })
+    const controller = new AbortController()
+
+    const status = await fetchGarminLinkStatus(controller.signal)
+
+    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/link/status', {
+      signal: controller.signal,
+    })
+    expect(status.status).toBe('mfa_required')
   })
 
   it('linkGarmin forwards the China-region flag', async () => {
@@ -136,7 +152,6 @@ describe('garmin service', () => {
     expect(apiFetch).toHaveBeenCalledWith('/garminconnect/link', {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: true }),
-      responseType: 'void',
     })
   })
 
@@ -149,30 +164,33 @@ describe('garmin service', () => {
     })
   })
 
-  it('retrieveGarminActivities GETs the activities path with the window', async () => {
+  it('retrieveGarminActivities POSTs the activities path with the window', async () => {
     await retrieveGarminActivities(range)
     expect(apiFetch).toHaveBeenCalledWith(
       '/garminconnect/activities?start_date=2026-01-01&end_date=2026-01-07',
-      { responseType: 'void' },
+      { method: 'POST', responseType: 'void' },
     )
   })
 
-  it('retrieveGarminGear GETs the gear path', async () => {
+  it('retrieveGarminGear POSTs the gear path', async () => {
     await retrieveGarminGear()
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/gear', { responseType: 'void' })
+    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/gear', {
+      method: 'POST',
+      responseType: 'void',
+    })
   })
 
-  it('retrieveGarminHealth GETs the health path with the window', async () => {
+  it('retrieveGarminHealth POSTs the health path with the window', async () => {
     await retrieveGarminHealth(range)
     expect(apiFetch).toHaveBeenCalledWith(
       '/garminconnect/health?start_date=2026-01-01&end_date=2026-01-07',
-      { responseType: 'void' },
+      { method: 'POST', responseType: 'void' },
     )
   })
 
-  it('unlinkGarmin DELETEs the unlink path', async () => {
+  it('unlinkGarmin DELETEs the link', async () => {
     await unlinkGarmin()
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/unlink', {
+    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/link', {
       method: 'DELETE',
       responseType: 'void',
     })

@@ -367,6 +367,29 @@
       "sent": "Testovací e-mail odoslaný",
       "failed": "Testovací e-mail sa nepodarilo odoslať",
       "failedUnknown": "Podrobnosti nájdete v logoch servera."
+    },
+    "envLocked": "Nastavené premennou {name}",
+    "envSection": "Niektoré nastavenia tu sú určené premennými prostredia ({names}). Odstráňte ich z prostredia, aby ste tieto nastavenia mohli upraviť tu.",
+    "unsaved": "Neuložené zmeny",
+    "discard": "Zahodiť",
+    "tabs": {
+      "label": "Sekcie nastavení servera",
+      "general": "Všeobecné",
+      "access": "Prístup a zabezpečenie",
+      "maps": "Mapy a poloha",
+      "email": "E-mail",
+      "unsaved": "Obsahuje neuložené zmeny"
+    },
+    "search": {
+      "placeholder": "Hľadať nastavenia…",
+      "noResults": "Nastavenia sa nenašli"
+    },
+    "leave": {
+      "title": "Odísť bez uloženia?",
+      "description": "Máte neuložené zmeny. Ak stránku opustíte, stratia sa.",
+      "confirm": "Odísť bez uloženia",
+      "stay": "Zostať na stránke",
+      "close": "Zavrieť"
     }
   },
   "idp": {

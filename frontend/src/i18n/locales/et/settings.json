@@ -367,6 +367,29 @@
       "sent": "Test-e-kiri saadetud",
       "failed": "Test-e-kirja saatmine ebaõnnestus",
       "failedUnknown": "Üksikasjad leiad serveri logidest."
+    },
+    "envLocked": "Määratud muutujaga {name}",
+    "envSection": "Mõned siinsed seaded on määratud keskkonnamuutujatega ({names}). Eemalda need keskkonnast, et neid siin muuta.",
+    "unsaved": "Salvestamata muudatused",
+    "discard": "Loobu",
+    "tabs": {
+      "label": "Serveri seadete jaotised",
+      "general": "Üldine",
+      "access": "Juurdepääs ja turvalisus",
+      "maps": "Kaardid ja asukoht",
+      "email": "E-post",
+      "unsaved": "Sisaldab salvestamata muudatusi"
+    },
+    "search": {
+      "placeholder": "Otsi seadeid…",
+      "noResults": "Seadeid ei leitud"
+    },
+    "leave": {
+      "title": "Lahkuda salvestamata?",
+      "description": "Sul on salvestamata muudatusi. Kui lahkud lehelt, lähevad need kaotsi.",
+      "confirm": "Lahku salvestamata",
+      "stay": "Jää lehele",
+      "close": "Sulge"
     }
   },
   "idp": {

@@ -13,9 +13,8 @@ from fastapi import (
     status,
 )
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
@@ -30,6 +29,7 @@ import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.rotated_refresh_tokens.utils as auth_sessions_rotated_tokens_utils
 import modules.auth.sessions.utils as auth_sessions_utils
 import modules.auth.utils as auth_utils
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.utils as users_utils
 
@@ -124,10 +124,7 @@ async def login_for_access_token(
         auth_token_manager.TokenManager,
         Depends(auth_token_manager.get_token_manager),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
 ):
@@ -291,10 +288,7 @@ async def verify_mfa_and_login(
         auth_token_manager.TokenManager,
         Depends(auth_token_manager.get_token_manager),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
 ):
@@ -460,10 +454,7 @@ async def refresh_token(
         auth_token_manager.TokenManager,
         Depends(auth_token_manager.get_token_manager),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
     client_type: Annotated[str, Depends(auth_internal_dependencies.header_client_type_scheme)],
     x_csrf_token: Annotated[str | None, Depends(auth_internal_dependencies.header_csrf_token_scheme)] = None,
 ):
@@ -529,7 +520,8 @@ async def refresh_token(
         )
 
     # Validate session hasn't exceeded idle or absolute timeout
-    auth_sessions_utils.validate_session_timeout(session)
+    policy = server_settings_integration.get_session_policy(db)
+    auth_sessions_utils.validate_session_timeout(session, policy)
 
     # Verify CSRF token for web clients only
     # Mobile clients don't use CSRF tokens
@@ -616,7 +608,7 @@ async def refresh_token(
 
         # Mint a fresh, stateless access token (safe to re-issue every retry).
         replay_access_token_exp, replay_access_token = auth_utils.mint_access_token(
-            replay_user, token_manager, session.id
+            replay_user, token_manager, session.id, policy
         )
 
         # Web clients lost their CSRF token along with the rotation response, so
@@ -670,7 +662,7 @@ async def refresh_token(
         new_refresh_token_exp,
         new_refresh_token,
         new_csrf_token,
-    ) = auth_utils.create_tokens(user, token_manager, session.id)
+    ) = auth_utils.create_tokens(user, token_manager, policy, session.id)
 
     # Store the rotated (old) refresh token together with the encrypted
     # replacement so a retry within the grace window can replay it.
@@ -694,6 +686,7 @@ async def refresh_token(
         new_refresh_token,
         password_hasher,
         db,
+        new_refresh_token_exp,
         new_csrf_token=new_csrf_token,
     )
 
@@ -738,10 +731,7 @@ async def logout(
         auth_password_hasher.PasswordHasher,
         Depends(auth_password_hasher.get_password_hasher),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    db: core_dependencies.DbSession,
 ):
     """
     Log out a user by validating and deleting their session.

@@ -9,16 +9,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 if TYPE_CHECKING:
-    from modules.gears.gear.models import Gear
-    from modules.gears.gear_components.models import GearComponents
-    from modules.health.health_fasting.models import HealthFasting
-    from modules.health.health_poop.models import HealthPoop
-    from modules.health.health_sleep.models import HealthSleep
-    from modules.health.health_steps.models import HealthSteps
-    from modules.health.health_targets.models import HealthTargets
-    from modules.health.health_water.models import HealthWater
-    from modules.health.health_weight.models import HealthWeight
-    from modules.notifications.models import Notification
     from modules.users.users_default_gear.models import UsersDefaultGear
     from modules.users.users_goals.models import UsersGoal
     from modules.users.users_integrations.models import UsersIntegrations
@@ -54,8 +44,6 @@ class Users(Base):
         users_integrations: List of integrations.
         users_default_gear: List of default gear.
         users_privacy_settings: List of privacy settings.
-        gear: List of gear owned by the user.
-        gear_components: List of gear components.
         health_sleep: List of health sleep records.
         health_weight: List of health weight records.
         health_steps: List of health steps records.
@@ -63,7 +51,6 @@ class Users(Base):
         health_fasting: List of health fasting records.
         health_water: List of health water intake records.
         health_poop: List of health poop records.
-        notifications: List of notifications.
         goals: List of user goals.
     """
 
@@ -179,46 +166,6 @@ class Users(Base):
         cascade="all, delete-orphan",
     )
     users_privacy_settings: Mapped[list["UsersPrivacySettings"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    gear: Mapped[list["Gear"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    gear_components: Mapped[list["GearComponents"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_sleep: Mapped[list["HealthSleep"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_weight: Mapped[list["HealthWeight"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_steps: Mapped[list["HealthSteps"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_targets: Mapped[list["HealthTargets"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_fasting: Mapped[list["HealthFasting"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_water: Mapped[list["HealthWater"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_poop: Mapped[list["HealthPoop"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    notifications: Mapped[list["Notification"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
     )

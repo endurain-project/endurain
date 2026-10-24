@@ -10,8 +10,7 @@ fetch the blob — while the activity owner keeps their map.
 
 from typing import Annotated
 
-import jasil.providers as platform_providers
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Query, Response
 
 import core.dependencies as core_dependencies
 import modules.activities.activity.dependencies as activity_dependencies
@@ -30,7 +29,7 @@ _CACHE_MAX_AGE = 3600
 def read_activity_thumbnail(
     activity_id: activity_dependencies.ActivityId,
     token: Annotated[str, Query(alias="t", description="Signed thumbnail access token")],
-    storage: Annotated[platform_providers.StorageProvider, Depends(core_dependencies.get_storage)],
+    storage: core_dependencies.Storage,
 ) -> Response:
     """Serve an activity's map thumbnail when the signed token is valid.
 

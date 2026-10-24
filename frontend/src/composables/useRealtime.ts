@@ -26,6 +26,9 @@ export type RealtimeHandler = (event: RealtimeEvent) => void
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 const RECONNECT_JITTER_RATIO = 0.3
+// Close code the server sends to a connection pushed out by a newer one (more tabs than it
+// allows). Reconnecting would evict another tab in turn, so the loop would never settle.
+const EVICTED_CLOSE_CODE = 4001
 
 /**
  * Query keys to invalidate when a realtime event arrives, so server push keeps
@@ -38,6 +41,7 @@ const EVENT_QUERY_INVALIDATIONS: Record<string, ReadonlyArray<readonly unknown[]
   NEW_ACTIVITY_NOTIFICATION: [queryKeys.notifications.all()],
   NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION: [queryKeys.notifications.all()],
   NEW_FOLLOWER_REQUEST_NOTIFICATION: [queryKeys.notifications.all()],
+  NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION: [queryKeys.notifications.all()],
   NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION: [queryKeys.notifications.all()],
   ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION: [queryKeys.notifications.all()],
   GARMIN_TOKEN_EXPIRED_NOTIFICATION: [queryKeys.notifications.all()],
@@ -51,8 +55,13 @@ let socket: WebSocket | null = null
 let reconnectAttempts = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let intentionalClose = false
+// Set when the server evicted this tab's connection; the tab reconnects once it is visible again.
+let evicted = false
 // Guards against overlapping ticket fetches while a connection is being opened.
 let connecting = false
+// Whether this session has been connected before, so a reconnect can catch up on
+// pushes that were dropped while the socket was down.
+let hasBeenOpen = false
 
 /**
  * Routes a parsed frame to its query invalidations and subscribed handlers.
@@ -166,6 +175,12 @@ async function openSocket(): Promise<void> {
   next.onopen = () => {
     reconnectAttempts = 0
     status.value = 'open'
+    evicted = false
+    if (hasBeenOpen) {
+      // Pushes sent while the socket was down are gone for good; refetch instead.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() })
+    }
+    hasBeenOpen = true
   }
   next.onmessage = (event: MessageEvent) => {
     try {
@@ -177,11 +192,25 @@ async function openSocket(): Promise<void> {
       useTelemetry().captureError(error, { scope: 'realtime.message' })
     }
   }
-  next.onclose = () => {
+  next.onclose = (event: CloseEvent) => {
     socket = null
     status.value = 'closed'
-    scheduleReconnect()
+    if (event.code === EVICTED_CLOSE_CODE) {
+      evicted = true
+    } else {
+      scheduleReconnect()
+    }
   }
+}
+
+// An evicted tab stays closed while hidden; showing it again is the user's signal that it wants live updates.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && evicted && !intentionalClose) {
+      evicted = false
+      void openSocket()
+    }
+  })
 }
 
 /**
@@ -211,8 +240,10 @@ export function useRealtime() {
    */
   function disconnect(): void {
     intentionalClose = true
+    evicted = false
     clearReconnectTimer()
     reconnectAttempts = 0
+    hasBeenOpen = false
     if (socket) {
       // Detach onclose first so closing doesn't schedule a reconnect.
       socket.onclose = null

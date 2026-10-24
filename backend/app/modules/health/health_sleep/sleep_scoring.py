@@ -1,6 +1,4 @@
-"""
-Sleep scoring calculations.
-"""
+"""Sleep scoring calculations."""
 
 from datetime import datetime
 
@@ -10,8 +8,7 @@ import modules.health.health_sleep.schema as health_sleep_schema
 def _calculate_sleep_duration_hours(
     total_sleep_seconds: int | None,
 ) -> float:
-    """
-    Convert total sleep seconds to hours.
+    """Convert total sleep seconds to hours.
 
     Args:
         total_sleep_seconds: Total sleep duration in seconds.
@@ -28,8 +25,7 @@ def _calculate_stage_percentage(
     stage_seconds: int | None,
     total_sleep_seconds: int | None,
 ) -> float:
-    """
-    Calculate percentage of a sleep stage relative to total sleep.
+    """Calculate percentage of a sleep stage relative to total sleep.
 
     Args:
         stage_seconds: Duration of specific sleep stage in seconds.
@@ -48,8 +44,7 @@ def calculate_sleep_score_duration(
     sleep_end_time: datetime | None,
     total_sleep_seconds: int | None,
 ) -> tuple[int, str]:
-    """
-    Calculate sleep duration score based on total sleep time.
+    """Calculate sleep duration score based on total sleep time.
 
     Scoring criteria (based on adult sleep recommendations):
     - 7-9 hours: EXCELLENT (90-100 points)
@@ -109,8 +104,7 @@ def calculate_sleep_score_quality(
     awake_sleep_seconds: int | None,
     total_sleep_seconds: int | None,
 ) -> tuple[int, str]:
-    """
-    Calculate sleep quality score based on sleep stage composition.
+    """Calculate sleep quality score based on sleep stage composition.
 
     Scoring based on optimal sleep stage percentages:
     - Deep: 13-23% optimal (peak at 18%)
@@ -164,8 +158,7 @@ def _score_sleep_stage(
     max_optimal: float,
     peak_optimal: float,
 ) -> float:
-    """
-    Score a sleep stage percentage against optimal range.
+    """Score a sleep stage percentage against optimal range.
 
     Args:
         actual_pct: Actual percentage of sleep stage.
@@ -202,8 +195,7 @@ def _score_sleep_stage(
 def calculate_awake_count_score(
     awake_count: int | None,
 ) -> tuple[int, str]:
-    """
-    Calculate score based on number of awakenings during sleep.
+    """Calculate score based on number of awakenings during sleep.
 
     Scoring criteria:
     - 0-1 awakenings: EXCELLENT (90-100 points)
@@ -239,8 +231,7 @@ def calculate_rem_percentage_score(
     rem_sleep_seconds: int | None,
     total_sleep_seconds: int | None,
 ) -> tuple[int, str]:
-    """
-    Calculate score for REM sleep percentage.
+    """Calculate score for REM sleep percentage.
 
     Optimal REM: 20-25% of total sleep (peak at 22.5%).
 
@@ -270,8 +261,7 @@ def calculate_deep_percentage_score(
     deep_sleep_seconds: int | None,
     total_sleep_seconds: int | None,
 ) -> tuple[int, str]:
-    """
-    Calculate score for deep sleep percentage.
+    """Calculate score for deep sleep percentage.
 
     Optimal deep sleep: 13-23% of total sleep (peak at 18%).
 
@@ -301,8 +291,7 @@ def calculate_light_percentage_score(
     light_sleep_seconds: int | None,
     total_sleep_seconds: int | None,
 ) -> tuple[int, str]:
-    """
-    Calculate score for light sleep percentage.
+    """Calculate score for light sleep percentage.
 
     Optimal light sleep: 45-55% of total sleep (peak at 50%).
 
@@ -332,8 +321,7 @@ def calculate_sleep_stress_score(
     avg_sleep_stress: int | None,
     restless_moments_count: int | None,
 ) -> tuple[int, str]:
-    """
-    Calculate sleep stress score.
+    """Calculate sleep stress score.
 
     Based on average stress level and restless moments.
     Garmin stress scale: 0-25 (rest), 26-50 (low), 51-75 (med),
@@ -393,8 +381,7 @@ def calculate_sleep_score_overall(
     restless_moments_count: int | None,
     avg_sleep_stress: int | None,
 ) -> int:
-    """
-    Calculate overall sleep score (0-100).
+    """Calculate overall sleep score (0-100).
 
     Combines multiple sleep metrics with weighted contributions:
     - Duration score: 30%
@@ -438,15 +425,14 @@ def calculate_sleep_score_overall(
     return max(0, min(100, overall_score))
 
 
-def _calculate_and_set_sleep_scores(
+def calculate_and_set_sleep_scores(
     health_sleep: (
         health_sleep_schema.HealthSleepCreate
         | health_sleep_schema.HealthSleepRead
         | health_sleep_schema.HealthSleepUpdate
     ),
 ) -> None:
-    """
-    Calculate and set all sleep scores for a health sleep record.
+    """Calculate and set all sleep scores for a health sleep record.
 
     This function computes sleep quality scores and updates the
     health_sleep object in place with calculated values.

@@ -26,7 +26,7 @@ import modules.activities.activity_sets.migration_service as activity_sets_migra
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.migration_service as activity_streams_crud
 import modules.activities.activity_workout_steps.migration_service as activity_workout_steps_crud
-import modules.garmin.activity_utils as garmin_activity_utils
+import modules.garmin.migration_service as garmin_migration_service
 import modules.strava.activity_utils as strava_activity_utils
 import modules.strava.utils as strava_utils
 
@@ -197,7 +197,7 @@ def get_fit_file_from_garminconnect(
     )
 
     # Get the user Garmin Connect client
-    garminconnect_client = garmin_activity_utils.get_user_garminconnect_client(activity.user_id, db)
+    garminconnect_client = garmin_migration_service.get_user_garminconnect_client(activity.user_id, db)
 
     if garminconnect_client is None:
         logger.error(
