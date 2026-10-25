@@ -25,3 +25,5 @@ Back up these directories:
 ```
 
 Also back up the Postgres database with a database dump. Copying the `/var/opt/endurain/postgres` volume is not reliable: it can be corrupted if the database is writing when the copy runs.
+
+In the data folder, the originals of your activities, photos and profile images cannot be rebuilt, while thumbnails can. Keep your `FERNET_KEY` and `SECRET_KEY` with the backup. See [Storage and backups](storage-and-backups.md) for what each folder holds, what to keep, how to restore and which secrets matter, and [Monitoring](monitoring.md) for health checks and logs.
