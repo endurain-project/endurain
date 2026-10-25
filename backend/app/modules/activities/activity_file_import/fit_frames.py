@@ -86,7 +86,8 @@ def parse_frame_session(frame):
         get_value_from_frame(frame, "enhanced_avg_speed", get_value_from_frame(frame, "avg_speed")),
         get_value_from_frame(frame, "enhanced_max_speed", get_value_from_frame(frame, "max_speed")),
         get_value_from_frame(frame, "workout_feel"),
-        get_value_from_frame(frame, "workout_rpe"),
+        # Polar writes workout_rpe=0 when no RPE was entered; the field is 10-100.
+        get_value_from_frame(frame, "workout_rpe") or None,
         get_value_from_frame(frame, "total_cycles"),
     )
 

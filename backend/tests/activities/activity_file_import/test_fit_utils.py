@@ -494,6 +494,10 @@ class TestParseFrameSession:
         """street sub_sport (regression for #866) keeps the original sport value."""
         assert self._activity_type(sport="running", sub_sport="street") == "running"
 
+    def test_zero_workout_rpe_is_unset(self):
+        """Polar writes workout_rpe=0 when no RPE was entered (#820); it is imported as None."""
+        assert fit_frames.parse_frame_session(self._frame(workout_rpe=0))[20] is None
+
 
 class TestFindTimezoneName:
     """A bare UTC offset does not identify a zone, so the answer must be honest.
