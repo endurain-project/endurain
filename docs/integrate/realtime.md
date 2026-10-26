@@ -38,7 +38,7 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 { "message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": 42 }
 ```
 
-`message` says what changed. A notification message also carries `notification_id`, the stored notification, and means "fetch your notifications again". The two data messages below carry nothing else and mean "fetch that data again".
+`message` says what changed. A notification message also carries `notification_id`, the stored notification, and means "fetch your notifications again". `GEARS_CHANGED` and `HEALTH_CHANGED` carry nothing else and mean "fetch that data again". `JOB_STATUS_CHANGED` means "read that job's status again" through its status route. A client that keeps polling a job can poll slowly while it is connected, and read the status at once when its `job` arrives; a hint can be lost, so keep a slow poll as the fallback.
 
 | `message` | When |
 | --------- | ---- |
@@ -51,6 +51,7 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 | `ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION` | A sign-up waits for an administrator |
 | `GEARS_CHANGED` | A Garmin Connect or Strava gear sync finished and stored your gear |
 | `HEALTH_CHANGED` | A Garmin Connect health sync finished and stored your health data |
+| `JOB_STATUS_CHANGED` | A background job you started finished, failed or needs input. The frame also carries `job`: `garmin-link`, `strava:link`, `strava:unlink` or `ingestion:<job id>` |
 
 Ignore a `message` you do not recognise: new types can be added. The notification meanings are in [Notifications](../features/notifications.md).
 

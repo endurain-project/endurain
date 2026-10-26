@@ -39,6 +39,7 @@ import modules.activities.activity_ingestion.provider_registry as activity_inges
 import modules.activities.activity_ingestion.refresh_entry_service as activity_ingestion_refresh_entry_service
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.upload_entry_service as activity_ingestion_upload_entry_service
+import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -405,6 +406,7 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
+    _announce_job(owner, job_id)
     logger.info(
         "Refresh job synced provider activities",
         extra=core_logger.context(user_id=owner, job_id=job_id, activity_count=len(activity_ids)),
@@ -628,6 +630,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
                 db,
             )
             db.commit()
+            _announce_job(user_id, job_id)
             # After the outcome is committed: a crash before this line retries
             # against the blob rather than finding it gone.
             activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
@@ -638,6 +641,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
             return
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
+        _announce_job(user_id, job_id)
         activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         logger.info(
             "Upload job imported activities",
@@ -705,6 +709,18 @@ def run_in_background_or_fail(
         raise
 
 
+def _announce_job(user_id: int, job_id: str) -> None:
+    """Tell the job's owner it reached a terminal state, so their client stops waiting for its poll.
+
+    Call it after the state is committed.
+
+    Args:
+        user_id: The job's owner.
+        job_id: The job identifier.
+    """
+    websocket_integration.push_job_changed(user_id, f"ingestion:{job_id}")
+
+
 def fail_ingestion_job(
     job_id: str,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
@@ -727,8 +743,10 @@ def fail_ingestion_job(
             if staged_key is None:
                 work_item = activity_ingestion_crud.get_job_work_item(job_id, db)
                 staged_key = work_item[1] if work_item else None
-            activity_ingestion_crud.mark_failed(job_id, error_code, db)
+            owner = activity_ingestion_crud.mark_failed(job_id, error_code, db)
             db.commit()
+        if owner is not None:
+            _announce_job(owner, job_id)
     except Exception as err:
         # Never mask the original failure with a bookkeeping one.
         logger.error(

@@ -7,6 +7,7 @@ import type {
   StravaSyncStatus,
 } from '@/features/integrations/types'
 
+import { waitForJobCheck } from '@/composables/useRealtime'
 import { apiFetch } from '@/services/http'
 import { getRuntimeBackendHost } from '@/services/runtime'
 
@@ -16,8 +17,8 @@ const STRAVA_SCOPE = 'read,read_all,profile:read_all,activity:read,activity:read
 /** How often the status of a queued Strava link or unlink is read. */
 const STRAVA_SYNC_POLL_MS = 1_000
 
-/** How many status reads to make before giving up on a queued Strava link or unlink. */
-const STRAVA_SYNC_MAX_POLLS = 120
+/** How long to follow a queued Strava link or unlink before giving up on it. */
+const STRAVA_SYNC_TIMEOUT_MS = 120_000
 
 /**
  * Follows a queued Strava job (`link` or `unlink`) until it finishes.
@@ -32,17 +33,20 @@ async function followStravaSync(
   status: StravaSyncStatus,
   label: string,
 ): Promise<void> {
-  for (let poll = 0; poll < STRAVA_SYNC_MAX_POLLS; poll++) {
+  const deadline = Date.now() + STRAVA_SYNC_TIMEOUT_MS
+  for (;;) {
     if (status.status === 'completed') {
       return
     }
     if (status.status === 'failed') {
       throw new Error(`${label} Strava failed`)
     }
-    await new Promise((resolve) => setTimeout(resolve, STRAVA_SYNC_POLL_MS))
+    if (Date.now() >= deadline) {
+      throw new Error(`${label} Strava did not finish in time`)
+    }
+    await waitForJobCheck(`strava:${kind}`, STRAVA_SYNC_POLL_MS)
     status = await apiFetch<StravaSyncStatus>(`/strava/sync/${kind}`)
   }
-  throw new Error(`${label} Strava did not finish in time`)
 }
 
 /**

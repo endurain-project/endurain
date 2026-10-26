@@ -132,6 +132,23 @@ class TestTerminalTransitions:
         assert row.error_code == "invalid_file"
         assert row.staged_key is None
 
+    def test_mark_failed_reports_the_owner_so_they_can_be_told(self, mock_db):
+        mock_db.get.return_value = _row(status="processing", user_id=7)
+
+        owner = ingestion_crud.mark_failed(
+            "job-1", activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE, mock_db
+        )
+
+        assert owner == 7
+
+    def test_mark_failed_reports_nobody_for_a_job_that_is_missing_or_already_terminal(self, mock_db):
+        code = activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE
+        mock_db.get.return_value = None
+        assert ingestion_crud.mark_failed("gone", code, mock_db) is None
+
+        mock_db.get.return_value = _row(status="completed", completed_at=datetime.now(UTC))
+        assert ingestion_crud.mark_failed("done", code, mock_db) is None
+
     def test_mark_processing_is_one_conditional_update(self, mock_db):
         mock_db.execute.return_value.rowcount = 1
         claimed = ingestion_crud.mark_processing("job-1", mock_db, lease=timedelta(0))

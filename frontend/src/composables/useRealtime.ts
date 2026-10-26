@@ -24,6 +24,13 @@ export interface RealtimeEvent {
 /** Handler invoked for a subscribed realtime event. */
 export type RealtimeHandler = (event: RealtimeEvent) => void
 
+/**
+ * How often a background job is checked while the socket is open. The server announces the
+ * job's change, so the check is only the fallback for a hint that never arrives (it is
+ * best-effort): the longest a user can wait for a lost hint.
+ */
+export const JOB_POLL_CONNECTED_MS = 5_000
+
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 const RECONNECT_JITTER_RATIO = 0.3
@@ -277,6 +284,64 @@ if (typeof document !== 'undefined') {
 }
 
 /**
+ * Subscribes a handler to a named realtime event.
+ *
+ * @param event - The backend event name (the frame's `message` value).
+ * @param handler - Callback invoked with each matching event.
+ * @returns An unsubscribe function.
+ */
+function subscribe(event: string, handler: RealtimeHandler): () => void {
+  const set = handlers.get(event) ?? new Set<RealtimeHandler>()
+  set.add(handler)
+  handlers.set(event, set)
+  return () => {
+    set.delete(handler)
+    if (set.size === 0) {
+      handlers.delete(event)
+    }
+  }
+}
+
+/**
+ * How long to wait between checks of a background job's status.
+ *
+ * While the socket is open the server announces the job's change, so the check slows to
+ * {@link JOB_POLL_CONNECTED_MS}; without the socket nothing would announce it, so it keeps
+ * the given interval. Never longer than the interval given.
+ *
+ * @param fastMs - The interval to use when no hint can arrive.
+ * @returns The interval to wait.
+ */
+export function jobPollInterval(fastMs: number): number {
+  return status.value === 'open' ? Math.max(fastMs, JOB_POLL_CONNECTED_MS) : fastMs
+}
+
+/**
+ * Waits until it is time to check a background job's status again: the poll interval
+ * ({@link jobPollInterval}) passes, or the server announces that this job changed.
+ *
+ * @param job - The job's name, as the server's `JOB_STATUS_CHANGED` hint carries it.
+ * @param fastMs - The interval to use when no hint can arrive.
+ * @returns A promise that resolves when the job should be checked.
+ */
+export function waitForJobCheck(job: string, fastMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    let unsubscribe = () => {}
+    const done = () => {
+      clearTimeout(timer)
+      unsubscribe()
+      resolve()
+    }
+    const timer = setTimeout(done, jobPollInterval(fastMs))
+    unsubscribe = subscribe('JOB_STATUS_CHANGED', (event) => {
+      if (event.job === job) {
+        done()
+      }
+    })
+  })
+}
+
+/**
  * Single-connection realtime channel over the backend WebSocket. Manages one
  * connection per tab with automatic reconnection (exponential backoff + jitter),
  * dispatches typed events to subscribers, and invalidates the relevant
@@ -328,15 +393,7 @@ export function useRealtime() {
    * @returns An unsubscribe function.
    */
   function on(event: string, handler: RealtimeHandler): () => void {
-    const set = handlers.get(event) ?? new Set<RealtimeHandler>()
-    set.add(handler)
-    handlers.set(event, set)
-    return () => {
-      set.delete(handler)
-      if (set.size === 0) {
-        handlers.delete(event)
-      }
-    }
+    return subscribe(event, handler)
   }
 
   return { status: readonly(status), connect, disconnect, on }

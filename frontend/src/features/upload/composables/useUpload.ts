@@ -13,6 +13,7 @@ import {
 } from '@/features/upload/composables/usePendingThumbnails'
 import { fetchIngestionJob, uploadActivityFile } from '@/features/upload/services/upload'
 import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
+import { waitForJobCheck } from '@/composables/useRealtime'
 import { queryKeys } from '@/services/queryKeys'
 
 /** How long to wait between upload-job status polls. */
@@ -87,7 +88,7 @@ export async function pollIngestionJob(
     if (Date.now() >= deadline) {
       throw new IngestionJobTimeoutError()
     }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    await waitForJobCheck(`ingestion:${jobId}`, intervalMs)
   }
 }
 

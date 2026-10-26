@@ -34,6 +34,7 @@ def _link(stores, garmin):
     mfa_codes, link_states = stores
     link_states.begin(1)
     with (
+        patch.object(garmin_link_service.websocket_integration, "push_job_changed") as push,
         patch.object(garmin_link_service.garminconnect, "Garmin", return_value=garmin) as factory,
         patch.object(garmin_link_service.core_database, "SessionLocal"),
         patch.object(garmin_link_service.user_integrations_integration, "link_garminconnect_account") as save,
@@ -42,7 +43,32 @@ def _link(stores, garmin):
         ),
     ):
         garmin_link_service.link_garminconnect(1, "me@example.com", "pw", mfa_codes, link_states, True)
+    _link.push = push
     return factory, save
+
+
+class TestLinkTellsTheBrowser:
+    """The dialog polls the link; a hint lets it stop waiting the moment the outcome is recorded."""
+
+    def test_a_completed_link_is_announced_once(self, stores):
+        _link(stores, _garmin())
+
+        _link.push.assert_called_once_with(1, "garmin-link")
+
+    def test_a_failed_link_is_announced_once(self, stores):
+        _link(stores, _garmin(login=RuntimeError("boom")))
+
+        _link.push.assert_called_once_with(1, "garmin-link")
+
+    def test_asking_for_the_mfa_code_is_announced(self, stores):
+        mfa_codes, link_states = stores
+        link_states.begin(1)
+        mfa_codes.add_code(1, "123456")
+
+        with patch.object(garmin_link_service.websocket_integration, "push_job_changed") as push:
+            garmin_link_service.wait_for_mfa_code(1, mfa_codes, link_states)
+
+        push.assert_called_once_with(1, "garmin-link")
 
 
 class TestLinkGarminconnect:

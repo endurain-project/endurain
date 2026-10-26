@@ -31,3 +31,9 @@ def test_an_oversized_push_is_dropped_not_raised(hints):
     websocket_integration.push_to_user(7, {"message": "x" * 10_000})
 
     assert hints == []
+
+
+def test_a_job_hint_names_the_job_and_reaches_the_users_key(hints):
+    websocket_integration.push_job_changed(7, "garmin-link")
+
+    assert hints == [("user:7", {"message": "JOB_STATUS_CHANGED", "job": "garmin-link"})]

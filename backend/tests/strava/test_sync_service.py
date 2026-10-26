@@ -110,7 +110,7 @@ class TestRunSync:
 
         push.assert_not_called()
 
-    def test_an_unlink_pushes_nothing(self, states, rate_limits):
+    def test_a_finished_unlink_announces_its_job_and_no_gear_change(self, states, rate_limits):
         states.begin(7, UNLINK)
         with (
             patch.object(strava_sync_service.strava_service, "unlink_account", return_value=True),
@@ -118,7 +118,7 @@ class TestRunSync:
         ):
             strava_sync_service.run_sync(_payload(UNLINK), states, rate_limits)
 
-        push.assert_not_called()
+        push.assert_called_once_with(7, {"message": "JOB_STATUS_CHANGED", "job": "strava:unlink"})
 
     def test_an_unlink_runs_and_completes_even_when_strava_was_not_linked(self, states, rate_limits):
         states.begin(7, UNLINK)

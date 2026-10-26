@@ -110,6 +110,30 @@ _SCOPE = (7, None, None, None)
 
 
 class TestRunRefreshJob:
+    def test_the_owner_is_told_the_job_finished_after_it_is_committed(self):
+        events: list[str] = []
+        session = MagicMock()
+        session.commit.side_effect = lambda: events.append("commit")
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=_SCOPE),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=[]
+            ),
+            patch.object(
+                ingestion_jobs.websocket_integration,
+                "push_job_changed",
+                side_effect=lambda *args: events.append("push"),
+            ) as push,
+        ):
+            session_local.return_value.__enter__.return_value = session
+            ingestion_jobs.run_refresh_job("job-1", "storage")
+
+        push.assert_called_once_with(7, "ingestion:job-1")
+        assert events.index("push") > events.index("commit")
+
     def _patches(self, scope=_SCOPE):
         return (
             patch.object(ingestion_jobs.core_database, "SessionLocal"),

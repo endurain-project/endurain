@@ -13,6 +13,7 @@ That is why this never raises over a push that could not be sent.
 import jasil.runtime as platform_runtime
 
 import core.logger as core_logger
+import modules.websocket.constants as websocket_constants
 import modules.websocket.keys as websocket_keys
 
 logger = core_logger.get_logger(__name__)
@@ -41,3 +42,16 @@ def push_to_user(user_id: int, message: dict) -> None:
             exc_info=True,
             extra=core_logger.context(user_id=user_id),
         )
+
+
+def push_job_changed(user_id: int, job: str) -> None:
+    """Tell a user's browser that a background job it may be waiting on changed state.
+
+    The client checks the job's status through its normal route; the hint only saves it waiting for its
+    next poll. Best-effort like every push, so the poll stays as the fallback.
+
+    Args:
+        user_id: The user who owns the job.
+        job: The job's name, e.g. ``garmin-link`` or ``ingestion:<id>``.
+    """
+    push_to_user(user_id, {"message": websocket_constants.JOB_STATUS_CHANGED_MESSAGE, "job": job})

@@ -560,19 +560,23 @@ def mark_failed(
     job_id: str,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     db: Session,
-) -> None:
+) -> int | None:
     """Stage a move of a job to the failed state with a sanitized reason.
 
     Args:
         job_id: The job identifier.
         error_code: Sanitized failure reason shown to the owner.
         db: Database session.
+
+    Returns:
+        The owner's user id, or ``None`` when the job is unknown or already terminal (nothing changed).
     """
     orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
-        return
+        return None
     _fail(orm_job, error_code, datetime.now(UTC))
     db.flush()
+    return orm_job.user_id
 
 
 def fail_jobs_idle_since(

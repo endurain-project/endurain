@@ -24,6 +24,7 @@ import {
   UploadValidationError,
 } from '@/features/upload/types'
 import type { Activity } from '@/features/activities/types'
+import * as realtime from '@/composables/useRealtime'
 
 import { makeActivity } from './fixtures/activity'
 
@@ -217,6 +218,18 @@ describe('fetchIngestionJob', () => {
 })
 
 describe('pollIngestionJob', () => {
+  it('waits on its own job between checks, so a hint can end the wait early', async () => {
+    const wait = vi.spyOn(realtime, 'waitForJobCheck')
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'processing' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [7] })))
+
+    await pollIngestionJob('job-1', { intervalMs: 0 })
+
+    expect(wait).toHaveBeenCalledExactlyOnceWith('ingestion:job-1', 0)
+    wait.mockRestore()
+  })
+
   it('polls until the import reaches a terminal state', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'pending' })))

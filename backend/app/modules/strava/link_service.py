@@ -10,6 +10,7 @@ import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
 import modules.strava.sync_state_store as strava_sync_state_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
+import modules.websocket.integration_service as websocket_integration
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
@@ -113,6 +114,8 @@ def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSync
     except Exception as err:
         logger.error("Unable to link Strava account", extra=core_logger.context(user_id=user_id), exc_info=err)
         states.set_status(user_id, kind, strava_constants.SyncStatus.FAILED)
+        websocket_integration.push_job_changed(user_id, "strava:link")
         return
     states.set_status(user_id, kind, strava_constants.SyncStatus.COMPLETED)
+    websocket_integration.push_job_changed(user_id, "strava:link")
     logger.info("Strava linked", extra=core_logger.context(user_id=user_id))

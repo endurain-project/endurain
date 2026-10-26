@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useRealtime } from '@/composables/useRealtime'
+import {
+  JOB_POLL_CONNECTED_MS,
+  jobPollInterval,
+  useRealtime,
+  waitForJobCheck,
+} from '@/composables/useRealtime'
 
 const invalidateQueries = vi.fn<(...args: unknown[]) => Promise<void>>((..._args) =>
   Promise.resolve(),
@@ -267,6 +272,98 @@ describe('useRealtime', () => {
 
       const activityCalls = invalidationsOf('activities')
       expect(activityCalls).toHaveLength(2)
+    })
+  })
+
+  describe('waiting on a background job', () => {
+    async function openSocket() {
+      useRealtime().connect()
+      await flushPromises()
+      const socket = latestSocket()
+      socket.open()
+      return socket
+    }
+
+    function hint(socket: ReturnType<typeof latestSocket>, job: string): void {
+      socket.onmessage?.({ data: JSON.stringify({ message: 'JOB_STATUS_CHANGED', job }) })
+    }
+
+    /** Tracks whether a promise has settled, without awaiting it. */
+    function track(promise: Promise<void>): { settled: boolean } {
+      const state = { settled: false }
+      void promise.then(() => {
+        state.settled = true
+      })
+      return state
+    }
+
+    it('polls at the given interval while the socket is not open', async () => {
+      vi.useFakeTimers()
+      expect(jobPollInterval(1_500)).toBe(1_500)
+
+      const wait = track(waitForJobCheck('garmin-link', 1_500))
+      await vi.advanceTimersByTimeAsync(1_499)
+      expect(wait.settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(wait.settled).toBe(true)
+    })
+
+    it('polls slowly while the socket is open, since a hint announces the change', async () => {
+      await openSocket()
+
+      expect(jobPollInterval(1_500)).toBe(JOB_POLL_CONNECTED_MS)
+      expect(jobPollInterval(1_500)).toBeGreaterThan(1_500)
+    })
+
+    it('never polls slower than the interval it was given', async () => {
+      await openSocket()
+
+      expect(jobPollInterval(30_000)).toBe(30_000)
+    })
+
+    it('waits the slow interval while connected, as the fallback for a lost hint', async () => {
+      const socket = await openSocket()
+      vi.useFakeTimers()
+      const wait = track(waitForJobCheck('garmin-link', 1_500))
+      expect(socket).toBeDefined()
+
+      await vi.advanceTimersByTimeAsync(JOB_POLL_CONNECTED_MS - 1)
+      expect(wait.settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(wait.settled).toBe(true)
+    })
+
+    it('returns at once when a hint names the job it waits on', async () => {
+      const socket = await openSocket()
+      const wait = track(waitForJobCheck('garmin-link', 1_500))
+
+      hint(socket, 'garmin-link')
+      await flushPromises()
+
+      expect(wait.settled).toBe(true)
+    })
+
+    it('ignores a hint for another job', async () => {
+      const socket = await openSocket()
+      const wait = track(waitForJobCheck('garmin-link', 1_500))
+
+      hint(socket, 'strava:link')
+      await flushPromises()
+
+      expect(wait.settled).toBe(false)
+    })
+
+    it('stops listening once it returns, so a later hint wakes nothing', async () => {
+      const socket = await openSocket()
+      const first = track(waitForJobCheck('garmin-link', 1_500))
+      hint(socket, 'garmin-link')
+      await flushPromises()
+      expect(first.settled).toBe(true)
+
+      const second = track(waitForJobCheck('garmin-link', 1_500))
+      await flushPromises()
+
+      expect(second.settled).toBe(false)
     })
   })
 
