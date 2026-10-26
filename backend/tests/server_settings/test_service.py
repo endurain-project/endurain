@@ -11,10 +11,17 @@ from unittest.mock import MagicMock, patch
 import jasil.providers as platform_providers
 import pytest
 
+import core.config as core_config
+import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import core.geocoding as core_geocoding
 import core.mail as core_mail
+import core.network as core_network
 import modules.server_settings.constants as server_settings_constants
+import modules.server_settings.env_import_service as server_settings_env_import_service
+import modules.server_settings.login_photo_service as server_settings_login_photo_service
+import modules.server_settings.mail_service as server_settings_mail_service
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
 
@@ -83,13 +90,13 @@ def edit_env():
             side_effect=lambda attrs, db: stored.model_copy(update=attrs.model_dump(exclude_unset=True)),
         ) as write,
         patch.object(server_settings_service.server_settings_publishers, "publish_tile_settings_changed") as publish,
-        patch.object(server_settings_service.core_network, "url_rejection_reason_bounded", return_value=None) as dns,
+        patch.object(core_network, "url_rejection_reason_bounded", return_value=None) as dns,
         patch.object(
-            server_settings_service.core_cryptography,
+            core_cryptography,
             "decrypt_token_fernet",
             side_effect=lambda token: {"enc-old": "plain-old", "enc-new": "plain-new"}[token],
         ),
-        patch.object(server_settings_service.core_cryptography, "encrypt_token_fernet", return_value="enc-new"),
+        patch.object(core_cryptography, "encrypt_token_fernet", return_value="enc-new"),
     ):
         yield MagicMock(stored=stored, write=write, publish=publish, dns=dns)
 
@@ -206,7 +213,7 @@ class TestOnlyRealChangesCount:
     def test_an_undecryptable_stored_key_can_be_replaced(self, edit_env):
         """After the encryption key changes, re-entering the key must still work."""
         with patch.object(
-            server_settings_service.core_cryptography,
+            core_cryptography,
             "decrypt_token_fernet",
             side_effect=core_exceptions.UndecryptableError(),
         ):
@@ -266,9 +273,7 @@ class TestGeocodingSettingsOnWrite:
     def geo_env(self, edit_env):
         with (
             patch.object(server_settings_service, "server_settings_env_managed", return_value={}) as managed,
-            patch.object(
-                server_settings_service.core_network, "url_rejection_reason_bounded", return_value=None
-            ) as dns,
+            patch.object(core_network, "url_rejection_reason_bounded", return_value=None) as dns,
         ):
             edit_env.managed = managed
             edit_env.geo_dns = dns
@@ -354,15 +359,15 @@ class TestGeocodingSettingsOnWrite:
 
 class TestServerSettingsEnvManaged:
     def test_nothing_is_managed_without_a_geocoding_variable(self):
-        with patch.object(server_settings_service, "_env_var_is_set", return_value=False):
+        with patch.object(server_settings_service, "env_var_is_set", return_value=False):
             assert server_settings_service.server_settings_env_managed() == {}
 
     def test_one_variable_manages_every_geocoding_field(self):
         with (
             patch.object(
-                server_settings_service, "_env_var_is_set", side_effect=lambda n: n == "REVERSE_GEO_RATE_LIMIT"
+                server_settings_service, "env_var_is_set", side_effect=lambda n: n == "REVERSE_GEO_RATE_LIMIT"
             ),
-            patch.object(server_settings_service.core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="nominatim")),
+            patch.object(core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="nominatim")),
         ):
             managed = server_settings_service.server_settings_env_managed()
 
@@ -376,8 +381,8 @@ class TestServerSettingsEnvManaged:
 
     def test_photon_names_its_own_host_variables(self):
         with (
-            patch.object(server_settings_service, "_env_var_is_set", return_value=True),
-            patch.object(server_settings_service.core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="photon")),
+            patch.object(server_settings_service, "env_var_is_set", return_value=True),
+            patch.object(core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="photon")),
         ):
             managed = server_settings_service.server_settings_env_managed()
 
@@ -448,8 +453,8 @@ def import_geo(edit_env):
     """Pretend the given geocoding variables are set; yield the knobs."""
     state = MagicMock(set_vars={"REVERSE_GEO_PROVIDER"}, settings=_geo_env_settings(), stored=edit_env.stored)
     with (
-        patch.object(server_settings_service, "_env_var_is_set", side_effect=lambda n: n in state.set_vars),
-        patch.object(server_settings_service.core_config, "settings", state.settings),
+        patch.object(server_settings_service, "env_var_is_set", side_effect=lambda n: n in state.set_vars),
+        patch.object(core_config, "settings", state.settings),
         patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=state.stored),
     ):
         state.write = edit_env.write
@@ -460,11 +465,11 @@ class TestImportGeocodingEnv:
     def test_nothing_happens_without_a_geocoding_variable(self, import_geo):
         import_geo.set_vars = set()
 
-        assert server_settings_service._import_geocoding_env(MagicMock()) == []
+        assert server_settings_env_import_service._import_geocoding_env(MagicMock()) == []
         import_geo.write.assert_not_called()
 
     def test_values_equal_to_the_stored_ones_write_nothing(self, import_geo):
-        names = server_settings_service._import_geocoding_env(MagicMock())
+        names = server_settings_env_import_service._import_geocoding_env(MagicMock())
 
         assert names == ["REVERSE_GEO_PROVIDER"]
         import_geo.write.assert_not_called()
@@ -473,7 +478,7 @@ class TestImportGeocodingEnv:
         import_geo.set_vars = {"REVERSE_GEO_PROVIDER", "REVERSE_GEO_RATE_LIMIT"}
         import_geo.settings.REVERSE_GEO_RATE_LIMIT = 2.5
 
-        server_settings_service._import_geocoding_env(MagicMock())
+        server_settings_env_import_service._import_geocoding_env(MagicMock())
 
         assert import_geo.write.call_args.args[0].model_dump(exclude_unset=True) == {"geocoding_rate_limit": 2.5}
 
@@ -483,7 +488,7 @@ class TestImportGeocodingEnv:
         import_geo.settings.PHOTON_API_HOST = "photon.example.com"
         import_geo.settings.NOMINATIM_API_HOST = "ignored.example.com"
 
-        server_settings_service._import_geocoding_env(MagicMock())
+        server_settings_env_import_service._import_geocoding_env(MagicMock())
 
         written = import_geo.write.call_args.args[0].model_dump(exclude_unset=True)
         assert written == {"geocoding_service": "photon", "geocoding_host": "photon.example.com"}
@@ -493,7 +498,7 @@ class TestImportGeocodingEnv:
         with patch.object(
             server_settings_service.server_settings_crud, "get_server_settings", return_value=import_geo.stored
         ):
-            server_settings_service._import_geocoding_env(MagicMock())
+            server_settings_env_import_service._import_geocoding_env(MagicMock())
 
         assert import_geo.write.call_args.args[0].model_dump(exclude_unset=True) == {"geocoding_host": None}
 
@@ -501,7 +506,7 @@ class TestImportGeocodingEnv:
         import_geo.set_vars = {"GEOCODES_MAPS_API"}
         import_geo.settings.GEOCODES_MAPS_API = "changeme"
 
-        server_settings_service._import_geocoding_env(MagicMock())
+        server_settings_env_import_service._import_geocoding_env(MagicMock())
 
         import_geo.write.assert_not_called()
 
@@ -510,7 +515,7 @@ class TestImportGeocodingEnv:
         import_geo.settings.REVERSE_GEO_PROVIDER = "geocode"
         import_geo.settings.GEOCODES_MAPS_API = "a-real-key"
 
-        server_settings_service._import_geocoding_env(MagicMock())
+        server_settings_env_import_service._import_geocoding_env(MagicMock())
 
         written = import_geo.write.call_args.args[0].model_dump(exclude_unset=True)
         assert written["geocoding_api_key"] == "enc-new"
@@ -520,7 +525,7 @@ class TestImportGeocodingEnv:
     def test_an_unknown_provider_leaves_the_stored_settings_and_does_not_raise(self, import_geo):
         import_geo.settings.REVERSE_GEO_PROVIDER = "bing"
 
-        names = server_settings_service._import_geocoding_env(MagicMock())
+        names = server_settings_env_import_service._import_geocoding_env(MagicMock())
 
         assert names == ["REVERSE_GEO_PROVIDER"]
         import_geo.write.assert_not_called()
@@ -529,11 +534,13 @@ class TestImportGeocodingEnv:
 class TestImportDeprecatedNamesBothBlocks:
     def test_the_warning_names_mail_and_geocoding_variables(self):
         with (
-            patch.object(server_settings_service, "_import_mail_env", return_value=["SMTP_HOST"]),
-            patch.object(server_settings_service, "_import_geocoding_env", return_value=["REVERSE_GEO_PROVIDER"]),
-            patch.object(server_settings_service.logger, "warning") as warn,
+            patch.object(server_settings_env_import_service, "_import_mail_env", return_value=["SMTP_HOST"]),
+            patch.object(
+                server_settings_env_import_service, "_import_geocoding_env", return_value=["REVERSE_GEO_PROVIDER"]
+            ),
+            patch.object(server_settings_env_import_service.logger, "warning") as warn,
         ):
-            server_settings_service.import_deprecated_env_settings(MagicMock())
+            server_settings_env_import_service.import_deprecated_env_settings(MagicMock())
 
         warn.assert_called_once()
         assert "SMTP_HOST, REVERSE_GEO_PROVIDER" in warn.call_args.args[0]
@@ -577,7 +584,7 @@ class TestGetSessionPolicy:
 class TestSessionEnvManaged:
     def test_each_variable_manages_only_its_own_field(self):
         with patch.object(
-            server_settings_service, "_env_var_is_set", side_effect=lambda n: n == "REFRESH_TOKEN_EXPIRE_DAYS"
+            server_settings_service, "env_var_is_set", side_effect=lambda n: n == "REFRESH_TOKEN_EXPIRE_DAYS"
         ):
             assert server_settings_service.server_settings_env_managed() == {
                 "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS"
@@ -616,8 +623,8 @@ def _session_env_settings(**overrides):
 def import_session(edit_env):
     state = MagicMock(set_vars=set(), settings=_session_env_settings(), stored=edit_env.stored, write=edit_env.write)
     with (
-        patch.object(server_settings_service, "_env_var_is_set", side_effect=lambda n: n in state.set_vars),
-        patch.object(server_settings_service.core_config, "settings", state.settings),
+        patch.object(server_settings_service, "env_var_is_set", side_effect=lambda n: n in state.set_vars),
+        patch.object(core_config, "settings", state.settings),
         patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=state.stored),
     ):
         yield state
@@ -625,13 +632,13 @@ def import_session(edit_env):
 
 class TestImportSessionEnv:
     def test_nothing_happens_without_a_session_variable(self, import_session):
-        assert server_settings_service._import_session_env(MagicMock()) == []
+        assert server_settings_env_import_service._import_session_env(MagicMock()) == []
         import_session.write.assert_not_called()
 
     def test_values_equal_to_the_stored_ones_write_nothing(self, import_session):
         import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
 
-        assert server_settings_service._import_session_env(MagicMock()) == ["ACCESS_TOKEN_EXPIRE_MINUTES"]
+        assert server_settings_env_import_service._import_session_env(MagicMock()) == ["ACCESS_TOKEN_EXPIRE_MINUTES"]
         import_session.write.assert_not_called()
 
     def test_only_the_set_variables_are_imported_and_only_when_different(self, import_session):
@@ -640,7 +647,7 @@ class TestImportSessionEnv:
         # Not set in the environment, so it must not be touched even though it differs from the stored value.
         import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 5
 
-        server_settings_service._import_session_env(MagicMock())
+        server_settings_env_import_service._import_session_env(MagicMock())
 
         written = import_session.write.call_args.args[0].model_dump(exclude_unset=True)
         assert written == {"access_token_expire_minutes": 60}
@@ -649,7 +656,7 @@ class TestImportSessionEnv:
         import_session.set_vars = {"SESSION_IDLE_TIMEOUT_ENABLED"}
         import_session.settings.SESSION_IDLE_TIMEOUT_ENABLED = True
 
-        server_settings_service._import_session_env(MagicMock())
+        server_settings_env_import_service._import_session_env(MagicMock())
 
         assert import_session.write.call_args.args[0].model_dump(exclude_unset=True) == {
             "session_idle_timeout_enabled": True
@@ -661,7 +668,7 @@ class TestImportSessionEnv:
         import_session.settings.SESSION_ABSOLUTE_TIMEOUT_HOURS = 24
 
         with pytest.raises(ValueError, match="SESSION_ABSOLUTE_TIMEOUT_HOURS"):
-            server_settings_service._import_session_env(MagicMock())
+            server_settings_env_import_service._import_session_env(MagicMock())
 
         import_session.write.assert_not_called()
 
@@ -670,7 +677,7 @@ class TestImportSessionEnv:
         import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 100
 
         with pytest.raises(ValueError):
-            server_settings_service._import_session_env(MagicMock())
+            server_settings_env_import_service._import_session_env(MagicMock())
 
 
 class TestRetention:
@@ -683,7 +690,7 @@ class TestRetention:
 
     def test_the_variable_manages_only_its_own_field(self):
         with patch.object(
-            server_settings_service, "_env_var_is_set", side_effect=lambda n: n == "READ_NOTIFICATION_RETENTION_DAYS"
+            server_settings_service, "env_var_is_set", side_effect=lambda n: n == "READ_NOTIFICATION_RETENTION_DAYS"
         ):
             assert server_settings_service.server_settings_env_managed() == {
                 "read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"
@@ -709,8 +716,8 @@ class TestRetention:
     def import_env(self, edit_env):
         state = MagicMock(is_set=True, settings=MagicMock(READ_NOTIFICATION_RETENTION_DAYS=90), write=edit_env.write)
         with (
-            patch.object(server_settings_service, "_env_var_is_set", side_effect=lambda n: state.is_set),
-            patch.object(server_settings_service.core_config, "settings", state.settings),
+            patch.object(server_settings_service, "env_var_is_set", side_effect=lambda n: state.is_set),
+            patch.object(core_config, "settings", state.settings),
             patch.object(
                 server_settings_service.server_settings_crud, "get_server_settings", return_value=edit_env.stored
             ),
@@ -720,17 +727,19 @@ class TestRetention:
     def test_nothing_happens_without_the_variable(self, import_env):
         import_env.is_set = False
 
-        assert server_settings_service._import_retention_env(MagicMock()) == []
+        assert server_settings_env_import_service._import_retention_env(MagicMock()) == []
         import_env.write.assert_not_called()
 
     def test_an_equal_value_writes_nothing(self, import_env):
-        assert server_settings_service._import_retention_env(MagicMock()) == ["READ_NOTIFICATION_RETENTION_DAYS"]
+        assert server_settings_env_import_service._import_retention_env(MagicMock()) == [
+            "READ_NOTIFICATION_RETENTION_DAYS"
+        ]
         import_env.write.assert_not_called()
 
     def test_a_different_value_is_written(self, import_env):
         import_env.settings.READ_NOTIFICATION_RETENTION_DAYS = 7
 
-        server_settings_service._import_retention_env(MagicMock())
+        server_settings_env_import_service._import_retention_env(MagicMock())
 
         assert import_env.write.call_args.args[0].model_dump(exclude_unset=True) == {
             "read_notification_retention_days": 7
@@ -739,7 +748,7 @@ class TestRetention:
     def test_zero_is_imported(self, import_env):
         import_env.settings.READ_NOTIFICATION_RETENTION_DAYS = 0
 
-        server_settings_service._import_retention_env(MagicMock())
+        server_settings_env_import_service._import_retention_env(MagicMock())
 
         assert import_env.write.call_args.args[0].read_notification_retention_days == 0
 
@@ -754,10 +763,10 @@ class TestLoginPhoto:
         file = MagicMock(content_type="text/plain")
 
         with (
-            patch.object(server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
+            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
             patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
         ):
-            server_settings_service.upload_login_photo(file, storage, db)
+            server_settings_login_photo_service.upload_login_photo(file, storage, db)
 
         assert calls == ["save", "commit"]
         # The type is detected from the bytes, not taken from the client's claim.
@@ -768,10 +777,10 @@ class TestLoginPhoto:
         storage = MagicMock()
 
         with (
-            patch.object(server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=big),
+            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=big),
             pytest.raises(core_exceptions.PayloadTooLargeError),
         ):
-            server_settings_service.upload_login_photo(MagicMock(), storage, MagicMock())
+            server_settings_login_photo_service.upload_login_photo(MagicMock(), storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -779,12 +788,10 @@ class TestLoginPhoto:
         storage = MagicMock()
 
         with (
-            patch.object(
-                server_settings_service.core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"
-            ),
+            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"),
             pytest.raises(core_exceptions.UnsupportedMediaTypeError),
         ):
-            server_settings_service.upload_login_photo(MagicMock(), storage, MagicMock())
+            server_settings_login_photo_service.upload_login_photo(MagicMock(), storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -796,7 +803,7 @@ class TestLoginPhoto:
         db.commit.side_effect = lambda: calls.append("commit")
 
         with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
-            server_settings_service.delete_login_photo(storage, db)
+            server_settings_login_photo_service.delete_login_photo(storage, db)
 
         assert calls == ["commit", "delete"]
         storage.delete.assert_called_once_with("server_images", "login.png")
@@ -807,7 +814,7 @@ class TestLoginPhoto:
         db = MagicMock()
 
         with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
-            server_settings_service.delete_login_photo(storage, db)
+            server_settings_login_photo_service.delete_login_photo(storage, db)
 
         db.commit.assert_called_once()
 
@@ -815,19 +822,19 @@ class TestLoginPhoto:
         with patch.object(
             server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=False, version=5)
         ):
-            assert server_settings_service.get_login_photo_version(MagicMock()) is None
+            assert server_settings_login_photo_service.get_login_photo_version(MagicMock()) is None
 
     def test_version_is_the_settings_version_when_a_photo_is_set(self):
         with patch.object(
             server_settings_service, "get_server_settings", return_value=MagicMock(login_photo_set=True, version=5)
         ):
-            assert server_settings_service.get_login_photo_version(MagicMock()) == 5
+            assert server_settings_login_photo_service.get_login_photo_version(MagicMock()) == 5
 
     def test_read_returns_none_when_missing(self):
         storage = MagicMock()
         storage.get.return_value = None
 
-        assert server_settings_service.read_login_photo(storage) is None
+        assert server_settings_login_photo_service.read_login_photo(storage) is None
 
     @pytest.mark.parametrize(
         "data,media_type",
@@ -837,7 +844,7 @@ class TestLoginPhoto:
         storage = MagicMock()
         storage.get.return_value = data
 
-        assert server_settings_service.read_login_photo(storage) == (data, media_type)
+        assert server_settings_login_photo_service.read_login_photo(storage) == (data, media_type)
 
 
 def _mail_row(**overrides) -> server_settings_schema.MailSettingsRead:
@@ -873,14 +880,14 @@ def mail_env():
             "edit_mail_settings",
             side_effect=lambda attrs, db: stored.model_copy(update=attrs.model_dump(exclude_unset=True)),
         ) as write,
-        patch.object(server_settings_service.core_mail, "mail_problems", return_value=[]) as problems,
-        patch.object(server_settings_service, "mail_env_managed", return_value={}) as managed,
+        patch.object(core_mail, "mail_problems", return_value=[]) as problems,
+        patch.object(server_settings_mail_service, "mail_env_managed", return_value={}) as managed,
         patch.object(
-            server_settings_service.core_cryptography,
+            core_cryptography,
             "decrypt_token_fernet",
             side_effect=lambda token: {"enc-old": "plain-old", "enc-new": "plain-new"}[token],
         ),
-        patch.object(server_settings_service.core_cryptography, "encrypt_token_fernet", return_value="enc-new"),
+        patch.object(core_cryptography, "encrypt_token_fernet", return_value="enc-new"),
     ):
         yield MagicMock(stored=stored, read=read, write=write, problems=problems, managed=managed)
 
@@ -889,7 +896,7 @@ class TestEditMailSettings:
     def test_resending_the_unchanged_record_does_nothing(self, mail_env):
         db = MagicMock()
 
-        result = server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored), db, if_match="*")
+        result = server_settings_mail_service.edit_mail_settings(_mail_edit(mail_env.stored), db, if_match="*")
 
         mail_env.write.assert_not_called()
         db.commit.assert_not_called()
@@ -897,13 +904,15 @@ class TestEditMailSettings:
         assert result.host == "mail.example.com"
 
     def test_the_row_is_locked_for_the_edit(self, mail_env):
-        server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*")
+        server_settings_mail_service.edit_mail_settings(
+            _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+        )
 
         assert mail_env.read.call_args.kwargs == {"for_update": True}
 
     def test_a_stale_if_match_is_refused_and_writes_nothing(self, mail_env):
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            server_settings_service.edit_mail_settings(
+            server_settings_mail_service.edit_mail_settings(
                 _mail_edit(mail_env.stored, port=465), MagicMock(), if_match='"9"'
             )
 
@@ -912,7 +921,7 @@ class TestEditMailSettings:
     def test_an_omitted_password_keeps_the_stored_token(self, mail_env):
         db = MagicMock()
 
-        server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), db, if_match="*")
+        server_settings_mail_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), db, if_match="*")
 
         assert "password" not in mail_env.write.call_args.args[0].model_fields_set
         db.commit.assert_called_once()
@@ -920,13 +929,13 @@ class TestEditMailSettings:
     def test_an_unchanged_password_keeps_its_stored_token(self, mail_env):
         body = _mail_edit(mail_env.stored, port=465, password="plain-old")
 
-        server_settings_service.edit_mail_settings(body, MagicMock(), if_match="*")
+        server_settings_mail_service.edit_mail_settings(body, MagicMock(), if_match="*")
 
         assert mail_env.write.call_args.args[0].password == "enc-old"
 
     @pytest.mark.parametrize("cleared", [None, ""])
     def test_clearing_the_password_stores_none(self, mail_env, cleared):
-        result = server_settings_service.edit_mail_settings(
+        result = server_settings_mail_service.edit_mail_settings(
             _mail_edit(mail_env.stored, password=cleared), MagicMock(), if_match="*"
         )
 
@@ -934,7 +943,7 @@ class TestEditMailSettings:
         assert result.password_set is False
 
     def test_a_changed_password_is_encrypted_and_never_returned(self, mail_env):
-        result = server_settings_service.edit_mail_settings(
+        result = server_settings_mail_service.edit_mail_settings(
             _mail_edit(mail_env.stored, password="plain-new"), MagicMock(), if_match="*"
         )
 
@@ -950,7 +959,9 @@ class TestEditMailSettings:
         ]
 
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*")
+            server_settings_mail_service.edit_mail_settings(
+                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+            )
 
         assert "Port must be between" in exc_info.value.detail
         assert "; " in exc_info.value.detail
@@ -959,7 +970,7 @@ class TestEditMailSettings:
     def test_disabling_mail_skips_validation(self, mail_env):
         mail_env.problems.return_value = ["never shown"]
 
-        result = server_settings_service.edit_mail_settings(
+        result = server_settings_mail_service.edit_mail_settings(
             _mail_edit(mail_env.stored, host=None), MagicMock(), if_match="*"
         )
 
@@ -967,7 +978,9 @@ class TestEditMailSettings:
         assert result.host is None
 
     def test_the_password_is_checked_in_plain_text(self, mail_env):
-        server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*")
+        server_settings_mail_service.edit_mail_settings(
+            _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+        )
 
         config = mail_env.problems.call_args.args[0]
         assert config.password == "plain-old"
@@ -977,7 +990,9 @@ class TestEditMailSettings:
         mail_env.managed.return_value = {"host": "SMTP_HOST", "port": "SMTP_PORT"}
 
         with pytest.raises(core_exceptions.ConflictError) as exc_info:
-            server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*")
+            server_settings_mail_service.edit_mail_settings(
+                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+            )
 
         assert "port is set by the SMTP_PORT environment variable" in exc_info.value.detail
         mail_env.write.assert_not_called()
@@ -985,7 +1000,7 @@ class TestEditMailSettings:
     def test_a_change_to_a_field_that_is_not_env_managed_succeeds(self, mail_env):
         mail_env.managed.return_value = {"host": "SMTP_HOST"}
 
-        result = server_settings_service.edit_mail_settings(
+        result = server_settings_mail_service.edit_mail_settings(
             _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
         )
 
@@ -994,7 +1009,7 @@ class TestEditMailSettings:
     def test_resending_an_env_managed_value_unchanged_is_allowed(self, mail_env):
         mail_env.managed.return_value = {"host": "SMTP_HOST", "port": "SMTP_PORT"}
 
-        server_settings_service.edit_mail_settings(
+        server_settings_mail_service.edit_mail_settings(
             _mail_edit(mail_env.stored, username="other@example.com"), MagicMock(), if_match="*"
         )
 
@@ -1003,12 +1018,12 @@ class TestEditMailSettings:
 
 class TestMailEnvManaged:
     def test_nothing_is_managed_without_smtp_host(self):
-        with patch.object(server_settings_service, "_env_var_is_set", return_value=False):
-            assert server_settings_service.mail_env_managed() == {}
+        with patch.object(server_settings_service, "env_var_is_set", return_value=False):
+            assert server_settings_mail_service.mail_env_managed() == {}
 
     def test_every_mail_field_is_managed_when_smtp_host_is_set(self):
-        with patch.object(server_settings_service, "_env_var_is_set", side_effect=lambda name: name == "SMTP_HOST"):
-            managed = server_settings_service.mail_env_managed()
+        with patch.object(server_settings_service, "env_var_is_set", side_effect=lambda name: name == "SMTP_HOST"):
+            managed = server_settings_mail_service.mail_env_managed()
 
         assert managed == server_settings_constants.MAIL_ENV_VARS
         assert managed["password"] == "SMTP_PASSWORD"
@@ -1016,26 +1031,26 @@ class TestMailEnvManaged:
 
 class TestEnvVarIsSet:
     def test_a_default_value_does_not_count(self):
-        with patch.object(server_settings_service.core_config, "settings", MagicMock(model_fields_set=set())):
-            assert server_settings_service._env_var_is_set("SMTP_PORT") is False
+        with patch.object(core_config, "settings", MagicMock(model_fields_set=set())):
+            assert server_settings_service.env_var_is_set("SMTP_PORT") is False
 
     def test_an_explicit_value_counts(self):
-        with patch.object(server_settings_service.core_config, "settings", MagicMock(model_fields_set={"SMTP_PORT"})):
-            assert server_settings_service._env_var_is_set("SMTP_PORT") is True
+        with patch.object(core_config, "settings", MagicMock(model_fields_set={"SMTP_PORT"})):
+            assert server_settings_service.env_var_is_set("SMTP_PORT") is True
 
     @pytest.mark.parametrize("variable", ["SMTP_PASSWORD", "SMTP_PASSWORD_FILE"])
     def test_a_secret_counts_through_its_file_variant(self, variable):
         with patch.dict("os.environ", {variable: "x"}, clear=True):
-            assert server_settings_service._env_var_is_set("SMTP_PASSWORD") is True
+            assert server_settings_service.env_var_is_set("SMTP_PASSWORD") is True
 
     def test_an_unset_secret_does_not_count(self):
         with patch.dict("os.environ", {}, clear=True):
-            assert server_settings_service._env_var_is_set("SMTP_PASSWORD") is False
+            assert server_settings_service.env_var_is_set("SMTP_PASSWORD") is False
 
 
 class TestMailConfig:
     def test_decrypts_the_password_and_falls_back_to_the_username_sender(self, mail_env):
-        config = server_settings_service.get_mail_config(MagicMock())
+        config = server_settings_mail_service.get_mail_config(MagicMock())
 
         assert config.password == "plain-old"
         assert config.from_address == "me@example.com"
@@ -1044,24 +1059,24 @@ class TestMailConfig:
     def test_an_explicit_sender_wins(self, mail_env):
         mail_env.read.return_value = _mail_row(from_address="noreply@example.com")
 
-        assert server_settings_service.get_mail_config(MagicMock()).from_address == "noreply@example.com"
+        assert server_settings_mail_service.get_mail_config(MagicMock()).from_address == "noreply@example.com"
 
     def test_no_host_means_mail_is_disabled(self, mail_env):
         mail_env.read.return_value = _mail_row(host=None)
 
-        assert server_settings_service.get_mail_config(MagicMock()) is None
+        assert server_settings_mail_service.get_mail_config(MagicMock()) is None
 
     def test_a_missing_row_means_mail_is_disabled(self, mail_env):
         mail_env.read.return_value = None
 
-        assert server_settings_service.get_mail_config(MagicMock()) is None
+        assert server_settings_mail_service.get_mail_config(MagicMock()) is None
 
 
 class TestEmailStatus:
     """Test suite for get_email_status."""
 
     def test_configured(self, mail_env):
-        result = server_settings_service.get_email_status(MagicMock())
+        result = server_settings_mail_service.get_email_status(MagicMock())
 
         assert result.configured is True
         assert result.problems == []
@@ -1069,7 +1084,7 @@ class TestEmailStatus:
     def test_unset_host_reports_missing_host(self, mail_env):
         mail_env.read.return_value = _mail_row(host=None)
 
-        result = server_settings_service.get_email_status(MagicMock())
+        result = server_settings_mail_service.get_email_status(MagicMock())
 
         assert result.configured is False
         assert result.problems == ["Host is not set"]
@@ -1077,7 +1092,7 @@ class TestEmailStatus:
     def test_invalid_settings_report_problems(self, mail_env):
         mail_env.problems.return_value = ["Username and password must be set together"]
 
-        result = server_settings_service.get_email_status(MagicMock())
+        result = server_settings_mail_service.get_email_status(MagicMock())
 
         assert result.configured is False
         assert result.problems == ["Username and password must be set together"]
@@ -1095,7 +1110,7 @@ class TestSendTestEmail:
         mail = MagicMock()
 
         with pytest.raises(core_exceptions.ServiceUnavailableError) as exc_info:
-            server_settings_service.send_test_email(self._admin(), mail, MagicMock())
+            server_settings_mail_service.send_test_email(self._admin(), mail, MagicMock())
 
         assert "Host is not set" in exc_info.value.detail
         mail.send.assert_not_called()
@@ -1105,7 +1120,7 @@ class TestSendTestEmail:
         mock_settings.ENDURAIN_HOST = "https://endurain.example.com"
         mail = MagicMock()
 
-        server_settings_service.send_test_email(self._admin(), mail, MagicMock())
+        server_settings_mail_service.send_test_email(self._admin(), mail, MagicMock())
 
         message = mail.send.call_args.args[0]
         assert message.to == ["admin@example.com"]
@@ -1119,7 +1134,7 @@ class TestSendTestEmail:
         mail.send.side_effect = platform_providers.MailError("SMTP authentication failed (status 535)", status=535)
 
         with pytest.raises(core_exceptions.UpstreamError) as exc_info:
-            server_settings_service.send_test_email(self._admin(), mail, MagicMock())
+            server_settings_mail_service.send_test_email(self._admin(), mail, MagicMock())
 
         assert "status 535" in exc_info.value.detail
 
@@ -1141,33 +1156,33 @@ def _env_settings(**overrides):
 def import_env(mail_env):
     """Pretend ``SMTP_*`` variables are set, with a password, on top of the mail fixture."""
     with (
-        patch.object(server_settings_service, "_env_var_is_set", return_value=True) as is_set,
-        patch.object(server_settings_service.core_config, "settings", _env_settings()) as settings,
-        patch.object(server_settings_service.core_config, "read_secret", return_value="plain-old") as secret,
+        patch.object(server_settings_service, "env_var_is_set", return_value=True) as is_set,
+        patch.object(core_config, "settings", _env_settings()) as settings,
+        patch.object(core_config, "read_secret", return_value="plain-old") as secret,
     ):
         yield MagicMock(mail=mail_env, is_set=is_set, settings=settings, secret=secret)
 
 
 class TestImportMailEnv:
     def test_nothing_happens_without_smtp_host(self, mail_env):
-        with patch.object(server_settings_service, "_env_var_is_set", return_value=False):
-            names = server_settings_service._import_mail_env(MagicMock())
+        with patch.object(server_settings_service, "env_var_is_set", return_value=False):
+            names = server_settings_env_import_service._import_mail_env(MagicMock())
 
         assert names == []
         mail_env.read.assert_not_called()
         mail_env.write.assert_not_called()
 
     def test_values_equal_to_the_stored_ones_write_nothing(self, import_env):
-        names = server_settings_service._import_mail_env(MagicMock())
+        names = server_settings_env_import_service._import_mail_env(MagicMock())
 
         import_env.mail.write.assert_not_called()
         assert "SMTP_HOST" in names and "SMTP_PASSWORD" in names
 
     def test_only_the_differing_fields_are_written(self, import_env):
-        server_settings_service.core_config.settings.SMTP_PORT = 465
-        server_settings_service.core_config.settings.SMTP_SECURE_TYPE = "ssl"
+        core_config.settings.SMTP_PORT = 465
+        core_config.settings.SMTP_SECURE_TYPE = "ssl"
 
-        server_settings_service._import_mail_env(MagicMock())
+        server_settings_env_import_service._import_mail_env(MagicMock())
 
         written = import_env.mail.write.call_args.args[0].model_dump(exclude_unset=True)
         assert written == {"port": 465, "security": "ssl"}
@@ -1175,7 +1190,7 @@ class TestImportMailEnv:
     def test_a_different_password_is_encrypted_and_written(self, import_env):
         import_env.secret.return_value = "plain-new"
 
-        server_settings_service._import_mail_env(MagicMock())
+        server_settings_env_import_service._import_mail_env(MagicMock())
 
         assert import_env.mail.write.call_args.args[0].model_dump(exclude_unset=True) == {"password": "enc-new"}
 
@@ -1184,19 +1199,19 @@ class TestImportMailEnv:
         [(False, "starttls", "none"), (True, "ssl", "ssl"), (True, "starttls", "starttls")],
     )
     def test_the_security_mode_is_mapped(self, import_env, secure, secure_type, expected):
-        server_settings_service.core_config.settings.SMTP_SECURE = secure
-        server_settings_service.core_config.settings.SMTP_SECURE_TYPE = secure_type
+        core_config.settings.SMTP_SECURE = secure
+        core_config.settings.SMTP_SECURE_TYPE = secure_type
         stored_security = "ssl" if expected == "starttls" else "starttls"
         import_env.mail.read.return_value = import_env.mail.stored.model_copy(update={"security": stored_security})
 
-        server_settings_service._import_mail_env(MagicMock())
+        server_settings_env_import_service._import_mail_env(MagicMock())
 
         assert import_env.mail.write.call_args.args[0].model_dump(exclude_unset=True)["security"] == expected
 
     def test_invalid_values_leave_the_stored_settings_and_do_not_raise(self, import_env, caplog):
         import_env.mail.problems.return_value = ["Username and password must be set together"]
 
-        names = server_settings_service._import_mail_env(MagicMock())
+        names = server_settings_env_import_service._import_mail_env(MagicMock())
 
         import_env.mail.read.assert_not_called()
         import_env.mail.write.assert_not_called()
@@ -1204,7 +1219,7 @@ class TestImportMailEnv:
         assert "plain-old" not in caplog.text
 
     def test_the_row_is_locked(self, import_env):
-        server_settings_service._import_mail_env(MagicMock())
+        server_settings_env_import_service._import_mail_env(MagicMock())
 
         assert import_env.mail.read.call_args.kwargs == {"for_update": True}
 
@@ -1213,20 +1228,22 @@ class TestImportDeprecatedEnvSettings:
     def test_no_env_means_no_warning(self):
         db = MagicMock()
         with (
-            patch.object(server_settings_service, "_import_mail_env", return_value=[]),
-            patch.object(server_settings_service.logger, "warning") as warn,
+            patch.object(server_settings_env_import_service, "_import_mail_env", return_value=[]),
+            patch.object(server_settings_env_import_service.logger, "warning") as warn,
         ):
-            server_settings_service.import_deprecated_env_settings(db)
+            server_settings_env_import_service.import_deprecated_env_settings(db)
 
         warn.assert_not_called()
 
     def test_one_warning_names_the_variables_but_never_values(self):
         db = MagicMock()
         with (
-            patch.object(server_settings_service, "_import_mail_env", return_value=["SMTP_HOST", "SMTP_PASSWORD"]),
-            patch.object(server_settings_service.logger, "warning") as warn,
+            patch.object(
+                server_settings_env_import_service, "_import_mail_env", return_value=["SMTP_HOST", "SMTP_PASSWORD"]
+            ),
+            patch.object(server_settings_env_import_service.logger, "warning") as warn,
         ):
-            server_settings_service.import_deprecated_env_settings(db)
+            server_settings_env_import_service.import_deprecated_env_settings(db)
 
         warn.assert_called_once()
         message = warn.call_args.args[0]
@@ -1239,10 +1256,12 @@ class TestImportDeprecatedEnvSettings:
         order: list[str] = []
         db.commit.side_effect = lambda: order.append("commit")
         with (
-            patch.object(server_settings_service, "_import_mail_env", return_value=["SMTP_HOST"]),
-            patch.object(server_settings_service.logger, "warning", side_effect=lambda *a, **k: order.append("warn")),
+            patch.object(server_settings_env_import_service, "_import_mail_env", return_value=["SMTP_HOST"]),
+            patch.object(
+                server_settings_env_import_service.logger, "warning", side_effect=lambda *a, **k: order.append("warn")
+            ),
         ):
-            server_settings_service.import_deprecated_env_settings(db)
+            server_settings_env_import_service.import_deprecated_env_settings(db)
 
         assert order == ["commit", "warn"]
 
@@ -1316,11 +1335,13 @@ class TestEditMailSettingsLocking:
         calls = []
         mail_env.read.side_effect = lambda db, **kwargs: (calls.append(("read", kwargs)), mail_env.stored)[1]
         with patch.object(
-            server_settings_service.core_mail,
+            core_mail,
             "mail_problems",
             side_effect=lambda config: calls.append(("dns", {})) or [],
         ):
-            server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*")
+            server_settings_mail_service.edit_mail_settings(
+                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+            )
 
         assert [name for name, _ in calls] == ["read", "dns", "read"]
         assert calls[-1][1] == {"for_update": True}
@@ -1330,6 +1351,8 @@ class TestEditMailSettingsLocking:
         mail_env.read.side_effect = [mail_env.stored, later]
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            server_settings_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*")
+            server_settings_mail_service.edit_mail_settings(
+                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+            )
 
         mail_env.write.assert_not_called()

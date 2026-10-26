@@ -117,3 +117,22 @@ TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
         "requires_api_key_backend": True,
     },
 }
+
+#: Settings that change what a map renders, so a change to one regenerates the thumbnails.
+MAP_FIELDS = frozenset({"tileserver_url", "tileserver_api_key", "map_background_color"})
+
+API_KEY_FIELD = "tileserver_api_key"
+API_KEY_LABEL = "tile API key"
+GEOCODING_API_KEY_FIELD = "geocoding_api_key"
+GEOCODING_API_KEY_LABEL = "geocoding API key"
+
+#: Write-only secret field name to what it is called in messages.
+SECRET_FIELDS = {API_KEY_FIELD: API_KEY_LABEL, GEOCODING_API_KEY_FIELD: GEOCODING_API_KEY_LABEL}
+GEOCODING_FIELDS = frozenset(GEOCODING_ENV_VARS)
+
+MAIL_CREDENTIAL_FIELD = "password"
+MAIL_CREDENTIAL_LABEL = "SMTP password"
+SMTP_ENV_VARS = (*MAIL_ENV_VARS.values(), "SMTP_SECURE_TYPE")
+
+#: Secrets read through ``read_secret``, which also counts when only their ``_FILE`` variant is set.
+FILE_SECRET_ENV_VARS = frozenset({"SMTP_PASSWORD"})

@@ -14,8 +14,11 @@ import core.logger as core_logger
 import core.mail as core_mail
 import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.crud as server_settings_crud
+import modules.server_settings.env_import_service as server_settings_env_import_service
+import modules.server_settings.mail_service as server_settings_mail_service
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
+import modules.server_settings.tile_service as server_settings_tile_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -90,7 +93,7 @@ def get_tile_server_settings(db: Session) -> server_settings_contracts.TileServe
     if settings is None:
         logger.warning("Server settings are unavailable; falling back to tile defaults")
         return server_settings_contracts.TileServerSettings()
-    api_key = server_settings_service.decrypt_tileserver_api_key(settings.tileserver_api_key)
+    api_key = server_settings_tile_service.decrypt_tileserver_api_key(settings.tileserver_api_key)
     return server_settings_contracts.TileServerSettings(
         tile_url=settings.tileserver_url,
         background_color=settings.map_background_color,
@@ -110,7 +113,7 @@ def get_mail_config(db: Session) -> core_mail.MailConfig | None:
     Raises:
         ServiceUnavailableError: When the stored password cannot be decrypted.
     """
-    return server_settings_service.get_mail_config(db)
+    return server_settings_mail_service.get_mail_config(db)
 
 
 def is_mail_configured(db: Session) -> bool:
@@ -122,7 +125,7 @@ def is_mail_configured(db: Session) -> bool:
     Returns:
         True when a mail host is stored. The settings were validated when saved.
     """
-    return server_settings_service.is_mail_configured(db)
+    return server_settings_mail_service.is_mail_configured(db)
 
 
 def get_geocoding_config(db: Session) -> core_geocoding.GeocodingConfig | None:
@@ -181,4 +184,4 @@ def import_deprecated_env_settings(db: Session) -> None:
     Raises:
         ServiceUnavailableError: If a settings row does not exist.
     """
-    server_settings_service.import_deprecated_env_settings(db)
+    server_settings_env_import_service.import_deprecated_env_settings(db)

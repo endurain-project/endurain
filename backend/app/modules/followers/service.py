@@ -14,6 +14,8 @@ This is the module's *own* application layer. What other modules may consume
 lives in :mod:`modules.followers.integration_service`.
 """
 
+from collections.abc import Callable
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -70,6 +72,50 @@ def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Se
         raise core_exceptions.AccessConcealedError("User not found")
 
 
+def _list_network(
+    target_user_id: int,
+    requester_user_id: int,
+    list_page: Callable[..., list[followers_schema.FollowRelationshipRead]],
+    count: Callable[..., int],
+    db: Session,
+    *,
+    page_number: int,
+    num_records: int,
+    accepted_only: bool,
+) -> followers_schema.FollowRelationshipPage:
+    """Return one page of one side of a user's follow network with the matching total.
+
+    Args:
+        target_user_id: The user whose network to list.
+        requester_user_id: The authenticated requester.
+        list_page: The crud function that reads one page of the chosen side.
+        count: The crud function that counts the chosen side.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+        accepted_only: Exclude pending follow requests when True.
+
+    Returns:
+        The page envelope. ``total`` counts every row matching the same filter, not just this page.
+
+    Raises:
+        AccessConcealedError: When the requester may not view this network; answered like a missing user.
+    """
+    # Checked once here so the page and its total share a single authorisation
+    # decision rather than each re-deriving it.
+    _ensure_may_view_network(target_user_id, requester_user_id, db)
+    effective_accepted_only = accepted_only or requester_user_id != target_user_id
+    items = list_page(
+        target_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=effective_accepted_only,
+    )
+    total = count(target_user_id, db, accepted_only=effective_accepted_only)
+    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+
+
 def list_followers(
     target_user_id: int,
     requester_user_id: int,
@@ -97,23 +143,16 @@ def list_followers(
         AccessConcealedError: When the requester may not view this network;
             answered like a missing user.
     """
-    # Checked once here so the page and its total share a single authorisation
-    # decision rather than each re-deriving it.
-    _ensure_may_view_network(target_user_id, requester_user_id, db)
-    effective_accepted_only = accepted_only or requester_user_id != target_user_id
-    items = followers_crud.get_all_followers_by_user_id(
+    return _list_network(
         target_user_id,
+        requester_user_id,
+        followers_crud.get_all_followers_by_user_id,
+        followers_crud.count_followers_by_user_id,
         db,
         page_number=page_number,
         num_records=num_records,
-        accepted_only=effective_accepted_only,
+        accepted_only=accepted_only,
     )
-    total = followers_crud.count_followers_by_user_id(
-        target_user_id,
-        db,
-        accepted_only=effective_accepted_only,
-    )
-    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
 def list_following(
@@ -143,21 +182,16 @@ def list_following(
         AccessConcealedError: When the requester may not view this network;
             answered like a missing user.
     """
-    _ensure_may_view_network(target_user_id, requester_user_id, db)
-    effective_accepted_only = accepted_only or requester_user_id != target_user_id
-    items = followers_crud.get_all_following_by_user_id(
+    return _list_network(
         target_user_id,
+        requester_user_id,
+        followers_crud.get_all_following_by_user_id,
+        followers_crud.count_following_by_user_id,
         db,
         page_number=page_number,
         num_records=num_records,
-        accepted_only=effective_accepted_only,
+        accepted_only=accepted_only,
     )
-    total = followers_crud.count_following_by_user_id(
-        target_user_id,
-        db,
-        accepted_only=effective_accepted_only,
-    )
-    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
 def list_pending_requests(

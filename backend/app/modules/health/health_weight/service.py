@@ -6,10 +6,8 @@ consume lives in :mod:`modules.health.health_weight.integration_service`.
 """
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.etag as core_etag
-import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.health.computation as health_computation
@@ -168,30 +166,14 @@ def stage_upsert_health_weight(
         # The request carries no timezone, so the day is the athlete's own.
         health_weight.date = users_integration.local_today(user_id, db)
 
-    existing = health_weight_crud.get_health_weight_by_date_and_user_id(user_id, health_weight.date.isoformat(), db)
-    if existing is None:
-        try:
-            with db.begin_nested():
-                return stage_create_health_weight(user_id, health_weight, db)
-        except core_exceptions.ConflictError:
-            existing = health_weight_crud.get_health_weight_by_date_and_user_id(
-                user_id, health_weight.date.isoformat(), db
-            )
-            if existing is None:
-                raise
+    day = health_weight.date.isoformat()
     update = health_weight_schema.HealthWeightUpdate(**health_weight.model_dump())
-    for attempt in range(health_constants.UPSERT_ATTEMPTS):
-        try:
-            with db.begin_nested():
-                return stage_edit_health_weight(user_id, existing.id, update, db, if_match="*")
-        except StaleDataError:
-            # Another writer changed the row between this read and the flush: read it again and apply on top.
-            existing = health_weight_crud.get_health_weight_by_date_and_user_id(
-                user_id, health_weight.date.isoformat(), db
-            )
-            if existing is None or attempt == health_constants.UPSERT_ATTEMPTS - 1:
-                raise
-    raise AssertionError("unreachable")  # pragma: no cover
+    return health_computation.upsert_for_day(
+        find=lambda: health_weight_crud.get_health_weight_by_date_and_user_id(user_id, day, db),
+        create=lambda: stage_create_health_weight(user_id, health_weight, db),
+        edit=lambda record_id: stage_edit_health_weight(user_id, record_id, update, db, if_match="*"),
+        db=db,
+    )
 
 
 def create_health_weight(

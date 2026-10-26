@@ -73,7 +73,7 @@ class TestReadPublicServerSettings:
 class TestListTileMapsTemplatesPublic:
     """Test suite for list_tile_maps_templates public endpoint."""
 
-    @patch("modules.server_settings.public_router.server_settings_service.get_tile_maps_templates")
+    @patch("modules.server_settings.public_router.server_settings_tile_service.get_tile_maps_templates")
     def test_list_tile_maps_templates_public_success(self, mock_get_templates, fast_api_client_public, fast_api_app):
         """Test successful retrieval of tile map templates (public)."""
         # Arrange
@@ -109,7 +109,7 @@ class TestListTileMapsTemplatesPublic:
         assert data[0]["template_id"] == "openstreetmap"
         assert data[1]["template_id"] == "alidade_smooth"
 
-    @patch("modules.server_settings.public_router.server_settings_service.get_tile_maps_templates")
+    @patch("modules.server_settings.public_router.server_settings_tile_service.get_tile_maps_templates")
     def test_list_tile_maps_templates_public_empty(self, mock_get_templates, fast_api_client_public, fast_api_app):
         """Test retrieval when no templates available."""
         # Arrange
@@ -127,8 +127,8 @@ class TestListTileMapsTemplatesPublic:
 class TestReadLoginPhoto:
     """Test suite for the public login photo route."""
 
-    @patch("modules.server_settings.public_router.server_settings_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_service.read_login_photo")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
     def test_serves_the_stored_image(self, mock_read, mock_version, fast_api_client_public, fast_api_app):
         mock_version.return_value = 3
         mock_read.return_value = (b"\x89PNG", "image/png")
@@ -141,8 +141,8 @@ class TestReadLoginPhoto:
         assert "max-age" in response.headers["cache-control"]
         assert response.headers["etag"] == '"3"'
 
-    @patch("modules.server_settings.public_router.server_settings_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_service.read_login_photo")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
     def test_a_matching_etag_is_a_304_without_reading_storage(
         self, mock_read, mock_version, fast_api_client_public, fast_api_app
     ):
@@ -154,8 +154,8 @@ class TestReadLoginPhoto:
         assert response.content == b""
         mock_read.assert_not_called()
 
-    @patch("modules.server_settings.public_router.server_settings_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_service.read_login_photo")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
     def test_404_when_no_photo_is_set(self, mock_read, mock_version, fast_api_client_public, fast_api_app_public):
         mock_version.return_value = None
         core_exceptions.register_exception_handlers(fast_api_app_public)
@@ -165,8 +165,8 @@ class TestReadLoginPhoto:
         assert response.status_code == 404
         mock_read.assert_not_called()
 
-    @patch("modules.server_settings.public_router.server_settings_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_service.read_login_photo")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
+    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
     def test_404_when_the_blob_is_missing(self, mock_read, mock_version, fast_api_client_public, fast_api_app_public):
         mock_version.return_value = 3
         mock_read.return_value = None

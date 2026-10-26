@@ -2,14 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Path
+from fastapi import Depends
 
 import core.dependencies as core_dependencies
 import modules.users.users_profile.export_state_store as profile_export_state_store
 import modules.users.users_profile.import_state_store as profile_import_state_store
-
-#: The identifier of one of the caller's sessions, as the auth boundary issued it.
-SessionId = Annotated[str, Path(min_length=1)]
 
 
 def get_profile_import_state_store(

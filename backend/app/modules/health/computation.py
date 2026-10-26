@@ -1,11 +1,24 @@
-"""Pure date and SQL helpers shared by the health packages.
+"""Date and SQL helpers, and the same-day upsert, shared by the health packages.
 
-Owns no table and calls no module, so every health package can use it.
+Owns no table, runs no statement and calls no module, so every health package can use it.
 """
 
+from collections.abc import Callable
 from datetime import date, timedelta
+from typing import Protocol
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
+
+import core.exceptions as core_exceptions
+import modules.health.constants as health_constants
+
+
+class _HasId(Protocol):
+    """A stored record, which has an id."""
+
+    id: int
 
 
 def get_start_date_for_interval(interval: str, today: date) -> date:
@@ -58,3 +71,50 @@ def local_date_expression(column, tz_name: str):
     """
     # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
     return func.date(func.timezone(tz_name, column))
+
+
+def upsert_for_day[RecordT: _HasId](
+    find: Callable[[], RecordT | None],
+    create: Callable[[], RecordT],
+    edit: Callable[[int], RecordT],
+    db: Session,
+) -> RecordT:
+    """Stage a day's record, or an update to the record the day already has.
+
+    A writer that creates the day first, on this replica or another, is not an error: the record it
+    created is updated instead. A writer that changes the record between the read and the flush is
+    retried against what it left, up to ``UPSERT_ATTEMPTS`` times. Each step runs in a savepoint, so a
+    lost race does not poison the caller's transaction.
+
+    Args:
+        find: Reads the day's record, or None when it has none.
+        create: Stages a new record for the day.
+        edit: Stages an update to the record with the given id, overwriting whatever version it holds.
+        db: Database session.
+
+    Returns:
+        The staged record.
+
+    Raises:
+        ConflictError: If the day's record cannot be created or found.
+        StaleDataError: If the record keeps changing under every attempt.
+    """
+    existing = find()
+    if existing is None:
+        try:
+            with db.begin_nested():
+                return create()
+        except core_exceptions.ConflictError:
+            existing = find()
+            if existing is None:
+                raise
+    for attempt in range(health_constants.UPSERT_ATTEMPTS):
+        try:
+            with db.begin_nested():
+                return edit(existing.id)
+        except StaleDataError:
+            # Another writer changed the row between this read and the flush: read it again and apply on top.
+            existing = find()
+            if existing is None or attempt == health_constants.UPSERT_ATTEMPTS - 1:
+                raise
+    raise AssertionError("unreachable")  # pragma: no cover

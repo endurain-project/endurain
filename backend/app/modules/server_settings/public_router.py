@@ -5,8 +5,10 @@ from fastapi import APIRouter, Request, Response, status
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import modules.server_settings.login_photo_service as server_settings_login_photo_service
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
+import modules.server_settings.tile_service as server_settings_tile_service
 
 # Define the API router
 router = APIRouter()
@@ -47,7 +49,7 @@ def list_tile_maps_templates() -> list[server_settings_schema.TileMapsTemplate]:
     Returns:
         List of tile map template configurations available for the server.
     """
-    return server_settings_service.get_tile_maps_templates()
+    return server_settings_tile_service.get_tile_maps_templates()
 
 
 # Browser cache for the login photo, in seconds; the ETag lets it revalidate cheaply after that.
@@ -81,7 +83,7 @@ def read_login_photo(
     Raises:
         NotFoundError: 404 when no custom photo is stored.
     """
-    version = server_settings_service.get_login_photo_version(db)
+    version = server_settings_login_photo_service.get_login_photo_version(db)
     if version is None:
         raise core_exceptions.NotFoundError("Login photo not found")
     etag = core_etag.format_etag(version)
@@ -89,7 +91,7 @@ def read_login_photo(
     # Answered from the settings row alone: a client that holds the photo costs no storage read.
     if core_etag.matches_if_none_match(request.headers.get("if-none-match"), version):
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
-    photo = server_settings_service.read_login_photo(storage)
+    photo = server_settings_login_photo_service.read_login_photo(storage)
     if photo is None:
         raise core_exceptions.NotFoundError("Login photo not found")
     data, media_type = photo

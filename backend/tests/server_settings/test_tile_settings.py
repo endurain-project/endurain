@@ -13,6 +13,7 @@ import core.exceptions as core_exceptions
 import modules.server_settings.models as server_settings_models
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
+import modules.server_settings.tile_service as server_settings_tile_service
 
 
 class TestGetServerSettings:
@@ -49,13 +50,15 @@ class TestAllowedTileDomainsForUrl:
     """Test suite for allowed_tile_domains_for_url."""
 
     def test_a_custom_host_is_added_to_the_builtin_domains(self):
-        result = server_settings_service.allowed_tile_domains_for_url("https://tiles.example.com/{z}/{x}/{y}.png")
+        result = server_settings_tile_service.allowed_tile_domains_for_url("https://tiles.example.com/{z}/{x}/{y}.png")
 
         assert result[-1] == "https://tiles.example.com"
         assert len(result) == 3
 
     def test_a_builtin_host_adds_nothing(self):
-        result = server_settings_service.allowed_tile_domains_for_url("https://tile.openstreetmap.org/{z}/{x}/{y}.png")
+        result = server_settings_tile_service.allowed_tile_domains_for_url(
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        )
 
         assert len(result) == 2
 
@@ -66,7 +69,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_returns_list(self):
         """Test that get_tile_maps_templates returns a list."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert
         assert isinstance(result, list)
@@ -75,7 +78,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_contains_openstreetmap(self):
         """Test that templates include OpenStreetMap."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert
         openstreetmap = next((t for t in result if t.template_id == "openstreetmap"), None)
@@ -88,7 +91,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_contains_alidade_smooth(self):
         """Test that templates include Stadia Maps Alidade Smooth."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert
         alidade_smooth = next((t for t in result if t.template_id == "alidade_smooth"), None)
@@ -100,7 +103,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_contains_alidade_smooth_dark(self):
         """Test that templates include Stadia Maps Alidade Smooth Dark."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert
         alidade_dark = next((t for t in result if t.template_id == "alidade_smooth_dark"), None)
@@ -111,7 +114,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_contains_alidade_satellite(self):
         """Test that templates include Stadia Maps Alidade Satellite."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert
         alidade_satellite = next((t for t in result if t.template_id == "alidade_satellite"), None)
@@ -123,7 +126,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_contains_stadia_outdoors(self):
         """Test that templates include Stadia Maps Outdoors."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert
         stadia_outdoors = next((t for t in result if t.template_id == "stadia_outdoors"), None)
@@ -133,7 +136,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_all_valid_schemas(self):
         """Test that all templates are valid TileMapsTemplate schemas."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert
         for template in result:
@@ -149,7 +152,7 @@ class TestGetTileMapsTemplates:
     def test_get_tile_maps_templates_expected_count(self):
         """Test that we get the expected number of templates."""
         # Act
-        result = server_settings_service.get_tile_maps_templates()
+        result = server_settings_tile_service.get_tile_maps_templates()
 
         # Assert - based on TILE_MAPS_TEMPLATES in utils.py
         assert (
@@ -166,7 +169,7 @@ class TestExtractDomainFromTileUrl:
         url = "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "https://tiles.stadiamaps.com"
@@ -177,7 +180,7 @@ class TestExtractDomainFromTileUrl:
         url = "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "https://a.tile.openstreetmap.org"
@@ -188,7 +191,7 @@ class TestExtractDomainFromTileUrl:
         url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "https://tile.openstreetmap.org"
@@ -199,7 +202,7 @@ class TestExtractDomainFromTileUrl:
         url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "https://*.tile.openstreetmap.org"
@@ -210,7 +213,7 @@ class TestExtractDomainFromTileUrl:
         url = "http://localhost:8080/tiles/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "http://localhost:8080"
@@ -221,7 +224,7 @@ class TestExtractDomainFromTileUrl:
         url = "http://localhost/tiles/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "http://localhost"
@@ -232,7 +235,7 @@ class TestExtractDomainFromTileUrl:
         url = "http://127.0.0.1:3000/tiles/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "http://127.0.0.1:3000"
@@ -243,7 +246,7 @@ class TestExtractDomainFromTileUrl:
         url = "https://tiles.example.com:8443/map/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result == "https://tiles.example.com:8443"
@@ -254,7 +257,7 @@ class TestExtractDomainFromTileUrl:
         url = "tiles.example.com/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result is None
@@ -265,7 +268,7 @@ class TestExtractDomainFromTileUrl:
         url = ""
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result is None
@@ -276,12 +279,12 @@ class TestExtractDomainFromTileUrl:
         url = "not-a-valid-url"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result is None
 
-    @patch("modules.server_settings.service.urlparse")
+    @patch("modules.server_settings.tile_service.urlparse")
     def test_extract_domain_exception_handling(self, mock_urlparse):
         """Test that exceptions during parsing are handled gracefully."""
         # Arrange
@@ -289,7 +292,7 @@ class TestExtractDomainFromTileUrl:
         url = "https://tiles.example.com/map/{z}/{x}/{y}.png"
 
         # Act
-        result = server_settings_service.extract_domain_from_tile_url(url)
+        result = server_settings_tile_service.extract_domain_from_tile_url(url)
 
         # Assert
         assert result is None
@@ -308,7 +311,7 @@ class TestExtractDomainDoesNotWidenToAPublicSuffix:
         ],
     )
     def test_source_is_the_host(self, url, expected):
-        assert server_settings_service.extract_domain_from_tile_url(url) == expected
+        assert server_settings_tile_service.extract_domain_from_tile_url(url) == expected
 
 
 class TestGetAllowedTileDomains:

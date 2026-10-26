@@ -795,7 +795,7 @@ limitations rather than half-done:
   (the HTTP app and Alembic), and the legacy model scan keeps the model seam
   distinct until the unconverted modules are gone.
 - **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`) and
-  `computation.py` (pure date and SQL helpers), and nothing else. `health_fasting.crud` and `health_poop.crud` import
+  `computation.py` (pure date and SQL helpers and `upsert_for_day`, the same-day upsert the weight, steps and sleep services share), and nothing else. `health_fasting.crud` and `health_poop.crud` import
   `computation.local_date_expression` through `_LAYER_EXCEPTIONS`, because day bucketing must be
   written once.
 - **`users` ⇄ `health`.** `health` services read the user's height, timezone and "today" through

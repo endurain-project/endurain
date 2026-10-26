@@ -285,7 +285,7 @@ class TestEditRejectsReadOnlyFields:
 class TestDeleteLoginPhoto:
     """Test suite for delete_login_photo endpoint."""
 
-    @patch("modules.server_settings.router.server_settings_service.delete_login_photo")
+    @patch("modules.server_settings.router.server_settings_login_photo_service.delete_login_photo")
     def test_delete_login_photo_success(self, mock_delete, fast_api_client, fast_api_app):
         """Test successful deletion of login photo."""
         # Act
@@ -297,7 +297,7 @@ class TestDeleteLoginPhoto:
         # Assert
         assert response.status_code == 204
 
-    @patch("modules.server_settings.router.server_settings_service.delete_login_photo")
+    @patch("modules.server_settings.router.server_settings_login_photo_service.delete_login_photo")
     def test_delete_login_photo_not_exists(self, mock_delete, fast_api_client, fast_api_app):
         """Test deletion when photo doesn't exist."""
         # Act
@@ -313,7 +313,7 @@ class TestDeleteLoginPhoto:
 class TestEmail:
     """Test suite for the email status and test-send endpoints."""
 
-    @patch("modules.server_settings.router.server_settings_service.get_email_status")
+    @patch("modules.server_settings.router.server_settings_mail_service.get_email_status")
     def test_read_email_status(self, mock_status, fast_api_client):
         mock_status.return_value = server_settings_schema.EmailStatus(configured=False, problems=["Host is not set"])
 
@@ -322,7 +322,7 @@ class TestEmail:
         assert response.status_code == 200
         assert response.json() == {"configured": False, "problems": ["Host is not set"]}
 
-    @patch("modules.server_settings.router.server_settings_service.send_test_email")
+    @patch("modules.server_settings.router.server_settings_mail_service.send_test_email")
     @patch("modules.server_settings.router.users_integration.get_user")
     def test_send_test_email_sends_to_the_caller(self, mock_get_user, mock_send, fast_api_client, fast_api_app):
         mock_get_user.return_value = MagicMock(email="admin@example.com")
@@ -336,7 +336,7 @@ class TestEmail:
         mock_send.assert_called_once()
         assert mock_send.call_args.args[:2] == (mock_get_user.return_value, mail)
 
-    @patch("modules.server_settings.router.server_settings_service.send_test_email")
+    @patch("modules.server_settings.router.server_settings_mail_service.send_test_email")
     @patch("modules.server_settings.router.users_integration.get_user")
     def test_send_test_email_maps_unconfigured_to_503(self, mock_get_user, mock_send, fast_api_app):
         mock_get_user.return_value = MagicMock(email="admin@example.com")
@@ -350,7 +350,7 @@ class TestEmail:
         assert response.status_code == 503
         assert "Host is not set" in response.text
 
-    @patch("modules.server_settings.router.server_settings_service.send_test_email")
+    @patch("modules.server_settings.router.server_settings_mail_service.send_test_email")
     @patch("modules.server_settings.router.users_integration.get_user")
     def test_send_test_email_maps_delivery_failure_to_502(self, mock_get_user, mock_send, fast_api_app):
         mock_get_user.return_value = MagicMock(email="admin@example.com")
@@ -398,7 +398,7 @@ class TestMailSettingsRoutes:
         assert _route_scopes("/email/settings", "GET") == {"server_settings:read"}
         assert _route_scopes("/email/settings", "PUT") == {"server_settings:write"}
 
-    @patch("modules.server_settings.router.server_settings_service.get_mail_settings_for_admin")
+    @patch("modules.server_settings.router.server_settings_mail_service.get_mail_settings_for_admin")
     def test_read_returns_the_settings_and_env_managed(self, mock_get, fast_api_client):
         mock_get.return_value = _mail_admin_read(env_managed={"host": "SMTP_HOST"})
 
@@ -412,7 +412,7 @@ class TestMailSettingsRoutes:
         assert response.json()["password_set"] is True
         assert "password" not in response.json()
 
-    @patch("modules.server_settings.router.server_settings_service.edit_mail_settings")
+    @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
     def test_edit_never_returns_the_password(self, mock_edit, fast_api_client):
         mock_edit.return_value = _mail_admin_read()
         body = {
@@ -436,7 +436,7 @@ class TestMailSettingsRoutes:
         sent = mock_edit.call_args.args[0]
         assert sent.password == "super-secret-value"
 
-    @patch("modules.server_settings.router.server_settings_service.edit_mail_settings")
+    @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
     def test_edit_of_an_env_managed_field_is_a_400(self, mock_edit, fast_api_app):
         mock_edit.side_effect = core_exceptions.InvalidInputError("host is set by the SMTP_HOST environment variable")
         core_exceptions.register_exception_handlers(fast_api_app)
@@ -467,7 +467,7 @@ class TestMailSettingsRoutes:
 
         assert response.status_code == 422
 
-    @patch("modules.server_settings.router.server_settings_service.edit_mail_settings")
+    @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
     def test_a_blank_host_is_sent_on_as_unset(self, mock_edit, fast_api_client):
         mock_edit.return_value = _mail_admin_read(host=None)
         body = {"host": "  ", "port": 587, "security": "starttls", "username": "", "from_address": ""}

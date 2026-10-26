@@ -13,8 +13,11 @@ import core.database as core_database
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_providers.profile_router as auth_idp_profile_router
 import modules.auth.identity_service as auth_identity_service
+import modules.auth.mfa.profile_router as auth_mfa_profile_router
 import modules.auth.mfa.setup_store as auth_mfa_setup_store
+import modules.auth.sessions.profile_router as auth_sessions_profile_router
 import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_state_store as profile_export_state_store
@@ -92,10 +95,14 @@ def profile_app(
 ) -> FastAPI:
     app = FastAPI()
 
+    # The profile API is served by four routers: the profile's own, and auth's sessions, MFA and IdP links.
     app.include_router(
         profile_router.router,
         prefix=core_config.ROOT_PATH + "/profile",
     )
+    app.include_router(auth_sessions_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/sessions")
+    app.include_router(auth_mfa_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/mfa")
+    app.include_router(auth_idp_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/idp")
 
     core_exceptions.register_exception_handlers(app)
 

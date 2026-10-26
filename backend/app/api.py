@@ -20,9 +20,12 @@ import modules.activities.activity_streams.router as activity_streams_router
 import modules.activities.activity_thumbnail.public_router as activity_thumbnail_public_router
 import modules.auth.api_keys.router as auth_api_keys_router
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_providers.profile_router as auth_idp_profile_router
 import modules.auth.identity_providers.router as identity_providers_router
+import modules.auth.mfa.profile_router as auth_mfa_profile_router
 import modules.auth.password_reset_tokens.router as password_reset_tokens_router
 import modules.auth.router as auth_router
+import modules.auth.sessions.profile_router as auth_sessions_profile_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
 import modules.followers.router as followers_router
@@ -276,14 +279,35 @@ router.include_router(
     tags=["profile"],
     # No authentication required - endpoints validate via link_token parameter
 )
+_PROFILE_DEPENDENCIES = [
+    Depends(auth_dependencies.validate_access_token),
+    Security(auth_dependencies.check_scopes, scopes=["profile"]),
+]
 router.include_router(
     profile_router.router,
     prefix=core_config.ROOT_PATH + "/profile",
     tags=["profile"],
-    dependencies=[
-        Depends(auth_dependencies.validate_access_token),
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
+    dependencies=_PROFILE_DEPENDENCIES,
+)
+# The signed-in user's own sessions, two-step verification and identity provider links are auth's
+# to serve; they live under /profile so the API paths are unchanged.
+router.include_router(
+    auth_sessions_profile_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/sessions",
+    tags=["profile"],
+    dependencies=_PROFILE_DEPENDENCIES,
+)
+router.include_router(
+    auth_mfa_profile_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/mfa",
+    tags=["profile"],
+    dependencies=_PROFILE_DEPENDENCIES,
+)
+router.include_router(
+    auth_idp_profile_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/idp",
+    tags=["profile"],
+    dependencies=_PROFILE_DEPENDENCIES,
 )
 router.include_router(
     server_settings_router.router,

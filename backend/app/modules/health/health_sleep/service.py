@@ -8,10 +8,8 @@ transaction boundary. What other modules may consume lives in
 from datetime import date as date_type
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.etag as core_etag
-import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.health.computation as health_computation
@@ -118,30 +116,14 @@ def stage_upsert_health_sleep(
         # The request carries no timezone, so the day is the athlete's own.
         health_sleep.date = users_integration.local_today(user_id, db)
 
-    existing = health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, health_sleep.date.isoformat(), db)
-    if existing is None:
-        try:
-            with db.begin_nested():
-                return health_sleep_crud.create_health_sleep(user_id, health_sleep, db)
-        except core_exceptions.ConflictError:
-            existing = health_sleep_crud.get_health_sleep_by_date_and_user_id(
-                user_id, health_sleep.date.isoformat(), db
-            )
-            if existing is None:
-                raise
+    day = health_sleep.date.isoformat()
     update = health_sleep_schema.HealthSleepUpdate(**health_sleep.model_dump())
-    for attempt in range(health_constants.UPSERT_ATTEMPTS):
-        try:
-            with db.begin_nested():
-                return stage_edit_health_sleep(user_id, existing.id, update, db, if_match="*")
-        except StaleDataError:
-            # Another writer changed the row between this read and the flush: read it again and apply on top.
-            existing = health_sleep_crud.get_health_sleep_by_date_and_user_id(
-                user_id, health_sleep.date.isoformat(), db
-            )
-            if existing is None or attempt == health_constants.UPSERT_ATTEMPTS - 1:
-                raise
-    raise AssertionError("unreachable")  # pragma: no cover
+    return health_computation.upsert_for_day(
+        find=lambda: health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, day, db),
+        create=lambda: health_sleep_crud.create_health_sleep(user_id, health_sleep, db),
+        edit=lambda record_id: stage_edit_health_sleep(user_id, record_id, update, db, if_match="*"),
+        db=db,
+    )
 
 
 def create_health_sleep(
