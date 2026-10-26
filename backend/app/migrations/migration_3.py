@@ -10,6 +10,7 @@ import glob
 import os
 
 import fitdecode
+import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -27,8 +28,7 @@ import modules.activities.activity_streams.constants as activity_streams_constan
 import modules.activities.activity_streams.migration_service as activity_streams_crud
 import modules.activities.activity_workout_steps.migration_service as activity_workout_steps_crud
 import modules.garmin.migration_service as garmin_migration_service
-import modules.strava.activity_utils as strava_activity_utils
-import modules.strava.utils as strava_utils
+import modules.strava.migration_service as strava_migration
 
 logger = core_logger.get_logger(__name__)
 
@@ -426,7 +426,7 @@ def process_strava_activity(
         None.
     """
     # Get the user integrations by user ID
-    user_integrations = strava_utils.fetch_user_integrations_and_validate_token(activity.user_id, db)
+    user_integrations = strava_migration.fetch_user_integrations_and_validate_token(activity.user_id, db)
 
     if user_integrations is None:
         logger.info(
@@ -473,7 +473,7 @@ def process_strava_activity(
     ]
 
     # Create a Strava client with the user's access token
-    strava_client = strava_utils.create_strava_client(user_integrations)
+    strava_client = strava_migration.create_strava_client(user_integrations)
 
     if not activity.strava_activity_id:
         logger.info(
@@ -483,12 +483,13 @@ def process_strava_activity(
         return False
 
     # Get laps from Strava
-    laps = strava_activity_utils.fetch_and_process_activity_laps(
+    laps = strava_migration.fetch_activity_laps(
         strava_client,
         activity.strava_activity_id,
         activity.user_id,
         stream_data,
         user_integrations,
+        platform_runtime.get_state(),
     )
 
     # Create activity laps in the database

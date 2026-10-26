@@ -180,6 +180,10 @@ _TIERED_ENDPOINTS = [
         id="activity-bulk-import-folder",
     ),
     pytest.param(strava_router.import_bikes_from_strava_export, core_rate_limit.UPLOAD, id="strava-import-bikes"),
+    pytest.param(strava_router.strava_link, core_rate_limit.WRITE, id="strava-link"),
+    pytest.param(strava_router.strava_set_user_client, core_rate_limit.WRITE, id="strava-set-client"),
+    pytest.param(strava_router.strava_set_user_unique_state, core_rate_limit.WRITE, id="strava-set-state"),
+    pytest.param(strava_router.strava_unlink, core_rate_limit.WRITE, id="strava-unlink"),
     pytest.param(strava_router.import_shoes_from_strava_export, core_rate_limit.UPLOAD, id="strava-import-shoes"),
     pytest.param(ingestion_router.refresh_activities, core_rate_limit.PROVIDER_SYNC, id="provider-refresh"),
     pytest.param(

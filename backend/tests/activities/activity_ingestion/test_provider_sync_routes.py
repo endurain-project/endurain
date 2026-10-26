@@ -9,8 +9,9 @@ import core.exceptions as core_exceptions
 import modules.garmin.constants as garmin_constants
 import modules.garmin.router as garmin_router
 import modules.garmin.sync_service as garmin_sync_service
-import modules.strava.provider_registry as strava_provider_registry
+import modules.strava.constants as strava_constants
 import modules.strava.router as strava_router
+import modules.strava.service as strava_service
 
 _CASES = [
     pytest.param(
@@ -21,8 +22,8 @@ _CASES = [
     ),
     pytest.param(
         strava_router.strava_retrieve_activities_days,
-        strava_router,
-        strava_provider_registry.PROVIDER_NAME,
+        strava_service,
+        strava_constants.PROVIDER_NAME,
         id="strava",
     ),
 ]

@@ -86,7 +86,7 @@ forbidden_modules =
 #   * ``activity_ingestion.provider_registry`` — a provider registers a fetch
 #     callable at startup; the refresh path names no provider.
 #   * ``activity_ingestion.contracts.BulkImportSource`` — a provider export
-#     subclasses it (``modules.strava.bulk_import_source``) instead of the base
+#     subclasses it (``modules.strava.bulk_import_service``) instead of the base
 #     class branching on ``strava_activities``.
 #   * ``GarminSource.gear_id`` — the provider resolves its own synced gear and
 #     passes the id, so enrichment only answers "and if not, what is the default?".
@@ -200,6 +200,7 @@ source_modules =
 forbidden_modules =
     modules.activities.*.migration_service
     modules.garmin.migration_service
+    modules.strava.migration_service
     modules.health.*.migration_service
     modules.users.*.migration_service
 

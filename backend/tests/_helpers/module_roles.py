@@ -30,6 +30,7 @@ CONVERTED_MODULES: tuple[str, ...] = (
     "health",
     "notifications",
     "server_settings",
+    "strava",
     "users",
     "websocket",
 )
@@ -38,10 +39,7 @@ CONVERTED_MODULES: tuple[str, ...] = (
 #: left implicit as "everything not converted", so that
 #: ``TestModuleInventory`` can fail on a module that is in neither list — a new
 #: module cannot start life silently outside the rules.
-UNCONVERTED_MODULES: tuple[str, ...] = (
-    "auth",
-    "strava",
-)
+UNCONVERTED_MODULES: tuple[str, ...] = ("auth",)
 
 #: Every role, longest first so ``integration_service`` is not read as
 #: ``service`` and ``public_router`` is not read as ``router``.

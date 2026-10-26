@@ -59,6 +59,7 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "activities/activity_file_import/gpx_utils.py": "Parser anomalies the file itself carries.",
     "activities/activity_file_import/tcx_utils.py": "Parser anomalies the file itself carries.",
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
+    "strava/rate_limit_store.py": "Reports a rate limit it records or a storage outage it tolerates; the caller only sees a bool.",
     "garmin/mfa_code_store.py": "Reports a storage outage and a code it could not delete, which have no caller to tell.",
     "garmin/token_utils.py": "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None.",
     "users/users_profile/utils.py": (
@@ -68,9 +69,14 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "websocket/ticket_store.py": "Reports a storage outage and an unreadable ticket value it cannot attribute to a request.",
 }
 
-#: Modules whose ``console=True`` records are operator-facing: bulk-import progress, migrations and the boot
+#: Modules whose ``console=True`` records are operator-facing: bulk-import progress (including the Strava export and gear CSV imports), migrations and the boot
 #: import of deprecated settings.
-_CONSOLE_ALLOWED_PREFIXES = ("activities/activity_ingestion/", "server_settings/")
+_CONSOLE_ALLOWED_PREFIXES = (
+    "activities/activity_ingestion/",
+    "server_settings/",
+    "strava/bulk_import_service.py",
+    "strava/gear_service.py",
+)
 _CONSOLE_ALLOWED_ROLES = frozenset({"migration_service"})
 
 #: Exceptions a service raises to refuse a request. Raising one is a decision, and the rule says a refusal

@@ -282,6 +282,13 @@ _OUTBOUND_SURFACE_STEMS = frozenset({"identity_service"})
 #: rooted at ``app``. Every entry is a deliberate seam; anything else fails.
 _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
     (
+        "modules.strava.activity_service",
+        "modules.activities.computation",
+    ): (
+        "A provider adapter converts Strava's streams into activity metrics with the pure maths the file parsers "
+        "share; the namespace publishes it for that, and it owns no table and calls no module."
+    ),
+    (
         "modules.users.users_profile.export_service",
         "modules.activities.contributor_registry",
     ): (

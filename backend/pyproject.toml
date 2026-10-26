@@ -253,7 +253,6 @@ convention = "google"
 "app/logs/**/*.py" = ["D"]
 "app/migrations/**/*.py" = ["D"]
 "app/modules/auth/**/*.py" = ["D"]
-"app/modules/strava/**/*.py" = ["D"]
 "scripts/**/*.py" = ["D"]
 "tests/**/*.py" = ["D", "S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["D", "E402", "I001"]  # alembic migrations have specific import order; docstrings not required

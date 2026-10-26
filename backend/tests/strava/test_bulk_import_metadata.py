@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
-import modules.strava.bulk_import_utils as bulk_import_utils
+import modules.strava.bulk_import_service as bulk_import_utils
 from core.file_uploads import UploadKind
 
 

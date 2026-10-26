@@ -52,8 +52,7 @@ import modules.auth.utils as auth_utils
 import modules.garmin.integration_service as garmin_integration
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
-import modules.strava.provider_registry as strava_provider_registry
-import modules.strava.scheduled_jobs as strava_scheduled_jobs
+import modules.strava.integration_service as strava_integration
 import modules.users.users_profile.integration_service as users_profile_integration
 from api import router as api_router
 from core.database import SessionLocal
@@ -241,7 +240,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)
     # Providers register themselves with ingestion; ingestion imports none of
     # them. Must also happen in worker.py, where refresh jobs are claimed.
-    strava_provider_registry.register_activity_provider()
+    strava_integration.register_activity_provider()
     garmin_integration.register_activity_provider()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
@@ -268,7 +267,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
             *core_scheduler.platform_jobs(),
             *auth_scheduled_jobs.recurring_jobs(),
             *runtime_module_registry.recurring_jobs(),
-            *strava_scheduled_jobs.recurring_jobs(),
         ]
     )
 

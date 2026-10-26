@@ -204,6 +204,15 @@ class UpstreamError(DomainError):
     default_detail = "Bad Gateway"
 
 
+class DependencyFailedError(DomainError):
+    """A request depends on an external system that rejected it or is not linked."""
+
+    status_code = status.HTTP_424_FAILED_DEPENDENCY
+    code = "dependency-failed"
+    title = "Failed Dependency"
+    default_detail = "Failed Dependency"
+
+
 class ProcessingError(DomainError):
     """An internal step failed; the caller can do nothing about it.
 

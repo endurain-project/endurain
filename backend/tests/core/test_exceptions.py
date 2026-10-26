@@ -12,3 +12,17 @@ class TestAccessConcealedError:
             missing.detail,
         )
         assert isinstance(concealed, core_exceptions.NotFoundError)
+
+
+class TestDependencyFailedError:
+    def test_renders_as_a_424_failed_dependency(self):
+        import core.exceptions as core_exceptions
+
+        error = core_exceptions.DependencyFailedError("Strava rejected the code")
+
+        assert (error.status_code, error.code, error.title, error.detail) == (
+            424,
+            "dependency-failed",
+            "Failed Dependency",
+            "Strava rejected the code",
+        )

@@ -1,51 +1,96 @@
-import os
+"""Strava gear: syncing the athlete's gear and importing a Strava export's gear CSVs."""
 
-from fastapi import HTTPException, status
+import os
+import tempfile
+
+from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 
 import core.config as core_config
+import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.text_imports as core_text_imports
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
-import modules.strava.athlete_utils as strava_athlete_utils
-import modules.strava.utils as strava_utils
+import modules.strava.client_service as strava_client_service
 import modules.users.users_integrations.integration_service as user_integrations_integration
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
+# Largest gear CSV accepted: a gear list is a few hundred rows at most.
+_GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
+
 
 def get_strava_gear(gear_id: str, strava_client: Client):
+    """Fetch one piece of gear from Strava.
+
+    Args:
+        gear_id: The gear's Strava id.
+        strava_client: A client authenticated as the user.
+
+    Returns:
+        The Strava gear.
+
+    Raises:
+        DependencyFailedError: When Strava cannot return the gear.
+    """
     # Fetch Strava gear
     try:
         strava_gear = strava_client.get_gear(gear_id)
     except Exception as err:
         # Log an error event if the gear could not be fetched
-        logger.error(f"Error fetching Strava gear with ID: {err}. Returning 424 Failed Dependency", exc_info=err)
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Not able to fetch Strava gear",
-        ) from err
+        logger.error("Error fetching Strava gear", extra=core_logger.context(error=str(err)), exc_info=err)
+        raise core_exceptions.DependencyFailedError("Not able to fetch Strava gear") from err
 
     if strava_gear is None:
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Not able to fetch Strava gear",
-        )
+        raise core_exceptions.DependencyFailedError("Not able to fetch Strava gear")
 
     return strava_gear
 
 
-def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> int:
-    # Fetch Strava athlete
+def get_strava_athlete(strava_client: Client):
+    """Fetch the authenticated Strava athlete.
+
+    Args:
+        strava_client: A client authenticated as the user.
+
+    Returns:
+        The Strava athlete.
+
+    Raises:
+        DependencyFailedError: When Strava cannot return the athlete.
+    """
     try:
-        strava_athlete = strava_athlete_utils.get_strava_athlete(strava_client)
+        strava_athlete = strava_client.get_athlete()
     except Exception as err:
-        raise err
+        logger.error("Error fetching Strava athlete", extra=core_logger.context(error=str(err)), exc_info=err)
+        raise core_exceptions.DependencyFailedError("Error fetching Strava athlete") from err
+
+    if strava_athlete is None:
+        logger.error("Not able to fetch Strava athlete. Returning 424 Failed Dependency")
+        raise core_exceptions.DependencyFailedError("Not able to fetch Strava athlete")
+
+    return strava_athlete
+
+
+def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> int:
+    """Store the athlete's Strava bikes and shoes the user does not have yet.
+
+    Args:
+        strava_client: A client authenticated as the user.
+        user_id: The user the gear belongs to.
+        db: Database session.
+
+    Returns:
+        The number of gear entries handed to the gear module.
+    """
+    # Fetch Strava athlete
+    strava_athlete = get_strava_athlete(strava_client)
 
     # Initialize an empty list for results
     strava_gear = []
@@ -62,7 +107,7 @@ def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> 
 
     if strava_gear is None:
         # Log an informational event if no gear were found
-        logger.info(f"User {user_id}: No new Strava gear found: strava_gear is None")
+        logger.info("No new Strava gear found", extra=core_logger.context(user_id=user_id))
 
         # Return 0 to indicate no gear were processed
         return 0
@@ -78,6 +123,18 @@ def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> 
 def process_gear(
     gear, gear_type: str, user_id: int, strava_client: Client, db: Session
 ) -> gears_schema.GearCreate | None:
+    """Build the gear to create for one Strava gear entry.
+
+    Args:
+        gear: The athlete's gear summary from Strava.
+        gear_type: ``"bike"`` or ``"shoe"``.
+        user_id: The user the gear belongs to.
+        strava_client: A client authenticated as the user.
+        db: Database session.
+
+    Returns:
+        The gear to create, or ``None`` when the user already has it.
+    """
     # Get the gear by strava id from user id
     gear_db = gears_integration.get_gear_by_strava_id(gear.id, user_id, db)
 
@@ -86,10 +143,7 @@ def process_gear(
         return None
 
     # Get the gear from Strava
-    try:
-        strava_gear = get_strava_gear(gear.id, strava_client)
-    except Exception as err:
-        raise err
+    strava_gear = get_strava_gear(gear.id, strava_client)
 
     new_gear = gears_schema.GearCreate(
         brand=strava_gear.brand_name,
@@ -118,6 +172,15 @@ def match_gear_for_activity(
 
 
 def set_activities_gear(user_id: int, db: Session) -> int:
+    """Assign the user's Strava-linked activities to the matching local gear.
+
+    Args:
+        user_id: The user whose activities to update.
+        db: Database session.
+
+    Returns:
+        The number of activities that were given gear.
+    """
     # Get user activities
     activities = activity_integration.list_user_activities(user_id, db)
 
@@ -142,21 +205,29 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     # Persist via CRUD (single UPDATE per distinct gear_id)
     activity_integration.bulk_set_activities_gear(user_id, gear_assignments, db)
     db.commit()
+    logger.debug("Strava activities gear set", extra=core_logger.context(user_id=user_id, count=len(gear_assignments)))
 
     return len(gear_assignments)
 
 
-def get_user_gear(user_id: int):
+def get_user_gear(user_id: int) -> None:
+    """Import the user's Strava gear and assign it to their activities.
+
+    Runs in the background with a session of its own.
+
+    Args:
+        user_id: The user whose gear to import.
+    """
     # Create a new database session using context manager
     with SessionLocal() as db:
         # Get the user integrations by user ID
-        user_integrations = strava_utils.fetch_user_integrations_and_validate_token(user_id, db)
+        user_integrations = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
 
         # Log the start of the activities processing
-        logger.info(f"User {user_id}: Started Strava gear processing")
+        logger.info("Started Strava gear processing", extra=core_logger.context(user_id=user_id))
 
         # Create a Strava client with the user's access token
-        strava_client = strava_utils.create_strava_client(user_integrations)
+        strava_client = strava_client_service.create_strava_client(user_integrations)
 
         # Set the user's gear to sync to True
         user_integrations_integration.set_strava_sync_gear(user_id, True, db)
@@ -166,20 +237,25 @@ def get_user_gear(user_id: int):
         num_strava_gear_processed = fetch_and_process_gear(strava_client, user_id, db)
 
         # Log an informational event for tracing
-        logger.info(f"User {user_id}: {num_strava_gear_processed} Strava gear processed")
+        logger.info(
+            "Strava gear processed", extra=core_logger.context(user_id=user_id, count=num_strava_gear_processed)
+        )
 
         # Log an informational event for tracing
-        logger.info(f"User {user_id}: Will parse current activities and set gear if applicable")
+        logger.info(
+            "Will parse current activities and set gear if applicable", extra=core_logger.context(user_id=user_id)
+        )
 
         num_gear_activities_set = set_activities_gear(user_id, db)
 
         # Log an informational event for tracing
-        logger.info(f"User {user_id}: {num_gear_activities_set} activities where gear was set")
+        logger.info(
+            "Activities had their gear set", extra=core_logger.context(user_id=user_id, count=num_gear_activities_set)
+        )
 
 
 def iterate_over_bikes_csv(bikes_file_path: str) -> dict:
-    """
-    Parses a Strava bikes CSV file and returns its contents as a dictionary.
+    """Parses a Strava bikes CSV file and returns its contents as a dictionary.
 
     Constructs a dictionary where each key is the "Bike Name" from the CSV, and the value is a dictionary of the bike's attributes as provided in the CSV row.
 
@@ -190,7 +266,7 @@ def iterate_over_bikes_csv(bikes_file_path: str) -> dict:
         dict: A dictionary mapping bike names to their corresponding data from the CSV file.
 
     Raises:
-        HTTPException: If the CSV file is missing, has invalid headers, or cannot be parsed.
+        DependencyFailedError: If the CSV file is missing, has invalid headers, or cannot be parsed.
     """
     bikes_file_name = "bikes.csv"
 
@@ -199,49 +275,42 @@ def iterate_over_bikes_csv(bikes_file_path: str) -> dict:
     try:
         if os.path.isfile(bikes_file_path):
             logger.info(
-                f"Parsing the uploaded {bikes_file_name}.",
-                extra=core_logger.context(console=True),
+                "Parsing the uploaded gear CSV", extra=core_logger.context(console=True, file_name=bikes_file_name)
             )
             for row in core_text_imports.read_bounded_csv(bikes_file_path):
                 if ("Bike Name" not in row) or ("Bike Brand" not in row) or ("Bike Model" not in row):
                     logger.info(
-                        f"Aborting bikes import: Proper headers not found in {bikes_file_name}.  File should have 'Bike Name', 'Bike Brand', and 'Bike Model'.",
-                        extra=core_logger.context(console=True),
+                        "Aborting bikes import: required headers not found (Bike Name, Bike Brand, Bike Model)",
+                        extra=core_logger.context(console=True, file_name=bikes_file_name),
                     )
-                    raise HTTPException(
-                        status_code=status.HTTP_424_FAILED_DEPENDENCY,
-                        detail="Invalid file. Proper headers not found in Strava bikes CSV file.",
+                    raise core_exceptions.DependencyFailedError(
+                        "Invalid file. Proper headers not found in Strava bikes CSV file."
                     )
                 bikes_dict[row["Bike Name"]] = row
             logger.info(
-                f"Strava bike gear csv file parsed and gear dictionary created. File was {len(bikes_dict)} rows long, ignoring header row.",
-                extra=core_logger.context(console=True),
+                "Strava bike gear CSV parsed", extra=core_logger.context(console=True, row_count=len(bikes_dict))
             )
             return bikes_dict
         logger.info(
             "No Strava bikes CSV file found for import.",
             extra=core_logger.context(console=True),
         )
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="No Strava bikes CSV file found for import.",
-        )
-    except HTTPException as http_err:
-        raise http_err
+        raise core_exceptions.DependencyFailedError("No Strava bikes CSV file found for import.")
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
         logger.error(
-            f"Error attempting to open {bikes_file_path} file:  {err}", extra=core_logger.context(console=True)
+            "Error opening the bikes CSV",
+            extra=core_logger.context(console=True, file_name=bikes_file_name, error=str(err)),
         )
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Error parsing Strava bikes CSV file.",
-        ) from err
+        raise core_exceptions.DependencyFailedError("Error parsing Strava bikes CSV file.") from err
 
 
 def iterate_over_shoes_csv(shoes_file_path: str) -> list:
-    """
-    Parses a Strava shoes CSV file and returns its contents as a list.
-    Why a list?  Strava shoes files do not have anything that can be used as a key (unlike Strava bikes files, where nickname is required and unique)
+    """Parse a Strava shoes CSV file and return its contents as a list.
+
+    A list rather than a dictionary: Strava shoes files have nothing usable as a key,
+    unlike bikes, where the nickname is required and unique.
 
     Constructs a list where each item a dictionary of the shoe's attributes as provided in the CSV row.
 
@@ -252,7 +321,7 @@ def iterate_over_shoes_csv(shoes_file_path: str) -> list:
         list: A list of shoe data obtained from the CSV file.
 
     Raises:
-        HTTPException: If the CSV file is missing, has invalid headers, or cannot be parsed.
+        DependencyFailedError: If the CSV file is missing, has invalid headers, or cannot be parsed.
     """
     shoesfilename = "shoes.csv"
 
@@ -261,48 +330,37 @@ def iterate_over_shoes_csv(shoes_file_path: str) -> list:
     try:
         if os.path.isfile(shoes_file_path):
             logger.info(
-                f"Parsing the uploaded {shoesfilename}.",
-                extra=core_logger.context(console=True),
+                "Parsing the uploaded gear CSV", extra=core_logger.context(console=True, file_name=shoesfilename)
             )
             for row in core_text_imports.read_bounded_csv(shoes_file_path):
                 if ("Shoe Name" not in row) or ("Shoe Brand" not in row) or ("Shoe Model" not in row):
                     logger.info(
-                        f"Aborting shoes import: Proper headers not found in {shoesfilename}. File should have 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.",
-                        extra=core_logger.context(console=True),
+                        "Aborting shoes import: required headers not found (Shoe Name, Shoe Brand, Shoe Model)",
+                        extra=core_logger.context(console=True, file_name=shoesfilename),
                     )
-                    raise HTTPException(
-                        status_code=status.HTTP_424_FAILED_DEPENDENCY,
-                        detail="Invalid file. Proper headers not found in Strava shoes CSV file.",
+                    raise core_exceptions.DependencyFailedError(
+                        "Invalid file. Proper headers not found in Strava shoes CSV file."
                     )
                 shoes_list.append(row)
-            logger.info(
-                f"Strava {shoesfilename} file parsed and gear dictionary created. File was {len(shoes_list)} rows long, ignoring header row.",
-                extra=core_logger.context(console=True),
-            )
+            logger.info("Strava shoes CSV parsed", extra=core_logger.context(console=True, row_count=len(shoes_list)))
             return shoes_list
         logger.info(
             "No Strava shoes CSV file found for import.",
             extra=core_logger.context(console=True),
         )
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="No Strava shoes CSV file found for import.",
-        )
-    except HTTPException as http_err:
-        raise http_err
+        raise core_exceptions.DependencyFailedError("No Strava shoes CSV file found for import.")
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
         logger.error(
-            f"Error attempting to open {shoes_file_path} file:  {err}", extra=core_logger.context(console=True)
+            "Error opening the shoes CSV",
+            extra=core_logger.context(console=True, file_name=shoesfilename, error=str(err)),
         )
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Error parsing Strava shoes CSV file.",
-        ) from err
+        raise core_exceptions.DependencyFailedError("Error parsing Strava shoes CSV file.") from err
 
 
 def transform_csv_bike_gear_to_schema_gear(bikes_dict: dict, token_user_id: int) -> list[gears_schema.GearCreate]:
-    """
-    Transforms a dictionary of bike data (parsed from CSV) into a list of Gear schema objects.
+    """Transforms a dictionary of bike data (parsed from CSV) into a list of Gear schema objects.
 
     Args:
         bikes_dict (dict): A dictionary where each key is a bike nickname and each value is a dictionary
@@ -330,8 +388,8 @@ def transform_csv_bike_gear_to_schema_gear(bikes_dict: dict, token_user_id: int)
 def transform_csv_shoe_gear_to_schema_gear(
     shoes_list: list, token_user_id: int, db: Session
 ) -> list[gears_schema.GearCreate]:
-    """
-    Transforms a list of shoe data (parsed from CSV) into a list of Gear schema objects.
+    """Transform a list of shoe data (parsed from CSV) into a list of Gear schema objects.
+
     Renames any name-less shoes to a default name plus a unique number, as Strava allows name-less shoes, but Endurain does not.
 
     Args:
@@ -363,8 +421,8 @@ def transform_csv_shoe_gear_to_schema_gear(
                     proposed_name_is_already_present = False
                     shoe_name = proposed_name
                     logger.info(
-                        f"Shoe name was blank, it has been updated to: {proposed_name}",
-                        extra=core_logger.context(console=True),
+                        "Shoe name was blank, it has been renamed",
+                        extra=core_logger.context(console=True, nickname=proposed_name),
                     )
                     newnumber += 1  # Iterate the number so the next unnamed shoe does not duplicate this one.
         else:
@@ -383,3 +441,63 @@ def transform_csv_shoe_gear_to_schema_gear(
         )
         gears.append(new_gear)
     return gears
+
+
+def _save_gear_csv(file: UploadFile) -> tuple[tempfile.TemporaryDirectory, str]:
+    """Stream an uploaded gear CSV to a private temp directory.
+
+    Args:
+        file: The uploaded CSV.
+
+    Returns:
+        The temp directory (the caller closes it) and the saved file's path.
+    """
+    work_dir = tempfile.TemporaryDirectory(prefix="strava-gear-")
+    try:
+        path = core_file_uploads.save_text_upload_sync(
+            file, upload_dir=work_dir.name, filename="gear.csv", max_bytes=_GEAR_CSV_MAX_BYTES
+        )
+    except BaseException:
+        work_dir.cleanup()
+        raise
+    return work_dir, path
+
+
+def import_bikes(file: UploadFile, user_id: int, db: Session) -> None:
+    """Create the bikes listed in an uploaded Strava ``bikes.csv``.
+
+    Args:
+        file: The uploaded CSV.
+        user_id: The user the bikes belong to.
+        db: Database session.
+    """
+    work_dir, path = _save_gear_csv(file)
+    try:
+        bikes_dict = iterate_over_bikes_csv(path)
+        bikes = transform_csv_bike_gear_to_schema_gear(bikes_dict, user_id) if bikes_dict else []
+        if bikes:
+            gears_integration.create_multiple_gears(bikes, user_id, db)
+            db.commit()
+        logger.info("Bike import complete.", extra=core_logger.context(console=True))
+    finally:
+        work_dir.cleanup()
+
+
+def import_shoes(file: UploadFile, user_id: int, db: Session) -> None:
+    """Create the shoes listed in an uploaded Strava ``shoes.csv``.
+
+    Args:
+        file: The uploaded CSV.
+        user_id: The user the shoes belong to.
+        db: Database session.
+    """
+    work_dir, path = _save_gear_csv(file)
+    try:
+        shoes_list = iterate_over_shoes_csv(path)
+        shoes = transform_csv_shoe_gear_to_schema_gear(shoes_list, user_id, db) if shoes_list else []
+        if shoes:
+            gears_integration.create_multiple_gears(shoes, user_id, db)
+            db.commit()
+        logger.info("Shoe import complete.", extra=core_logger.context(console=True))
+    finally:
+        work_dir.cleanup()

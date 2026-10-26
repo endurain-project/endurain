@@ -1,14 +1,16 @@
-"""Tests for strava.utils helper functions."""
+"""Tests for the Strava client service helpers."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, Mock
 
+import jasil.runtime as platform_runtime
 import pytest
-from fastapi import HTTPException
 from stravalib.exc import Fault as StravaFault
 
-import modules.strava.utils as strava_utils
+import core.exceptions as core_exceptions
+import modules.strava.client_service as strava_utils
+import modules.strava.rate_limit_store as strava_rate_limit_store
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -98,59 +100,6 @@ class TestIsStravaRateLimitError:
         assert strava_utils.is_strava_rate_limit_error(err) is False
 
 
-class TestRateLimitTrackerIsSharedState:
-    """The limits are Strava's, per application, so every process must see the same answer."""
-
-    @pytest.fixture
-    def tracker(self):
-        return strava_utils.StravaRateLimitTracker()
-
-    def test_nothing_is_limited_to_begin_with(self, tracker):
-        assert tracker.is_rate_limited("app-a") is False
-
-    def test_a_short_term_limit_is_visible_to_another_tracker(self, tracker):
-        """Two instances stand in for two processes: the flag lives in the platform state."""
-        tracker.mark_rate_limited("app-a", is_long_term=False)
-
-        assert strava_utils.StravaRateLimitTracker().is_rate_limited("app-a") is True
-
-    def test_a_long_term_limit_is_visible_to_another_tracker(self, tracker):
-        tracker.mark_rate_limited("app-a", is_long_term=True)
-
-        assert strava_utils.StravaRateLimitTracker().is_rate_limited("app-a") is True
-
-    def test_a_short_term_limit_does_not_reach_another_app(self, tracker):
-        """Each user brings their own Strava app, so one app's quota must not pause the others."""
-        tracker.mark_rate_limited("app-a", is_long_term=False)
-
-        assert tracker.is_rate_limited("app-b") is False
-
-    def test_a_long_term_limit_does_not_reach_another_app(self, tracker):
-        tracker.mark_rate_limited("app-a", is_long_term=True)
-
-        assert tracker.is_rate_limited("app-b") is False
-
-    def test_the_flag_expires_on_its_own(self, tracker):
-        import jasil.runtime as platform_runtime
-
-        tracker.mark_rate_limited("app-a", is_long_term=False)
-        platform_runtime.get_active_platform().state.delete(tracker._SHORT_TERM_KEY.format(client_id="app-a"))
-
-        assert tracker.is_rate_limited("app-a") is False
-
-    def test_an_unreachable_state_store_fails_open(self, tracker, monkeypatch):
-        """A missed back-off costs one rejected call, which marks the limit again."""
-        from jasil.providers import StateBackendUnavailableError
-
-        def _down():
-            raise StateBackendUnavailableError("redis down")
-
-        monkeypatch.setattr(tracker, "_state", _down)
-
-        assert tracker.is_rate_limited("app-a") is False
-        tracker.mark_rate_limited("app-a")  # must not raise
-
-
 class TestGetClientId:
     def test_returns_the_decrypted_client_id(self, monkeypatch):
         monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: f"plain-{value}")
@@ -158,13 +107,15 @@ class TestGetClientId:
         assert strava_utils.get_client_id(Mock(strava_client_id="enc")) == "plain-enc"
 
     def test_a_missing_client_id_fails_loudly(self):
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.DependencyFailedError):
             strava_utils.get_client_id(Mock(strava_client_id=None))
-
-        assert exc_info.value.status_code == 424
 
 
 class TestRefreshUserStravaToken:
+    @pytest.fixture
+    def rate_limits(self):
+        return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
+
     def _integrations(self, expires_in_minutes: int):
         from datetime import UTC, datetime, timedelta
 
@@ -181,7 +132,7 @@ class TestRefreshUserStravaToken:
     def _session(self, monkeypatch):
         monkeypatch.setattr(strava_utils, "SessionLocal", lambda: MagicMock())
 
-    def test_a_token_far_from_expiry_is_left_alone(self, monkeypatch):
+    def test_a_token_far_from_expiry_is_left_alone(self, monkeypatch, rate_limits):
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
             "get_user_integrations",
@@ -190,11 +141,13 @@ class TestRefreshUserStravaToken:
         create_client = Mock()
         monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
 
-        strava_utils.refresh_user_strava_token(1)
+        strava_utils.refresh_user_strava_token(1, rate_limits)
 
         create_client.assert_not_called()
 
-    def test_an_expiring_token_is_refreshed_and_stored_with_no_session_open_for_the_call(self, monkeypatch):
+    def test_an_expiring_token_is_refreshed_and_stored_with_no_session_open_for_the_call(
+        self, monkeypatch, rate_limits
+    ):
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
             "get_user_integrations",
@@ -224,12 +177,12 @@ class TestRefreshUserStravaToken:
         link = Mock()
         monkeypatch.setattr(strava_utils.user_integrations_integration, "link_strava_account", link)
 
-        strava_utils.refresh_user_strava_token(1)
+        strava_utils.refresh_user_strava_token(1, rate_limits)
 
         assert during_call == [0]
         link.assert_called_once()
 
-    def test_a_rate_limited_refresh_marks_the_limit_and_returns(self, monkeypatch):
+    def test_a_rate_limited_refresh_marks_the_limit_and_returns(self, monkeypatch, rate_limits):
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
             "get_user_integrations",
@@ -242,45 +195,45 @@ class TestRefreshUserStravaToken:
         link = Mock()
         monkeypatch.setattr(strava_utils.user_integrations_integration, "link_strava_account", link)
 
-        strava_utils.refresh_user_strava_token(1)
+        strava_utils.refresh_user_strava_token(1, rate_limits)
 
-        assert strava_utils.rate_limit_tracker.is_rate_limited("c") is True
-        assert strava_utils.rate_limit_tracker.is_rate_limited("another-app") is False
+        assert rate_limits.is_rate_limited("c") is True
+        assert rate_limits.is_rate_limited("another-app") is False
         link.assert_not_called()
 
-    def test_another_apps_limit_does_not_skip_the_refresh(self, monkeypatch):
+    def test_another_apps_limit_does_not_skip_the_refresh(self, monkeypatch, rate_limits):
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
             "get_user_integrations",
             Mock(return_value=self._integrations(expires_in_minutes=10)),
         )
         monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        strava_utils.rate_limit_tracker.mark_rate_limited("another-app", is_long_term=True)
+        rate_limits.mark_rate_limited("another-app", is_long_term=True)
         client = Mock()
         client.refresh_access_token.return_value = {"access_token": "n"}
         monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
         monkeypatch.setattr(strava_utils.user_integrations_integration, "link_strava_account", Mock())
 
-        strava_utils.refresh_user_strava_token(1)
+        strava_utils.refresh_user_strava_token(1, rate_limits)
 
         client.refresh_access_token.assert_called_once()
 
-    def test_a_limited_app_skips_the_refresh(self, monkeypatch):
+    def test_a_limited_app_skips_the_refresh(self, monkeypatch, rate_limits):
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
             "get_user_integrations",
             Mock(return_value=self._integrations(expires_in_minutes=10)),
         )
         monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        strava_utils.rate_limit_tracker.mark_rate_limited("c", is_long_term=True)
+        rate_limits.mark_rate_limited("c", is_long_term=True)
         create_client = Mock()
         monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
 
-        strava_utils.refresh_user_strava_token(1)
+        strava_utils.refresh_user_strava_token(1, rate_limits)
 
         create_client.assert_not_called()
 
-    def test_an_unexpected_failure_is_logged_not_raised(self, monkeypatch):
+    def test_an_unexpected_failure_is_logged_not_raised(self, monkeypatch, rate_limits):
         """The sync that follows fails visibly if the token really is unusable."""
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
@@ -292,4 +245,4 @@ class TestRefreshUserStravaToken:
         client.refresh_access_token.side_effect = ValueError("bad refresh token")
         monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
 
-        strava_utils.refresh_user_strava_token(1)  # must not raise
+        strava_utils.refresh_user_strava_token(1, rate_limits)  # must not raise

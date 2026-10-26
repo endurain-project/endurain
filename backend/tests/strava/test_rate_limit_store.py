@@ -1,0 +1,64 @@
+"""Tests for the Strava rate-limit state kept in the platform state provider."""
+
+from __future__ import annotations
+
+import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
+import pytest
+
+import modules.strava.rate_limit_store as strava_rate_limit_store
+
+
+class TestRateLimitStoreIsSharedState:
+    """The limits are Strava's, per application, so every process must see the same answer."""
+
+    @pytest.fixture
+    def tracker(self):
+        return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
+
+    def test_nothing_is_limited_to_begin_with(self, tracker):
+        assert tracker.is_rate_limited("app-a") is False
+
+    def test_a_short_term_limit_is_visible_to_another_tracker(self, tracker):
+        """Two instances stand in for two processes: the flag lives in the platform state."""
+        tracker.mark_rate_limited("app-a", is_long_term=False)
+
+        assert (
+            strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state()).is_rate_limited("app-a") is True
+        )
+
+    def test_a_long_term_limit_is_visible_to_another_tracker(self, tracker):
+        tracker.mark_rate_limited("app-a", is_long_term=True)
+
+        assert (
+            strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state()).is_rate_limited("app-a") is True
+        )
+
+    def test_a_short_term_limit_does_not_reach_another_app(self, tracker):
+        """Each user brings their own Strava app, so one app's quota must not pause the others."""
+        tracker.mark_rate_limited("app-a", is_long_term=False)
+
+        assert tracker.is_rate_limited("app-b") is False
+
+    def test_a_long_term_limit_does_not_reach_another_app(self, tracker):
+        tracker.mark_rate_limited("app-a", is_long_term=True)
+
+        assert tracker.is_rate_limited("app-b") is False
+
+    def test_the_flag_expires_on_its_own(self, tracker):
+        tracker.mark_rate_limited("app-a", is_long_term=False)
+        platform_runtime.get_state().delete(strava_rate_limit_store._SHORT_TERM_KEY.format(client_id="app-a"))
+
+        assert tracker.is_rate_limited("app-a") is False
+
+    def test_an_unreachable_state_store_fails_open(self, tracker, monkeypatch):
+        """A missed back-off costs one rejected call, which marks the limit again."""
+
+        def _down(*_args, **_kwargs):
+            raise platform_providers.StateBackendUnavailableError("redis down")
+
+        monkeypatch.setattr(tracker._state, "get", _down)
+        monkeypatch.setattr(tracker._state, "set", _down)
+
+        assert tracker.is_rate_limited("app-a") is False
+        tracker.mark_rate_limited("app-a")  # must not raise

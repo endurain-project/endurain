@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException
 
+import core.exceptions as core_exceptions
 import core.text_imports as core_text_imports
 
 
@@ -44,7 +44,7 @@ def test_read_bounded_csv_rejects_oversized_file(tmp_path: Path):
     csv_path = tmp_path / "big.csv"
     _write_csv(csv_path, rows=10)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         list(core_text_imports.read_bounded_csv(csv_path, max_bytes=10))
     assert exc.value.status_code == 413
 
@@ -54,7 +54,7 @@ def test_read_bounded_csv_enforces_row_cap(tmp_path: Path):
     csv_path = tmp_path / "many.csv"
     _write_csv(csv_path, rows=20)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         list(core_text_imports.read_bounded_csv(csv_path, max_rows=5))
     assert exc.value.status_code == 413
 
@@ -62,6 +62,6 @@ def test_read_bounded_csv_enforces_row_cap(tmp_path: Path):
 def test_read_bounded_csv_missing_file_raises_424(tmp_path: Path):
     """A missing file is reported as failed dependency."""
     missing = tmp_path / "nope.csv"
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         list(core_text_imports.read_bounded_csv(missing))
     assert exc.value.status_code == 424

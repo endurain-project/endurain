@@ -6,13 +6,26 @@ point. They are asserted here, against the subclass, because that is where the
 knowledge belongs.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
-import modules.strava.bulk_import_source as strava_bulk_import_source
+import modules.strava.bulk_import_service as strava_bulk_import_source
+
+
+@pytest.fixture
+def mock_utils(monkeypatch):
+    """Stand in for the manifest and metadata helpers the source delegates to."""
+    mock = MagicMock()
+    for name in (
+        "build_metadata_dict",
+        "does_activity_start_time_match_the_data_in_strava_activities_csv",
+        "import_media_from_strava_bulk_export",
+    ):
+        monkeypatch.setattr(strava_bulk_import_source, name, getattr(mock, name))
+    return mock
 
 
 def _activity() -> activity_contracts.ActivityCore:
@@ -41,7 +54,6 @@ class TestMetadataFor:
     def test_no_metadata_without_an_initiated_time(self):
         assert _source(strava_activities={"f.fit": {}}).metadata_for("f.fit") == {}
 
-    @patch("modules.strava.bulk_import_source.strava_bulk_import_utils")
     def test_builds_the_full_metadata_dict_from_the_csv(self, mock_utils):
         mock_utils.build_metadata_dict.return_value = {"name": "Morning Ride"}
         source = _source(
@@ -72,14 +84,12 @@ class TestShouldImport:
         source = _source(strava_activities={"f.fit": {}})
         assert source.should_import("activity", {"metadata_found_in_csv": False}, activities_in_file=5) is True
 
-    @patch("modules.strava.bulk_import_source.strava_bulk_import_utils")
     def test_imports_the_activity_whose_start_time_matches_the_csv(self, mock_utils):
         mock_utils.does_activity_start_time_match_the_data_in_strava_activities_csv.return_value = True
         source = _source(strava_activities={"f.fit": {}})
 
         assert source.should_import("activity", {"metadata_found_in_csv": True}, activities_in_file=5) is True
 
-    @patch("modules.strava.bulk_import_source.strava_bulk_import_utils")
     def test_skips_the_activities_the_csv_row_does_not_refer_to(self, mock_utils):
         mock_utils.does_activity_start_time_match_the_data_in_strava_activities_csv.return_value = False
         source = _source(strava_activities={"f.fit": {}})
@@ -98,7 +108,6 @@ class TestApplyMetadata:
 
 
 class TestImportSideArtifacts:
-    @patch("modules.strava.bulk_import_source.strava_bulk_import_utils")
     def test_attaches_the_sidecar_photos_to_the_last_created_activity(self, mock_utils):
         created = ["first", "last"]
         read_member = object()
@@ -110,13 +119,11 @@ class TestImportSideArtifacts:
             {"f.fit": {}}, "last", "f.fit", read_member, "db"
         )
 
-    @patch("modules.strava.bulk_import_source.strava_bulk_import_utils")
     def test_nothing_to_attach_without_created_activities(self, mock_utils):
         _source(strava_activities={"f.fit": {}}, read_member=object()).import_side_artifacts([], "f.fit", "db")
 
         mock_utils.import_media_from_strava_bulk_export.assert_not_called()
 
-    @patch("modules.strava.bulk_import_source.strava_bulk_import_utils")
     def test_nothing_to_attach_without_a_way_to_read_the_archive(self, mock_utils):
         _source(strava_activities={"f.fit": {}}).import_side_artifacts(["a"], "f.fit", "db")
 
@@ -149,12 +156,12 @@ class TestBuildSource:
     def test_it_parses_the_manifest_and_reads_the_users_gear(self, monkeypatch):
         read = lambda name: b"csv" if name == "activities.csv" else None  # noqa: E731
         monkeypatch.setattr(
-            strava_bulk_import_source.strava_bulk_import_utils,
+            strava_bulk_import_source,
             "parse_activities_manifest",
             lambda path: {"1.fit": {"Activity Name": "Ride"}},
         )
         monkeypatch.setattr(
-            strava_bulk_import_source.strava_bulk_import_utils,
+            strava_bulk_import_source,
             "create_gear_dictionary_for_bulk_import",
             lambda user_id, db: {"Bike": [3]},
         )
@@ -172,9 +179,7 @@ class TestBuildSource:
             strava_bulk_import_source._build_source(7, "t", lambda name: None)
 
     def test_an_unparseable_manifest_is_refused(self, monkeypatch):
-        monkeypatch.setattr(
-            strava_bulk_import_source.strava_bulk_import_utils, "parse_activities_manifest", lambda path: None
-        )
+        monkeypatch.setattr(strava_bulk_import_source, "parse_activities_manifest", lambda path: None)
 
         with pytest.raises(core_exceptions.InvalidInputError):
             strava_bulk_import_source._build_source(7, "t", lambda name: b"garbage")

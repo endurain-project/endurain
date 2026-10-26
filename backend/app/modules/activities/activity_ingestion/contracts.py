@@ -6,7 +6,7 @@ expressed, and the questions the pipeline asks ("where do failed files go?",
 "what metadata applies to this file?") are answered by the source itself.
 
 :class:`BulkImportSource` is the **extension point**, not a Strava switch. A
-provider *subclasses* it (``modules.strava.bulk_import_source``), so the
+provider *subclasses* it (``modules.strava.bulk_import_service``), so the
 dependency runs one way, from provider to activities, and adding a second export
 format means adding a subclass rather than another branch in here.
 """

@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import modules.strava.gear_utils as gear_utils
+import modules.strava.gear_service as gear_utils
 
 
 def test_shoe_csv_is_parsed_from_the_path_it_is_given(tmp_path):
@@ -29,12 +29,12 @@ def test_bike_csv_is_parsed_from_the_path_it_is_given(tmp_path):
 
 
 def test_a_csv_with_the_wrong_headers_is_refused(tmp_path):
-    from fastapi import HTTPException
+    import core.exceptions as core_exceptions
 
     bikes_file = tmp_path / "gear.csv"
     bikes_file.write_text("Name,Brand\nCommuter,Trek\n")
 
-    with pytest.raises(HTTPException):
+    with pytest.raises(core_exceptions.DependencyFailedError):
         gear_utils.iterate_over_bikes_csv(str(bikes_file))
 
 

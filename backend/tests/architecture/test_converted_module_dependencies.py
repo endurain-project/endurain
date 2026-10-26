@@ -46,6 +46,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.pagination": "Page and cursor primitives.",
     "core.sanitization": "Cleaning user-supplied text before storage.",
     "core.signing": "The token-signing primitive behind thumbnail URLs.",
+    "core.text_imports": "Size- and row-bounded reading of an imported Strava gear or activities CSV.",
     "core.timezone": "Timezone resolution and conversion.",
     # Application-wide state or wiring: a declared dependency, not a free one.
     "core.config": "Environment-backed settings read directly rather than passed in.",

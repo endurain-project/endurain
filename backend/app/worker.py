@@ -27,7 +27,7 @@ import core.platform_settings as core_platform_settings
 import model_registry as orm_model_registry
 import module_registry as runtime_module_registry
 import modules.garmin.integration_service as garmin_integration
-import modules.strava.provider_registry as strava_provider_registry
+import modules.strava.integration_service as strava_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -83,7 +83,7 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # Same reason, for the refresh job: it pulls from whichever providers are
     # registered, and a provider registered in the API but not here would make a
     # refresh claimed by this worker silently return nothing.
-    strava_provider_registry.register_activity_provider()
+    strava_integration.register_activity_provider()
     garmin_integration.register_activity_provider()
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
