@@ -128,3 +128,25 @@ class TestDerivedArtifactWritesStageOnly:
 
         mock_crud.update_activity_location.assert_called_with(999, "Lisbon", None, "Portugal", db)
         db.commit.assert_not_called()
+
+
+class TestReadableActivity:
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_the_requesters_activity_reads_through_the_service(self, mock_service):
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_service.get_activity.return_value = "activity"
+
+        assert integration_service.get_readable_activity(5, 1, db) == "activity"
+        mock_service.get_activity.assert_called_once_with(5, 1, db)
+
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_the_public_activity_reads_through_the_service(self, mock_service):
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_service.get_public_activity.return_value = "public"
+
+        assert integration_service.get_public_activity(5, db) == "public"
+        mock_service.get_public_activity.assert_called_once_with(5, db)

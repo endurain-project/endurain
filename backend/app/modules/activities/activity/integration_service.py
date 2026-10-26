@@ -514,3 +514,36 @@ def filter_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> se
         The subset of ``activity_ids`` that exist.
     """
     return activity_crud.get_existing_activity_ids(activity_ids, db)
+
+
+def get_readable_activity(activity_id: int, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
+    """Return an activity the requester owns or may see, masked as they may see it.
+
+    Args:
+        activity_id: The activity to read.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+
+    Returns:
+        The activity, with its thumbnail URL and the caller's visibility masking applied.
+
+    Raises:
+        NotFoundError: When the activity does not exist or is not visible to the caller.
+    """
+    return activity_service.get_activity(activity_id, requester_user_id, db)
+
+
+def get_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
+    """Return a publicly shared activity, masked as an anonymous viewer may see it.
+
+    Args:
+        activity_id: The activity to read.
+        db: Database session.
+
+    Returns:
+        The activity.
+
+    Raises:
+        NotFoundError: When the activity does not exist or is not publicly shareable.
+    """
+    return activity_service.get_public_activity(activity_id, db)

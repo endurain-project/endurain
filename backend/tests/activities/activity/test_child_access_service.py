@@ -7,6 +7,47 @@ lives; the four child CRUDs used to hold a copy each.
 from unittest.mock import MagicMock, patch
 
 
+class TestIsHiddenFrom:
+    """The hide rule, decided from an activity already in hand."""
+
+    def test_the_owner_is_never_hidden_from(self):
+        from types import SimpleNamespace
+
+        from modules.activities.activity import child_access_service
+
+        activity = SimpleNamespace(user_id=1, hide_laps=True)
+
+        assert child_access_service.is_hidden_from(activity, 1, hide_attr="hide_laps") is False
+
+    def test_a_non_owner_is_hidden_from_when_the_flag_is_set(self):
+        from types import SimpleNamespace
+
+        from modules.activities.activity import child_access_service
+
+        activity = SimpleNamespace(user_id=1, hide_laps=True)
+
+        assert child_access_service.is_hidden_from(activity, 2, hide_attr="hide_laps") is True
+
+    def test_an_anonymous_viewer_is_hidden_from_when_the_flag_is_set(self):
+        from types import SimpleNamespace
+
+        from modules.activities.activity import child_access_service
+
+        activity = SimpleNamespace(user_id=1, hide_laps=True)
+
+        assert child_access_service.is_hidden_from(activity, None, hide_attr="hide_laps") is True
+
+    def test_nobody_is_hidden_from_when_the_flag_is_unset(self):
+        from types import SimpleNamespace
+
+        from modules.activities.activity import child_access_service
+
+        activity = SimpleNamespace(user_id=1, hide_laps=False)
+
+        assert child_access_service.is_hidden_from(activity, 2, hide_attr="hide_laps") is False
+        assert child_access_service.is_hidden_from(activity, None, hide_attr="hide_laps") is False
+
+
 class TestMayReadChild:
     @patch("modules.activities.activity.child_access_service.followers_integration")
     @patch("modules.activities.activity.child_access_service.server_settings_integration")

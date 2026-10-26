@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.activities.activity.child_access_service as activity_child_access_service
+import modules.activities.activity.schema as activity_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -103,6 +104,39 @@ class ChildCollection[PageT]:
             )
             return self._empty(page_number, num_records)
         return self._page(activity_id, page_number, num_records, db)
+
+    def list_for_activity(
+        self,
+        activity: activity_schema.ActivityRead,
+        requester_user_id: int | None,
+        db: Session,
+        *,
+        page_number: int,
+        num_records: int,
+    ) -> PageT:
+        """Return one page for an activity the caller has already resolved.
+
+        The caller has already established that the viewer may see ``activity`` (as
+        the viewer sees it, so its ``hide_*`` flags are present), so this only
+        applies the child's own flag and runs no lookup of the parent.
+
+        Args:
+            activity: The parent activity, as the viewer is allowed to see it.
+            requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+            db: Database session.
+            page_number: 1-based page number.
+            num_records: Page size.
+
+        Returns:
+            The page envelope, empty when the child is hidden from this viewer.
+        """
+        if activity_child_access_service.is_hidden_from(activity, requester_user_id, hide_attr=self.hide_attr):
+            logger.debug(
+                "Withheld an activity child; answering with an empty page",
+                extra=core_logger.context(activity_id=activity.id, child=self.name),
+            )
+            return self._empty(page_number, num_records)
+        return self._page(activity.id, page_number, num_records, db)
 
     def list_public(
         self,

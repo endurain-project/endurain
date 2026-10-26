@@ -324,6 +324,22 @@ export interface ActivityEditInput {
 }
 
 /**
+ * An activity with the child collections the detail view shows, as one response carries them.
+ *
+ * @property activity - The activity.
+ * @property laps - Every lap, or `null` when the response held only the first page of them.
+ * @property sets - Every performed workout set, or `null` when the response held only the first page.
+ * @property workoutSteps - Every planned workout step, or `null` when the response held only the
+ *   first page.
+ */
+export interface ActivityDetail {
+  activity: Activity
+  laps: ActivityLap[] | null
+  sets: ActivityWorkoutSet[] | null
+  workoutSteps: ActivityWorkoutStep[] | null
+}
+
+/**
  * One keyset slice of the following feed.
  *
  * @property items - The slice's activities, newest first.

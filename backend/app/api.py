@@ -9,6 +9,8 @@ import modules.activities.activity.public_router as activity_public_router
 # Alphabetized router imports
 import modules.activities.activity.router as activity_router
 import modules.activities.activity.summary_router as activity_summary_router
+import modules.activities.activity_detail.public_router as activity_detail_public_router
+import modules.activities.activity_detail.router as activity_detail_router
 import modules.activities.activity_ingestion.router as activity_ingestion_router
 import modules.activities.activity_laps.public_router as activity_laps_public_router
 import modules.activities.activity_laps.router as activity_laps_router
@@ -135,6 +137,14 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    activity_detail_router.router,
+    prefix=core_config.ROOT_PATH + "/activities/{activity_id}",
+    tags=["activity_detail"],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+    ],
 )
 router.include_router(
     activity_laps_router.router,
@@ -376,6 +386,11 @@ router.include_router(
     activity_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/activities",
     tags=["public_activities"],
+)
+router.include_router(
+    activity_detail_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/activities/{activity_id}",
+    tags=["public_activity_detail"],
 )
 router.include_router(
     activity_exercise_titles_public_router.router,

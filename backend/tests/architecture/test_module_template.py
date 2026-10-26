@@ -65,6 +65,10 @@ _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
         "Read-only and top of the health namespace: it consolidates the other health packages' "
         "surfaces into the daily dashboard route. Nothing calls it."
     ),
+    "activity_detail": (
+        "Read-only composition above the child packages: it assembles an activity and their "
+        "surfaces into one response. Nothing calls it."
+    ),
     "activity_geocoding": (
         "Purely reactive: it geocodes on the activity.created event (subscribers) and "
         "reconciles on a schedule (scheduled_jobs), both wired by app/module_registry.py. "

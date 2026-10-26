@@ -384,6 +384,30 @@ export interface paths {
         patch: operations["edit_activity_api_v1_activities__activity_id__patch"];
         trace?: never;
     };
+    "/api/v1/activities/{activity_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activity Detail
+         * @description Return an activity with its laps, sets and workout steps in one read.
+         *
+         *     Equivalent to reading the activity and each collection separately, with the access decision made
+         *     once. Streams and media stay on their own routes. The ``ETag`` is the activity's, to echo in
+         *     ``If-Match`` when saving it.
+         */
+        get: operations["read_activity_detail_api_v1_activities__activity_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/activities/{activity_id}/laps": {
         parameters: {
             query?: never;
@@ -3674,6 +3698,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/activities/{activity_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activity Detail
+         * @description Return a shared activity with its laps, sets and workout steps in one read.
+         *
+         *     Answers 404 when the activity does not exist *or* is not public, so it cannot be used to
+         *     enumerate which ids exist. A collection the owner hides is an empty page.
+         */
+        get: operations["read_public_activity_detail_api_v1_public_activities__activity_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/activities/{activity_id}/laps": {
         parameters: {
             query?: never;
@@ -5230,6 +5277,26 @@ export interface components {
         ActivitiesBulkEditRead: {
             /** Updated */
             updated: number;
+        };
+        /**
+         * ActivityDetailRead
+         * @description An activity together with the first page of each child collection the detail view shows.
+         *
+         *     Each collection is the page envelope its own route returns, so a client that finds a ``next`` page
+         *     continues with that route. A collection hidden from the viewer, or one the activity has none of,
+         *     is an empty page.
+         *
+         *     Attributes:
+         *         activity: The activity, masked as the viewer may see it.
+         *         laps: The activity's laps.
+         *         sets: The activity's performed workout sets.
+         *         workout_steps: The activity's planned workout steps.
+         */
+        ActivityDetailRead: {
+            activity: components["schemas"]["ActivityRead"];
+            laps: components["schemas"]["Page_ActivityLapsRead_"];
+            sets: components["schemas"]["Page_ActivitySetsRead_"];
+            workout_steps: components["schemas"]["Page_ActivityWorkoutStepsRead_"];
         };
         /**
          * ActivityEdit
@@ -13392,6 +13459,46 @@ export interface operations {
             };
         };
     };
+    read_activity_detail_api_v1_activities__activity_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityDetailRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     list_activity_laps_api_v1_activities__activity_id__laps_get: {
         parameters: {
             query?: {
@@ -18248,6 +18355,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_public_activity_detail_api_v1_public_activities__activity_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityDetailRead"];
                 };
             };
             /** @description Validation Error */

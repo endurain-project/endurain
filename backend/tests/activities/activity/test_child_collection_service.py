@@ -92,3 +92,50 @@ class TestListPublic:
         _collection().list_public(5, MagicMock(), page_number=1, num_records=10)
 
         mock_gate.may_read_child.assert_not_called()
+
+
+class TestListForActivity:
+    """A child read for an activity the caller already resolved, so no second lookup runs."""
+
+    @staticmethod
+    def _activity(**kw):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(**{"id": 5, "user_id": 1, "hide_laps": False, **kw})
+
+    def test_returns_a_page_for_a_viewer_the_flag_does_not_hide_from(self):
+        db = MagicMock()
+        fetch = MagicMock(return_value=["row"])
+
+        page = _collection(fetch).list_for_activity(self._activity(), 2, db, page_number=1, num_records=10)
+
+        assert (page.items, page.total) == (["row"], 1)
+        fetch.assert_called_once_with(5, db, page_number=1, num_records=10)
+
+    def test_a_non_owner_is_answered_with_an_empty_page_and_nothing_is_queried(self):
+        fetch, count = MagicMock(), MagicMock()
+
+        page = _collection(fetch, count).list_for_activity(
+            self._activity(hide_laps=True), 2, MagicMock(), page_number=1, num_records=10
+        )
+
+        assert (page.items, page.total) == ([], 0)
+        fetch.assert_not_called()
+        count.assert_not_called()
+
+    def test_the_owner_reads_despite_the_flag(self):
+        page = _collection().list_for_activity(
+            self._activity(hide_laps=True), 1, MagicMock(), page_number=1, num_records=10
+        )
+
+        assert page.items == ["row"]
+
+    def test_an_anonymous_viewer_is_hidden_from_by_the_flag(self):
+        fetch = MagicMock()
+
+        page = _collection(fetch).list_for_activity(
+            self._activity(hide_laps=True), None, MagicMock(), page_number=1, num_records=10
+        )
+
+        assert page.items == []
+        fetch.assert_not_called()

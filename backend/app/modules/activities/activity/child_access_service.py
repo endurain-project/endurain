@@ -70,6 +70,23 @@ def resolve_public_parent(activity_id: int, db: Session) -> activity_schema.Acti
     return activity_crud.get_activity_by_id_if_is_public(activity_id, db)
 
 
+def is_hidden_from(activity: activity_schema.ActivityRead, requester_user_id: int | None, *, hide_attr: str) -> bool:
+    """Return whether an activity's ``hide_*`` flag hides one of its children from a viewer.
+
+    The owner is never hidden from; a non-owner, or an anonymous viewer (``None``), is whenever
+    the flag is set. It decides from an activity the caller already holds, so it runs no query.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        hide_attr: Name of the parent's boolean ``hide_*`` flag guarding the child.
+
+    Returns:
+        True when the child must be withheld from this viewer.
+    """
+    return requester_user_id != activity.user_id and bool(getattr(activity, hide_attr))
+
+
 def may_read_child(activity_id: int, requester_user_id: int, db: Session, *, hide_attr: str) -> bool:
     """Return whether an authenticated caller may read one of an activity's child resources.
 
@@ -94,7 +111,7 @@ def may_read_child(activity_id: int, requester_user_id: int, db: Session, *, hid
         )
         return False
 
-    if requester_user_id != activity.user_id and getattr(activity, hide_attr):
+    if is_hidden_from(activity, requester_user_id, hide_attr=hide_attr):
         logger.debug(
             "Child read denied: the hide flag is set for a non-owner",
             extra=core_logger.context(

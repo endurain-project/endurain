@@ -24,7 +24,7 @@ import { fetchActivityOwner } from '@/features/activities/services/activityOwner
 import {
   deleteActivity,
   editActivity,
-  fetchActivity,
+  fetchActivityDetail,
   fetchActivityExerciseTitles,
   fetchActivityLaps,
   fetchActivitySets,
@@ -49,16 +49,39 @@ function resolveId(id: MaybeRefOrGetter<number | null>): number {
  * the public shareable-link endpoint otherwise, so the same route serves owners
  * and public viewers. Gated on a valid id.
  *
+ * The response also carries the activity's laps, sets and workout steps, which are seeded into the
+ * caches of their own queries, so those make no request. A collection that did not arrive in full
+ * is left to its own query, which reads every page.
+ *
  * @param id - Reactive activity id from the route.
  * @returns The TanStack query result; data is `null` when not found/accessible.
  */
 export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
+  const client = useQueryClient()
   const auth = useAuthStore()
 
   return useQuery({
     queryKey: computed(() => queryKeys.activities.detail(resolveId(id))),
-    queryFn: ({ signal }) =>
-      fetchActivity(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
+    queryFn: async ({ signal }) => {
+      const activityId = resolveId(id)
+      const detail = await fetchActivityDetail(activityId, {
+        authenticated: auth.isAuthenticated,
+        signal,
+      })
+      if (!detail) {
+        return null
+      }
+      if (detail.laps) {
+        client.setQueryData(queryKeys.activities.laps(activityId), detail.laps)
+      }
+      if (detail.sets) {
+        client.setQueryData(queryKeys.activities.sets(activityId), detail.sets)
+      }
+      if (detail.workoutSteps) {
+        client.setQueryData(queryKeys.activities.workoutSteps(activityId), detail.workoutSteps)
+      }
+      return detail.activity
+    },
     enabled: computed(() => resolveId(id) > 0),
   })
 }

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 
@@ -80,3 +81,27 @@ def list_public_activity_sets(
         publicly visible.
     """
     return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)
+
+
+def list_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: int | None,
+    db: Session,
+) -> activity_sets_schema.ActivitySetsPage:
+    """Return the first page of an activity's sets for a viewer who may already see the activity.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty when the sets are hidden from this viewer.
+    """
+    return _COLLECTION.list_for_activity(
+        activity,
+        requester_user_id,
+        db,
+        page_number=1,
+        num_records=core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+    )

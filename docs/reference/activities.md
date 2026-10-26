@@ -1,5 +1,17 @@
 # Activities API reference
 
+## Activity detail
+
+::: backend.app.modules.activities.activity_detail.router
+    handler: python
+    options:
+      docstring_style: google
+
+::: backend.app.modules.activities.activity_detail.schema
+    handler: python
+    options:
+      docstring_style: google
+
 ## Activity streams
 
 ::: backend.app.modules.activities.activity_streams.router

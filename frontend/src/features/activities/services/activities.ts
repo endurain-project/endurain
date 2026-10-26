@@ -13,6 +13,7 @@ type ActivityIngestionJob = Schemas['ActivityIngestionJobRead']
 import type {
   ActivitiesPage,
   Activity,
+  ActivityDetail,
   ActivityDto,
   ActivityEditDto,
   ActivityEditInput,
@@ -249,6 +250,55 @@ export async function fetchActivity(
       signal: context.signal,
     })
     return dto ? mapActivity(dto) : null
+  } catch (error) {
+    if (error instanceof HttpError && (error.status === 404 || error.status === 422)) {
+      return null
+    }
+    throw error
+  }
+}
+
+/**
+ * Maps one child collection of a detail response to its rows, or `null` when the response held only
+ * its first page (so the collection must be read in full from its own route).
+ *
+ * @param page - The collection's page envelope.
+ * @param map - Maps one row to the domain model.
+ * @returns Every row, or `null` for an incomplete collection.
+ */
+function completeRows<Dto, T>(page: ChildPage<Dto>, map: (dto: Dto) => T): T[] | null {
+  return page.next ? null : (page.items ?? []).map(map)
+}
+
+/**
+ * Fetches an activity together with its laps, sets and workout steps in one request (auth or
+ * public endpoint), so the page needs neither the activity before the collections nor a request
+ * for each. Returns `null` when the activity is missing or not publicly shareable.
+ *
+ * @param id - Activity identifier.
+ * @param context - Auth + cancellation context.
+ * @returns The activity and each collection that arrived in full, or `null` when not found/accessible.
+ */
+export async function fetchActivityDetail(
+  id: number,
+  context: ActivityFetchContext,
+): Promise<ActivityDetail | null> {
+  const path = resourcePath(
+    context.authenticated,
+    `/activities/${id}/detail`,
+    `/public/activities/${id}/detail`,
+  )
+  try {
+    const dto = await apiFetch<Schemas['ActivityDetailRead']>(path, {
+      auth: context.authenticated,
+      signal: context.signal,
+    })
+    return {
+      activity: mapActivity(dto.activity),
+      laps: completeRows(dto.laps, mapActivityLap),
+      sets: completeRows(dto.sets, mapActivitySet),
+      workoutSteps: completeRows(dto.workout_steps, mapActivityWorkoutStep),
+    }
   } catch (error) {
     if (error instanceof HttpError && (error.status === 404 || error.status === 422)) {
       return null

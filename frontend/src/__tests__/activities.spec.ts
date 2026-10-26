@@ -7,6 +7,7 @@ import {
   deleteActivity,
   editActivity,
   fetchActivity,
+  fetchActivityDetail,
   fetchActivityLaps,
   fetchActivityStats,
   fetchActivityStreams,
@@ -190,6 +191,73 @@ describe('fetchActivity', () => {
     const { HttpError } = await import('@/services/http')
     vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
     await expect(fetchActivity(5, { authenticated: true })).rejects.toBeInstanceOf(HttpError)
+  })
+})
+
+describe('fetchActivityDetail', () => {
+  const lapDto = { id: 1, total_distance: 1000 }
+  const setDto = { id: 2, duration: 30, set_type: 1 }
+  const stepDto = { duration_type: 1, message_index: 0 }
+  const page = (items: unknown[], next: number | null = null) => ({
+    items,
+    total: items.length,
+    page: 1,
+    num_records: 200,
+    next,
+  })
+  const detailDto = {
+    activity: activityDto,
+    laps: page([lapDto]),
+    sets: page([setDto]),
+    workout_steps: page([stepDto]),
+  }
+
+  it('reads the activity and its collections in one request', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    const detail = await fetchActivityDetail(5, { authenticated: true })
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith(
+      '/activities/5/detail',
+      expect.objectContaining({ auth: true }),
+    )
+    expect(detail?.activity.id).toBe(5)
+    expect(detail?.laps).toHaveLength(1)
+    expect(detail?.laps?.[0]).toMatchObject({ id: 1, totalDistance: 1000 })
+    expect(detail?.sets?.[0]).toMatchObject({ id: 2, duration: 30 })
+    expect(detail?.workoutSteps?.[0]).toMatchObject({ messageIndex: 0 })
+  })
+
+  it('uses the public endpoint when unauthenticated', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    await fetchActivityDetail(5, { authenticated: false })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/public/activities/5/detail',
+      expect.objectContaining({ auth: false }),
+    )
+  })
+
+  it('reports a collection with more pages as incomplete, to be read in full separately', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, laps: page([lapDto], 2) })
+
+    const detail = await fetchActivityDetail(5, { authenticated: true })
+
+    expect(detail?.laps).toBeNull()
+    expect(detail?.sets).toHaveLength(1)
+  })
+
+  it('returns null on a 404/422 response', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
+    expect(await fetchActivityDetail(5, { authenticated: true })).toBeNull()
+  })
+
+  it('rethrows non-not-found errors', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
+    await expect(fetchActivityDetail(5, { authenticated: true })).rejects.toBeInstanceOf(HttpError)
   })
 })
 
