@@ -97,6 +97,8 @@ registry.register(activity_events.ACTIVITY_CREATED, THUMBNAIL_GENERATE_SUBSCRIBE
 
 The id is independent of the module path, so job history and deduplication survive refactors. Pick it once and keep it.
 
+The existing subscribers and their ids are listed in the [subscriber catalog](../getting-started/background-work-by-module.md#subscriber-catalog); add yours to it when you add one.
+
 ## Declare a reconciliation net
 
 Every durable subscriber must say how lost work is repaired. Add a `DurableSubscriberNet` next to the registration:

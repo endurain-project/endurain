@@ -52,7 +52,7 @@ ORDER BY updated_at DESC
 LIMIT 20;
 ```
 
-`jasil_processing_jobs.status` is `pending`, `claimed`, `completed` or `dead_letter`. A failed job returns to `pending` with a later `available_at` (exponential backoff) until `attempts` reaches the maximum (`JOBS_MAX_ATTEMPTS`), then it becomes `dead_letter`. `last_error` holds the most recent failure.
+`jasil_processing_jobs.status` is `pending`, `claimed`, `completed` or `dead_letter`. The `subscriber_id` values are listed, with what each one does and what repairs it, in the [subscriber catalog](background-work-by-module.md#subscriber-catalog). A failed job returns to `pending` with a later `available_at` (exponential backoff) until `attempts` reaches the maximum (`JOBS_MAX_ATTEMPTS`), then it becomes `dead_letter`. `last_error` holds the most recent failure.
 
 Dead-lettered jobs are kept for review and never pruned automatically. For derived work the scheduled backfills repair the result anyway. An upload or provider refresh that dead-lettered is a command the user can simply start again.
 

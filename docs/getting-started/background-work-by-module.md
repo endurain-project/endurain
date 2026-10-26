@@ -80,6 +80,79 @@ For derived work, nothing more: the reconciliation net will fill the gap. For a 
 
 The callback also runs when the job died without raising, for example a worker killed mid-job, whose own error handling never ran.
 
+## The same event, two deployments
+
+The delivery flowchart above shows the choices. This is what actually runs, step by step, when an activity is stored, side by side. The settings that select each column are in [Scaling and background jobs](scaling-and-background-jobs.md#settings), and the topologies are drawn in [How events are delivered](scaling-and-background-jobs.md#how-events-are-delivered).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant API as API process
+    participant DB as PostgreSQL
+    participant Q as Queue or relay
+    participant W as Thumbnail handler
+    participant S as Scheduler
+
+    rect rgb(235, 245, 255)
+    Note over API,S: Local: JOBS_ENABLED=false, one process
+    API->>DB: Commit the activity
+    API->>Q: Publish activity.created on the in-process bus
+    Q->>W: Queue it on the 2-thread pool, 500 waiting at most
+    W->>DB: Render and record the thumbnail
+    Note over Q,W: If the queue is full, the handler is skipped and a warning is logged
+    S->>DB: Hourly: find activities with no thumbnail
+    S->>W: Render the missing ones
+    end
+
+    rect rgb(240, 255, 240)
+    Note over API,S: Distributed: JOBS_ENABLED=true, several replicas and workers
+    API->>DB: Commit the activity and the outbox row together
+    Q->>DB: Relay, every 5 s: turn the outbox row into one job per subscriber
+    W->>DB: Claim the job with a lease, renewed every 15 s
+    W->>DB: Render and record the thumbnail
+    Note over Q,W: A failure retries with backoff, then dead-letters after 5 attempts
+    S->>DB: Reaper, every minute: requeue jobs whose lease lapsed
+    S->>DB: Hourly net, under a lock: only one replica runs it
+    end
+```
+
+The processes involved differ too:
+
+```mermaid
+flowchart LR
+    subgraph L[Local, one container]
+      LA[API process] --- LP[In-process pools: subscribers, ingestion, Garmin sync, profile transfer]
+      LA --- LS[Scheduler, no lock needed]
+    end
+    subgraph D[Distributed]
+      DA1[API replica 1]
+      DA2[API replica 2]
+      DW1[Worker 1]
+      DW2[Worker 2]
+      PG[(PostgreSQL: outbox and jobs)]
+      RD[(Redis: state, events, realtime)]
+      LK{{Coordination lock}}
+      DA1 & DA2 -- publish --> PG
+      DA1 & DA2 -- relay every 5 s, reap every minute --> PG
+      DW1 & DW2 -- claim jobs, SKIP LOCKED --> PG
+      DA1 & DA2 & DW1 & DW2 --- RD
+      DA1 & DA2 -- scheduled jobs --> LK
+    end
+```
+
+What each part does:
+
+| Part | Runs where | Job |
+| ---- | ---------- | --- |
+| Outbox | PostgreSQL | Holds an event, committed in the same transaction as the change that caused it |
+| Relay | Every API process, every 5 s | Fans an outbox row out into one job per subscriber. Safe on several replicas: it coordinates with `SELECT ... FOR UPDATE SKIP LOCKED` and the fan-out is idempotent |
+| Worker | The API process (`JOBS_RUN_IN_PROCESS_WORKER=true`) or a dedicated `APP_ROLE=worker` container | Claims jobs with a lease and runs the handlers. Workers compete for jobs, so adding workers adds throughput |
+| Reaper | Every API process, every minute | Requeues jobs whose lease lapsed, and abandons a job that has run for 30 minutes |
+| Scheduler | Every API process | Runs the [scheduled jobs](#scheduled-jobs). Jobs with a lock run on one replica per interval |
+| Event log | PostgreSQL | One row per event and subscriber for diagnostics, pruned after `EVENT_LOG_RETENTION_DAYS` |
+
+Workers do not run the scheduler, the relay or the reaper, so with `JOBS_RUN_IN_PROCESS_WORKER=false` at least one API process must stay up for jobs to be relayed. Workers do not apply database migrations either, so start the API first.
+
 ## When something is dropped
 
 | Situation | What happens | How it is repaired | How you see it |
@@ -118,6 +191,8 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Prune event log, outbox and job bookkeeping | 24 h | yes | Retention |
 
 A job with a lock uses the platform's coordination lock. With the default `noop://` lock on one process it always runs. With several processes the default is `postgres-advisory://`, and a replica that does not get the lock skips that run and logs it at DEBUG. A job without a lock may run on every scheduler process, so it is written to be safe to repeat.
+
+Strava has no scheduled job of its own: its hourly pull is the provider refresh fan-out above.
 
 Startup also queues a catch-up run of the thumbnail, location, provider refresh and Garmin health jobs, so a restart does not wait a full interval.
 
@@ -211,6 +286,43 @@ These modules publish events and subscribe to none. `activity.created`, `activit
 ### Realtime hints
 
 Delivered best effort over the WebSocket, and over a Redis channel when several processes run. See [Realtime updates](../integrate/realtime.md).
+
+## Subscriber catalog
+
+Every durable job is one subscriber reacting to one event. The **subscriber id** is what you see in `jasil_processing_jobs.subscriber_id` and `jasil_event_log.handler_name`, and it is stable across refactors, so you can filter on it. See [Troubleshooting](troubleshooting.md#inspect-background-jobs-durable-jobs-only) for the queries, and [Events and subscribers](../developer-guide/events-and-subscribers.md#register-it) for how an id is chosen.
+
+"Runs without durable jobs" says where the handler runs when `JOBS_ENABLED=false`. A **bus** handler is queued on the 2-thread subscriber pool and a failure is dropped. A **command pool** is a bounded pool that the request submits to directly, described in the module's section above.
+
+| Subscriber id | Event | Runs without durable jobs | Repaired by | On dead-letter |
+| ------------- | ----- | ------------------------- | ----------- | -------------- |
+| `activity_thumbnail.generate` | `activity.created` | Bus | [Hourly missing-thumbnail job](#scheduled-jobs) | Net fills the gap |
+| `activity_thumbnail.cleanup` | `activity.deleted` | Bus | Daily orphan sweep | Net fills the gap |
+| `activity_thumbnail.settings_changed` | `server_settings.tile_settings_changed` | Bus | Nothing: repeat the settings save | Nothing |
+| `activity_geocoding.reverse_geocode` | `activity.created` | Bus | Hourly location backfill | Net fills the gap |
+| `activity_file_storage.cleanup` | `activity.deleted` | Bus | Daily orphan sweep | Net fills the gap |
+| `activity_media.cleanup` | `activity.deleted` | Bus | Daily orphan sweep | Net fills the gap |
+| `activity.notify_created` | `activity.created` | Bus | Nothing, by design | Nothing |
+| `followers.notify_requested` | `follower.requested` | Bus | Nothing, by design | Nothing |
+| `followers.notify_accepted` | `follower.accepted` | Bus | Nothing, by design | Nothing |
+| `followers.clear_request_notification` | `follower.request_removed` | Bus | Nothing, by design | Nothing |
+| `auth.send_sign_up_verification_email` | `auth.sign_up_verification_requested` | Bus | The user signs up again, or an administrator helps | Nothing |
+| `auth.send_sign_up_approval_request_email` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user and a notification | Nothing |
+| `auth.send_sign_up_approved_email` | `auth.sign_up_approved` | Bus | Nothing: the email is a courtesy | Nothing |
+| `auth.send_password_reset_email` | `auth.password_reset_requested` | Bus | The user requests another reset | Nothing |
+| `users.profile_import_requested` | `users.profile_import_requested` | Bus, then the profile transfer pool | The user starts again | Import state closed as failed |
+| `users.profile_export_requested` | `users.profile_export_requested` | Bus, then the profile transfer pool | The user starts again | Export state closed as failed |
+| `activity_ingestion.uploaded_file` | `activity.file_uploaded` | Ingestion command pool | The user uploads again | Job marked failed |
+| `activity_ingestion.refresh_requested` | `activity.refresh_requested` | Ingestion command pool | The hourly refresh fan-out, or the user | Job marked failed |
+| `activity_ingestion.bulk_import` | `activity.bulk_import_continue` | Ingestion command pool | Resumes from its saved position. The stale-job reaper closes one that stops progressing | Job marked failed |
+| `garmin.sync_requested` | `garmin.sync_requested` | Garmin sync pool | The 4-hourly health pull, or the user | Sync state marked failed |
+
+Three things follow from the table:
+
+- A handler that **has a repair job** is derived work. Losing one costs time, not data.
+- A handler that **repairs nothing** is either a command the user can repeat or a transient signal such as a notification. Each of these says why in its module's `subscriber_registry.py`, and a test fails if a durable subscriber declares neither a repair job nor a reason.
+- The ingestion and Garmin commands have **no bus subscriber**. Without durable jobs the service hands them to its own bounded pool instead, which is why a full pool answers the request with `503`.
+
+The realtime hint to the browser is not a job. It is delivered over the WebSocket and, with several processes, over a Redis channel; see [Realtime updates](../integrate/realtime.md#local-and-distributed-deployments).
 
 ## Reading the table in practice
 

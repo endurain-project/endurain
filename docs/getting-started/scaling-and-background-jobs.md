@@ -19,7 +19,7 @@ Every derived-work subscriber also has a scheduled backfill, so a lost event is 
 
 ## How events are delivered
 
-How each module behaves, what is retried, what is dropped and what repairs it is in [Background work and failure handling](background-work-by-module.md).
+How each module behaves, what is retried, what is dropped and what repairs it is in [Background work and failure handling](background-work-by-module.md). The [subscriber catalog](background-work-by-module.md#subscriber-catalog) lists every durable job by id, and [the same event, two deployments](background-work-by-module.md#the-same-event-two-deployments) walks one event through both modes.
 
 When an activity is stored, Endurain publishes an event such as `activity.created`. Subscribers (thumbnails, geocoding, notifications) react to it. Where the event goes depends on your settings.
 
