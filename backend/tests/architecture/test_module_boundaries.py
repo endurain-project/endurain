@@ -863,6 +863,39 @@ class TestSubPackagePrivacy:
         )
 
 
+class TestStoreRole:
+    """A ``*_store.py`` holds shared state in the platform ``StateProvider``, not in the database or the process."""
+
+    def test_a_store_touches_neither_the_database_nor_process_memory(self):
+        offenders: list[str] = []
+        for module_name in _CONVERTED:
+            for path in _python_files(_MODULES_ROOT / module_name):
+                if _role(path.stem) != "store":
+                    continue
+                tree = ast.parse(path.read_text())
+                for node in ast.walk(tree):
+                    imported = (
+                        [alias.name for alias in node.names]
+                        if isinstance(node, ast.Import)
+                        else [node.module or ""]
+                        if isinstance(node, ast.ImportFrom)
+                        else []
+                    )
+                    if any(
+                        name == "sqlalchemy" or name.startswith(("sqlalchemy.", "core.database")) for name in imported
+                    ):
+                        offenders.append(f"{path}: imports the database")
+                for statement in tree.body:
+                    value = statement.value if isinstance(statement, (ast.Assign, ast.AnnAssign)) else None
+                    if isinstance(value, (ast.Dict, ast.List, ast.Set)) or (
+                        isinstance(value, ast.Call) and getattr(value.func, "id", "") in {"dict", "list", "set"}
+                    ):
+                        offenders.append(f"{path}: module-level mutable state")
+        assert not offenders, "\n  ".join(
+            ["A store keeps state in the platform StateProvider only:", *sorted(offenders)]
+        )
+
+
 class TestModuleInventory:
     """Every top-level module is either converted or explicitly outstanding."""
 

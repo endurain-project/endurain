@@ -339,6 +339,7 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
         # notifications.
         raise core_exceptions.InvalidInputError("Cannot follow yourself")
 
+    followers_crud.lock_pending_requests(target_user_id, db)
     if (
         followers_crud.count_pending_requests_for_user_id(target_user_id, db)
         >= followers_constants.MAX_PENDING_REQUESTS

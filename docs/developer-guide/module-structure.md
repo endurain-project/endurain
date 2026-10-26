@@ -66,6 +66,7 @@ rather than that its name is on a list. Ending a transaction (`commit`,
 | `models.py` | persistence | SQLAlchemy ORM. The only place a table is declared. |
 | `query.py` | persistence | Reusable SQL expression fragments. No session, no I/O. |
 | `crud.py` | persistence | The **only** file that opens a `Session` against its own tables. Stages writes (`flush`), never commits or rolls back. Returns schemas/DTOs, never ORM rows. |
+| `store.py` | application | Short-lived shared state (claims, one-time codes, rate-limit flags, sync status) over the platform `StateProvider`. Never opens a `Session` and never keeps state in process memory. Qualified as `<thing>_store.py`. |
 | `serializers.py` | persistence | ORM ↔ schema transformation, both directions. Called by `crud` at its edges. |
 | `service.py` | application | Decides access, orchestrates, publishes events, owns transaction boundaries. |
 | `router.py` / `public_router.py` | transport | Validate, delegate to `service`, return. No domain rule. |
@@ -187,7 +188,7 @@ wrapper is not a substitute for that.
 
 ### 4. Package-private — importable only from inside its own module
 
-`service.py`, `query.py`, `crud.py`, `models.py`, `serializers.py`, `utils.py`,
+`service.py`, `store.py`, `query.py`, `crud.py`, `models.py`, `serializers.py`, `utils.py`,
 `signing.py`, `subscribers.py`, `event_publishers.py`, and every unlisted helper.
 Sibling activity modules are outside callers for this rule. A derived subsystem
 that needs the activity row asks `activity.integration_service`, never

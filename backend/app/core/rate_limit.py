@@ -5,10 +5,11 @@ Provides a single :data:`limiter` instance used by every
 router, named tier constants for different endpoint
 classes, and a JSON-aware 429 error handler.
 
-The limiter key function hashes the Bearer token when
-its signature verifies (each session gets its own
-bucket) and falls back to the proxy-aware client IP for
-unauthenticated callers and unverifiable tokens.
+The limiter key function uses the user a Bearer token names
+when its signature verifies, so a user keeps one bucket across
+token refreshes and users behind one NAT stay apart, and falls
+back to the proxy-aware client IP for unauthenticated callers
+and unverifiable tokens.
 
 Architecture
 ------------
@@ -23,7 +24,6 @@ Architecture
 """
 
 import functools
-import hashlib
 import os
 
 from fastapi import Request
@@ -72,29 +72,30 @@ def _jwt_verification_key() -> OctKey | None:
     return OctKey.import_key(secret) if secret else None
 
 
-def _has_valid_signature(token: str) -> bool:
-    """Return whether ``token`` is a JWT signed with the server secret."""
+def _verified_subject(token: str) -> str | None:
+    """Return the ``sub`` claim of a Bearer token whose signature verifies, or None otherwise."""
     key = _jwt_verification_key()
     if key is None:
-        return False
+        return None
     try:
-        jwt.decode(token, key, algorithms=[os.environ.get("ALGORITHM", "HS256")])
+        claims = jwt.decode(token, key, algorithms=[os.environ.get("ALGORITHM", "HS256")]).claims
     except (JoseError, ValueError):
-        return False
-    return True
+        return None
+    subject = claims.get("sub")
+    return subject if isinstance(subject, str) else None
 
 
 def _get_rate_limit_key(request: Request) -> str:
     """
     Derive a per-caller rate-limit bucket key.
 
-    Authenticated callers are identified by a truncated
-    SHA-256 of their Bearer token so users behind the
-    same NAT are rate-limited independently.  The token
-    must carry a valid signature, otherwise a client could
-    mint a fresh bucket per request with a random value.
-    Falls back to the proxy-aware client IP for
-    unauthenticated callers and unverifiable tokens.
+    Authenticated callers are identified by the user their
+    Bearer token names, so users behind the same NAT are
+    rate-limited independently and a token refresh does not
+    reset the bucket.  The token must carry a valid signature,
+    otherwise a client could mint a fresh bucket per request
+    with a random value.  Falls back to the proxy-aware client
+    IP for unauthenticated callers and unverifiable tokens.
 
     Args:
         request: Incoming Starlette/FastAPI request.
@@ -103,9 +104,8 @@ def _get_rate_limit_key(request: Request) -> str:
         String key used as the rate-limit bucket.
     """
     auth = request.headers.get("authorization", "")
-    if auth.startswith("Bearer ") and len(auth) > 7 and _has_valid_signature(auth[7:]):
-        token_hash = hashlib.sha256(auth[7:].encode()).hexdigest()[:16]
-        return f"user:{token_hash}"
+    if auth.startswith("Bearer ") and len(auth) > 7 and (subject := _verified_subject(auth[7:])):
+        return f"user:{subject}"
     return core_network.get_ip_address(request)
 
 

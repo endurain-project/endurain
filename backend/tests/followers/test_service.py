@@ -100,6 +100,23 @@ class TestFollowUser:
         mock_pub.publish_follower_requested.assert_not_called()
 
 
+class TestPendingCapIsSerialised:
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_the_targets_requests_are_locked_before_they_are_counted(self, mock_crud, mock_pub):
+        from modules.followers.service import follow_user
+
+        calls = MagicMock()
+        calls.attach_mock(mock_crud.lock_pending_requests, "lock")
+        calls.attach_mock(mock_crud.count_pending_requests_for_user_id, "count")
+        calls.attach_mock(mock_crud.create_follower, "create")
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
+
+        follow_user(1, 2, MagicMock())
+
+        assert [call[0] for call in calls.mock_calls] == ["lock", "count", "create"]
+
+
 class TestAcceptFollowRequest:
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")

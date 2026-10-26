@@ -20,6 +20,9 @@ SYNC_TTL_SECONDS = 30 * 60
 # How long a refresh waits after Garmin Connect answers 429, which reports no reset time.
 RATE_LIMIT_COOLDOWN_SECONDS = 15 * 60
 
+# Link logins one process runs at once; each holds a thread for up to the MFA wait.
+MAX_CONCURRENT_LINKS = 4
+
 # Syncs the in-process pool may hold, running or queued, when durable jobs are off.
 MAX_PENDING_LOCAL_SYNCS = 50
 

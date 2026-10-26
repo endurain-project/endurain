@@ -1,6 +1,6 @@
 """CRUD operations for follower relationships."""
 
-from sqlalchemy import Select, delete, func, select, update
+from sqlalchemy import Select, delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
@@ -16,6 +16,9 @@ import modules.followers.serializers as followers_serializers
 # session. ``Session.info`` is per-session storage and a session is per-request,
 # so the cache cannot outlive the request that filled it.
 _FOLLOWEE_CACHE_KEY = "followers.accepted_followee_ids"
+
+#: Advisory-lock namespace of a user's pending follow requests, kept apart from every other advisory lock.
+_PENDING_LOCK_NAMESPACE = 7301
 
 #: The name of the model's unique (follower, followee) constraint.
 _UNIQUE_PAIR_CONSTRAINT = "uq_followers_follower_followee"
@@ -220,6 +223,23 @@ def get_pending_requests_for_user_id(
         page_number=page_number,
         num_records=num_records,
         pending_only=True,
+    )
+
+
+def lock_pending_requests(user_id: int, db: Session) -> None:
+    """Serialise the writers that add a pending request for a user, until the transaction ends.
+
+    A cap read with ``count`` and then enforced by an insert lets concurrent requests each see room
+    and all insert, so the writer takes this lock first. It is a transaction-scoped advisory lock keyed
+    by the target user, so it blocks only requests for the same user and releases on commit or rollback.
+
+    Args:
+        user_id: The user the requests are addressed to.
+        db: Database session.
+    """
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:namespace, :user_id)"),
+        {"namespace": _PENDING_LOCK_NAMESPACE, "user_id": user_id},
     )
 
 

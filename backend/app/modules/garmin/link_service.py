@@ -26,8 +26,9 @@ logger = core_logger.get_logger(__name__)
 # user's code, and a few users linking at once must not leave the API without worker threads.
 # A login past this capacity is refused rather than queued: a queued one would outlive its
 # polled state while holding the user's credentials in memory.
-MAX_CONCURRENT_LINKS = 4
-_link_pool = core_local_pool.BoundedPool("garmin-link", workers=MAX_CONCURRENT_LINKS, max_pending=MAX_CONCURRENT_LINKS)
+_link_pool = core_local_pool.BoundedPool(
+    "garmin-link", workers=garmin_constants.MAX_CONCURRENT_LINKS, max_pending=garmin_constants.MAX_CONCURRENT_LINKS
+)
 
 
 def shutdown_link_pool(*, wait: bool = False) -> None:

@@ -25,17 +25,51 @@ class TestRateLimitConstants:
 class TestGetRateLimitKey:
     """Tests for _get_rate_limit_key."""
 
-    def test_bearer_token_returns_hashed_key(self):
+    def test_a_verified_token_is_keyed_by_its_user(self):
         from core.rate_limit import _get_rate_limit_key
 
         request = MagicMock()
         request.headers = {"authorization": "Bearer my-secret-token-12345"}
 
-        with patch("core.rate_limit._has_valid_signature", return_value=True):
+        with patch("core.rate_limit._verified_subject", return_value="42"):
             result = _get_rate_limit_key(request)
 
-        assert result.startswith("user:")
-        assert len(result) == 16 + 5  # "user:" + 16 hex chars
+        assert result == "user:42"
+
+    def test_a_refreshed_token_keeps_the_users_bucket(self):
+        from joserfc import jwt
+        from joserfc.jwk import OctKey
+
+        import core.rate_limit as rl
+
+        key = OctKey.import_key("k" * 32)
+        first = jwt.encode({"alg": "HS256"}, {"sub": "7", "jti": "a"}, key)
+        second = jwt.encode({"alg": "HS256"}, {"sub": "7", "jti": "b"}, key)
+        keys = []
+        with patch("core.rate_limit._jwt_verification_key", return_value=key):
+            for token in (first, second):
+                request = MagicMock()
+                request.headers = {"authorization": f"Bearer {token}"}
+                keys.append(rl._get_rate_limit_key(request))
+
+        assert keys == ["user:7", "user:7"]
+
+    def test_a_verified_token_without_a_subject_falls_back_to_the_ip(self):
+        from joserfc import jwt
+        from joserfc.jwk import OctKey
+
+        import core.rate_limit as rl
+
+        key = OctKey.import_key("k" * 32)
+        token = jwt.encode({"alg": "HS256"}, {"scope": []}, key)
+        request = MagicMock()
+        request.headers = {"authorization": f"Bearer {token}"}
+
+        with (
+            patch("core.rate_limit._jwt_verification_key", return_value=key),
+            patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.4"),
+        ):
+            assert rl._get_rate_limit_key(request) == "10.0.0.4"
 
     def test_unverified_bearer_token_returns_ip(self):
         from core.rate_limit import _get_rate_limit_key
@@ -57,9 +91,9 @@ class TestGetRateLimitKey:
         key = OctKey.import_key("k" * 32)
         token = jwt.encode({"alg": "HS256"}, {"sub": "1"}, key)
         with patch("core.rate_limit._jwt_verification_key", return_value=key):
-            assert rl._has_valid_signature(token)
-            assert not rl._has_valid_signature(token[:-2] + "xx")
-            assert not rl._has_valid_signature("not-a-jwt")
+            assert rl._verified_subject(token) == "1"
+            assert rl._verified_subject(token[:-2] + "xx") is None
+            assert rl._verified_subject("not-a-jwt") is None
 
     def test_no_auth_header_returns_ip(self):
         from core.rate_limit import _get_rate_limit_key

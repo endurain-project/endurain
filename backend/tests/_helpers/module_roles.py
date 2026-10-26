@@ -57,6 +57,7 @@ ROLES: tuple[str, ...] = (
     "computation",
     "serializers",
     "subscribers",
+    "store",
     "constants",
     "contracts",
     "service",
