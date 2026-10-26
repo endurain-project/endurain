@@ -449,6 +449,10 @@ def create_app() -> FastAPI:
         core_middleware_request_id.RequestIdMiddleware,
     )
 
+    # Compression wraps everything above, so it is installed last: the API's JSON and the built
+    # frontend bundle go out gzipped, with the headers every inner layer added.
+    core_middleware.install_compression(fastapi_app)
+
     # Static mounts must be registered before the
     # catch-all frontend route included by api_router.
     # NOTE: activity thumbnails, activity media and user photos are intentionally

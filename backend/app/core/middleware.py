@@ -1,14 +1,15 @@
-"""HTTP middleware for security headers and CSRF checks."""
+"""HTTP middleware for security headers, CSRF checks and response compression."""
 
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from fastapi import Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
@@ -20,6 +21,15 @@ logger = core_logger.get_logger(__name__)
 
 _DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+#: Responses smaller than this are sent as they are, when the layers inside the compressor hand over
+#: the body whole. The streaming layers (request id, security headers, CSRF) hand it over in
+#: chunks, and the compressor then compresses a streamed response whatever its size.
+COMPRESSION_MIN_SIZE = 1024
+
+#: gzip level. Compression runs on the event loop, so this is the moderate level (the library default,
+#: 9, spends several times the CPU for a few percent more).
+COMPRESSION_LEVEL = 5
 
 #: How long a process trusts its cached CSP tile domains before re-reading them. An
 #: admin edit lands in one process; every other worker or replica picks it up here.
@@ -242,3 +252,16 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         return response
+
+
+def install_compression(app: FastAPI) -> None:
+    """Gzip-compress the app's responses for clients that accept it.
+
+    Install it last: a middleware added later wraps the earlier ones, so every header they add is on
+    the compressed response. A response that already carries a ``Content-Encoding`` (a proxy's or a
+    pre-compressed file) is not compressed again.
+
+    Args:
+        app: The application to wrap.
+    """
+    app.add_middleware(GZipMiddleware, minimum_size=COMPRESSION_MIN_SIZE, compresslevel=COMPRESSION_LEVEL)

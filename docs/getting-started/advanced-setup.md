@@ -146,6 +146,10 @@ Frontend dependencies:
 - To check npm dependencies used, use npm file (package.json)
 - Logo created on Canva
 
+## Response compression
+
+Endurain gzip-compresses its responses (the API's JSON and the web app's files) for clients that send `Accept-Encoding: gzip`. There is nothing to configure. Endurain does not compress a response that already carries a `Content-Encoding`. A reverse proxy that compresses on its own will normally find the response already compressed and pass it through.
+
 ## Session Timeout Configuration (Optional)
 
 By default, Endurain sessions last 7 days without enforcing idle timeouts.
