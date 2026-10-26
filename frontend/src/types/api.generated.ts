@@ -1363,6 +1363,7 @@ export interface paths {
          *     Args:
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the session's ETag.
          *
          *     Returns:
          *         Active HealthFastingRead if exists, None otherwise.
@@ -1418,6 +1419,7 @@ export interface paths {
          *         health_fasting_id: ID of the fasting record.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the record's ETag.
          *
          *     Returns:
          *         HealthFastingRead for the specified record.
@@ -1553,12 +1555,13 @@ export interface paths {
          *         health_poop_id: ID of the poop record.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the record's ETag.
          *
          *     Returns:
          *         HealthPoopRead for the specified record.
          *
          *     Raises:
-         *         HTTPException: If record not found.
+         *         NotFoundError: If the user has no such record.
          */
         get: operations["read_health_poop_by_id_api_v1_health_poop__health_poop_id__get"];
         put?: never;
@@ -1574,7 +1577,7 @@ export interface paths {
          *         db: Database session dependency.
          *
          *     Raises:
-         *         HTTPException: If record not found or unauthorized.
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_poop_api_v1_health_poop__health_poop_id__delete"];
         options?: never;
@@ -1596,7 +1599,8 @@ export interface paths {
          *         Updated HealthPoopRead record.
          *
          *     Raises:
-         *         HTTPException: If record not found or unauthorized.
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
          */
         patch: operations["edit_health_poop_api_v1_health_poop__health_poop_id__patch"];
         trace?: never;
@@ -1677,10 +1681,7 @@ export interface paths {
          *         None: This function does not return a value.
          *
          *     Raises:
-         *         HTTPException: May be raised by dependencies if:
-         *             - The access token is invalid or expired
-         *             - The user lacks required 'health:write' scope
-         *             - The health sleep record doesn't exist or doesn't belong to the user
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete"];
         options?: never;
@@ -1708,8 +1709,8 @@ export interface paths {
          *             as stored in the database.
          *
          *     Raises:
-         *         HTTPException: May raise various HTTP exceptions if authorization fails, user is not
-         *             found, or database operations fail.
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
          */
         patch: operations["edit_health_sleep_api_v1_health_sleep__health_sleep_id__patch"];
         trace?: never;
@@ -1738,9 +1739,6 @@ export interface paths {
          *             - fasting: Active or most recent fasting session
          *             - water: Today's water intake in milliliters
          *             - poop: Today's bowel movement count
-         *
-         *     Raises:
-         *         HTTPException: If the user lacks required 'health:read' scope.
          */
         get: operations["read_health_daily_stats_api_v1_health_stats_daily_get"];
         put?: never;
@@ -1827,10 +1825,7 @@ export interface paths {
          *         None: This function does not return a value.
          *
          *     Raises:
-         *         HTTPException: May be raised by dependencies if:
-         *             - The access token is invalid or expired
-         *             - The user lacks required 'health:write' scope
-         *             - The health steps record doesn't exist or doesn't belong to the user
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_steps_api_v1_health_steps__health_steps_id__delete"];
         options?: never;
@@ -1858,8 +1853,8 @@ export interface paths {
          *             as stored in the database.
          *
          *     Raises:
-         *         HTTPException: May raise various HTTP exceptions if authorization fails, user is not
-         *             found, or database operations fail.
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
          */
         patch: operations["edit_health_steps_api_v1_health_steps__health_steps_id__patch"];
         trace?: never;
@@ -1882,15 +1877,12 @@ export interface paths {
          *         token_user_id (int): The user ID extracted from the JWT access token, automatically
          *             injected by the authentication dependency.
          *         db (Session): SQLAlchemy database session dependency for executing database queries.
+         *         response: The response, which carries the targets' ETag.
          *
          *     Returns:
          *         health_targets_schema.HealthTargetsRead | None: The
          *             health targets object containing all targets for
          *             the user, or None if no targets are found.
-         *
-         *     Raises:
-         *         HTTPException: May raise 401 Unauthorized if the token is invalid or expired.
-         *         HTTPException: May raise 403 Forbidden if the user lacks the required 'health:read' scope.
          */
         get: operations["read_health_targets_all_api_v1_health_targets_get"];
         put?: never;
@@ -1922,9 +1914,8 @@ export interface paths {
          *             in the database.
          *
          *     Raises:
-         *         HTTPException: May raise authentication or authorization errors if the user
-         *             lacks proper permissions or if the token is invalid.
-         *         HTTPException: May raise database-related errors if the update operation fails.
+         *         NotFoundError: If the user has no targets.
+         *         PreconditionFailedError: If the targets changed since the client read them.
          */
         patch: operations["update_health_targets_api_v1_health_targets_patch"];
         trace?: never;
@@ -1997,7 +1988,7 @@ export interface paths {
          *         db: Database session dependency.
          *
          *     Raises:
-         *         HTTPException: If record not found or unauthorized.
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_water_api_v1_health_water__health_water_id__delete"];
         options?: never;
@@ -2019,7 +2010,8 @@ export interface paths {
          *         Updated HealthWaterRead record.
          *
          *     Raises:
-         *         HTTPException: If record not found or unauthorized.
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
          */
         patch: operations["edit_health_water_api_v1_health_water__health_water_id__patch"];
         trace?: never;
@@ -2459,10 +2451,14 @@ export interface paths {
          * Read Users Me
          * @description Retrieve authenticated user profile with integrations.
          *
+         *     The ETag is the user's version, which a later ``PATCH /profile`` echoes in ``If-Match``. The
+         *     privacy settings have their own version, ``privacy_settings_version``.
+         *
          *     Args:
          *         token_user_id: User ID from access token.
          *         identity_service: Identity service dependency.
          *         db: Database session.
+         *         response: The response, which carries the user's ETag.
          *
          *     Returns:
          *         User object with integration and privacy settings.
@@ -2633,6 +2629,7 @@ export interface paths {
          *     Args:
          *         token_user_id: User ID from access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the settings' ETag.
          *
          *     Returns:
          *         User default gear settings.
@@ -4704,6 +4701,7 @@ export interface paths {
          *     Args:
          *         email: Email address to search for.
          *         db: Database session dependency.
+         *         response: The response, which carries the user's ETag.
          *
          *     Returns:
          *         The user.
@@ -4791,6 +4789,7 @@ export interface paths {
          *     Args:
          *         username: Exact username to search for.
          *         db: Database session dependency.
+         *         response: The response, which carries the user's ETag.
          *
          *     Returns:
          *         The user.
@@ -4821,6 +4820,7 @@ export interface paths {
          *     Args:
          *         user_id: User ID to retrieve.
          *         db: Database session dependency.
+         *         response: The response, which carries the user's ETag.
          *
          *     Returns:
          *         The full record.
