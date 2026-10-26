@@ -1,9 +1,10 @@
 import { readonly, ref } from 'vue'
 
+import { invalidateExcept } from '@/composables/useInvalidatingMutation'
 import { queryClient } from '@/plugins/vueQuery'
 import { getAccessToken } from '@/services/authTokens'
 import { apiFetch } from '@/services/http'
-import { queryKeys } from '@/services/queryKeys'
+import { ACTIVITY_ROW_INDEPENDENT_KEYS, queryKeys } from '@/services/queryKeys'
 import { getWebSocketUrl } from '@/services/runtime'
 
 import { useTelemetry } from './useTelemetry'
@@ -30,22 +31,54 @@ const RECONNECT_JITTER_RATIO = 0.3
 // allows). Reconnecting would evict another tab in turn, so the loop would never settle.
 const EVICTED_CLOSE_CODE = 4001
 
+/** A cache invalidation a realtime event triggers. */
+interface Invalidation {
+  /** The domain prefix to invalidate. */
+  queryKey: readonly unknown[]
+  /** Key prefixes under `queryKey` the event cannot have changed. */
+  excludeKeys?: ReadonlyArray<readonly unknown[]>
+  /** Run at most once per this many milliseconds, for events that arrive in bursts. */
+  coalesceMs?: number
+}
+
+const NOTIFICATIONS: Invalidation = { queryKey: queryKeys.notifications.all() }
+
 /**
- * Query keys to invalidate when a realtime event arrives, so server push keeps
+ * A stored activity changes the lists, feeds, stats and summaries. A bulk import announces one
+ * activity at a time, so the refetch is coalesced instead of restarting for every one.
+ */
+const ACTIVITIES: Invalidation = {
+  queryKey: queryKeys.activities.all(),
+  excludeKeys: ACTIVITY_ROW_INDEPENDENT_KEYS,
+  coalesceMs: 1_000,
+}
+
+/** A provider gear sync changes the gears; the component-type catalogue is static. */
+const GEARS: Invalidation = {
+  queryKey: queryKeys.gears.all(),
+  excludeKeys: [queryKeys.gears.componentTypes()],
+}
+
+const HEALTH: Invalidation = { queryKey: queryKeys.health.all() }
+
+/**
+ * Invalidations to run when a realtime event arrives, so server push keeps
  * TanStack Query caches fresh without manual refetching. Keys come from the
  * central {@link queryKeys} factory so an invalidation can never drift from the
  * key a query registers under. Extend this map as views adopt realtime-backed
  * queries; invalidating a key with no active query is a harmless no-op.
  */
-const EVENT_QUERY_INVALIDATIONS: Record<string, ReadonlyArray<readonly unknown[]>> = {
-  NEW_ACTIVITY_NOTIFICATION: [queryKeys.notifications.all()],
-  NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION: [queryKeys.notifications.all()],
-  NEW_FOLLOWER_REQUEST_NOTIFICATION: [queryKeys.notifications.all()],
-  NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION: [queryKeys.notifications.all()],
-  NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION: [queryKeys.notifications.all()],
-  ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION: [queryKeys.notifications.all()],
-  GARMIN_TOKEN_EXPIRED_NOTIFICATION: [queryKeys.notifications.all()],
-  STRAVA_TOKEN_EXPIRED_NOTIFICATION: [queryKeys.notifications.all()],
+const EVENT_QUERY_INVALIDATIONS: Record<string, ReadonlyArray<Invalidation>> = {
+  NEW_ACTIVITY_NOTIFICATION: [NOTIFICATIONS, ACTIVITIES],
+  NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION: [NOTIFICATIONS, ACTIVITIES],
+  NEW_FOLLOWER_REQUEST_NOTIFICATION: [NOTIFICATIONS],
+  NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION: [NOTIFICATIONS],
+  NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION: [NOTIFICATIONS],
+  ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION: [NOTIFICATIONS],
+  GARMIN_TOKEN_EXPIRED_NOTIFICATION: [NOTIFICATIONS],
+  STRAVA_TOKEN_EXPIRED_NOTIFICATION: [NOTIFICATIONS],
+  GEARS_CHANGED: [GEARS],
+  HEALTH_CHANGED: [HEALTH],
 }
 
 // Module-level state guarantees a single connection per browser tab regardless
@@ -64,14 +97,43 @@ let connecting = false
 // pushes that were dropped while the socket was down.
 let hasBeenOpen = false
 
+// Coalesced invalidations waiting for their window to end.
+const pendingInvalidations = new Map<Invalidation, ReturnType<typeof setTimeout>>()
+
+/**
+ * Runs an invalidation, or schedules it once when it is coalesced and one is already waiting.
+ *
+ * @param invalidation - The invalidation a realtime event triggers.
+ */
+function invalidate(invalidation: Invalidation): void {
+  const run = () => {
+    if (invalidation.excludeKeys) {
+      void invalidateExcept(queryClient, invalidation.queryKey, invalidation.excludeKeys)
+    } else {
+      void queryClient.invalidateQueries({ queryKey: invalidation.queryKey })
+    }
+  }
+  if (!invalidation.coalesceMs) {
+    run()
+  } else if (!pendingInvalidations.has(invalidation)) {
+    pendingInvalidations.set(
+      invalidation,
+      setTimeout(() => {
+        pendingInvalidations.delete(invalidation)
+        run()
+      }, invalidation.coalesceMs),
+    )
+  }
+}
+
 /**
  * Routes a parsed frame to its query invalidations and subscribed handlers.
  *
  * @param event - The parsed realtime event.
  */
 function dispatch(event: RealtimeEvent): void {
-  for (const queryKey of EVENT_QUERY_INVALIDATIONS[event.message] ?? []) {
-    void queryClient.invalidateQueries({ queryKey })
+  for (const invalidation of EVENT_QUERY_INVALIDATIONS[event.message] ?? []) {
+    invalidate(invalidation)
   }
   for (const handler of Array.from(handlers.get(event.message) ?? [])) {
     handler(event)
@@ -245,6 +307,10 @@ export function useRealtime() {
     clearReconnectTimer()
     reconnectAttempts = 0
     hasBeenOpen = false
+    for (const timer of pendingInvalidations.values()) {
+      clearTimeout(timer)
+    }
+    pendingInvalidations.clear()
     if (socket) {
       // Detach onclose first so closing doesn't schedule a reconnect.
       socket.onclose = null

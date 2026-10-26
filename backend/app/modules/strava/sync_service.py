@@ -20,6 +20,8 @@ import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
 import modules.strava.sync_state_store as strava_sync_state_store
+import modules.websocket.constants as websocket_constants
+import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -87,6 +89,9 @@ def run_sync(
         raise
     outcome = strava_constants.SyncStatus.COMPLETED if synced else strava_constants.SyncStatus.FAILED
     states.set_status(payload.user_id, payload.kind, outcome)
+    if synced and payload.kind == strava_constants.SyncKind.GEAR:
+        # Best effort: the synced rows are already committed, so a lost hint only delays the refresh.
+        websocket_integration.push_to_user(payload.user_id, {"message": websocket_constants.GEARS_CHANGED_MESSAGE})
 
 
 def close_dead_lettered_sync(

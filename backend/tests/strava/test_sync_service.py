@@ -90,6 +90,36 @@ class TestRunSync:
         run.assert_called_once_with(7, rate_limits)
         assert states.get(7, GEAR).status == Status.COMPLETED
 
+    def test_a_completed_gear_sync_tells_the_browser_to_refetch_gears(self, states, rate_limits):
+        states.begin(7, GEAR)
+        with (
+            patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=True),
+            patch.object(strava_sync_service.websocket_integration, "push_to_user") as push,
+        ):
+            strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
+
+        push.assert_called_once_with(7, {"message": "GEARS_CHANGED"})
+
+    def test_a_failed_gear_sync_pushes_nothing(self, states, rate_limits):
+        states.begin(7, GEAR)
+        with (
+            patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=False),
+            patch.object(strava_sync_service.websocket_integration, "push_to_user") as push,
+        ):
+            strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
+
+        push.assert_not_called()
+
+    def test_an_unlink_pushes_nothing(self, states, rate_limits):
+        states.begin(7, UNLINK)
+        with (
+            patch.object(strava_sync_service.strava_service, "unlink_account", return_value=True),
+            patch.object(strava_sync_service.websocket_integration, "push_to_user") as push,
+        ):
+            strava_sync_service.run_sync(_payload(UNLINK), states, rate_limits)
+
+        push.assert_not_called()
+
     def test_an_unlink_runs_and_completes_even_when_strava_was_not_linked(self, states, rate_limits):
         states.begin(7, UNLINK)
         with patch.object(strava_sync_service.strava_service, "unlink_account", return_value=False) as run:

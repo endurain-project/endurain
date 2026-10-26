@@ -209,6 +209,37 @@ class TestRunSync:
         assert states.get(1, Kind.GEAR).status == Status.COMPLETED
         assert states.get(2, Kind.HEALTH).status == Status.COMPLETED
 
+    def test_a_completed_sync_tells_the_browser_what_to_refetch(self, rate_limits, states):
+        with (
+            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=True),
+            patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates", return_value=True),
+            patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
+        ):
+            garmin_sync_service.run_sync(
+                garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.GEAR), states, rate_limits
+            )
+            garmin_sync_service.run_sync(
+                garmin_events.SyncRequestedPayload(user_id=2, kind=Kind.HEALTH, start_date=DAY, end_date=DAY),
+                states,
+                rate_limits,
+            )
+
+        assert [call.args for call in push.call_args_list] == [
+            (1, {"message": "GEARS_CHANGED"}),
+            (2, {"message": "HEALTH_CHANGED"}),
+        ]
+
+    def test_a_sync_that_did_not_complete_pushes_nothing(self, rate_limits, states):
+        with (
+            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False),
+            patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
+        ):
+            garmin_sync_service.run_sync(
+                garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.GEAR), states, rate_limits
+            )
+
+        push.assert_not_called()
+
     def test_a_failure_nothing_retries_is_recorded_released_and_raised(self, rate_limits, states):
         states.begin(1, Kind.GEAR)
         with (

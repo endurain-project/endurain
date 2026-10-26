@@ -29,6 +29,8 @@ import modules.garmin.schema as garmin_schema
 import modules.garmin.service as garmin_service
 import modules.garmin.sync_state_store as garmin_sync_state_store
 import modules.users.users.integration_service as users_integration
+import modules.websocket.constants as websocket_constants
+import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -124,6 +126,16 @@ def run_sync(
         raise
     outcome = garmin_constants.SyncStatus.COMPLETED if synced else garmin_constants.SyncStatus.FAILED
     states.set_status(payload.user_id, payload.kind, outcome)
+    if synced:
+        # Best effort: the synced rows are already committed, so a lost hint only delays the refresh.
+        websocket_integration.push_to_user(
+            payload.user_id,
+            {
+                "message": websocket_constants.GEARS_CHANGED_MESSAGE
+                if payload.kind == garmin_constants.SyncKind.GEAR
+                else websocket_constants.HEALTH_CHANGED_MESSAGE
+            },
+        )
 
 
 def close_dead_lettered_sync(

@@ -507,3 +507,13 @@ export const queryKeys = {
     apiKeys: () => ['security', 'api-keys'] as const,
   },
 } as const
+
+/**
+ * Activity cache entries that a change to activity rows (an edit, a delete, a new activity)
+ * cannot change: each activity's own detail with its sub-resources, and the static
+ * exercise-title catalogue. Left out of an `activities` invalidation so it does not refetch them.
+ */
+export const ACTIVITY_ROW_INDEPENDENT_KEYS = [
+  queryKeys.activities.details(),
+  queryKeys.activities.exerciseTitles(),
+] as const

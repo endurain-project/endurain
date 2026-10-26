@@ -170,6 +170,106 @@ describe('useRealtime', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
+  describe('data-changed hints', () => {
+    /** Sends one hint over a freshly opened socket. */
+    async function openSocket() {
+      useRealtime().connect()
+      await flushPromises()
+      const socket = latestSocket()
+      socket.open()
+      return socket
+    }
+
+    function send(socket: ReturnType<typeof latestSocket>, message: string): void {
+      socket.onmessage?.({ data: JSON.stringify({ message }) })
+    }
+
+    type Filter = { queryKey: unknown[]; predicate: (query: { queryKey: unknown[] }) => boolean }
+
+    /** The invalidations asked for under one domain, e.g. `activities`. */
+    function invalidationsOf(domain: string): Filter[] {
+      return invalidateQueries.mock.calls
+        .map(([filter]) => filter as Filter)
+        .filter((filter) => filter.queryKey[0] === domain)
+    }
+
+    /** Which of the given keys an invalidation leaves alone, as its predicate sees them. */
+    function keptAlone(filter: Filter | undefined, keys: unknown[][]): unknown[][] {
+      return keys.filter((queryKey) => !filter?.predicate({ queryKey }))
+    }
+
+    it('refetches health data when a health sync finishes', async () => {
+      send(await openSocket(), 'HEALTH_CHANGED')
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['health'] })
+    })
+
+    it('refetches gears, but not the static component-type catalogue, when a gear sync finishes', async () => {
+      send(await openSocket(), 'GEARS_CHANGED')
+
+      expect(invalidateQueries).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: ['gears'] }),
+      )
+      expect(
+        keptAlone(invalidationsOf('gears')[0], [
+          ['gears', 'component-types'],
+          ['gears', 'list', {}],
+        ]),
+      ).toEqual([['gears', 'component-types']])
+    })
+
+    it('refetches activity lists and stats for a new activity, but not other activities details', async () => {
+      vi.useFakeTimers()
+      const socket = await openSocket()
+
+      send(socket, 'NEW_ACTIVITY_NOTIFICATION')
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      const activityCalls = invalidationsOf('activities')
+      expect(activityCalls).toHaveLength(1)
+      expect(
+        keptAlone(activityCalls[0], [
+          ['activities', 'detail', 5, 'streams'],
+          ['activities', 'exercise-titles'],
+          ['activities', 'list', {}],
+          ['activities', 'stats', 7, 'week'],
+        ]),
+      ).toEqual([
+        ['activities', 'detail', 5, 'streams'],
+        ['activities', 'exercise-titles'],
+      ])
+    })
+
+    it('coalesces a burst of new-activity hints, as a bulk import sends, into one refetch', async () => {
+      vi.useFakeTimers()
+      const socket = await openSocket()
+
+      for (let hint = 0; hint < 50; hint += 1) {
+        send(
+          socket,
+          hint % 2 ? 'NEW_ACTIVITY_NOTIFICATION' : 'NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION',
+        )
+      }
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      const activityCalls = invalidationsOf('activities')
+      expect(activityCalls).toHaveLength(1)
+    })
+
+    it('refetches again for a hint that arrives after the burst settled', async () => {
+      vi.useFakeTimers()
+      const socket = await openSocket()
+
+      send(socket, 'NEW_ACTIVITY_NOTIFICATION')
+      await vi.advanceTimersByTimeAsync(1_000)
+      send(socket, 'NEW_ACTIVITY_NOTIFICATION')
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      const activityCalls = invalidationsOf('activities')
+      expect(activityCalls).toHaveLength(2)
+    })
+  })
+
   it('ignores malformed frames without throwing', async () => {
     const realtime = useRealtime()
     realtime.connect()

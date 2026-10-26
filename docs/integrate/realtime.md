@@ -38,7 +38,7 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 { "message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": 42 }
 ```
 
-`message` says what changed and `notification_id` names the stored notification. Every message today means "fetch your notifications again".
+`message` says what changed. A notification message also carries `notification_id`, the stored notification, and means "fetch your notifications again". The two data messages below carry nothing else and mean "fetch that data again".
 
 | `message` | When |
 | --------- | ---- |
@@ -49,6 +49,8 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 | `NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION` | Someone accepted your follow request |
 | `GARMIN_TOKEN_EXPIRED_NOTIFICATION` | Garmin Connect was unlinked because its login expired |
 | `ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION` | A sign-up waits for an administrator |
+| `GEARS_CHANGED` | A Garmin Connect or Strava gear sync finished and stored your gear |
+| `HEALTH_CHANGED` | A Garmin Connect health sync finished and stored your health data |
 
 Ignore a `message` you do not recognise: new types can be added. The notification meanings are in [Notifications](../features/notifications.md).
 

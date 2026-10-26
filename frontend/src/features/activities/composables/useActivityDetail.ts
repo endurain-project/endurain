@@ -11,7 +11,7 @@ import type {
 import type { Gear } from '@/features/gears/types'
 import type { Units } from '@/features/activities/utils/format'
 
-import { queryKeys } from '@/services/queryKeys'
+import { ACTIVITY_ROW_INDEPENDENT_KEYS, queryKeys } from '@/services/queryKeys'
 import { invalidateExcept } from '@/composables/useInvalidatingMutation'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import {
@@ -222,24 +222,13 @@ export function useActivityGearOptionsQuery(gearType: MaybeRefOrGetter<number | 
 }
 
 /**
- * What a write to an activity cannot change: each activity's own detail and its
- * sub-resources (streams, laps, sets, steps, media), and the static
- * exercise-title catalogue. Excluded from the activities invalidation so editing,
- * re-gearing or deleting an activity does not refetch them.
- */
-const ACTIVITY_WRITE_UNAFFECTED_KEYS = [
-  queryKeys.activities.details(),
-  queryKeys.activities.exerciseTitles(),
-] as const
-
-/**
  * Marks everything derived from activity rows stale: the lists and feeds, the
  * summaries and stats, the name search and the type filters.
  *
  * @param client - The active query client.
  */
 function invalidateActivityAggregates(client: QueryClient): void {
-  void invalidateExcept(client, queryKeys.activities.all(), ACTIVITY_WRITE_UNAFFECTED_KEYS)
+  void invalidateExcept(client, queryKeys.activities.all(), ACTIVITY_ROW_INDEPENDENT_KEYS)
 }
 
 /**
