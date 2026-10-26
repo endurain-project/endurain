@@ -98,6 +98,16 @@ class TestRunSync:
         run.assert_called_once_with(7)
         assert states.get(7, UNLINK).status == Status.COMPLETED
 
+    def test_a_link_is_never_run_as_a_sync_job_and_leaves_the_link_state_alone(self, states, rate_limits):
+        link = strava_constants.SyncKind.LINK
+        states.begin(7, link)
+
+        with patch.object(strava_sync_service.strava_service, "unlink_account") as unlink, pytest.raises(ValueError):
+            strava_sync_service.run_sync(_payload(link), states, rate_limits)
+
+        unlink.assert_not_called()
+        assert states.get(7, link).status == Status.QUEUED
+
     def test_a_gear_sync_for_an_unlinked_account_is_recorded_as_failed(self, states, rate_limits):
         states.begin(7, GEAR)
         with patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=False):

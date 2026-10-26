@@ -59,8 +59,11 @@ def run_sync(
         will_retry: Whether a durable worker runs this again if it raises.
 
     Raises:
+        ValueError: When ``payload`` is a link, which never runs as a sync job.
         Exception: Whatever the sync raised, after recording its state, so a durable worker retries it.
     """
+    if payload.kind == strava_constants.SyncKind.LINK:
+        raise ValueError("A Strava link runs on the link pool, not as a sync job")
     states.set_status(payload.user_id, payload.kind, strava_constants.SyncStatus.RUNNING)
     try:
         if payload.kind == strava_constants.SyncKind.GEAR:

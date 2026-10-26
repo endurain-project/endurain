@@ -77,3 +77,13 @@ def test_client_credentials_are_validated():
         strava_schema.StravaClientCredentials(client_id=1, client_secret="")
     with pytest.raises(ValueError):
         strava_schema.StravaClientCredentials(client_id=1, client_secret="s", extra="x")
+
+
+def test_the_client_secret_does_not_appear_in_a_repr_or_a_validation_error():
+    credentials = strava_schema.StravaClientCredentials(client_id=1, client_secret="hunter2-secret")
+    assert "hunter2-secret" not in repr(credentials)
+    assert credentials.client_secret.get_secret_value() == "hunter2-secret"
+
+    with pytest.raises(ValueError) as error:
+        strava_schema.StravaClientCredentials(client_id=0, client_secret="hunter2-secret")
+    assert "hunter2-secret" not in str(error.value)

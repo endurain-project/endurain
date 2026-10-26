@@ -87,12 +87,34 @@ describe('strava service', () => {
     )
   })
 
-  it('completeStravaLink PUTs state + code in the body, not the URL', async () => {
-    await completeStravaLink('st ate', 'co/de')
-    expect(apiFetch).toHaveBeenCalledWith('/strava/link', {
-      method: 'PUT',
-      body: JSON.stringify({ state: 'st ate', code: 'co/de' }),
-      responseType: 'void',
+  describe('completeStravaLink', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('PUTs state + code in the body, not the URL, and resolves once the queued link completes', async () => {
+      vi.useFakeTimers()
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
+        .mockResolvedValueOnce({ kind: 'link', status: 'running' })
+        .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
+
+      const done = completeStravaLink('st ate', 'co/de')
+      await vi.advanceTimersByTimeAsync(2_000)
+      await done
+
+      expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', {
+        method: 'PUT',
+        body: JSON.stringify({ state: 'st ate', code: 'co/de' }),
+      })
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/link')
+      expect(apiFetch).toHaveBeenCalledTimes(3)
+    })
+
+    it('rejects when the queued link fails', async () => {
+      vi.mocked(apiFetch).mockResolvedValueOnce({ kind: 'link', status: 'failed' })
+
+      await expect(completeStravaLink('s', 'c')).rejects.toThrow('Linking Strava failed')
     })
   })
 

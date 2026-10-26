@@ -22,6 +22,7 @@ def _make_strava_fault(status_code: int) -> StravaFault:
     """Return a StravaFault whose .response.status_code equals *status_code*."""
     response = Mock()
     response.status_code = status_code
+    response.headers = {}
     fault = StravaFault()
     fault.response = response
     return fault
@@ -252,15 +253,35 @@ class TestRaiseIfRateLimited:
 
         rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=False)
 
-    def test_a_daily_limit_is_recorded_as_long_term(self):
+    @pytest.mark.parametrize(
+        ("headers", "long_term"),
+        [
+            ({"X-RateLimit-Limit": "200,2000", "X-RateLimit-Usage": "205,1500"}, False),
+            ({"X-RateLimit-Limit": "200,2000", "X-RateLimit-Usage": "40,2001"}, True),
+            ({"x-ratelimit-limit": "200,2000", "x-ratelimit-usage": "40,2000"}, True),
+            ({"X-ReadRateLimit-Limit": "100,1000", "X-ReadRateLimit-Usage": "20,1000"}, True),
+            ({"X-RateLimit-Limit": "garbage", "X-RateLimit-Usage": "1"}, False),
+            ({}, False),
+        ],
+    )
+    def test_the_daily_limit_is_read_from_the_response_headers(self, headers, long_term):
+        rate_limits = MagicMock()
+        fault = _make_strava_fault(429)
+        fault.response.headers = headers
+        fault.args = ("the text says daily but the headers decide",)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            strava_utils.raise_if_rate_limited(fault, "c", rate_limits)
+
+        rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=long_term)
+
+    def test_an_error_without_a_response_is_a_short_term_limit(self):
         rate_limits = MagicMock()
 
         with pytest.raises(core_exceptions.TooManyRequestsError):
-            fault = _make_strava_fault(429)
-            fault.args = ("daily limit exceeded",)
-            strava_utils.raise_if_rate_limited(fault, "c", rate_limits)
+            strava_utils.raise_if_rate_limited(RateLimitExceeded("limit"), "c", rate_limits)
 
-        rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=True)
+        rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=False)
 
     def test_any_other_error_passes_through(self):
         rate_limits = MagicMock()

@@ -154,6 +154,35 @@ def raise_if_unauthorized(
     raise StravaTokenRejectedError("Strava authentication failed. Please reconnect your Strava account.") from err
 
 
+def _daily_limit_reached(err: Exception) -> bool:
+    """Check from Strava's rate-limit headers whether ``err`` is the daily limit rather than the 15-minute one.
+
+    Strava reports ``<short>,<daily>`` pairs in ``X-RateLimit-Limit`` and ``-Usage``, and in the
+    ``X-ReadRateLimit-*`` pair for reads. The daily limit is reached when its usage is at its limit.
+    Headers that are missing or unreadable count as the 15-minute limit: marking too short a
+    back-off costs one rejected call, which marks the limit again.
+
+    Args:
+        err: The exception a Strava call raised.
+
+    Returns:
+        True when the response says the daily usage reached the daily limit.
+    """
+    headers = getattr(getattr(err, "response", None), "headers", None)
+    if not headers:
+        return False
+    headers = {name.casefold(): value for name, value in headers.items()}
+    for prefix in ("x-readratelimit", "x-ratelimit"):
+        try:
+            usage = int(headers[f"{prefix}-usage"].split(",")[1])
+            limit = int(headers[f"{prefix}-limit"].split(",")[1])
+        except (KeyError, IndexError, ValueError, AttributeError):
+            continue
+        if usage >= limit:
+            return True
+    return False
+
+
 def raise_if_rate_limited(
     err: Exception, client_id: str, rate_limits: strava_rate_limit_store.StravaRateLimitStore
 ) -> None:
@@ -169,8 +198,7 @@ def raise_if_rate_limited(
     """
     if not is_strava_rate_limit_error(err):
         return
-    err_str = str(err).lower()
-    rate_limits.mark_rate_limited(client_id, is_long_term="long" in err_str or "daily" in err_str)
+    rate_limits.mark_rate_limited(client_id, is_long_term=_daily_limit_reached(err))
     raise core_exceptions.TooManyRequestsError("Strava API rate limit exceeded. Please try again later.") from err
 
 

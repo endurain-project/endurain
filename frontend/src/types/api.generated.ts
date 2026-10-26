@@ -4607,7 +4607,10 @@ export interface paths {
         get?: never;
         /**
          * Strava Link
-         * @description Exchange a Strava authorization code for tokens and link the account.
+         * @description Queue the exchange of a Strava authorization code for tokens.
+         *
+         *     Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+         *     pending is answered 409.
          */
         put: operations["strava_link_api_v1_strava_link_put"];
         post?: never;
@@ -4666,7 +4669,7 @@ export interface paths {
         };
         /**
          * Strava Sync Status
-         * @description Report where the authenticated user's queued gear sync or unlink is.
+         * @description Report where the authenticated user's queued link, gear sync or unlink is.
          */
         get: operations["strava_sync_status_api_v1_strava_sync__kind__get"];
         put?: never;
@@ -10296,7 +10299,10 @@ export interface components {
         StravaClientCredentials: {
             /** Client Id */
             client_id: number;
-            /** Client Secret */
+            /**
+             * Client Secret
+             * Format: password
+             */
             client_secret: string;
         };
         /**
@@ -12509,7 +12515,7 @@ export interface components {
          * @description What a queued Strava sync does.
          * @enum {string}
          */
-        modules__strava__constants__SyncKind: "gear" | "unlink";
+        modules__strava__constants__SyncKind: "link" | "gear" | "unlink";
         /**
          * SyncStatus
          * @description Where a queued Strava sync is.
@@ -19471,12 +19477,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StravaDetail"];
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Validation Error */

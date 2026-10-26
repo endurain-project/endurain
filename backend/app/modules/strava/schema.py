@@ -1,6 +1,6 @@
 """Strava request and response shapes."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 import modules.strava.constants as strava_constants
 
@@ -16,7 +16,7 @@ class StravaClientCredentials(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     client_id: int = Field(gt=0)
-    client_secret: str = Field(min_length=1, max_length=255)
+    client_secret: SecretStr = Field(min_length=1, max_length=255)
 
 
 class StravaLinkRequest(BaseModel):

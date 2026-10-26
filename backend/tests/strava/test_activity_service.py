@@ -39,6 +39,7 @@ def _make_strava_fault(status_code: int) -> StravaFault:
     """Return a StravaFault whose .response.status_code equals *status_code*."""
     response = Mock()
     response.status_code = status_code
+    response.headers = {}
     fault = StravaFault()
     fault.response = response
     return fault

@@ -74,7 +74,9 @@ def set_client(user_id: int, credentials: strava_schema.StravaClientCredentials,
         credentials: The Strava application's client id and secret.
         db: Database session.
     """
-    user_integrations_integration.set_strava_client(user_id, str(credentials.client_id), credentials.client_secret, db)
+    user_integrations_integration.set_strava_client(
+        user_id, str(credentials.client_id), credentials.client_secret.get_secret_value(), db
+    )
     db.commit()
     logger.info("Strava client stored", extra=core_logger.context(user_id=user_id))
 
