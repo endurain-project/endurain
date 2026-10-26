@@ -97,7 +97,7 @@ def read_health_poop_by_id(
         HealthPoopRead for the specified record.
 
     Raises:
-        HTTPException: If record not found.
+        NotFoundError: If the user has no such record.
     """
     record = health_poop_service.get_health_poop(token_user_id, health_poop_id, db)
     response.headers["ETag"] = core_etag.format_etag(record.version)
@@ -175,7 +175,8 @@ def edit_health_poop(
         Updated HealthPoopRead record.
 
     Raises:
-        HTTPException: If record not found or unauthorized.
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
     updated = health_poop_service.edit_health_poop(token_user_id, health_poop_id, health_poop, db, if_match=if_match)
     response.headers["ETag"] = core_etag.format_etag(updated.version)
@@ -209,6 +210,6 @@ def delete_health_poop(
         db: Database session dependency.
 
     Raises:
-        HTTPException: If record not found or unauthorized.
+        NotFoundError: If the user has no such record.
     """
     health_poop_service.delete_health_poop(token_user_id, health_poop_id, db)

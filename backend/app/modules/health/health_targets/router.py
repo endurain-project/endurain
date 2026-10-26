@@ -39,10 +39,6 @@ def read_health_targets_all(
         health_targets_schema.HealthTargetsRead | None: The
             health targets object containing all targets for
             the user, or None if no targets are found.
-
-    Raises:
-        HTTPException: May raise 401 Unauthorized if the token is invalid or expired.
-        HTTPException: May raise 403 Forbidden if the user lacks the required 'health:read' scope.
     """
     targets = health_targets_service.get_health_targets(token_user_id, db)
     if targets is not None:
@@ -87,9 +83,8 @@ def update_health_targets(
             in the database.
 
     Raises:
-        HTTPException: May raise authentication or authorization errors if the user
-            lacks proper permissions or if the token is invalid.
-        HTTPException: May raise database-related errors if the update operation fails.
+        NotFoundError: If the user has no targets.
+        PreconditionFailedError: If the targets changed since the client read them.
     """
     updated = health_targets_service.update_health_targets(health_targets, token_user_id, db, if_match=if_match)
     response.headers["ETag"] = core_etag.format_etag(updated.version)

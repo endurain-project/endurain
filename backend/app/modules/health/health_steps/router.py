@@ -120,8 +120,8 @@ def edit_health_steps(
             as stored in the database.
 
     Raises:
-        HTTPException: May raise various HTTP exceptions if authorization fails, user is not
-            found, or database operations fail.
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
     # Updates the health_steps in the database and returns it
     updated = health_steps_service.edit_health_steps(
@@ -159,10 +159,7 @@ def delete_health_steps(
         None: This function does not return a value.
 
     Raises:
-        HTTPException: May be raised by dependencies if:
-            - The access token is invalid or expired
-            - The user lacks required 'health:write' scope
-            - The health steps record doesn't exist or doesn't belong to the user
+        NotFoundError: If the user has no such record.
     """
     # Deletes entry from database
     health_steps_service.delete_health_steps(token_user_id, health_steps_id, db)

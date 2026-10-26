@@ -120,8 +120,8 @@ def edit_health_sleep(
             as stored in the database.
 
     Raises:
-        HTTPException: May raise various HTTP exceptions if authorization fails, user is not
-            found, or database operations fail.
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
     updated = health_sleep_service.edit_health_sleep(
         token_user_id, health_sleep_id, health_sleep, db, if_match=if_match
@@ -158,10 +158,7 @@ def delete_health_sleep(
         None: This function does not return a value.
 
     Raises:
-        HTTPException: May be raised by dependencies if:
-            - The access token is invalid or expired
-            - The user lacks required 'health:write' scope
-            - The health sleep record doesn't exist or doesn't belong to the user
+        NotFoundError: If the user has no such record.
     """
     # Deletes entry from database
     health_sleep_service.delete_health_sleep(token_user_id, health_sleep_id, db)

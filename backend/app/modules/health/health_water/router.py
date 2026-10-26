@@ -139,7 +139,8 @@ def edit_health_water(
         Updated HealthWaterRead record.
 
     Raises:
-        HTTPException: If record not found or unauthorized.
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
     updated = health_water_service.edit_health_water(
         token_user_id, health_water_id, health_water, db, if_match=if_match
@@ -175,6 +176,6 @@ def delete_health_water(
         db: Database session dependency.
 
     Raises:
-        HTTPException: If record not found or unauthorized.
+        NotFoundError: If the user has no such record.
     """
     health_water_service.delete_health_water(token_user_id, health_water_id, db)

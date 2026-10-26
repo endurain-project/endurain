@@ -35,8 +35,5 @@ def read_health_daily_stats(
             - fasting: Active or most recent fasting session
             - water: Today's water intake in milliliters
             - poop: Today's bowel movement count
-
-    Raises:
-        HTTPException: If the user lacks required 'health:read' scope.
     """
     return health_dashboard_service.get_daily_stats(token_user_id, db)

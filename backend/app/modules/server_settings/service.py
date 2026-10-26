@@ -726,7 +726,7 @@ def read_login_photo(storage: platform_providers.StorageProvider) -> tuple[bytes
     )
     if data is None:
         return None
-    # A photo stored before the type was detected on upload is served as the PNG it was.
+    # Bytes whose type cannot be detected are served as PNG.
     return data, _sniff_image_type(data) or "image/png"
 
 
