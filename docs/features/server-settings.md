@@ -33,7 +33,7 @@ The variables are listed, with their removal date, in [Advanced setup](../gettin
 | Require email verification | New users must open an emailed link first |
 | Require admin approval | An administrator must approve new users |
 
-How these work together is in [Accounts, sign-up and password reset](accounts-and-sign-in.md#signing-up). Email verification and approval notices need [email](#email) to be configured.
+How these work together is in [Accounts, sign-up and password reset](accounts-and-sign-in.md#signing-up). Use approval together with email verification: with approval alone the new user's email stays unverified and you must mark it verified yourself before you can approve (see [Approving sign-ups](user-management.md#approving-sign-ups)). Email verification and approval notices need [email](#email) to be configured.
 
 ### Authentication
 
@@ -89,7 +89,7 @@ The public Nominatim and Photon servers expect about one request per second, so 
 
 ### Login photo
 
-The image shown on the login page. Upload a PNG, JPEG, GIF or WebP of up to 5 MB, ideally square. Removing it restores the default. The photo is public because the login page needs it before anyone is signed in. See [Image personalization](../getting-started/advanced-setup.md#image-personalization).
+The image shown on the login page. Upload an image of up to 5 MB, ideally square. The settings page accepts PNG files; the API also accepts JPEG, GIF and WebP. Removing it restores the default. The photo is public because the login page needs it before anyone is signed in. See [Image personalization](../getting-started/advanced-setup.md#image-personalization).
 
 ### Email
 

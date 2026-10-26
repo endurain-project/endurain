@@ -238,7 +238,7 @@ It is possible (v0.10.0 or higher) to personalize the login image in the login p
 
  - Set the image in the server settings zone of the settings page
  - A square image is expected. Default one uses 1000px vs 1000px
- - PNG, JPEG, GIF or WebP, up to 5 MB
+ - Up to 5 MB. The settings page accepts PNG; the API also accepts JPEG, GIF and WebP
 
 
 ## Map tile server

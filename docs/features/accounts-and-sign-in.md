@@ -32,7 +32,7 @@ Details that matter:
 
 - The form's response never reveals whether a username or email was already taken. It says only that the account could not be created.
 - Emails need a working mail server. Without one, verification and approval emails cannot be sent; configure it in [Server settings](server-settings.md#email).
-- An administrator can only approve a user whose email is verified. A user waiting on approval who never verified their email stays pending until they do.
+- An administrator can only approve a user whose email is verified. If only admin approval is required, no verification email is sent, so the account stays unverified until an administrator marks the email verified in [user management](user-management.md#approving-sign-ups). Turn email verification on together with approval to avoid this.
 - The verification link is valid for 24 hours.
 - A new account starts with default settings: privacy settings, health targets, empty default gear and integration slots.
 

@@ -34,6 +34,9 @@ When [admin approval](server-settings.md#registration) is required, a new user s
 
 Approve the user from their row. Endurain activates the account and emails the user. You can approve only a user whose email is verified; a user who has not verified it yet stays pending.
 
+!!! note "Approval without email verification"
+    A new account is created with an unverified email whenever any sign-up rule is on. If you require approval but not email verification, nobody sends the user a verification link, so the **Approve** and reject buttons stay disabled. To handle such a user, open **Edit user**, switch on **Email verified** and save, then approve. Turning on **Require email verification** as well avoids this.
+
 ## Resetting a password
 
 **Reset password** sets a new password for the user without needing their current one. It must satisfy the password policy. Endurain revokes the user's sessions and other sign-in state, so they must sign in again with the new password. Use this when a user cannot receive the [reset email](accounts-and-sign-in.md#forgotten-password), for example because no mail server is configured.

@@ -871,7 +871,7 @@
       "retrievingGear": "Retrieving your Strava gear in the background…",
       "retrieveGearError": "Couldn't start retrieving Strava gear. Please try again.",
       "unlinkTitle": "Disconnect Strava?",
-      "unlinkBody": "Endurain will stop importing from Strava. Your existing activities are kept.",
+      "unlinkBody": "Endurain will stop importing from Strava and delete the activities and gear it imported from Strava, including those from a Strava bulk export. Activities from other sources are kept.",
       "unlinkSuccess": "Strava disconnected",
       "unlinkError": "Couldn't disconnect Strava. Please try again."
     },

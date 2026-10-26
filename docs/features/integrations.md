@@ -102,7 +102,7 @@ Strava's rate limits are per application. When one is hit, Endurain stops callin
 
 ### Disconnecting
 
-**Disconnect** first asks Strava to revoke Endurain's access, and goes ahead even if Strava cannot be reached. It then **deletes the gear and activities that were imported from Strava**, in line with Strava's [API Agreement](https://www.strava.com/legal/api), and clears the stored tokens, client ID and secret. Activities that came from other sources, such as an upload or Garmin Connect, stay.
+**Disconnect** first asks Strava to revoke Endurain's access, and goes ahead even if Strava cannot be reached. It then **deletes the gear and activities that carry a Strava id**, which includes those imported by a sync and those from a [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta), in line with Strava's [API Agreement](https://www.strava.com/legal/api). It also clears the stored tokens, client ID and secret. Activities from other sources, such as an upload or Garmin Connect, stay.
 
 !!! warning
     Disconnecting Strava cannot be undone. [Export your data](export-import.md) first if you want a copy of what was imported.
