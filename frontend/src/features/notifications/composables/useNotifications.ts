@@ -36,12 +36,19 @@ export const UNREAD_POLL_INTERVAL_MS = 60_000
  * a service function (`fetchNotifications`) + a key from the central
  * {@link queryKeys} factory, consumed through TanStack Query so callers inherit
  * caching, de-duplication, background refetch, and cancellation. The query is
- * gated on authentication so it never fires for a logged-out viewer.
+ * gated on authentication so it never fires for a logged-out viewer, and on the
+ * caller's `enabled` flag so a closed preview neither loads nor refetches on a
+ * realtime push. It is always stale, so each time the flag turns on it refetches:
+ * a push that was lost never leaves stale rows in front of the user.
  *
  * @param params - Optional reactive page/size; defaults to page 1.
+ * @param enabled - Reactive gate (e.g. "the preview is open") ANDed with the auth gate.
  * @returns The TanStack Query result for the notifications page.
  */
-export function useNotificationsQuery(params?: MaybeRefOrGetter<Partial<NotificationsPage>>) {
+export function useNotificationsQuery(
+  params?: MaybeRefOrGetter<Partial<NotificationsPage>>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   const page = computed<NotificationsPage>(() => {
@@ -55,7 +62,8 @@ export function useNotificationsQuery(params?: MaybeRefOrGetter<Partial<Notifica
   return useQuery<Notification[]>({
     queryKey: computed(() => queryKeys.notifications.list(page.value)),
     queryFn: ({ signal }) => fetchNotifications(page.value, signal),
-    enabled: isAuthenticated,
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value),
+    staleTime: 0,
   })
 }
 

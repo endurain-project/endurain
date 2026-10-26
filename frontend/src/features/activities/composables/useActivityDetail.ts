@@ -1,6 +1,6 @@
 import { computed, type ComputedRef, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type {
   Activity,
@@ -12,6 +12,7 @@ import type { Gear } from '@/features/gears/types'
 import type { Units } from '@/features/activities/utils/format'
 
 import { queryKeys } from '@/services/queryKeys'
+import { invalidateExcept } from '@/composables/useInvalidatingMutation'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import {
   DEFAULT_PUBLIC_SERVER_SETTINGS,
@@ -221,10 +222,57 @@ export function useActivityGearOptionsQuery(gearType: MaybeRefOrGetter<number | 
 }
 
 /**
+ * What a write to an activity cannot change: each activity's own detail and its
+ * sub-resources (streams, laps, sets, steps, media), and the static
+ * exercise-title catalogue. Excluded from the activities invalidation so editing,
+ * re-gearing or deleting an activity does not refetch them.
+ */
+const ACTIVITY_WRITE_UNAFFECTED_KEYS = [
+  queryKeys.activities.details(),
+  queryKeys.activities.exerciseTitles(),
+] as const
+
+/**
+ * Marks everything derived from activity rows stale: the lists and feeds, the
+ * summaries and stats, the name search and the type filters.
+ *
+ * @param client - The active query client.
+ */
+function invalidateActivityAggregates(client: QueryClient): void {
+  void invalidateExcept(client, queryKeys.activities.all(), ACTIVITY_WRITE_UNAFFECTED_KEYS)
+}
+
+/**
+ * Marks every gear's totals and activity rows stale, since they depend on which
+ * activities carry the gear. Stale rather than refetched: the gear card on the
+ * activity page switches to the new gear (or goes away) on its own, and anything
+ * that shows the old gear later refetches on mount.
+ *
+ * @param client - The active query client.
+ */
+function invalidateGearUsage(client: QueryClient): void {
+  const refetchType = 'none'
+  void client.invalidateQueries({ queryKey: queryKeys.gears.details(), refetchType })
+  void client.invalidateQueries({ queryKey: queryKeys.gears.activitiesLists(), refetchType })
+}
+
+/**
+ * Refetches one activity's detail only, so a save refused as stale (412) replaces
+ * the copy the user was editing with the current one.
+ *
+ * @param client - The active query client.
+ * @param id - The activity whose cached copy can no longer be trusted.
+ */
+function refetchActivity(client: QueryClient, id: number): void {
+  void client.invalidateQueries({ queryKey: queryKeys.activities.detail(id), exact: true })
+}
+
+/**
  * Sets (or clears, with `gearId: null`) the gear associated with an activity.
  * On success it writes the returned activity straight into the detail cache;
- * on settle it invalidates the activities and gears domains so lists and gear
- * activity counts refetch the server-authoritative state.
+ * on settle it marks the activity-derived data and the gear totals stale. The
+ * activity's sub-resources are left alone, and a failed save refetches only the
+ * activity itself.
  *
  * @returns The TanStack mutation for updating an activity's gear.
  */
@@ -236,9 +284,10 @@ export function useSetActivityGearMutation() {
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)
     },
+    onError: (_error, { activity }) => refetchActivity(client, activity.id),
     onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-      void client.invalidateQueries({ queryKey: queryKeys.gears.all() })
+      invalidateActivityAggregates(client)
+      invalidateGearUsage(client)
     },
   })
 }
@@ -275,9 +324,11 @@ export function useDisplayUnits(): ComputedRef<Units> {
 }
 
 /**
- * Deletes an activity. On settle it invalidates the activities and gears
- * domains so lists and gear activity counts drop the removed activity. The
- * caller navigates away from the (now-gone) detail view on success.
+ * Deletes an activity. On success it drops the activity and its sub-resources
+ * from the cache instead of refetching them (the detail view is still mounted
+ * until the caller navigates away, and would otherwise request an activity that
+ * no longer exists); on settle it marks the lists, aggregates and gear totals
+ * stale so they drop the removed activity.
  *
  * @returns The TanStack mutation for deleting an activity.
  */
@@ -286,9 +337,12 @@ export function useDeleteActivityMutation() {
 
   return useMutation<void, Error, number>({
     mutationFn: (id) => deleteActivity(id),
+    onSuccess: (_data, id) => {
+      client.removeQueries({ queryKey: queryKeys.activities.detail(id) })
+    },
     onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-      void client.invalidateQueries({ queryKey: queryKeys.gears.all() })
+      invalidateActivityAggregates(client)
+      invalidateGearUsage(client)
     },
   })
 }
@@ -351,8 +405,10 @@ export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<number | nul
 
 /**
  * Applies a full edit to an activity. On success it writes the updated activity
- * into the detail cache; on settle it invalidates the activities domain so any
- * list reflects the new name/type/visibility.
+ * into the detail cache; on settle it marks the lists and aggregates stale so
+ * they reflect the new name/type/visibility. The activity's sub-resources are
+ * left alone, and a failed save (e.g. a stale version) refetches only the
+ * activity itself.
  *
  * @returns The TanStack mutation for editing an activity.
  */
@@ -364,8 +420,7 @@ export function useEditActivityMutation() {
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)
     },
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-    },
+    onError: (_error, { id }) => refetchActivity(client, id),
+    onSettled: () => invalidateActivityAggregates(client),
   })
 }

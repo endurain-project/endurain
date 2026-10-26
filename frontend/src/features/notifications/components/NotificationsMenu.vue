@@ -22,15 +22,19 @@ const PREVIEW_SIZE = 6
 const { t } = useI18n()
 const route = useRoute()
 const { data: currentUser } = useCurrentUser()
-const { data: unreadCount } = useUnreadNotificationsCount()
-const { data, isPending, isError, refetch } = useNotificationsQuery(() => ({
-  numRecords: PREVIEW_SIZE,
-}))
-const markReadMutation = useMarkNotificationReadMutation()
-const markAllReadMutation = useMarkAllNotificationsReadMutation()
 
 /** Controlled open state so navigation can dismiss the panel. */
 const open = ref(false)
+
+const { data: unreadCount } = useUnreadNotificationsCount()
+// The preview does not poll (the badge already does) and only loads while the panel is open; each
+// open refetches it, so a push that was lost never leaves stale rows in front of the user.
+const { data, isPending, isError, refetch } = useNotificationsQuery(
+  () => ({ numRecords: PREVIEW_SIZE }),
+  open,
+)
+const markReadMutation = useMarkNotificationReadMutation()
+const markAllReadMutation = useMarkAllNotificationsReadMutation()
 
 /** Recent notifications backing the preview list. */
 const notifications = computed(() => data.value ?? [])
@@ -65,14 +69,6 @@ watch(
     open.value = false
   },
 )
-
-// The preview does not poll (the badge already does), so opening the panel refetches it: a push
-// that was lost never leaves stale rows in front of the user.
-watch(open, (isOpen) => {
-  if (isOpen) {
-    void refetch()
-  }
-})
 
 /** Optimistically marks one notification read (explicit action, never on open). */
 function onMarkRead(id: number): void {

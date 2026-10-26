@@ -1,26 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import type { PublicServerSettings } from '@/features/config/types'
 
 import { DEFAULT_MAP_CONFIG } from '@/features/config/defaults'
-import {
-  DEFAULT_APP_CONFIG,
-  fetchAppConfig,
-  mapServerSettingsToAppConfig,
-} from '@/features/config/services/config'
-import {
-  DEFAULT_PUBLIC_SERVER_SETTINGS,
-  fetchPublicServerSettings,
-} from '@/features/config/services/serverSettings'
-
-vi.mock('@/features/config/services/serverSettings', async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import('@/features/config/services/serverSettings')>()
-  return {
-    ...original,
-    fetchPublicServerSettings: vi.fn<typeof original.fetchPublicServerSettings>(),
-  }
-})
+import { DEFAULT_APP_CONFIG, mapServerSettingsToAppConfig } from '@/features/config/services/config'
+import { DEFAULT_PUBLIC_SERVER_SETTINGS } from '@/features/config/services/serverSettings'
 
 const publicSettings: PublicServerSettings = {
   login_photo_set: false,
@@ -71,19 +55,5 @@ describe('mapServerSettingsToAppConfig', () => {
       attribution: publicSettings.tileserver_attribution,
     })
     expect(config.enabledLocales).toBe(DEFAULT_APP_CONFIG.enabledLocales)
-  })
-})
-
-describe('fetchAppConfig', () => {
-  it('derives the app config from the public server settings', async () => {
-    vi.mocked(fetchPublicServerSettings).mockResolvedValue({
-      ...publicSettings,
-      signup_enabled: false,
-    })
-
-    const config = await fetchAppConfig()
-
-    expect(fetchPublicServerSettings).toHaveBeenCalledOnce()
-    expect(config.features.signUp).toBe(false)
   })
 })

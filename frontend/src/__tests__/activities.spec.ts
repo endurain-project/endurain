@@ -11,8 +11,8 @@ import {
   fetchActivityStats,
   fetchActivityStreams,
   fetchUserActivitiesPage,
-  fetchUserActivityTypeCodes,
   fetchUserActivityTypeMap,
+  fetchUserThisMonthActivityCount,
   fetchUserWeekActivities,
   mapActivity,
   mapActivityLap,
@@ -530,20 +530,16 @@ describe('fetchUserActivitiesPage', () => {
   })
 })
 
-describe('fetchUserActivityTypeCodes', () => {
-  it('parses the type map into ascending numeric codes', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ '9': 'Ride', '1': 'Run', '11': 'Walk' })
+describe('fetchUserThisMonthActivityCount', () => {
+  it('reads the count from the page envelope without downloading the activities', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 42, page: 1, num_records: 1 })
 
-    await expect(fetchUserActivityTypeCodes()).resolves.toEqual([1, 9, 11])
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/types',
-      expect.objectContaining({ signal: undefined }),
+    await expect(fetchUserThisMonthActivityCount(7)).resolves.toBe(42)
+
+    const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+    expect(url).toMatch(
+      /^\/activities\/users\/7\?start_date=\d{4}-\d{2}-01&end_date=\d{4}-\d{2}-\d{2}&num_records=1$/,
     )
-  })
-
-  it('returns an empty list when the body is null', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    await expect(fetchUserActivityTypeCodes()).resolves.toEqual([])
   })
 })
 

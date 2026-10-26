@@ -95,8 +95,19 @@ export function useGearQuery(id: MaybeRefOrGetter<number | null>) {
 }
 
 /**
+ * What a write to a gear itself cannot change: its components, the static
+ * component-type catalogue and the activity rows it is attached to. Excluded from
+ * the gears invalidation so editing a gear does not refetch them.
+ */
+const GEAR_WRITE_UNAFFECTED_KEYS = [
+  queryKeys.gears.componentsLists(),
+  queryKeys.gears.componentTypes(),
+  queryKeys.gears.activitiesLists(),
+] as const
+
+/**
  * Create mutation. Invalidation-based per the mutation reference: on settle it
- * invalidates the gears domain's broad key so every list, the nickname search,
+ * invalidates the gears domain, so every list, the nickname search, the pickers
  * and any detail view refetch the server-authoritative state.
  *
  * @returns The TanStack Query mutation for creating a gear.
@@ -104,6 +115,7 @@ export function useGearQuery(id: MaybeRefOrGetter<number | null>) {
 export function useCreateGearMutation() {
   return useInvalidatingMutation<Gear, GearInput>({
     mutationKey: queryKeys.gears.all(),
+    excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
     mutationFn: (input) => createGear(input),
   })
 }
@@ -116,6 +128,7 @@ export function useCreateGearMutation() {
 export function useUpdateGearMutation() {
   return useInvalidatingMutation<Gear, { id: number; input: GearInput; version: number }>({
     mutationKey: queryKeys.gears.all(),
+    excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
     mutationFn: ({ id, input, version }) => updateGear(id, input, version),
   })
 }
@@ -128,6 +141,7 @@ export function useUpdateGearMutation() {
 export function useDeleteGearMutation() {
   return useInvalidatingMutation<void, number>({
     mutationKey: queryKeys.gears.all(),
+    excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
     mutationFn: (id) => deleteGear(id),
   })
 }

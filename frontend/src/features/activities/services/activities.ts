@@ -528,21 +528,6 @@ export async function fetchUserActivityTypeMap(signal?: AbortSignal): Promise<Ma
 }
 
 /**
- * Fetches the distinct activity-type codes the authenticated user owns, sorted
- * ascending. Backs the activity-type filter so it only offers types the user
- * actually has. Derives from {@link fetchUserActivityTypeMap}; the labels are
- * localized client-side via `presentActivityType`.
- *
- * @param signal - Optional abort signal for cancellation.
- * @returns The user's distinct activity-type codes, ascending.
- * @throws {HttpError} When the request fails.
- */
-export async function fetchUserActivityTypeCodes(signal?: AbortSignal): Promise<number[]> {
-  const map = await fetchUserActivityTypeMap(signal)
-  return [...map.keys()].sort((a, b) => a - b)
-}
-
-/**
  * Fetches a user's per-sport aggregated stats for the current week or month,
  * powering the home dashboard's distance/time/calories summary.
  *
@@ -585,15 +570,13 @@ export async function fetchUserThisMonthActivityCount(
   const params = new URLSearchParams({
     start_date: startDate,
     end_date: endDate,
-    num_records: '200',
+    num_records: '1',
   })
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
     `/activities/users/${userId}?${params.toString()}`,
     { signal },
   )
-  // The envelope's total is the real match count. This previously returned the
-  // length of the returned page, so any week with more than num_records
-  // activities under-reported.
+  // The envelope's total is the match count, so a one-row page is enough.
   return page_.total
 }
 

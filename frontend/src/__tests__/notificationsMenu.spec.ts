@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, ref } from 'vue'
+import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { mount } from '@vue/test-utils'
 
 import i18n from '@/i18n'
@@ -7,6 +7,8 @@ import NotificationsMenu from '@/features/notifications/components/Notifications
 import { Popover } from '@/components/ui/popover'
 
 const refetch = vi.fn<() => Promise<void>>(() => Promise.resolve())
+const useNotificationsQuery =
+  vi.fn<(params: unknown, enabled?: MaybeRefOrGetter<boolean>) => unknown>()
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ fullPath: '/' }),
@@ -19,12 +21,10 @@ vi.mock('@/features/auth/composables/useCurrentUser', () => ({
 
 vi.mock('@/features/notifications/composables/useNotifications', () => ({
   useUnreadNotificationsCount: () => ({ data: ref(0) }),
-  useNotificationsQuery: () => ({
-    data: ref([]),
-    isPending: ref(false),
-    isError: ref(false),
-    refetch,
-  }),
+  useNotificationsQuery: (params: unknown, enabled?: MaybeRefOrGetter<boolean>) => {
+    useNotificationsQuery(params, enabled)
+    return { data: ref([]), isPending: ref(false), isError: ref(false), refetch }
+  },
   useMarkNotificationReadMutation: () => ({ mutate: vi.fn<() => void>() }),
   useMarkAllNotificationsReadMutation: () => ({
     mutate: vi.fn<() => void>(),
@@ -39,28 +39,44 @@ function mountMenu() {
 describe('NotificationsMenu', () => {
   beforeEach(() => {
     refetch.mockClear()
+    useNotificationsQuery.mockClear()
   })
 
-  it('does not refetch the preview just by mounting', () => {
+  /** Whether the menu currently lets the preview query run. */
+  function previewEnabled(): boolean {
+    const enabled = useNotificationsQuery.mock.calls[0]?.[1]
+    if (enabled === undefined) {
+      throw new Error('The menu did not gate the preview query')
+    }
+    return toValue(enabled)
+  }
+
+  it('keeps the preview query off until the panel opens', () => {
     mountMenu()
 
+    expect(previewEnabled()).toBe(false)
     expect(refetch).not.toHaveBeenCalled()
   })
 
-  it('refetches the preview each time the panel opens, not when it closes', async () => {
+  it('runs the preview query only while the panel is open', async () => {
     const wrapper = mountMenu()
     const popover = wrapper.findComponent(Popover)
 
     popover.vm.$emit('update:open', true)
     await wrapper.vm.$nextTick()
-    expect(refetch).toHaveBeenCalledTimes(1)
+    expect(previewEnabled()).toBe(true)
 
     popover.vm.$emit('update:open', false)
     await wrapper.vm.$nextTick()
-    expect(refetch).toHaveBeenCalledTimes(1)
+    expect(previewEnabled()).toBe(false)
+  })
 
-    popover.vm.$emit('update:open', true)
+  it('leaves refreshing on open to the query, instead of adding a second request', async () => {
+    const wrapper = mountMenu()
+
+    wrapper.findComponent(Popover).vm.$emit('update:open', true)
     await wrapper.vm.$nextTick()
-    expect(refetch).toHaveBeenCalledTimes(2)
+
+    expect(refetch).not.toHaveBeenCalled()
   })
 })

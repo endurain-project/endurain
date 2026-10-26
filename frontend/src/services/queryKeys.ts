@@ -176,9 +176,7 @@ export const queryKeys = {
     media: (id: number) => ['activities', 'detail', id, 'media'] as const,
     /** The activity's owner user (public or authenticated), keyed by user id. */
     owner: (userId: number) => ['activities', 'owner', userId] as const,
-    /** The distinct activity-type codes the user owns (type-filter options). */
-    types: () => ['activities', 'types'] as const,
-    /** The user's activity-type code→name map (summary type filter). */
+    /** The user's activity-type code→name map (type filter options and summary type filter). */
     typeNames: () => ['activities', 'type-names'] as const,
     /**
      * An aggregated activity summary for a view type + period + optional type
