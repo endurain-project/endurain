@@ -90,7 +90,8 @@ export function useUserWeekActivitiesQuery(
 
 /**
  * The home dashboard's infinite feed of activities from the people the viewer
- * follows. Same shape as {@link useUserActivitiesFeed}.
+ * follows. Same shape as {@link useUserActivitiesFeed}. The owners' profiles arrive
+ * with each slice and are seeded into the activity-owner cache the cards read.
  *
  * @param userId - Reactive id of the viewer.
  * @param pageSize - Records per page.
@@ -103,12 +104,19 @@ export function useFollowersActivitiesFeed(
   pageSize: number = DEFAULT_FEED_PAGE_SIZE,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) => fetchFollowersActivities(pageParam, pageSize, signal),
+    queryFn: async ({ pageParam, signal }) => {
+      const slice = await fetchFollowersActivities(pageParam, pageSize, signal)
+      for (const [ownerId, owner] of slice.owners) {
+        client.setQueryData(queryKeys.activities.owner(ownerId), owner)
+      }
+      return slice
+    },
     // Keyset, not offset: the server hands back the position of the last row it
     // returned, so activities arriving mid-scroll cannot shift the window.
     initialPageParam: null as string | null,

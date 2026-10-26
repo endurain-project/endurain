@@ -29,7 +29,9 @@ def list_user_followers(
 ) -> followers_schema.FollowRelationshipPage:
     """List a user's followers, with the matching total.
 
-    Privacy-aware: only the user themselves or an accepted follower may list them.
+    Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+    carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+    returns), so a token with ``followers:read`` alone receives it too.
     """
     return followers_service.list_followers(
         user_id,
@@ -55,7 +57,9 @@ def list_user_following(
 ) -> followers_schema.FollowRelationshipPage:
     """List who a user follows, with the matching total.
 
-    Privacy-aware: only the user themselves or an accepted follower may list them.
+    Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+    carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+    returns), so a token with ``followers:read`` alone receives it too.
     """
     return followers_service.list_following(
         user_id,
@@ -99,7 +103,9 @@ def list_follow_requests(
     """List the follow requests awaiting the authenticated user's decision.
 
     Always scoped to the caller, so there is no user id to supply and no way to
-    read anyone else's pending requests.
+    read anyone else's pending requests. The page also carries each requester's public profile in
+    ``users`` (the projection ``GET /users/id/{user_id}`` returns), so a token with
+    ``followers:read`` alone receives it too.
     """
     return followers_service.list_pending_requests(
         token_user_id,

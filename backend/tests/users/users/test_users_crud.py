@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from tests._helpers.db import create_sqlite_session
 
 import core.exceptions as core_exceptions
 import model_registry
@@ -294,3 +295,39 @@ class TestListStalledDeletionIds:
         mock_db.scalars.return_value.all.return_value = [3, 5]
 
         assert users_crud.list_stalled_deletion_ids(datetime(2026, 1, 1, tzinfo=UTC), 5, 0, 100, mock_db) == [3, 5]
+
+
+class TestGetUsersByIds:
+    """The batched read is an SQL ``IN``, so it runs against a real session."""
+
+    @pytest.fixture
+    def db(self):
+        session = create_sqlite_session()
+        for user_id in (1, 2, 3):
+            session.add(
+                users_models.Users(
+                    id=user_id,
+                    name=f"User {user_id}",
+                    username=f"user{user_id}",
+                    email=f"user{user_id}@example.com",
+                    preferred_language="us",
+                    access_type="regular",
+                )
+            )
+        session.commit()
+        yield session
+        session.close()
+
+    def test_returns_only_the_requested_users(self, db):
+        found = users_crud.get_users_by_ids({1, 3, 99}, db)
+
+        assert sorted(user.id for user in found) == [1, 3]
+
+    def test_a_repeated_id_returns_one_row(self, db):
+        found = users_crud.get_users_by_ids([2, 2, 2], db)
+
+        assert [user.id for user in found] == [2]
+
+    def test_no_ids_return_nothing_without_querying(self, mock_db):
+        assert users_crud.get_users_by_ids([], mock_db) == []
+        mock_db.execute.assert_not_called()

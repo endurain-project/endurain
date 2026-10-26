@@ -508,7 +508,7 @@ def scroll_following_feed(
         db: Database session.
 
     Returns:
-        The slice plus the cursor for the next one.
+        The slice, the cursor for the next one and the public profile of each owner on the slice.
     """
     followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
     after = core_pagination.decode_cursor(cursor) if cursor else None
@@ -532,7 +532,8 @@ def scroll_following_feed(
             has_more=has_more,
         ),
     )
-    return activity_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor)
+    owners = users_integration.list_public_profiles({item.user_id for item in items if item.user_id is not None}, db)
+    return activity_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor, users=owners)
 
 
 def page_gear_activities(

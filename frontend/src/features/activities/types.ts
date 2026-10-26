@@ -328,8 +328,11 @@ export interface ActivityEditInput {
  *
  * @property items - The slice's activities, newest first.
  * @property nextCursor - Cursor for the next slice, or `null` at the end.
+ * @property owners - The owner of each activity on the slice, by user id, as the same response
+ *   carries them; `null` for an owner the server left out (inactive, or awaiting approval).
  */
 export interface ActivityFeedSlice {
   items: Activity[]
   nextCursor: string | null
+  owners: Map<number, ActivityOwner | null>
 }

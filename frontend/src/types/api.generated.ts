@@ -147,6 +147,9 @@ export interface paths {
         /**
          * List Following Feed
          * @description List a keyset slice of the authenticated user's following feed.
+         *
+         *     The slice also carries the public profile of each owner on it in ``users`` (the projection
+         *     ``GET /users/id/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
          */
         get: operations["list_following_feed_api_v1_activities_feed_get"];
         put?: never;
@@ -804,7 +807,9 @@ export interface paths {
          * @description List the follow requests awaiting the authenticated user's decision.
          *
          *     Always scoped to the caller, so there is no user id to supply and no way to
-         *     read anyone else's pending requests.
+         *     read anyone else's pending requests. The page also carries each requester's public profile in
+         *     ``users`` (the projection ``GET /users/id/{user_id}`` returns), so a token with
+         *     ``followers:read`` alone receives it too.
          */
         get: operations["list_follow_requests_api_v1_followers_follow_requests_get"];
         put?: never;
@@ -863,7 +868,9 @@ export interface paths {
          * List User Followers
          * @description List a user's followers, with the matching total.
          *
-         *     Privacy-aware: only the user themselves or an accepted follower may list them.
+         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+         *     carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     returns), so a token with ``followers:read`` alone receives it too.
          */
         get: operations["list_user_followers_api_v1_followers_users__user_id__followers_get"];
         put?: never;
@@ -916,7 +923,9 @@ export interface paths {
          * List User Following
          * @description List who a user follows, with the matching total.
          *
-         *     Privacy-aware: only the user themselves or an accepted follower may list them.
+         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+         *     carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     returns), so a token with ``followers:read`` alone receives it too.
          */
         get: operations["list_user_following_api_v1_followers_users__user_id__following_get"];
         put?: never;
@@ -5309,6 +5318,34 @@ export interface components {
             wkt_step_name: string;
         };
         /**
+         * ActivityFeedPage
+         * @description One keyset slice of the following feed.
+         *
+         *     The feed takes inserts at the head continuously, so offset paging would repeat and skip rows
+         *     across requests.
+         *
+         *     Attributes:
+         *         users: The public profile of each owner on this slice, keyed by user ID, one entry per
+         *             owner however many of their activities the slice holds. It is the projection
+         *             ``GET /users/id/{user_id}`` returns, so the client needs no lookup per owner. An owner
+         *             who is inactive or awaiting approval has no entry.
+         */
+        ActivityFeedPage: {
+            /** Items */
+            items: components["schemas"]["ActivityRead"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Num Records */
+            num_records: number;
+            /**
+             * Users
+             * @description Public profile of each activity owner on this slice, keyed by user ID
+             */
+            users?: {
+                [key: string]: components["schemas"]["UserPublicRead"];
+            };
+        };
+        /**
          * ActivityIngestionJobRead
          * @description An accepted ingestion request and the current state of its import.
          *
@@ -5945,15 +5982,6 @@ export interface components {
          * @enum {string}
          */
         Currency: "euro" | "dollar" | "pound";
-        /** CursorPage[ActivityRead] */
-        CursorPage_ActivityRead_: {
-            /** Items */
-            items: components["schemas"]["ActivityRead"][];
-            /** Next Cursor */
-            next_cursor?: string | null;
-            /** Num Records */
-            num_records: number;
-        };
         /**
          * DaySummary
          * @description Daily activity summary within a week.
@@ -6088,6 +6116,35 @@ export interface components {
          * @enum {string}
          */
         FastingType: "16:8" | "18:6" | "20:4" | "OMAD" | "24h" | "36h" | "48h" | "72h" | "custom";
+        /**
+         * FollowRelationshipPage
+         * @description One page of follow relationships, in the envelope the activities lists use.
+         *
+         *     Attributes:
+         *         users: The public profile of the user on the other side of each row (the follower in a
+         *             followers list, the followee in a following list, the requester among pending requests),
+         *             keyed by user ID. It is the projection ``GET /users/id/{user_id}`` returns, so a list needs
+         *             no lookup per row. A user who is inactive or awaiting approval has no entry.
+         */
+        FollowRelationshipPage: {
+            /** Items */
+            items: components["schemas"]["FollowRelationshipRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+            /**
+             * Users
+             * @description Public profile of the user on the other side of each row, keyed by user ID
+             */
+            users?: {
+                [key: string]: components["schemas"]["UserPublicRead"];
+            };
+        };
         /**
          * FollowRelationshipRead
          * @description Serialized representation of a follow relationship.
@@ -9428,19 +9485,6 @@ export interface components {
         Page_ActivityWorkoutStepsRead_: {
             /** Items */
             items: components["schemas"]["ActivityWorkoutStepsRead"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
-        };
-        /** Page[FollowRelationshipRead] */
-        Page_FollowRelationshipRead_: {
-            /** Items */
-            items: components["schemas"]["FollowRelationshipRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -12870,7 +12914,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPage_ActivityRead_"];
+                    "application/json": components["schemas"]["ActivityFeedPage"];
                 };
             };
             /** @description Validation Error */
@@ -13942,7 +13986,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
                 };
             };
             /** @description Validation Error */
@@ -14068,7 +14112,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
                 };
             };
             /** @description Validation Error */
@@ -14191,7 +14235,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
                 };
             };
             /** @description Validation Error */

@@ -1,5 +1,6 @@
 """CRUD operations for users."""
 
+from collections.abc import Collection
 from datetime import datetime
 from typing import Any
 from urllib.parse import unquote
@@ -215,6 +216,23 @@ def get_user_by_id(user_id: int, db: Session) -> users_schema.UsersRead | None:
     stmt = select(users_models.Users).where(users_models.Users.id == user_id)
     user = db.execute(stmt).scalar_one_or_none()
     return users_serializers.to_read_schema(user) if user else None
+
+
+def get_users_by_ids(user_ids: Collection[int], db: Session) -> list[users_schema.UsersRead]:
+    """Retrieve several users by ID in one query.
+
+    Args:
+        user_ids: IDs to look up; repeated IDs are read once.
+        db: Database session.
+
+    Returns:
+        The users that exist, in no particular order. An empty list when no IDs are given, without
+        querying.
+    """
+    if not user_ids:
+        return []
+    stmt = select(users_models.Users).where(users_models.Users.id.in_(set(user_ids)))
+    return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
 
 
 def get_users_admin(db: Session) -> list[users_schema.UsersRead]:

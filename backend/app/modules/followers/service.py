@@ -14,6 +14,7 @@ This is the module's *own* application layer. What other modules may consume
 lives in :mod:`modules.followers.integration_service`.
 """
 
+import operator
 from collections.abc import Callable
 
 from sqlalchemy.orm import Session
@@ -25,6 +26,7 @@ import modules.followers.constants as followers_constants
 import modules.followers.crud as followers_crud
 import modules.followers.event_publishers as followers_event_publishers
 import modules.followers.schema as followers_schema
+import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -72,11 +74,31 @@ def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Se
         raise core_exceptions.AccessConcealedError("User not found")
 
 
+def _with_profiles(
+    page: followers_schema.FollowRelationshipPage,
+    other_user_id: Callable[[followers_schema.FollowRelationshipRead], int],
+    db: Session,
+) -> followers_schema.FollowRelationshipPage:
+    """Attach the public profile of the user on the other side of every row, in one read.
+
+    Args:
+        page: The page of relationships.
+        other_user_id: Picks the other side's user ID from a row.
+        db: Database session.
+
+    Returns:
+        The page with ``users`` filled in.
+    """
+    profiles = users_integration.list_public_profiles({other_user_id(row) for row in page.items}, db)
+    return page.model_copy(update={"users": profiles})
+
+
 def _list_network(
     target_user_id: int,
     requester_user_id: int,
     list_page: Callable[..., list[followers_schema.FollowRelationshipRead]],
     count: Callable[..., int],
+    other_user_id: Callable[[followers_schema.FollowRelationshipRead], int],
     db: Session,
     *,
     page_number: int,
@@ -90,13 +112,15 @@ def _list_network(
         requester_user_id: The authenticated requester.
         list_page: The crud function that reads one page of the chosen side.
         count: The crud function that counts the chosen side.
+        other_user_id: Picks the user on the other side of the network from a row.
         db: Database session.
         page_number: 1-based page number.
         num_records: Page size.
         accepted_only: Exclude pending follow requests when True.
 
     Returns:
-        The page envelope. ``total`` counts every row matching the same filter, not just this page.
+        The page envelope, with the other side's profiles. ``total`` counts every row matching the
+        same filter, not just this page.
 
     Raises:
         AccessConcealedError: When the requester may not view this network; answered like a missing user.
@@ -113,7 +137,8 @@ def _list_network(
         accepted_only=effective_accepted_only,
     )
     total = count(target_user_id, db, accepted_only=effective_accepted_only)
-    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+    page = followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+    return _with_profiles(page, other_user_id, db)
 
 
 def list_followers(
@@ -148,6 +173,7 @@ def list_followers(
         requester_user_id,
         followers_crud.get_all_followers_by_user_id,
         followers_crud.count_followers_by_user_id,
+        operator.attrgetter("follower_id"),
         db,
         page_number=page_number,
         num_records=num_records,
@@ -187,6 +213,7 @@ def list_following(
         requester_user_id,
         followers_crud.get_all_following_by_user_id,
         followers_crud.count_following_by_user_id,
+        operator.attrgetter("followee_id"),
         db,
         page_number=page_number,
         num_records=num_records,
@@ -213,13 +240,14 @@ def list_pending_requests(
         num_records: Page size.
 
     Returns:
-        The page envelope.
+        The page envelope, with the profile of each requester.
     """
     items = followers_crud.get_pending_requests_for_user_id(
         requester_user_id, db, page_number=page_number, num_records=num_records
     )
     total = followers_crud.count_pending_requests_for_user_id(requester_user_id, db)
-    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+    page = followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+    return _with_profiles(page, operator.attrgetter("follower_id"), db)
 
 
 def reject_follow_request(requester_user_id: int, follower_id: int, db: Session) -> None:

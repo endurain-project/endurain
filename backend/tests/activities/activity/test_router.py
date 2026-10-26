@@ -161,6 +161,40 @@ class TestFeed:
             assert resp.status_code == 200
             assert len(resp.json()["items"]) == 1
 
+    def test_users_carries_each_distinct_owner_once(self, mock_db):
+        from modules.users.users.schema import UserPublicRead
+
+        with (
+            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as m,
+            patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
+        ):
+            f.list_accepted_followee_ids.return_value = [5, 6]
+            m.return_value = [
+                _feed_entry(id=1, user_id=5),
+                _feed_entry(id=2, user_id=6),
+                _feed_entry(id=3, user_id=5),
+            ]
+            profiles.return_value = {5: UserPublicRead(id=5, name="Ada", username="ada")}
+            resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
+
+        assert resp.status_code == 200
+        profiles.assert_called_once()
+        assert profiles.call_args.args[0] == {5, 6}
+        assert resp.json()["users"] == {
+            "5": {"id": 5, "name": "Ada", "username": "ada", "city": None, "photo_path": None}
+        }
+
+    def test_an_empty_feed_has_an_empty_users_object(self, mock_db):
+        with (
+            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]),
+        ):
+            f.list_accepted_followee_ids.return_value = [5]
+            resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
+
+        assert resp.json()["users"] == {}
+
     def test_last_slice_has_no_next_cursor(self, mock_db):
         """A short slice means the end; emitting a cursor would loop the client."""
         with (

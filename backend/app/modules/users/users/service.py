@@ -6,6 +6,7 @@ Profile photo storage is :mod:`modules.users.users.photo_service`; what other mo
 may consume lives in :mod:`modules.users.users.integration_service`.
 """
 
+from collections.abc import Collection
 from datetime import date as datetime_date
 from typing import TYPE_CHECKING
 
@@ -86,6 +87,18 @@ def require_admin_users(db: Session) -> list[users_schema.UsersRead]:
     return admins
 
 
+def _is_publicly_visible(user: users_schema.UsersRead) -> bool:
+    """Return whether a signed-in viewer may look this user up at all.
+
+    Args:
+        user: The user to check.
+
+    Returns:
+        False for an inactive account or one still awaiting approval.
+    """
+    return user.active and not user.pending_admin_approval
+
+
 def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead:
     """Return a user's public projection for a signed-in viewer.
 
@@ -101,9 +114,29 @@ def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead
             cannot tell the three apart.
     """
     user = require_user(user_id, db)
-    if not user.active or user.pending_admin_approval:
+    if not _is_publicly_visible(user):
         raise core_exceptions.NotFoundError("User not found")
     return users_schema.UserPublicRead.model_validate(user)
+
+
+def list_public_profiles(user_ids: Collection[int], db: Session) -> dict[int, users_schema.UserPublicRead]:
+    """Return the public projection of several users in one read, keyed by user ID.
+
+    Applies the same visibility rule as :func:`get_public_profile`, but a user who is missing,
+    inactive or awaiting approval is left out instead of raising.
+
+    Args:
+        user_ids: The users to look up.
+        db: Database session.
+
+    Returns:
+        The public projection of each visible user, keyed by ID.
+    """
+    return {
+        user.id: users_schema.UserPublicRead.model_validate(user)
+        for user in users_crud.get_users_by_ids(user_ids, db)
+        if _is_publicly_visible(user)
+    }
 
 
 def get_public_user(user_id: int, db: Session) -> users_schema.UserPublicRead:

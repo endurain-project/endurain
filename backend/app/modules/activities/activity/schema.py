@@ -22,6 +22,7 @@ from pydantic import (
 
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.users.users.schema as users_schema
 
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
@@ -274,9 +275,24 @@ class ActivityStatsRead(BaseModel):
 #: envelope rather than each inventing its own.
 ActivityPage = core_pagination.Page[ActivityRead]
 
-#: One keyset slice of the following feed. The feed takes inserts at the head
-#: continuously, so offset paging would repeat and skip rows across requests.
-ActivityFeedPage = core_pagination.CursorPage[ActivityRead]
+
+class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
+    """One keyset slice of the following feed.
+
+    The feed takes inserts at the head continuously, so offset paging would repeat and skip rows
+    across requests.
+
+    Attributes:
+        users: The public profile of each owner on this slice, keyed by user ID, one entry per
+            owner however many of their activities the slice holds. It is the projection
+            ``GET /users/id/{user_id}`` returns, so the client needs no lookup per owner. An owner
+            who is inactive or awaiting approval has no entry.
+    """
+
+    users: dict[int, users_schema.UserPublicRead] = Field(
+        default_factory=dict,
+        description="Public profile of each activity owner on this slice, keyed by user ID",
+    )
 
 
 class ActivitiesBulkEditRead(BaseModel):

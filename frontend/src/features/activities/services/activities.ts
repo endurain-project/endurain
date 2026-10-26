@@ -2,7 +2,10 @@ import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { mapEmbeddedUsers } from '@/features/users/services/publicUsers'
 import { todayIsoDate } from '@/utils/datetime'
+
+import { mapActivityOwner } from './activityOwner'
 
 /** Job handle returned by the refresh endpoint; polled via `fetchIngestionJob`. */
 type ActivityIngestionJob = Schemas['ActivityIngestionJobRead']
@@ -314,7 +317,7 @@ export async function fetchUserActivities(
  * @param cursor - Opaque cursor from the previous slice, or null to start.
  * @param numRecords - Slice size.
  * @param signal - Optional abort signal for cancellation.
- * @returns The slice's activities plus the cursor for the next one.
+ * @returns The slice's activities, the cursor for the next one, and each owner's profile.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowersActivities(
@@ -326,13 +329,19 @@ export async function fetchFollowersActivities(
   if (cursor) {
     params.set('cursor', cursor)
   }
-  const slice = await apiFetch<Schemas['CursorPage_ActivityRead_']>(
+  const slice = await apiFetch<Schemas['ActivityFeedPage']>(
     `/activities/feed?${params.toString()}`,
     { signal },
   )
+  const items = (slice.items ?? []).map(mapActivity)
   return {
-    items: (slice.items ?? []).map(mapActivity),
+    items,
     nextCursor: slice.next_cursor ?? null,
+    owners: mapEmbeddedUsers(
+      items.flatMap((activity) => (activity.userId === null ? [] : [activity.userId])),
+      slice.users,
+      mapActivityOwner,
+    ),
   }
 }
 

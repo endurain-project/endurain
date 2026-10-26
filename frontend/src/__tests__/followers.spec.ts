@@ -47,7 +47,7 @@ describe('fetchFollowers', () => {
       next: null,
     })
 
-    const edges = await fetchFollowers(9)
+    const { edges } = await fetchFollowers(9)
 
     // The endpoint is paginated, so the request asks for the largest page the
     // backend allows rather than relying on an unbounded response.
@@ -60,9 +60,30 @@ describe('fetchFollowers', () => {
     ])
   })
 
+  it('returns the profile of each follower from the same response', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [
+        { follower_id: 3, followee_id: 9, status: 'accepted' },
+        { follower_id: 4, followee_id: 9, status: 'accepted' },
+      ],
+      total: 2,
+      page: 1,
+      num_records: 200,
+      next: null,
+      users: { '3': { id: 3, name: 'Ada', username: 'ada', city: 'Porto', photo_path: null } },
+    })
+
+    const { profiles } = await fetchFollowers(9)
+
+    expect(apiFetch).toHaveBeenCalledOnce()
+    expect(profiles.get(3)).toMatchObject({ id: 3, name: 'Ada', username: 'ada', city: 'Porto' })
+    // 4 is inactive or awaiting approval, so the server left it out: same as a 404 lookup.
+    expect(profiles.get(4)).toBeNull()
+  })
+
   it('treats a null payload as an empty list', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchFollowers(9)).toEqual([])
+    expect(await fetchFollowers(9)).toEqual({ edges: [], profiles: new Map() })
   })
 })
 
@@ -76,12 +97,28 @@ describe('fetchFollowing', () => {
       next: null,
     })
 
-    const edges = await fetchFollowing(9)
+    const { edges, profiles } = await fetchFollowing(9)
 
     expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/following?num_records=200', {
       signal: undefined,
     })
     expect(edges).toEqual([{ userId: 5, isAccepted: true }])
+    expect(profiles.get(5)).toBeNull()
+  })
+
+  it('returns the profile of each followed user from the same response', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [{ follower_id: 9, followee_id: 5, status: 'accepted' }],
+      total: 1,
+      page: 1,
+      num_records: 200,
+      next: null,
+      users: { '5': { id: 5, name: 'Grace', username: 'grace', city: null, photo_path: null } },
+    })
+
+    const { profiles } = await fetchFollowing(9)
+
+    expect(profiles.get(5)).toMatchObject({ id: 5, name: 'Grace', username: 'grace' })
   })
 })
 

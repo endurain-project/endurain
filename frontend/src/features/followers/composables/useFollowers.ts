@@ -1,8 +1,9 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { FollowEdge, FollowStatus } from '@/features/followers/types'
+import type { PublicUser } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -26,37 +27,65 @@ function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
 }
 
 /**
+ * Writes the profiles a follow list carried into the public-profile cache its rows read, so
+ * a row finds its user there instead of requesting it.
+ *
+ * @param client - The active query client.
+ * @param profiles - Each row's profile, or `null` for a user the server left out.
+ */
+function seedPublicProfiles(
+  client: QueryClient,
+  profiles: ReadonlyMap<number, PublicUser | null>,
+): void {
+  for (const [userId, profile] of profiles) {
+    client.setQueryData(queryKeys.users.publicProfile(userId), profile)
+  }
+}
+
+/**
  * The people who follow a user (the profile's followers list). Gated on a valid
- * user id and authentication.
+ * user id and authentication. The followers' profiles arrive with the list and are
+ * seeded into the public-profile cache.
  *
  * @param userId - Reactive id of the profile owner.
  * @returns The TanStack query result for the followers list.
  */
 export function useFollowersQuery(userId: MaybeRefOrGetter<number | null>) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
   return useQuery<FollowEdge[]>({
     queryKey: computed(() => queryKeys.followers.followersList(id.value)),
-    queryFn: ({ signal }) => fetchFollowers(id.value, signal),
+    queryFn: async ({ signal }) => {
+      const { edges, profiles } = await fetchFollowers(id.value, signal)
+      seedPublicProfiles(client, profiles)
+      return edges
+    },
     enabled: computed(() => isAuthenticated.value && id.value > 0),
   })
 }
 
 /**
  * The people a user follows (the profile's following list). Gated on a valid
- * user id and authentication.
+ * user id and authentication. The followed users' profiles arrive with the list and
+ * are seeded into the public-profile cache.
  *
  * @param userId - Reactive id of the profile owner.
  * @returns The TanStack query result for the following list.
  */
 export function useFollowingQuery(userId: MaybeRefOrGetter<number | null>) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
   return useQuery<FollowEdge[]>({
     queryKey: computed(() => queryKeys.followers.followingList(id.value)),
-    queryFn: ({ signal }) => fetchFollowing(id.value, signal),
+    queryFn: async ({ signal }) => {
+      const { edges, profiles } = await fetchFollowing(id.value, signal)
+      seedPublicProfiles(client, profiles)
+      return edges
+    },
     enabled: computed(() => isAuthenticated.value && id.value > 0),
   })
 }

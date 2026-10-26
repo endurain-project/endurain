@@ -10,6 +10,7 @@ import {
   fetchActivityLaps,
   fetchActivityStats,
   fetchActivityStreams,
+  fetchFollowersActivities,
   fetchUserActivitiesPage,
   fetchUserActivityTypeMap,
   fetchUserThisMonthActivityCount,
@@ -527,6 +528,51 @@ describe('fetchUserActivitiesPage', () => {
       '/activities?sort_by=name&sort_order=asc&page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
+  })
+})
+
+describe('fetchFollowersActivities', () => {
+  const feedPage = {
+    items: [
+      { ...activityDto, id: 1, user_id: 7 },
+      { ...activityDto, id: 2, user_id: 8 },
+      { ...activityDto, id: 3, user_id: 7 },
+    ],
+    num_records: 25,
+    next_cursor: 'cursor-2',
+    users: { '7': { id: 7, name: 'Jane Runner', username: 'jane', city: null, photo_path: null } },
+  }
+
+  it('requests the feed with the cursor and maps the slice', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    const slice = await fetchFollowersActivities('cursor-1', 25)
+
+    expect(apiFetch).toHaveBeenCalledWith('/activities/feed?num_records=25&cursor=cursor-1', {
+      signal: undefined,
+    })
+    expect(slice.items.map((activity) => activity.id)).toEqual([1, 2, 3])
+    expect(slice.nextCursor).toBe('cursor-2')
+  })
+
+  it('returns each distinct owner once, from the same response', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    const { owners } = await fetchFollowersActivities(null, 25)
+
+    expect(apiFetch).toHaveBeenCalledOnce()
+    expect([...owners.keys()].sort()).toEqual([7, 8])
+    expect(owners.get(7)).toMatchObject({ name: 'Jane Runner', username: 'jane' })
+    // 8 is inactive or awaiting approval, so the server left it out: same as a 404 lookup.
+    expect(owners.get(8)).toBeNull()
+  })
+
+  it('returns no owners for an empty slice', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], num_records: 25, next_cursor: null })
+
+    const slice = await fetchFollowersActivities(null, 25)
+
+    expect(slice).toEqual({ items: [], nextCursor: null, owners: new Map() })
   })
 })
 

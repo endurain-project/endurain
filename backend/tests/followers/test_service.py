@@ -50,6 +50,105 @@ class TestNetworkPrivacy:
         assert mock_crud.count_followers_by_user_id.call_args.kwargs["accepted_only"] is False
 
 
+def _profile(user_id: int):
+    from modules.users.users.schema import UserPublicRead
+
+    return UserPublicRead(id=user_id, name=f"User {user_id}", username=f"user{user_id}")
+
+
+class TestListsCarryTheOtherUsersProfile:
+    """Every row's other side arrives with the page, so the client needs no lookup per row."""
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_followers_are_looked_up_by_follower_id(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_followers_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted"),
+            FollowRelationshipRead(follower_id=4, followee_id=1, status="pending"),
+        ]
+        mock_crud.count_followers_by_user_id.return_value = 2
+        mock_users.list_public_profiles.return_value = {3: _profile(3), 4: _profile(4)}
+        db = MagicMock()
+
+        page = service.list_followers(1, 1, db)
+
+        mock_users.list_public_profiles.assert_called_once_with({3, 4}, db)
+        assert set(page.users) == {3, 4}
+        assert page.users[3].name == "User 3"
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_following_are_looked_up_by_followee_id(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_following_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=1, followee_id=8, status="accepted"),
+        ]
+        mock_crud.count_following_by_user_id.return_value = 1
+        mock_users.list_public_profiles.return_value = {8: _profile(8)}
+        db = MagicMock()
+
+        page = service.list_following(1, 1, db)
+
+        mock_users.list_public_profiles.assert_called_once_with({8}, db)
+        assert set(page.users) == {8}
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_pending_requests_are_looked_up_by_requester_id(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_pending_requests_for_user_id.return_value = [
+            FollowRelationshipRead(follower_id=6, followee_id=1, status="pending"),
+        ]
+        mock_crud.count_pending_requests_for_user_id.return_value = 1
+        mock_users.list_public_profiles.return_value = {6: _profile(6)}
+        db = MagicMock()
+
+        page = service.list_pending_requests(1, db)
+
+        mock_users.list_public_profiles.assert_called_once_with({6}, db)
+        assert set(page.users) == {6}
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_user_without_a_profile_has_no_entry(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_followers_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted"),
+        ]
+        mock_crud.count_followers_by_user_id.return_value = 1
+        mock_users.list_public_profiles.return_value = {}
+
+        page = service.list_followers(1, 1, MagicMock())
+
+        assert page.users == {}
+        assert [item.follower_id for item in page.items] == [3]
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_the_envelope_is_unchanged_apart_from_the_users(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_followers_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted"),
+        ]
+        mock_crud.count_followers_by_user_id.return_value = 40
+        mock_users.list_public_profiles.return_value = {3: _profile(3)}
+
+        page = service.list_followers(1, 1, MagicMock(), page_number=1, num_records=25)
+
+        assert (page.total, page.page, page.num_records, page.next) == (40, 1, 25, 2)
+
+
 class TestFollowUser:
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")

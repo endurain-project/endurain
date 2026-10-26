@@ -108,6 +108,43 @@ class TestPublicUser:
         assert public.id == 1
 
 
+class TestListPublicProfiles:
+    @patch(_CRUD)
+    def test_keys_the_public_projection_by_user_id(self, mock_crud, mock_db):
+        mock_crud.get_users_by_ids.return_value = [_user(3, city="Porto"), _user(5)]
+
+        profiles = users_service.list_public_profiles({3, 5}, mock_db)
+
+        assert set(profiles) == {3, 5}
+        assert all(type(profile) is users_schema.UserPublicRead for profile in profiles.values())
+        assert profiles[3].city == "Porto"
+        mock_crud.get_users_by_ids.assert_called_once_with({3, 5}, mock_db)
+
+    @patch(_CRUD)
+    def test_leaves_out_users_a_viewer_could_not_look_up(self, mock_crud, mock_db):
+        mock_crud.get_users_by_ids.return_value = [
+            _user(1),
+            _user(2, active=False),
+            _user(3, pending_admin_approval=True),
+        ]
+
+        assert set(users_service.list_public_profiles({1, 2, 3}, mock_db)) == {1}
+
+    @patch(_CRUD)
+    def test_carries_no_personal_or_account_fields(self, mock_crud, mock_db):
+        mock_crud.get_users_by_ids.return_value = [_user(3, birthdate="1990-01-01")]
+
+        dumped = users_service.list_public_profiles({3}, mock_db)[3].model_dump()
+
+        assert set(dumped) == {"id", "name", "username", "city", "photo_path"}
+
+    @patch(_CRUD)
+    def test_no_users_found_is_an_empty_mapping(self, mock_crud, mock_db):
+        mock_crud.get_users_by_ids.return_value = []
+
+        assert users_service.list_public_profiles({7}, mock_db) == {}
+
+
 class TestPublicProjection:
     @patch(_CRUD)
     def test_carries_no_personal_or_account_fields(self, mock_crud, mock_db):

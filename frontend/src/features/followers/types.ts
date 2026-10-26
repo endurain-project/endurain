@@ -1,3 +1,4 @@
+import type { PublicUser } from '@/features/users/types'
 import type { Schemas } from '@/types'
 
 /** Raw follow-relationship payload as returned by the backend. */
@@ -27,4 +28,17 @@ export type FollowStatus = 'none' | 'pending' | 'accepted'
 export interface FollowEdge {
   userId: number
   isAccepted: boolean
+}
+
+/**
+ * A followers/following list with the profile of every user on it, as one response
+ * carries them.
+ *
+ * @property edges - The rows of the list.
+ * @property profiles - The profile of each row's user, or `null` for one the server left out
+ *   (inactive, or awaiting approval).
+ */
+export interface FollowList {
+  edges: FollowEdge[]
+  profiles: Map<number, PublicUser | null>
 }

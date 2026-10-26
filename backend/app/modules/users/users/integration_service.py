@@ -5,6 +5,7 @@ helpers. Everything here returns schemas or primitives: no ORM row and no intern
 the boundary. Writes stage and the caller commits, except the listed units of work.
 """
 
+from collections.abc import Collection
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -51,6 +52,22 @@ def require_user(user_id: int, db: Session) -> users_schema.UsersRead:
         NotFoundError: If the user does not exist.
     """
     return users_service.require_user(user_id, db)
+
+
+def list_public_profiles(user_ids: Collection[int], db: Session) -> dict[int, users_schema.UserPublicRead]:
+    """Return the public projection of several users in one read, keyed by user ID.
+
+    A user who is missing, inactive or awaiting approval has no entry, as a single lookup of
+    that user would answer not found.
+
+    Args:
+        user_ids: The users to look up.
+        db: Database session.
+
+    Returns:
+        The public projection of each visible user, keyed by ID.
+    """
+    return users_service.list_public_profiles(user_ids, db)
 
 
 def require_active_user(user: users_schema.UsersRead) -> None:

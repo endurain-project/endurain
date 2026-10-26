@@ -100,6 +100,37 @@ class TestGetUserFollowers:
         assert response.status_code == 200
 
 
+class TestFollowerListsCarryProfiles:
+    @patch("modules.followers.service.users_integration.list_public_profiles")
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    def test_followers_response_includes_the_users_by_id(self, mock_get, mock_count, mock_profiles, mock_db):
+        from modules.followers.schema import FollowRelationshipRead
+        from modules.users.users.schema import UserPublicRead
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = [FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted")]
+        mock_count.return_value = 1
+        mock_profiles.return_value = {3: UserPublicRead(id=3, name="Ada", username="ada", city="Porto")}
+
+        response = client.get("/users/1/followers", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 200
+        assert response.json()["users"] == {
+            "3": {"id": 3, "name": "Ada", "username": "ada", "city": "Porto", "photo_path": None}
+        }
+
+    @patch("modules.followers.service.users_integration.list_public_profiles", return_value={})
+    @patch("modules.followers.crud.count_followers_by_user_id", return_value=0)
+    @patch("modules.followers.crud.get_all_followers_by_user_id", return_value=[])
+    def test_an_empty_list_has_an_empty_users_object(self, _get, _count, _profiles, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.get("/users/1/followers", headers={"Authorization": "Bearer x"})
+
+        assert response.json()["users"] == {}
+
+
 class TestGetUserFollowing:
     @patch("modules.followers.crud.count_following_by_user_id")
     @patch("modules.followers.crud.get_all_following_by_user_id")

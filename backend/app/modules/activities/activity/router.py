@@ -90,7 +90,11 @@ def list_following_feed(
     cursor: Annotated[str | None, Query()] = None,
     num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
 ) -> activity_schema.ActivityFeedPage:
-    """List a keyset slice of the authenticated user's following feed."""
+    """List a keyset slice of the authenticated user's following feed.
+
+    The slice also carries the public profile of each owner on it in ``users`` (the projection
+    ``GET /users/id/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
+    """
     return activity_service.scroll_following_feed(
         token_user_id,
         cursor,

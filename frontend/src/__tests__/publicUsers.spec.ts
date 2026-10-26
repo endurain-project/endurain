@@ -5,6 +5,7 @@ import type { PublicUserDto } from '@/features/users/types'
 import { apiFetch, HttpError } from '@/services/http'
 import {
   fetchPublicUser,
+  mapEmbeddedUsers,
   mapPublicUser,
   searchPublicUsers,
 } from '@/features/users/services/publicUsers'
@@ -24,6 +25,37 @@ const userDto: PublicUserDto = {
 
 beforeEach(() => {
   vi.mocked(apiFetch).mockReset()
+})
+
+describe('mapEmbeddedUsers', () => {
+  it('maps each referenced id from the embedded users object', () => {
+    const users = mapEmbeddedUsers([7], { '7': userDto }, mapPublicUser)
+
+    expect(users.get(7)).toMatchObject({ id: 7, name: 'Jane Runner' })
+  })
+
+  it('maps an id the server left out to null, as a lookup of that user would', () => {
+    const users = mapEmbeddedUsers([7, 8], { '7': userDto }, mapPublicUser)
+
+    expect(users.get(8)).toBeNull()
+    expect(users.has(8)).toBe(true)
+  })
+
+  it('maps every id to null when the response carries no users object', () => {
+    const users = mapEmbeddedUsers([7], undefined, mapPublicUser)
+
+    expect([...users.entries()]).toEqual([[7, null]])
+  })
+
+  it('ignores embedded users nothing references, and repeated ids', () => {
+    const users = mapEmbeddedUsers(
+      [7, 7],
+      { '7': userDto, '9': { ...userDto, id: 9 } },
+      mapPublicUser,
+    )
+
+    expect([...users.keys()]).toEqual([7])
+  })
 })
 
 describe('mapPublicUser', () => {

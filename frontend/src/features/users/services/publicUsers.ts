@@ -22,6 +22,32 @@ export function mapPublicUser(dto: PublicUserDto): PublicUser {
 }
 
 /**
+ * Maps the `users` object a list response embeds to one entry per referenced user.
+ *
+ * A list that carries the profiles of the users on it saves the client a lookup per row. The server
+ * leaves out a user who is inactive or awaiting approval, which a lookup of that user would answer
+ * with a 404, so an id missing from the object maps to `null`.
+ *
+ * @typeParam T - The model a profile payload is mapped to.
+ * @param ids - The user ids the response's rows reference.
+ * @param users - The response's embedded `users`, keyed by user id.
+ * @param map - Maps one profile payload to the model.
+ * @returns Every referenced id mapped to its model, or to `null` when it is not embedded.
+ */
+export function mapEmbeddedUsers<T>(
+  ids: Iterable<number>,
+  users: Record<string, PublicUserDto> | undefined,
+  map: (dto: PublicUserDto) => T,
+): Map<number, T | null> {
+  const mapped = new Map<number, T | null>()
+  for (const id of ids) {
+    const dto = users?.[String(id)]
+    mapped.set(id, dto ? map(dto) : null)
+  }
+  return mapped
+}
+
+/**
  * Fetches a user's public-facing profile for the `/user/:id` page. The route is
  * authenticated, so this uses the authenticated user endpoint (the same one
  * activity feeds use to resolve other users), which any signed-in viewer may
