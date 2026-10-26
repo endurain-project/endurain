@@ -476,8 +476,8 @@ def set_activity_location(
     return activity_crud.update_activity_location(activity_id, city, town, country, db)
 
 
-def delete_all_strava_activities(user_id: int, db: Session) -> int:
-    """Delete all of a user's Strava-sourced activities.
+def delete_all_strava_activities(user_id: int, db: Session, *, limit: int) -> int:
+    """Delete up to ``limit`` of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity so the thumbnail and
     source-file cleanup subscribers reclaim the blobs each one owned. The caller
@@ -486,11 +486,14 @@ def delete_all_strava_activities(user_id: int, db: Session) -> int:
     Args:
         user_id: The owning user id.
         db: Database session.
+        limit: The most activities to delete in this call.
 
     Returns:
-        The number of activities deleted.
+        The number of activities deleted; fewer than ``limit`` means none are left.
     """
-    return activity_service.delete_all_strava_activities(user_id, db, source="api:delete_all_strava_activities")
+    return activity_service.delete_all_strava_activities(
+        user_id, db, source="api:delete_all_strava_activities", limit=limit
+    )
 
 
 def delete_all_activities_for_user(user_id: int, db: Session) -> int:

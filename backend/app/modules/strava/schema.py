@@ -29,8 +29,18 @@ class StravaLinkRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    state: str = Field(min_length=1, max_length=128)
+    state: str = Field(min_length=strava_constants.OAUTH_STATE_MIN_LENGTH, max_length=128)
     code: str = Field(min_length=1, max_length=255)
+
+
+class StravaState(BaseModel):
+    """The one-time state the browser round-trips through Strava.
+
+    Attributes:
+        state: The opaque state, to be sent to Strava and handed back with the authorization code.
+    """
+
+    state: str
 
 
 class StravaDetail(BaseModel):

@@ -136,7 +136,7 @@ class TestEditHealthFasting:
     def test_edit_success(self, mock_edit, mock_db):
         mock_edit.return_value = HealthFastingRead(id=1, user_id=1)
 
-        response = _client(mock_db).patch("/health_fasting/1", json={}, headers={**_HEADERS, "If-Match": "*"})
+        response = _client(mock_db).patch("/health_fasting/1", json={}, headers={**_HEADERS, "If-Match": '"1"'})
 
         assert response.status_code == 200
 

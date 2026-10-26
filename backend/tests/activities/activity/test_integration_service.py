@@ -80,11 +80,11 @@ class TestIntegrationService:
         db = MagicMock()
         mock_service.delete_all_strava_activities.return_value = 5
 
-        result = integration_service.delete_all_strava_activities(3, db)
+        result = integration_service.delete_all_strava_activities(3, db, limit=500)
 
         assert result == 5
         mock_service.delete_all_strava_activities.assert_called_once_with(
-            3, db, source="api:delete_all_strava_activities"
+            3, db, source="api:delete_all_strava_activities", limit=500
         )
 
     @patch("modules.activities.activity.integration_service.activity_service")

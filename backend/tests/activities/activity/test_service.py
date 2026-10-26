@@ -369,11 +369,11 @@ class TestCrossModuleWrites:
         db = MagicMock()
         mock_crud.delete_all_strava_activities_for_user.return_value = [11, 12, 13, 14, 15]
 
-        deleted = service.delete_all_strava_activities(3, db, source="api:test")
+        deleted = service.delete_all_strava_activities(3, db, source="api:test", limit=500)
 
         assert deleted == 5
         db.commit.assert_not_called()
-        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db)
+        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db, limit=500)
         mock_publishers.publish_activities_deleted.assert_called_once_with(
             [11, 12, 13, 14, 15], 3, db, source="api:test"
         )

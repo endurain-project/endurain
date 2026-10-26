@@ -47,7 +47,7 @@ class TestEditUserDefaultGear:
         response = client.patch(
             "/user_default_gear",
             json={"run_gear_id": 2},
-            headers={**{"Authorization": "Bearer x"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
         )
         assert response.status_code == 200
 

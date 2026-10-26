@@ -335,7 +335,7 @@ class TestEdit:
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
-                headers={**{"Authorization": "Bearer x"}, "If-Match": "*"},
+                headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
                 json={"name": "Run", "activity_type": 1, "visibility": 2},
             )
             assert resp.status_code == 200
@@ -346,7 +346,7 @@ class TestEdit:
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
-                headers={**{"Authorization": "Bearer x"}, "If-Match": "*"},
+                headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
                 json={"visibility": 2},
             )
             assert resp.status_code == 200
@@ -357,7 +357,7 @@ class TestEdit:
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/7",
-                headers={**{"Authorization": "Bearer x"}, "If-Match": "*"},
+                headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
                 json={"name": "Run", "visibility": 2},
             )
             assert resp.status_code == 200
@@ -368,7 +368,7 @@ class TestEdit:
         # id is not a body field; extra="forbid" rejects it.
         resp = TestClient(_build_app(mock_db)).patch(
             "/activities/1",
-            headers={**{"Authorization": "Bearer x"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
             json={"id": 1, "name": "Run"},
         )
         assert resp.status_code == 422

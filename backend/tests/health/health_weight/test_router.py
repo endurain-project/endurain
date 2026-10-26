@@ -121,7 +121,7 @@ class TestEditHealthWeight:
                 "date": "2024-01-15",
                 "weight": 76.0,
             },
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         # Assert
@@ -144,7 +144,7 @@ class TestEditHealthWeight:
                 "date": "2024-01-15",
                 "weight": 76.0,
             },
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         # Assert

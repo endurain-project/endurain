@@ -395,7 +395,7 @@ class TestEditUser:
         response = profile_client.patch(
             PREFIX,
             json={"name": "Updated Name"},
-            headers={"If-Match": "*"},
+            headers={"If-Match": '"1"'},
         )
 
         assert response.status_code == 204
@@ -440,7 +440,7 @@ class TestEditProfileEmail:
         assert response.status_code == 422
 
     def test_the_plain_profile_edit_refuses_an_email(self, profile_client):
-        response = profile_client.patch(PREFIX, json={"email": "new@example.com"}, headers={"If-Match": "*"})
+        response = profile_client.patch(PREFIX, json={"email": "new@example.com"}, headers={"If-Match": '"1"'})
 
         assert response.status_code == 422
 
@@ -454,7 +454,7 @@ class TestEditProfilePrivacySettings:
         response = profile_client.patch(
             PREFIX + "/privacy",
             json={"default_activity_visibility": "followers"},
-            headers={"If-Match": "*"},
+            headers={"If-Match": '"1"'},
         )
 
         assert response.status_code == 204

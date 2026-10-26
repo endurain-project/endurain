@@ -96,7 +96,7 @@ class TestEditHealthWater:
         mock_edit.return_value = HealthWaterRead(id=1, user_id=1, amount_ml=900.0)
 
         response = TestClient(_build_app(mock_db)).patch(
-            "/health_water/1", json={"amount_ml": 900}, headers={**_HEADERS, "If-Match": "*"}
+            "/health_water/1", json={"amount_ml": 900}, headers={**_HEADERS, "If-Match": '"1"'}
         )
 
         assert response.status_code == 200
@@ -107,7 +107,7 @@ class TestEditHealthWater:
         mock_edit.side_effect = core_exceptions.NotFoundError("Health water not found")
 
         response = TestClient(_build_app(mock_db)).patch(
-            "/health_water/9", json={"amount_ml": 900}, headers={**_HEADERS, "If-Match": "*"}
+            "/health_water/9", json={"amount_ml": 900}, headers={**_HEADERS, "If-Match": '"1"'}
         )
 
         assert response.status_code == 404

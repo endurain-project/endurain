@@ -15,6 +15,10 @@ HTTP_TIMEOUT_SECONDS = 30
 #: Seconds the user has to finish the Strava consent screen before the one-time state expires.
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 
+# Bytes of randomness in a server-issued OAuth state; a state shorter than its encoding is refused.
+OAUTH_STATE_BYTES = 32
+OAUTH_STATE_MIN_LENGTH = 32
+
 #: Seconds a token refresh claim lasts if its holder dies before releasing it.
 TOKEN_REFRESH_CLAIM_TTL_SECONDS = 60
 
@@ -24,6 +28,9 @@ SYNC_TTL_SECONDS = 30 * 60
 #: Longest activity range one request may ask for; each activity is several Strava calls, so a longer history
 #: is fetched in several requests.
 MAX_ACTIVITIES_RANGE_DAYS = 366
+
+# Activities an unlink deletes per transaction, so a large account never holds every row lock at once.
+UNLINK_DELETE_BATCH_SIZE = 500
 
 #: Account links the in-process pool may hold, running or queued; each is one Strava round trip.
 MAX_CONCURRENT_LINKS = 4

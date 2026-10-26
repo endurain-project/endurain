@@ -812,8 +812,8 @@ def clear_activities_gear(gear_id: int, user_id: int, db: Session, *, source: st
     return len(updated_ids)
 
 
-def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> int:
-    """Delete all of a user's Strava-sourced activities.
+def delete_all_strava_activities(user_id: int, db: Session, *, source: str, limit: int) -> int:
+    """Delete up to ``limit`` of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity, staged with the deletes,
     so the thumbnail and source-file cleanup subscribers reclaim the blobs each
@@ -823,16 +823,17 @@ def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> i
         user_id: The owning user id.
         db: Database session.
         source: The caller recorded on the published events.
+        limit: The most activities to delete in this call.
 
     Returns:
-        The number of activities deleted.
+        The number of activities deleted; fewer than ``limit`` means none are left.
     """
-    deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db)
+    deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db, limit=limit)
     activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
     # Irreversible and triggered from another module, so the count is recorded
     # here rather than left to the caller.
     logger.info(
-        "Deleted all Strava-sourced activities for user",
+        "Deleted Strava-sourced activities for user",
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)

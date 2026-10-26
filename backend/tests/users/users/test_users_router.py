@@ -201,7 +201,7 @@ class TestEditUser:
             "/users/1",
             json={"name": "U", "username": "u", "email": "u@example.com", "active": True, "access_type": "regular"}
             | read_only,
-            headers={"If-Match": "*"},
+            headers={"If-Match": '"1"'},
         )
 
         assert response.status_code == 422
@@ -219,7 +219,7 @@ class TestEditUser:
                 "active": True,
                 "access_type": "regular",
             },
-            headers={"If-Match": "*"},
+            headers={"If-Match": '"1"'},
         )
 
         assert response.status_code == 200
@@ -231,7 +231,7 @@ class TestEditUser:
 class TestApproveUser:
     @patch(f"{_SERVICE}.approve_user")
     def test_approves_with_the_notice_in_the_same_unit_of_work(self, mock_approve, client, identity_service, mock_db):
-        response = client.put("/users/1/approve", headers={"If-Match": "*"})
+        response = client.put("/users/1/approve", headers={"If-Match": '"1"'})
 
         assert response.status_code == 204
         assert response.content == b""
@@ -241,7 +241,7 @@ class TestApproveUser:
     def test_unverified_email_is_refused(self, mock_approve, client):
         mock_approve.side_effect = core_exceptions.InvalidInputError("User email is not verified")
 
-        response = client.put("/users/1/approve", headers={"If-Match": "*"})
+        response = client.put("/users/1/approve", headers={"If-Match": '"1"'})
 
         assert response.status_code == 400
 

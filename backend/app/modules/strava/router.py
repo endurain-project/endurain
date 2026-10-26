@@ -21,7 +21,7 @@ import modules.strava.sync_service as strava_sync_service
 router = APIRouter()
 
 
-@router.put(
+@router.post(
     "/link",
     status_code=202,
     response_model=strava_schema.StravaSyncStatus,
@@ -154,21 +154,23 @@ def strava_set_user_client(
     return strava_schema.StravaDetail(detail="Strava client edited successfully")
 
 
-@router.put(
-    "/state/{state}",
-    response_model=strava_schema.StravaDetail,
+@router.post(
+    "/state",
+    status_code=201,
+    response_model=strava_schema.StravaState,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def strava_set_user_unique_state(
+def strava_begin_state(
     request: Request,
-    state: strava_dependencies.OAuthStatePath,
     token_user_id: auth_dependencies.CurrentUserId,
     oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
-) -> strava_schema.StravaDetail:
-    """Store the one-time state that correlates the OAuth callback with the user."""
-    strava_service.set_state(token_user_id, state, oauth_states)
-    return strava_schema.StravaDetail(detail="Strava state edited successfully")
+) -> strava_schema.StravaState:
+    """Issue the one-time state that correlates the OAuth callback with the user.
+
+    Replaces any state the user issued earlier.
+    """
+    return strava_schema.StravaState(state=strava_service.begin_state(token_user_id, oauth_states))
 
 
 @router.delete(
@@ -188,7 +190,7 @@ def strava_clear_user_state(
 
 
 @router.delete(
-    "/unlink",
+    "/link",
     status_code=202,
     response_model=strava_schema.StravaSyncStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],

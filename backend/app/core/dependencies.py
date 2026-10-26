@@ -31,9 +31,13 @@ def require_if_match_header(if_match: Annotated[str | None, Header(alias=core_et
 
     Raises:
         PreconditionRequiredError: When the header is absent (428).
+        InvalidInputError: When the header is the wildcard ``*``, which would match any version
+            and so defeat the stale-write check; only in-process callers may pass it to a service.
     """
     if if_match is None:
         raise core_exceptions.PreconditionRequiredError()
+    if core_etag.WILDCARD in core_etag.parse_if_match(if_match):
+        raise core_exceptions.InvalidInputError("If-Match must name the ETag you read, not the wildcard")
     return if_match
 
 

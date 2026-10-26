@@ -97,7 +97,7 @@ def test_an_edit_without_if_match_is_428(mock_edit, client):
 
 @patch("modules.gears.gear_components.service.edit_gear_component")
 def test_edit_clearing_the_purchase_date_is_rejected(mock_edit, client):
-    response = client.patch("/gear_components/1", json={"purchase_date": None}, headers={**_HEADERS, "If-Match": "*"})
+    response = client.patch("/gear_components/1", json={"purchase_date": None}, headers={**_HEADERS, "If-Match": '"1"'})
 
     assert response.status_code == 422
     mock_edit.assert_not_called()

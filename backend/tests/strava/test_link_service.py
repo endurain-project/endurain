@@ -36,7 +36,12 @@ def pool():
         yield fake
 
 
-def _start(oauth_states, states, *, user_id=1, stored_state="s", sent_state="s", has_credentials=True):
+_STATE = "s" * 43
+
+_STATE = "s" * 43
+
+
+def _start(oauth_states, states, *, user_id=1, stored_state=_STATE, sent_state=_STATE, has_credentials=True):
     if stored_state is not None:
         oauth_states.begin(1, stored_state)
     integrations = SimpleNamespace(
@@ -87,11 +92,11 @@ class TestStartLink:
         pool.submit.assert_not_called()
 
     def test_a_wrong_state_is_refused_and_uses_up_the_stored_one(self, oauth_states, states, pool):
-        _result, error = _start(oauth_states, states, sent_state="forged")
+        _result, error = _start(oauth_states, states, sent_state="f" * 43)
 
         assert isinstance(error, core_exceptions.InvalidInputError)
         pool.submit.assert_not_called()
-        assert oauth_states.consume(1, "s") is False
+        assert oauth_states.consume(1, _STATE) is False
 
     def test_a_user_without_client_credentials_is_refused_and_no_link_is_recorded(self, oauth_states, states, pool):
         _result, error = _start(oauth_states, states, has_credentials=False)
@@ -114,7 +119,7 @@ class TestStartLink:
         _result, error = _start(oauth_states, states)
 
         assert isinstance(error, core_local_pool.PoolFullError)
-        assert oauth_states.consume(1, "s") is True
+        assert oauth_states.consume(1, _STATE) is True
         assert states.get(1, LINK) is None
 
     def test_a_link_that_cannot_start_frees_the_claim(self, oauth_states, states, pool):

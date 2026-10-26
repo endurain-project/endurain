@@ -28,7 +28,8 @@ import {
 import {
   buildStravaAuthUrl,
   setStravaClient,
-  setStravaState,
+  beginStravaState,
+  clearStravaState,
 } from '@/features/integrations/services/strava'
 
 const props = defineProps<{
@@ -49,29 +50,21 @@ const isUnlinkOpen = ref(false)
 // Held true through the full-page redirect so the dialog button stays busy.
 const isConnecting = ref(false)
 
-/** Generates an opaque CSRF state to correlate the OAuth callback. */
-function generateState(): string {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
 /**
- * Stores the state + client credentials, then sends the browser to Strava's
+ * Obtains the state, stores the client credentials, then sends the browser to Strava's
  * OAuth page. Strava redirects back to `/strava/callback` to finish linking.
  */
 async function connectStrava(input: StravaClientInput): Promise<void> {
   isConnecting.value = true
   try {
-    const state = generateState()
-    await setStravaState(state)
+    const state = await beginStravaState()
     await setStravaClient(input)
     window.location.assign(buildStravaAuthUrl(state, input.clientId))
   } catch {
     isConnecting.value = false
     toasts.error(t('settings.integrations.strava.connectError'))
     // Best-effort: clear the half-set state so a retry starts clean.
-    void setStravaState(null).catch(() => undefined)
+    void clearStravaState().catch(() => undefined)
   }
 }
 

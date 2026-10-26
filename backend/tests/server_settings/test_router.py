@@ -141,7 +141,7 @@ class TestEditServerSettings:
         # Act
         response = fast_api_client.put(
             "/server_settings",
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
             json={
                 "units": "imperial",
                 "public_shareable_links": True,
@@ -195,7 +195,7 @@ class TestEditServerSettings:
         # Act
         response = fast_api_client.put(
             "/server_settings",
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
             json={
                 "units": "imperial",
                 "public_shareable_links": True,
@@ -277,7 +277,7 @@ class TestEditRejectsReadOnlyFields:
             field: value,
         }
         response = fast_api_client.put(
-            "/server_settings", headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"}, json=body
+            "/server_settings", headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'}, json=body
         )
         assert response.status_code == 422
 
@@ -427,7 +427,7 @@ class TestMailSettingsRoutes:
         response = fast_api_client.put(
             "/server_settings/email/settings",
             json=body,
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         assert response.status_code == 200
@@ -445,7 +445,7 @@ class TestMailSettingsRoutes:
         response = TestClient(fast_api_app).put(
             "/server_settings/email/settings",
             json=body,
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         assert response.status_code == 400
@@ -462,7 +462,7 @@ class TestMailSettingsRoutes:
         response = fast_api_client.put(
             "/server_settings/email/settings",
             json=body,
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         assert response.status_code == 422
@@ -475,7 +475,7 @@ class TestMailSettingsRoutes:
         fast_api_client.put(
             "/server_settings/email/settings",
             json=body,
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": "*"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         sent = mock_edit.call_args.args[0]

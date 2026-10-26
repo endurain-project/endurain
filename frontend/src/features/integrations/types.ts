@@ -5,6 +5,7 @@ export type StravaClientDto = Schemas['StravaClientCredentials']
 
 /** Strava authorization-code callback body (snake_case wire shape). */
 export type StravaLinkDto = Schemas['StravaLinkRequest']
+export type StravaStateDto = Schemas['StravaState']
 
 /** Where a queued Strava gear sync or unlink is, as the status endpoint reports it. */
 export type StravaSyncStatus = Schemas['StravaSyncStatus']

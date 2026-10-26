@@ -3,6 +3,7 @@ import type {
   StravaClientDto,
   StravaClientInput,
   StravaLinkDto,
+  StravaStateDto,
   StravaSyncStatus,
 } from '@/features/integrations/types'
 
@@ -45,22 +46,24 @@ async function followStravaSync(
 }
 
 /**
- * Stores a one-time CSRF `state` for the user so the OAuth callback can be
- * correlated back to this account. The server keeps it briefly and accepts it once.
- * Pass `null` to clear it.
+ * Asks the server for a one-time CSRF `state` that correlates the OAuth callback back to this
+ * account. The server generates it, keeps it briefly and accepts it once.
  *
- * @param state - The opaque state value, or `null` to clear.
+ * @returns The opaque state to send to Strava.
  * @throws {HttpError} When the request fails.
  */
-export async function setStravaState(state: string | null): Promise<void> {
-  if (state === null) {
-    await apiFetch('/strava/state', { method: 'DELETE', responseType: 'void' })
-    return
-  }
-  await apiFetch(`/strava/state/${encodeURIComponent(state)}`, {
-    method: 'PUT',
-    responseType: 'void',
-  })
+export async function beginStravaState(): Promise<string> {
+  const { state } = await apiFetch<StravaStateDto>('/strava/state', { method: 'POST' })
+  return state
+}
+
+/**
+ * Forgets the user's pending OAuth state.
+ *
+ * @throws {HttpError} When the request fails.
+ */
+export async function clearStravaState(): Promise<void> {
+  await apiFetch('/strava/state', { method: 'DELETE', responseType: 'void' })
 }
 
 /**
@@ -85,7 +88,7 @@ export async function setStravaClient(input: StravaClientInput): Promise<void> {
  * Builds the Strava OAuth authorization URL the browser is sent to (full-page).
  * Strava redirects back to `{host}/strava/callback` with `code` + `state`.
  *
- * @param state - The CSRF state previously stored via {@link setStravaState}.
+ * @param state - The CSRF state previously stored via {@link beginStravaState}.
  * @param clientId - The Strava application's client id.
  * @returns The absolute Strava authorize URL.
  */
@@ -112,7 +115,7 @@ export function buildStravaAuthUrl(state: string, clientId: number): string {
 export async function completeStravaLink(state: string, code: string): Promise<void> {
   const payload: StravaLinkDto = { state, code }
   const status = await apiFetch<StravaSyncStatus>('/strava/link', {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify(payload),
   })
   await followStravaSync('link', status, 'Linking')
@@ -150,6 +153,6 @@ export async function retrieveStravaGear(): Promise<void> {
  * @throws {Error} When the unlink fails on the server or does not finish in time.
  */
 export async function unlinkStrava(): Promise<void> {
-  const status = await apiFetch<StravaSyncStatus>('/strava/unlink', { method: 'DELETE' })
+  const status = await apiFetch<StravaSyncStatus>('/strava/link', { method: 'DELETE' })
   await followStravaSync('unlink', status, 'Unlinking')
 }

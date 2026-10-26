@@ -33,8 +33,9 @@ def test_every_route_checks_a_scope():
         ("/import/shoes", "POST", "gears:write"),
         ("/gear", "POST", "gears:write"),
         ("/activities", "POST", "activities:write"),
-        ("/link", "PUT", "profile"),
-        ("/unlink", "DELETE", "profile"),
+        ("/link", "POST", "profile"),
+        ("/link", "DELETE", "profile"),
+        ("/state", "POST", "profile"),
     ],
 )
 def test_routes_require_the_matching_scope(path, method, scope):
@@ -42,16 +43,16 @@ def test_routes_require_the_matching_scope(path, method, scope):
 
 
 @pytest.mark.parametrize(
-    ("path", "method"), [("/link", "PUT"), ("/gear", "POST"), ("/activities", "POST"), ("/unlink", "DELETE")]
+    ("path", "method"), [("/link", "POST"), ("/gear", "POST"), ("/activities", "POST"), ("/link", "DELETE")]
 )
 def test_slow_work_is_accepted_not_done_inline(path, method):
     assert _routes()[(path, (method,))].status_code == 202
 
 
-def test_client_and_state_answer_with_a_detail_body():
+def test_client_and_state_answer_with_their_bodies():
     with (
         patch.object(strava_router.strava_service, "set_client"),
-        patch.object(strava_router.strava_service, "set_state"),
+        patch.object(strava_router.strava_service, "begin_state", return_value="s" * 43),
         patch.object(strava_router.strava_service, "clear_state"),
     ):
         client = strava_router.strava_set_user_client(
@@ -60,13 +61,11 @@ def test_client_and_state_answer_with_a_detail_body():
             token_user_id=7,
             db=MagicMock(),
         )
-        state = strava_router.strava_set_user_unique_state(
-            request=MagicMock(), state="abc", token_user_id=7, oauth_states=MagicMock()
-        )
+        state = strava_router.strava_begin_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
         cleared = strava_router.strava_clear_user_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
 
     assert client.detail == "Strava client edited successfully"
-    assert state.detail == "Strava state edited successfully"
+    assert state.state == "s" * 43
     assert cleared.detail == "Strava state cleared successfully"
 
 
@@ -87,3 +86,8 @@ def test_the_client_secret_does_not_appear_in_a_repr_or_a_validation_error():
     with pytest.raises(ValueError) as error:
         strava_schema.StravaClientCredentials(client_id=0, client_secret="hunter2-secret")
     assert "hunter2-secret" not in str(error.value)
+
+
+def test_a_link_must_carry_a_state_as_long_as_the_server_issues():
+    with pytest.raises(ValueError):
+        strava_schema.StravaLinkRequest(state="abc", code="c")

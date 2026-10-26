@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Path
+from fastapi import Depends
 
 import core.dependencies as core_dependencies
 import modules.strava.oauth_state_store as strava_oauth_state_store
@@ -57,6 +57,3 @@ StravaOAuthStateStoreDep = Annotated[
 ]
 StravaSyncStateStoreDep = Annotated[strava_sync_state_store.StravaSyncStateStore, Depends(get_strava_sync_state_store)]
 StravaRateLimitStoreDep = Annotated[strava_rate_limit_store.StravaRateLimitStore, Depends(get_strava_rate_limit_store)]
-
-#: The one-time state the browser round-trips through Strava.
-OAuthStatePath = Annotated[str, Path(min_length=1, max_length=128)]

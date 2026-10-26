@@ -4605,6 +4605,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Strava Link
          * @description Queue the exchange of a Strava authorization code for tokens.
@@ -4612,9 +4613,15 @@ export interface paths {
          *     Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
-        put: operations["strava_link_api_v1_strava_link_put"];
-        post?: never;
-        delete?: never;
+        post: operations["strava_link_api_v1_strava_link_post"];
+        /**
+         * Strava Unlink
+         * @description Queue the disconnection of the user's Strava account; a background job runs it.
+         *
+         *     The job revokes the authorization with Strava and deletes the activities and gear
+         *     imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
+         */
+        delete: operations["strava_unlink_api_v1_strava_link_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4629,32 +4636,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
+        /**
+         * Strava Begin State
+         * @description Issue the one-time state that correlates the OAuth callback with the user.
+         *
+         *     Replaces any state the user issued earlier.
+         */
+        post: operations["strava_begin_state_api_v1_strava_state_post"];
         /**
          * Strava Clear User State
          * @description Forget the user's pending OAuth state.
          */
         delete: operations["strava_clear_user_state_api_v1_strava_state_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/strava/state/{state}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Strava Set User Unique State
-         * @description Store the one-time state that correlates the OAuth callback with the user.
-         */
-        put: operations["strava_set_user_unique_state_api_v1_strava_state__state__put"];
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4675,29 +4668,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/strava/unlink": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Strava Unlink
-         * @description Queue the disconnection of the user's Strava account; a background job runs it.
-         *
-         *     The job revokes the authorization with Strava and deletes the activities and gear
-         *     imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
-         */
-        delete: operations["strava_unlink_api_v1_strava_unlink_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -10325,6 +10295,17 @@ export interface components {
         StravaLinkRequest: {
             /** Code */
             code: string;
+            /** State */
+            state: string;
+        };
+        /**
+         * StravaState
+         * @description The one-time state the browser round-trips through Strava.
+         *
+         *     Attributes:
+         *         state: The opaque state, to be sent to Strava and handed back with the authorization code.
+         */
+        StravaState: {
             /** State */
             state: string;
         };
@@ -19458,7 +19439,7 @@ export interface operations {
             };
         };
     };
-    strava_link_api_v1_strava_link_put: {
+    strava_link_api_v1_strava_link_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -19487,6 +19468,64 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    strava_unlink_api_v1_strava_link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StravaSyncStatus"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    strava_begin_state_api_v1_strava_state_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StravaState"];
                 };
             };
             /** @description Unexpected error */
@@ -19529,46 +19568,6 @@ export interface operations {
             };
         };
     };
-    strava_set_user_unique_state_api_v1_strava_state__state__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                state: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StravaDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     strava_sync_status_api_v1_strava_sync__kind__get: {
         parameters: {
             query?: never;
@@ -19596,35 +19595,6 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    strava_unlink_api_v1_strava_unlink_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Unexpected error */

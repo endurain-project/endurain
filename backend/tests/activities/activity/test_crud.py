@@ -1392,24 +1392,30 @@ class TestEditUserActivitiesVisibility:
 
 
 class TestDeleteAllStravaActivitiesForUser:
-    def test_returns_deleted_ids(self, mock_db):
+    def test_deletes_one_batch_and_returns_its_ids(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        r = MagicMock()
-        r.all.return_value = [(11,), (12,)]
-        mock_db.execute.return_value = r
-        result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db)
+        mock_db.scalars.return_value.all.return_value = [11, 12]
+        result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, limit=2)
         assert result == [11, 12]
+        mock_db.execute.assert_called_once()
         mock_db.commit.assert_not_called()
+
+    def test_the_batch_is_bounded_and_locked(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.scalars.return_value.all.return_value = [11]
+        crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, limit=2)
+        statement = str(mock_db.scalars.call_args.args[0])
+        assert "LIMIT" in statement and "FOR UPDATE" in statement
 
     def test_no_deletions(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        r = MagicMock()
-        r.all.return_value = []
-        mock_db.execute.return_value = r
-        result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db)
+        mock_db.scalars.return_value.all.return_value = []
+        result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, limit=2)
         assert result == []
+        mock_db.execute.assert_not_called()
 
 
 class TestDeleteAllActivitiesForUser:

@@ -215,7 +215,7 @@ class TestUpdateUserGoal:
         # Act
         response = fast_api_client.put(
             "/user_goals/1",
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
             json={
                 "interval": "monthly",
                 "activity_type": "run",  # RUN
@@ -244,7 +244,7 @@ class TestUpdateUserGoal:
         # Act
         response = fast_api_client.put(
             "/user_goals/999",
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
             json={
                 "interval": "weekly",
                 "activity_type": "run",

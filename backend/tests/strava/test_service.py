@@ -31,26 +31,47 @@ class TestStoredCredentials:
 
 
 class TestOAuthState:
-    def test_a_stored_state_is_consumed_once(self, oauth_states):
-        strava_service.set_state(7, "abc", oauth_states)
+    def test_a_begun_state_is_consumed_once(self, oauth_states):
+        state = strava_service.begin_state(7, oauth_states)
 
-        assert oauth_states.consume(7, "abc") is True
-        assert oauth_states.consume(7, "abc") is False
+        assert oauth_states.consume(7, state) is True
+        assert oauth_states.consume(7, state) is False
+
+    def test_the_state_is_unguessable_and_different_each_time(self, oauth_states):
+        states = {strava_service.begin_state(7, oauth_states) for _ in range(5)}
+
+        assert len(states) == 5
+        assert all(len(state) >= 32 for state in states)
 
     def test_a_cleared_state_can_no_longer_be_used(self, oauth_states):
-        strava_service.set_state(7, "abc", oauth_states)
+        state = strava_service.begin_state(7, oauth_states)
         strava_service.clear_state(7, oauth_states)
 
-        assert oauth_states.consume(7, "abc") is False
+        assert oauth_states.consume(7, state) is False
 
     def test_a_new_state_replaces_the_old_one(self, oauth_states):
-        strava_service.set_state(7, "old", oauth_states)
-        strava_service.set_state(7, "new", oauth_states)
+        old = strava_service.begin_state(7, oauth_states)
+        strava_service.begin_state(7, oauth_states)
 
-        assert oauth_states.consume(7, "old") is False
+        assert oauth_states.consume(7, old) is False
 
 
+@pytest.fixture(autouse=False)
+def _local_today(monkeypatch):
+    monkeypatch.setattr(strava_service.users_integration, "local_today", lambda _user_id, _db: date(2026, 10, 26))
+
+
+@pytest.mark.usefixtures("_local_today")
 class TestRequestActivitiesSync:
+    def test_a_range_ending_in_the_future_is_refused(self):
+        with (
+            patch.object(strava_service.activity_ingestion_integration, "request_provider_sync") as request,
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            strava_service.request_activities_sync(1, date(2026, 10, 1), date(2026, 10, 27), MagicMock(), MagicMock())
+
+        request.assert_not_called()
+
     def test_a_range_ending_before_it_starts_is_refused(self):
         with pytest.raises(core_exceptions.InvalidInputError):
             strava_service.request_activities_sync(1, date(2026, 2, 1), date(2026, 1, 1), MagicMock(), MagicMock())
@@ -113,7 +134,9 @@ class TestUnlinkAccount:
             ),
             patch.object(strava_service.strava_client_service, "create_strava_client", return_value=client),
             patch.object(strava_service.gears_integration, "delete_all_strava_gear_for_user") as delete_gear,
-            patch.object(strava_service.activity_integration, "delete_all_strava_activities") as delete_activities,
+            patch.object(
+                strava_service.activity_integration, "delete_all_strava_activities", return_value=0
+            ) as delete_activities,
             patch.object(strava_service.user_integrations_integration, "unlink_strava_account") as unlink,
         ):
             result = strava_service.unlink_account(7)
@@ -151,3 +174,39 @@ class TestUnlinkAccount:
         delete_gear.assert_not_called()
         delete_activities.assert_not_called()
         unlink.assert_not_called()
+
+
+class TestUnlinkDeletesInBatches:
+    def test_activities_are_deleted_batch_by_batch_and_the_unlink_commits_last(self):
+        batch = strava_constants.UNLINK_DELETE_BATCH_SIZE
+        order: list[str] = []
+        batches = iter([batch, batch, 3])
+        with (
+            patch.object(strava_service, "SessionLocal"),
+            patch.object(
+                strava_service.strava_client_service,
+                "fetch_user_integrations_and_validate_token",
+                return_value=object(),
+            ),
+            patch.object(strava_service.strava_client_service, "create_strava_client"),
+            patch.object(
+                strava_service.activity_integration,
+                "delete_all_strava_activities",
+                side_effect=lambda *_a, **_k: order.append("batch") or next(batches),
+            ) as delete_activities,
+            patch.object(
+                strava_service.gears_integration,
+                "delete_all_strava_gear_for_user",
+                side_effect=lambda *_a, **_k: order.append("gear"),
+            ),
+            patch.object(
+                strava_service.user_integrations_integration,
+                "unlink_strava_account",
+                side_effect=lambda *_a, **_k: order.append("unlink"),
+            ),
+        ):
+            assert strava_service.unlink_account(7) is True
+
+        assert delete_activities.call_count == 3
+        assert all(call.kwargs["limit"] == batch for call in delete_activities.call_args_list)
+        assert order == ["batch", "batch", "batch", "gear", "unlink"]

@@ -31,7 +31,7 @@ class TestReadHealthTargetsAll:
         # Act
         response = fast_api_client.get(
             "/health/targets/",
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
@@ -52,7 +52,7 @@ class TestReadHealthTargetsAll:
         # Act
         response = fast_api_client.get(
             "/health/targets/",
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
@@ -81,7 +81,7 @@ class TestReadHealthTargetsAll:
         # Act
         response = fast_api_client.get(
             "/health/targets/",
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
@@ -135,7 +135,7 @@ class TestUpdateHealthTargets:
                 "steps": 12000,
                 "sleep": 32400,
             },
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
@@ -170,7 +170,7 @@ class TestUpdateHealthTargets:
             json={
                 "weight": 75.0,
             },
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
@@ -205,7 +205,7 @@ class TestUpdateHealthTargets:
                 "steps": None,
                 "sleep": None,
             },
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
@@ -229,7 +229,7 @@ class TestUpdateHealthTargets:
             json={
                 "weight": 80.0,
             },
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
@@ -262,7 +262,7 @@ class TestUpdateHealthTargets:
                 "steps": 15000,
                 "sleep": 36000,
             },
-            headers={"Authorization": "Bearer mock_token", "If-Match": "*"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert

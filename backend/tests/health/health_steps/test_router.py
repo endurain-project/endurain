@@ -78,7 +78,7 @@ class TestEditHealthSteps:
         response = fast_api_client.patch(
             "/health_steps/1",
             json={"date": "2024-01-15", "steps": 11000},
-            headers={**_HEADERS, "If-Match": "*"},
+            headers={**_HEADERS, "If-Match": '"1"'},
         )
 
         assert response.status_code == 200
@@ -91,7 +91,7 @@ class TestEditHealthSteps:
         response = fast_api_client.patch(
             "/health_steps/999",
             json={"date": "2024-01-15", "steps": 11000},
-            headers={**_HEADERS, "If-Match": "*"},
+            headers={**_HEADERS, "If-Match": '"1"'},
         )
 
         assert response.status_code == 404

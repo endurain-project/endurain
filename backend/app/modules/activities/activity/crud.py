@@ -1635,27 +1635,37 @@ def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
         raise core_exceptions.NotFoundError(f"Activity with id {activity_id} not found")
 
 
-def delete_all_strava_activities_for_user(user_id: int, db: Session) -> list[int]:
-    """Stage the deletion of every Strava-synced activity owned by a user.
+def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: int) -> list[int]:
+    """Stage the deletion of up to ``limit`` Strava-synced activities owned by a user.
+
+    A caller that must remove them all calls this until fewer than ``limit`` come back,
+    committing between calls, so no transaction holds every row at once.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
+        limit: The most activities to delete in this call.
 
     Returns:
         The IDs of the deleted activities, so the caller can publish the cleanup
         events that reclaim each activity's thumbnail and stored source file.
     """
-    _lock_user_activities(user_id, db)
-    stmt = (
-        sa_delete(activity_models.Activity)
-        .where(
-            activity_models.Activity.user_id == user_id,
-            activity_models.Activity.strava_activity_id.isnot(None),
-        )
-        .returning(activity_models.Activity.id)
+    batch_ids = list(
+        db.scalars(
+            select(activity_models.Activity.id)
+            .where(
+                activity_models.Activity.user_id == user_id,
+                activity_models.Activity.strava_activity_id.isnot(None),
+            )
+            .order_by(activity_models.Activity.id)
+            .limit(limit)
+            .with_for_update()
+        ).all()
     )
-    return [row_id for (row_id,) in db.execute(stmt).all()]
+    if not batch_ids:
+        return []
+    db.execute(sa_delete(activity_models.Activity).where(activity_models.Activity.id.in_(batch_ids)))
+    return batch_ids
 
 
 def delete_all_activities_for_user(user_id: int, db: Session) -> list[int]:

@@ -18,7 +18,8 @@ import {
   retrieveStravaActivities,
   retrieveStravaGear,
   setStravaClient,
-  setStravaState,
+  beginStravaState,
+  clearStravaState,
   unlinkStrava,
 } from '@/features/integrations/services/strava'
 import { daysAgoRange } from '@/features/integrations/utils/dateRange'
@@ -53,16 +54,14 @@ describe('strava service', () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
   })
 
-  it('setStravaState PUTs the state path (void)', async () => {
-    await setStravaState('abc123')
-    expect(apiFetch).toHaveBeenCalledWith('/strava/state/abc123', {
-      method: 'PUT',
-      responseType: 'void',
-    })
+  it('beginStravaState POSTs and returns the server-issued state', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ state: 'issued-by-server' })
+    await expect(beginStravaState()).resolves.toBe('issued-by-server')
+    expect(apiFetch).toHaveBeenCalledWith('/strava/state', { method: 'POST' })
   })
 
-  it('setStravaState DELETEs the state to clear it', async () => {
-    await setStravaState(null)
+  it('clearStravaState DELETEs the state', async () => {
+    await clearStravaState()
     expect(apiFetch).toHaveBeenCalledWith('/strava/state', {
       method: 'DELETE',
       responseType: 'void',
@@ -104,7 +103,7 @@ describe('strava service', () => {
       await done
 
       expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', {
-        method: 'PUT',
+        method: 'POST',
         body: JSON.stringify({ state: 'st ate', code: 'co/de' }),
       })
       expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/link')
@@ -147,7 +146,7 @@ describe('strava service', () => {
       await vi.advanceTimersByTimeAsync(2_000)
       await done
 
-      expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/unlink', { method: 'DELETE' })
+      expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', { method: 'DELETE' })
       expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/unlink')
       expect(apiFetch).toHaveBeenCalledTimes(3)
     })

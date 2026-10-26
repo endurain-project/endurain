@@ -19,6 +19,14 @@ def test_the_header_is_handed_through():
     assert core_dependencies.require_if_match_header('"7"') == '"7"'
 
 
+def test_a_wildcard_is_refused_so_a_client_cannot_skip_the_stale_write_check():
+    with pytest.raises(core_exceptions.InvalidInputError):
+        core_dependencies.require_if_match_header("*")
+
+    with pytest.raises(core_exceptions.InvalidInputError):
+        core_dependencies.require_if_match_header('"3", *')
+
+
 def test_a_route_declaring_it_answers_428_without_the_header():
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)

@@ -108,7 +108,7 @@ Any ORM flush that changes the row, whoever makes it: another client, an adminis
 
 ## Writers that are not a client
 
-A system writer has no version to name. It sends `If-Match: *`, "overwrite whatever is there", and still gets the flush-time guard:
+A system writer has no version to name. It passes `if_match="*"` to the service, "overwrite whatever is there", and still gets the flush-time guard. The wildcard is for in-process callers only: the `IfMatch` route dependency refuses it with 400, so an HTTP client cannot skip the stale-write check:
 
 | Writer | Why it uses `*` |
 | ------ | --------------- |

@@ -28,7 +28,7 @@ IF_MATCH_HEADER = "If-Match"
 
 # Matches any current representation. RFC 9110 requires servers to honour it, and
 # it is how a client says "create-or-overwrite, I don't care which version".
-_WILDCARD = "*"
+WILDCARD = "*"
 
 
 def format_etag(version: int) -> str:
@@ -77,7 +77,7 @@ def matches_if_none_match(header: str | None, version: int) -> bool:
     if header is None:
         return False
     tags = {candidate.strip().removeprefix("W/").strip('"') for candidate in header.split(",")}
-    return _WILDCARD in tags or str(version) in tags
+    return WILDCARD in tags or str(version) in tags
 
 
 def require_if_match(header: str, current_version: int | None, resource: str) -> None:
@@ -99,7 +99,7 @@ def require_if_match(header: str, current_version: int | None, resource: str) ->
             current one.
     """
     accepted = parse_if_match(header)
-    if _WILDCARD in accepted:
+    if WILDCARD in accepted:
         return
     if current_version is None or str(current_version) not in accepted:
         raise core_exceptions.PreconditionFailedError(

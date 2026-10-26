@@ -130,14 +130,15 @@ class TestWrites:
     def test_a_stale_edit_is_412(self, mock_edit, client):
         mock_edit.side_effect = core_exceptions.PreconditionFailedError("stale")
 
-        assert client.patch("/gears/1", json={"brand": "x"}, headers={**_HEADERS, "If-Match": "*"}).status_code == 412
+        assert client.patch("/gears/1", json={"brand": "x"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
 
     def test_an_edit_cannot_clear_a_required_field_or_set_a_provider_id(self, client):
         assert (
-            client.patch("/gears/1", json={"nickname": None}, headers={**_HEADERS, "If-Match": "*"}).status_code == 422
+            client.patch("/gears/1", json={"nickname": None}, headers={**_HEADERS, "If-Match": '"1"'}).status_code
+            == 422
         )
         assert (
-            client.patch("/gears/1", json={"strava_gear_id": "b1"}, headers={**_HEADERS, "If-Match": "*"}).status_code
+            client.patch("/gears/1", json={"strava_gear_id": "b1"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code
             == 422
         )
 
