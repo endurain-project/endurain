@@ -439,7 +439,7 @@ def delete_user(
     "/{user_id}/identity-providers",
     status_code=status.HTTP_200_OK,
     response_model=list[auth_identity_links_schema.UsersIdentityProviderResponse],
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
 def get_user_identity_providers(
     user_id: core_dependencies.PositiveId,

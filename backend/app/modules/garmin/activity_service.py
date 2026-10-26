@@ -126,6 +126,7 @@ def fetch_and_process_activities_by_dates(
         The stored activities, or ``None`` when there were none.
 
     Raises:
+        TooManyRequestsError: When Garmin Connect rate limits the window; the refresh is deferred.
         Exception: The first failure of the window fetch or of an activity.
     """
     garminconnect_client = session.client
@@ -137,6 +138,8 @@ def fetch_and_process_activities_by_dates(
     except garminconnect.GarminConnectAuthenticationError as err:
         garmin_service.handle_rejected_token(user_id, session, err)
         return None
+    except garminconnect.GarminConnectTooManyRequestsError as err:
+        raise garmin_service.rate_limit_error(err) from err
 
     if garmin_activities is None:
         logger.info(
@@ -168,6 +171,9 @@ def fetch_and_process_activities_by_dates(
         except garminconnect.GarminConnectAuthenticationError as err:
             garmin_service.handle_rejected_token(user_id, session, err)
             break
+        except garminconnect.GarminConnectTooManyRequestsError as err:
+            # Ingestion skips what is already stored, so the deferred refresh resumes where this stopped.
+            raise garmin_service.rate_limit_error(err) from err
         except Exception as err:
             logger.warning(
                 "Error processing Garmin Connect activity",

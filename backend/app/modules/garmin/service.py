@@ -7,6 +7,7 @@ Linking lives in :mod:`modules.garmin.link_service`. The activity, gear and heal
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
 import garminconnect
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.garmin.constants as garmin_constants
 import modules.garmin.token_utils as garmin_token_utils
 import modules.notifications.integration_service as notifications_integration
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -188,6 +190,24 @@ def linked_user_ids(after_id: int, limit: int) -> list[int]:
     """
     with core_database.SessionLocal() as db:
         return user_integrations_integration.list_user_ids_with_garminconnect_linked(after_id, limit, db)
+
+
+def rate_limit_error(err: Exception) -> core_exceptions.TooManyRequestsError:
+    """Build the error for Garmin Connect refusing a call as rate limited.
+
+    Garmin Connect reports no reset time, so the refresh waits one cooldown before it tries again.
+
+    Args:
+        err: The rate-limit error Garmin Connect raised.
+
+    Returns:
+        The error to raise, carrying when the refresh may run again.
+    """
+    logger.warning("Garmin Connect rate limit hit", exc_info=err)
+    return core_exceptions.TooManyRequestsError(
+        "Garmin Connect rate limit exceeded. Please try again later.",
+        retry_at=datetime.now(UTC) + timedelta(seconds=garmin_constants.RATE_LIMIT_COOLDOWN_SECONDS),
+    )
 
 
 def handle_rejected_token(user_id: int, session: GarminSession, err: Exception) -> None:

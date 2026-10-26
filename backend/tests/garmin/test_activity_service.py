@@ -227,3 +227,38 @@ def test_a_failed_sync_still_stores_the_refreshed_token_and_reaches_the_caller()
         activity_utils.get_user_garminconnect_activities_by_dates(1, datetime(2026, 1, 1), datetime(2026, 1, 2))
 
     save.assert_called_once()
+
+
+class TestRateLimit:
+    """A Garmin Connect 429 defers the refresh instead of failing it, as for Strava."""
+
+    def test_a_rate_limited_window_fetch_raises_with_when_the_limit_clears(self):
+        import garminconnect
+
+        import core.exceptions as core_exceptions
+
+        client = _make_garminconnect_client()
+        client.get_activities_by_date.side_effect = garminconnect.GarminConnectTooManyRequestsError("429")
+        before = datetime.now(UTC)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            _call(client)
+
+        assert raised.value.retry_at is not None and raised.value.retry_at > before
+
+    def test_a_rate_limited_download_stops_the_window(self, monkeypatch):
+        import garminconnect
+
+        import core.exceptions as core_exceptions
+
+        client = _make_garminconnect_client()
+        client.get_activities_by_date.return_value = [
+            {"activityId": 1, "activityName": "a"},
+            {"activityId": 2, "activityName": "b"},
+        ]
+        client.download_activity.side_effect = garminconnect.GarminConnectTooManyRequestsError("429")
+
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            _call(client)
+
+        assert client.download_activity.call_count == 1

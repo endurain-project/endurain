@@ -291,7 +291,10 @@ class TestReadScopes:
         route = next(r for r in router.routes if r.path == path and "GET" in r.methods)
         return {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
 
-    @pytest.mark.parametrize("path", ["", "/email/{email}", "/username/{username}", "/{user_id}"])
+    @pytest.mark.parametrize(
+        "path",
+        ["", "/email/{email}", "/username/{username}", "/{user_id}", "/{user_id}/identity-providers"],
+    )
     def test_full_records_need_the_admin_read_scope(self, path):
         assert self._scopes(path) == {"users:read_all"}
 
@@ -337,7 +340,13 @@ class TestReadScopeEnforcement:
 
     @pytest.mark.parametrize(
         "path",
-        ["/users", "/users/email/admin@example.com", "/users/username/admin", "/users/1"],
+        [
+            "/users",
+            "/users/email/admin@example.com",
+            "/users/username/admin",
+            "/users/1",
+            "/users/1/identity-providers",
+        ],
     )
     def test_regular_token_cannot_read_full_records(self, path):
         response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).get(path)

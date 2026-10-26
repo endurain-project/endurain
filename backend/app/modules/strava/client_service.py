@@ -317,17 +317,27 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
         logger.error("Error refreshing the Strava token", extra=core_logger.context(user_id=user_id), exc_info=err)
         return
 
-    with SessionLocal() as db:
-        if not user_integrations_integration.replace_strava_tokens_if_refresh_token(
-            user_id, user_integrations.strava_refresh_token, tokens, db
-        ):
-            db.rollback()
-            logger.warning(
-                "Strava tokens changed during the refresh; the refreshed ones were discarded",
-                extra=core_logger.context(user_id=user_id),
-            )
-            return
-        db.commit()
+    try:
+        with SessionLocal() as db:
+            if not user_integrations_integration.replace_strava_tokens_if_refresh_token(
+                user_id, user_integrations.strava_refresh_token, tokens, db
+            ):
+                db.rollback()
+                logger.warning(
+                    "Strava tokens changed during the refresh; the refreshed ones were discarded",
+                    extra=core_logger.context(user_id=user_id),
+                )
+                return
+            db.commit()
+    except Exception as err:
+        # Strava has already invalidated the old refresh token, so the rotated one is lost. The access
+        # token still works until it expires; the sync that then fails on it unlinks the account and tells the user.
+        logger.error(
+            "Strava tokens were refreshed but could not be stored; the account must be relinked",
+            extra=core_logger.context(user_id=user_id),
+            exc_info=err,
+        )
+        return
     logger.info("Strava tokens refreshed", extra=core_logger.context(user_id=user_id))
 
 
