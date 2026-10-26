@@ -32,7 +32,6 @@ class TestUsersIntegrationsBase:
         # Assert
         assert obj.strava_client_id is None
         assert obj.strava_client_secret is None
-        assert obj.strava_state is None
         assert obj.strava_token is None
         assert obj.strava_refresh_token is None
         assert obj.strava_token_expires_at is None
@@ -51,7 +50,6 @@ class TestUsersIntegrationsBase:
         data = {
             "strava_client_id": "client_id",
             "strava_client_secret": "client_secret",
-            "strava_state": "state123",
             "strava_token": "token",
             "strava_refresh_token": "refresh",
             "strava_token_expires_at": now,
@@ -66,7 +64,6 @@ class TestUsersIntegrationsBase:
         # Assert
         assert obj.strava_client_id == "client_id"
         assert obj.strava_client_secret == "client_secret"
-        assert obj.strava_state == "state123"
         assert obj.strava_token == "token"
         assert obj.strava_refresh_token == "refresh"
         assert obj.strava_token_expires_at == now
@@ -108,23 +105,6 @@ class TestUsersIntegrationsBase:
             UsersIntegrationsBase(**data)
 
         assert "strava_client_id" in str(exc_info.value)
-
-    def test_users_integrations_base_invalid_strava_state_length(self):
-        """Test validation for strava_state maximum length.
-
-        Asserts:
-            - ValidationError for state exceeding 45 chars
-        """
-        # Arrange
-        data = {
-            "strava_state": "x" * 46,  # Max is 45
-        }
-
-        # Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
-            UsersIntegrationsBase(**data)
-
-        assert "strava_state" in str(exc_info.value)
 
     def test_users_integrations_base_invalid_sync_gear_type(self):
         """Test strict bool validation for sync_gear fields.
@@ -295,7 +275,6 @@ class TestUsersIntegrationsUpdate:
             garminconnect_token: ClassVar[dict[str, str]] = {"key": "value"}
             garminconnect_sync_gear: ClassVar[bool] = False
             strava_client_secret: ClassVar[None] = None
-            strava_state: ClassVar[None] = None
             strava_token: ClassVar[None] = None
             strava_refresh_token: ClassVar[None] = None
             strava_token_expires_at: ClassVar[None] = None

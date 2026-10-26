@@ -1,12 +1,26 @@
-"""Tests for Strava gear utility functions."""
+"""Tests for Strava gear parsing and sync."""
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+import core.exceptions as core_exceptions
+import modules.gears.gear.schema as gears_schema
 import modules.strava.gear_service as gear_utils
+
+BIKE = gears_schema.GearType.BIKE
+SHOES = gears_schema.GearType.SHOES
+
+
+def _bike(name, brand=None, model=None):
+    return {"Bike Name": name, "Bike Brand": brand, "Bike Model": model}
+
+
+def _shoe(name, brand=None, model=None):
+    return {"Shoe Name": name, "Shoe Brand": brand, "Shoe Model": model}
 
 
 def test_shoe_csv_is_parsed_from_the_path_it_is_given(tmp_path):
@@ -14,158 +28,232 @@ def test_shoe_csv_is_parsed_from_the_path_it_is_given(tmp_path):
     shoes_file = tmp_path / "gear.csv"
     shoes_file.write_text("Shoe Name,Shoe Brand,Shoe Model\nPegasus,Nike,Pegasus\n")
 
-    shoes = gear_utils.iterate_over_shoes_csv(str(shoes_file))
-
-    assert shoes == [{"Shoe Name": "Pegasus", "Shoe Brand": "Nike", "Shoe Model": "Pegasus"}]
+    assert gear_utils.parse_gear_csv(str(shoes_file), SHOES) == [_shoe("Pegasus", "Nike", "Pegasus")]
 
 
 def test_bike_csv_is_parsed_from_the_path_it_is_given(tmp_path):
     bikes_file = tmp_path / "gear.csv"
     bikes_file.write_text("Bike Name,Bike Brand,Bike Model\nCommuter,Trek,Domane\n")
 
-    bikes = gear_utils.iterate_over_bikes_csv(str(bikes_file))
-
-    assert bikes == {"Commuter": {"Bike Name": "Commuter", "Bike Brand": "Trek", "Bike Model": "Domane"}}
+    assert gear_utils.parse_gear_csv(str(bikes_file), BIKE) == [_bike("Commuter", "Trek", "Domane")]
 
 
-def test_a_csv_with_the_wrong_headers_is_refused(tmp_path):
-    import core.exceptions as core_exceptions
-
+def test_a_csv_with_the_wrong_headers_is_refused_as_bad_input(tmp_path):
     bikes_file = tmp_path / "gear.csv"
     bikes_file.write_text("Name,Brand\nCommuter,Trek\n")
 
-    with pytest.raises(core_exceptions.DependencyFailedError):
-        gear_utils.iterate_over_bikes_csv(str(bikes_file))
+    with pytest.raises(core_exceptions.InvalidInputError):
+        gear_utils.parse_gear_csv(str(bikes_file), BIKE)
+
+
+def test_shoes_headers_are_not_accepted_for_bikes(tmp_path):
+    shoes_file = tmp_path / "gear.csv"
+    shoes_file.write_text("Shoe Name,Shoe Brand,Shoe Model\nPegasus,Nike,Pegasus\n")
+
+    with pytest.raises(core_exceptions.InvalidInputError):
+        gear_utils.parse_gear_csv(str(shoes_file), BIKE)
 
 
 def test_bike_transform_strips_whitespace():
-    """Bike brand, model, and nickname are stripped of whitespace."""
-    bikes_dict = {
-        " Trek ": {"Bike Brand": " Trek ", "Bike Model": " Domane "},
-    }
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(bikes_dict, 1)
-    assert len(gears) == 1
-    assert gears[0].brand == "Trek"
-    assert gears[0].model == "Domane"
-    assert gears[0].nickname == "Trek"
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike(" Trek ", " Trek ", " Domane ")], 1)
+
+    assert [(g.nickname, g.brand, g.model) for g in gears] == [("Trek", "Trek", "Domane")]
 
 
-def test_bike_transform_none_fields():
-    """None brand/model are preserved as None, not crashed."""
-    bikes_dict = {
-        "Commuter": {"Bike Brand": None, "Bike Model": None},
-    }
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(bikes_dict, 1)
-    assert len(gears) == 1
-    assert gears[0].brand is None
-    assert gears[0].model is None
-    assert gears[0].nickname == "Commuter"
+def test_bike_transform_keeps_missing_brand_and_model_as_none():
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("Commuter"), _bike("Road", "", "Defy")], 1)
+
+    assert [(g.brand, g.model) for g in gears] == [(None, None), (None, "Defy")]
 
 
-def test_bike_transform_empty_string_brand():
-    """Empty string brand is handled safely."""
-    bikes_dict = {
-        "Road Bike": {"Bike Brand": "", "Bike Model": "Defy"},
-    }
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(bikes_dict, 1)
-    assert len(gears) == 1
-    assert gears[0].brand is None
-    assert gears[0].model == "Defy"
+def test_bike_transform_keeps_the_last_of_two_rows_with_one_name():
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("Road", "Giant"), _bike("Road", "Trek")], 1)
+
+    assert [(g.nickname, g.brand) for g in gears] == [("Road", "Trek")]
 
 
-def test_bike_transform_multiple_bikes():
-    """Multiple bikes are all processed with stripping."""
-    bikes_dict = {
-        "Road": {"Bike Brand": "Giant ", "Bike Model": " TCR "},
-        "MTB": {"Bike Brand": " Specialized", "Bike Model": "Stumpjumper"},
-    }
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(bikes_dict, 1)
-    assert len(gears) == 2
-    assert gears[0].brand == "Giant"
-    assert gears[0].model == "TCR"
-    assert gears[1].brand == "Specialized"
-    assert gears[1].model == "Stumpjumper"
+def test_bike_transform_skips_a_row_without_a_name():
+    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("  ", "Giant"), _bike("MTB")], 1)
+
+    assert [g.nickname for g in gears] == ["MTB"]
 
 
 def test_shoe_transform_strips_whitespace():
-    """Shoe brand, model, and name are stripped of whitespace."""
-    shoes_list = [
-        {"Shoe Name": " Pegasus ", "Shoe Brand": " Nike ", "Shoe Model": " Pegasus "},
-    ]
-    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, 1, Mock())
-    assert len(gears) == 1
-    assert gears[0].brand == "Nike"
-    assert gears[0].model == "Pegasus"
-    assert gears[0].nickname == "Pegasus"
+    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
+        [_shoe(" Pegasus ", " Nike ", " Pegasus ")], 1, MagicMock()
+    )
+
+    assert [(g.nickname, g.brand, g.model) for g in gears] == [("Pegasus", "Nike", "Pegasus")]
 
 
-def test_shoe_transform_none_brand_model():
-    """None brand/model are preserved as None, not crashed."""
-    shoes_list = [
-        {"Shoe Name": "Speedsters", "Shoe Brand": None, "Shoe Model": None},
-    ]
-    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, 1, Mock())
-    assert len(gears) == 1
-    assert gears[0].brand is None
-    assert gears[0].model is None
-    assert gears[0].nickname == "Speedsters"
+def test_shoe_transform_keeps_a_trailing_plus_in_a_name():
+    with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]):
+        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
+            [_shoe("Pegasus+ ", "Nike", "Pegasus")], 1, MagicMock()
+        )
 
-
-def test_shoe_transform_trailing_plus_encoded(monkeypatch):
-    """Shoe name trailing whitespace is stripped."""
-    monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
-    monkeypatch.setattr(gear_utils.gears_integration, "get_gear_user_by_nickname", lambda uid, name, db: None)
-    monkeypatch.setattr(gear_utils, "logger", Mock())
-
-    shoes_list = [
-        {"Shoe Name": "Pegasus+ ", "Shoe Brand": "Nike", "Shoe Model": "Pegasus"},
-    ]
-    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, 1, Mock())
-    assert len(gears) == 1
     assert gears[0].nickname == "Pegasus+"
 
 
-def test_shoe_transform_blank_name(monkeypatch):
-    """Blank shoe name gets renamed to default name."""
+@pytest.mark.parametrize("blank", [None, "", "  ", "+", "+ +"])
+def test_shoe_transform_names_a_nameless_shoe(blank, monkeypatch):
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
-    monkeypatch.setattr(gear_utils.gears_integration, "get_gear_user_by_nickname", lambda uid, name, db: None)
-    logger = Mock()
-    monkeypatch.setattr(gear_utils, "logger", logger)
+    with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]):
+        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear([_shoe(blank, "Nike", "Pegasus")], 1, MagicMock())
 
-    shoes_list = [
-        {"Shoe Name": None, "Shoe Brand": "Nike", "Shoe Model": "Pegasus"},
-    ]
-    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, 1, Mock())
-    assert len(gears) == 1
-    assert gears[0].nickname == "Unnamed Shoe 1"
-    assert gears[0].brand == "Nike"
-    assert gears[0].model == "Pegasus"
-    assert len(logger.method_calls) == 1
+    assert [(g.nickname, g.brand) for g in gears] == [("Unnamed Shoe 1", "Nike")]
 
 
-def test_shoe_transform_multiple_shoes():
-    """Multiple shoes are all processed with stripping."""
-    shoes_list = [
-        {"Shoe Name": " Speed ", "Shoe Brand": " Nike", "Shoe Model": " Vaporfly "},
-        {"Shoe Name": "Trail  ", "Shoe Brand": " Hoka ", "Shoe Model": " Speedgoat"},
-    ]
-    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, 1, Mock())
-    assert len(gears) == 2
-    assert gears[0].brand == "Nike"
-    assert gears[0].nickname == "Speed"
-    assert gears[1].brand == "Hoka"
-    assert gears[1].nickname == "Trail"
-
-
-def test_shoe_transform_empty_string_name(monkeypatch):
-    """Empty string shoe name gets renamed."""
+def test_nameless_shoes_avoid_the_users_gear_and_each_other(monkeypatch):
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
-    monkeypatch.setattr(gear_utils.gears_integration, "get_gear_user_by_nickname", lambda uid, name, db: None)
-    monkeypatch.setattr(gear_utils, "logger", Mock())
+    existing = [SimpleNamespace(nickname="Unnamed Shoe 1")]
+    with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=existing) as lookup:
+        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
+            [_shoe(None), _shoe(""), _shoe("Speed")], 1, MagicMock()
+        )
 
-    shoes_list = [
-        {"Shoe Name": "", "Shoe Brand": "Adidas", "Shoe Model": "Adios"},
-    ]
-    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, 1, Mock())
-    assert len(gears) == 1
-    assert gears[0].nickname == "Unnamed Shoe 1"
+    assert [g.nickname for g in gears] == ["Unnamed Shoe 2", "Unnamed Shoe 3", "Speed"]
+    lookup.assert_called_once()
+
+
+class TestMatchGear:
+    def test_an_activity_without_strava_gear_matches_nothing(self):
+        assert gear_utils.match_gear_for_activity(SimpleNamespace(strava_gear_id=None), []) is None
+
+    def test_the_gear_with_the_same_strava_id_is_matched(self):
+        gears = [SimpleNamespace(id=1, strava_gear_id="a"), SimpleNamespace(id=2, strava_gear_id="b")]
+
+        assert gear_utils.match_gear_for_activity(SimpleNamespace(strava_gear_id="b"), gears) == 2
+
+
+class TestSetActivitiesGear:
+    def test_activities_are_assigned_and_the_caller_commits(self):
+        db = MagicMock()
+        activities = [SimpleNamespace(id=10, strava_gear_id="a"), SimpleNamespace(id=11, strava_gear_id=None)]
+        gears = [SimpleNamespace(id=5, strava_gear_id="a")]
+        with (
+            patch.object(gear_utils.activity_integration, "list_user_activities", return_value=activities),
+            patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
+            patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
+        ):
+            assigned = gear_utils.set_activities_gear(7, db)
+
+        assert assigned == 1
+        bulk.assert_called_once_with(7, {10: 5}, db)
+        db.commit.assert_not_called()
+
+    def test_a_user_without_gear_is_left_alone(self):
+        with (
+            patch.object(gear_utils.activity_integration, "list_user_activities", return_value=[object()]),
+            patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]),
+            patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
+        ):
+            assert gear_utils.set_activities_gear(7, MagicMock()) == 0
+
+        bulk.assert_not_called()
+
+
+def _linked_sync(athlete, *, existing_ids=(), gear_error=None):
+    """Run ``get_user_gear`` against a fake Strava; returns what it stored."""
+    client = MagicMock()
+    client.get_athlete.return_value = athlete
+    if gear_error:
+        client.get_gear.side_effect = gear_error
+    else:
+        client.get_gear.side_effect = lambda gear_id: SimpleNamespace(
+            brand_name="B", model_name="M", name=f"n-{gear_id}"
+        )
+    rate_limits = MagicMock()
+    rate_limits.is_rate_limited.return_value = False
+    sessions = MagicMock()
+    integrations = SimpleNamespace(strava_client_id="enc")
+    with (
+        patch.object(gear_utils, "SessionLocal", sessions),
+        patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
+        patch.object(
+            gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=integrations
+        ),
+        patch.object(gear_utils.strava_client_service, "get_client_id", return_value="42"),
+        patch.object(gear_utils.strava_client_service, "create_strava_client", return_value=client),
+        patch.object(
+            gear_utils.gears_integration,
+            "get_gear_by_strava_id",
+            side_effect=lambda gear_id, user_id, db: object() if gear_id in existing_ids else None,
+        ),
+        patch.object(gear_utils.gears_integration, "create_multiple_gears") as create,
+        patch.object(gear_utils.user_integrations_integration, "set_strava_sync_gear") as sync_pref,
+        patch.object(gear_utils, "set_activities_gear", return_value=3) as assign,
+    ):
+        try:
+            result = gear_utils.get_user_gear(7, rate_limits)
+            error = None
+        except core_exceptions.DomainError as err:
+            result, error = None, err
+    return result, error, create, sync_pref, assign, sessions, rate_limits
+
+
+class TestGetUserGear:
+    def test_new_gear_is_created_with_the_preference_and_the_assignments_in_one_commit(self):
+        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[SimpleNamespace(id="s1")])
+
+        result, error, create, sync_pref, assign, sessions, _ = _linked_sync(athlete)
+
+        assert (result, error) == (True, None)
+        created = create.call_args.args[0]
+        assert [(g.strava_gear_id, g.gear_type) for g in created] == [("b1", BIKE), ("s1", SHOES)]
+        sync_pref.assert_called_once()
+        assign.assert_called_once()
+        sessions.return_value.__enter__.return_value.commit.assert_called_once()
+
+    def test_gear_the_user_already_has_is_not_fetched_again(self):
+        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
+
+        result, _error, create, *_ = _linked_sync(athlete, existing_ids={"b1"})
+
+        assert result is True
+        assert create.call_args.args[0] == []
+
+    def test_an_athlete_without_gear_is_fine(self):
+        result, error, *_ = _linked_sync(SimpleNamespace(bikes=None, shoes=None))
+
+        assert (result, error) == (True, None)
+
+    def test_an_unlinked_user_is_reported_not_crashed(self):
+        with (
+            patch.object(gear_utils, "SessionLocal"),
+            patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
+            patch.object(
+                gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=None
+            ),
+            patch.object(gear_utils.strava_client_service, "create_strava_client") as create_client,
+        ):
+            assert gear_utils.get_user_gear(7, MagicMock()) is False
+
+        create_client.assert_not_called()
+
+    def test_a_failed_fetch_stores_nothing_and_leaves_the_preference_off(self):
+        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
+
+        _result, error, create, sync_pref, *_ = _linked_sync(athlete, gear_error=RuntimeError("boom"))
+
+        assert isinstance(error, core_exceptions.DependencyFailedError)
+        create.assert_not_called()
+        sync_pref.assert_not_called()
+
+    def test_an_active_rate_limit_stops_the_sync_before_any_strava_call(self):
+        client = MagicMock()
+        rate_limits = MagicMock()
+        rate_limits.is_rate_limited.return_value = True
+        with (
+            patch.object(gear_utils, "SessionLocal"),
+            patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
+            patch.object(
+                gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=object()
+            ),
+            patch.object(gear_utils.strava_client_service, "get_client_id", return_value="42"),
+            patch.object(gear_utils.strava_client_service, "create_strava_client", return_value=client),
+            pytest.raises(core_exceptions.TooManyRequestsError),
+        ):
+            gear_utils.get_user_gear(7, rate_limits)
+
+        client.get_athlete.assert_not_called()

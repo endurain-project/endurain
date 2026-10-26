@@ -4,7 +4,6 @@ from datetime import UTC, date, datetime
 
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
-from stravalib.exc import AccessUnauthorized
 
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
@@ -15,64 +14,69 @@ import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.gears.gear.integration_service as gears_integration
 import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
+import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
 import modules.users.users_integrations.integration_service as user_integrations_integration
+from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
 
-def link_account(state: str, code: str, user_id: int, db: Session) -> strava_schema.StravaDetail:
+def link_account(
+    link: strava_schema.StravaLinkRequest,
+    user_id: int,
+    oauth_states: strava_oauth_state_store.StravaOAuthStateStore,
+    db: Session,
+) -> strava_schema.StravaDetail:
     """Exchange a Strava authorization code for tokens and store them.
 
-    A failed exchange unlinks the account again, so a half-linked integration is
-    never left behind.
+    The state is consumed first, so a callback is accepted once and only for the
+    user who stored it. The stored client credentials survive a failed exchange, so
+    the user can retry without entering them again. The exchange is one bounded
+    Strava call made with no database session open.
 
     Args:
-        state: The state the user stored before the OAuth round-trip.
-        code: The authorization code Strava returned.
+        link: The state and authorization code Strava returned.
         user_id: The authenticated user.
+        oauth_states: The one-time OAuth state store.
         db: Database session.
 
     Returns:
         A success message.
 
     Raises:
-        NotFoundError: When the state does not belong to the user.
-        InvalidInputError: When the user has not stored a client ID and secret.
+        InvalidInputError: When the state is unknown or expired, or the user has not stored a client ID and secret.
         DependencyFailedError: When the exchange with Strava fails.
     """
-    user_integrations = user_integrations_integration.get_integrations_by_strava_state(state, db)
+    if not oauth_states.consume(user_id, link.state):
+        logger.warning("Strava link refused: unknown or expired state", extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("The Strava link state is invalid or has expired")
 
-    # The state must belong to the authenticated user
-    if user_integrations is None or user_integrations.user_id != user_id:
-        raise core_exceptions.NotFoundError("User integrations not found")
+    with SessionLocal() as read_db:
+        user_integrations = user_integrations_integration.get_user_integrations(user_id, read_db)
 
-    if user_integrations.strava_client_id is None and user_integrations.strava_client_secret is None:
+    if (
+        user_integrations is None
+        or user_integrations.strava_client_id is None
+        or user_integrations.strava_client_secret is None
+    ):
         raise core_exceptions.InvalidInputError("Strava client ID and secret not set")
 
     try:
-        strava_client = strava_client_service.create_strava_client(user_integrations)
-        tokens = strava_client.exchange_code_for_token(
+        tokens = strava_client_service.create_strava_client(user_integrations).exchange_code_for_token(
             client_id=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id),
             client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
-            code=code,
+            code=link.code,
         )
-
-        user_integrations_integration.link_strava_account(user_integrations.user_id, tokens, db)
-        db.commit()
     except Exception as err:
-        logger.error(
-            "Unable to link Strava account", extra=core_logger.context(user_id=user_integrations.user_id), exc_info=err
-        )
+        logger.error("Unable to link Strava account", extra=core_logger.context(user_id=user_id), exc_info=err)
+        raise core_exceptions.DependencyFailedError("Unable to link Strava account") from err
 
-        db.rollback()
-        user_integrations_integration.unlink_strava_account(user_integrations.user_id, db)
-        db.commit()
+    user_integrations_integration.link_strava_account(user_id, tokens, db)
+    db.commit()
 
-        raise core_exceptions.DependencyFailedError(f"Unable to link Strava account: {err}") from err
-
-    logger.info("Strava linked", extra=core_logger.context(user_id=user_integrations.user_id))
-    return strava_schema.StravaDetail(detail=f"Strava linked successfully for user {user_integrations.user_id}")
+    logger.info("Strava linked", extra=core_logger.context(user_id=user_id))
+    return strava_schema.StravaDetail(detail=f"Strava linked successfully for user {user_id}")
 
 
 def request_activities_sync(
@@ -115,60 +119,78 @@ def request_activities_sync(
     return job
 
 
-def set_client(user_id: int, client_id: int | None, client_secret: str | None, db: Session) -> None:
+def set_client(user_id: int, credentials: strava_schema.StravaClientCredentials, db: Session) -> None:
     """Store the user's Strava API client id and secret.
 
     Args:
         user_id: The authenticated user.
-        client_id: The Strava application's client id.
-        client_secret: The Strava application's client secret.
+        credentials: The Strava application's client id and secret.
         db: Database session.
     """
-    user_integrations_integration.set_strava_client(user_id, client_id, client_secret, db)
+    user_integrations_integration.set_strava_client(user_id, str(credentials.client_id), credentials.client_secret, db)
     db.commit()
     logger.info("Strava client stored", extra=core_logger.context(user_id=user_id))
 
 
-def set_state(user_id: int, state: str | None, db: Session) -> None:
+def set_state(user_id: int, state: str, oauth_states: strava_oauth_state_store.StravaOAuthStateStore) -> None:
     """Store the one-time state that correlates the OAuth callback with the user.
 
     Args:
         user_id: The authenticated user.
-        state: The opaque state, or ``None`` to clear it.
-        db: Database session.
+        state: The opaque state.
+        oauth_states: The one-time OAuth state store.
     """
-    user_integrations_integration.set_strava_state(user_id, state, db)
-    db.commit()
-    logger.info("Strava state stored", extra=core_logger.context(user_id=user_id))
+    oauth_states.begin(user_id, state)
+    logger.debug("Strava state stored", extra=core_logger.context(user_id=user_id))
 
 
-def unlink_account(user_id: int, db: Session) -> None:
-    """Disconnect the user's Strava account and delete what was imported from it.
-
-    Strava is asked to revoke the authorization first; if it refuses, the
-    account is unlinked locally anyway.
+def clear_state(user_id: int, oauth_states: strava_oauth_state_store.StravaOAuthStateStore) -> None:
+    """Forget the user's pending OAuth state.
 
     Args:
         user_id: The authenticated user.
-        db: Database session.
+        oauth_states: The one-time OAuth state store.
     """
-    strava_client = strava_client_service.create_strava_client(
-        strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
-    )
+    oauth_states.clear(user_id)
+    logger.debug("Strava state cleared", extra=core_logger.context(user_id=user_id))
 
-    if strava_client:
-        try:
-            strava_client.deauthorize()
-        except (AccessUnauthorized, Exception) as err:
-            logger.info(
-                "Unable to deauthorize Strava account, using stravalib deauthorize logic. Will unlink forcibly",
-                exc_info=err,
-            )
 
-    gears_integration.delete_all_strava_gear_for_user(user_id, db)
-    activity_integration.delete_all_strava_activities(user_id, db)
+def unlink_account(user_id: int) -> bool:
+    """Disconnect the user's Strava account and delete what was imported from it.
 
-    # The commit covers the staged gear and activity deletions with the unlink
-    user_integrations_integration.unlink_strava_account(user_id, db)
-    db.commit()
+    Runs on a worker, never a request. Strava is asked to revoke the authorization
+    first, with no database session open; if it refuses, the account is unlinked
+    locally anyway. The deletions and the unlink then commit together.
+
+    Args:
+        user_id: The user to unlink.
+
+    Returns:
+        True once unlinked, False when Strava was not linked.
+
+    Raises:
+        NotFoundError: When the user has no integrations row.
+    """
+    with SessionLocal() as db:
+        user_integrations = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
+
+    if user_integrations is None:
+        logger.info("Strava not linked, nothing to unlink", extra=core_logger.context(user_id=user_id))
+        return False
+
+    try:
+        strava_client_service.create_strava_client(user_integrations).deauthorize()
+    except Exception as err:
+        logger.warning(
+            "Strava refused the deauthorization, unlinking locally anyway",
+            extra=core_logger.context(user_id=user_id),
+            exc_info=err,
+        )
+
+    with SessionLocal() as db:
+        gears_integration.delete_all_strava_gear_for_user(user_id, db)
+        activity_integration.delete_all_strava_activities(user_id, db)
+        user_integrations_integration.unlink_strava_account(user_id, db)
+        db.commit()
     logger.info("Strava unlinked", extra=core_logger.context(user_id=user_id))
+    return True

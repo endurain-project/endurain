@@ -8,6 +8,7 @@ import pytest
 from fastapi import UploadFile
 
 import core.exceptions as core_exceptions
+import modules.gears.gear.schema as gears_schema
 import modules.strava.gear_service as strava_gear_service
 
 
@@ -23,32 +24,44 @@ class TestImportBikes:
     def test_creates_the_listed_bikes_for_the_caller(self):
         db = MagicMock()
         with patch.object(strava_gear_service.gears_integration, "create_multiple_gears") as create:
-            strava_gear_service.import_bikes(_upload(BIKES), 7, db)
+            count = strava_gear_service.import_gear(_upload(BIKES), 7, gears_schema.GearType.BIKE, db)
 
         gears, user_id, passed_db = create.call_args.args
         assert [g.nickname for g in gears] == ["Commuter"]
-        assert (user_id, passed_db) == (7, db)
+        assert (user_id, passed_db, count) == (7, db, 1)
+        db.commit.assert_called_once()
 
     def test_the_temp_file_is_removed_whether_or_not_it_parses(self):
         seen: list[str] = []
-        real = strava_gear_service.iterate_over_bikes_csv
+        real = strava_gear_service.parse_gear_csv
 
-        def spy(path):
+        def spy(path, gear_type):
             seen.append(path)
-            return real(path)
+            return real(path, gear_type)
 
         with (
-            patch.object(strava_gear_service, "iterate_over_bikes_csv", side_effect=spy),
-            pytest.raises(core_exceptions.DependencyFailedError),
+            patch.object(strava_gear_service, "parse_gear_csv", side_effect=spy),
+            pytest.raises(core_exceptions.InvalidInputError),
         ):
-            strava_gear_service.import_bikes(_upload(b"Name\nx\n"), 7, MagicMock())
+            strava_gear_service.import_gear(_upload(b"Name\nx\n"), 7, gears_schema.GearType.BIKE, MagicMock())
 
         assert not os.path.exists(seen[0])
 
     def test_an_oversized_upload_is_refused(self):
         big = b"Bike Name,Bike Brand,Bike Model\n" + b"x," * (strava_gear_service._GEAR_CSV_MAX_BYTES)
         with pytest.raises(core_exceptions.PayloadTooLargeError):
-            strava_gear_service.import_bikes(_upload(big), 7, MagicMock())
+            strava_gear_service.import_gear(_upload(big), 7, gears_schema.GearType.BIKE, MagicMock())
+
+    def test_nothing_is_committed_when_the_file_lists_no_gear(self):
+        db = MagicMock()
+        with patch.object(strava_gear_service.gears_integration, "create_multiple_gears") as create:
+            count = strava_gear_service.import_gear(
+                _upload(b"Bike Name,Bike Brand,Bike Model\n"), 7, gears_schema.GearType.BIKE, db
+            )
+
+        create.assert_not_called()
+        db.commit.assert_not_called()
+        assert count == 0
 
 
 class TestImportShoes:
@@ -56,9 +69,10 @@ class TestImportShoes:
         db = MagicMock()
         with (
             patch.object(strava_gear_service.gears_integration, "create_multiple_gears") as create,
-            patch.object(strava_gear_service, "transform_csv_shoe_gear_to_schema_gear") as transform,
+            patch.object(strava_gear_service.gears_integration, "get_gear_user", return_value=[]),
         ):
-            transform.return_value = ["shoe"]
-            strava_gear_service.import_shoes(_upload(SHOES), 7, db)
+            strava_gear_service.import_gear(_upload(SHOES), 7, gears_schema.GearType.SHOES, db)
 
-        create.assert_called_once_with(["shoe"], 7, db)
+        gears, user_id, passed_db = create.call_args.args
+        assert [g.nickname for g in gears] == ["Pegasus"]
+        assert (user_id, passed_db) == (7, db)

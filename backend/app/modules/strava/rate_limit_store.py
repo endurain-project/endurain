@@ -1,10 +1,11 @@
-"""Strava API rate-limit state, kept in the platform's shared state."""
+"""Strava API shared state: the rate-limit flags and the token-refresh claim."""
 
 from datetime import UTC, datetime, timedelta
 
 import jasil.providers as platform_providers
 
 import core.logger as core_logger
+import modules.strava.constants as strava_constants
 
 logger = core_logger.get_logger(__name__)
 
@@ -13,10 +14,11 @@ SHORT_TERM_COOLDOWN_SECONDS = 15 * 60
 
 _SHORT_TERM_KEY = "strava:rate_limited:short:{client_id}"
 _LONG_TERM_KEY = "strava:rate_limited:long:{client_id}"
+_REFRESH_CLAIM_KEY = "strava:token_refresh:{user_id}"
 
 
 class StravaRateLimitStore:
-    """Tracks Strava API rate limit state over a platform ``StateProvider``.
+    """Tracks Strava API rate limit state and token-refresh claims over a platform ``StateProvider``.
 
     The limits are Strava's, per application, so every process and replica has to
     see the same answer: a process-local flag would let each worker keep
@@ -24,7 +26,9 @@ class StravaRateLimitStore:
     brings their own Strava application, so the flags are keyed by client ID: one
     application hitting its limit must not pause the others. The flags are TTL keys
     in the state provider (in-process under the ``local`` profile, Redis when
-    distributed), so they expire on their own.
+    distributed), so they expire on their own. Strava rotates the refresh token on
+    every refresh, so two replicas refreshing one user at once would invalidate each
+    other; a claim lets only one of them refresh.
     """
 
     def __init__(self, state: platform_providers.StateProvider) -> None:
@@ -83,3 +87,35 @@ class StravaRateLimitStore:
         except platform_providers.StateBackendUnavailableError as err:
             logger.warning("Could not read the Strava rate limit state; assuming not limited", exc_info=err)
             return False
+
+    def claim_token_refresh(self, user_id: int) -> bool:
+        """Claim the right to refresh a user's Strava token.
+
+        Fails open when the shared state is unreachable: a refresh that races is
+        recoverable by relinking, whereas failing closed would stop every refresh
+        for as long as the state store is down.
+
+        Args:
+            user_id: The user whose token is about to be refreshed.
+
+        Returns:
+            True when this caller may refresh, False when another already is.
+        """
+        try:
+            return self._state.set_if_absent(
+                _REFRESH_CLAIM_KEY.format(user_id=user_id), b"1", strava_constants.TOKEN_REFRESH_CLAIM_TTL_SECONDS
+            )
+        except platform_providers.StateBackendUnavailableError as err:
+            logger.warning("Could not claim the Strava token refresh; refreshing anyway", exc_info=err)
+            return True
+
+    def release_token_refresh(self, user_id: int) -> None:
+        """Release a token refresh claim, leaving it to expire when the state is unreachable.
+
+        Args:
+            user_id: The user whose token was refreshed.
+        """
+        try:
+            self._state.delete(_REFRESH_CLAIM_KEY.format(user_id=user_id))
+        except platform_providers.StateBackendUnavailableError as err:
+            logger.warning("Could not release the Strava token refresh claim; it will expire", exc_info=err)

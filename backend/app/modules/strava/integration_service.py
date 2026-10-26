@@ -15,6 +15,7 @@ import modules.strava.activity_service as strava_activity_service
 import modules.strava.bulk_import_service as strava_bulk_import_service
 import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
+import modules.strava.sync_service as strava_sync_service
 import modules.users.users_integrations.integration_service as user_integrations_integration
 from core.database import SessionLocal
 
@@ -54,6 +55,11 @@ def _linked_user_ids(after_id: int, limit: int) -> list[int]:
     """
     with SessionLocal() as db:
         return user_integrations_integration.list_user_ids_with_strava_linked(after_id, limit, db)
+
+
+def shutdown_pools() -> None:
+    """Stop the Strava sync pool."""
+    strava_sync_service.shutdown_sync_pool()
 
 
 def register_activity_provider() -> None:

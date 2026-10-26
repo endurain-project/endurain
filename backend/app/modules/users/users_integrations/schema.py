@@ -19,7 +19,6 @@ class UsersIntegrationsBase(BaseModel):
     Attributes:
         strava_client_id: Encrypted Strava client ID.
         strava_client_secret: Encrypted Strava client secret.
-        strava_state: Temporary state for Strava OAuth flow.
         strava_token: Encrypted Strava access token.
         strava_refresh_token: Encrypted Strava refresh token.
         strava_token_expires_at: Strava token expiration time.
@@ -38,11 +37,6 @@ class UsersIntegrationsBase(BaseModel):
         default=None,
         max_length=512,
         description=("Strava client secret encrypted at rest with Fernet key"),
-    )
-    strava_state: StrictStr | None = Field(
-        default=None,
-        max_length=45,
-        description="Strava temporary state for link process",
     )
     strava_token: StrictStr | None = Field(
         default=None,

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import jasil.providers as platform_providers
 import jasil.runtime as platform_runtime
 import pytest
@@ -62,3 +64,31 @@ class TestRateLimitStoreIsSharedState:
 
         assert tracker.is_rate_limited("app-a") is False
         tracker.mark_rate_limited("app-a")  # must not raise
+
+
+class TestTokenRefreshClaim:
+    @pytest.fixture
+    def store(self):
+        return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
+
+    def test_only_one_process_holds_the_claim(self, store):
+        assert store.claim_token_refresh(901) is True
+        assert store.claim_token_refresh(901) is False
+
+        store.release_token_refresh(901)
+
+        assert store.claim_token_refresh(901) is True
+        store.release_token_refresh(901)
+
+    def test_claims_are_per_user(self, store):
+        assert store.claim_token_refresh(902) is True
+        assert store.claim_token_refresh(903) is True
+        store.release_token_refresh(902)
+        store.release_token_refresh(903)
+
+    def test_an_unreachable_state_does_not_stop_the_refresh(self):
+        state = MagicMock()
+        state.set_if_absent.side_effect = platform_providers.StateBackendUnavailableError("down")
+        store = strava_rate_limit_store.StravaRateLimitStore(state)
+
+        assert store.claim_token_refresh(1) is True

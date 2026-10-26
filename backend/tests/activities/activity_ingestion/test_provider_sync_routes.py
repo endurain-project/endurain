@@ -44,8 +44,6 @@ def _call(route, **overrides):
         "db": MagicMock(),
         "storage": "storage",
     }
-    if route is strava_router.strava_retrieve_activities_days:
-        kwargs.update(_validate_access_token=None)
     kwargs.update(overrides)
     return route(**kwargs)
 

@@ -98,21 +98,6 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
     return user_integrations_crud.list_user_ids_with_garminconnect_linked(after_id, limit, db)
 
 
-def get_integrations_by_strava_state(
-    strava_state: str, db: Session
-) -> user_integrations_schema.UsersIntegrationsRead | None:
-    """Return the integrations holding a Strava OAuth state, or ``None`` when no user does.
-
-    Args:
-        strava_state: The OAuth state returned by Strava.
-        db: Database session.
-
-    Returns:
-        The matching user's integrations, or ``None``.
-    """
-    return user_integrations_crud.get_user_integrations_by_strava_state(strava_state, db)
-
-
 def create_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead:
     """Stage the default integrations row for a new user.
 
@@ -151,7 +136,7 @@ def edit_integrations(
 
 
 def link_strava_account(user_id: int, tokens: dict, db: Session) -> None:
-    """Store a user's Strava tokens (encrypted) and clear the pending OAuth state.
+    """Store a user's Strava tokens (encrypted).
 
     Args:
         user_id: The user linking Strava.
@@ -165,7 +150,7 @@ def link_strava_account(user_id: int, tokens: dict, db: Session) -> None:
 
 
 def unlink_strava_account(user_id: int, db: Session) -> None:
-    """Clear a user's Strava tokens, credentials, state and gear sync preference.
+    """Clear a user's Strava tokens, credentials and gear sync preference.
 
     Args:
         user_id: The user unlinking Strava.
@@ -190,20 +175,6 @@ def set_strava_client(user_id: int, client_id: str, client_secret: str, db: Sess
         NotFoundError: If the user has no integrations.
     """
     user_integrations_crud.set_user_strava_client(user_id, client_id, client_secret, db)
-
-
-def set_strava_state(user_id: int, state: str | None, db: Session) -> None:
-    """Set or clear a user's Strava OAuth state.
-
-    Args:
-        user_id: The user whose state to set.
-        state: The state to store, or ``None`` to clear it.
-        db: Database session.
-
-    Raises:
-        NotFoundError: If the user has no integrations.
-    """
-    user_integrations_crud.set_user_strava_state(user_id, state, db)
 
 
 def set_strava_sync_gear(user_id: int, sync_gear: bool, db: Session) -> None:

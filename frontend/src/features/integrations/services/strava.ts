@@ -1,4 +1,10 @@
-import type { DateRange, StravaClientDto, StravaClientInput } from '@/features/integrations/types'
+import type {
+  DateRange,
+  StravaClientDto,
+  StravaClientInput,
+  StravaLinkDto,
+  StravaSyncStatus,
+} from '@/features/integrations/types'
 
 import { apiFetch } from '@/services/http'
 import { getRuntimeBackendHost } from '@/services/runtime'
@@ -6,15 +12,26 @@ import { getRuntimeBackendHost } from '@/services/runtime'
 /** The OAuth scopes Endurain requests from Strava (read-only access). */
 const STRAVA_SCOPE = 'read,read_all,profile:read_all,activity:read,activity:read_all'
 
+/** How often the status of a queued Strava unlink is read. */
+const STRAVA_SYNC_POLL_MS = 1_000
+
+/** How many status reads to make before giving up on a queued Strava unlink. */
+const STRAVA_SYNC_MAX_POLLS = 120
+
 /**
- * Stores a one-time CSRF `state` on the user's Strava integration so the OAuth
- * callback can be correlated back to this account. Pass `null` to clear it.
+ * Stores a one-time CSRF `state` for the user so the OAuth callback can be
+ * correlated back to this account. The server keeps it briefly and accepts it once.
+ * Pass `null` to clear it.
  *
  * @param state - The opaque state value, or `null` to clear.
  * @throws {HttpError} When the request fails.
  */
 export async function setStravaState(state: string | null): Promise<void> {
-  await apiFetch(`/strava/state/${encodeURIComponent(state ?? 'null')}`, {
+  if (state === null) {
+    await apiFetch('/strava/state', { method: 'DELETE', responseType: 'void' })
+    return
+  }
+  await apiFetch(`/strava/state/${encodeURIComponent(state)}`, {
     method: 'PUT',
     responseType: 'void',
   })
@@ -65,13 +82,12 @@ export function buildStravaAuthUrl(state: string, clientId: number): string {
  * @throws {HttpError} When the exchange fails (e.g. 424 link failure).
  */
 export async function completeStravaLink(state: string, code: string): Promise<void> {
-  await apiFetch(
-    `/strava/link?state=${encodeURIComponent(state)}&code=${encodeURIComponent(code)}`,
-    {
-      method: 'PUT',
-      responseType: 'void',
-    },
-  )
+  const payload: StravaLinkDto = { state, code }
+  await apiFetch('/strava/link', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+    responseType: 'void',
+  })
 }
 
 /**
@@ -84,7 +100,7 @@ export async function completeStravaLink(state: string, code: string): Promise<v
 export async function retrieveStravaActivities(range: DateRange): Promise<void> {
   await apiFetch(
     `/strava/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { responseType: 'void' },
+    { method: 'POST', responseType: 'void' },
   )
 }
 
@@ -94,14 +110,28 @@ export async function retrieveStravaActivities(range: DateRange): Promise<void> 
  * @throws {HttpError} When the request fails.
  */
 export async function retrieveStravaGear(): Promise<void> {
-  await apiFetch('/strava/gear', { responseType: 'void' })
+  await apiFetch('/strava/gear', { method: 'POST', responseType: 'void' })
 }
 
 /**
- * Disconnects the user's Strava account.
+ * Disconnects the user's Strava account. The server queues the unlink, because it revokes the
+ * authorization with Strava and deletes what was imported from it, so this follows the queued
+ * job until it finishes.
  *
  * @throws {HttpError} When the request fails.
+ * @throws {Error} When the unlink fails on the server or does not finish in time.
  */
 export async function unlinkStrava(): Promise<void> {
-  await apiFetch('/strava/unlink', { method: 'DELETE', responseType: 'void' })
+  let status = await apiFetch<StravaSyncStatus>('/strava/unlink', { method: 'DELETE' })
+  for (let poll = 0; poll < STRAVA_SYNC_MAX_POLLS; poll++) {
+    if (status.status === 'completed') {
+      return
+    }
+    if (status.status === 'failed') {
+      throw new Error('Unlinking Strava failed')
+    }
+    await new Promise((resolve) => setTimeout(resolve, STRAVA_SYNC_POLL_MS))
+    status = await apiFetch<StravaSyncStatus>('/strava/sync/unlink')
+  }
+  throw new Error('Unlinking Strava did not finish in time')
 }

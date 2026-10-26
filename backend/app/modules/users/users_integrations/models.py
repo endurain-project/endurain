@@ -16,7 +16,6 @@ class UsersIntegrations(Base):
         user_id: Foreign key to users table (unique).
         strava_client_id: Encrypted Strava client ID.
         strava_client_secret: Encrypted Strava client secret.
-        strava_state: Temporary state for Strava OAuth flow.
         strava_token: Encrypted Strava access token.
         strava_refresh_token: Encrypted Strava refresh token.
         strava_token_expires_at: Strava token expiration
@@ -52,12 +51,6 @@ class UsersIntegrations(Base):
         default=None,
         nullable=True,
         comment=("Strava client secret encrypted at rest with Fernet key"),
-    )
-    strava_state: Mapped[str | None] = mapped_column(
-        String(length=45),
-        default=None,
-        nullable=True,
-        comment="Strava temporary state for link process",
     )
     strava_token: Mapped[str | None] = mapped_column(
         String(length=512),

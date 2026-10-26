@@ -53,7 +53,6 @@ class TestUsersIntegrationsModel:
             "user_id",
             "strava_client_id",
             "strava_client_secret",
-            "strava_state",
             "strava_token",
             "strava_refresh_token",
             "strava_token_expires_at",
@@ -76,7 +75,6 @@ class TestUsersIntegrationsModel:
         strava_columns = [
             "strava_client_id",
             "strava_client_secret",
-            "strava_state",
             "strava_token",
             "strava_refresh_token",
             "strava_token_expires_at",

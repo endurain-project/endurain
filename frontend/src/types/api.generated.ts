@@ -4497,6 +4497,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Strava Retrieve Activities Days
          * @description Queue a Strava sync of an explicit date range.
@@ -4505,9 +4507,7 @@ export interface paths {
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
-        get: operations["strava_retrieve_activities_days_api_v1_strava_activities_get"];
-        put?: never;
-        post?: never;
+        post: operations["strava_retrieve_activities_days_api_v1_strava_activities_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4522,7 +4522,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Strava Set User Client */
+        /**
+         * Strava Set User Client
+         * @description Store the user's Strava API client id and secret.
+         */
         put: operations["strava_set_user_client_api_v1_strava_client_put"];
         post?: never;
         delete?: never;
@@ -4538,10 +4541,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Strava Retrieve Gear */
-        get: operations["strava_retrieve_gear_api_v1_strava_gear_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /**
+         * Strava Retrieve Gear
+         * @description Queue a sync of the user's Strava gear; a background job runs it.
+         *
+         *     Poll ``GET /strava/sync/gear`` for the outcome. A second request while one is
+         *     pending is answered 409.
+         */
+        post: operations["strava_retrieve_gear_api_v1_strava_gear_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4596,10 +4605,33 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Strava Link */
+        /**
+         * Strava Link
+         * @description Exchange a Strava authorization code for tokens and link the account.
+         */
         put: operations["strava_link_api_v1_strava_link_put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/strava/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Strava Clear User State
+         * @description Forget the user's pending OAuth state.
+         */
+        delete: operations["strava_clear_user_state_api_v1_strava_state_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4613,8 +4645,31 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Strava Set User Unique State */
+        /**
+         * Strava Set User Unique State
+         * @description Store the one-time state that correlates the OAuth callback with the user.
+         */
         put: operations["strava_set_user_unique_state_api_v1_strava_state__state__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/strava/sync/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Strava Sync Status
+         * @description Report where the authenticated user's queued gear sync or unlink is.
+         */
+        get: operations["strava_sync_status_api_v1_strava_sync__kind__get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -4632,7 +4687,13 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Strava Unlink */
+        /**
+         * Strava Unlink
+         * @description Queue the disconnection of the user's Strava account; a background job runs it.
+         *
+         *     The job revokes the authorization with Strava and deletes the activities and gear
+         *     imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
+         */
         delete: operations["strava_unlink_api_v1_strava_unlink_delete"];
         options?: never;
         head?: never;
@@ -6079,8 +6140,8 @@ export interface components {
          *         status: ``queued`` until a worker picks it up, ``running``, then ``completed`` or ``failed``.
          */
         GarminSyncStatus: {
-            kind: components["schemas"]["SyncKind"];
-            status: components["schemas"]["SyncStatus"];
+            kind: components["schemas"]["modules__garmin__constants__SyncKind"];
+            status: components["schemas"]["modules__garmin__constants__SyncStatus"];
         };
         /**
          * GearComponentCreate
@@ -10224,25 +10285,54 @@ export interface components {
              */
             mfa_code?: string | null;
         };
-        /** StravaClient */
-        StravaClient: {
+        /**
+         * StravaClientCredentials
+         * @description A user's Strava API application credentials.
+         *
+         *     Attributes:
+         *         client_id: The Strava application's client id.
+         *         client_secret: The Strava application's client secret.
+         */
+        StravaClientCredentials: {
             /** Client Id */
-            client_id: number | null;
+            client_id: number;
             /** Client Secret */
-            client_secret: string | null;
+            client_secret: string;
         };
         /**
-         * SyncKind
-         * @description What a queued Garmin Connect sync pulls.
-         * @enum {string}
+         * StravaDetail
+         * @description The outcome of a Strava account request.
          */
-        SyncKind: "gear" | "health";
+        StravaDetail: {
+            /** Detail */
+            detail: string;
+        };
         /**
-         * SyncStatus
-         * @description Where a queued Garmin Connect sync is.
-         * @enum {string}
+         * StravaLinkRequest
+         * @description The OAuth callback values that complete a Strava link.
+         *
+         *     Attributes:
+         *         state: The one-time state stored before the OAuth round-trip.
+         *         code: The authorization code Strava returned.
          */
-        SyncStatus: "queued" | "running" | "completed" | "failed";
+        StravaLinkRequest: {
+            /** Code */
+            code: string;
+            /** State */
+            state: string;
+        };
+        /**
+         * StravaSyncStatus
+         * @description Where a queued Strava gear sync or unlink is.
+         *
+         *     Attributes:
+         *         kind: What the sync does.
+         *         status: Where it is.
+         */
+        StravaSyncStatus: {
+            kind: components["schemas"]["modules__strava__constants__SyncKind"];
+            status: components["schemas"]["modules__strava__constants__SyncStatus"];
+        };
         /**
          * TileMapsTemplate
          * @description Schema representing available tile map templates.
@@ -12326,6 +12416,18 @@ export interface components {
             mfa_code: string;
         };
         /**
+         * SyncKind
+         * @description What a queued Garmin Connect sync pulls.
+         * @enum {string}
+         */
+        modules__garmin__constants__SyncKind: "gear" | "health";
+        /**
+         * SyncStatus
+         * @description Where a queued Garmin Connect sync is.
+         * @enum {string}
+         */
+        modules__garmin__constants__SyncStatus: "queued" | "running" | "completed" | "failed";
+        /**
          * MFARequest
          * @description The MFA code a user submits to finish a link attempt.
          */
@@ -12402,6 +12504,18 @@ export interface components {
          * @enum {string}
          */
         modules__health__health_weight__schema__Source: "garmin";
+        /**
+         * SyncKind
+         * @description What a queued Strava sync does.
+         * @enum {string}
+         */
+        modules__strava__constants__SyncKind: "gear" | "unlink";
+        /**
+         * SyncStatus
+         * @description Where a queued Strava sync is.
+         * @enum {string}
+         */
+        modules__strava__constants__SyncStatus: "queued" | "running" | "completed" | "failed";
         /**
          * Interval
          * @description Recurrence intervals for user goals.
@@ -14312,7 +14426,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                kind: components["schemas"]["SyncKind"];
+                kind: components["schemas"]["modules__garmin__constants__SyncKind"];
             };
             cookie?: never;
         };
@@ -19147,7 +19261,7 @@ export interface operations {
             };
         };
     };
-    strava_retrieve_activities_days_api_v1_strava_activities_get: {
+    strava_retrieve_activities_days_api_v1_strava_activities_post: {
         parameters: {
             query: {
                 start_date: string;
@@ -19197,7 +19311,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StravaClient"];
+                "application/json": components["schemas"]["StravaClientCredentials"];
             };
         };
         responses: {
@@ -19207,7 +19321,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaDetail"];
                 };
             };
             /** @description Validation Error */
@@ -19230,7 +19344,7 @@ export interface operations {
             };
         };
     };
-    strava_retrieve_gear_api_v1_strava_gear_get: {
+    strava_retrieve_gear_api_v1_strava_gear_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -19240,12 +19354,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -19345,15 +19459,16 @@ export interface operations {
     };
     strava_link_api_v1_strava_link_put: {
         parameters: {
-            query: {
-                state: string;
-                code: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StravaLinkRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -19361,7 +19476,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaDetail"];
                 };
             };
             /** @description Validation Error */
@@ -19384,12 +19499,41 @@ export interface operations {
             };
         };
     };
+    strava_clear_user_state_api_v1_strava_state_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StravaDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     strava_set_user_unique_state_api_v1_strava_state__state__put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                state: string | null;
+                state: string;
             };
             cookie?: never;
         };
@@ -19401,7 +19545,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    strava_sync_status_api_v1_strava_sync__kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["modules__strava__constants__SyncKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Validation Error */
@@ -19434,12 +19618,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Unexpected error */

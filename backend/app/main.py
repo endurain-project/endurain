@@ -351,6 +351,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     # when durable jobs handle imports instead).
     activity_ingestion_integration.shutdown_background_ingestion()
     garmin_integration.shutdown_pools()
+    strava_integration.shutdown_pools()
     runtime_module_registry.shutdown_deferred_subscribers()
     users_profile_integration.shutdown_transfer_pool()
 

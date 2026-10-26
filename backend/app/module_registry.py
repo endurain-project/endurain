@@ -46,6 +46,7 @@ import modules.gears.gear_components.integration_service as gear_components_inte
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
 import modules.server_settings.integration_service as server_settings_integration
+import modules.strava.subscriber_registry as strava_subscriber_registry
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.contributors as users_contributors
 import modules.users.users_profile.integration_service as users_profile_integration
@@ -225,6 +226,11 @@ MODULES: tuple[RuntimeModule, ...] = (
                 garmin_scheduled_jobs.schedule_recent_health,
             ),
         ),
+    ),
+    RuntimeModule(
+        name="strava",
+        register_durable=strava_subscriber_registry.register_durable_handlers,
+        nets=strava_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
     ),
     RuntimeModule(
         name="websocket",

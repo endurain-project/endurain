@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import jasil.runtime as platform_runtime
 import pytest
 from stravalib.exc import Fault as StravaFault
+from stravalib.exc import ObjectNotFound
 
 import core.exceptions as core_exceptions
 import modules.strava.activity_service as activity_utils
@@ -87,9 +88,9 @@ class TestFetchAndProcessActivityStreamsNotFound:
         )
 
     def test_not_found_plain_exception_returns_empty_streams(self, monkeypatch, rate_limits):
-        """A generic 'not found' exception also yields empty stream data."""
+        """stravalib's ObjectNotFound also yields empty stream data."""
         client = Mock()
-        client.get_activity_streams.side_effect = RuntimeError("404 not found")
+        client.get_activity_streams.side_effect = ObjectNotFound()
 
         monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
         monkeypatch.setattr(activity_utils, "logger", Mock())
@@ -255,8 +256,8 @@ class TestProcessActivity:
         seen: dict[str, int] = {}
         monkeypatch.setattr(activity_utils, "SessionLocal", _TrackingSession)
         monkeypatch.setattr(
-            activity_utils.strava_client_service,
-            "fetch_and_validate_activity",
+            activity_utils.activity_integration,
+            "get_activity_by_strava_id",
             lambda *args, **kwargs: Mock() if already_stored else None,
         )
 
@@ -276,7 +277,7 @@ class TestProcessActivity:
         """A transaction held across Strava round trips is what this was restructured to avoid."""
         seen = self._setup(monkeypatch)
 
-        result = activity_utils.process_activity(Mock(id=555), 1, Mock(), Mock(), Mock(), Mock())
+        result = activity_utils.process_activity(Mock(id=555), 1, Mock(), "UTC", Mock(), Mock(), Mock())
 
         assert result.id == 7
         assert seen["during_parse"] == 0
@@ -286,7 +287,7 @@ class TestProcessActivity:
     def test_an_activity_already_stored_is_skipped_without_calling_strava(self, monkeypatch):
         seen = self._setup(monkeypatch, already_stored=True)
 
-        assert activity_utils.process_activity(Mock(id=555), 1, Mock(), Mock(), Mock(), Mock()) is None
+        assert activity_utils.process_activity(Mock(id=555), 1, Mock(), "UTC", Mock(), Mock(), Mock()) is None
         assert seen == {}
 
 
@@ -364,3 +365,82 @@ class TestFetchAndProcessActivityLapsElevation:
 
         assert lap["total_ascent"] == 0
         assert lap["total_descent"] == 0
+
+
+class TestStreamsConversion:
+    """A stream is paired with the time stream; points without a timestamp are dropped."""
+
+    def _call(self, streams: dict, rate_limits):
+        client = Mock()
+        client.get_activity_streams.return_value = {name: Mock(data=data) for name, data in streams.items()}
+        return activity_utils.fetch_and_process_activity_streams(client, 99, 1, _integrations(), rate_limits)
+
+    def test_a_stream_longer_than_time_is_cut_instead_of_failing(self, rate_limits, monkeypatch):
+        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
+
+        result = self._call({"time": [0, 1], "heartrate": [100, 110, 120]}, rate_limits)
+
+        hr_waypoints, is_hr_set = result[4], result[5]
+        assert hr_waypoints == [{"time": 0, "hr": 100}, {"time": 1, "hr": 110}]
+        assert is_hr_set is True
+
+    def test_pace_is_derived_from_velocity_with_zero_for_a_standstill(self, rate_limits, monkeypatch):
+        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
+
+        result = self._call({"time": [0, 1], "velocity_smooth": [0, 4]}, rate_limits)
+
+        assert result[10] == [{"time": 0, "vel": 0}, {"time": 1, "vel": 4}]
+        assert result[12] == [{"time": 0, "pace": 0}, {"time": 1, "pace": 0.25}]
+
+    def test_missing_streams_are_reported_as_not_set(self, rate_limits, monkeypatch):
+        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
+
+        result = self._call({"time": [0, 1]}, rate_limits)
+
+        assert [result[i] for i in (1, 3, 5, 7, 9, 11)] == [False] * 6
+
+
+class TestFetchAndProcessActivitiesIsolation:
+    """One activity that cannot be processed does not stop the rest of the window."""
+
+    def _run(self, monkeypatch, rate_limits, process):
+        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
+        monkeypatch.setattr(activity_utils, "logger", Mock())
+        monkeypatch.setattr(activity_utils, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(
+            activity_utils.users_integration, "get_user", lambda *_a: Mock(id=1, timezone="Europe/Lisbon")
+        )
+        monkeypatch.setattr(
+            activity_utils.users_privacy_settings_integration, "get_privacy_settings", lambda *_a: Mock()
+        )
+        monkeypatch.setattr(activity_utils, "process_activity", process)
+        client = Mock()
+        client.get_activities.return_value = [Mock(id=1), Mock(id=2), Mock(id=3)]
+        return activity_utils.fetch_and_process_activities(
+            client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, _integrations(), rate_limits
+        )
+
+    def test_a_failing_activity_is_skipped_and_the_others_are_processed(self, monkeypatch, rate_limits):
+        def process(activity, *_args):
+            if activity.id == 2:
+                raise TypeError("calories is None")
+            return f"stored-{activity.id}"
+
+        assert self._run(monkeypatch, rate_limits, process) == ["stored-1", "stored-3"]
+
+    def test_a_rate_limit_still_stops_the_window(self, monkeypatch, rate_limits):
+        def process(activity, *_args):
+            raise core_exceptions.TooManyRequestsError("slow down")
+
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            self._run(monkeypatch, rate_limits, process)
+
+    def test_the_users_timezone_is_passed_down_once(self, monkeypatch, rate_limits):
+        seen = []
+
+        def process(activity, user_id, privacy, timezone, *_args):
+            seen.append(timezone)
+
+        self._run(monkeypatch, rate_limits, process)
+
+        assert seen == ["Europe/Lisbon"] * 3

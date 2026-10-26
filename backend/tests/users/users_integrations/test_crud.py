@@ -65,48 +65,6 @@ class TestGetUserIntegrationsByUserId:
         assert result is None
 
 
-class TestGetUserIntegrationsByStravaState:
-    """Test suite for get_user_integrations_by_strava_state function."""
-
-    def test_get_user_integrations_by_strava_state_success(self, mock_db):
-        """Test retrieving integrations by Strava state.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Returns UsersIntegrations object when found
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_state = "state123"
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
-
-        # Act
-        result = user_integrations_crud.get_user_integrations_by_strava_state("state123", mock_db)
-
-        # Assert
-        assert result == mock_integrations
-
-    def test_get_user_integrations_by_strava_state_not_found(self, mock_db):
-        """Test retrieving integrations when state not found.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Returns None when state not found
-        """
-        # Arrange
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-
-        # Act
-        result = user_integrations_crud.get_user_integrations_by_strava_state("nonexistent", mock_db)
-
-        # Assert
-        assert result is None
-
-
 class TestCreateUserIntegrations:
     """Test suite for create_user_integrations function."""
 
@@ -170,7 +128,6 @@ class TestLinkStravaAccount:
 
         Asserts:
             - Strava tokens are stored
-            - Strava state is cleared
             - Database operations are called
         """
         # Arrange
@@ -196,7 +153,6 @@ class TestLinkStravaAccount:
         # Assert
         assert mock_integrations.strava_token == "encrypted_access_token_123"
         assert mock_integrations.strava_refresh_token == "encrypted_refresh_token_456"
-        assert mock_integrations.strava_state is None
         mock_db.flush.assert_called_once()
 
 
@@ -219,7 +175,6 @@ class TestUnlinkStravaAccount:
             user_integrations_crud.unlink_strava_account(1, mock_db)
 
         # Assert
-        assert mock_integrations.strava_state is None
         assert mock_integrations.strava_token is None
         assert mock_integrations.strava_refresh_token is None
         assert mock_integrations.strava_token_expires_at is None
@@ -275,61 +230,6 @@ class TestSetUserStravaClient:
             # Act & Assert
             with pytest.raises(core_exceptions.NotFoundError):
                 user_integrations_crud.set_user_strava_client(1, "id", "secret", mock_db)
-
-
-class TestSetUserStravaState:
-    """Test suite for set_user_strava_state function."""
-
-    def test_set_user_strava_state_success(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.set_user_strava_state(1, "state123", mock_db)
-
-        # Assert
-        assert mock_integrations.strava_state == "state123"
-
-    def test_set_user_strava_state_clear(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.set_user_strava_state(1, None, mock_db)
-
-        # Assert
-        assert mock_integrations.strava_state is None
-
-    def test_set_user_strava_state_clear_null_string(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.set_user_strava_state(1, "null", mock_db)
-
-        # Assert
-        assert mock_integrations.strava_state is None
 
 
 class TestSetUserStravaSyncGear:
