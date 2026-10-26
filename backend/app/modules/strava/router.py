@@ -12,6 +12,7 @@ import modules.gears.gear.schema as gears_schema
 import modules.strava.constants as strava_constants
 import modules.strava.dependencies as strava_dependencies
 import modules.strava.gear_service as strava_gear_service
+import modules.strava.link_service as strava_link_service
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
 import modules.strava.sync_service as strava_sync_service
@@ -22,7 +23,8 @@ router = APIRouter()
 
 @router.put(
     "/link",
-    response_model=strava_schema.StravaDetail,
+    status_code=202,
+    response_model=strava_schema.StravaSyncStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -31,10 +33,14 @@ def strava_link(
     link: strava_schema.StravaLinkRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
-    db: core_dependencies.DbSession,
-) -> strava_schema.StravaDetail:
-    """Exchange a Strava authorization code for tokens and link the account."""
-    return strava_service.link_account(link, token_user_id, oauth_states, db)
+    sync_states: strava_dependencies.StravaSyncStateStoreDep,
+) -> strava_schema.StravaSyncStatus:
+    """Queue the exchange of a Strava authorization code for tokens.
+
+    Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+    pending is answered 409.
+    """
+    return strava_link_service.start_link(link, token_user_id, oauth_states, sync_states)
 
 
 @router.post(
@@ -93,7 +99,7 @@ def strava_sync_status(
     token_user_id: auth_dependencies.CurrentUserId,
     sync_states: strava_dependencies.StravaSyncStateStoreDep,
 ) -> strava_schema.StravaSyncStatus:
-    """Report where the authenticated user's queued gear sync or unlink is."""
+    """Report where the authenticated user's queued link, gear sync or unlink is."""
     return strava_sync_service.get_sync_status(token_user_id, kind, sync_states)
 
 

@@ -21,6 +21,21 @@ def test_garmin_token_expired_stages_without_committing(mock_db):
     mock_db.commit.assert_not_called()
 
 
+def test_strava_token_expired_stages_without_committing(mock_db):
+    stored = MagicMock(id=5)
+    with patch(
+        "modules.notifications.integration_service.notifications_crud.create_notification", return_value=stored
+    ) as create:
+        notification, ws_message = notifications_integration.create_strava_token_expired_notification(1, mock_db)
+
+    data = create.call_args.args[0]
+    assert data.user_id == 1
+    assert data.type == notifications_constants.NotificationType.STRAVA_TOKEN_EXPIRED
+    assert notification is stored
+    assert ws_message == notifications_constants.STRAVA_UNLINKED_WS_MESSAGE
+    mock_db.commit.assert_not_called()
+
+
 def test_admin_sign_up_approval_stages_one_per_admin(mock_db):
     user = MagicMock(id=9)
     user.name = "New"

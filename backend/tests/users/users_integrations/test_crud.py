@@ -408,6 +408,46 @@ class TestUnlinkGarminConnectAccountIfToken:
         assert user_integrations_crud.unlink_garminconnect_account_if_token(1, {}, mock_db) is False
 
 
+class TestUnlinkStravaTokensIfRefreshToken:
+    """Test suite for unlink_strava_tokens_if_refresh_token function."""
+
+    def test_clears_the_tokens_and_keeps_the_client_while_the_refresh_token_is_the_rejected_one(self, mock_db):
+        """The tokens are cleared, without committing; the client id and secret stay for a quick relink."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.strava_refresh_token = "old"
+        mock_integrations.strava_client_id = "client"
+        mock_integrations.strava_client_secret = "secret"
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, "old", mock_db)
+
+        assert result is True
+        assert mock_integrations.strava_token is None
+        assert mock_integrations.strava_refresh_token is None
+        assert mock_integrations.strava_token_expires_at is None
+        assert mock_integrations.strava_sync_gear is False
+        assert mock_integrations.strava_client_id == "client"
+        assert mock_integrations.strava_client_secret == "secret"
+        mock_db.flush.assert_not_called()
+
+    def test_keeps_a_token_linked_since(self, mock_db):
+        """A refresh token replaced by a new link or refresh is left alone."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.strava_refresh_token = "new"
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, "old", mock_db)
+
+        assert result is False
+        assert mock_integrations.strava_refresh_token == "new"
+
+    def test_returns_false_without_integrations(self, mock_db):
+        """A user with no integrations row is not unlinked."""
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+        assert user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, "old", mock_db) is False
+
+
 class TestEditUserIntegrations:
     """Test suite for edit_user_integrations function."""
 

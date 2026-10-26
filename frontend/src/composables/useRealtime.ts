@@ -45,6 +45,7 @@ const EVENT_QUERY_INVALIDATIONS: Record<string, ReadonlyArray<readonly unknown[]
   NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION: [queryKeys.notifications.all()],
   ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION: [queryKeys.notifications.all()],
   GARMIN_TOKEN_EXPIRED_NOTIFICATION: [queryKeys.notifications.all()],
+  STRAVA_TOKEN_EXPIRED_NOTIFICATION: [queryKeys.notifications.all()],
 }
 
 // Module-level state guarantees a single connection per browser tab regardless

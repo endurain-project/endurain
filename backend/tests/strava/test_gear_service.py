@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from stravalib.exc import AccessUnauthorized
 
 import core.exceptions as core_exceptions
 import modules.gears.gear.schema as gears_schema
@@ -166,7 +167,7 @@ def _linked_sync(athlete, *, existing_ids=(), gear_error=None):
     rate_limits = MagicMock()
     rate_limits.is_rate_limited.return_value = False
     sessions = MagicMock()
-    integrations = SimpleNamespace(strava_client_id="enc")
+    integrations = SimpleNamespace(strava_client_id="enc", strava_refresh_token="enc-refresh")
     with (
         patch.object(gear_utils, "SessionLocal", sessions),
         patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
@@ -239,6 +240,15 @@ class TestGetUserGear:
         assert isinstance(error, core_exceptions.DependencyFailedError)
         create.assert_not_called()
         sync_pref.assert_not_called()
+
+    def test_a_rejected_token_unlinks_the_account_and_stores_nothing(self):
+        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
+        with patch.object(gear_utils.strava_client_service, "handle_rejected_token") as handle:
+            _result, error, create, *_ = _linked_sync(athlete, gear_error=AccessUnauthorized())
+
+        assert isinstance(error, core_exceptions.DependencyFailedError)
+        handle.assert_called_once()
+        create.assert_not_called()
 
     def test_an_active_rate_limit_stops_the_sync_before_any_strava_call(self):
         client = MagicMock()

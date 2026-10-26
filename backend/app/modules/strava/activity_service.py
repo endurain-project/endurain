@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 from stravalib.client import Client
-from stravalib.exc import AccessUnauthorized
 
 import core.config as core_config
 import core.exceptions as core_exceptions
@@ -65,18 +64,10 @@ def fetch_and_process_activities(
 
     try:
         strava_activities = list(strava_client.get_activities(after=start_date, before=end_date))
-    except AccessUnauthorized as auth_err:
-        logger.error(
-            "Authentication error with Strava",
-            extra=core_logger.context(user_id=user_id),
-            exc_info=auth_err,
-        )
-        raise core_exceptions.DependencyFailedError(
-            "Strava authentication failed. Please reconnect your Strava account."
-        ) from auth_err
     except core_exceptions.DomainError:
         raise
     except Exception as err:
+        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         logger.error("Error fetching Strava activities", extra=core_logger.context(user_id=user_id), exc_info=err)
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activities") from err
@@ -103,7 +94,7 @@ def fetch_and_process_activities(
                     activity, user_id, user_privacy_settings, timezone, strava_client, user_integrations, rate_limits
                 )
             )
-        except core_exceptions.TooManyRequestsError:
+        except (core_exceptions.TooManyRequestsError, strava_client_service.StravaTokenRejectedError):
             raise
         except Exception as err:
             # One activity Strava or the parser cannot handle must not stop the rest of the window;
@@ -154,6 +145,7 @@ def parse_activity(
     try:
         detailed_activity = strava_client.get_activity(activity.id)
     except Exception as err:
+        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         logger.error(
             "Error fetching detailed Strava activity",
@@ -528,6 +520,7 @@ def fetch_and_process_activity_streams(
             ],
         )
     except Exception as err:
+        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         # Streams simply don't exist for some activities (e.g. manually added ones from
         # Apple Health have no GPS/sensor streams); import the activity without them.

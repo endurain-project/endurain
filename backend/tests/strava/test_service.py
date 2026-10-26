@@ -1,7 +1,6 @@
 """Strava account linking: the state is single-use and the caller's, and a failed exchange keeps the setup."""
 
 from datetime import date, timedelta
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import jasil.runtime as platform_runtime
@@ -17,84 +16,6 @@ import modules.strava.service as strava_service
 @pytest.fixture
 def oauth_states():
     return strava_oauth_state_store.StravaOAuthStateStore(platform_runtime.get_state())
-
-
-def _link(oauth_states, *, user_id=1, stored_state="s", sent_state="s", has_credentials=True, exchange_error=None):
-    if stored_state is not None:
-        oauth_states.begin(1, stored_state)
-    integrations = SimpleNamespace(
-        strava_client_id="id" if has_credentials else None,
-        strava_client_secret="stored" if has_credentials else None,
-    )
-    client = MagicMock()
-    if exchange_error:
-        client.exchange_code_for_token.side_effect = exchange_error
-    db = MagicMock()
-    with (
-        patch.object(strava_service, "SessionLocal"),
-        patch.object(strava_service.user_integrations_integration, "get_user_integrations", return_value=integrations),
-        patch.object(strava_service.user_integrations_integration, "link_strava_account") as link,
-        patch.object(strava_service.user_integrations_integration, "unlink_strava_account") as unlink,
-        patch.object(strava_service.strava_client_service, "create_strava_client", return_value=client),
-        patch.object(strava_service.core_cryptography, "decrypt_token_fernet", return_value="x"),
-    ):
-        error = None
-        result = None
-        try:
-            result = strava_service.link_account(
-                strava_schema.StravaLinkRequest(state=sent_state, code="c"), user_id, oauth_states, db
-            )
-        except core_exceptions.DomainError as exc:
-            error = exc
-        return link, unlink, db, result, error
-
-
-class TestLinkAccount:
-    def test_the_owner_can_link(self, oauth_states):
-        link, unlink, db, result, error = _link(oauth_states)
-
-        assert error is None
-        assert result.detail == "Strava linked successfully for user 1"
-        link.assert_called_once()
-        unlink.assert_not_called()
-        db.commit.assert_called_once()
-
-    def test_a_state_is_good_for_one_link_only(self, oauth_states):
-        _link(oauth_states)
-        link, _unlink, _db, _result, error = _link(oauth_states, stored_state=None)
-
-        assert isinstance(error, core_exceptions.InvalidInputError)
-        link.assert_not_called()
-
-    def test_another_users_stored_state_is_never_consulted(self, oauth_states):
-        """The state is held per user, so user 2 cannot redeem the one user 1 stored."""
-        link, _unlink, _db, _result, error = _link(oauth_states, user_id=2)
-
-        assert isinstance(error, core_exceptions.InvalidInputError)
-        link.assert_not_called()
-
-    def test_a_wrong_state_is_refused_and_uses_up_the_stored_one(self, oauth_states):
-        link, _unlink, _db, _result, error = _link(oauth_states, sent_state="forged")
-
-        assert isinstance(error, core_exceptions.InvalidInputError)
-        link.assert_not_called()
-        assert oauth_states.consume(1, "s") is False
-
-    def test_a_user_without_client_credentials_is_refused(self, oauth_states):
-        link, _unlink, _db, _result, error = _link(oauth_states, has_credentials=False)
-
-        assert isinstance(error, core_exceptions.InvalidInputError)
-        link.assert_not_called()
-
-    def test_a_failed_exchange_answers_424_without_leaking_the_cause_and_keeps_the_setup(self, oauth_states):
-        link, unlink, db, _result, error = _link(oauth_states, exchange_error=RuntimeError("secret-token-123 rejected"))
-
-        assert isinstance(error, core_exceptions.DependencyFailedError)
-        assert error.status_code == 424
-        assert "secret-token-123" not in error.detail
-        link.assert_not_called()
-        unlink.assert_not_called()
-        db.commit.assert_not_called()
 
 
 class TestStoredCredentials:

@@ -5,7 +5,6 @@ from datetime import UTC, date, datetime, timedelta
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
-import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
@@ -20,63 +19,6 @@ import modules.users.users_integrations.integration_service as user_integrations
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
-
-
-def link_account(
-    link: strava_schema.StravaLinkRequest,
-    user_id: int,
-    oauth_states: strava_oauth_state_store.StravaOAuthStateStore,
-    db: Session,
-) -> strava_schema.StravaDetail:
-    """Exchange a Strava authorization code for tokens and store them.
-
-    The state is consumed first, so a callback is accepted once and only for the
-    user who stored it. The stored client credentials survive a failed exchange, so
-    the user can retry without entering them again. The exchange is one bounded
-    Strava call made with no database session open.
-
-    Args:
-        link: The state and authorization code Strava returned.
-        user_id: The authenticated user.
-        oauth_states: The one-time OAuth state store.
-        db: Database session.
-
-    Returns:
-        A success message.
-
-    Raises:
-        InvalidInputError: When the state is unknown or expired, or the user has not stored a client ID and secret.
-        DependencyFailedError: When the exchange with Strava fails.
-    """
-    if not oauth_states.consume(user_id, link.state):
-        logger.warning("Strava link refused: unknown or expired state", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.InvalidInputError("The Strava link state is invalid or has expired")
-
-    with SessionLocal() as read_db:
-        user_integrations = user_integrations_integration.get_user_integrations(user_id, read_db)
-
-    if (
-        user_integrations is None
-        or user_integrations.strava_client_id is None
-        or user_integrations.strava_client_secret is None
-    ):
-        raise core_exceptions.InvalidInputError("Strava client ID and secret not set")
-
-    try:
-        tokens = strava_client_service.create_strava_client(user_integrations).exchange_code_for_token(
-            client_id=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id),
-            client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
-            code=link.code,
-        )
-    except Exception as err:
-        logger.error("Unable to link Strava account", extra=core_logger.context(user_id=user_id), exc_info=err)
-        raise core_exceptions.DependencyFailedError("Unable to link Strava account") from err
-
-    user_integrations_integration.link_strava_account(user_id, tokens, db)
-    db.commit()
-
-    logger.info("Strava linked", extra=core_logger.context(user_id=user_id))
-    return strava_schema.StravaDetail(detail=f"Strava linked successfully for user {user_id}")
 
 
 def request_activities_sync(

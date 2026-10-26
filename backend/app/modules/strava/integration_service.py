@@ -14,6 +14,7 @@ import modules.activities.activity_ingestion.integration_service as activity_ing
 import modules.strava.activity_service as strava_activity_service
 import modules.strava.bulk_import_service as strava_bulk_import_service
 import modules.strava.constants as strava_constants
+import modules.strava.link_service as strava_link_service
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.sync_service as strava_sync_service
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -58,7 +59,8 @@ def _linked_user_ids(after_id: int, limit: int) -> list[int]:
 
 
 def shutdown_pools() -> None:
-    """Stop the Strava sync pool."""
+    """Stop the Strava link and sync pools."""
+    strava_link_service.shutdown_link_pool()
     strava_sync_service.shutdown_sync_pool()
 
 

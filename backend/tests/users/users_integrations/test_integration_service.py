@@ -50,3 +50,12 @@ def test_strava_operations_reach_the_crud():
     sync_gear.assert_called_once_with(1, True, db)
     linked.assert_called_once_with(0, 10, db)
     assert ids == [2]
+
+
+def test_strava_token_unlink_reaches_the_crud():
+    db = MagicMock()
+    crud = user_integrations_integration.user_integrations_crud
+    with patch.object(crud, "unlink_strava_tokens_if_refresh_token", return_value=True) as unlink:
+        assert user_integrations_integration.unlink_strava_tokens_if_refresh_token(1, "enc", db) is True
+
+    unlink.assert_called_once_with(1, "enc", db)

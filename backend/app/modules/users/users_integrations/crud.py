@@ -199,6 +199,39 @@ def unlink_strava_account(user_id: int, db: Session) -> None:
     db.refresh(db_user_integrations)
 
 
+def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: Session) -> bool:
+    """Clear a user's Strava tokens only while they still hold the given refresh token.
+
+    The client id and secret are kept, so the user relinks without entering them again. The
+    row is locked while the token is compared, so a link or refresh made in the meantime is
+    never cleared by a caller that holds the previous token. The caller commits.
+
+    Args:
+        user_id: The ID of the user to unlink.
+        refresh_token: The stored (encrypted) refresh token the caller found to be rejected.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the tokens were cleared, False when the stored refresh token has changed or
+        is already cleared.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or db_user_integrations.strava_refresh_token != refresh_token:
+        return False
+
+    db_user_integrations.strava_token = None
+    db_user_integrations.strava_refresh_token = None
+    db_user_integrations.strava_token_expires_at = None
+    db_user_integrations.strava_sync_gear = False
+    return True
+
+
 def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db: Session) -> None:
     """Set Strava client credentials for a user (flushed, not committed).
 

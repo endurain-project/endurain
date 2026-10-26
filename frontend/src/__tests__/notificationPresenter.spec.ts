@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { Activity, Bell, CopyCheck, ShieldAlert, UserCheck, UserPlus, Watch } from '@lucide/vue'
+import {
+  Activity,
+  Bell,
+  CopyCheck,
+  ShieldAlert,
+  UserCheck,
+  UserPlus,
+  Unplug,
+  Watch,
+} from '@lucide/vue'
 
 import type { Notification } from '@/features/notifications/types'
 
@@ -72,6 +81,14 @@ describe('presentNotification', () => {
     const result = presentNotification(make(21))
 
     expect(result.icon).toBe(Watch)
+    expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
+  })
+
+  it('routes a Strava token expiry to settings integrations', () => {
+    const result = presentNotification(make(22))
+
+    expect(result.icon).toBe(Unplug)
+    expect(result.titleKey).toBe('notifications.types.stravaTokenExpired.title')
     expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
   })
 

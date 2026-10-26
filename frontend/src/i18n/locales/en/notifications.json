@@ -39,6 +39,10 @@
       "title": "Garmin Connect needs attention",
       "body": "Your Garmin Connect session expired. Reconnect it to keep syncing."
     },
+    "stravaTokenExpired": {
+      "title": "Strava needs attention",
+      "body": "Strava rejected your connection. Reconnect it to keep syncing."
+    },
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",
       "body": "{name} ({'@'}{username}) is waiting for account approval."

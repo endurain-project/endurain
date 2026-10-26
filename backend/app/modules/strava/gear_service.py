@@ -33,7 +33,7 @@ _CSV_COLUMNS = {
 }
 
 
-def _call_strava(call, description: str, client_id: str, user_id: int, rate_limits):
+def _call_strava(call, description: str, client_id: str, user_id: int, user_integrations, rate_limits):
     """Make one Strava call, turning its failures into domain errors.
 
     Args:
@@ -41,6 +41,7 @@ def _call_strava(call, description: str, client_id: str, user_id: int, rate_limi
         description: What is being fetched, for the log and the error.
         client_id: The Strava application (client ID) making the call.
         user_id: The user the call is for.
+        user_integrations: The integration settings the call is made with.
         rate_limits: The shared Strava rate-limit state.
 
     Returns:
@@ -48,12 +49,14 @@ def _call_strava(call, description: str, client_id: str, user_id: int, rate_limi
 
     Raises:
         TooManyRequestsError: When Strava's rate limit is active or was just hit.
+        StravaTokenRejectedError: When Strava rejected the token and the account was unlinked.
         DependencyFailedError: When Strava cannot return the result.
     """
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
     try:
         result = call()
     except Exception as err:
+        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         logger.error(
             "Error fetching from Strava", extra=core_logger.context(user_id=user_id, fetching=description), exc_info=err
@@ -136,7 +139,9 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
     client_id = strava_client_service.get_client_id(user_integrations)
     strava_client: Client = strava_client_service.create_strava_client(user_integrations)
 
-    athlete = _call_strava(strava_client.get_athlete, "Strava athlete", client_id, user_id, rate_limits)
+    athlete = _call_strava(
+        strava_client.get_athlete, "Strava athlete", client_id, user_id, user_integrations, rate_limits
+    )
     summaries = [(gears_schema.GearType.BIKE, gear) for gear in athlete.bikes or []] + [
         (gears_schema.GearType.SHOES, gear) for gear in athlete.shoes or []
     ]
@@ -151,7 +156,12 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
     new_gear = []
     for gear_type, summary in new_summaries:
         strava_gear = _call_strava(
-            lambda gear_id=summary.id: strava_client.get_gear(gear_id), "Strava gear", client_id, user_id, rate_limits
+            lambda gear_id=summary.id: strava_client.get_gear(gear_id),
+            "Strava gear",
+            client_id,
+            user_id,
+            user_integrations,
+            rate_limits,
         )
         new_gear.append(
             gears_schema.GearCreate(

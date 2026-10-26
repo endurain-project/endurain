@@ -4,6 +4,7 @@ import {
   CopyCheck,
   ShieldAlert,
   UserCheck,
+  Unplug,
   UserPlus,
   Watch,
   type LucideIcon,
@@ -24,6 +25,7 @@ const NOTIFICATION_TYPE = {
   NEW_FOLLOWER_REQUEST: 11,
   NEW_FOLLOWER_REQUEST_ACCEPTED: 12,
   GARMIN_TOKEN_EXPIRED: 21,
+  STRAVA_TOKEN_EXPIRED: 22,
   ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: 101,
 } as const
 
@@ -152,6 +154,14 @@ export function presentNotification(
         icon: Watch,
         titleKey: `${base}.garminTokenExpired.title`,
         bodyKey: `${base}.garminTokenExpired.body`,
+        to: { name: 'settings', query: { tab: 'integrations' } },
+      }
+    }
+    case NOTIFICATION_TYPE.STRAVA_TOKEN_EXPIRED: {
+      return {
+        icon: Unplug,
+        titleKey: `${base}.stravaTokenExpired.title`,
+        bodyKey: `${base}.stravaTokenExpired.body`,
         to: { name: 'settings', query: { tab: 'integrations' } },
       }
     }

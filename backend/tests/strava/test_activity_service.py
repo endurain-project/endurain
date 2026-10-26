@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, Mock
 
 import jasil.runtime as platform_runtime
 import pytest
+from stravalib.exc import AccessUnauthorized, ObjectNotFound
 from stravalib.exc import Fault as StravaFault
-from stravalib.exc import ObjectNotFound
 
 import core.exceptions as core_exceptions
 import modules.strava.activity_service as activity_utils
@@ -444,3 +444,76 @@ class TestFetchAndProcessActivitiesIsolation:
         self._run(monkeypatch, rate_limits, process)
 
         assert seen == ["Europe/Lisbon"] * 3
+
+
+class TestARejectedTokenUnlinksTheAccount:
+    """A Strava 401 anywhere in the activity sync hands the rejected token to ``handle_rejected_token``."""
+
+    @pytest.fixture
+    def handle(self, monkeypatch):
+        handle = Mock()
+        monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
+        monkeypatch.setattr(activity_utils, "SessionLocal", MagicMock())
+        monkeypatch.setattr(activity_utils.activity_integration, "get_activity_by_strava_id", lambda *a, **k: None)
+        return handle
+
+    def _integrations(self):
+        return Mock(strava_client_id="app-a", strava_refresh_token="enc")
+
+    def test_the_window_fetch(self, handle, rate_limits):
+        client = Mock()
+        client.get_activities.side_effect = AccessUnauthorized()
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            activity_utils.fetch_and_process_activities(
+                client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, self._integrations(), rate_limits
+            )
+
+        assert handle.call_args.args[:2] == (1, "enc")
+
+    def test_the_detail_fetch(self, handle, rate_limits):
+        client = Mock()
+        client.get_activity.side_effect = AccessUnauthorized()
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            activity_utils.process_activity(Mock(id=9), 1, Mock(), "UTC", client, self._integrations(), rate_limits)
+
+        assert handle.call_args.args[:2] == (1, "enc")
+
+    def test_the_streams_fetch(self, handle, rate_limits):
+        client = Mock()
+        client.get_activity_streams.side_effect = AccessUnauthorized()
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            activity_utils.fetch_and_process_activity_streams(
+                strava_client=client,
+                strava_activity_id=99,
+                user_id=1,
+                user_integrations=self._integrations(),
+                rate_limits=rate_limits,
+            )
+
+        assert handle.call_args.args[:2] == (1, "enc")
+
+    def test_a_rejected_token_stops_the_window_instead_of_skipping_the_activity(self, handle, rate_limits, monkeypatch):
+        calls = []
+
+        def process(activity, *_args):
+            calls.append(activity.id)
+            strava_utils.raise_if_unauthorized(AccessUnauthorized(), 1, self._integrations())
+
+        monkeypatch.setattr(activity_utils, "process_activity", process)
+        monkeypatch.setattr(
+            activity_utils.users_integration, "get_user", Mock(return_value=Mock(id=1, timezone="UTC", spec_set=None))
+        )
+        monkeypatch.setattr(activity_utils.users_privacy_settings_integration, "get_privacy_settings", Mock())
+        monkeypatch.setattr(activity_utils, "SessionLocal", MagicMock())
+        client = Mock()
+        client.get_activities.return_value = [Mock(id=1), Mock(id=2)]
+
+        with pytest.raises(strava_utils.StravaTokenRejectedError):
+            activity_utils.fetch_and_process_activities(
+                client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, self._integrations(), rate_limits
+            )
+
+        assert calls == [1]

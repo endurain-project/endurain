@@ -6,12 +6,13 @@ from datetime import UTC, datetime, timedelta
 import requests
 from sqlalchemy.orm import Session
 from stravalib.client import Client as StravaClient
+from stravalib.exc import AccessUnauthorized, ObjectNotFound, RateLimitExceeded
 from stravalib.exc import Fault as StravaFault
-from stravalib.exc import ObjectNotFound, RateLimitExceeded
 
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.notifications.integration_service as notifications_integration
 import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -19,6 +20,10 @@ import modules.users.users_integrations.schema as user_integrations_schema
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
+
+
+class StravaTokenRejectedError(core_exceptions.DependencyFailedError):
+    """Raised when Strava rejected the user's token and the account was unlinked, so a sync must stop."""
 
 
 def get_client_id(user_integrations: user_integrations_schema.UsersIntegrationsRead) -> str:
@@ -82,6 +87,71 @@ def is_strava_not_found_error(err: Exception) -> bool:
         True if the error is a 404 not-found response.
     """
     return isinstance(err, ObjectNotFound) or _fault_status(err) == 404
+
+
+def is_strava_unauthorized_error(err: Exception) -> bool:
+    """Check if an exception is Strava rejecting the user's access token.
+
+    Args:
+        err: The exception to check.
+
+    Returns:
+        True if the error is a 401 unauthorized response.
+    """
+    return isinstance(err, AccessUnauthorized) or _fault_status(err) == 401
+
+
+def handle_rejected_token(user_id: int, refresh_token: str | None, err: Exception) -> None:
+    """Unlink an account whose token Strava rejected during a sync, and tell the user.
+
+    The tokens are cleared and the notification row committed together; the live push is
+    published after. The client id and secret stay, so relinking is one step. Nothing happens
+    when the stored refresh token is no longer ``refresh_token``: the user relinked, or
+    another job already unlinked it and told them.
+
+    Args:
+        user_id: The user whose sync was rejected.
+        refresh_token: The stored (encrypted) refresh token that Strava rejected.
+        err: The unauthorized error Strava raised.
+    """
+    logger.warning(
+        "Strava token rejected. Unlinking account. User must re-link",
+        exc_info=err,
+        extra=core_logger.context(user_id=user_id),
+    )
+    if refresh_token is None:
+        return
+    with SessionLocal() as db:
+        if not user_integrations_integration.unlink_strava_tokens_if_refresh_token(user_id, refresh_token, db):
+            db.rollback()
+            logger.info(
+                "Strava token changed since it was rejected; account left linked",
+                extra=core_logger.context(user_id=user_id),
+            )
+            return
+        notification, ws_message = notifications_integration.create_strava_token_expired_notification(user_id, db)
+        db.commit()
+    notifications_integration.push_notification(user_id, notification, ws_message)
+    logger.info("Rejected Strava account unlinked", extra=core_logger.context(user_id=user_id))
+
+
+def raise_if_unauthorized(
+    err: Exception, user_id: int, user_integrations: user_integrations_schema.UsersIntegrationsRead
+) -> None:
+    """Unlink the account and refuse the call when ``err`` is Strava rejecting the token.
+
+    Args:
+        err: The exception a Strava call raised.
+        user_id: The user the call was for.
+        user_integrations: The integration settings the call was made with.
+
+    Raises:
+        StravaTokenRejectedError: When ``err`` is an unauthorized response.
+    """
+    if not is_strava_unauthorized_error(err):
+        return
+    handle_rejected_token(user_id, user_integrations.strava_refresh_token, err)
+    raise StravaTokenRejectedError("Strava authentication failed. Please reconnect your Strava account.") from err
 
 
 def raise_if_rate_limited(

@@ -23,6 +23,20 @@ def get_user_integrations(user_id: int, db: Session) -> user_integrations_schema
     return user_integrations_crud.get_user_integrations_by_user_id(user_id, db)
 
 
+def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: Session) -> bool:
+    """Clear a user's Strava tokens only while they still hold the given refresh token.
+
+    Args:
+        user_id: The user whose Strava link was rejected.
+        refresh_token: The stored (encrypted) refresh token that was found to be rejected.
+        db: Database session.
+
+    Returns:
+        True when the tokens were cleared, False when the refresh token has since changed.
+    """
+    return user_integrations_crud.unlink_strava_tokens_if_refresh_token(user_id, refresh_token, db)
+
+
 def link_garminconnect_account(user_id: int, token: dict, db: Session) -> None:
     """Store a user's Garmin Connect token.
 

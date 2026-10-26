@@ -41,7 +41,9 @@ def test_routes_require_the_matching_scope(path, method, scope):
     assert scope in _scopes(_routes()[(path, (method,))])
 
 
-@pytest.mark.parametrize(("path", "method"), [("/gear", "POST"), ("/activities", "POST"), ("/unlink", "DELETE")])
+@pytest.mark.parametrize(
+    ("path", "method"), [("/link", "PUT"), ("/gear", "POST"), ("/activities", "POST"), ("/unlink", "DELETE")]
+)
 def test_slow_work_is_accepted_not_done_inline(path, method):
     assert _routes()[(path, (method,))].status_code == 202
 

@@ -56,6 +56,31 @@ def create_garmin_token_expired_notification(
     return notification, notifications_constants.GARMIN_UNLINKED_WS_MESSAGE
 
 
+def create_strava_token_expired_notification(
+    user_id: int,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """Stage the notification that a Strava account was unlinked.
+
+    Args:
+        user_id: The user whose account was unlinked.
+        db: Database session.
+
+    Returns:
+        The staged notification and the websocket message type the caller should
+        push once it has committed.
+    """
+    notification = notifications_crud.create_notification(
+        notifications_schema.NotificationCreate(
+            user_id=user_id,
+            type=notifications_constants.NotificationType.STRAVA_TOKEN_EXPIRED,
+            options={},
+        ),
+        db,
+    )
+    return notification, notifications_constants.STRAVA_UNLINKED_WS_MESSAGE
+
+
 def create_admin_sign_up_approval_notifications(
     user: users_schema.UsersRead,
     db: Session,

@@ -23,6 +23,9 @@ SYNC_TTL_SECONDS = 30 * 60
 #: is fetched in several requests.
 MAX_ACTIVITIES_RANGE_DAYS = 366
 
+#: Account links the in-process pool may hold, running or queued; each is one Strava round trip.
+MAX_CONCURRENT_LINKS = 4
+
 #: Syncs the in-process pool may hold, running or queued, when durable jobs are off.
 MAX_PENDING_LOCAL_SYNCS = 50
 
@@ -33,6 +36,7 @@ SYNC_SOURCE_API = "api:strava_sync"
 class SyncKind(StrEnum):
     """What a queued Strava sync does."""
 
+    LINK = "link"
     GEAR = "gear"
     UNLINK = "unlink"
 

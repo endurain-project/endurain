@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, Mock
 
 import jasil.runtime as platform_runtime
 import pytest
+from stravalib.exc import AccessUnauthorized, ObjectNotFound, RateLimitExceeded
 from stravalib.exc import Fault as StravaFault
-from stravalib.exc import ObjectNotFound, RateLimitExceeded
 
 import core.exceptions as core_exceptions
 import modules.strava.client_service as strava_utils
@@ -283,6 +283,75 @@ class TestRaiseIfRateLimitActive:
         rate_limits.is_rate_limited.return_value = False
 
         strava_utils.raise_if_rate_limit_active("c", 1, rate_limits)
+
+
+class TestIsStravaUnauthorizedError:
+    def test_an_access_unauthorized_error_is_detected(self):
+        assert strava_utils.is_strava_unauthorized_error(AccessUnauthorized()) is True
+
+    def test_a_401_fault_is_detected(self):
+        assert strava_utils.is_strava_unauthorized_error(_make_strava_fault(401)) is True
+
+    def test_another_fault_is_not(self):
+        assert strava_utils.is_strava_unauthorized_error(_make_strava_fault(500)) is False
+
+    def test_a_plain_exception_is_not(self):
+        assert strava_utils.is_strava_unauthorized_error(ValueError("nope")) is False
+
+
+class TestHandleRejectedToken:
+    def _run(self, *, unlinked: bool):
+        db = MagicMock()
+        sessions = MagicMock()
+        sessions.return_value.__enter__.return_value = db
+        with (
+            pytest.MonkeyPatch.context() as patch,
+        ):
+            patch.setattr(strava_utils, "SessionLocal", sessions)
+            unlink = Mock(return_value=unlinked)
+            patch.setattr(strava_utils.user_integrations_integration, "unlink_strava_tokens_if_refresh_token", unlink)
+            note = Mock(return_value=("n", "ws"))
+            patch.setattr(strava_utils.notifications_integration, "create_strava_token_expired_notification", note)
+            push = Mock()
+            patch.setattr(strava_utils.notifications_integration, "push_notification", push)
+            strava_utils.handle_rejected_token(1, "enc-refresh", ValueError("401"))
+        return db, unlink, note, push
+
+    def test_the_rejected_token_is_unlinked_and_the_user_told_in_one_commit(self):
+        db, unlink, note, push = self._run(unlinked=True)
+
+        unlink.assert_called_once_with(1, "enc-refresh", db)
+        note.assert_called_once_with(1, db)
+        db.commit.assert_called_once()
+        push.assert_called_once_with(1, "n", "ws")
+
+    def test_a_token_linked_since_is_left_alone_and_nobody_is_notified(self):
+        db, _unlink, note, push = self._run(unlinked=False)
+
+        db.commit.assert_not_called()
+        db.rollback.assert_called_once()
+        note.assert_not_called()
+        push.assert_not_called()
+
+
+class TestRaiseIfUnauthorized:
+    def test_a_rejected_token_unlinks_the_account_and_refuses_the_call(self, monkeypatch):
+        handle = Mock()
+        monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_utils.raise_if_unauthorized(AccessUnauthorized(), 1, Mock(strava_refresh_token="enc"))
+
+        handle.assert_called_once()
+        assert handle.call_args.args[:2] == (1, "enc")
+
+    def test_any_other_error_passes_through(self, monkeypatch):
+        handle = Mock()
+        monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
+
+        strava_utils.raise_if_unauthorized(ValueError("nope"), 1, Mock(strava_refresh_token="enc"))
+
+        handle.assert_not_called()
 
 
 class TestTokenRefreshClaim:
