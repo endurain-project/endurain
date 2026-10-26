@@ -1,6 +1,6 @@
 """Strava account linking: the OAuth state and client, the code exchange and unlinking."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
@@ -102,10 +102,15 @@ def request_activities_sync(
         The accepted refresh job, whose outcome is polled on the ingestion-jobs route.
 
     Raises:
-        InvalidInputError: When ``start_date`` is after ``end_date``.
+        InvalidInputError: When ``start_date`` is after ``end_date`` or the range is longer than
+            ``MAX_ACTIVITIES_RANGE_DAYS``.
     """
     if start_date > end_date:
         raise core_exceptions.InvalidInputError("start_date must not be after end_date")
+    if end_date - start_date >= timedelta(days=strava_constants.MAX_ACTIVITIES_RANGE_DAYS):
+        raise core_exceptions.InvalidInputError(
+            f"The date range must not exceed {strava_constants.MAX_ACTIVITIES_RANGE_DAYS} days"
+        )
 
     job = activity_ingestion_integration.request_provider_sync(
         user_id,

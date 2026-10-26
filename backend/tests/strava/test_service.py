@@ -1,6 +1,6 @@
 """Strava account linking: the state is single-use and the caller's, and a failed exchange keeps the setup."""
 
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +8,7 @@ import jasil.runtime as platform_runtime
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
@@ -132,6 +133,27 @@ class TestRequestActivitiesSync:
     def test_a_range_ending_before_it_starts_is_refused(self):
         with pytest.raises(core_exceptions.InvalidInputError):
             strava_service.request_activities_sync(1, date(2026, 2, 1), date(2026, 1, 1), MagicMock(), MagicMock())
+
+    def test_a_range_longer_than_the_cap_is_refused(self):
+        start = date(2025, 1, 1)
+        too_long = start + timedelta(days=strava_constants.MAX_ACTIVITIES_RANGE_DAYS)
+        with (
+            patch.object(strava_service.activity_ingestion_integration, "request_provider_sync") as request,
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            strava_service.request_activities_sync(1, start, too_long, MagicMock(), MagicMock())
+
+        request.assert_not_called()
+
+    def test_a_range_at_the_cap_is_queued(self):
+        start = date(2025, 1, 1)
+        last = start + timedelta(days=strava_constants.MAX_ACTIVITIES_RANGE_DAYS - 1)
+        with patch.object(
+            strava_service.activity_ingestion_integration, "request_provider_sync", return_value="job"
+        ) as request:
+            strava_service.request_activities_sync(1, start, last, MagicMock(), MagicMock())
+
+        request.assert_called_once()
 
     def test_the_whole_last_day_is_requested(self):
         with patch.object(

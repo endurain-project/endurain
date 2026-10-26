@@ -19,6 +19,10 @@ TOKEN_REFRESH_CLAIM_TTL_SECONDS = 60
 #: Lifetime of a queued sync's claim and state: longer than any sync takes, shorter than a stuck claim should block.
 SYNC_TTL_SECONDS = 30 * 60
 
+#: Longest activity range one request may ask for; each activity is several Strava calls, so a longer history
+#: is fetched in several requests.
+MAX_ACTIVITIES_RANGE_DAYS = 366
+
 #: Syncs the in-process pool may hold, running or queued, when durable jobs are off.
 MAX_PENDING_LOCAL_SYNCS = 50
 
