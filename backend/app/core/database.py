@@ -1,7 +1,7 @@
 """Database engine, session factory, and declarative base."""
 
 import os
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from datetime import datetime
 
 import jasil.orm as jasil_orm
@@ -17,6 +17,9 @@ from sqlalchemy.orm import (
 )
 
 import core.config as core_config
+import core.logger as core_logger
+
+logger = core_logger.get_logger(__name__)
 
 # Resolve and validate the database password before
 # building the connection URL so the failure mode is a
@@ -36,45 +39,103 @@ db_url = URL.create(
     database=os.environ.get("DB_DATABASE", "endurain"),
 )
 
-# Pin the database session timezone to UTC. The import
-# parsers emit naive UTC wall-clock timestamps, and the
-# datetime columns are TIMESTAMP WITH TIME ZONE. Without
-# this, PostgreSQL interprets naive values in the server's
-# session timezone (driven by the container TZ env var),
-# which shifts stored instants when TZ != UTC. Forcing UTC
-# makes storage deterministic regardless of deployment TZ.
+#: Connections the pool keeps open, and extra ones it may open under load, per process.
+_DEFAULT_POOL_SIZE = 20
+_DEFAULT_MAX_OVERFLOW = 40
+
 # A row lock held by a stuck transaction fails the waiting statement after
 # _LOCK_TIMEOUT_SECONDS instead of parking a request thread (and its pooled connection)
 # for as long as the holder lives.
 _LOCK_TIMEOUT_SECONDS = 30
-_connect_args: dict = {"options": f"-c timezone=utc -c lock_timeout={_LOCK_TIMEOUT_SECONDS}s"}
 
-# Optional TLS for the database connection (OWASP A02 —
-# Cryptographic Failures). Opt-in via the DB_SSLMODE env
-# var so self-hosters running plain Postgres are not
-# broken by default. Accepted values match libpq:
-# disable | allow | prefer | require | verify-ca |
-# verify-full. Recommended for any deployed environment:
-# DB_SSLMODE=require (or stricter).
-_db_sslmode = os.environ.get("DB_SSLMODE", "").strip().lower()
-if _db_sslmode:
-    _connect_args["sslmode"] = _db_sslmode
+
+def _int_env(env: Mapping[str, str], name: str, default: int, *, minimum: int) -> int:
+    """Read an integer setting from the environment, tolerating a missing or unusable value.
+
+    Args:
+        env: The environment to read.
+        name: The variable to read.
+        default: The value used when the variable is unset, empty, not an integer or below ``minimum``.
+        minimum: The lowest accepted value.
+
+    Returns:
+        The configured value, or ``default``.
+    """
+    raw = env.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        value = minimum - 1
+    if value < minimum:
+        logger.warning(
+            "Invalid %s value, expected an integer of at least %d; using %d",
+            name,
+            minimum,
+            default,
+            extra=core_logger.context(console=True),
+        )
+        return default
+    return value
+
+
+def _pool_options(env: Mapping[str, str]) -> dict[str, int]:
+    """Build the connection pool sizing from ``DB_POOL_SIZE`` and ``DB_MAX_OVERFLOW``.
+
+    Args:
+        env: The environment to read.
+
+    Returns:
+        The ``pool_size`` and ``max_overflow`` engine arguments.
+    """
+    return {
+        "pool_size": _int_env(env, "DB_POOL_SIZE", _DEFAULT_POOL_SIZE, minimum=1),
+        "max_overflow": _int_env(env, "DB_MAX_OVERFLOW", _DEFAULT_MAX_OVERFLOW, minimum=0),
+    }
+
+
+def _connect_args(env: Mapping[str, str]) -> dict:
+    """Build the connection arguments.
+
+    Pins the session timezone to UTC. The import parsers emit naive UTC wall-clock timestamps and
+    the datetime columns are TIMESTAMP WITH TIME ZONE, so without this PostgreSQL would read naive
+    values in the server's session timezone and shift stored instants when TZ != UTC. Bounds how
+    long a statement may wait for a row lock. ``DB_STATEMENT_TIMEOUT_SECONDS`` bounds how long a
+    statement may run (off at 0, the default), so a runaway query cannot hold a request thread and
+    its pooled connection indefinitely. ``DB_SSLMODE`` opts into TLS (OWASP A02), with libpq values:
+    disable | allow | prefer | require | verify-ca | verify-full.
+
+    Args:
+        env: The environment to read.
+
+    Returns:
+        The ``connect_args`` engine argument.
+    """
+    options = f"-c timezone=utc -c lock_timeout={_LOCK_TIMEOUT_SECONDS}s"
+    statement_timeout = _int_env(env, "DB_STATEMENT_TIMEOUT_SECONDS", 0, minimum=0)
+    if statement_timeout:
+        options += f" -c statement_timeout={statement_timeout}s"
+    connect_args: dict = {"options": options}
+    sslmode = env.get("DB_SSLMODE", "").strip().lower()
+    if sslmode:
+        connect_args["sslmode"] = sslmode
+    return connect_args
+
 
 # Create the SQLAlchemy engine.
-# Pool budget: pool_size + max_overflow = 60 connections
-# per worker. With --workers=N the total is 60*N, which
-# must stay below PostgreSQL max_connections (default 100).
-# For >1 worker, lower these values or front the database
-# with PgBouncer in session pooling mode: the postgres-advisory:// lock
-# is a session-level advisory lock and breaks under transaction pooling.
+# Pool budget: pool_size + max_overflow connections per process (60 by default). The total is
+# that times every web worker, replica and dedicated worker, and must stay below PostgreSQL
+# max_connections (default 100). Lower DB_POOL_SIZE / DB_MAX_OVERFLOW, or front the database
+# with PgBouncer in session pooling mode: the postgres-advisory:// lock is a session-level
+# advisory lock and breaks under transaction pooling.
 engine = create_engine(
     db_url,
-    pool_size=20,
-    max_overflow=40,
+    **_pool_options(os.environ),
     pool_timeout=30,
     pool_recycle=3600,
     pool_pre_ping=True,
-    connect_args=_connect_args,
+    connect_args=_connect_args(os.environ),
 )
 
 # Create a session factory

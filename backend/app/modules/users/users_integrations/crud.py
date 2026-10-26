@@ -174,6 +174,38 @@ def link_strava_account(
     db.refresh(db_user_integrations)
 
 
+def replace_strava_tokens_if_refresh_token(user_id: int, old_refresh_token: str, tokens: dict, db: Session) -> bool:
+    """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
+
+    Strava rotates the refresh token on every refresh. The row is locked while the token is
+    compared, so a refresh that raced another, or a relink made in the meantime, is never
+    overwritten. The caller commits.
+
+    Args:
+        user_id: The ID of the user.
+        old_refresh_token: The stored (encrypted) refresh token the new tokens were refreshed from.
+        tokens: Dictionary containing access_token, refresh_token, and expires_at.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the tokens were replaced, False when the stored refresh token has changed or is cleared.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or db_user_integrations.strava_refresh_token != old_refresh_token:
+        return False
+
+    db_user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
+    db_user_integrations.strava_refresh_token = core_cryptography.encrypt_token_fernet(tokens["refresh_token"])
+    db_user_integrations.strava_token_expires_at = datetime.fromtimestamp(tokens["expires_at"], tz=UTC)
+    return True
+
+
 def unlink_strava_account(user_id: int, db: Session) -> None:
     """Unlink a Strava account by clearing OAuth tokens (flushed, not committed).
 

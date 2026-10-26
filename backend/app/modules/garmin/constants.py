@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+import core.attempt_state as core_attempt_state
+
 PROVIDER_NAME = "garminconnect"
 
 # A login waits this long for the user's MFA code. The stores' lifetimes must exceed it so a live
@@ -40,13 +42,8 @@ class SyncKind(StrEnum):
     HEALTH = "health"
 
 
-class SyncStatus(StrEnum):
-    """Where a queued Garmin Connect sync is."""
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+#: Where a queued sync is; shared by every provider's sync state.
+SyncStatus = core_attempt_state.SyncStatus
 
 
 class LinkStatus(StrEnum):

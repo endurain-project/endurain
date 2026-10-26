@@ -75,16 +75,13 @@ class TestTokenRefreshClaim:
         assert store.claim_token_refresh(901) is True
         assert store.claim_token_refresh(901) is False
 
-        store.release_token_refresh(901)
-
-        assert store.claim_token_refresh(901) is True
-        store.release_token_refresh(901)
+    def test_the_claim_is_left_to_expire_not_released(self, store):
+        """No owner-checked release exists, so a holder never frees a claim another process took after expiry."""
+        assert not hasattr(store, "release_token_refresh")
 
     def test_claims_are_per_user(self, store):
         assert store.claim_token_refresh(902) is True
         assert store.claim_token_refresh(903) is True
-        store.release_token_refresh(902)
-        store.release_token_refresh(903)
 
     def test_an_unreachable_state_does_not_stop_the_refresh(self):
         state = MagicMock()

@@ -1,5 +1,6 @@
 """Tests for user_integrations.crud module."""
 
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -406,6 +407,43 @@ class TestUnlinkGarminConnectAccountIfToken:
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         assert user_integrations_crud.unlink_garminconnect_account_if_token(1, {}, mock_db) is False
+
+
+class TestReplaceStravaTokensIfRefreshToken:
+    """Test suite for replace_strava_tokens_if_refresh_token function."""
+
+    TOKENS: ClassVar[dict] = {"access_token": "a2", "refresh_token": "r2", "expires_at": 1234567890}
+
+    def test_replaces_while_the_stored_refresh_token_is_the_one_refreshed_from(self, mock_db):
+        """The new tokens are stored encrypted, without committing."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.strava_refresh_token = "old"
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        with patch("modules.users.users_integrations.crud.core_cryptography.encrypt_token_fernet") as encrypt:
+            encrypt.side_effect = lambda value: f"enc_{value}"
+            result = user_integrations_crud.replace_strava_tokens_if_refresh_token(1, "old", self.TOKENS, mock_db)
+
+        assert result is True
+        assert mock_integrations.strava_token == "enc_a2"
+        assert mock_integrations.strava_refresh_token == "enc_r2"
+        mock_db.commit.assert_not_called()
+
+    def test_keeps_tokens_replaced_since(self, mock_db):
+        """A refresh or a relink that got there first is not overwritten."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.strava_refresh_token = "newer"
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        result = user_integrations_crud.replace_strava_tokens_if_refresh_token(1, "old", self.TOKENS, mock_db)
+
+        assert result is False
+        assert mock_integrations.strava_refresh_token == "newer"
+
+    def test_returns_false_without_integrations(self, mock_db):
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+        assert user_integrations_crud.replace_strava_tokens_if_refresh_token(1, "old", self.TOKENS, mock_db) is False
 
 
 class TestUnlinkStravaTokensIfRefreshToken:

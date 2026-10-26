@@ -59,3 +59,12 @@ def test_strava_token_unlink_reaches_the_crud():
         assert user_integrations_integration.unlink_strava_tokens_if_refresh_token(1, "enc", db) is True
 
     unlink.assert_called_once_with(1, "enc", db)
+
+
+def test_strava_token_replacement_reaches_the_crud():
+    db = MagicMock()
+    crud = user_integrations_integration.user_integrations_crud
+    with patch.object(crud, "replace_strava_tokens_if_refresh_token", return_value=True) as replace:
+        assert user_integrations_integration.replace_strava_tokens_if_refresh_token(1, "enc", {"k": 1}, db) is True
+
+    replace.assert_called_once_with(1, "enc", {"k": 1}, db)

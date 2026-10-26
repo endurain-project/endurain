@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+import core.attempt_state as core_attempt_state
+
 PROVIDER_NAME = "strava"
 
 #: The name the Strava export layout registers under with bulk import.
@@ -41,10 +43,5 @@ class SyncKind(StrEnum):
     UNLINK = "unlink"
 
 
-class SyncStatus(StrEnum):
-    """Where a queued Strava sync is."""
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+#: Where a queued sync is; shared by every provider's sync state.
+SyncStatus = core_attempt_state.SyncStatus

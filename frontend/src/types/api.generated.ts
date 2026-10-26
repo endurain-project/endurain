@@ -6144,7 +6144,7 @@ export interface components {
          */
         GarminSyncStatus: {
             kind: components["schemas"]["modules__garmin__constants__SyncKind"];
-            status: components["schemas"]["modules__garmin__constants__SyncStatus"];
+            status: components["schemas"]["SyncStatus"];
         };
         /**
          * GearComponentCreate
@@ -10337,8 +10337,14 @@ export interface components {
          */
         StravaSyncStatus: {
             kind: components["schemas"]["modules__strava__constants__SyncKind"];
-            status: components["schemas"]["modules__strava__constants__SyncStatus"];
+            status: components["schemas"]["SyncStatus"];
         };
+        /**
+         * SyncStatus
+         * @description Where a queued provider sync is.
+         * @enum {string}
+         */
+        SyncStatus: "queued" | "running" | "completed" | "failed";
         /**
          * TileMapsTemplate
          * @description Schema representing available tile map templates.
@@ -12428,12 +12434,6 @@ export interface components {
          */
         modules__garmin__constants__SyncKind: "gear" | "health";
         /**
-         * SyncStatus
-         * @description Where a queued Garmin Connect sync is.
-         * @enum {string}
-         */
-        modules__garmin__constants__SyncStatus: "queued" | "running" | "completed" | "failed";
-        /**
          * MFARequest
          * @description The MFA code a user submits to finish a link attempt.
          */
@@ -12516,12 +12516,6 @@ export interface components {
          * @enum {string}
          */
         modules__strava__constants__SyncKind: "link" | "gear" | "unlink";
-        /**
-         * SyncStatus
-         * @description Where a queued Strava sync is.
-         * @enum {string}
-         */
-        modules__strava__constants__SyncStatus: "queued" | "running" | "completed" | "failed";
         /**
          * Interval
          * @description Recurrence intervals for user goals.

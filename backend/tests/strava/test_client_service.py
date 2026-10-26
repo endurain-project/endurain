@@ -170,13 +170,40 @@ class TestRefreshUserStravaToken:
             during_call.append(open_sessions) or {"access_token": "n"}
         )
         monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        link = Mock()
-        monkeypatch.setattr(strava_utils.user_integrations_integration, "link_strava_account", link)
+        replace = Mock(return_value=True)
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration, "replace_strava_tokens_if_refresh_token", replace
+        )
 
         strava_utils.refresh_user_strava_token(1, rate_limits)
 
         assert during_call == [0]
-        link.assert_called_once()
+        replace.assert_called_once()
+        assert replace.call_args.args[:3] == (1, "r", {"access_token": "n"})
+
+    def test_tokens_changed_since_the_read_are_not_overwritten(self, monkeypatch, rate_limits):
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration,
+            "get_user_integrations",
+            Mock(return_value=self._integrations(expires_in_minutes=10)),
+        )
+        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
+        client = Mock()
+        client.refresh_access_token.return_value = {"access_token": "n"}
+        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
+        db = MagicMock()
+        monkeypatch.setattr(
+            strava_utils, "SessionLocal", lambda: MagicMock(__enter__=lambda s: db, __exit__=lambda *a: False)
+        )
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration,
+            "replace_strava_tokens_if_refresh_token",
+            Mock(return_value=False),
+        )
+
+        strava_utils.refresh_user_strava_token(1, rate_limits)
+
+        db.commit.assert_not_called()
 
     def test_a_rate_limited_refresh_marks_the_limit_and_returns(self, monkeypatch, rate_limits):
         monkeypatch.setattr(
@@ -188,14 +215,16 @@ class TestRefreshUserStravaToken:
         client = Mock()
         client.refresh_access_token.side_effect = _make_strava_fault(429)
         monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        link = Mock()
-        monkeypatch.setattr(strava_utils.user_integrations_integration, "link_strava_account", link)
+        replace = Mock()
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration, "replace_strava_tokens_if_refresh_token", replace
+        )
 
         strava_utils.refresh_user_strava_token(1, rate_limits)
 
         assert rate_limits.is_rate_limited("c") is True
         assert rate_limits.is_rate_limited("another-app") is False
-        link.assert_not_called()
+        replace.assert_not_called()
 
     def test_another_apps_limit_does_not_skip_the_refresh(self, monkeypatch, rate_limits):
         monkeypatch.setattr(
@@ -405,7 +434,6 @@ class TestTokenRefreshClaim:
         strava_utils.refresh_user_strava_token(1, rate_limits)
 
         create_client.assert_not_called()
-        rate_limits.release_token_refresh.assert_not_called()
 
     def test_a_refresh_another_process_just_finished_is_not_repeated(self, monkeypatch):
         """The integration is read again under the claim, and a fresh token ends the refresh."""
@@ -427,10 +455,9 @@ class TestTokenRefreshClaim:
         strava_utils.refresh_user_strava_token(1, rate_limits)
 
         create_client.assert_not_called()
-        rate_limits.release_token_refresh.assert_called_once_with(1)
 
-    def test_the_claim_is_released_after_a_failed_refresh(self, monkeypatch):
-        rate_limits = MagicMock()
+    def test_a_failed_refresh_leaves_the_claim_to_expire(self, monkeypatch):
+        rate_limits = MagicMock(spec=["is_rate_limited", "claim_token_refresh", "mark_rate_limited"])
         rate_limits.is_rate_limited.return_value = False
         rate_limits.claim_token_refresh.return_value = True
         monkeypatch.setattr(
@@ -442,7 +469,7 @@ class TestTokenRefreshClaim:
 
         strava_utils.refresh_user_strava_token(1, rate_limits)
 
-        rate_limits.release_token_refresh.assert_called_once_with(1)
+        rate_limits.claim_token_refresh.assert_called_once_with(1)
 
 
 class TestTokenExpiryEpoch:

@@ -267,7 +267,8 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
     Called at the start of the user's own sync job, so tokens are kept current
     without a separate pass over every user. Strava rotates the refresh token, so
     only one process refreshes a user at a time: the claim is taken first and the
-    integration is read again under it, in case another process just finished. The
+    integration is read again under it, in case another process just finished. The new tokens are
+    stored only while the refresh token is still the one they were refreshed from. The
     integration is read in short sessions, the Strava call runs with none open, and
     the new tokens are written in another. A failure is logged and left to the sync
     that follows, which will fail visibly if the token really is unusable.
@@ -292,33 +293,38 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
         logger.debug("Another process is refreshing the Strava token", extra=core_logger.context(user_id=user_id))
         return
 
+    with SessionLocal() as db:
+        user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
+    if not _token_refresh_due(user_integrations):
+        return
+
     try:
-        with SessionLocal() as db:
-            user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
-        if not _token_refresh_due(user_integrations):
-            return
-
+        tokens = create_strava_client(user_integrations).refresh_access_token(
+            client_id=client_id,
+            client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
+            refresh_token=core_cryptography.decrypt_token_fernet(user_integrations.strava_refresh_token),
+        )
+    except Exception as err:
         try:
-            tokens = create_strava_client(user_integrations).refresh_access_token(
-                client_id=client_id,
-                client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
-                refresh_token=core_cryptography.decrypt_token_fernet(user_integrations.strava_refresh_token),
-            )
-        except Exception as err:
-            try:
-                raise_if_rate_limited(err, client_id, rate_limits)
-            except core_exceptions.TooManyRequestsError:
-                logger.warning("Strava rate limit hit during token refresh", extra=core_logger.context(user_id=user_id))
-                return
-            logger.error("Error refreshing the Strava token", extra=core_logger.context(user_id=user_id), exc_info=err)
+            raise_if_rate_limited(err, client_id, rate_limits)
+        except core_exceptions.TooManyRequestsError:
+            logger.warning("Strava rate limit hit during token refresh", extra=core_logger.context(user_id=user_id))
             return
+        logger.error("Error refreshing the Strava token", extra=core_logger.context(user_id=user_id), exc_info=err)
+        return
 
-        with SessionLocal() as db:
-            user_integrations_integration.link_strava_account(user_id, tokens, db)
-            db.commit()
-        logger.info("Strava tokens refreshed", extra=core_logger.context(user_id=user_id))
-    finally:
-        rate_limits.release_token_refresh(user_id)
+    with SessionLocal() as db:
+        if not user_integrations_integration.replace_strava_tokens_if_refresh_token(
+            user_id, user_integrations.strava_refresh_token, tokens, db
+        ):
+            db.rollback()
+            logger.warning(
+                "Strava tokens changed during the refresh; the refreshed ones were discarded",
+                extra=core_logger.context(user_id=user_id),
+            )
+            return
+        db.commit()
+    logger.info("Strava tokens refreshed", extra=core_logger.context(user_id=user_id))
 
 
 def fetch_user_integrations_and_validate_token(

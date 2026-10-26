@@ -1,6 +1,7 @@
 """Tests for core.attempt_state (provider-backed claim and polled state)."""
 
-from unittest.mock import patch
+from enum import StrEnum
+from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.backends.state_memory import MemoryState
@@ -109,3 +110,95 @@ def test_an_outage_while_recording_or_releasing_is_swallowed():
         store.record("1", _State(step="running"), finished=False)
     with patch.object(state, "delete", side_effect=StateBackendUnavailableError("down")):
         store.release("1")
+
+
+class _Kind(StrEnum):
+    GEAR = "gear"
+    HEALTH = "health"
+
+
+Status = core_attempt_state.SyncStatus
+
+
+def _syncs(state=None) -> core_attempt_state.SyncStateStore:
+    return core_attempt_state.SyncStateStore(state or MemoryState(), "feature", 60)
+
+
+class TestSyncStateStore:
+    def test_a_first_sync_is_queued_and_blocks_another_of_its_kind(self):
+        syncs = _syncs()
+
+        assert syncs.begin(1, _Kind.GEAR) is True
+        assert syncs.get(1, _Kind.GEAR) == core_attempt_state.SyncState(status=Status.QUEUED)
+        assert syncs.begin(1, _Kind.GEAR) is False
+
+    def test_progress_keeps_blocking_until_the_sync_finishes(self):
+        syncs = _syncs()
+        syncs.begin(1, _Kind.HEALTH)
+        syncs.set_status(1, _Kind.HEALTH, Status.RUNNING)
+        assert syncs.begin(1, _Kind.HEALTH) is False
+
+        syncs.set_status(1, _Kind.HEALTH, Status.COMPLETED)
+
+        assert syncs.get(1, _Kind.HEALTH).status == Status.COMPLETED
+        assert syncs.begin(1, _Kind.HEALTH) is True
+
+    def test_a_failed_sync_can_be_retried(self):
+        syncs = _syncs()
+        syncs.begin(1, _Kind.GEAR)
+        syncs.set_status(1, _Kind.GEAR, Status.FAILED)
+
+        assert syncs.begin(1, _Kind.GEAR) is True
+
+    def test_kinds_users_and_features_do_not_block_each_other(self):
+        state = MemoryState()
+        syncs = _syncs(state)
+        syncs.begin(1, _Kind.GEAR)
+
+        assert syncs.begin(1, _Kind.HEALTH) is True
+        assert syncs.begin(2, _Kind.GEAR) is True
+        assert core_attempt_state.SyncStateStore(state, "other", 60).begin(1, _Kind.GEAR) is True
+
+    def test_the_keys_are_the_ones_each_feature_always_used(self):
+        state = MemoryState()
+        _syncs(state).begin(7, _Kind.GEAR)
+
+        assert state.get("endurain:feature:sync:state:7:gear") is not None
+        assert state.get("endurain:feature:sync:claim:7:gear") is not None
+
+    def test_no_sync_reads_as_none(self):
+        assert _syncs().get(99, _Kind.GEAR) is None
+
+    @pytest.mark.parametrize("pending", [Status.QUEUED, Status.RUNNING])
+    def test_a_pending_sync_is_closed_as_failed_and_frees_the_claim(self, pending):
+        syncs = _syncs()
+        syncs.begin(1, _Kind.GEAR)
+        syncs.set_status(1, _Kind.GEAR, pending)
+
+        assert syncs.close_pending(1, _Kind.GEAR) is True
+        assert syncs.get(1, _Kind.GEAR).status == Status.FAILED
+        assert syncs.begin(1, _Kind.GEAR) is True
+
+    @pytest.mark.parametrize("finished", [Status.COMPLETED, Status.FAILED])
+    def test_a_finished_sync_is_left_as_it_is(self, finished):
+        syncs = _syncs()
+        syncs.begin(1, _Kind.GEAR)
+        syncs.set_status(1, _Kind.GEAR, finished)
+
+        assert syncs.close_pending(1, _Kind.GEAR) is False
+        assert syncs.get(1, _Kind.GEAR).status == finished
+
+    def test_an_expired_sync_is_left_alone(self):
+        assert _syncs().close_pending(1, _Kind.GEAR) is False
+
+    def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outcome(self):
+        state = MagicMock()
+        for method in ("set", "get", "delete", "set_if_absent"):
+            getattr(state, method).side_effect = StateBackendUnavailableError("down")
+        syncs = _syncs(state)
+
+        with pytest.raises(core_attempt_state.StateUnavailableError):
+            syncs.begin(1, _Kind.GEAR)
+        with pytest.raises(core_attempt_state.StateUnavailableError):
+            syncs.get(1, _Kind.GEAR)
+        syncs.set_status(1, _Kind.GEAR, Status.COMPLETED)

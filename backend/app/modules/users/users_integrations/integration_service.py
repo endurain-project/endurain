@@ -23,6 +23,21 @@ def get_user_integrations(user_id: int, db: Session) -> user_integrations_schema
     return user_integrations_crud.get_user_integrations_by_user_id(user_id, db)
 
 
+def replace_strava_tokens_if_refresh_token(user_id: int, old_refresh_token: str, tokens: dict, db: Session) -> bool:
+    """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
+
+    Args:
+        user_id: The user whose tokens were refreshed.
+        old_refresh_token: The stored (encrypted) refresh token the new tokens were refreshed from.
+        tokens: Dictionary containing access_token, refresh_token, and expires_at.
+        db: Database session.
+
+    Returns:
+        True when the tokens were replaced, False when the refresh token has since changed.
+    """
+    return user_integrations_crud.replace_strava_tokens_if_refresh_token(user_id, old_refresh_token, tokens, db)
+
+
 def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: Session) -> bool:
     """Clear a user's Strava tokens only while they still hold the given refresh token.
 

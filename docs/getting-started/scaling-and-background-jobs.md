@@ -187,13 +187,13 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 - After an admin changes the map tile server, the replica that handled the save allows the new tile domain in its content security policy at once; the other replicas pick it up within 30 seconds, so maps from a new tile server can be blocked there for that long.
 - Until the deprecated `SMTP_*`, geocoding, session and retention environment variables are removed (v0.22.0), give every replica the same values: each API start saves its own environment into the database, and which fields an admin may edit depends on the replica that answers.
 - The mail and geocoding settings are cached for five seconds in each process, so an admin change reaches every replica within that time.
-- A database statement that waits more than 30 seconds for a row lock fails instead of waiting, and a request that cannot get a database connection within 30 seconds fails.
+- A database statement that waits more than 30 seconds for a row lock fails instead of waiting, and a request that cannot get a database connection within 30 seconds fails. `DB_STATEMENT_TIMEOUT_SECONDS` also bounds how long a statement may run; it is off by default.
 
 ## Sizing
 
-Each web process keeps its own database pool of up to 60 connections (20 plus 40 overflow) and about 40 request threads. A request waits up to 30 seconds for a free connection before it fails.
+Each web process keeps its own database pool of up to 60 connections by default (`DB_POOL_SIZE` 20 plus `DB_MAX_OVERFLOW` 40) and about 40 request threads. A request waits up to 30 seconds for a free connection before it fails.
 
-- Total connections are `60 × (web workers + replicas + dedicated workers)`. Keep that below PostgreSQL's `max_connections` (100 by default), or put PgBouncer in front of the database.
+- Total connections are `(DB_POOL_SIZE + DB_MAX_OVERFLOW) × (web workers + replicas + dedicated workers)`, which is `60 × …` by default. Keep that below PostgreSQL's `max_connections` (100 by default): lower `DB_POOL_SIZE` and `DB_MAX_OVERFLOW`, or put PgBouncer in front of the database.
 - Each coordination lock held through `postgres-advisory://` keeps one more connection open for as long as the job runs.
 - `postgres-advisory://` uses session-level advisory locks, which only work on a connection that stays pinned to one PostgreSQL backend. Behind PgBouncer in transaction pooling mode the lock and its release can land on different backends, so two replicas can both believe they hold it. Point `DB_HOST` at PgBouncer in session mode, or at PostgreSQL directly. Either way the lock is lost if its connection drops mid-job, so every coordinated job is idempotent: the lock only avoids duplicated work.
 - A slow job does not need a long lease: the worker renews it while the handler runs, so only a worker that stops responding (a crash, a lost network) loses its jobs. Keep `JOBS_LEASE_SECONDS` comfortably above 45 so a brief stall is not mistaken for a crash.

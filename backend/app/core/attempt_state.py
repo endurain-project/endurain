@@ -6,6 +6,7 @@ same subject, and a state, which the poll reads. Both live in the platform ``Sta
 (in-process under ``local``, Redis under ``distributed``), so nothing about them is process-local.
 """
 
+from enum import StrEnum
 from typing import NoReturn
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
@@ -175,3 +176,115 @@ class AttemptStateStore:
             return self._state.get(self._state_key(subject))
         except StateBackendUnavailableError as err:
             raise_unavailable(f"read {self._namespace}:{self._name}", err)
+
+
+class SyncStatus(StrEnum):
+    """Where a queued provider sync is."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class SyncState(BaseModel):
+    """The recorded state of one queued sync.
+
+    Attributes:
+        status: Where the sync is.
+    """
+
+    status: SyncStatus
+
+
+_PENDING = (SyncStatus.QUEUED, SyncStatus.RUNNING)
+_FINISHED = (SyncStatus.COMPLETED, SyncStatus.FAILED)
+
+
+class SyncStateStore:
+    """The claim and polled state of a feature's queued syncs, one per user and kind.
+
+    A sync is accepted with 202 and runs on a worker, possibly on another replica. The state is
+    what the status route reads back, and its claim keeps a user from queueing the same kind of
+    sync twice. A feature subclasses this to fix its namespace and lifetime.
+
+    Attributes:
+        _attempts: The claim and state storage for the feature's syncs.
+    """
+
+    def __init__(self, state: StateProvider, namespace: str, ttl_seconds: int) -> None:
+        """Initialize the store.
+
+        Args:
+            state: The platform state provider.
+            namespace: The feature that owns the syncs, in the storage keys.
+            ttl_seconds: How long a sync's claim and state last.
+        """
+        self._attempts = AttemptStateStore(state, namespace, "sync", ttl_seconds)
+
+    @staticmethod
+    def _subject(user_id: int, kind: StrEnum) -> str:
+        return f"{user_id}:{kind.value}"
+
+    def begin(self, user_id: int, kind: StrEnum) -> bool:
+        """Record a sync as queued unless one of this kind is still pending.
+
+        Args:
+            user_id: The user to sync.
+            kind: What the sync does.
+
+        Returns:
+            True when the sync was recorded as queued, False when one is already pending.
+
+        Raises:
+            StateUnavailableError: When storage is unavailable.
+        """
+        return self._attempts.begin(self._subject(user_id, kind), SyncState(status=SyncStatus.QUEUED))
+
+    def set_status(self, user_id: int, kind: StrEnum, status: SyncStatus) -> None:
+        """Record a sync's progress or outcome; a finished sync frees the claim.
+
+        Args:
+            user_id: The user being synced.
+            kind: What the sync does.
+            status: The new status.
+        """
+        self._attempts.record(self._subject(user_id, kind), SyncState(status=status), finished=status in _FINISHED)
+
+    def get(self, user_id: int, kind: StrEnum) -> SyncState | None:
+        """Read a sync's state.
+
+        Args:
+            user_id: The user being synced.
+            kind: What the sync does.
+
+        Returns:
+            The state, or None when none is recorded or it has expired.
+
+        Raises:
+            StateUnavailableError: When storage is unavailable.
+        """
+        value = self._attempts.read(self._subject(user_id, kind))
+        return SyncState.model_validate_json(value) if value is not None else None
+
+    def close_pending(self, user_id: int, kind: StrEnum) -> bool:
+        """Fail a sync that is still pending, so the user can queue another.
+
+        For a sync the runner gave up on, however its last attempt ended. A sync that already
+        finished, or whose state has expired, is left as it is.
+
+        Args:
+            user_id: The user being synced.
+            kind: What the sync does.
+
+        Returns:
+            True when a pending sync was closed.
+
+        Raises:
+            StateUnavailableError: When storage is unavailable.
+        """
+        state = self.get(user_id, kind)
+        if state is None or state.status not in _PENDING:
+            return False
+        self.set_status(user_id, kind, SyncStatus.FAILED)
+        return True

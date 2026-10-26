@@ -22,7 +22,7 @@ def test_a_first_sync_is_queued_and_blocks_another_of_its_kind():
     store = _store()
 
     assert store.begin(1, Kind.GEAR) is True
-    assert store.get(1, Kind.GEAR) == sync_state_store.SyncState(status=Status.QUEUED)
+    assert store.get(1, Kind.GEAR) == core_attempt_state.SyncState(status=Status.QUEUED)
     assert store.begin(1, Kind.GEAR) is False
 
 

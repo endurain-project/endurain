@@ -102,13 +102,10 @@ def close_dead_lettered_sync(
         payload: What was to be synced.
         states: Shared store of the sync's state.
     """
-    state = states.get(payload.user_id, payload.kind)
-    if state is None or state.status not in (strava_constants.SyncStatus.QUEUED, strava_constants.SyncStatus.RUNNING):
-        return
-    states.set_status(payload.user_id, payload.kind, strava_constants.SyncStatus.FAILED)
-    logger.error(
-        "A Strava sync was dead-lettered", extra=core_logger.context(user_id=payload.user_id, kind=payload.kind)
-    )
+    if states.close_pending(payload.user_id, payload.kind):
+        logger.error(
+            "A Strava sync was dead-lettered", extra=core_logger.context(user_id=payload.user_id, kind=payload.kind)
+        )
 
 
 def _queue(

@@ -28,7 +28,10 @@ class StravaRateLimitStore:
     in the state provider (in-process under the ``local`` profile, Redis when
     distributed), so they expire on their own. Strava rotates the refresh token on
     every refresh, so two replicas refreshing one user at once would invalidate each
-    other; a claim lets only one of them refresh.
+    other; a claim lets only one of them refresh. The claim is never released: it expires,
+    because the state has no owner-checked delete and an early release could free a claim
+    another replica took after expiry. A refreshed token is no longer due, so nothing waits
+    on the release, and a failed refresh backs off until the claim expires.
     """
 
     def __init__(self, state: platform_providers.StateProvider) -> None:
@@ -108,14 +111,3 @@ class StravaRateLimitStore:
         except platform_providers.StateBackendUnavailableError as err:
             logger.warning("Could not claim the Strava token refresh; refreshing anyway", exc_info=err)
             return True
-
-    def release_token_refresh(self, user_id: int) -> None:
-        """Release a token refresh claim, leaving it to expire when the state is unreachable.
-
-        Args:
-            user_id: The user whose token was refreshed.
-        """
-        try:
-            self._state.delete(_REFRESH_CLAIM_KEY.format(user_id=user_id))
-        except platform_providers.StateBackendUnavailableError as err:
-            logger.warning("Could not release the Strava token refresh claim; it will expire", exc_info=err)

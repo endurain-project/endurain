@@ -129,14 +129,11 @@ def close_dead_lettered_sync(
         payload: What was to be synced.
         states: Shared store of the sync's state.
     """
-    state = states.get(payload.user_id, payload.kind)
-    if state is None or state.status not in (garmin_constants.SyncStatus.QUEUED, garmin_constants.SyncStatus.RUNNING):
-        return
-    states.set_status(payload.user_id, payload.kind, garmin_constants.SyncStatus.FAILED)
-    logger.error(
-        "A Garmin Connect sync was dead-lettered",
-        extra=core_logger.context(user_id=payload.user_id, kind=payload.kind),
-    )
+    if states.close_pending(payload.user_id, payload.kind):
+        logger.error(
+            "A Garmin Connect sync was dead-lettered",
+            extra=core_logger.context(user_id=payload.user_id, kind=payload.kind),
+        )
 
 
 def _queue(
