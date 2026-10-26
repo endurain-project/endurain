@@ -112,7 +112,7 @@ def import_shoes_from_strava_export(
 
 @router.put(
     "/client",
-    response_model=None,
+    response_model=strava_schema.StravaDetail,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -128,12 +128,12 @@ def strava_set_user_client(
 ):
     """Store the user's Strava API client id and secret."""
     strava_service.set_client(token_user_id, client.client_id, client.client_secret, db)
-    return {f"Strava client for user {token_user_id} edited successfully"}
+    return strava_schema.StravaDetail(detail=f"Strava client for user {token_user_id} edited successfully")
 
 
 @router.put(
     "/state/{state}",
-    response_model=None,
+    response_model=strava_schema.StravaDetail,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -149,7 +149,7 @@ def strava_set_user_unique_state(
 ):
     """Store the one-time state that correlates the OAuth callback with the user."""
     strava_service.set_state(token_user_id, state, db)
-    return {f"Strava state for user {token_user_id} edited successfully"}
+    return strava_schema.StravaDetail(detail=f"Strava state for user {token_user_id} edited successfully")
 
 
 @router.delete(
