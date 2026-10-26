@@ -1,79 +1,49 @@
 """Tests for ``activities.activity.stats`` aggregation."""
 
-from unittest.mock import MagicMock, patch
+from modules.activities.activity.contracts import ActivityTypeTotals
+from modules.activities.activity.stats import calculate_activity_stats
 
 
 class TestCalculateActivityStats:
-    def test_calculate_stats(self):
-        from modules.activities.activity.stats import calculate_activity_stats
-
-        activity = MagicMock()
-        activity.activity_type = 1
-        activity.distance = 10000.0
-        activity.total_timer_time = 3600.0
-        activity.calories = 500
-
-        result = calculate_activity_stats([activity])
+    def test_a_total_lands_in_its_sport(self):
+        result = calculate_activity_stats([ActivityTypeTotals(1, distance=10000.0, time=3600.0, calories=500.0)])
 
         assert result.run.distance == 10000.0
         assert result.run.time == 3600.0
-        assert result.run.calories == 500
+        assert result.run.calories == 500.0
 
-    def test_calculate_stats_multiple_activities(self):
-        from modules.activities.activity.stats import calculate_activity_stats
-
-        run = MagicMock()
-        run.activity_type = 1
-        run.distance = 5000.0
-        run.total_timer_time = 1800.0
-        run.calories = 250
-
-        bike = MagicMock()
-        bike.activity_type = 4
-        bike.distance = 30000.0
-        bike.total_timer_time = 5400.0
-        bike.calories = 800
-
-        result = calculate_activity_stats([run, bike])
+    def test_different_sports_stay_apart(self):
+        result = calculate_activity_stats(
+            [
+                ActivityTypeTotals(1, distance=5000.0, time=1800.0, calories=250.0),
+                ActivityTypeTotals(4, distance=30000.0, time=5400.0, calories=800.0),
+                ActivityTypeTotals(8, distance=1500.0, time=1800.0, calories=300.0),
+            ]
+        )
 
         assert result.run.distance == 5000.0
         assert result.bike.distance == 30000.0
+        assert result.swim.distance == 1500.0
+        assert result.walk.distance == 0.0
 
-    def test_calculate_stats_none_activities(self):
-        from modules.activities.activity.stats import calculate_activity_stats
+    def test_activity_types_of_one_sport_add_up(self):
+        """Run, trail run and virtual run are three activity types of the run sport."""
+        run_types = [1, 2, 3]
+        result = calculate_activity_stats(
+            [ActivityTypeTotals(run_type, distance=1000.0, time=600.0, calories=50.0) for run_type in run_types]
+        )
 
-        result = calculate_activity_stats(None)
+        assert result.run.distance == 3000.0
+        assert result.run.time == 1800.0
+        assert result.run.calories == 150.0
+
+    def test_a_type_that_belongs_to_no_sport_is_left_out(self):
+        result = calculate_activity_stats([ActivityTypeTotals(999, distance=1.0, time=1.0, calories=1.0)])
+
+        assert result == calculate_activity_stats([])
+
+    def test_no_totals_give_empty_stats(self):
+        result = calculate_activity_stats([])
 
         assert result.run.distance == 0.0
-
-    def test_calculate_stats_different_sports(self):
-        from modules.activities.activity.stats import calculate_activity_stats
-
-        swim = MagicMock()
-        swim.activity_type = 8
-        swim.distance = 1500.0
-        swim.total_timer_time = 1800.0
-        swim.calories = 300
-
-        walk = MagicMock()
-        walk.activity_type = 11
-        walk.distance = 3000.0
-        walk.total_timer_time = 2400.0
-        walk.calories = 150
-
-        result = calculate_activity_stats([swim, walk])
-
-        assert result.swim.distance == 1500.0
-        assert result.walk.distance == 3000.0
-
-    @patch("modules.activities.activity.stats.logger")
-    def test_error_handling_bad_activity_type(self, mock_logger):
-        """A malformed activity is logged and skipped rather than aborting the aggregate."""
-        from modules.activities.activity.stats import calculate_activity_stats
-
-        bad_activity = MagicMock()
-        type(bad_activity).activity_type = property(lambda self: (_ for _ in ()).throw(TypeError("bad type")))
-
-        calculate_activity_stats([bad_activity])
-
-        mock_logger.error.assert_called_once()
+        assert result.bike.time == 0.0

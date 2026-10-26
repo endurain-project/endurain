@@ -126,41 +126,6 @@ class TestGetAllActivities:
         assert crud.get_all_activities(db=mock_db) == []
 
 
-class TestGetActivitiesPerTimeframe:
-    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
-    def test_success(self, mock_ser, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_activities_per_timeframe(
-            user_id=1,
-            start=datetime(2024, 1, 1, tzinfo=UTC),
-            end=datetime(2024, 1, 31, tzinfo=UTC),
-            db=mock_db,
-            user_is_owner=True,
-        )
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_user_activities_per_timeframe(
-            user_id=1,
-            start=datetime(2024, 1, 1, tzinfo=UTC),
-            end=datetime(2024, 1, 31, tzinfo=UTC),
-            db=mock_db,
-            user_is_owner=True,
-        )
-        assert r == []
-
-
 class TestGetActivityByID:
     @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
     def test_success(self, mock_ser, mock_db):

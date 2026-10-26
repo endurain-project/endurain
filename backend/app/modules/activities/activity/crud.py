@@ -464,7 +464,7 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int,
     }
 
 
-def get_user_activities_per_timeframe(
+def sum_user_activities_per_timeframe_by_type(
     user_id: int,
     start: datetime,
     end: datetime,
@@ -472,43 +472,46 @@ def get_user_activities_per_timeframe(
     *,
     user_is_owner: bool,
     followee_ids: Sequence[int] | None = None,
-) -> list[activity_schema.ActivityRead]:
-    """Get a user's activities within a date range.
+) -> list[activity_contracts.ActivityTypeTotals]:
+    """Add up a user's activities within a date range per activity type, in the database.
+
+    Matches the activities a reader may see for the same range and visibility, without loading them.
+    Masking never touches distance, active time or calories, so a non-owner's totals equal the sum of
+    the masked rows.
 
     Args:
         user_id: Owner user ID.
         start: Inclusive start datetime.
         end: Inclusive end datetime.
         db: Database session.
-        user_is_owner: When False, private/hidden activities
-            are excluded.
-        followee_ids: The requester's accepted-followee user ids, resolved
-            by the caller; ``None`` for an owner-only or anonymous read.
+        user_is_owner: When False, only the activities visible to the requester are added up.
+        followee_ids: The requester's accepted-followee user ids, resolved by the caller; ``None`` for an
+            owner-only or anonymous read.
 
     Returns:
-        The matching activity schemas, empty when there are none.
+        One entry per activity type with at least one matching activity; empty when there are none.
     """
+    activity = activity_models.Activity
     stmt = (
-        select(activity_models.Activity)
+        select(
+            activity.activity_type,
+            func.coalesce(func.sum(activity.distance), 0),
+            func.coalesce(func.sum(activity.total_timer_time), 0),
+            func.coalesce(func.sum(activity.calories), 0),
+        )
         .where(
-            activity_models.Activity.user_id == user_id,
+            activity.user_id == user_id,
             *activity_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
         )
-        .order_by(desc(activity_models.Activity.start_time))
+        .group_by(activity.activity_type)
     )
-    stmt = _apply_activity_visibility_filter(
-        stmt,
-        user_is_owner=user_is_owner,
-        followee_ids=followee_ids,
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return []
-    return activity_serializers.serialize_and_mask(
-        list(activities),
-        requester_user_id=user_id if user_is_owner else None,
-        force_non_owner=not user_is_owner,
-    )
+    stmt = _apply_activity_visibility_filter(stmt, user_is_owner=user_is_owner, followee_ids=followee_ids)
+    return [
+        activity_contracts.ActivityTypeTotals(
+            activity_type=activity_type, distance=float(distance), time=float(time), calories=float(calories)
+        )
+        for activity_type, distance, time, calories in db.execute(stmt).all()
+    ]
 
 
 def sum_user_activities_per_timeframe_and_activity_types(

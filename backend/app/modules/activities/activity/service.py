@@ -26,6 +26,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activity_schema
@@ -58,17 +59,17 @@ def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
     return followers_integration.list_accepted_followee_ids(requester_user_id, db)
 
 
-def get_activities_in_timeframe(
+def sum_activities_in_timeframe(
     user_id: int,
     start: datetime,
     end: datetime,
     requester_user_id: int,
     db: Session,
-) -> list[activity_schema.ActivityRead]:
-    """Return a user's activities in ``[start, end]`` scoped to the requester.
+) -> list[activity_contracts.ActivityTypeTotals]:
+    """Add up a user's activities in ``[start, end]`` per activity type, scoped to the requester.
 
-    The owner sees all of their activities; any other requester sees only the
-    ones visible to them (the CRUD layer applies the visibility mask).
+    The owner is counted with all of their activities; any other requester with only the ones visible
+    to them (the query applies the visibility filter).
 
     Args:
         user_id: The owner of the activities.
@@ -78,11 +79,11 @@ def get_activities_in_timeframe(
         db: Database session.
 
     Returns:
-        The scoped activities, or ``None`` when there are none.
+        One total per activity type with a matching activity; empty when there are none.
     """
     is_owner = user_id == requester_user_id
     logger.debug(
-        "Listing activities in timeframe",
+        "Adding up activities in timeframe",
         extra=core_logger.context(
             user_id=user_id,
             requester_user_id=requester_user_id,
@@ -92,8 +93,8 @@ def get_activities_in_timeframe(
         ),
     )
     if is_owner:
-        return activity_crud.get_user_activities_per_timeframe(user_id, start, end, db, user_is_owner=True)
-    return activity_crud.get_user_activities_per_timeframe(
+        return activity_crud.sum_user_activities_per_timeframe_by_type(user_id, start, end, db, user_is_owner=True)
+    return activity_crud.sum_user_activities_per_timeframe_by_type(
         user_id,
         start,
         end,
@@ -205,10 +206,9 @@ def week_stats(
         The aggregated stats.
     """
     start, end = _week_bounds(requester_user_id, db, week_number=0, anchor=anchor)
-    activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-    if activities:
-        return activity_stats.calculate_activity_stats(activities)
-    return activity_schema.ActivityStatsRead()
+    return activity_stats.calculate_activity_stats(
+        sum_activities_in_timeframe(user_id, start, end, requester_user_id, db)
+    )
 
 
 def month_stats(
@@ -230,10 +230,9 @@ def month_stats(
         The aggregated stats.
     """
     start, end = _month_bounds(requester_user_id, db, anchor=anchor)
-    activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-    if activities:
-        return activity_stats.calculate_activity_stats(activities)
-    return activity_schema.ActivityStatsRead()
+    return activity_stats.calculate_activity_stats(
+        sum_activities_in_timeframe(user_id, start, end, requester_user_id, db)
+    )
 
 
 def period_stats(

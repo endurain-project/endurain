@@ -294,37 +294,34 @@ class TestUserStats:
         ):
             yield
 
-    def test_week(self, mock_db):
-        with (
-            patch("modules.activities.activity.service.activity_crud.get_user_activities_per_timeframe") as g,
-            patch("modules.activities.activity.service.activity_stats.calculate_activity_stats") as s,
-        ):
-            g.return_value = [_valid_activity()]
-            s.return_value = {}
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/users/1/stats?period=week", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
+    @pytest.mark.parametrize("period", ["week", "month"])
+    def test_the_totals_become_per_sport_stats(self, mock_db, period):
+        from modules.activities.activity.contracts import ActivityTypeTotals
 
-    def test_month(self, mock_db):
-        with (
-            patch("modules.activities.activity.service.activity_crud.get_user_activities_per_timeframe") as g,
-            patch("modules.activities.activity.service.activity_stats.calculate_activity_stats") as s,
-        ):
-            g.return_value = [_valid_activity()]
-            s.return_value = {}
+        with patch(
+            "modules.activities.activity.service.activity_crud.sum_user_activities_per_timeframe_by_type"
+        ) as totals:
+            totals.return_value = [ActivityTypeTotals(1, distance=5000.0, time=1800.0, calories=250.0)]
             resp = TestClient(_build_app(mock_db)).get(
-                "/activities/users/1/stats?period=month", headers={"Authorization": "Bearer x"}
+                f"/activities/users/1/stats?period={period}", headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 200
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["run"] == {"distance": 5000.0, "time": 1800.0, "calories": 250.0}
+        assert body["bike"] == {"distance": 0.0, "time": 0.0, "calories": 0.0}
 
     def test_empty(self, mock_db):
-        with patch("modules.activities.activity.service.activity_crud.get_user_activities_per_timeframe") as g:
-            g.return_value = None
+        with patch(
+            "modules.activities.activity.service.activity_crud.sum_user_activities_per_timeframe_by_type",
+            return_value=[],
+        ):
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/users/1/stats?period=week", headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 200
+
+        assert resp.status_code == 200
+        assert resp.json()["run"]["distance"] == 0.0
 
     def test_invalid_period(self, mock_db):
         resp = TestClient(_build_app(mock_db)).get(

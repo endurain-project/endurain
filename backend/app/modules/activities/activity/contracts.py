@@ -30,6 +30,25 @@ import modules.activities.activity.schema as activity_schema
 
 
 @dataclass(frozen=True)
+class ActivityTypeTotals:
+    """What the activities of one activity type add up to over a timeframe.
+
+    Summed by the database, so the per-sport stats never load the activities.
+
+    Attributes:
+        activity_type: The activity type the totals are for.
+        distance: Sum of their distance, in meters.
+        time: Sum of their active (timer) time, in seconds.
+        calories: Sum of their calories; activities without a value count as zero.
+    """
+
+    activity_type: int
+    distance: float = 0
+    time: float = 0
+    calories: float = 0
+
+
+@dataclass(frozen=True)
 class ActivityTotals:
     """What a set of activities adds up to.
 

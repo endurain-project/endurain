@@ -52,7 +52,6 @@ _MAY_LOG = frozenset(
 #: Role-less helper files that log, as ``{path relative to modules/: reason}``. The test fails on an
 #: entry that no longer logs, so the register shrinks rather than lingers.
 _HELPERS_THAT_LOG: dict[str, str] = {
-    "activities/activity/stats.py": "Skips a malformed row it cannot attribute to a sport and says so.",
     "activities/activity_file_import/adapter.py": "Names the parser that produced a result, for diagnosing a missing chart.",
     "activities/activity_file_import/fit_frames.py": "Parser anomalies the file itself carries.",
     "activities/activity_file_import/fit_utils.py": "Parser anomalies the file itself carries.",

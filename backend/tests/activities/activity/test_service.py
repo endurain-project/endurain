@@ -37,18 +37,19 @@ def stub_requester_user():
         yield mock
 
 
-class TestGetActivitiesInTimeframe:
+class TestSumActivitiesInTimeframe:
     @patch("modules.activities.activity.service.activity_crud")
-    def test_owner_gets_all(self, mock_crud):
+    def test_owner_sums_all(self, mock_crud):
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.get_activities_in_timeframe(1, "s", "e", 1, db)
-        # Owner path: is_owner=True, no requester scoping.
-        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(1, "s", "e", db, user_is_owner=True)
+        result = service.sum_activities_in_timeframe(1, "s", "e", 1, db)
+        # Owner path: user_is_owner=True, no followee scoping.
+        mock_crud.sum_user_activities_per_timeframe_by_type.assert_called_once_with(1, "s", "e", db, user_is_owner=True)
+        assert result is mock_crud.sum_user_activities_per_timeframe_by_type.return_value
 
     @patch("modules.activities.activity.service.activity_crud")
-    def test_requester_gets_visible(self, mock_crud):
+    def test_requester_sums_visible(self, mock_crud):
         from modules.activities.activity import service
 
         db = MagicMock()
@@ -56,42 +57,43 @@ class TestGetActivitiesInTimeframe:
             "modules.activities.activity.service.followers_integration.list_accepted_followee_ids",
             return_value=[1],
         ):
-            service.get_activities_in_timeframe(1, "s", "e", 2, db)
+            service.sum_activities_in_timeframe(1, "s", "e", 2, db)
         # Non-owner path: the service resolves the followees, the query filters on them.
-        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(
+        mock_crud.sum_user_activities_per_timeframe_by_type.assert_called_once_with(
             1, "s", "e", db, user_is_owner=False, followee_ids=[1]
         )
 
 
 class TestPeriodStats:
     @patch("modules.activities.activity.service.activity_stats.calculate_activity_stats", return_value="stats")
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=[MagicMock()])
-    def test_week_stats_with_activities(self, mock_get, mock_calc):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=["totals"])
+    def test_week_stats_aggregate_the_totals(self, mock_sum, mock_calc):
         from modules.activities.activity import service
 
         assert service.week_stats(1, 1, MagicMock()) == "stats"
-        mock_calc.assert_called_once()
+        mock_calc.assert_called_once_with(["totals"])
 
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=None)
-    def test_week_stats_empty_returns_empty_stats(self, mock_get):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=[])
+    def test_week_stats_empty_returns_empty_stats(self, mock_sum):
         import modules.activities.activity.schema as schema
         from modules.activities.activity import service
 
-        assert isinstance(service.week_stats(1, 1, MagicMock()), schema.ActivityStatsRead)
+        assert service.week_stats(1, 1, MagicMock()) == schema.ActivityStatsRead()
 
     @patch("modules.activities.activity.service.activity_stats.calculate_activity_stats", return_value="stats")
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=[MagicMock()])
-    def test_month_stats_with_activities(self, mock_get, mock_calc):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=["totals"])
+    def test_month_stats_aggregate_the_totals(self, mock_sum, mock_calc):
         from modules.activities.activity import service
 
         assert service.month_stats(1, 1, MagicMock()) == "stats"
+        mock_calc.assert_called_once_with(["totals"])
 
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=None)
-    def test_month_stats_empty_returns_empty_stats(self, mock_get):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=[])
+    def test_month_stats_empty_returns_empty_stats(self, mock_sum):
         import modules.activities.activity.schema as schema
         from modules.activities.activity import service
 
-        assert isinstance(service.month_stats(1, 1, MagicMock()), schema.ActivityStatsRead)
+        assert service.month_stats(1, 1, MagicMock()) == schema.ActivityStatsRead()
 
 
 class TestListUserActivitiesPaginated:
