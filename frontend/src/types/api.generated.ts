@@ -2257,6 +2257,8 @@ export interface paths {
          *         token_user_id: ID of the user from the access token.
          *         db: Database session dependency.
          *         page: Resolved page number and size.
+         *         unread_only: Keep only the notifications that have not been read. ``total`` follows the
+         *             same filter, so ``unread_only=true&num_records=1`` is the unread count.
          *
          *     Returns:
          *         The page of notifications with the user's total.
@@ -16506,6 +16508,7 @@ export interface operations {
     read_notifications_user_pagination_api_v1_notifications_get: {
         parameters: {
             query?: {
+                unread_only?: boolean;
                 page_number?: number | null;
                 num_records?: number | null;
             };

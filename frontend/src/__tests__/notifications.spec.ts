@@ -6,6 +6,7 @@ import type { Notification, NotificationDto } from '@/features/notifications/typ
 import { apiFetch } from '@/services/http'
 import {
   fetchNotifications,
+  fetchUnreadNotificationsCount,
   mapNotification,
   markAllNotificationsRead,
   markNotificationRead,
@@ -80,6 +81,23 @@ describe('notification service requests', () => {
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([notification()])
+  })
+
+  it('reads the unread count from the page total, without downloading any notification', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [dto],
+      total: 42,
+      page: 1,
+      num_records: 1,
+      next: 2,
+    })
+    const signal = new AbortController().signal
+
+    await expect(fetchUnreadNotificationsCount(signal)).resolves.toBe(42)
+
+    expect(apiFetch).toHaveBeenCalledWith('/notifications?unread_only=true&num_records=1', {
+      signal,
+    })
   })
 
   it('maps an empty page to no notifications', async () => {

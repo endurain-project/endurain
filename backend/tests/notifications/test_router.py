@@ -85,7 +85,18 @@ class TestReadNotificationsPagination:
         assert body["total"] == 1
         assert body["next"] is None
         assert body["items"][0]["id"] == 1
-        mock_get.assert_called_once_with(1, mock_db, page_number=1, num_records=10)
+        mock_get.assert_called_once_with(1, mock_db, page_number=1, num_records=10, unread_only=False)
+
+    @patch("modules.notifications.router.notifications_service.list_notifications")
+    def test_unread_only_is_forwarded_to_the_service(self, mock_get, mock_db):
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = core_pagination.Page.build([], total=4, page=1, num_records=1)
+
+        response = client.get("/notifications?unread_only=true&num_records=1", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 200
+        assert response.json()["total"] == 4
+        mock_get.assert_called_once_with(1, mock_db, page_number=1, num_records=1, unread_only=True)
 
 
 class TestMarkNotificationAsRead:

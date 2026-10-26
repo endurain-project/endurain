@@ -15,6 +15,7 @@ import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   fetchNotifications,
+  fetchUnreadNotificationsCount,
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationsPage,
@@ -95,26 +96,24 @@ export function useInfiniteNotificationsQuery(pageSize: number = DEFAULT_PAGE_SI
 }
 
 /**
- * Derived unread-count query backing the navbar badge. The backend exposes a
- * total count (`/notifications/number`) but no unread count, so — matching v1 —
- * this counts unread rows in the most recent page client-side via `select`.
+ * Unread-count query backing the navbar badge: the server counts the unread
+ * notifications, so the badge is exact however many there are and only a number
+ * crosses the wire.
  * Stored under {@link queryKeys.notifications.unreadCount} (outside the `list`
  * prefix) so the optimistic updater never touches it; the mark-read mutation's
  * `onSettled` invalidation refreshes it for the authoritative count. It also polls
  * every {@link UNREAD_POLL_INTERVAL_MS}, so a lost realtime push self-heals.
  *
- * @param pageSize - How many recent notifications to inspect for unread rows.
  * @returns A TanStack Query result whose `data` is the unread count.
  */
-export function useUnreadNotificationsCount(pageSize: number = DEFAULT_PAGE_SIZE) {
+export function useUnreadNotificationsCount() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
-  return useQuery<Notification[], Error, number>({
+  return useQuery<number>({
     queryKey: queryKeys.notifications.unreadCount(),
-    queryFn: ({ signal }) => fetchNotifications({ page: 1, numRecords: pageSize }, signal),
+    queryFn: ({ signal }) => fetchUnreadNotificationsCount(signal),
     enabled: isAuthenticated,
     refetchInterval: UNREAD_POLL_INTERVAL_MS,
-    select: (list) => list.reduce((count, item) => (item.read ? count : count + 1), 0),
   })
 }
 

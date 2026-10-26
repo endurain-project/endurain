@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Security, status
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -67,6 +67,7 @@ def read_notifications_user_pagination(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    unread_only: Annotated[bool, Query()] = False,
 ) -> core_pagination.Page[notifications_schema.NotificationRead]:
     """Retrieve paginated notifications for the user.
 
@@ -74,6 +75,8 @@ def read_notifications_user_pagination(
         token_user_id: ID of the user from the access token.
         db: Database session dependency.
         page: Resolved page number and size.
+        unread_only: Keep only the notifications that have not been read. ``total`` follows the
+            same filter, so ``unread_only=true&num_records=1`` is the unread count.
 
     Returns:
         The page of notifications with the user's total.
@@ -83,6 +86,7 @@ def read_notifications_user_pagination(
         db,
         page_number=page.page_number,
         num_records=page.num_records,
+        unread_only=unread_only,
     )
 
 

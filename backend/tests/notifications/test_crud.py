@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
+from tests._helpers.db import create_sqlite_session
 
 
 class TestGetUserNotificationById:
@@ -72,6 +73,78 @@ class TestGetUserNotificationsWithPagination:
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
         r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db)
         assert r == []
+
+
+class TestUnreadOnlyFilter:
+    """The unread filter is a SQL ``WHERE``, so it runs against a real session."""
+
+    @pytest.fixture
+    def db(self):
+        import modules.notifications.models as m
+
+        session = create_sqlite_session()
+        # User 1: two read and three unread, oldest first. User 2: one unread.
+        for notification_id, user_id, read in [
+            (1, 1, True),
+            (2, 1, False),
+            (3, 1, True),
+            (4, 1, False),
+            (5, 1, False),
+            (6, 2, False),
+        ]:
+            session.add(
+                m.Notification(
+                    id=notification_id,
+                    user_id=user_id,
+                    type=1,
+                    read=read,
+                    created_at=datetime(2024, 1, notification_id),
+                )
+            )
+        session.commit()
+        yield session
+        session.close()
+
+    def test_count_includes_read_notifications_by_default(self, db):
+        import modules.notifications.crud as crud
+
+        assert crud.get_user_notifications_count(user_id=1, db=db) == 5
+
+    def test_count_unread_only_skips_read_and_other_users_notifications(self, db):
+        import modules.notifications.crud as crud
+
+        assert crud.get_user_notifications_count(user_id=1, db=db, unread_only=True) == 3
+
+    def test_count_unread_only_is_zero_once_everything_is_read(self, db):
+        import modules.notifications.crud as crud
+
+        crud.mark_all_notifications_as_read(1, db)
+
+        assert crud.get_user_notifications_count(user_id=1, db=db, unread_only=True) == 0
+
+    def test_page_unread_only_returns_the_unread_ones_newest_first(self, db):
+        import modules.notifications.crud as crud
+
+        page = crud.get_user_notifications_with_pagination(user_id=1, db=db, num_records=10, unread_only=True)
+
+        assert [n.id for n in page] == [5, 4, 2]
+        assert all(not n.read for n in page)
+
+    def test_page_unread_only_pages_over_the_filtered_rows(self, db):
+        import modules.notifications.crud as crud
+
+        second = crud.get_user_notifications_with_pagination(
+            user_id=1, db=db, page_number=2, num_records=2, unread_only=True
+        )
+
+        assert [n.id for n in second] == [2]
+
+    def test_page_includes_read_notifications_by_default(self, db):
+        import modules.notifications.crud as crud
+
+        page = crud.get_user_notifications_with_pagination(user_id=1, db=db, num_records=10)
+
+        assert [n.id for n in page] == [5, 4, 3, 2, 1]
 
 
 class TestCreateNotification:

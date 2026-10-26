@@ -24,9 +24,24 @@ class TestReadsAndMarks:
             patch("modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=7),
         ):
             page = notifications_service.list_notifications(1, mock_db, page_number=2, num_records=5)
-        crud_list.assert_called_once_with(1, mock_db, 2, 5)
+        crud_list.assert_called_once_with(1, mock_db, 2, 5, unread_only=False)
         assert page.total == 7
         assert page.next is None
+
+    def test_list_unread_only_filters_the_page_and_its_total_alike(self, mock_db):
+        with (
+            patch(
+                "modules.notifications.service.notifications_crud.get_user_notifications_with_pagination",
+                return_value=[],
+            ) as crud_list,
+            patch(
+                "modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=3
+            ) as crud_count,
+        ):
+            page = notifications_service.list_notifications(1, mock_db, page_number=1, num_records=1, unread_only=True)
+        crud_list.assert_called_once_with(1, mock_db, 1, 1, unread_only=True)
+        crud_count.assert_called_once_with(1, mock_db, unread_only=True)
+        assert page.total == 3
 
     def test_get_missing_notification_raises(self, mock_db):
         with (

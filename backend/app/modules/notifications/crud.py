@@ -45,12 +45,14 @@ def get_user_notification_by_id(
 def get_user_notifications_count(
     user_id: int,
     db: Session,
+    unread_only: bool = False,
 ) -> int:
     """Count notifications for a user.
 
     Args:
         user_id: The owning user ID.
         db: Database session.
+        unread_only: Count only the notifications that have not been read.
 
     Returns:
         Number of notifications for the user.
@@ -60,6 +62,8 @@ def get_user_notifications_count(
         .select_from(notifications_models.Notification)
         .where(notifications_models.Notification.user_id == user_id)
     )
+    if unread_only:
+        stmt = stmt.where(notifications_models.Notification.read.is_(False))
     return db.execute(stmt).scalar_one()
 
 
@@ -68,6 +72,7 @@ def get_user_notifications_with_pagination(
     db: Session,
     page_number: int = 1,
     num_records: int = 5,
+    unread_only: bool = False,
 ) -> list[notifications_schema.NotificationRead]:
     """Retrieve paginated notifications for a user, newest first.
 
@@ -76,14 +81,16 @@ def get_user_notifications_with_pagination(
         db: Database session.
         page_number: Page number (default 1).
         num_records: Records per page (default 5).
+        unread_only: Keep only the notifications that have not been read.
 
     Returns:
         The notifications for the page.
     """
+    stmt = select(notifications_models.Notification).where(notifications_models.Notification.user_id == user_id)
+    if unread_only:
+        stmt = stmt.where(notifications_models.Notification.read.is_(False))
     stmt = (
-        select(notifications_models.Notification)
-        .where(notifications_models.Notification.user_id == user_id)
-        .order_by(desc(notifications_models.Notification.created_at), desc(notifications_models.Notification.id))
+        stmt.order_by(desc(notifications_models.Notification.created_at), desc(notifications_models.Notification.id))
         .offset((page_number - 1) * num_records)
         .limit(num_records)
     )

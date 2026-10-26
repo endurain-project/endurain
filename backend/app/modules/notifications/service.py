@@ -76,6 +76,7 @@ def list_notifications(
     *,
     page_number: int,
     num_records: int,
+    unread_only: bool = False,
 ) -> core_pagination.Page[notifications_schema.NotificationRead]:
     """Return one page of the user's notifications, newest first.
 
@@ -84,12 +85,16 @@ def list_notifications(
         db: Database session.
         page_number: 1-based page number.
         num_records: Page size.
+        unread_only: Keep only the notifications that have not been read; the
+            total follows the same filter.
 
     Returns:
         The page envelope with the user's total.
     """
-    items = notifications_crud.get_user_notifications_with_pagination(user_id, db, page_number, num_records)
-    total = notifications_crud.get_user_notifications_count(user_id, db)
+    items = notifications_crud.get_user_notifications_with_pagination(
+        user_id, db, page_number, num_records, unread_only=unread_only
+    )
+    total = notifications_crud.get_user_notifications_count(user_id, db, unread_only=unread_only)
     return core_pagination.Page.build(items, total, page_number, num_records)
 
 
