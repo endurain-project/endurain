@@ -208,6 +208,7 @@ Every hour Endurain queues one refresh job per user who has linked Strava or Gar
 
 - Each job is independent, so jobs are spread across workers, retried with backoff when durable jobs are enabled, and one slow account cannot hold up the others.
 - Strava's rate limits are per application. When one is hit, every process and replica stops calling Strava until it expires; the state is shared through `STATE_URI`.
+- A Strava activity sync that hits a rate limit is not retried into it and does not fail. Its job is marked `deferred` with the time the limit clears (15 minutes for the short limit, UTC midnight for the daily one), and a check that runs every five minutes queues it again once that time has passed. This works the same with and without `JOBS_ENABLED`, and does not use up the job's retry attempts. A Strava gear sync that hits a limit still ends as failed, and the user starts it again.
 - Without `JOBS_ENABLED`, the jobs run on the API process's small background pool and are re-queued at the next hourly run if lost in a restart.
 
 ## Bulk imports

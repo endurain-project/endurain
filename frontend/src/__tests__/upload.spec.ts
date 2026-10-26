@@ -229,6 +229,19 @@ describe('pollIngestionJob', () => {
     expect(job.activity_ids).toEqual([7, 8])
   })
 
+  it('keeps polling a refresh that is waiting for a provider rate limit to clear', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'deferred', retry_after: '2026-01-01T12:00:00Z' })),
+      )
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [3] })))
+
+    const job = await pollIngestionJob('job-1', { intervalMs: 0 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(job.activity_ids).toEqual([3])
+  })
+
   it('surfaces the sanitized failure code', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(uploadJob({ status: 'failed', error_code: 'invalid_file' })),

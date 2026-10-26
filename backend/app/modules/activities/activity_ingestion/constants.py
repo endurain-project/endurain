@@ -16,6 +16,7 @@ class IngestionJobStatus(StrEnum):
 
     PENDING = "pending"
     PROCESSING = "processing"
+    DEFERRED = "deferred"
     COMPLETED = "completed"
     FAILED = "failed"
 

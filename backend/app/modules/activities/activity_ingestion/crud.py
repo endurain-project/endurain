@@ -256,7 +256,7 @@ def get_user_ids_with_active_refresh(user_ids: Sequence[int], db: Session) -> se
         db: Database session.
 
     Returns:
-        The subset with a pending or processing refresh job.
+        The subset with a pending, processing or deferred refresh job.
     """
     if not user_ids:
         return set()
@@ -461,6 +461,67 @@ def release_job(job_id: str, db: Session) -> None:
     db.flush()
 
 
+def mark_deferred(job_id: str, retry_after: datetime, db: Session) -> None:
+    """Stage a claimed refresh waiting until a provider's rate limit clears (not committed).
+
+    Args:
+        job_id: The job identifier.
+        retry_after: When the refresh may run again.
+        db: Database session.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    stmt = (
+        update(model)
+        .where(
+            model.id == job_id,
+            model.completed_at.is_(None),
+            model.status == activity_ingestion_constants.IngestionJobStatus.PROCESSING.value,
+        )
+        .values(
+            status=activity_ingestion_constants.IngestionJobStatus.DEFERRED.value,
+            retry_after=retry_after,
+            updated_at=func.now(),
+        )
+    )
+    db.execute(stmt)
+    db.flush()
+
+
+def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[str, int]]:
+    """Stage returning deferred refreshes whose wait is over to ``pending`` (not committed).
+
+    The due test uses the database clock, like :func:`mark_processing`, so replicas with skewed
+    clocks agree on what is due. Rows another replica is releasing right now are skipped.
+
+    Args:
+        limit: The most jobs to release in one call.
+        db: Database session.
+
+    Returns:
+        ``(job id, user id)`` for each job released, oldest wait first.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    stmt = (
+        select(model)
+        .where(
+            model.status == activity_ingestion_constants.IngestionJobStatus.DEFERRED.value,
+            model.completed_at.is_(None),
+            model.retry_after <= func.now(),
+        )
+        .order_by(model.retry_after)
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+    )
+    released: list[tuple[str, int]] = []
+    for orm_job in db.scalars(stmt).all():
+        orm_job.status = activity_ingestion_constants.IngestionJobStatus.PENDING.value
+        orm_job.retry_after = None
+        orm_job.updated_at = datetime.now(UTC)
+        released.append((orm_job.id, orm_job.user_id))
+    db.flush()
+    return released
+
+
 def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
     """Stage a move of a job to the completed state and record what it created.
 
@@ -522,7 +583,7 @@ def fail_jobs_idle_since(
     """Stage the failure of non-terminal jobs that have not changed state since a cutoff.
 
     Args:
-        cutoff: Pending or processing jobs last updated before this are failed.
+        cutoff: Pending or processing jobs last updated before this are failed; deferred ones are not.
         error_code: Sanitized failure reason shown to the owner.
         db: Database session.
 
@@ -530,8 +591,11 @@ def fail_jobs_idle_since(
         ``(job id, staged key)`` for each failed job; the key is the staged upload
         the job still held, or ``None``.
     """
+    # A deferred refresh is waiting on purpose, possibly for a day, so it is not idle.
     stmt = select(activity_ingestion_models.ActivityIngestionJob).where(
         activity_ingestion_models.ActivityIngestionJob.completed_at.is_(None),
+        activity_ingestion_models.ActivityIngestionJob.status
+        != activity_ingestion_constants.IngestionJobStatus.DEFERRED.value,
         activity_ingestion_models.ActivityIngestionJob.updated_at < cutoff,
     )
     # Rows a worker is writing right now are skipped: they are not idle, and

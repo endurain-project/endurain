@@ -198,8 +198,10 @@ def raise_if_rate_limited(
     """
     if not is_strava_rate_limit_error(err):
         return
-    rate_limits.mark_rate_limited(client_id, is_long_term=_daily_limit_reached(err))
-    raise core_exceptions.TooManyRequestsError("Strava API rate limit exceeded. Please try again later.") from err
+    retry_at = rate_limits.mark_rate_limited(client_id, is_long_term=_daily_limit_reached(err))
+    raise core_exceptions.TooManyRequestsError(
+        "Strava API rate limit exceeded. Please try again later.", retry_at=retry_at
+    ) from err
 
 
 def raise_if_rate_limit_active(
@@ -217,7 +219,10 @@ def raise_if_rate_limit_active(
     """
     if rate_limits.is_rate_limited(client_id):
         logger.warning("Strava rate limit active, skipping the call", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.TooManyRequestsError("Strava API rate limit exceeded. Please try again later.")
+        raise core_exceptions.TooManyRequestsError(
+            "Strava API rate limit exceeded. Please try again later.",
+            retry_at=rate_limits.rate_limited_until(client_id),
+        )
 
 
 class _TimeoutSession(requests.Session):

@@ -61,6 +61,59 @@ class TestSyncLinkedProviders:
 
         assert healthy[0] is not None
 
+    def test_a_rate_limited_provider_defers_the_sync_instead_of_failing_it(self):
+        clears = datetime.now(UTC) + timedelta(minutes=10)
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=clears))
+        healthy = _provider("b", ["g1"])
+
+        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
+            refresh_entry_service.sync_linked_providers(7)
+
+        assert deferred.value.retry_at == clears
+        assert healthy[0] is not None
+
+    def test_the_sync_waits_for_the_last_limit_to_clear(self):
+        soon = datetime.now(UTC) + timedelta(minutes=5)
+        later = datetime.now(UTC) + timedelta(hours=5)
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=soon))
+        _provider("b", raises=core_exceptions.TooManyRequestsError("limit", retry_at=later))
+
+        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
+            refresh_entry_service.sync_linked_providers(7)
+
+        assert deferred.value.retry_at == later
+
+    def test_a_limit_with_no_known_end_waits_for_the_default_deferral(self):
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit"))
+        before = datetime.now(UTC)
+
+        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
+            refresh_entry_service.sync_linked_providers(7)
+
+        assert deferred.value.retry_at >= before + refresh_entry_service._DEFAULT_DEFERRAL
+
+    def test_a_real_failure_wins_over_a_deferral_so_the_job_still_retries(self):
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=datetime.now(UTC)))
+        _provider("b", raises=RuntimeError("provider down"))
+
+        with pytest.raises(core_exceptions.ProcessingError):
+            refresh_entry_service.sync_linked_providers(7)
+
+    def test_a_rate_limit_is_logged_as_a_warning_not_an_error(self):
+        from unittest.mock import patch
+
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=datetime.now(UTC)))
+
+        with (
+            patch.object(refresh_entry_service.logger, "warning") as warning,
+            patch.object(refresh_entry_service.logger, "error") as error,
+            pytest.raises(refresh_entry_service.RefreshDeferredError),
+        ):
+            refresh_entry_service.sync_linked_providers(7)
+
+        warning.assert_called_once()
+        error.assert_not_called()
+
     def test_no_registered_providers_is_not_an_error(self):
         assert refresh_entry_service.sync_linked_providers(7) == []
 

@@ -361,6 +361,9 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
         job_id: The ``activity_ingestion_jobs`` row to process.
         storage: The blob-storage provider, for discarding a staged upload.
 
+    A provider that is rate limited defers the job instead: its row records when the limit
+    clears and this returns, so a retry never runs into the limit.
+
     Raises:
         Exception: Whatever the provider sync raised, so the caller can retry.
     """
@@ -384,6 +387,11 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
         activities = activity_ingestion_refresh_entry_service.sync_linked_providers(
             owner, window_start, window_end, provider=provider
         )
+    except activity_ingestion_refresh_entry_service.RefreshDeferredError as deferral:
+        # Not a failure and not a retry: the durable job ends here without using an attempt, and
+        # redispatch_deferred_refreshes queues the refresh again once the limit has cleared.
+        defer_ingestion_job(job_id, deferral.retry_at)
+        return
     except Exception:
         if not activity_ingestion_dispatch_service.worker_retries():
             # Nothing will retry, so leave the caller a terminal state
@@ -476,13 +484,25 @@ def _queue_refresh_batch(user_ids: list[int], storage: platform_providers.Storag
             activity_ingestion_crud.create_ingestion_job(
                 job_id, user_id, activity_ingestion_constants.IngestionJobKind.REFRESH, db
             )
-        activity_ingestion_dispatch_service.commit_or_publish(
-            db,
-            publish=lambda commit: activity_ingestion_event_publishers.publish_refresh_requests(
-                jobs, db, commit=commit
-            ),
-        )
+        _dispatch_refresh_jobs(jobs, storage, db)
+    logger.debug("Queued a batch of provider refresh jobs", extra=core_logger.context(count=len(jobs)))
+    return len(jobs)
 
+
+def _dispatch_refresh_jobs(
+    jobs: list[tuple[str, int]], storage: platform_providers.StorageProvider, db: Session
+) -> None:
+    """Make staged refresh jobs durable and start them: a worker event, or the in-process pool.
+
+    Args:
+        jobs: ``(job id, user id)`` of each staged job.
+        storage: The blob-storage provider handed to the in-process fallback.
+        db: The session holding the staged rows; committed here.
+    """
+    activity_ingestion_dispatch_service.commit_or_publish(
+        db,
+        publish=lambda commit: activity_ingestion_event_publishers.publish_refresh_requests(jobs, db, commit=commit),
+    )
     for job_id, _user_id in jobs:
         try:
             run_in_background_or_fail(run_refresh_job, job_id, storage)
@@ -491,8 +511,49 @@ def _queue_refresh_batch(user_ids: list[int], storage: platform_providers.Storag
                 "A provider refresh was dropped: the in-process pool is full",
                 extra=core_logger.context(job_id=job_id),
             )
-    logger.debug("Queued a batch of provider refresh jobs", extra=core_logger.context(count=len(jobs)))
-    return len(jobs)
+
+
+# One scheduler replica releases deferred refreshes; the jobs themselves are claimed by any worker.
+_DEFERRED_REDISPATCH_LOCK_NAME = "activity_ingestion_deferred_refresh"
+_DEFERRED_REDISPATCH_BATCH_SIZE = 200
+
+
+def redispatch_deferred_refreshes(
+    lock: platform_providers.LockProvider,
+    storage: platform_providers.StorageProvider,
+) -> int:
+    """Queue again the refreshes whose provider rate limit has cleared.
+
+    A refresh that hit a rate limit ended as ``deferred`` with the time the limit clears. This
+    returns each one whose time has passed to ``pending`` and hands it to a worker, or to the
+    in-process pool without durable jobs, so a rate-limited sync resumes by itself on either profile.
+    A job released here but lost before it ran (the pool dropped it, or the process stopped) is
+    failed by the stale-job sweep, and the scheduled refresh covers the window again.
+
+    Args:
+        lock: The platform lock provider.
+        storage: The blob-storage provider handed to the in-process fallback.
+
+    Returns:
+        The number of refresh jobs queued again.
+    """
+    released = 0
+    with lock.try_acquire(_DEFERRED_REDISPATCH_LOCK_NAME) as acquired:
+        if not acquired:
+            logger.debug("Deferred refreshes: another replica holds the lock; skipping")
+            return 0
+        while True:
+            with core_database.SessionLocal() as db:
+                jobs = activity_ingestion_crud.release_due_deferred_jobs(_DEFERRED_REDISPATCH_BATCH_SIZE, db)
+                if not jobs:
+                    break
+                _dispatch_refresh_jobs(jobs, storage, db)
+            released += len(jobs)
+            if len(jobs) < _DEFERRED_REDISPATCH_BATCH_SIZE:
+                break
+    if released:
+        logger.info("Deferred provider refreshes queued again", extra=core_logger.context(count=released))
+    return released
 
 
 def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> None:
@@ -617,6 +678,22 @@ def release_ingestion_job(job_id: str) -> None:
             exc_info=err,
             extra=core_logger.context(job_id=job_id),
         )
+
+
+def defer_ingestion_job(job_id: str, retry_at: datetime) -> None:
+    """Record that a claimed refresh waits for a provider's rate limit to clear.
+
+    Args:
+        job_id: The job identifier.
+        retry_at: When the refresh may run again.
+    """
+    with core_database.SessionLocal() as db:
+        activity_ingestion_crud.mark_deferred(job_id, retry_at, db)
+        db.commit()
+    logger.warning(
+        "Provider refresh deferred until the rate limit clears",
+        extra=core_logger.context(job_id=job_id, retry_at=retry_at),
+    )
 
 
 def run_in_background_or_fail(

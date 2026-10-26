@@ -5301,7 +5301,8 @@ export interface components {
          *             finished import with failures still ends ``completed``.
          *         provider: The one provider a refresh syncs; ``None`` when it syncs every
          *             linked provider.
-         *         status: Current lifecycle state.
+         *         status: Current lifecycle state. A refresh waiting for a provider's rate limit to clear is ``deferred``.
+         *         retry_after: When a deferred refresh runs again.
          *         error_code: Sanitized failure reason when ``status`` is failed.
          *         activity_ids: Ids created by the import once it completes.
          *         created_at: When the request was accepted.
@@ -5337,6 +5338,8 @@ export interface components {
             kind: components["schemas"]["IngestionJobKind"];
             /** Provider */
             provider?: string | null;
+            /** Retry After */
+            retry_after?: string | null;
             status: components["schemas"]["IngestionJobStatus"];
             /**
              * Updated At
@@ -8643,7 +8646,7 @@ export interface components {
          * @description Lifecycle states of an ingestion job.
          * @enum {string}
          */
-        IngestionJobStatus: "pending" | "processing" | "completed" | "failed";
+        IngestionJobStatus: "pending" | "processing" | "deferred" | "completed" | "failed";
         /**
          * Interval
          * @description Recurrence intervals for user goals.

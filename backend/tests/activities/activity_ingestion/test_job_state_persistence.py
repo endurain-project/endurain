@@ -84,6 +84,7 @@ def _read_job(factory, job_id: str = "job-1"):
             error_code=row.error_code,
             activity_ids=list(row.activity_ids or []),
             staged_key=row.staged_key,
+            retry_after=row.retry_after,
         )
 
 
@@ -169,6 +170,131 @@ class TestRefreshJob:
         job = _read_job(factory)
         assert job.status == "completed"
         assert job.activity_ids == [21]
+
+
+class TestDeferredRefresh:
+    """A refresh that hit a provider's rate limit waits for it to clear, then runs again by itself."""
+
+    def test_a_rate_limited_refresh_is_recorded_as_deferred_until_the_limit_clears(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None)
+        retry_at = _now() + timedelta(hours=2)
+        error = ingestion_jobs.activity_ingestion_refresh_entry_service.RefreshDeferredError(retry_at)
+
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(
+                ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", side_effect=error
+            ),
+        ):
+            ingestion_jobs.run_refresh_job("job-1", "storage")
+
+        job = _read_job(factory)
+        assert job.status == "deferred"
+        assert abs((job.retry_after.replace(tzinfo=UTC) - retry_at).total_seconds()) < 1
+
+    def test_a_deferred_job_is_not_claimed_by_a_duplicate_delivery(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() + timedelta(hours=1))
+
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers") as sync,
+        ):
+            ingestion_jobs.run_refresh_job("job-1", "storage")
+
+        sync.assert_not_called()
+        assert _read_job(factory).status == "deferred"
+
+    def test_a_job_whose_wait_is_over_is_queued_again_locally(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() - timedelta(minutes=1))
+        lock = MagicMock()
+        lock.try_acquire.return_value.__enter__.return_value = True
+
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+            ) as submit,
+        ):
+            released = ingestion_jobs.redispatch_deferred_refreshes(lock, "storage")
+
+        job = _read_job(factory)
+        assert released == 1
+        assert (job.status, job.retry_after) == ("pending", None)
+        assert submit.call_args.args[1:] == ("job-1", "storage")
+
+    def test_a_job_whose_wait_is_over_is_published_to_a_worker_when_durable(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() - timedelta(minutes=1))
+        lock = MagicMock()
+        lock.try_acquire.return_value.__enter__.return_value = True
+
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(ingestion_jobs.activity_ingestion_event_publishers, "publish_refresh_requests") as publish,
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+            ) as submit,
+        ):
+            ingestion_jobs.redispatch_deferred_refreshes(lock, "storage")
+
+        assert publish.call_args.args[0] == [("job-1", 7)]
+        submit.assert_not_called()
+
+    def test_a_job_still_waiting_is_left_alone(self, factory):
+        retry_at = _now() + timedelta(hours=1)
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=retry_at)
+        lock = MagicMock()
+        lock.try_acquire.return_value.__enter__.return_value = True
+
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+            ) as submit,
+        ):
+            assert ingestion_jobs.redispatch_deferred_refreshes(lock, "storage") == 0
+
+        assert _read_job(factory).status == "deferred"
+        submit.assert_not_called()
+
+    def test_another_replica_holding_the_lock_queues_nothing(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() - timedelta(minutes=1))
+        lock = MagicMock()
+        lock.try_acquire.return_value.__enter__.return_value = False
+
+        with patch.object(ingestion_jobs.core_database, "SessionLocal", factory):
+            assert ingestion_jobs.redispatch_deferred_refreshes(lock, "storage") == 0
+
+        assert _read_job(factory).status == "deferred"
+
+    def test_the_stale_job_sweep_does_not_fail_a_job_that_is_waiting_on_purpose(self, factory):
+        long_ago = _now() - timedelta(days=3)
+        _add_job(
+            factory,
+            kind="refresh",
+            staged_key=None,
+            status="deferred",
+            updated_at=long_ago,
+            retry_after=_now() + timedelta(hours=1),
+        )
+        platform = MagicMock()
+        platform.lock.try_acquire.return_value.__enter__.return_value = True
+        platform.clock.now.return_value = _now()
+
+        with patch.object(ingestion_jobs.core_database, "SessionLocal", factory):
+            ingestion_jobs.fail_stale_ingestion_jobs(platform.lock, platform.clock, MagicMock())
+
+        assert _read_job(factory).status == "deferred"
+
+    def test_the_hourly_fan_out_does_not_queue_a_second_refresh_behind_a_deferred_one(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() + timedelta(hours=1))
+
+        with factory() as db:
+            busy = ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([7], db)
+
+        assert busy == {7}
 
 
 class TestPrune:

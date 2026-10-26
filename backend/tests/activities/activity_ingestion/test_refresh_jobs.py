@@ -217,6 +217,31 @@ class TestRunRefreshJob:
 
         fail.assert_not_called()
 
+    @pytest.mark.parametrize("jobs_enabled", [True, False])
+    def test_a_rate_limited_provider_defers_the_job_without_failing_or_retrying_it(self, jobs_enabled):
+        retry_at = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", jobs_enabled),
+            patch.object(ingestion_jobs.core_database, "SessionLocal"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=_SCOPE),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed") as completed,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_deferred") as deferred,
+            patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
+            patch.object(ingestion_jobs, "release_ingestion_job") as release,
+            patch.object(
+                ingestion_jobs.activity_ingestion_refresh_entry_service,
+                "sync_linked_providers",
+                side_effect=ingestion_jobs.activity_ingestion_refresh_entry_service.RefreshDeferredError(retry_at),
+            ),
+        ):
+            ingestion_jobs.run_refresh_job("job-1", "storage")
+
+        assert deferred.call_args.args[:2] == ("job-1", retry_at)
+        completed.assert_not_called()
+        fail.assert_not_called()
+        release.assert_not_called()
+
     def test_a_provider_failure_is_terminal_when_nothing_will_retry(self):
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),

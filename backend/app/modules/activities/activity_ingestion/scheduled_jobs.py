@@ -26,6 +26,16 @@ def enqueue_provider_refreshes() -> None:
     activity_ingestion_service.enqueue_scheduled_refreshes(platform.lock, platform.storage)
 
 
+def redispatch_deferred_refreshes() -> None:
+    """Queue again the provider refreshes whose rate limit has cleared.
+
+    Scheduler-invoked, with no request to carry the providers, so this entry
+    point resolves them.
+    """
+    platform = platform_runtime.get_active_platform()
+    activity_ingestion_service.redispatch_deferred_refreshes(platform.lock, platform.storage)
+
+
 def schedule_provider_refresh() -> None:
     """Queue one provider refresh fan-out, so a restart catches up on what it missed."""
     core_scheduler.run_once(
@@ -71,6 +81,11 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             enqueue_provider_refreshes,
             60,
             "queue a refresh for every user with a linked provider",
+        ),
+        core_scheduler.ScheduledJob(
+            redispatch_deferred_refreshes,
+            5,
+            "queue again provider refreshes whose rate limit cleared",
         ),
         core_scheduler.ScheduledJob(
             fail_stale_ingestion_jobs,

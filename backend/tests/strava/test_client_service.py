@@ -320,6 +320,33 @@ class TestRaiseIfRateLimited:
         rate_limits.mark_rate_limited.assert_not_called()
 
 
+class TestRateLimitErrorsCarryTheRetryTime:
+    def test_a_limit_just_hit_says_when_it_clears(self):
+        from datetime import UTC, datetime
+
+        clears = datetime(2026, 1, 1, 12, 15, tzinfo=UTC)
+        rate_limits = MagicMock()
+        rate_limits.mark_rate_limited.return_value = clears
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_utils.raise_if_rate_limited(_make_strava_fault(429), "c", rate_limits)
+
+        assert raised.value.retry_at == clears
+
+    def test_an_active_limit_says_when_it_clears(self):
+        from datetime import UTC, datetime
+
+        clears = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
+        rate_limits = MagicMock()
+        rate_limits.is_rate_limited.return_value = True
+        rate_limits.rate_limited_until.return_value = clears
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_utils.raise_if_rate_limit_active("c", 1, rate_limits)
+
+        assert raised.value.retry_at == clears
+
+
 class TestRaiseIfRateLimitActive:
     def test_an_active_limit_refuses_the_call(self):
         rate_limits = MagicMock()

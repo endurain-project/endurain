@@ -28,6 +28,7 @@ Every error leaves the API as an RFC 9457 problem document — see
 """
 
 import http
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -151,12 +152,27 @@ class PreconditionRequiredError(DomainError):
 
 
 class TooManyRequestsError(DomainError):
-    """A per-resource limit is reached, as opposed to the caller's request rate."""
+    """A per-resource limit is reached, as opposed to the caller's request rate.
+
+    Attributes:
+        retry_at: When the limit clears, when the raiser knows it; a job that hit a provider's
+            limit waits until then instead of retrying into it.
+    """
 
     status_code = status.HTTP_429_TOO_MANY_REQUESTS
     code = "too-many-requests"
     title = "Too Many Requests"
     default_detail = "Too Many Requests"
+
+    def __init__(self, detail: str | None = None, *, retry_at: datetime | None = None) -> None:
+        """Initialise the error with an optional message and the time the limit clears.
+
+        Args:
+            detail: Message returned to the client.
+            retry_at: When the limit clears, if known.
+        """
+        super().__init__(detail)
+        self.retry_at = retry_at
 
 
 class UnsupportedFormatError(DomainError):

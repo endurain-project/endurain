@@ -26,3 +26,27 @@ class TestDependencyFailedError:
             "Failed Dependency",
             "Strava rejected the code",
         )
+
+
+class TestTooManyRequestsRetryAt:
+    """A rate-limited caller can learn when the limit clears, so a job can wait for it."""
+
+    def test_the_time_the_limit_clears_is_carried(self):
+        from datetime import UTC, datetime
+
+        import core.exceptions as core_exceptions
+
+        retry_at = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+
+        error = core_exceptions.TooManyRequestsError("slow down", retry_at=retry_at)
+
+        assert error.retry_at == retry_at
+        assert error.detail == "slow down"
+
+    def test_it_is_optional(self):
+        import core.exceptions as core_exceptions
+
+        error = core_exceptions.TooManyRequestsError()
+
+        assert error.retry_at is None
+        assert error.detail == "Too Many Requests"
