@@ -12,6 +12,8 @@ Storage, events, jobs, schedules and nets are covered in `platform-jasil.md`; th
 | `asyncio.to_thread`, `run_in_executor` or `future.result(timeout=N)` on a request path for long work | Exhausts the pool, ties up the request | A job; keep calls short |
 | A critical flow whose only delivery path is a WebSocket message | Lost when the socket or replica changes | A pollable status endpoint; WebSocket is an optimization |
 | Tokens or API keys in URLs or query parameters | Leak into logs and history | Headers or the one-time ticket in `modules/websocket/ticket_store.py` |
+| A provider call that fails on a rate limit as an ordinary error | Retries burn attempts into the same limit on every replica | `TooManyRequestsError(retry_at=...)`; the ingestion job defers |
+| A database session held open across a provider or network call | Pins a pool connection for the length of the round trip | Short sessions before and after the call |
 | `len(query.all())` for a count | Loads every row | `select(func.count())` |
 | Unbounded work per request or per user (no size, page or job cap) | One caller can starve every replica | Limits in `security.md` (Abuse and resource limits) |
 | Frontend `socket.onmessage = fn` | Components overwrite each other | `addEventListener('message', fn)` |

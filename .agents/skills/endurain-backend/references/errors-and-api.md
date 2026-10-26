@@ -41,6 +41,13 @@
 - Authorization through `dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])]` on the route decorator; the caller's id through `auth_dependencies.CurrentUserId`.
 - Blob routes addressed by a signed capability token answer 404, not 403, for a bad token, and log a WARNING.
 
+## Versioned writes and long work
+
+- A client-editable resource has a `version`; reads set `ETag`, `PUT`/`PATCH` take `IfMatch`, and a stale tag is 412 (missing header 428). `IfMatch` refuses `*`: only in-process callers pass `if_match="*"`. Creates, deletes and actions are not versioned.
+- Slow work starts with `POST` and answers 202 with a status handle; the client polls a `GET .../status` route. Idempotent actions use `PUT /{id}/<action>`.
+- Link, sync and unlink routes of a provider mirror each other (`POST /link`, `DELETE /link`, status via a polled route); a new provider copies Garmin and Strava rather than inventing names. `garmin` and `strava` `sync_service` are near copies; the third provider extracts the shared runner first.
+- A provider rate-limit response is raised as `TooManyRequestsError(retry_at=...)`; ingestion defers the job until then.
+
 ## Pagination
 
 - Offset lists return `core.pagination.Page[T]`, built with `Page.build(items, total, page, num_records)`; `next` is derived server-side.

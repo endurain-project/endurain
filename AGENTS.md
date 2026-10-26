@@ -71,6 +71,7 @@ npm run gen:api      # after backend API changes
 - Ask for clarification when scope is unclear instead of assuming extra deliverables.
 - A change touching more than one module or both stacks starts with a short task list in chat for approval; keep plans in chat or `devdocs/`, never in tracked files.
 - Bug fixes and new behavior start with a failing test.
+- An API change is done only when `npm run gen:api` was run and `npm run check` passes, so both stacks agree.
 - Done means the checks that apply to what changed ran and their output was read; say which ran and which did not (stack checks do not apply to docs, `AGENTS.md` or skill-only changes).
 - Before reporting a larger change done, compare the diff to the request and remove anything not asked for.
 
@@ -103,6 +104,11 @@ npm run gen:api      # after backend API changes
 - Storage, events, jobs and geocoding come from `jasil` ports; resolve a provider at the entry point and pass it down.
 - Comments state what the code does now, not what it used to do.
 - Enforced by `backend/.importlinter` and `backend/tests/architecture/`.
+- A client-editable resource is versioned: reads carry an `ETag`, `PUT`/`PATCH` require `If-Match` (`core_dependencies.IfMatch`), a stale write is 412, and an HTTP route never accepts `*` (`docs/developer-guide/optimistic-concurrency.md`).
+- Nothing blocks an API request: provider calls, large uploads, exports and bulk deletes run as a job or bounded pool and answer 202, and no database session stays open across a network call.
+- A route that names another user (`{user_id}`) requires an admin scope or checks ownership against `CurrentUserId`; `users:read` and `profile` belong to every user.
+- State shared across requests or replicas (rate limits, OAuth state, tickets, claims) goes through the platform `StateProvider`, never a module-level dict, lock or cache; review against `.agents/skills/endurain-backend/references/scaling-review.md`.
+- A provider rate-limit response becomes `TooManyRequestsError` with `retry_at`, so ingestion defers the work instead of burning retries.
 - Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them on converted modules).
 
 ## Frontend invariants
@@ -111,3 +117,4 @@ npm run gen:api      # after backend API changes
 - Types come from the generated API client (`src/types/api.generated.ts`, never hand-edited).
 - Semantic Tailwind tokens and shadcn-vue primitives; no hardcoded hex values; every string through vue-i18n.
 - Never use `v-html` on user data.
+- A write to a versioned resource sends the `ETag` it read as `If-Match` (`src/services/ifMatch.ts`), never `*`; handle 412 by refetching.

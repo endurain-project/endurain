@@ -270,3 +270,80 @@ class TestSignatureConventions:
         assert offenders == [], (
             "Publishers must be (<ids>, db, [*, commit,] <extras>), with commit required:\n  " + "\n  ".join(offenders)
         )
+
+
+#: Writes to a versioned package that carry no ``If-Match``, with why (``optimistic-concurrency.md``, "What is not versioned").
+_UNVERSIONED_WRITES = {
+    ("activities/activity/router.py", "edit_activities"): "the bulk edit has no single record to name",
+    ("users/users/router.py", "approve_user"): "an action does not replace a representation the client read",
+}
+
+#: Routes that take a ``{user_id}`` path parameter, hold only a regular-user scope and take no ``CurrentUserId``.
+_USER_PATH_WITHOUT_OWNER = {
+    ("users/users/router.py", "read_users_id"): "returns the public projection, which any authenticated user may read",
+}
+
+
+def _declared_scopes(call: ast.Call) -> set[str]:
+    """Return the scope strings a route decorator passes to its scope check."""
+    return {
+        node.value
+        for keyword in call.keywords
+        if keyword.arg == "dependencies"
+        for node in ast.walk(keyword.value)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+
+
+def _parameter_aliases(function: ast.FunctionDef) -> str:
+    """Return the unparsed parameter list, for a check that an alias is among the annotations."""
+    return ast.unparse(function.args)
+
+
+class TestVersionedAndOwnedRoutes:
+    def test_a_versioned_resource_is_edited_only_with_if_match(self):
+        """A ``PUT``/``PATCH`` in a package whose model declares ``version_id_col`` takes ``IfMatch``.
+
+        Without it the write is last-writer-wins and silently loses a concurrent edit. Creates, deletes and
+        actions are not versioned; the exceptions are listed with their reason.
+        """
+        offenders = []
+        for path, function in _router_functions():
+            models = path.parent / "models.py"
+            if not models.exists() or "version_id_col" not in models.read_text():
+                continue
+            relative = path.relative_to(_ROOT).as_posix()
+            if (relative, function.name) in _UNVERSIONED_WRITES:
+                continue
+            edits = any(method in {"put", "patch"} for method, _ in _route_decorators(function))
+            if edits and "IfMatch" not in _parameter_aliases(function):
+                offenders.append(f"{relative}::{function.name}")
+
+        assert offenders == [], "Take core_dependencies.IfMatch (see optimistic-concurrency.md) in:\n  " + "\n  ".join(
+            offenders
+        )
+
+    def test_a_route_naming_another_user_checks_ownership_or_needs_an_admin_scope(self):
+        """A route with a ``{user_id}`` path parameter takes ``CurrentUserId`` or requires an admin-class scope.
+
+        ``users:read`` and ``profile`` belong to every regular user, so a route guarded only by them that
+        names another user is open to any account (an IDOR). Admin scopes end in ``_all`` or are ``users:write``.
+        """
+        admin_scopes = {"users:write"}
+        offenders = []
+        for path, function in _router_functions():
+            relative = path.relative_to(_ROOT).as_posix()
+            if role_of(path.stem) != "router" or (relative, function.name) in _USER_PATH_WITHOUT_OWNER:
+                continue
+            for _, call in _route_decorators(function):
+                if not call.args or not isinstance(call.args[0], ast.Constant) or "{user_id}" not in call.args[0].value:
+                    continue
+                scopes = _declared_scopes(call)
+                is_admin = any(scope in admin_scopes or scope.endswith("_all") for scope in scopes)
+                if scopes and not is_admin and "CurrentUserId" not in _parameter_aliases(function):
+                    offenders.append(f"{relative}::{function.name}")
+
+        assert offenders == [], (
+            "Require an admin scope or take CurrentUserId and check ownership in the service:\n  "
+            + "\n  ".join(offenders)
+        )
