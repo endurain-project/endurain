@@ -1108,43 +1108,45 @@ class ImportService:
                 ext = os.path.splitext(path)[1]
                 try:
                     file_id_int = int(file_id_str)
-                    new_id = activities_id_mapping.get(file_id_int)
-
-                    if new_id is None:
-                        continue
-
-                    new_file_name = f"{new_id}{ext}"
-
-                    # Read bytes from ZIP, validate as an activity file, then
-                    # persist through the platform StorageProvider (the same store
-                    # the ingestion path writes to) rather than the local
-                    # processed directory. The blocking save is offloaded so it
-                    # never stalls the import's event loop.
-                    activity_limit = file_uploads.file_validator.config.limits.max_activity_file_size
-                    file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=activity_limit)
-                    try:
-                        await file_uploads.validate_bytes(
-                            file_bytes,
-                            kind=file_uploads.UploadKind.ACTIVITY,
-                            filename=new_file_name,
-                        )
-                    except core_exceptions.DomainError as err:
-                        logger.warning(
-                            "Profile import dropped an invalid activity file",
-                            extra=core_logger.context(file_name=new_file_name, detail=err.detail),
-                        )
-                        continue
-                    await asyncio.to_thread(
-                        activity_file_storage_integration.store_activity_file,
-                        new_id,
-                        ext,
-                        file_bytes,
-                        self.storage,
-                    )
-                    self.counts["activity_files"] += 1
                 except ValueError:
-                    # Skip files that don't have numeric activity IDs
+                    logger.debug(
+                        "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
+                    )
                     continue
+                new_id = activities_id_mapping.get(file_id_int)
+
+                if new_id is None:
+                    continue
+
+                new_file_name = f"{new_id}{ext}"
+
+                # Read bytes from ZIP, validate as an activity file, then
+                # persist through the platform StorageProvider (the same store
+                # the ingestion path writes to) rather than the local
+                # processed directory. The blocking save is offloaded so it
+                # never stalls the import's event loop.
+                activity_limit = file_uploads.file_validator.config.limits.max_activity_file_size
+                file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=activity_limit)
+                try:
+                    await file_uploads.validate_bytes(
+                        file_bytes,
+                        kind=file_uploads.UploadKind.ACTIVITY,
+                        filename=new_file_name,
+                    )
+                except core_exceptions.DomainError as err:
+                    logger.warning(
+                        "Profile import dropped an invalid activity file",
+                        extra=core_logger.context(file_name=new_file_name, detail=err.detail),
+                    )
+                    continue
+                await asyncio.to_thread(
+                    activity_file_storage_integration.store_activity_file,
+                    new_id,
+                    ext,
+                    file_bytes,
+                    self.storage,
+                )
+                self.counts["activity_files"] += 1
 
     async def add_activity_media_from_zip(
         self,
@@ -1177,43 +1179,45 @@ class ImportService:
                     orig_id_str, suffix = base_name.split("_", 1)
                     try:
                         orig_id_int = int(orig_id_str)
-                        new_id = activities_id_mapping.get(orig_id_int)
-
-                        if new_id is None:
-                            continue
-
-                        new_file_name = f"{new_id}_{suffix}{ext}"
-
-                        # Read bytes from ZIP and validate them as an image
-                        # before storing, then write through the platform
-                        # StorageProvider under the media area (the same place
-                        # an upload lands) rather than to a local directory.
-                        image_limit = file_uploads.file_validator.config.limits.max_image_size
-                        file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=image_limit)
-                        try:
-                            await file_uploads.validate_bytes(
-                                file_bytes,
-                                kind=file_uploads.UploadKind.IMAGE,
-                                filename=new_file_name,
-                            )
-                        except core_exceptions.DomainError as err:
-                            logger.warning(
-                                "Profile import dropped invalid activity media",
-                                extra=core_logger.context(file_name=new_file_name, detail=err.detail),
-                            )
-                            continue
-                        await asyncio.to_thread(
-                            activity_media_integration.store_media_blob,
-                            new_id,
-                            suffix,
-                            ext,
-                            file_bytes,
-                            self.storage,
-                        )
-                        self.counts["media"] += 1
                     except ValueError:
-                        # Skip files that don't have numeric activity IDs
+                        logger.debug(
+                            "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
+                        )
                         continue
+                    new_id = activities_id_mapping.get(orig_id_int)
+
+                    if new_id is None:
+                        continue
+
+                    new_file_name = f"{new_id}_{suffix}{ext}"
+
+                    # Read bytes from ZIP and validate them as an image
+                    # before storing, then write through the platform
+                    # StorageProvider under the media area (the same place
+                    # an upload lands) rather than to a local directory.
+                    image_limit = file_uploads.file_validator.config.limits.max_image_size
+                    file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=image_limit)
+                    try:
+                        await file_uploads.validate_bytes(
+                            file_bytes,
+                            kind=file_uploads.UploadKind.IMAGE,
+                            filename=new_file_name,
+                        )
+                    except core_exceptions.DomainError as err:
+                        logger.warning(
+                            "Profile import dropped invalid activity media",
+                            extra=core_logger.context(file_name=new_file_name, detail=err.detail),
+                        )
+                        continue
+                    await asyncio.to_thread(
+                        activity_media_integration.store_media_blob,
+                        new_id,
+                        suffix,
+                        ext,
+                        file_bytes,
+                        self.storage,
+                    )
+                    self.counts["media"] += 1
 
     async def add_user_images_from_zip(
         self,

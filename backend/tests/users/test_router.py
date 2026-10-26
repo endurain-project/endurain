@@ -24,7 +24,6 @@ class TestEditUserPassword:
             request=MagicMock(),
             user_id=user_id,
             user_attributes=user_attributes,
-            _check_scope=MagicMock(),
             identity_service=identity_service,
         )
 

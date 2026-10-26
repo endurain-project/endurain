@@ -4737,7 +4737,6 @@ export interface paths {
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         user: User creation data.
-         *         _check_scope: Authorization check.
          *         identity_service: Identity service dependency.
          *         db: Database session dependency.
          *
@@ -5062,7 +5061,6 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to update password for.
          *         user_attributes: New password data.
-         *         _check_scope: Authorization check.
          *         identity_service: Identity service dependency.
          */
         post: operations["edit_user_password_api_v1_users__user_id__password_change_post"];

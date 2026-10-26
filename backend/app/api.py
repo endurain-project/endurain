@@ -287,7 +287,7 @@ router.include_router(
     profile_router.router,
     prefix=core_config.ROOT_PATH + "/profile",
     tags=["profile"],
-    dependencies=_PROFILE_DEPENDENCIES,
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 # The signed-in user's own sessions, two-step verification and identity provider links are auth's
 # to serve; they live under /profile so the API paths are unchanged.
@@ -341,19 +341,13 @@ router.include_router(
     user_default_gear_router.router,
     prefix=core_config.ROOT_PATH + "/profile/default_gear",
     tags=["profile"],
-    dependencies=[
-        Depends(auth_dependencies.validate_access_token),
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     user_goals_router.router,
     prefix=core_config.ROOT_PATH + "/profile/goals",
     tags=["profile"],
-    dependencies=[
-        Depends(auth_dependencies.validate_access_token),
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     auth_api_keys_router.router,

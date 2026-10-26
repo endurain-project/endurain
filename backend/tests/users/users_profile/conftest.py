@@ -110,6 +110,7 @@ def profile_app(
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 1
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "session-1"
+    app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: mock_identity_service
     app.dependency_overrides[auth_mfa_setup_store.get_mfa_secret_store] = lambda: fake_mfa_secret_store
     app.dependency_overrides[profile_dependencies.get_profile_import_state_store] = lambda: import_states

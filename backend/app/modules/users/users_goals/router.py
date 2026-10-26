@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, Response, status
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -20,6 +20,7 @@ router = APIRouter()
     "",
     response_model=list[user_goals_schema.UsersGoalRead],
     status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_user_goals(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -62,6 +63,7 @@ def get_user_goals(
     "/results",
     response_model=list[user_goals_schema.UsersGoalProgress],
     status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_user_goals_results(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -83,6 +85,7 @@ def get_user_goals_results(
     "",
     response_model=user_goals_schema.UsersGoalRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_user_goal(
@@ -109,6 +112,7 @@ def create_user_goal(
     "/{goal_id}",
     status_code=status.HTTP_200_OK,
     response_model=user_goals_schema.UsersGoalRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_user_goal(
@@ -139,7 +143,12 @@ def update_user_goal(
     return updated
 
 
-@router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.delete(
+    "/{goal_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_user_goal(
     request: Request,

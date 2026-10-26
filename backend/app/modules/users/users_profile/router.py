@@ -13,7 +13,7 @@ served under the same ``/profile`` prefix by the auth module (``modules.auth.ses
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Request, Response, Security, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 import core.dependencies as core_dependencies
@@ -35,7 +35,12 @@ import modules.users.users_profile.service as profile_service
 router = APIRouter()
 
 
-@router.get("", status_code=status.HTTP_200_OK, response_model=users_schema.UsersMe)
+@router.get(
+    "",
+    status_code=status.HTTP_200_OK,
+    response_model=users_schema.UsersMe,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 def read_users_me(
     token_user_id: auth_dependencies.CurrentUserId,
     identity_service: Annotated[
@@ -68,6 +73,7 @@ def read_users_me(
     "/image",
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserPhotoRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def upload_profile_image(
@@ -93,7 +99,12 @@ def upload_profile_image(
     return users_schema.UserPhotoRead(photo_path=users_integration.require_user(token_user_id, db).photo_path)
 
 
-@router.patch("", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.patch(
+    "",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_user(
     request: Request,
@@ -120,7 +131,12 @@ def edit_user(
     profile_service.edit_profile(token_user_id, user_attributtes, db, if_match=if_match)
 
 
-@router.post("/email/change", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.post(
+    "/email/change",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_profile_email(
     request: Request,
@@ -159,7 +175,12 @@ def edit_profile_email(
     profile_service.change_email(token_user_id, email_change, token_session_id, identity_service, step_up_store, db)
 
 
-@router.patch("/privacy", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.patch(
+    "/privacy",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_profile_privacy_settings(
     request: Request,
@@ -180,7 +201,12 @@ def edit_profile_privacy_settings(
     profile_service.edit_privacy_settings(token_user_id, user_privacy_settings, db, if_match=if_match)
 
 
-@router.post("/password/change", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.post(
+    "/password/change",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_profile_password(
     request: Request,
@@ -238,7 +264,12 @@ def edit_profile_password(
     )
 
 
-@router.delete("/photo", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.delete(
+    "/photo",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_photo(
     request: Request,
@@ -264,6 +295,7 @@ def delete_profile_photo(
     "/delete-account",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_my_account(
@@ -302,7 +334,12 @@ def delete_my_account(
     identity_service.clear_session_cookies(response)
 
 
-@router.post("/export", status_code=status.HTTP_202_ACCEPTED, response_model=profile_schema.ProfileExportStatus)
+@router.post(
+    "/export",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=profile_schema.ProfileExportStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def export_profile_data(
     request: Request,
@@ -328,7 +365,12 @@ def export_profile_data(
     return profile_schema.ProfileExportStatus.model_validate(state)
 
 
-@router.get("/export", status_code=status.HTTP_200_OK, response_model=profile_schema.ProfileExportStatus)
+@router.get(
+    "/export",
+    status_code=status.HTTP_200_OK,
+    response_model=profile_schema.ProfileExportStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 def read_profile_export_status(
     token_user_id: auth_dependencies.CurrentUserId,
     export_states: profile_dependencies.ProfileExportStateStoreDep,
@@ -346,7 +388,12 @@ def read_profile_export_status(
     return profile_schema.ProfileExportStatus.model_validate(state)
 
 
-@router.get("/export/download", status_code=status.HTTP_200_OK, response_class=StreamingResponse)
+@router.get(
+    "/export/download",
+    status_code=status.HTTP_200_OK,
+    response_class=StreamingResponse,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def download_profile_export(
     request: Request,
@@ -376,7 +423,12 @@ def download_profile_export(
     )
 
 
-@router.post("/import", status_code=status.HTTP_202_ACCEPTED, response_model=profile_schema.ProfileImportStatus)
+@router.post(
+    "/import",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=profile_schema.ProfileImportStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def import_profile_data(
     request: Request,
@@ -409,7 +461,12 @@ def import_profile_data(
     return profile_schema.ProfileImportStatus.model_validate(state)
 
 
-@router.get("/import", status_code=status.HTTP_200_OK, response_model=profile_schema.ProfileImportStatus)
+@router.get(
+    "/import",
+    status_code=status.HTTP_200_OK,
+    response_model=profile_schema.ProfileImportStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 def read_profile_import_status(
     token_user_id: auth_dependencies.CurrentUserId,
     import_states: profile_dependencies.ProfileImportStateStoreDep,

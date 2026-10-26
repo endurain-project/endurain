@@ -1,6 +1,5 @@
 """User management router for authenticated operations."""
 
-from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response, Security, UploadFile, status
@@ -223,12 +222,16 @@ def read_users_full(
     return user
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=users_schema.UsersRead)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=users_schema.UsersRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def create_user(
     request: Request,
     user: users_schema.UsersCreate,
-    _check_scope: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
     identity_service: Annotated[
         auth_identity_service.IdentityService,
         Depends(auth_identity_service.get_identity_service),
@@ -240,7 +243,6 @@ def create_user(
     Args:
         request: The incoming request, read by the rate limiter.
         user: User creation data.
-        _check_scope: Authorization check.
         identity_service: Identity service dependency.
         db: Database session dependency.
 
@@ -349,13 +351,17 @@ def approve_user(
     users_service.approve_user(user_id, identity_service, db)
 
 
-@router.post("/{user_id}/password/change", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+@router.post(
+    "/{user_id}/password/change",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_user_password(
     request: Request,
     user_id: core_dependencies.PositiveId,
     user_attributes: users_schema.UsersAdminEditPassword,
-    _check_scope: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
     identity_service: Annotated[
         auth_identity_service.IdentityService,
         Depends(auth_identity_service.get_identity_service),
@@ -367,7 +373,6 @@ def edit_user_password(
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to update password for.
         user_attributes: New password data.
-        _check_scope: Authorization check.
         identity_service: Identity service dependency.
     """
     identity_service.change_managed_user_password(

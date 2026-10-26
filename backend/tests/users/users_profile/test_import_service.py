@@ -1959,3 +1959,65 @@ class TestImportServiceFromZipExtended:
 
         with pytest.raises(JSONParseError, match="Failed to parse JSON"):
             await service.import_from_zip_data(zip_data)
+
+
+class TestArchiveFileNames:
+    """A file whose name carries no activity id is skipped and logged; no other ValueError is hidden by that."""
+
+    @staticmethod
+    def _service_and_zip(names: list[str]):
+        service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        service.performance_config.enable_memory_monitoring = False
+        buffer = BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            for name in names:
+                archive.writestr(name, b"data")
+        return service, zipfile.ZipFile(BytesIO(buffer.getvalue()))
+
+    async def test_an_activity_file_without_a_numeric_id_is_skipped_and_logged(self) -> None:
+        service, archive = self._service_and_zip(["activity_files/notes.gpx"])
+        with (
+            patch.object(profile_import_service.activity_file_storage_integration, "store_activity_file") as store,
+            patch.object(profile_import_service.logger, "debug") as debug,
+        ):
+            await service.add_activity_files_from_zip(archive, set(archive.namelist()), {1: 2})
+
+        store.assert_not_called()
+        assert any("without an activity id" in str(call.args[0]) for call in debug.call_args_list)
+
+    async def test_a_value_error_from_storing_an_activity_file_is_not_swallowed(self) -> None:
+        service, archive = self._service_and_zip(["activity_files/1.gpx"])
+        with (
+            patch.object(profile_import_service.file_uploads, "validate_bytes", new_callable=AsyncMock),
+            patch.object(
+                profile_import_service.activity_file_storage_integration,
+                "store_activity_file",
+                side_effect=ValueError("storage rejected the key"),
+            ),
+            pytest.raises(ValueError, match="storage rejected"),
+        ):
+            await service.add_activity_files_from_zip(archive, set(archive.namelist()), {1: 2})
+
+    async def test_activity_media_without_a_numeric_id_is_skipped_and_logged(self) -> None:
+        service, archive = self._service_and_zip(["activity_media/abc_photo.png"])
+        with (
+            patch.object(profile_import_service.activity_media_integration, "store_media_blob") as store,
+            patch.object(profile_import_service.logger, "debug") as debug,
+        ):
+            await service.add_activity_media_from_zip(archive, set(archive.namelist()), {1: 2})
+
+        store.assert_not_called()
+        assert any("without an activity id" in str(call.args[0]) for call in debug.call_args_list)
+
+    async def test_a_value_error_from_storing_activity_media_is_not_swallowed(self) -> None:
+        service, archive = self._service_and_zip(["activity_media/1_photo.png"])
+        with (
+            patch.object(profile_import_service.file_uploads, "validate_bytes", new_callable=AsyncMock),
+            patch.object(
+                profile_import_service.activity_media_integration,
+                "store_media_blob",
+                side_effect=ValueError("storage rejected the key"),
+            ),
+            pytest.raises(ValueError, match="storage rejected"),
+        ):
+            await service.add_activity_media_from_zip(archive, set(archive.namelist()), {1: 2})

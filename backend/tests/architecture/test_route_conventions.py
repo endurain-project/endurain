@@ -62,6 +62,11 @@ def _limits(function: ast.FunctionDef) -> bool:
     )
 
 
+def _scope_parameter_names(path: pathlib.Path) -> frozenset[str]:
+    """Names a route must not give its scope check; ``auth`` is held to the plural until it is converted."""
+    return frozenset({"_check_scopes"} if "modules/auth" in path.as_posix() else {"_check_scopes", "_check_scope"})
+
+
 class TestRouteConventions:
     def test_every_route_declares_what_it_returns(self):
         """JSON routes declare ``response_model``; byte routes declare ``response_class`` or ``responses``.
@@ -166,6 +171,37 @@ class TestRouteConventions:
 
         assert offenders == [], "Use the shared alias instead of an inline Depends:\n  " + "\n  ".join(offenders)
 
+    def test_every_authenticated_route_declares_its_own_scope(self):
+        """A route's scope sits on its decorator, not on the ``include_router`` call in ``api.py``.
+
+        One spelling means a reader of a route sees what it requires, and a route added to a router
+        cannot inherit a scope nobody chose for it. A router whose access control is not a token
+        (a signed URL, a one-time link token) is listed with its reason.
+        """
+        credentialed_by_url = {
+            "photo_router.py": "the signed token in the URL is the credential (an <img> cannot send a header)",
+            "browser_redirect_router.py": "the one-time link_token parameter is the credential",
+        }
+        scope_checks = {"check_scopes", "check_auth_scopes"}
+        offenders = []
+        for path, function in _router_functions():
+            if role_of(path.stem) != "router" or path.name in credentialed_by_url:
+                continue
+            for _, call in _route_decorators(function):
+                declared = {
+                    node.attr
+                    for keyword in call.keywords
+                    if keyword.arg == "dependencies"
+                    for node in ast.walk(keyword.value)
+                    if isinstance(node, ast.Attribute)
+                }
+                if not scope_checks & declared:
+                    offenders.append(f"{path.relative_to(_ROOT).as_posix()}::{function.name}")
+
+        assert offenders == [], "Add dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])] to:\n  " + (
+            "\n  ".join(offenders)
+        )
+
     def test_scope_checks_are_declared_on_the_route_decorator(self):
         """A scope check nobody reads goes in ``dependencies=[Security(...)]``, not a ``_check_scopes`` parameter.
 
@@ -178,7 +214,7 @@ class TestRouteConventions:
             for node in ast.walk(ast.parse(path.read_text()))
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and any(
-                argument.arg == "_check_scopes"
+                argument.arg in _scope_parameter_names(path)
                 for argument in node.args.posonlyargs + node.args.args + node.args.kwonlyargs
             )
         ]

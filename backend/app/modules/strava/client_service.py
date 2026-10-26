@@ -236,7 +236,6 @@ def _noop_rate_limiter(response_headers: dict, method: str) -> None:
         response_headers: HTTP response headers.
         method: HTTP method used.
     """
-    pass
 
 
 def _token_refresh_due(user_integrations: user_integrations_schema.UsersIntegrationsRead | None) -> bool:
@@ -342,18 +341,11 @@ def fetch_user_integrations_and_validate_token(
     Raises:
         NotFoundError: When the user has no integrations row.
     """
-    # Get the user integrations by user ID
     user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
-
-    # Check if user integrations is None
     if user_integrations is None:
         raise core_exceptions.NotFoundError("User information not found")
-
-    # Check if user_integrations.strava_token_expires_at is None
     if user_integrations.strava_token_expires_at is None:
         return None
-
-    # Return the user integrations
     return user_integrations
 
 
@@ -371,6 +363,9 @@ def create_strava_client(
 
     Returns:
         A client authenticated as the user.
+
+    Raises:
+        UndecryptableError: When a stored token cannot be decrypted with the configured key.
     """
     epoch_time = (
         calendar.timegm(user_integrations.strava_token_expires_at.utctimetuple())
@@ -378,24 +373,20 @@ def create_strava_client(
         else None
     )
 
-    try:
-        client = StravaClient(
-            access_token=(
-                core_cryptography.decrypt_token_fernet(user_integrations.strava_token)
-                if user_integrations.strava_token
-                else None
-            ),
-            refresh_token=(
-                core_cryptography.decrypt_token_fernet(user_integrations.strava_refresh_token)
-                if user_integrations.strava_refresh_token
-                else None
-            ),
-            token_expires=epoch_time,
-            rate_limit_requests=False,
-            requests_session=_TimeoutSession(),
-        )
-        client.protocol.rate_limiter = _noop_rate_limiter
-        return client
-    except Exception as err:
-        logger.error("Error creating the Strava client", extra=core_logger.context(error=str(err)), exc_info=err)
-        raise
+    client = StravaClient(
+        access_token=(
+            core_cryptography.decrypt_token_fernet(user_integrations.strava_token)
+            if user_integrations.strava_token
+            else None
+        ),
+        refresh_token=(
+            core_cryptography.decrypt_token_fernet(user_integrations.strava_refresh_token)
+            if user_integrations.strava_refresh_token
+            else None
+        ),
+        token_expires=epoch_time,
+        rate_limit_requests=False,
+        requests_session=_TimeoutSession(),
+    )
+    client.protocol.rate_limiter = _noop_rate_limiter
+    return client

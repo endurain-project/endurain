@@ -179,6 +179,8 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 ## What to watch
 
 - On a multi-worker `local` deployment whose event bus is Redis and `JOBS_ENABLED=false`, the API logs a warning at startup: delivery is best-effort, with no per-subscriber retry and no recovery of a crashed consumer's in-flight events. The scheduled backfills still repair the results; enable `JOBS_ENABLED` for retries you can see.
+- Without `JOBS_ENABLED`, a Strava or Garmin Connect sync runs on a small pool inside the API process and is lost if that process stops. Its claim in the shared state then blocks another sync of the same kind for that user until it expires (30 minutes). A Strava or Garmin Connect account link always runs on such a pool, because it holds a one-time code or the user's credentials that are never stored in a job; a link lost this way is simply started again once its claim expires.
+- A burst of events that fills the in-process subscriber pool (500 pending) drops the excess subscribers with a warning. Derived work such as thumbnails is repaired by its scheduled backfill; a notification is not, so enable `JOBS_ENABLED` when losing one is not acceptable.
 - With `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`, jobs accumulate unless a worker is running.
 - A worker killed mid-job is not noticed instantly: its job is requeued once the lease expires and the reaper (which runs every minute) sees it, so expect it to finish a few minutes late rather than be lost.
 - A single job is abandoned after 30 minutes of running, even while its worker is healthy; it is handed back to the reaper like a job whose worker died.
