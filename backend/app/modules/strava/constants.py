@@ -9,6 +9,10 @@ PROVIDER_NAME = "strava"
 #: The name the Strava export layout registers under with bulk import.
 BULK_IMPORT_FORMAT_NAME = "strava"
 
+#: The job names a Strava link's and unlink's realtime hints carry; the web client follows the same names.
+LINK_JOB = "strava:link"
+UNLINK_JOB = "strava:unlink"
+
 #: Seconds a request to Strava may take before it is abandoned; stravalib sets no timeout of its own.
 HTTP_TIMEOUT_SECONDS = 30
 

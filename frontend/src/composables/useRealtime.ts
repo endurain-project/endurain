@@ -316,29 +316,57 @@ export function jobPollInterval(fastMs: number): number {
   return status.value === 'open' ? Math.max(fastMs, JOB_POLL_CONNECTED_MS) : fastMs
 }
 
+/** A follow of one background job's hints; see {@link watchJob}. */
+export interface JobWatch {
+  /**
+   * Waits until it is time to check the job's status again: the poll interval
+   * ({@link jobPollInterval}) passes, or a hint for the job has arrived, including one that
+   * arrived since the last wait.
+   *
+   * @param fastMs - The interval to use when no hint can arrive.
+   * @returns A promise that resolves when the job should be checked.
+   */
+  wait: (fastMs: number) => Promise<void>
+  /** Stops listening for the job's hints. */
+  stop: () => void
+}
+
 /**
- * Waits until it is time to check a background job's status again: the poll interval
- * ({@link jobPollInterval}) passes, or the server announces that this job changed.
+ * Follows the server's `JOB_STATUS_CHANGED` hints for one background job. Start it before the
+ * request that reads or starts the job: a hint that arrives while that request is in flight is
+ * remembered and ends the next {@link JobWatch.wait} at once, instead of being lost.
  *
- * @param job - The job's name, as the server's `JOB_STATUS_CHANGED` hint carries it.
- * @param fastMs - The interval to use when no hint can arrive.
- * @returns A promise that resolves when the job should be checked.
+ * @param job - The job's name, as the server's hint carries it.
+ * @returns The watch; call `stop` when the job is done.
  */
-export function waitForJobCheck(job: string, fastMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    let unsubscribe = () => {}
-    const done = () => {
-      clearTimeout(timer)
-      unsubscribe()
-      resolve()
+export function watchJob(job: string): JobWatch {
+  let hinted = false
+  let wake: (() => void) | null = null
+  const unsubscribe = subscribe('JOB_STATUS_CHANGED', (event) => {
+    if (event.job === job) {
+      hinted = true
+      wake?.()
     }
-    const timer = setTimeout(done, jobPollInterval(fastMs))
-    unsubscribe = subscribe('JOB_STATUS_CHANGED', (event) => {
-      if (event.job === job) {
-        done()
-      }
-    })
   })
+  return {
+    wait: (fastMs) => {
+      if (hinted) {
+        hinted = false
+        return Promise.resolve()
+      }
+      return new Promise((resolve) => {
+        const done = () => {
+          clearTimeout(timer)
+          hinted = false
+          wake = null
+          resolve()
+        }
+        const timer = setTimeout(done, jobPollInterval(fastMs))
+        wake = done
+      })
+    },
+    stop: unsubscribe,
+  }
 }
 
 /**

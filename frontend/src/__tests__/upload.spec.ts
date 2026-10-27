@@ -218,16 +218,31 @@ describe('fetchIngestionJob', () => {
 })
 
 describe('pollIngestionJob', () => {
-  it('waits on its own job between checks, so a hint can end the wait early', async () => {
-    const wait = vi.spyOn(realtime, 'waitForJobCheck')
+  it('follows the hints of its own job', async () => {
+    const watch = vi.spyOn(realtime, 'watchJob')
     fetchMock
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'processing' })))
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [7] })))
 
     await pollIngestionJob('job-1', { intervalMs: 0 })
 
-    expect(wait).toHaveBeenCalledExactlyOnceWith('ingestion:job-1', 0)
-    wait.mockRestore()
+    expect(watch).toHaveBeenCalledExactlyOnceWith('ingestion:job-1')
+    watch.mockRestore()
+  })
+
+  it('stops following the hints once the import fails', async () => {
+    const stop = vi.fn<() => void>()
+    const watch = vi
+      .spyOn(realtime, 'watchJob')
+      .mockReturnValue({ wait: () => Promise.resolve(), stop })
+    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'failed' })))
+
+    await expect(pollIngestionJob('job-1', { intervalMs: 0 })).rejects.toThrow(
+      'Activity import failed',
+    )
+
+    expect(stop).toHaveBeenCalledOnce()
+    watch.mockRestore()
   })
 
   it('polls until the import reaches a terminal state', async () => {

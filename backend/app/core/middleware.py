@@ -22,13 +22,8 @@ logger = core_logger.get_logger(__name__)
 _DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
-#: Responses smaller than this are sent as they are, when the layers inside the compressor hand over
-#: the body whole. The streaming layers (request id, security headers, CSRF) hand it over in
-#: chunks, and the compressor then compresses a streamed response whatever its size.
-COMPRESSION_MIN_SIZE = 1024
-
-#: gzip level. Compression runs on the event loop, so this is the moderate level (the library default,
-#: 9, spends several times the CPU for a few percent more).
+#: gzip level. The moderate level: the library default, 9, spends several times the CPU for a few percent
+#: more. The library compresses chunks of 128 KiB or more in a worker thread and smaller ones inline.
 COMPRESSION_LEVEL = 5
 
 #: How long a process trusts its cached CSP tile domains before re-reading them. An
@@ -264,4 +259,4 @@ def install_compression(app: FastAPI) -> None:
     Args:
         app: The application to wrap.
     """
-    app.add_middleware(GZipMiddleware, minimum_size=COMPRESSION_MIN_SIZE, compresslevel=COMPRESSION_LEVEL)
+    app.add_middleware(GZipMiddleware, compresslevel=COMPRESSION_LEVEL)

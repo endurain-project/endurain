@@ -111,9 +111,9 @@ describe('strava service', () => {
       expect(apiFetch).toHaveBeenCalledTimes(3)
     })
 
-    it('waits on the link job between checks, so a hint can end the wait early', async () => {
+    it("follows the link job's hints from before the job is queued", async () => {
       vi.useFakeTimers()
-      const wait = vi.spyOn(realtime, 'waitForJobCheck')
+      const watch = vi.spyOn(realtime, 'watchJob')
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
         .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
@@ -122,8 +122,11 @@ describe('strava service', () => {
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
-      expect(wait).toHaveBeenCalledExactlyOnceWith('strava:link', 1_000)
-      wait.mockRestore()
+      expect(watch).toHaveBeenCalledExactlyOnceWith('strava:link')
+      expect(watch.mock.invocationCallOrder[0]!).toBeLessThan(
+        vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
+      )
+      watch.mockRestore()
     })
 
     it('rejects when the queued link fails', async () => {
@@ -167,9 +170,9 @@ describe('strava service', () => {
       expect(apiFetch).toHaveBeenCalledTimes(3)
     })
 
-    it('waits on the unlink job between checks, so a hint can end the wait early', async () => {
+    it("follows the unlink job's hints from before the job is queued", async () => {
       vi.useFakeTimers()
-      const wait = vi.spyOn(realtime, 'waitForJobCheck')
+      const watch = vi.spyOn(realtime, 'watchJob')
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ kind: 'unlink', status: 'queued' })
         .mockResolvedValueOnce({ kind: 'unlink', status: 'completed' })
@@ -178,8 +181,11 @@ describe('strava service', () => {
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
-      expect(wait).toHaveBeenCalledExactlyOnceWith('strava:unlink', 1_000)
-      wait.mockRestore()
+      expect(watch).toHaveBeenCalledExactlyOnceWith('strava:unlink')
+      expect(watch.mock.invocationCallOrder[0]!).toBeLessThan(
+        vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
+      )
+      watch.mockRestore()
     })
 
     it('gives up when the job has not finished by the deadline', async () => {

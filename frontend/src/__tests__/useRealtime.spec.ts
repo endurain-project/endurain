@@ -4,7 +4,7 @@ import {
   JOB_POLL_CONNECTED_MS,
   jobPollInterval,
   useRealtime,
-  waitForJobCheck,
+  watchJob,
 } from '@/composables/useRealtime'
 
 const invalidateQueries = vi.fn<(...args: unknown[]) => Promise<void>>((..._args) =>
@@ -301,7 +301,7 @@ describe('useRealtime', () => {
       vi.useFakeTimers()
       expect(jobPollInterval(1_500)).toBe(1_500)
 
-      const wait = track(waitForJobCheck('garmin-link', 1_500))
+      const wait = track(watchJob('garmin-link').wait(1_500))
       await vi.advanceTimersByTimeAsync(1_499)
       expect(wait.settled).toBe(false)
       await vi.advanceTimersByTimeAsync(1)
@@ -324,7 +324,7 @@ describe('useRealtime', () => {
     it('waits the slow interval while connected, as the fallback for a lost hint', async () => {
       const socket = await openSocket()
       vi.useFakeTimers()
-      const wait = track(waitForJobCheck('garmin-link', 1_500))
+      const wait = track(watchJob('garmin-link').wait(1_500))
       expect(socket).toBeDefined()
 
       await vi.advanceTimersByTimeAsync(JOB_POLL_CONNECTED_MS - 1)
@@ -335,7 +335,7 @@ describe('useRealtime', () => {
 
     it('returns at once when a hint names the job it waits on', async () => {
       const socket = await openSocket()
-      const wait = track(waitForJobCheck('garmin-link', 1_500))
+      const wait = track(watchJob('garmin-link').wait(1_500))
 
       hint(socket, 'garmin-link')
       await flushPromises()
@@ -345,7 +345,7 @@ describe('useRealtime', () => {
 
     it('ignores a hint for another job', async () => {
       const socket = await openSocket()
-      const wait = track(waitForJobCheck('garmin-link', 1_500))
+      const wait = track(watchJob('garmin-link').wait(1_500))
 
       hint(socket, 'strava:link')
       await flushPromises()
@@ -353,17 +353,39 @@ describe('useRealtime', () => {
       expect(wait.settled).toBe(false)
     })
 
-    it('stops listening once it returns, so a later hint wakes nothing', async () => {
+    it('remembers a hint that arrives between waits, so the next wait returns at once', async () => {
       const socket = await openSocket()
-      const first = track(waitForJobCheck('garmin-link', 1_500))
+      const watch = watchJob('garmin-link')
+
       hint(socket, 'garmin-link')
-      await flushPromises()
-      expect(first.settled).toBe(true)
-
-      const second = track(waitForJobCheck('garmin-link', 1_500))
+      const wait = track(watch.wait(1_500))
       await flushPromises()
 
-      expect(second.settled).toBe(false)
+      expect(wait.settled).toBe(true)
+    })
+
+    it('waits normally again once a remembered hint has been used', async () => {
+      const socket = await openSocket()
+      const watch = watchJob('garmin-link')
+      hint(socket, 'garmin-link')
+      await watch.wait(1_500)
+
+      const next = track(watch.wait(1_500))
+      await flushPromises()
+
+      expect(next.settled).toBe(false)
+    })
+
+    it('stops listening once stopped, so a later hint wakes nothing', async () => {
+      const socket = await openSocket()
+      const watch = watchJob('garmin-link')
+      watch.stop()
+
+      hint(socket, 'garmin-link')
+      const wait = track(watch.wait(1_500))
+      await flushPromises()
+
+      expect(wait.settled).toBe(false)
     })
   })
 

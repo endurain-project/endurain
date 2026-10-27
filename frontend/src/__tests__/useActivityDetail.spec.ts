@@ -71,6 +71,7 @@ const UNAFFECTED_ACTIVITY_KEYS = {
   media: queryKeys.activities.media(ACTIVITY_ID),
   otherDetail: queryKeys.activities.detail(99),
   exerciseTitles: queryKeys.activities.exerciseTitles(),
+  owner: queryKeys.activities.owner(5),
 }
 
 /** A gear's totals and its activity rows depend on which activities carry it. */
@@ -262,6 +263,7 @@ describe('useDeleteActivityMutation', () => {
       invalidatedNames(queryClient, {
         otherDetail: UNAFFECTED_ACTIVITY_KEYS.otherDetail,
         exerciseTitles: UNAFFECTED_ACTIVITY_KEYS.exerciseTitles,
+        owner: UNAFFECTED_ACTIVITY_KEYS.owner,
         ...UNAFFECTED_GEAR_KEYS,
       }),
     ).toEqual([])

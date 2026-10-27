@@ -90,7 +90,7 @@ def run_sync(
     outcome = strava_constants.SyncStatus.COMPLETED if synced else strava_constants.SyncStatus.FAILED
     states.set_status(payload.user_id, payload.kind, outcome)
     if payload.kind == strava_constants.SyncKind.UNLINK:
-        websocket_integration.push_job_changed(payload.user_id, "strava:unlink")
+        websocket_integration.push_job_changed(payload.user_id, strava_constants.UNLINK_JOB)
     if synced and payload.kind == strava_constants.SyncKind.GEAR:
         # Best effort: the synced rows are already committed, so a lost hint only delays the refresh.
         websocket_integration.push_to_user(payload.user_id, {"message": websocket_constants.GEARS_CHANGED_MESSAGE})

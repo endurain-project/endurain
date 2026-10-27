@@ -174,6 +174,8 @@ export const queryKeys = {
     exerciseTitles: () => ['activities', 'exercise-titles'] as const,
     /** Media (photos) attached to one activity. */
     media: (id: number) => ['activities', 'detail', id, 'media'] as const,
+    /** Every activity owner's identity; prefix of {@link owner}. */
+    owners: () => ['activities', 'owner'] as const,
     /** The activity's owner user (public or authenticated), keyed by user id. */
     owner: (userId: number) => ['activities', 'owner', userId] as const,
     /** The user's activity-type code→name map (type filter options and summary type filter). */
@@ -510,10 +512,11 @@ export const queryKeys = {
 
 /**
  * Activity cache entries that a change to activity rows (an edit, a delete, a new activity)
- * cannot change: each activity's own detail with its sub-resources, and the static
- * exercise-title catalogue. Left out of an `activities` invalidation so it does not refetch them.
+ * cannot change: each activity's own detail with its sub-resources, the owners' identities,
+ * and the static exercise-title catalogue. Left out of an `activities` invalidation so it does not refetch them.
  */
 export const ACTIVITY_ROW_INDEPENDENT_KEYS = [
   queryKeys.activities.details(),
+  queryKeys.activities.owners(),
   queryKeys.activities.exerciseTitles(),
 ] as const
