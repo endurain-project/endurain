@@ -7,7 +7,7 @@ Writes that publish events (bulk deletes, bulk re-gearing, ingestion) delegate t
 """
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
@@ -222,6 +222,27 @@ def total_user_activities_in_timeframe_by_types(
         db,
         exclude_hidden=exclude_hidden,
     )
+
+
+def get_user_profile_summary(
+    user_id: int,
+    requester_user_id: int,
+    db: Session,
+    *,
+    anchor: date | None = None,
+) -> activity_contracts.UserProfileActivitySummary:
+    """Return the activity summaries shown on a user's profile.
+
+    Args:
+        user_id: The profile owner's user ID.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        anchor: The caller's local calendar date, or None to resolve it server-side.
+
+    Returns:
+        The current-week and current-month visible stats and activity count.
+    """
+    return activity_service.user_profile_summary(user_id, requester_user_id, db, anchor=anchor)
 
 
 def restore_activity(

@@ -265,6 +265,41 @@ def period_stats(
     return week_stats(user_id, requester_user_id, db, anchor=anchor)
 
 
+def user_profile_summary(
+    user_id: int,
+    requester_user_id: int,
+    db: Session,
+    *,
+    anchor: date | None = None,
+) -> activity_contracts.UserProfileActivitySummary:
+    """Return the visible activity aggregates displayed on a user's profile.
+
+    Args:
+        user_id: The profile owner's user ID.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        anchor: The caller's local calendar date, or None to resolve it server-side.
+
+    Returns:
+        The profile's current-week and current-month stats and visible activity count.
+    """
+    month_start, month_end = _month_bounds(requester_user_id, db, anchor=anchor)
+    followee_ids = None if user_id == requester_user_id else _followees_of(requester_user_id, db)
+    month_activity_count = activity_crud.count_user_activities(
+        user_id=user_id,
+        db=db,
+        start_date=month_start.date(),
+        end_date=month_end.date(),
+        user_is_owner=user_id == requester_user_id,
+        followee_ids=followee_ids,
+    )
+    return activity_contracts.UserProfileActivitySummary(
+        week_stats=week_stats(user_id, requester_user_id, db, anchor=anchor),
+        month_stats=month_stats(user_id, requester_user_id, db, anchor=anchor),
+        month_activity_count=month_activity_count,
+    )
+
+
 def count_user_activities(
     user_id: int,
     db: Session,

@@ -98,6 +98,25 @@ export interface PublicUser {
 }
 
 /**
+ * Public profile data and the summary metrics shown above the profile tabs.
+ *
+ * @property user - The profile's public user projection.
+ * @property weekStats - Visible per-sport activity totals for the current week.
+ * @property monthStats - Visible per-sport activity totals for the current month.
+ * @property monthActivityCount - Visible activity count for the current month.
+ * @property followersCount - Accepted followers, or null when the network is private.
+ * @property followingCount - Accepted followees, or null when the network is private.
+ */
+export interface UserProfileOverview {
+  user: PublicUser
+  weekStats: Schemas['ActivityStatsRead']
+  monthStats: Schemas['ActivityStatsRead']
+  monthActivityCount: number
+  followersCount: number | null
+  followingCount: number | null
+}
+
+/**
  * The five admin user-list filters. Each flag, when `true`, includes that
  * category in the results; setting it to `false` excludes the category
  * server-side (mirrors v1's filter set).

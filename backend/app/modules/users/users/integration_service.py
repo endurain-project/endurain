@@ -70,6 +70,22 @@ def list_public_profiles(user_ids: Collection[int], db: Session) -> dict[int, us
     return users_service.list_public_profiles(user_ids, db)
 
 
+def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead:
+    """Return the signed-in viewer's public projection of a user.
+
+    Args:
+        user_id: The user to look up.
+        db: Database session.
+
+    Returns:
+        The public projection.
+
+    Raises:
+        NotFoundError: If the user does not exist, is inactive or awaits approval.
+    """
+    return users_service.get_public_profile(user_id, db)
+
+
 def require_active_user(user: users_schema.UsersRead) -> None:
     """Require a user to be active.
 

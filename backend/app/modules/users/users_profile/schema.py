@@ -2,7 +2,31 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
+import modules.activities.activity.schema as activity_schema
+import modules.users.users.schema as users_schema
 import modules.users.users_profile.constants as profile_constants
+
+
+class UserProfileOverviewRead(BaseModel):
+    """Public profile and summary metrics displayed on a user's profile page.
+
+    Attributes:
+        user: The profile's public user projection.
+        week_stats: Visible per-sport activity totals for the current week.
+        month_stats: Visible per-sport activity totals for the current month.
+        month_activity_count: Visible activity count for the current month.
+        followers_count: Accepted followers, or None when the viewer cannot see the network.
+        following_count: Accepted followees, or None when the viewer cannot see the network.
+    """
+
+    user: users_schema.UserPublicRead
+    week_stats: activity_schema.ActivityStatsRead
+    month_stats: activity_schema.ActivityStatsRead
+    month_activity_count: int = Field(..., ge=0)
+    followers_count: int | None = Field(default=None, ge=0)
+    following_count: int | None = Field(default=None, ge=0)
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class ProfileImportStatus(BaseModel):

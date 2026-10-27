@@ -53,6 +53,7 @@ import modules.users.users.router as users_router
 import modules.users.users_default_gear.router as user_default_gear_router
 import modules.users.users_goals.router as user_goals_router
 import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
+import modules.users.users_profile.overview_router as profile_overview_router
 import modules.users.users_profile.router as profile_router
 import modules.websocket.router as websocket_router
 from modules.activities.activity_exercise_titles import (
@@ -371,6 +372,12 @@ router.include_router(
 )
 router.include_router(
     users_router.router,
+    prefix=core_config.ROOT_PATH + "/users",
+    tags=["users"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    profile_overview_router.router,
     prefix=core_config.ROOT_PATH + "/users",
     tags=["users"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],

@@ -22,6 +22,7 @@ import modules.users.users_profile.browser_redirect_router as profile_browser_re
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_state_store as profile_export_state_store
 import modules.users.users_profile.import_state_store as profile_import_state_store
+import modules.users.users_profile.overview_router as profile_overview_router
 import modules.users.users_profile.router as profile_router
 
 
@@ -100,6 +101,7 @@ def profile_app(
         profile_router.router,
         prefix=core_config.ROOT_PATH + "/profile",
     )
+    app.include_router(profile_overview_router.router, prefix=core_config.ROOT_PATH + "/users")
     app.include_router(auth_sessions_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/sessions")
     app.include_router(auth_mfa_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/mfa")
     app.include_router(auth_idp_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/idp")

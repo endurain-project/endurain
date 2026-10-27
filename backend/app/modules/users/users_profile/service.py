@@ -5,6 +5,7 @@ runs the profile export and import. Authentication concerns (sessions, MFA, iden
 links) stay behind the auth boundary and are called straight from the router.
 """
 
+from datetime import date
 from typing import TYPE_CHECKING
 
 import jasil.providers as platform_providers
@@ -13,6 +14,8 @@ from sqlalchemy.orm import Session
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.activities.activity.integration_service as activities_integration
+import modules.followers.integration_service as followers_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -21,6 +24,7 @@ import modules.users.users_privacy_settings.schema as users_privacy_settings_sch
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.export_service as profile_export_service
+import modules.users.users_profile.schema as users_profile_schema
 import modules.users.users_profile.utils as profile_utils
 
 if TYPE_CHECKING:
@@ -95,6 +99,42 @@ def get_profile(
             "has_local_password": identity_service.has_local_password(user_id),
             "mfa_enabled": identity_service.get_mfa_status(user_id).mfa_enabled,
         }
+    )
+
+
+def get_user_profile_overview(
+    user_id: int,
+    requester_user_id: int,
+    db: Session,
+    *,
+    anchor_date: date | None = None,
+) -> users_profile_schema.UserProfileOverviewRead:
+    """Assemble the public profile and its visible summary metrics.
+
+    Args:
+        user_id: The profile owner.
+        requester_user_id: The authenticated viewer.
+        db: Database session.
+        anchor_date: The viewer's local calendar date for week/month boundaries.
+
+    Returns:
+        The public profile and its activity and follower summaries.
+
+    Raises:
+        NotFoundError: If the profile is missing, inactive or awaits approval.
+    """
+    user = users_integration.get_public_profile(user_id, db)
+    activity_summary = activities_integration.get_user_profile_summary(
+        user_id, requester_user_id, db, anchor=anchor_date
+    )
+    follow_counts = followers_integration.get_profile_follow_counts(user_id, requester_user_id, db)
+    return users_profile_schema.UserProfileOverviewRead(
+        user=user,
+        week_stats=activity_summary.week_stats,
+        month_stats=activity_summary.month_stats,
+        month_activity_count=activity_summary.month_activity_count,
+        followers_count=follow_counts.followers if follow_counts else None,
+        following_count=follow_counts.following if follow_counts else None,
     )
 
 

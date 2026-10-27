@@ -37,6 +37,38 @@ class TestNetworkPrivacy:
         assert count_method.call_args.kwargs["accepted_only"] is True
 
     @patch("modules.followers.service.followers_crud")
+    def test_profile_counts_include_only_accepted_relationships(self, mock_crud):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_follower_for_user_id_and_target_user_id.return_value = FollowRelationshipRead(
+            follower_id=1,
+            followee_id=2,
+            status="accepted",
+        )
+        mock_crud.count_followers_by_user_id.return_value = 12
+        mock_crud.count_following_by_user_id.return_value = 8
+        db = MagicMock()
+
+        counts = service.get_profile_follow_counts(2, 1, db)
+
+        assert (counts.followers, counts.following) == (12, 8)
+        mock_crud.count_followers_by_user_id.assert_called_once_with(2, db, accepted_only=True)
+        mock_crud.count_following_by_user_id.assert_called_once_with(2, db, accepted_only=True)
+
+    @patch("modules.followers.service.followers_crud")
+    def test_profile_counts_are_absent_when_the_network_is_private(self, mock_crud):
+        from modules.followers import service
+
+        mock_crud.get_follower_for_user_id_and_target_user_id.return_value = None
+
+        counts = service.get_profile_follow_counts(2, 1, MagicMock())
+
+        assert counts is None
+        mock_crud.count_followers_by_user_id.assert_not_called()
+        mock_crud.count_following_by_user_id.assert_not_called()
+
+    @patch("modules.followers.service.followers_crud")
     def test_owner_can_include_pending_relationships(self, mock_crud):
         from modules.followers import service
 

@@ -176,6 +176,7 @@ function useFollowGraphMutation(mutationFn: (targetId: number) => Promise<void>)
     mutationFn,
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.followers.all() })
+      void client.invalidateQueries({ queryKey: queryKeys.activities.profileOverviews() })
     },
   })
 }
@@ -198,6 +199,7 @@ function useRelationshipDeleteMutation(
     mutationFn: (targetId: number) => mutationFn(targetId, currentUser.value?.id ?? 0),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.followers.all() })
+      void client.invalidateQueries({ queryKey: queryKeys.activities.profileOverviews() })
     },
   })
 }

@@ -70,6 +70,21 @@ class ActivityTotals:
 
 
 @dataclass(frozen=True)
+class UserProfileActivitySummary:
+    """Activity aggregates displayed on a user's profile.
+
+    Attributes:
+        week_stats: Visible per-sport totals for the current week.
+        month_stats: Visible per-sport totals for the current month.
+        month_activity_count: Visible activity count for the current month.
+    """
+
+    week_stats: activity_schema.ActivityStatsRead
+    month_stats: activity_schema.ActivityStatsRead
+    month_activity_count: int
+
+
+@dataclass(frozen=True)
 class ActivityThumbnailRef:
     """Lightweight activity reference for thumbnail maintenance.
 

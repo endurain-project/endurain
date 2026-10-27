@@ -139,6 +139,10 @@ export const queryKeys = {
   activities: {
     /** Broad prefix; invalidating this cascades to every activities query. */
     all: () => ['activities'] as const,
+    /** Prefix for combined user-profile reads that depend on activity data. */
+    profileOverviews: () => ['activities', 'profile-overview'] as const,
+    /** The profile overview depends on this user's visible activity aggregates. */
+    profileOverview: (userId: number) => ['activities', 'profile-overview', userId] as const,
     lists: () => ['activities', 'list'] as const,
     /**
      * @param filters - Serializable list filters (paging, type, etc.).

@@ -7,7 +7,9 @@ every read.
 
 from sqlalchemy.orm import Session
 
+import modules.followers.contracts as followers_contracts
 import modules.followers.crud as followers_crud
+import modules.followers.service as followers_service
 
 
 def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
@@ -29,3 +31,21 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
         The accepted followee user ids (empty list if none).
     """
     return followers_crud.list_accepted_followee_ids(user_id, db)
+
+
+def get_profile_follow_counts(
+    target_user_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> followers_contracts.ProfileFollowCounts | None:
+    """Return accepted relationship counts when the viewer may see the network.
+
+    Args:
+        target_user_id: The profile owner whose network to count.
+        requester_user_id: The authenticated viewer.
+        db: Database session.
+
+    Returns:
+        Both accepted relationship counts, or None when the network is private to this viewer.
+    """
+    return followers_service.get_profile_follow_counts(target_user_id, requester_user_id, db)

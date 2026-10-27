@@ -4855,6 +4855,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/id/{user_id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Profile Overview
+         * @description Return the public profile and summary values the profile page displays.
+         */
+        get: operations["read_user_profile_overview_api_v1_users_id__user_id__overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/username/contains/{username}": {
         parameters: {
             query?: never;
@@ -10808,6 +10828,29 @@ export interface components {
              * @description Servable URL of the user's photo
              */
             photo_path?: string | null;
+        };
+        /**
+         * UserProfileOverviewRead
+         * @description Public profile and summary metrics displayed on a user's profile page.
+         *
+         *     Attributes:
+         *         user: The profile's public user projection.
+         *         week_stats: Visible per-sport activity totals for the current week.
+         *         month_stats: Visible per-sport activity totals for the current month.
+         *         month_activity_count: Visible activity count for the current month.
+         *         followers_count: Accepted followers, or None when the viewer cannot see the network.
+         *         following_count: Accepted followees, or None when the viewer cannot see the network.
+         */
+        UserProfileOverviewRead: {
+            /** Followers Count */
+            followers_count?: number | null;
+            /** Following Count */
+            following_count?: number | null;
+            /** Month Activity Count */
+            month_activity_count: number;
+            month_stats: components["schemas"]["ActivityStatsRead"];
+            user: components["schemas"]["UserPublicRead"];
+            week_stats: components["schemas"]["ActivityStatsRead"];
         };
         /**
          * UserPublicRead
@@ -20053,6 +20096,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserPublicRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_profile_overview_api_v1_users_id__user_id__overview_get: {
+        parameters: {
+            query?: {
+                /** @description The viewer's local calendar date for current-week and current-month values. */
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileOverviewRead"];
                 };
             };
             /** @description Validation Error */

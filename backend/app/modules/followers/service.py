@@ -23,6 +23,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.followers.constants as followers_constants
+import modules.followers.contracts as followers_contracts
 import modules.followers.crud as followers_crud
 import modules.followers.event_publishers as followers_event_publishers
 import modules.followers.schema as followers_schema
@@ -218,6 +219,29 @@ def list_following(
         page_number=page_number,
         num_records=num_records,
         accepted_only=accepted_only,
+    )
+
+
+def get_profile_follow_counts(
+    target_user_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> followers_contracts.ProfileFollowCounts | None:
+    """Return accepted network counts, or None when the viewer cannot see the network.
+
+    Args:
+        target_user_id: The profile owner whose network to count.
+        requester_user_id: The authenticated viewer.
+        db: Database session.
+
+    Returns:
+        Both accepted relationship counts, or None when the network is private to this viewer.
+    """
+    if not _requester_may_view_network(target_user_id, requester_user_id, db):
+        return None
+    return followers_contracts.ProfileFollowCounts(
+        followers=followers_crud.count_followers_by_user_id(target_user_id, db, accepted_only=True),
+        following=followers_crud.count_following_by_user_id(target_user_id, db, accepted_only=True),
     )
 
 
