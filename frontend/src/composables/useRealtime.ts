@@ -100,10 +100,6 @@ let intentionalClose = false
 let evicted = false
 // Guards against overlapping ticket fetches while a connection is being opened.
 let connecting = false
-// Whether this session has been connected before, so a reconnect can catch up on
-// pushes that were dropped while the socket was down.
-let hasBeenOpen = false
-
 // Coalesced invalidations waiting for their window to end.
 const pendingInvalidations = new Map<Invalidation, ReturnType<typeof setTimeout>>()
 
@@ -246,11 +242,8 @@ async function openSocket(): Promise<void> {
     reconnectAttempts = 0
     status.value = 'open'
     evicted = false
-    if (hasBeenOpen) {
-      // Pushes sent while the socket was down are gone for good; refetch instead.
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() })
-    }
-    hasBeenOpen = true
+    // Hints sent before the first connection or while it was down are not replayed.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() })
   }
   next.onmessage = (event: MessageEvent) => {
     try {
@@ -399,7 +392,6 @@ export function useRealtime() {
     evicted = false
     clearReconnectTimer()
     reconnectAttempts = 0
-    hasBeenOpen = false
     for (const timer of pendingInvalidations.values()) {
       clearTimeout(timer)
     }

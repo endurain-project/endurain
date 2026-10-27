@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import type { ComputedRef, Ref } from 'vue'
+
 import {
+  UNREAD_CONNECTED_POLL_INTERVAL_MS,
   UNREAD_POLL_INTERVAL_MS,
   useUnreadNotificationsCount,
 } from '@/features/notifications/composables/useNotifications'
 import { fetchUnreadNotificationsCount } from '@/features/notifications/services/notifications'
+import { useRealtime } from '@/composables/useRealtime'
 
 const useQuery = vi.fn<(options: Record<string, unknown>) => unknown>(() => ({}))
 
@@ -21,6 +25,12 @@ vi.mock('pinia', async (importOriginal) => ({
 
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 
+vi.mock('@/composables/useRealtime', async () => {
+  const { ref: vueRef } = await import('vue')
+  const status = vueRef<'idle' | 'connecting' | 'open' | 'closed'>('closed')
+  return { useRealtime: () => ({ status }) }
+})
+
 vi.mock('@/features/notifications/services/notifications', () => ({
   fetchNotifications: vi.fn<() => Promise<never[]>>(() => Promise.resolve([])),
   fetchUnreadNotificationsCount: vi.fn<(signal?: AbortSignal) => Promise<number>>(() =>
@@ -31,15 +41,26 @@ vi.mock('@/features/notifications/services/notifications', () => ({
 }))
 
 describe('unread notifications polling', () => {
+  const status = useRealtime().status as Ref<'idle' | 'connecting' | 'open' | 'closed'>
+
   beforeEach(() => {
     useQuery.mockClear()
+    status.value = 'closed'
   })
 
-  it('re-checks the server on a slow interval so a lost push self-heals', () => {
+  it('adapts the fallback interval to realtime connection state', () => {
     useUnreadNotificationsCount()
 
-    expect(useQuery.mock.calls[0]?.[0]).toMatchObject({ refetchInterval: UNREAD_POLL_INTERVAL_MS })
+    const options = useQuery.mock.calls[0]?.[0] as { refetchInterval: ComputedRef<number | false> }
+    expect(options.refetchInterval.value).toBe(UNREAD_POLL_INTERVAL_MS)
     expect(UNREAD_POLL_INTERVAL_MS).toBeGreaterThanOrEqual(30_000)
+
+    status.value = 'open'
+    expect(options.refetchInterval.value).toBe(UNREAD_CONNECTED_POLL_INTERVAL_MS)
+    expect(UNREAD_CONNECTED_POLL_INTERVAL_MS).toBeGreaterThan(UNREAD_POLL_INTERVAL_MS)
+
+    status.value = 'closed'
+    expect(options.refetchInterval.value).toBe(UNREAD_POLL_INTERVAL_MS)
   })
 
   it('polls the server for the count instead of counting a page of rows itself', async () => {

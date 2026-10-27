@@ -68,13 +68,13 @@ Why a connection ends after 15 minutes: the ticket is checked only when the conn
 
 Each user can hold 5 sockets per server process (several tabs or devices). A sixth connection closes the oldest with `4001`. Reconnecting on `4001` would make tabs past the limit evict each other in a loop, so a client should wait until the user shows they want live updates, for example when the tab becomes visible again.
 
-On any other close, reconnect with exponential backoff and jitter. The web app starts at 1 second, doubles up to 30 seconds and adds up to 30 % random jitter. After a reconnect, fetch your notifications once, because hints sent while you were disconnected are not replayed.
+On any other close, reconnect with exponential backoff and jitter. The web app starts at 1 second, doubles up to 30 seconds and adds up to 30 % random jitter. On the initial connection and after a reconnect, fetch your notifications once, because hints sent before the socket was ready or while it was down are not replayed.
 
 ## What the server guarantees
 
 - **At most once, best effort.** A hint can be lost: while a replica reconnects to Redis, when a socket is closing, or when the user has no socket on that server at the time. The notification itself is saved first and is never lost this way.
 - **No ordering, no replay.** Treat each hint as "refetch", not as an event to count.
-- **Keep a slow fallback.** The web app also refetches every minute, when the connection comes back and when the notifications menu opens, so a lost hint costs at most a minute.
+- **Keep a slow fallback.** In visible tabs, the unread badge polls every minute while disconnected and every five minutes while connected. Notification hints and each initial/reconnected socket trigger an authoritative refetch; the preview list refetches when its menu opens. The connected fallback covers hints lost during a server-side realtime-channel gap even while the browser socket is open.
 
 ## Local and distributed deployments
 

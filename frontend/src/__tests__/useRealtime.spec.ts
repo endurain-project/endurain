@@ -395,6 +395,7 @@ describe('useRealtime', () => {
     await flushPromises()
     const socket = latestSocket()
     socket.open()
+    invalidateQueries.mockClear()
 
     expect(() => socket.onmessage?.({ data: 'not-json' })).not.toThrow()
     expect(invalidateQueries).not.toHaveBeenCalled()
@@ -439,21 +440,23 @@ describe('useRealtime', () => {
     expect(MockWebSocket.instances).toHaveLength(2)
   })
 
-  it('refetches notifications when the socket reopens after a drop, not on the first open', async () => {
+  it('refetches notifications after both the initial connection and reconnect', async () => {
     vi.useFakeTimers()
     const realtime = useRealtime()
     realtime.connect()
     await flushPromises()
     const first = latestSocket()
     first.open()
-    expect(invalidateQueries).not.toHaveBeenCalled()
+    expect(invalidateQueries).toHaveBeenCalledTimes(1)
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] })
 
     first.onclose?.({ code: 1006 })
     vi.advanceTimersByTime(2_000)
     await flushPromises()
     latestSocket().open()
 
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] })
+    expect(invalidateQueries).toHaveBeenCalledTimes(2)
+    expect(invalidateQueries).toHaveBeenNthCalledWith(2, { queryKey: ['notifications'] })
   })
 
   it('does not reconnect after an intentional disconnect', async () => {

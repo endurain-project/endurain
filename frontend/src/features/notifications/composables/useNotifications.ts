@@ -13,6 +13,7 @@ import type { Notification } from '@/features/notifications/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { useRealtime } from '@/composables/useRealtime'
 import {
   fetchNotifications,
   fetchUnreadNotificationsCount,
@@ -24,13 +25,11 @@ import {
 /** Default notifications page size when a caller doesn't specify one. */
 const DEFAULT_PAGE_SIZE = 25
 
-/**
- * How often the unread badge re-checks the server. A realtime push is only a hint and
- * can be lost (another replica holds the socket, or the connection dropped), so this
- * slow poll lets a missed notification surface on its own. TanStack Query pauses it
- * while the tab is hidden.
- */
+/** How often the unread badge polls while the realtime connection is unavailable. */
 export const UNREAD_POLL_INTERVAL_MS = 60_000
+
+/** Connected fallback for a realtime hint lost during a server-side channel gap. */
+export const UNREAD_CONNECTED_POLL_INTERVAL_MS = 5 * 60_000
 
 /**
  * Read path for the notifications list — the canonical server-state pattern:
@@ -100,20 +99,25 @@ export function useInfiniteNotificationsQuery(pageSize: number = DEFAULT_PAGE_SI
  * notifications, so the badge is exact however many there are and only a number
  * crosses the wire.
  * Stored under {@link queryKeys.notifications.unreadCount} (outside the `list`
- * prefix) so the optimistic updater never touches it; the mark-read mutation's
- * `onSettled` invalidation refreshes it for the authoritative count. It also polls
- * every {@link UNREAD_POLL_INTERVAL_MS}, so a lost realtime push self-heals.
+ * prefix) so the optimistic updater never touches it; notification hints and
+ * mark-read mutations invalidate it for the authoritative count. It polls every
+ * {@link UNREAD_POLL_INTERVAL_MS} while disconnected and every
+ * {@link UNREAD_CONNECTED_POLL_INTERVAL_MS} while connected, covering hints lost
+ * during a server-side channel gap.
  *
  * @returns A TanStack Query result whose `data` is the unread count.
  */
 export function useUnreadNotificationsCount() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
+  const { status } = useRealtime()
 
   return useQuery<number>({
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: ({ signal }) => fetchUnreadNotificationsCount(signal),
     enabled: isAuthenticated,
-    refetchInterval: UNREAD_POLL_INTERVAL_MS,
+    refetchInterval: computed(() =>
+      status.value === 'open' ? UNREAD_CONNECTED_POLL_INTERVAL_MS : UNREAD_POLL_INTERVAL_MS,
+    ),
   })
 }
 
