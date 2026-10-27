@@ -67,6 +67,8 @@ export interface HealthDashboard {
   waterMl: number | null
   /** Today's bowel-movement count, or `null`. */
   poopCount: number | null
+  /** User-configured targets, or `null` when none exist. */
+  targets: HealthTargets | null
 }
 
 /** The time window a paginated health history can be filtered to. */

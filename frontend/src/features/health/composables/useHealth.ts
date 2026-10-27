@@ -6,7 +6,7 @@
 
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { keepPreviousData, useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type {
   FastingEntry,
@@ -85,18 +85,24 @@ export function useHealthTargetsQuery() {
 }
 
 /**
- * The authenticated user's consolidated daily health dashboard (today's sleep,
- * resting HR, steps, weight, fasting, water and bowel-movement metrics). Gated
- * on authentication.
+ * The authenticated user's consolidated daily health dashboard and health targets.
+ * The response also seeds the targets query cache for other health views.
  *
- * @returns The TanStack Query result for the daily health dashboard.
+ * @returns The TanStack Query result for the dashboard and targets.
  */
 export function useHealthDashboardQuery() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
+  const client = useQueryClient()
 
   return useQuery({
     queryKey: queryKeys.health.dashboard(),
-    queryFn: ({ signal }) => fetchHealthDashboard(signal),
+    queryFn: async ({ signal }) => {
+      const dashboard = await fetchHealthDashboard(signal)
+      if (dashboard.targets) {
+        client.setQueryData(queryKeys.health.targets(), dashboard.targets)
+      }
+      return dashboard
+    },
     enabled: isAuthenticated,
   })
 }

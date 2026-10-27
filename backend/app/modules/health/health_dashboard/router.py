@@ -31,12 +31,6 @@ def read_health_daily_stats(
         db: Database session for executing queries.
 
     Returns:
-        HealthDashboardResponse: A consolidated response containing:
-            - sleep: Latest sleep record with key metrics
-            - weight: Latest weight and BMI data
-            - steps: Today's step count
-            - fasting: Active or most recent fasting session
-            - water: Today's water intake in milliliters
-            - poop: Today's bowel movement count
+        The consolidated daily metrics and the user's health targets.
     """
     return health_dashboard_service.get_daily_stats(token_user_id, db)

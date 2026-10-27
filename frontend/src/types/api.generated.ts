@@ -1772,13 +1772,7 @@ export interface paths {
          *         db: Database session for executing queries.
          *
          *     Returns:
-         *         HealthDashboardResponse: A consolidated response containing:
-         *             - sleep: Latest sleep record with key metrics
-         *             - weight: Latest weight and BMI data
-         *             - steps: Today's step count
-         *             - fasting: Active or most recent fasting session
-         *             - water: Today's water intake in milliliters
-         *             - poop: Today's bowel movement count
+         *         The consolidated daily metrics and the user's health targets.
          */
         get: operations["read_health_daily_stats_api_v1_health_stats_daily_get"];
         put?: never;
@@ -6870,6 +6864,7 @@ export interface components {
          *         fasting: Active or most recent fasting session.
          *         water: Today's water intake.
          *         poop: Today's bowel movement summary.
+         *         targets: The user's configured health targets.
          */
         HealthDashboardResponse: {
             /** @description Active or latest fasting session */
@@ -6880,6 +6875,8 @@ export interface components {
             sleep?: components["schemas"]["HealthSleepDashboard"] | null;
             /** @description Latest steps data */
             steps?: components["schemas"]["HealthStepsDashboard"] | null;
+            /** @description The user's health targets */
+            targets?: components["schemas"]["HealthTargetsRead"] | null;
             /** @description Today's water intake */
             water?: components["schemas"]["HealthWaterDashboard"] | null;
             /** @description Latest weight metrics */

@@ -82,6 +82,7 @@ function mapDashboard(dto: HealthDashboardDto): HealthDashboard {
     fasting: mapFasting(dto.fasting),
     waterMl: dto.water?.amount_ml ?? null,
     poopCount: dto.poop?.count ?? null,
+    targets: dto.targets ? mapTargets(dto.targets) : null,
   }
 }
 
@@ -98,10 +99,10 @@ export async function fetchHealthTargets(signal?: AbortSignal): Promise<HealthTa
 }
 
 /**
- * Fetches the authenticated user's consolidated daily health dashboard.
+ * Fetches the authenticated user's consolidated daily health dashboard and targets.
  *
  * @param signal - Optional abort signal for cancellation.
- * @returns Today's health metrics.
+ * @returns Today's health metrics and configured targets.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchHealthDashboard(signal?: AbortSignal): Promise<HealthDashboard> {

@@ -28,6 +28,7 @@ import {
   fetchActiveFasting,
   fetchFastingEntries,
   fetchFastingStats,
+  fetchHealthDashboard,
   fetchPoopEntries,
   fetchRhrEntries,
   fetchSleepEntries,
@@ -53,6 +54,44 @@ import { kgToLbs, lbsToKg } from '@/utils/units'
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
+
+describe('health dashboard service', () => {
+  beforeEach(() => vi.mocked(apiFetch).mockReset())
+
+  it('maps dashboard metrics and targets from one response', async () => {
+    const targets: Schemas['HealthTargetsRead'] = {
+      id: 2,
+      user_id: 9,
+      version: 3,
+      sleep: 28800,
+      steps: 8000,
+      weight: 70,
+      fasting: 57600,
+      water_ml: 2000,
+      poop_count: 1,
+    }
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      steps: { steps: 7500 },
+      targets,
+    })
+
+    const dashboard = await fetchHealthDashboard()
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith('/health/stats/daily', { signal: undefined })
+    expect(dashboard.steps).toBe(7500)
+    expect(dashboard.targets).toEqual({
+      id: 2,
+      userId: 9,
+      version: 3,
+      sleepSeconds: 28800,
+      steps: 8000,
+      weightKg: 70,
+      fastingSeconds: 57600,
+      waterMl: 2000,
+      poopCount: 1,
+    })
+  })
+})
 
 /** Builds a full HealthWeightRead wire payload, overridable per case. */
 function makeWeightDto(

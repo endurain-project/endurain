@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
 
+import modules.health.health_targets.schema as health_targets_schema
+
 
 class HealthSleepDashboard(BaseModel):
     """Latest sleep metrics for dashboard display.
@@ -169,6 +171,7 @@ class HealthDashboardResponse(BaseModel):
         fasting: Active or most recent fasting session.
         water: Today's water intake.
         poop: Today's bowel movement summary.
+        targets: The user's configured health targets.
     """
 
     sleep: HealthSleepDashboard | None = Field(
@@ -194,6 +197,10 @@ class HealthDashboardResponse(BaseModel):
     poop: HealthPoopDashboard | None = Field(
         default=None,
         description="Today's bowel movement summary",
+    )
+    targets: health_targets_schema.HealthTargetsRead | None = Field(
+        default=None,
+        description="The user's health targets",
     )
 
     model_config = ConfigDict(

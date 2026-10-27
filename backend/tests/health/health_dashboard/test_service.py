@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import modules.health.health_dashboard.service as health_dashboard_service
+import modules.health.health_targets.schema as health_targets_schema
 
 _PREFIX = "modules.health.health_dashboard.service"
 
@@ -18,6 +19,7 @@ def peers():
         "fasting": "health_fasting_integration.get_active_fasting",
         "water": "health_water_integration.get_health_water_by_date",
         "poop": "health_poop_integration.list_health_poop_by_date",
+        "targets": "health_targets_integration.get_health_targets",
     }
     patchers = {name: patch(f"{_PREFIX}.{target}", return_value=None) for name, target in targets.items()}
     with patch(f"{_PREFIX}.users_integration.local_today", return_value=date(2024, 1, 15)):
@@ -45,6 +47,18 @@ class TestGetDailyStats:
         )
         peers["water"].return_value = MagicMock(amount_ml=1500.0)
         peers["poop"].return_value = [MagicMock(), MagicMock()]
+        targets = health_targets_schema.HealthTargetsRead(
+            id=2,
+            user_id=1,
+            version=3,
+            sleep=28800,
+            steps=8000,
+            weight=70.0,
+            fasting=57600,
+            water_ml=2000,
+            poop_count=1,
+        )
+        peers["targets"].return_value = targets
 
         result = health_dashboard_service.get_daily_stats(1, mock_db)
 
@@ -54,11 +68,13 @@ class TestGetDailyStats:
         assert result.fasting.status == "in_progress"
         assert result.water.amount_ml == 1500.0
         assert result.poop.count == 2
+        assert result.targets == targets
+        peers["targets"].assert_called_once_with(1, mock_db)
 
     def test_all_data_missing(self, peers, mock_db):
         result = health_dashboard_service.get_daily_stats(1, mock_db)
 
-        assert result.model_dump() == dict.fromkeys(("sleep", "weight", "steps", "fasting", "water", "poop"))
+        assert result.model_dump() == dict.fromkeys(("sleep", "weight", "steps", "fasting", "water", "poop", "targets"))
 
     def test_reads_every_day_metric_for_the_users_own_today(self, peers, mock_db):
         health_dashboard_service.get_daily_stats(1, mock_db)
