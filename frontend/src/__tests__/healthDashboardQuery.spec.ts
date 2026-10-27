@@ -73,5 +73,7 @@ describe('useHealthDashboardQuery', () => {
 
     expect(client.getQueryData(queryKeys.health.targets())).toEqual(targets)
     expect(fetchHealthDashboard).toHaveBeenCalledOnce()
+    const query = client.getQueryCache().find({ queryKey: queryKeys.health.dashboard() })
+    expect((query?.options as { staleTime?: number } | undefined)?.staleTime).toBe(60_000)
   })
 })

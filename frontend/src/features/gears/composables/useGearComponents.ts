@@ -11,6 +11,7 @@ import type {
 import { queryKeys } from '@/services/queryKeys'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { GEAR_QUERY_STALE_TIME_MS } from '@/features/gears/constants'
 import {
   createGearComponent,
   deleteGearComponent,
@@ -33,6 +34,7 @@ export function useGearComponentsQuery(gearId: MaybeRefOrGetter<number | null>) 
   return useQuery<GearComponent[]>({
     queryKey: computed(() => queryKeys.gears.components(id.value ?? -1)),
     queryFn: ({ signal }) => fetchGearComponents(id.value as number, signal),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     enabled: computed(
       () => isAuthenticated.value && id.value !== null && Number.isFinite(id.value),
     ),

@@ -98,6 +98,23 @@ describe.each([
     expect(fetchList).toHaveBeenCalledOnce()
   })
 
+  it('keeps the cached list fresh for one minute', async () => {
+    vi.mocked(fetchList).mockResolvedValue(followList)
+    const queryClient = new QueryClient()
+    mountWith(queryClient, () => {
+      useListQuery(9)
+    })
+    await flushPromises()
+
+    const query = queryClient.getQueryCache().find({
+      queryKey:
+        _name === 'followers'
+          ? queryKeys.followers.followersList(9)
+          : queryKeys.followers.followingList(9),
+    })
+    expect((query?.options as { staleTime?: number } | undefined)?.staleTime).toBe(60_000)
+  })
+
   it('seeds the public-profile cache, so its rows read profiles without a request', async () => {
     vi.mocked(fetchList).mockResolvedValue(followList)
     const queryClient = new QueryClient()

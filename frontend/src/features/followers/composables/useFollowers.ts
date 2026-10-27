@@ -20,6 +20,9 @@ import {
   unfollowUser,
 } from '@/features/followers/services/followers'
 
+/** Freshness window for follow graph reads; relationship writes invalidate the domain. */
+const FOLLOWER_QUERY_STALE_TIME_MS = 60_000
+
 /** Resolves a reactive user id to a positive number, or `0` when unavailable. */
 function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
   const value = toValue(userId)
@@ -66,6 +69,7 @@ export function useFollowersQuery(
       seedPublicProfiles(client, profiles)
       return edges
     },
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }
@@ -94,6 +98,7 @@ export function useFollowingQuery(
       seedPublicProfiles(client, profiles)
       return edges
     },
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }
@@ -112,6 +117,7 @@ export function useFollowersCountQuery(userId: MaybeRefOrGetter<number | null>) 
   return useQuery<number>({
     queryKey: computed(() => queryKeys.followers.followersCount(id.value)),
     queryFn: ({ signal }) => fetchFollowersCount(id.value, signal),
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && id.value > 0),
   })
 }
@@ -130,6 +136,7 @@ export function useFollowingCountQuery(userId: MaybeRefOrGetter<number | null>) 
   return useQuery<number>({
     queryKey: computed(() => queryKeys.followers.followingCount(id.value)),
     queryFn: ({ signal }) => fetchFollowingCount(id.value, signal),
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && id.value > 0),
   })
 }
@@ -151,6 +158,7 @@ export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) 
   return useQuery<FollowStatus>({
     queryKey: computed(() => queryKeys.followers.state(viewerId.value, target.value)),
     queryFn: ({ signal }) => fetchFollowStatus(target.value, signal),
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(
       () =>
         isAuthenticated.value &&

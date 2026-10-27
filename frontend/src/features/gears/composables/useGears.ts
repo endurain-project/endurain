@@ -7,6 +7,7 @@ import type { Gear, GearDetail, GearInput } from '@/features/gears/types'
 import { queryKeys } from '@/services/queryKeys'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { GEAR_QUERY_STALE_TIME_MS } from '@/features/gears/constants'
 import {
   createGear,
   deleteGear,
@@ -52,6 +53,7 @@ export function useGearsQuery(
         },
         signal,
       ),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: isAuthenticated,
   })
@@ -71,6 +73,7 @@ export function useGearSearchQuery(term: MaybeRefOrGetter<string>) {
   return useQuery<Gear[]>({
     queryKey: computed(() => queryKeys.gears.search(trimmed.value)),
     queryFn: ({ signal }) => searchGearsByNickname(trimmed.value, signal),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),
   })
 }
@@ -88,6 +91,7 @@ export function useGearQuery(id: MaybeRefOrGetter<number | null>) {
   return useQuery<GearDetail | null>({
     queryKey: computed(() => queryKeys.gears.detail(gearId.value ?? -1)),
     queryFn: ({ signal }) => fetchGearById(gearId.value as number, signal),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     enabled: computed(
       () => isAuthenticated.value && gearId.value !== null && Number.isFinite(gearId.value),
     ),

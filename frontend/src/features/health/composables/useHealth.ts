@@ -68,6 +68,9 @@ import {
   updateSleepTarget,
 } from '@/features/health/services/health'
 
+/** Freshness window for mutable health reads; health writes and sync events invalidate them. */
+const HEALTH_QUERY_STALE_TIME_MS = 60_000
+
 /**
  * The authenticated user's health targets, used to annotate each dashboard card
  * with its metric's target and direction. Gated on authentication.
@@ -80,6 +83,7 @@ export function useHealthTargetsQuery() {
   return useQuery({
     queryKey: queryKeys.health.targets(),
     queryFn: ({ signal }) => fetchHealthTargets(signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
@@ -103,6 +107,7 @@ export function useHealthDashboardQuery() {
       }
       return dashboard
     },
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
@@ -154,6 +159,7 @@ function useHealthEntriesQuery<Page, Interval extends string>(
         },
         signal,
       ),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: isAuthenticated,
   })
@@ -525,6 +531,7 @@ export function useActiveFastingQuery() {
   return useQuery({
     queryKey: queryKeys.health.fastingActive(),
     queryFn: ({ signal }) => fetchActiveFasting(signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
@@ -541,6 +548,7 @@ export function useFastingStatsQuery() {
   return useQuery({
     queryKey: queryKeys.health.fastingStats(),
     queryFn: ({ signal }) => fetchFastingStats(signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
