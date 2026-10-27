@@ -128,8 +128,8 @@ function refetchActivities(): void {
 }
 
 // --- Following / followers lists ---
-const followingQuery = useFollowingQuery(profileId)
-const followersQuery = useFollowersQuery(profileId)
+const followingQuery = useFollowingQuery(profileId, () => activeTab.value === 'following')
+const followersQuery = useFollowersQuery(profileId, () => activeTab.value === 'followers')
 const followingEdges = computed(() => followingQuery.data.value ?? [])
 const followerEdges = computed(() => followersQuery.data.value ?? [])
 

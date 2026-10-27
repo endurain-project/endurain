@@ -82,6 +82,22 @@ describe.each([
     expect(list?.data.value).toEqual(followList.edges)
   })
 
+  it('waits until enabled before fetching the list', async () => {
+    const enabled = ref(false)
+    vi.mocked(fetchList).mockResolvedValue(followList)
+    mountWith(new QueryClient(), () => {
+      useListQuery(9, enabled)
+    })
+    await flushPromises()
+
+    expect(fetchList).not.toHaveBeenCalled()
+
+    enabled.value = true
+    await flushPromises()
+
+    expect(fetchList).toHaveBeenCalledOnce()
+  })
+
   it('seeds the public-profile cache, so its rows read profiles without a request', async () => {
     vi.mocked(fetchList).mockResolvedValue(followList)
     const queryClient = new QueryClient()

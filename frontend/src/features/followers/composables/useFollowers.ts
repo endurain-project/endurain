@@ -48,9 +48,13 @@ function seedPublicProfiles(
  * seeded into the public-profile cache.
  *
  * @param userId - Reactive id of the profile owner.
+ * @param enabled - Reactive gate for whether the list is currently needed.
  * @returns The TanStack query result for the followers list.
  */
-export function useFollowersQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useFollowersQuery(
+  userId: MaybeRefOrGetter<number | null>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
   const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
@@ -62,7 +66,7 @@ export function useFollowersQuery(userId: MaybeRefOrGetter<number | null>) {
       seedPublicProfiles(client, profiles)
       return edges
     },
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }
 
@@ -72,9 +76,13 @@ export function useFollowersQuery(userId: MaybeRefOrGetter<number | null>) {
  * are seeded into the public-profile cache.
  *
  * @param userId - Reactive id of the profile owner.
+ * @param enabled - Reactive gate for whether the list is currently needed.
  * @returns The TanStack query result for the following list.
  */
-export function useFollowingQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useFollowingQuery(
+  userId: MaybeRefOrGetter<number | null>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
   const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
@@ -86,7 +94,7 @@ export function useFollowingQuery(userId: MaybeRefOrGetter<number | null>) {
       seedPublicProfiles(client, profiles)
       return edges
     },
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }
 
