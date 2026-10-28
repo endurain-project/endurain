@@ -854,7 +854,8 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
         The payload dict consumed by the ingestion pipeline.
 
     Raises:
-        ProcessingError: When the file cannot be parsed.
+        InvalidInputError: When the content is not a valid FIT file.
+        ProcessingError: When the file cannot be read or parsed for another reason.
     """
     try:
         logger.debug("FIT parse start", extra=core_logger.context(file=Path(file).name))
@@ -875,6 +876,10 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
         return state.to_payload()
     except core_exceptions.DomainError:
         raise
+    except fitdecode.FitError as err:
+        # The uploader's file is the problem, so a retry reaches the same verdict.
+        logger.warning("Rejected a malformed FIT file", exc_info=err, extra=core_logger.context(file=Path(file).name))
+        raise core_exceptions.InvalidInputError("Can't parse FIT file") from err
     except Exception as err:
         logger.error("Error in parse_fit_file", exc_info=err, extra=core_logger.context(file=Path(file).name))
         raise core_exceptions.ProcessingError("Can't parse FIT file") from err

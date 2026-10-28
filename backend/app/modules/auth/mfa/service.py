@@ -18,6 +18,7 @@ Module layering (where MFA logic lives):
 from __future__ import annotations
 
 import base64
+from datetime import UTC, datetime
 from io import BytesIO
 
 import pyotp
@@ -28,8 +29,10 @@ import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.mfa.contracts as mfa_contracts
 import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.mfa.schema as mfa_schema
+import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
 import modules.users.users.integration_service as users_integration
 
@@ -59,8 +62,7 @@ def verify_totp(secret: str, token: str) -> bool:
     Returns:
         True if token is valid, False otherwise.
     """
-    totp = pyotp.TOTP(secret)
-    return totp.verify(token, valid_window=1)  # Allow 1 window tolerance
+    return mfa_totp_replay_store.matching_totp_step(secret, token, datetime.now(UTC)) is not None
 
 
 def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> str:
@@ -205,6 +207,8 @@ def verify_user_mfa(
     mfa_code: str,
     password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,
+    *,
+    replay_guard: mfa_contracts.SupportsClaimTotpStep,
 ) -> bool:
     """Verify MFA code for user (TOTP or backup code).
 
@@ -213,6 +217,7 @@ def verify_user_mfa(
         mfa_code: MFA code to verify (6-digit TOTP or 8-character backup code).
         password_verifier: Verifier used to check backup codes.
         db: Database session.
+        replay_guard: Records each accepted TOTP step, so a code works once.
 
     Returns:
         True if code is valid, False otherwise.
@@ -242,7 +247,11 @@ def verify_user_mfa(
                 logger.error("Failed to decrypt MFA secret")
                 return False
 
-            if verify_totp(secret, normalized_code):
+            step = mfa_totp_replay_store.matching_totp_step(secret, normalized_code, datetime.now(UTC))
+            if step is not None:
+                if not replay_guard.claim_totp_step(user_id, step):
+                    logger.warning("Refused a replayed TOTP code", extra=core_logger.context(user_id=user_id))
+                    return False
                 logger.debug("User verified MFA with TOTP", extra=core_logger.context(user_id=user_id))
                 return True
         except ValueError as err:

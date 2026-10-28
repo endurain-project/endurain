@@ -136,6 +136,11 @@ def prepare_sign_up_approved_email(
     )
 
 
+def revoke_user_tokens(user_id: int, db: Session) -> None:
+    """Stage invalidation of a user's unused verification tokens, so an old link cannot activate the account."""
+    sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
+
+
 def verify_sign_up_token(token: str, db: Session) -> int:
     """Stage consumption of a valid verification token and return its user id."""
     token_state = sign_up_crud.get_sign_up_token_by_hash(token_hashing.sha256_hex(token), db)

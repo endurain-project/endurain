@@ -21,6 +21,14 @@ class MFASecretStoreBackend(Protocol):
         ...
 
 
+class SupportsClaimTotpStep(Protocol):
+    """Records the TOTP time steps accepted for a user, so each works once."""
+
+    def claim_totp_step(self, user_id: int, step: int) -> bool:
+        """Record a step as used; False when it already was."""
+        ...
+
+
 class MFAStateRead(BaseModel):
     """Internal MFA state returned by persistence operations."""
 

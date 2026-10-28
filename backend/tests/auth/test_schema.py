@@ -194,7 +194,7 @@ class TestAuthRouterErrors:
         monkeypatch.setattr(
             auth_service.mfa_integration,
             "verify_user_mfa",
-            lambda *args: False,
+            lambda *args, **kwargs: False,
         )
         monkeypatch.setattr(
             auth_service.logger,
@@ -249,7 +249,7 @@ class TestAuthRouterErrors:
         monkeypatch.setattr(
             auth_service.mfa_integration,
             "verify_user_mfa",
-            lambda *args: True,
+            lambda *args, **kwargs: True,
         )
 
         with pytest.raises(core_exceptions.DomainError) as exc_info:

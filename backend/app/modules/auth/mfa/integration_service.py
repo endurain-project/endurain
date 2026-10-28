@@ -1,5 +1,6 @@
 """MFA operations exposed to auth peers and application entrypoints."""
 
+from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
 import core.dependencies as core_dependencies
@@ -9,6 +10,7 @@ import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.service as mfa_service
+import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
 
 
 def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
@@ -21,9 +23,16 @@ def verify_user_mfa(
     mfa_code: str,
     password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,
+    *,
+    replay_guard: mfa_contracts.SupportsClaimTotpStep,
 ) -> bool:
-    """Verify a TOTP or backup code for a user."""
-    return mfa_service.verify_user_mfa(user_id, mfa_code, password_verifier, db)
+    """Verify a TOTP or backup code for a user; a TOTP step is accepted once."""
+    return mfa_service.verify_user_mfa(user_id, mfa_code, password_verifier, db, replay_guard=replay_guard)
+
+
+def claim_totp_step(state: StateProvider, user_id: int, step: int) -> bool:
+    """Record an accepted TOTP step as used; False when it already was."""
+    return mfa_totp_replay_store.claim_totp_step(state, user_id, step)
 
 
 def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupRead:

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -53,13 +53,32 @@ def create_backup_codes(user_id: int, code_hashes: list[str], db: Session) -> No
 
 
 def mark_backup_code_as_used(code_id: int, user_id: int, db: Session) -> None:
-    """Stage consumption of one unused backup code."""
-    row = db.get(mfa_backup_codes_models.MFABackupCode, code_id)
-    if row is None or row.user_id != user_id or row.used:
+    """Stage consumption of one unused backup code.
+
+    The code is claimed by a single conditional ``UPDATE``, so of two concurrent requests presenting the
+    same code only one matches a row.
+
+    Args:
+        code_id: The code to consume.
+        user_id: The code's owner.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has no such code, or it was already used.
+    """
+    claimed = db.execute(
+        update(mfa_backup_codes_models.MFABackupCode)
+        .where(
+            mfa_backup_codes_models.MFABackupCode.id == code_id,
+            mfa_backup_codes_models.MFABackupCode.user_id == user_id,
+            mfa_backup_codes_models.MFABackupCode.used.is_(False),
+        )
+        .values(used=True, used_at=datetime.now(UTC))
+        .returning(mfa_backup_codes_models.MFABackupCode.id)
+        .execution_options(synchronize_session=False)
+    ).scalar_one_or_none()
+    if claimed is None:
         raise core_exceptions.NotFoundError("Backup code not found or already used")
-    row.used = True
-    row.used_at = datetime.now(UTC)
-    db.flush()
 
 
 def delete_user_backup_codes(user_id: int, db: Session) -> int:

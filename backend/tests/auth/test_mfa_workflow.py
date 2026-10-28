@@ -352,18 +352,18 @@ class TestVerifyMfa:
     def _request(self) -> mfa_schema.MFARequest:
         return mfa_schema.MFARequest(mfa_code="123456")
 
-    def test_valid_code_returns_success(self, mock_db):
+    def test_valid_code_returns_success(self, mock_db, step_up_store):
         with patch(
             "modules.auth.account_security.mfa_workflow_service.mfa_integration.verify_user_mfa",
             return_value=True,
         ) as mock_verify:
-            result = mfa_workflow.verify_mfa(self._request(), 7, mock_db)
+            result = mfa_workflow.verify_mfa(self._request(), 7, step_up_store, mock_db)
 
-        mock_verify.assert_called_once_with(7, "123456", credentials_integration, mock_db)
+        mock_verify.assert_called_once_with(7, "123456", credentials_integration, mock_db, replay_guard=step_up_store)
         assert isinstance(result, mfa_schema.MFAVerifyRead)
         assert result.model_dump() == {"message": "MFA code verified successfully"}
 
-    def test_invalid_code_raises_400(self, mock_db):
+    def test_invalid_code_raises_400(self, mock_db, step_up_store):
         with (
             patch(
                 "modules.auth.account_security.mfa_workflow_service.mfa_integration.verify_user_mfa",
@@ -371,7 +371,7 @@ class TestVerifyMfa:
             ),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            mfa_workflow.verify_mfa(self._request(), 7, mock_db)
+            mfa_workflow.verify_mfa(self._request(), 7, step_up_store, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert exc_info.value.detail == "Invalid MFA code"

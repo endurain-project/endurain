@@ -43,6 +43,7 @@ import modules.activities.activity_workout_steps.integration_service as activity
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.auth.authentication.subscriber_registry as authentication_subscriber_registry
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_provider_link_tokens_scheduled_jobs
+import modules.auth.identity_providers.subscriber_registry as identity_providers_subscriber_registry
 import modules.auth.mfa.scheduled_jobs as auth_mfa_scheduled_jobs
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_scheduled_jobs
@@ -243,6 +244,12 @@ MODULES: tuple[RuntimeModule, ...] = (
     RuntimeModule(name="sessions", recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="rotated_refresh_tokens", recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="mfa", recurring_jobs=auth_mfa_scheduled_jobs.recurring_jobs),
+    RuntimeModule(
+        name="identity_providers",
+        register_bus=identity_providers_subscriber_registry.register_bus_subscribers,
+        register_durable=identity_providers_subscriber_registry.register_durable_handlers,
+        nets=identity_providers_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+    ),
     RuntimeModule(
         name="identity_provider_link_tokens",
         recurring_jobs=identity_provider_link_tokens_scheduled_jobs.recurring_jobs,

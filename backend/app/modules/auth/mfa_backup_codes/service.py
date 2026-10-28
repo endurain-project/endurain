@@ -6,6 +6,7 @@ import secrets
 
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 
@@ -81,8 +82,11 @@ def verify_and_consume_backup_code(
             matched_code_id = unused_code.id
 
     if matched_code_id is not None:
-        # Valid code found - mark as used (by primary key)
-        mfa_backup_codes_crud.mark_backup_code_as_used(matched_code_id, user_id, db)
+        # Valid code found - mark as used (by primary key). A concurrent request may have consumed it first.
+        try:
+            mfa_backup_codes_crud.mark_backup_code_as_used(matched_code_id, user_id, db)
+        except core_exceptions.NotFoundError:
+            return False
         return True
 
     # No matching code found

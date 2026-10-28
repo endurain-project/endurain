@@ -270,6 +270,17 @@ class SyncStateStore:
         """
         self._attempts.record(self._subject(user_id, kind), SyncState(status=status), finished=status in _FINISHED)
 
+    def discard(self, user_id: int, kind: StrEnum) -> None:
+        """Drop a sync's claim and state, for one that was called off.
+
+        Unlike a finished sync, nothing is left for the status route to report.
+
+        Args:
+            user_id: The user being synced.
+            kind: What the sync does.
+        """
+        self._attempts.discard(self._subject(user_id, kind))
+
     def get(self, user_id: int, kind: StrEnum) -> SyncState | None:
         """Read a sync's state.
 

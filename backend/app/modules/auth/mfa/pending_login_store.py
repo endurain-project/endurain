@@ -9,6 +9,7 @@ import core.dependencies as core_dependencies
 import core.hashing as core_hashing
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
 
 _PENDING_MFA_KEY_PREFIX = "endurain:auth:mfa:pending"
 _PENDING_MFA_TTL_SECONDS = 300
@@ -46,6 +47,10 @@ class PendingMFAStore(Protocol):
 
     def cleanup_expired(self) -> int:
         """Implement the cleanup expired operation."""
+        ...
+
+    def claim_totp_step(self, user_id: int, step: int) -> bool:
+        """Record an accepted TOTP step as used; False when it already was."""
         ...
 
     def is_locked_out(self, username: str) -> bool:
@@ -162,6 +167,10 @@ class PendingMFALogin:
     def cleanup_expired(self) -> int:
         """Return zero because the state provider removes entries by TTL."""
         return 0
+
+    def claim_totp_step(self, user_id: int, step: int) -> bool:
+        """Record an accepted TOTP step as used; False when it already was."""
+        return mfa_totp_replay_store.claim_totp_step(self._state, user_id, step)
 
     def is_locked_out(self, username: str) -> bool:
         """Return whether MFA attempts are locked for a username."""

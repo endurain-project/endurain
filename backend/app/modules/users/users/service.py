@@ -485,6 +485,9 @@ def stage_user_edit(
     changes["email"] = user.email.lower()
 
     updated = users_crud.update_user(user_id, changes, db, if_match=if_match)
+    if existing.active and not updated.active:
+        # Verifying an email activates the account, so a link issued before the deactivation must not work.
+        sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
     _recalculate_bmi_if_height_changed(existing, updated, db)
     return updated
 

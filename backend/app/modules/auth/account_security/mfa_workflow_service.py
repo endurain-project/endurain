@@ -160,14 +160,16 @@ def disable_mfa(
 def verify_mfa(
     request: mfa_schema.MFARequest,
     token_user_id: int,
+    step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> mfa_schema.MFAVerifyRead:
-    """Verify an MFA code for the authenticated user."""
+    """Verify an MFA code for the authenticated user; a TOTP step is accepted once."""
     is_valid = mfa_integration.verify_user_mfa(
         token_user_id,
         request.mfa_code,
         credentials_integration,
         db,
+        replay_guard=step_up_store,
     )
     if not is_valid:
         raise core_exceptions.InvalidInputError("Invalid MFA code")

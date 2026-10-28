@@ -137,6 +137,9 @@ engine = create_engine(
     pool_timeout=30,
     pool_recycle=3600,
     pool_pre_ping=True,
+    # A driver error string embeds the statement's bound parameters (hashes, tokens, emails), and the
+    # error handler logs it, so they are masked at the engine.
+    hide_parameters=True,
     connect_args=_connect_args(os.environ),
 )
 

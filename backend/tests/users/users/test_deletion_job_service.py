@@ -32,6 +32,19 @@ def _payload(user_id: int = 1) -> users_events.DeletionRequestedPayload:
     return users_events.DeletionRequestedPayload(user_id=user_id)
 
 
+def _repeat_last(values):
+    """Yield each value once, then the last one for every further call."""
+    items = iter(values)
+    last = values[-1]
+
+    def _next(*_args, **_kwargs):
+        nonlocal last
+        last = next(items, last)
+        return last
+
+    return _next
+
+
 class TestRequestDeletion:
     def _request(self, states, db, *, jobs_enabled, identity=None):
         identity = identity or MagicMock()
@@ -41,12 +54,14 @@ class TestRequestDeletion:
                 f"{_MODULE}.account_security_integration.delete_all_user_sessions",
                 side_effect=lambda user_id, db: identity.delete_all_user_sessions(user_id),
             ),
+            patch(f"{_MODULE}.sign_up_tokens_integration.revoke_pending_tokens") as revoke_tokens,
             patch(f"{_MODULE}.users_service") as users_service,
             patch(f"{_MODULE}.users_crud") as users_crud,
             patch(f"{_MODULE}.users_event_publishers") as publishers,
             patch(f"{_MODULE}._deletion_pool") as pool,
         ):
             result = job_service.request_deletion(1, states, MagicMock(), db)
+        self.revoke_tokens = revoke_tokens
         return result, identity, users_service, users_crud, publishers, pool
 
     def test_a_durable_deletion_signs_out_deactivates_and_publishes(self, states, mock_db):
@@ -58,6 +73,8 @@ class TestRequestDeletion:
         users_service.require_deletable_user.assert_called_once_with(1, mock_db)
         identity.delete_all_user_sessions.assert_called_once_with(1)
         users_crud.stage_deletion_request.assert_called_once_with(1, mock_db)
+        # A verification link issued before the deletion must not reactivate the account.
+        self.revoke_tokens.assert_called_once_with(1, mock_db)
         publishers.publish_deletion_requested.assert_called_once_with(
             1, mock_db, commit=mock_db.commit, source=users_constants.DELETION_SOURCE_API
         )
@@ -119,7 +136,7 @@ class TestRequestDeletion:
 
 
 class TestRunDeletion:
-    def _run(self, states, *, batches, row_exists=True, delete_error=None, will_retry=False):
+    def _run(self, states, *, batches, row_exists=True, delete_error=None, will_retry=False, cancelled=(False,)):
         erasers = MagicMock()
         erasers.delete_activities.side_effect = [*batches, 0] if delete_error is None else delete_error
         with (
@@ -129,6 +146,7 @@ class TestRunDeletion:
             patch(f"{_MODULE}.users_photo_service") as photos,
         ):
             users_crud.get_user_by_id.return_value = MagicMock() if row_exists else None
+            users_crud.is_deletion_cancelled.side_effect = _repeat_last(cancelled)
             storage = MagicMock()
             job_service.run_deletion(_payload(), states, storage, will_retry=will_retry)
         return erasers, users_crud, photos, session_local, storage
@@ -160,6 +178,38 @@ class TestRunDeletion:
 
         erasers.delete_activities.assert_not_called()
         users_crud.delete_user.assert_not_called()
+
+    def test_a_reactivated_account_is_not_erased(self, states):
+        states.begin(1, _Kind)
+
+        erasers, users_crud, photos, _, _ = self._run(states, batches=[100], cancelled=(True,))
+
+        erasers.delete_activities.assert_not_called()
+        users_crud.delete_user.assert_not_called()
+        photos.delete_photo_files.assert_not_called()
+        # Nothing is left for the status route to report, and a later deletion can be queued.
+        assert states.get(1, _Kind) is None
+        assert states.begin(1, _Kind) is True
+
+    def test_a_reactivation_between_batches_stops_the_erasure(self, states):
+        states.begin(1, _Kind)
+
+        erasers, users_crud, photos, _, _ = self._run(states, batches=[100, 100], cancelled=(False, True))
+
+        assert erasers.delete_activities.call_count == 1
+        users_crud.delete_user.assert_not_called()
+        photos.delete_photo_files.assert_not_called()
+        assert states.get(1, _Kind) is None
+
+    def test_a_reactivation_before_the_row_is_deleted_keeps_the_row(self, states):
+        states.begin(1, _Kind)
+
+        erasers, users_crud, photos, _, _ = self._run(states, batches=[], cancelled=(False, True))
+
+        erasers.delete_activities.assert_called_once()
+        users_crud.delete_user.assert_not_called()
+        photos.delete_photo_files.assert_not_called()
+        assert states.get(1, _Kind) is None
 
     def test_a_failure_nothing_retries_fails_the_deletion_and_frees_the_claim(self, states):
         states.begin(1, _Kind)

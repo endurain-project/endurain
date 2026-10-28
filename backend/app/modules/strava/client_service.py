@@ -265,6 +265,18 @@ def _token_refresh_due(user_integrations: user_integrations_schema.UsersIntegrat
     return datetime.now(UTC) > refresh_time
 
 
+def _token_expired(user_integrations: user_integrations_schema.UsersIntegrationsRead) -> bool:
+    """Whether a user's Strava access token has already expired.
+
+    Args:
+        user_integrations: The user's integration settings, with a stored expiry.
+
+    Returns:
+        True when the token's expiry has passed.
+    """
+    return datetime.now(UTC) >= user_integrations.strava_token_expires_at.replace(tzinfo=UTC)
+
+
 def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store.StravaRateLimitStore) -> None:
     """Refresh a user's Strava access token when it is about to expire.
 
@@ -277,9 +289,17 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
     the new tokens are written in another. A failure is logged and left to the sync
     that follows, which will fail visibly if the token really is unusable.
 
+    A token that has already expired is never handed to a sync unrefreshed: Strava would answer 401
+    and the sync would unlink an account that is only waiting for its refresh.
+
     Args:
         user_id: The user whose token to refresh.
         rate_limits: The shared Strava rate-limit state.
+
+    Raises:
+        TooManyRequestsError: When the token has expired and another process holds the refresh; the work
+            is deferred until that refresh has finished.
+        DependencyFailedError: When the token has expired and Strava could not refresh it.
     """
     with SessionLocal() as db:
         user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
@@ -295,6 +315,11 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
 
     if not rate_limits.claim_token_refresh(user_id):
         logger.debug("Another process is refreshing the Strava token", extra=core_logger.context(user_id=user_id))
+        if _token_expired(user_integrations):
+            raise core_exceptions.TooManyRequestsError(
+                "Another process is refreshing the Strava token",
+                retry_at=datetime.now(UTC) + timedelta(seconds=strava_constants.TOKEN_REFRESH_CLAIM_TTL_SECONDS),
+            )
         return
 
     with SessionLocal() as db:
@@ -315,6 +340,8 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
             logger.warning("Strava rate limit hit during token refresh", extra=core_logger.context(user_id=user_id))
             return
         logger.error("Error refreshing the Strava token", extra=core_logger.context(user_id=user_id), exc_info=err)
+        if _token_expired(user_integrations):
+            raise core_exceptions.DependencyFailedError("The Strava token could not be refreshed") from err
         return
 
     try:

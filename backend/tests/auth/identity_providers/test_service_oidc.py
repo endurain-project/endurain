@@ -639,3 +639,31 @@ class TestHandleCallback:
         get_userinfo.assert_called_once()
         assert result["userinfo"] == userinfo
         assert result["user"] is user
+
+    def test_the_database_is_not_touched_until_the_identity_provider_has_answered(self, service):
+        """The session holds a pooled connection once it is used, so no network call may run after that."""
+        idp = MagicMock(issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp")
+        idp.name = "Pocket ID"
+        oauth_state = MagicMock(user_id=None, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = {"access_token": "at"}
+        db = MagicMock()
+        order = MagicMock()
+        order.attach_mock(oauth_client.fetch_token, "token_exchange")
+        order.attach_mock(db, "db")
+
+        with (
+            patch.object(service, "_decrypt_client_id", return_value=AUD),
+            patch.object(service, "_decrypt_client_secret", return_value="secret"),
+            patch.object(service, "_resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service, "_create_oauth_client", return_value=oauth_client),
+            patch.object(service, "_get_userinfo", return_value={"sub": "user-1"}) as get_userinfo,
+            patch.object(service, "_find_or_create_user", return_value=MagicMock(id=1)),
+            patch.object(service, "_store_idp_tokens"),
+        ):
+            order.attach_mock(get_userinfo, "userinfo")
+            service.handle_callback(idp, "code", "state", MagicMock(), oauth_state, db)
+
+        names = [call[0] for call in order.mock_calls]
+        last_network_call = max(names.index("token_exchange"), names.index("userinfo"))
+        assert not any(name.startswith("db") for name in names[: last_network_call + 1])

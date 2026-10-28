@@ -881,3 +881,18 @@ class TestParseTcxFileElevation:
         assert len(result["ele_waypoints"]) == 20
         assert all(wp["ele"] is not None for wp in result["ele_waypoints"])
         assert result["activity"].elevation_gain is not None
+
+
+class TestMalformedTcxFile:
+    """A file that is not valid TCX is the uploader's fault, so retrying the job cannot help."""
+
+    def test_broken_xml_is_rejected_as_invalid_input(self, tmp_path):
+        path = tmp_path / "bad.tcx"
+        path.write_text("not xml at all")
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            tcx_utils.parse_tcx_file(file=str(path), user_id=1, default_timezone=_SERVER_TZ)
+
+    def test_a_file_that_cannot_be_opened_stays_a_processing_error(self, tmp_path):
+        with pytest.raises(core_exceptions.ProcessingError):
+            tcx_utils.parse_tcx_file(file=str(tmp_path / "missing.tcx"), user_id=1, default_timezone=_SERVER_TZ)

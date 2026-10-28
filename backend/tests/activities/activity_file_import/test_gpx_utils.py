@@ -1158,3 +1158,25 @@ class TestGenerateLapsMeasuredSamples:
 
     def test_without_measured_times_every_sample_counts(self):
         assert self._laps(None)[0]["enhanced_max_speed"] == 0
+
+
+class TestMalformedGpxFile:
+    """A file that is not valid GPX is the uploader's fault, so retrying the job cannot help."""
+
+    def test_broken_xml_is_rejected_as_invalid_input(self, tmp_path):
+        path = tmp_path / "bad.gpx"
+        path.write_text("<gpx><trk>")
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            gpx_utils.parse_gpx_file(str(path), user_id=1, default_timezone=_SERVER_TZ)
+
+    def test_bytes_that_are_not_text_are_rejected_as_invalid_input(self, tmp_path):
+        path = tmp_path / "bad.gpx"
+        path.write_bytes(b"\xff\xfe\x00not xml")
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            gpx_utils.parse_gpx_file(str(path), user_id=1, default_timezone=_SERVER_TZ)
+
+    def test_a_file_that_cannot_be_opened_stays_a_processing_error(self, tmp_path):
+        with pytest.raises(core_exceptions.ProcessingError):
+            gpx_utils.parse_gpx_file(str(tmp_path / "missing.gpx"), user_id=1, default_timezone=_SERVER_TZ)

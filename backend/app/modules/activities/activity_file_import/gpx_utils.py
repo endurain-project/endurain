@@ -579,7 +579,7 @@ def parse_gpx_file(
         arrays, lap data, and boolean stream flags.
 
     Raises:
-        InvalidInputError: If the GPX has no tracks, no segments, or no valid
+        InvalidInputError: If the content is not valid GPX, or has no tracks, no segments, or no valid
             timed trackpoints.
         ProcessingError: If the file cannot be read.
     """
@@ -694,10 +694,10 @@ def parse_gpx_file(
 
     except core_exceptions.DomainError:
         raise
-    except (
-        gpxpy.gpx.GPXException,
-        OSError,
-        ValueError,
-    ) as err:
+    except (gpxpy.gpx.GPXException, ValueError) as err:
+        # The uploader's file is the problem (broken XML, undecodable bytes), so a retry reaches the same verdict.
+        logger.warning("Rejected a malformed GPX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("Failed to parse GPX file") from err
+    except OSError as err:
         logger.error("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.ProcessingError("Failed to parse GPX file") from err
+        raise core_exceptions.ProcessingError("Failed to read GPX file") from err

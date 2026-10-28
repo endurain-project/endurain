@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 import tcxreader
 
@@ -386,8 +387,9 @@ def parse_tcx_file(
         associated metadata.
 
     Raises:
+        InvalidInputError: When the content is not valid TCX.
         ProcessingError: When the TCX file cannot be
-            parsed or processed.
+            read or processed for another reason.
     """
     try:
         logger.debug("TCX parse start", extra=core_logger.context(file=Path(file).name, user_id=user_id))
@@ -514,6 +516,10 @@ def parse_tcx_file(
 
     except core_exceptions.DomainError:
         raise
+    except (ElementTree.ParseError, ValueError) as err:
+        # The uploader's file is the problem (broken XML, undecodable bytes), so a retry reaches the same verdict.
+        logger.warning("Rejected a malformed TCX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("Can't open TCX file") from err
     except Exception as err:
         # The exception text can carry file paths / parser internals, so it is
         # logged but never returned to the caller (OWASP A09).

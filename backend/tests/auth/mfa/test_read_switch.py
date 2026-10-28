@@ -193,7 +193,7 @@ class TestVerifyUserMFAReadSwitch:
         user.mfa_secret = "enc"  # legacy — must be ignored
 
         with _patch_get_user(user):
-            result = mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db)
+            result = mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
         assert result is False
 
@@ -204,7 +204,7 @@ class TestVerifyUserMFAReadSwitch:
         user.mfa_enabled = True  # legacy True — must be ignored
 
         with _patch_get_user(user):
-            result = mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db)
+            result = mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
         assert result is False
 
@@ -223,7 +223,7 @@ class TestVerifyUserMFAReadSwitch:
                 return_value=None,  # decrypt fails → returns False cleanly
             ) as mock_decrypt,
         ):
-            mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db)
+            mfa_service.verify_user_mfa(1, "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
         mock_decrypt.assert_called_once_with("auth_enc_secret")
 

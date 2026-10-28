@@ -8,6 +8,7 @@ from jasil.providers import StateProvider
 import core.dependencies as core_dependencies
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.mfa.integration_service as mfa_integration
 
 
 @runtime_checkable
@@ -34,12 +35,17 @@ class StepUpStore(Protocol):
         """Clear all tracked lockout attempts."""
         ...
 
+    def claim_totp_step(self, user_id: int, step: int) -> bool:
+        """Record an accepted TOTP step as used; False when it already was."""
+        ...
+
 
 class StepUpAttempts:
     """Track step-up failures with the configured progressive lockout tiers."""
 
     def __init__(self, state: StateProvider) -> None:
         """Bind this store to the request's platform state provider."""
+        self._state = state
         self._lockout = lockout_integration.new_progressive_lockout(
             state,
             name="step_up",
@@ -66,6 +72,10 @@ class StepUpAttempts:
     def clear_all(self) -> None:
         """Clear all tracked lockout attempts."""
         self._lockout.clear_all()
+
+    def claim_totp_step(self, user_id: int, step: int) -> bool:
+        """Record an accepted TOTP step as used; False when it already was."""
+        return mfa_integration.claim_totp_step(self._state, user_id, step)
 
 
 def get_step_up_attempts(state: core_dependencies.PlatformState) -> StepUpStore:

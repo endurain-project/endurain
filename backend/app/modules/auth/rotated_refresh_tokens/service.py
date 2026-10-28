@@ -71,7 +71,8 @@ def store_rotated_token(
             refresh token.
 
     Raises:
-        ProcessingError: If storage fails.
+        ConflictError: If the token was already rotated by a concurrent request; the session must be
+            rolled back.
     """
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=TOKEN_REUSE_GRACE_PERIOD_SECONDS)

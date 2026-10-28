@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.sign_up_tokens.integration_service as sign_up_integration
 import modules.auth.sign_up_tokens.service as sign_up_service
 
 
@@ -26,6 +27,15 @@ class TestCreateSignUpToken:
         assert create.call_args.args[0].token_hash == "hashed"
         invalidate.assert_called_once_with(7, mock_db)
         mock_db.commit.assert_called_once()
+
+
+class TestRevokePendingTokens:
+    @patch("modules.auth.sign_up_tokens.service.sign_up_crud.mark_user_sign_up_tokens_used")
+    def test_marks_the_users_unused_tokens_used_without_committing(self, invalidate, mock_db):
+        sign_up_integration.revoke_pending_tokens(7, mock_db)
+
+        invalidate.assert_called_once_with(7, mock_db)
+        mock_db.commit.assert_not_called()
 
 
 class TestEmailRequests:

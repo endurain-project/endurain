@@ -490,6 +490,46 @@ class TestTokenRefreshClaim:
 
         create_client.assert_not_called()
 
+    def test_an_expired_token_is_not_used_while_another_process_refreshes_it(self, monkeypatch):
+        """Calling Strava with the dead token would get a 401 and unlink a healthy account."""
+        from datetime import UTC, datetime, timedelta
+
+        rate_limits = MagicMock()
+        rate_limits.is_rate_limited.return_value = False
+        rate_limits.claim_token_refresh.return_value = False
+        expired = self._due()
+        expired.strava_token_expires_at = datetime.now(UTC) - timedelta(hours=1)
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=expired)
+        )
+        create_client = Mock()
+        monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as exc_info:
+            strava_utils.refresh_user_strava_token(1, rate_limits)
+
+        create_client.assert_not_called()
+        assert exc_info.value.retry_at is not None
+        assert exc_info.value.retry_at > datetime.now(UTC)
+
+    def test_an_expired_token_that_could_not_be_refreshed_is_not_used(self, monkeypatch):
+        from datetime import UTC, datetime, timedelta
+
+        rate_limits = MagicMock(spec=["is_rate_limited", "claim_token_refresh", "mark_rate_limited"])
+        rate_limits.is_rate_limited.return_value = False
+        rate_limits.claim_token_refresh.return_value = True
+        expired = self._due()
+        expired.strava_token_expires_at = datetime.now(UTC) - timedelta(hours=1)
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=expired)
+        )
+        client = Mock()
+        client.refresh_access_token.side_effect = ValueError("strava is down")
+        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_utils.refresh_user_strava_token(1, rate_limits)
+
     def test_a_refresh_another_process_just_finished_is_not_repeated(self, monkeypatch):
         """The integration is read again under the claim, and a fresh token ends the refresh."""
         from datetime import UTC, datetime, timedelta

@@ -3,6 +3,7 @@
 import string
 from unittest.mock import MagicMock, patch
 
+import core.exceptions as core_exceptions
 import modules.auth.mfa_backup_codes.crud as backup_crud
 import modules.auth.mfa_backup_codes.service as backup_utils
 
@@ -75,6 +76,20 @@ class TestVerifyAndConsumeBackupCode:
             # Assert
             assert result is True
             mock_mark_used.assert_called_once_with(mock_code_obj.id, user_id, mock_db)
+
+    def test_a_code_consumed_by_a_concurrent_request_is_rejected(self, mock_db, password_hasher):
+        """Losing the race for a code is a rejection, not an error."""
+        code = "A3K97BDF"
+        mock_code_obj = MagicMock()
+        mock_code_obj.code_hash = password_hasher.hash_password(code)
+
+        with (
+            patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[mock_code_obj]),
+            patch.object(
+                backup_crud, "mark_backup_code_as_used", side_effect=core_exceptions.NotFoundError("already used")
+            ),
+        ):
+            assert backup_utils.verify_and_consume_backup_code(1, code, password_hasher, mock_db) is False
 
     def test_verify_invalid_code_failure(self, mock_db, password_hasher):
         """Test verification fails with invalid code."""

@@ -205,7 +205,9 @@ def profile_app(
     monkeypatch.setattr(
         mfa_workflow_service,
         "verify_mfa",
-        lambda request, user_id, db: mock_auth_services.verify_mfa(request=request, user_id=user_id),
+        lambda request, user_id, store, db: mock_auth_services.verify_mfa(
+            request=request, user_id=user_id, step_up_store=store
+        ),
     )
     monkeypatch.setattr(
         mfa_workflow_service,

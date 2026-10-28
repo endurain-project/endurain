@@ -125,7 +125,9 @@ def verify_step_up_credentials(
         if not mfa_code:
             _record_failure(step_up_store, key)
             raise core_exceptions.UnauthenticatedError("MFA code required for this operation", scheme="Bearer")
-        if not mfa_integration.verify_user_mfa(user_id, mfa_code, credentials_integration, db):
+        if not mfa_integration.verify_user_mfa(
+            user_id, mfa_code, credentials_integration, db, replay_guard=step_up_store
+        ):
             _record_failure(step_up_store, key)
             raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
 

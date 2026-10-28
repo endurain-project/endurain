@@ -874,7 +874,7 @@ class TestMFAVerifyEndpoint:
 class TestRefreshEndpoint:
     """Tests for POST /auth/refresh endpoint."""
 
-    @patch("modules.auth.authentication.service.identity_providers_integration.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
     @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
@@ -1033,7 +1033,7 @@ class TestRefreshEndpoint:
         assert "reuse" in response.json()["detail"].lower()
         mock_invalidate.assert_called_once()
 
-    @patch("modules.auth.authentication.service.identity_providers_integration.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
     @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
@@ -1075,7 +1075,7 @@ class TestRefreshEndpoint:
             mock_set_cookie: Mock for set_refresh_token_cookie.
             mock_create_tokens: Mock for create_tokens.
             mock_edit_session: Mock for edit_session.
-            mock_idp_refresh: Mock for refresh_idp_tokens_if_needed.
+            mock_idp_refresh: Mock for request_idp_token_refresh.
             auth_client: TestClient for the auth app.
             auth_app: FastAPI test application.
             password_hasher: Real password hasher fixture.
@@ -1181,7 +1181,7 @@ class TestRefreshEndpoint:
         mock_store_rotated.assert_not_called()
         mock_edit_session.assert_not_called()
 
-    @patch("modules.auth.authentication.service.identity_providers_integration.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
     @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
@@ -1220,7 +1220,7 @@ class TestRefreshEndpoint:
             mock_set_cookie: Mock for set_refresh_token_cookie.
             mock_create_tokens: Mock for create_tokens.
             mock_edit_session: Mock for edit_session.
-            mock_idp_refresh: Mock for refresh_idp_tokens_if_needed.
+            mock_idp_refresh: Mock for request_idp_token_refresh.
             auth_client: TestClient for the auth app.
             auth_app: FastAPI test application.
             password_hasher: Real password hasher fixture.
@@ -1271,7 +1271,7 @@ class TestRefreshEndpoint:
         assert response.json()["access_token"] == "new-at"
 
     @patch("modules.auth.authentication.service.sessions_integration.verify_csrf_token")
-    @patch("modules.auth.authentication.service.identity_providers_integration.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
     @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
@@ -1311,7 +1311,7 @@ class TestRefreshEndpoint:
             mock_set_cookie: Mock for set_refresh_token_cookie.
             mock_create_tokens: Mock for create_tokens.
             mock_edit_session: Mock for edit_session.
-            mock_idp_refresh: Mock for refresh_idp_tokens_if_needed.
+            mock_idp_refresh: Mock for request_idp_token_refresh.
             mock_verify_csrf: Mock for verify_csrf_token.
             auth_client: TestClient for the auth app.
             auth_app: FastAPI test application.
@@ -1533,7 +1533,7 @@ class TestRefreshEndpoint:
         assert response.status_code == 401
         assert "authenticate" in response.json()["detail"].lower()
 
-    @patch("modules.auth.authentication.service.identity_providers_integration.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
     @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
@@ -1572,7 +1572,7 @@ class TestRefreshEndpoint:
             mock_set_cookie: Mock for set_refresh_token_cookie.
             mock_create_tokens: Mock for create_tokens.
             mock_edit_session: Mock for edit_session.
-            mock_idp_refresh: Mock for refresh_idp_tokens_if_needed.
+            mock_idp_refresh: Mock for request_idp_token_refresh.
             auth_client: TestClient for the auth app.
             auth_app: FastAPI test application.
             password_hasher: Real password hasher fixture.
@@ -1690,6 +1690,69 @@ class TestRefreshEndpoint:
         mock_edit_session.assert_not_called()
         mock_create_tokens.assert_not_called()
         mock_mint_access.assert_called_once()
+
+    @patch("modules.auth.authentication.service.mint_access_token")
+    @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.get_grace_replay_token")
+    @patch("modules.auth.authentication.service.create_tokens")
+    @patch("modules.auth.authentication.service.sessions_integration.edit_session")
+    @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.store_rotated_token")
+    @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.check_token_reuse")
+    @patch("modules.auth.authentication.service.users_integration.require_active_user")
+    @patch("modules.auth.authentication.service.users_integration.get_user")
+    @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_refresh_losing_a_concurrent_rotation_replays_the_winners_token(
+        self,
+        mock_get_session,
+        mock_validate_timeout,
+        mock_get_user,
+        mock_check_active,
+        mock_check_reuse,
+        mock_store_rotated,
+        mock_edit_session,
+        mock_create_tokens,
+        mock_get_replay,
+        mock_mint_access,
+        auth_client,
+        auth_app,
+        password_hasher,
+    ):
+        """Two refreshes with one token: the one whose rotation record collides gets the winner's replacement."""
+        from datetime import datetime, timedelta
+
+        auth_app.state._client_type = "mobile"
+        now = datetime.now(UTC)
+        mock_session = MagicMock()
+        mock_session.id = "sid-race"
+        mock_session.user_id = 1
+        mock_session.refresh_token = password_hasher.hash_password("old_rt")
+        mock_session.csrf_token_hash = None
+        mock_session.token_family_id = "fam-1"
+        mock_session.rotation_count = 1
+        mock_get_session.return_value = mock_session
+        mock_validate_timeout.return_value = None
+        # Nothing is recorded when this request checks, because the winner has not committed yet.
+        mock_check_reuse.return_value = (False, False)
+        mock_create_tokens.return_value = ("sid-race", now, "loser-at", now, "loser-rt", None)
+        mock_store_rotated.side_effect = core_exceptions.ConflictError("already rotated")
+        mock_get_replay.return_value = ("winner-rt", now + timedelta(days=7))
+        mock_get_user.return_value = MagicMock(id=1)
+        mock_check_active.return_value = None
+        mock_mint_access.return_value = (now + timedelta(minutes=15), "replayed-at")
+
+        app = auth_app
+        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-race"
+        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rt"
+        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+
+        response = auth_client.post("/auth/refresh")
+
+        assert response.status_code == 200
+        assert response.json()["refresh_token"] == "winner-rt"
+        # The loser never rotates the session, so only the winner's token is live.
+        mock_edit_session.assert_not_called()
 
     @patch("modules.auth.authentication.service.sessions_integration.update_session_csrf_token")
     @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")

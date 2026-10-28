@@ -461,6 +461,25 @@ class TestEdits:
 
         mock_weight.recalculate_bmi_for_user.assert_called_once_with(1, 180.0, mock_db)
 
+    def test_deactivating_a_user_revokes_their_pending_verification_links(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, active=False)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+
+        with patch("modules.users.users.service.sign_up_tokens_integration.revoke_pending_tokens") as revoke:
+            users_service.stage_user_edit(1, _edit(1, active=False), mock_db, if_match="*")
+
+        revoke.assert_called_once_with(1, mock_db)
+
+    def test_an_edit_that_leaves_the_user_active_keeps_their_verification_links(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1)
+
+        with patch("modules.users.users.service.sign_up_tokens_integration.revoke_pending_tokens") as revoke:
+            users_service.stage_user_edit(1, _edit(1), mock_db, if_match="*")
+
+        revoke.assert_not_called()
+
     def test_edit_user_commits_and_reports_authentication(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1)

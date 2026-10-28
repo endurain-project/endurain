@@ -290,6 +290,27 @@ class TestRecordDeletionAttempt:
         mock_db.flush.assert_not_called()
 
 
+class TestIsDeletionCancelled:
+    def test_a_user_still_queued_for_deletion_is_not_cancelled(self, mock_db):
+        row = MagicMock(spec=users_models.Users)
+        row.deletion_requested_at = "2026-01-01"
+        _one(mock_db, row)
+
+        assert users_crud.is_deletion_cancelled(1, mock_db) is False
+
+    def test_a_user_whose_marker_was_cleared_is_cancelled(self, mock_db):
+        row = MagicMock(spec=users_models.Users)
+        row.deletion_requested_at = None
+        _one(mock_db, row)
+
+        assert users_crud.is_deletion_cancelled(1, mock_db) is True
+
+    def test_a_user_that_is_gone_is_not_cancelled(self, mock_db):
+        _one(mock_db, None)
+
+        assert users_crud.is_deletion_cancelled(1, mock_db) is False
+
+
 class TestListStalledDeletionIds:
     def test_returns_the_ids_the_query_found(self, mock_db):
         mock_db.scalars.return_value.all.return_value = [3, 5]

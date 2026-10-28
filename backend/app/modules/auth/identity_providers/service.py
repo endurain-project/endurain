@@ -26,6 +26,7 @@ from joserfc.jwk import ECKey, OctKey, RSAKey
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
+import core.database as core_database
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -35,6 +36,7 @@ import modules.auth.identity_provider_links.contracts as auth_identity_links_con
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.event_publishers as idp_event_publishers
 import modules.auth.identity_providers.schema as identity_provider_schema
 import modules.auth.identity_providers.serializers as identity_provider_serializers
 import modules.auth.identity_providers.utils as identity_provider_utils
@@ -332,18 +334,50 @@ class IdentityProviderService:
         )
         return authorization_url
 
-    def refresh_idp_tokens_if_needed(self, user_id: int, db: Session) -> None:
-        """Refresh or clear the user's stored IdP tokens when policy requires it."""
+    def request_idp_token_refresh(self, user_id: int, db: Session) -> None:
+        """Clear the user's identity-provider tokens that policy retires, and queue the refresh of those expiring.
+
+        Runs inside a request, so it makes no provider call: the refresh itself is an event handled by
+        :meth:`refresh_idp_tokens` on a worker. The event is published when the caller commits.
+
+        Args:
+            user_id: The user whose linked providers to assess.
+            db: Database session holding the caller's transaction.
+        """
         links = identity_provider_links_integration.get_user_identity_providers_by_user_id(user_id, db)
+        refresh_needed = False
         for link in links:
             try:
                 action = self._should_refresh_idp_token(link)
                 if action is TokenAction.REFRESH:
-                    self.refresh_idp_session(user_id, link.idp_id, db)
+                    refresh_needed = True
                 elif action is TokenAction.CLEAR:
                     identity_provider_links_integration.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
                         user_id, link.idp_id, db
                     )
+            except Exception as err:
+                logger.warning(
+                    "Could not assess identity-provider token",
+                    exc_info=err,
+                    extra=core_logger.context(user_id=user_id, idp_id=link.idp_id),
+                )
+        if refresh_needed:
+            idp_event_publishers.publish_idp_token_refresh_requested(user_id, db)
+
+    def refresh_idp_tokens(self, user_id: int) -> None:
+        """Refresh the user's identity-provider tokens that are about to expire. Blocking; run it on a worker.
+
+        The links are read in a short session that closes before any provider is called.
+
+        Args:
+            user_id: The user whose tokens to refresh.
+        """
+        with core_database.SessionLocal() as db:
+            links = identity_provider_links_integration.get_user_identity_providers_by_user_id(user_id, db)
+        for link in links:
+            try:
+                if self._should_refresh_idp_token(link) is TokenAction.REFRESH:
+                    self.refresh_idp_session(user_id, link.idp_id)
             except Exception as err:
                 logger.warning(
                     "Could not refresh identity-provider token",
@@ -1979,7 +2013,6 @@ class IdentityProviderService:
         self,
         user_id: int,
         idp_id: int,
-        db: Session,
     ) -> dict[str, Any] | None:
         """Attempt to refresh a user's IdP session using stored refresh token.
 
@@ -1988,10 +2021,12 @@ class IdentityProviderService:
         with the IdP for new access and refresh tokens. If successful, the new tokens
         are encrypted and stored.
 
+        The provider is called with no database session open: the stored token is read in one
+        short session and the outcome written in another, each committed.
+
         Args:
             user_id (int): The ID of the user whose session should be refreshed.
             idp_id (int): The ID of the identity provider.
-            db (Session): The database session for token retrieval and updates.
 
         Returns:
             Dict[str, Any] | None: A dictionary containing the new token response if successful,
@@ -2013,17 +2048,18 @@ class IdentityProviderService:
             - If refresh fails (invalid/revoked), the stored token is cleared
             - Network errors do not clear the token (IdP may be temporarily down)
         """
-        # Get the IdP configuration
-        idp = idp_crud.get_identity_provider(idp_id, db)
-        if not idp or not idp.enabled:
-            raise core_exceptions.NotFoundError(f"Identity provider (ID: {idp_id}) not found or disabled")
+        with core_database.SessionLocal() as db:
+            # Get the IdP configuration
+            idp = idp_crud.get_identity_provider(idp_id, db)
+            if not idp or not idp.enabled:
+                raise core_exceptions.NotFoundError(f"Identity provider (ID: {idp_id}) not found or disabled")
 
-        # Get the encrypted refresh token from database
-        encrypted_refresh_token = (
-            identity_provider_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                user_id, idp_id, db
+            # Get the encrypted refresh token from database
+            encrypted_refresh_token = (
+                identity_provider_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                    user_id, idp_id, db
+                )
             )
-        )
 
         if not encrypted_refresh_token:
             logger.debug(
@@ -2044,9 +2080,7 @@ class IdentityProviderService:
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
             )
             # Clear corrupted token
-            identity_provider_links_integration.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                user_id, idp_id, db
-            )
+            self._clear_refresh_token(user_id, idp_id)
             return None
 
         # Resolve endpoints and credentials using helper methods
@@ -2076,7 +2110,9 @@ class IdentityProviderService:
             )
 
             # Store the new tokens (they may include a new refresh token)
-            self._store_idp_tokens(user_id, idp_id, token_response, db)
+            with core_database.SessionLocal() as db:
+                self._store_idp_tokens(user_id, idp_id, token_response, db)
+                db.commit()
 
             return token_response
 
@@ -2100,9 +2136,7 @@ class IdentityProviderService:
                     ),
                 )
                 # Clear invalid token from database
-                identity_provider_links_integration.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                    user_id, idp_id, db
-                )
+                self._clear_refresh_token(user_id, idp_id)
                 return None
             else:
                 # Other HTTP errors (5xx) - don't clear token
@@ -2134,6 +2168,24 @@ class IdentityProviderService:
         finally:
             if client is not None:
                 client.close()
+
+    @staticmethod
+    def _clear_refresh_token(user_id: int, idp_id: int) -> None:
+        """Clear a user's stored refresh token for a provider, in a session of its own.
+
+        Args:
+            user_id: The user whose token to clear.
+            idp_id: The provider the token belongs to.
+        """
+        with core_database.SessionLocal() as db:
+            identity_provider_links_integration.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                user_id, idp_id, db
+            )
+            db.commit()
+        logger.info(
+            "Cleared the identity-provider refresh token for user <user_id>, idp <idp_id>",
+            extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+        )
 
     def revoke_idp_token(
         self,
@@ -2393,7 +2445,7 @@ class IdentityProviderService:
             link = identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
             action = self._should_refresh_idp_token(link)
             if action == TokenAction.REFRESH:
-                self.refresh_idp_session(user_id, idp_id, db)
+                self.refresh_idp_session(user_id, idp_id)
             elif action == TokenAction.CLEAR:
                 identity_provider_links_integration.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id, idp_id, db)
         """

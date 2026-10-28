@@ -35,6 +35,13 @@ class TestGetDb:
             mock_db.close.assert_called_once()
 
 
+class TestEngineErrorRedaction:
+    """A database error string must not carry the bound parameters of the failing statement."""
+
+    def test_the_engine_hides_statement_parameters(self):
+        assert core_database.engine.hide_parameters is True
+
+
 class TestPoolOptions:
     """Pool size and overflow come from the environment, with the previous values as defaults."""
 

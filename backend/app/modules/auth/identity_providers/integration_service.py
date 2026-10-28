@@ -61,9 +61,9 @@ def start_browser_link(
     )
 
 
-def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
-    """Refresh or clear the user's stored IdP tokens when policy requires it."""
-    _service().refresh_idp_tokens_if_needed(user_id, db)
+def request_idp_token_refresh(user_id: int, db: Session) -> None:
+    """Clear the user's retired IdP tokens now and queue the refresh of those expiring, with the caller's commit."""
+    _service().request_idp_token_refresh(user_id, db)
 
 
 def clear_all_idp_tokens(user_id: int, db: Session, revoke_at_idp: bool = False) -> None:

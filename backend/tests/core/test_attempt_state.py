@@ -168,6 +168,15 @@ class TestSyncStateStore:
 
         assert syncs.begin(1, _Kind.GEAR) is True
 
+    def test_a_discarded_sync_leaves_no_state_and_frees_the_claim(self):
+        syncs = _syncs()
+        syncs.begin(1, _Kind.GEAR)
+
+        syncs.discard(1, _Kind.GEAR)
+
+        assert syncs.get(1, _Kind.GEAR) is None
+        assert syncs.begin(1, _Kind.GEAR) is True
+
     def test_kinds_users_and_features_do_not_block_each_other(self):
         state = MemoryState()
         syncs = _syncs(state)

@@ -3,8 +3,10 @@
 from datetime import datetime
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
@@ -26,10 +28,27 @@ def create_rotated_token(
     rotated_token: rotated_token_schema.RotatedRefreshTokenCreate,
     db: Session,
 ) -> rotated_token_schema.RotatedRefreshTokenRead:
-    """Stage a rotated refresh-token record."""
+    """Stage a rotated refresh-token record.
+
+    The hash is unique, so of two concurrent refreshes presenting the same token only one records its
+    rotation.
+
+    Args:
+        rotated_token: The record to stage.
+        db: Database session.
+
+    Returns:
+        The staged record.
+
+    Raises:
+        ConflictError: When the token was already rotated. The session must be rolled back.
+    """
     row = rotated_token_models.RotatedRefreshToken(**rotated_token.model_dump())
     db.add(row)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError("Refresh token already rotated") from err
     return rotated_token_schema.RotatedRefreshTokenRead.model_validate(row)
 
 

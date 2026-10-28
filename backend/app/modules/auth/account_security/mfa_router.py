@@ -197,6 +197,10 @@ def verify_mfa(
     request: Request,
     mfa_request: mfa_schema.MFARequest,
     token_user_id: auth_dependencies.CurrentUserId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
     db: core_dependencies.DbSession,
 ) -> mfa_schema.MFAVerifyRead:
     """Verify MFA code for authenticated user.
@@ -205,6 +209,7 @@ def verify_mfa(
         request: The incoming request, read by the rate limiter.
         mfa_request: MFA request with code to verify.
         token_user_id: User ID from access token.
+        step_up_store: Shared state, which records the TOTP step so the code works once.
         db: Database session.
 
     Returns:
@@ -213,7 +218,7 @@ def verify_mfa(
     Raises:
         DomainError: If MFA code is invalid.
     """
-    return mfa_workflow_service.verify_mfa(mfa_request, token_user_id, db)
+    return mfa_workflow_service.verify_mfa(mfa_request, token_user_id, step_up_store, db)
 
 
 @router.post(

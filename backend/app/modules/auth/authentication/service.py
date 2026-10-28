@@ -32,6 +32,7 @@ import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
+import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.integration_service as server_settings_integration
@@ -681,7 +682,9 @@ def verify_mfa_and_login(
         raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
 
     # Verify the MFA code (TOTP or backup code)
-    if not mfa_integration.verify_user_mfa(user_id, mfa_request.mfa_code, credentials_integration, db):
+    if not mfa_integration.verify_user_mfa(
+        user_id, mfa_request.mfa_code, credentials_integration, db, replay_guard=pending_mfa_store
+    ):
         # Record failed attempt and apply lockout if threshold exceeded
         try:
             failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
@@ -743,6 +746,82 @@ def verify_mfa_and_login(
 
     # Web clients and mobile without PKCE get tokens directly
     return complete_login(response, request, user, client_type, password_hasher, token_manager, db)
+
+
+def _replay_rotation(
+    response: Response,
+    client_type: str,
+    session: sessions_contracts.SessionRead,
+    refresh_token_value: str,
+    token_user_id: int,
+    token_manager: access_tokens_integration.TokenManager,
+    policy: server_settings_contracts.SessionPolicy,
+    db: Session,
+):
+    """Answer a refresh whose token was already rotated with the replacement minted by that rotation.
+
+    The session is not rotated again (no new rotated record, no ``rotation_count`` bump), so duplicate
+    and concurrent refreshes converge on one live refresh token.
+
+    Args:
+        response: The HTTP response object.
+        client_type: Client type (``"web"`` or ``"mobile"``).
+        session: The session the token belongs to.
+        refresh_token_value: The raw refresh token that was already rotated.
+        token_user_id: User ID extracted from the refresh token.
+        token_manager: Utility for creating tokens.
+        policy: The server's session policy.
+        db: Database session.
+
+    Returns:
+        The token response carrying the replacement refresh token.
+
+    Raises:
+        UnauthenticatedError: If the replacement is gone or the user cannot authenticate.
+    """
+    replay = rotated_refresh_tokens_integration.get_grace_replay_token(refresh_token_value, db)
+
+    if replay is None:
+        # Replacement was cleaned up (or never stored); fall back to the
+        # standard invalid-token response.
+        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
+
+    replay_refresh_token, replay_refresh_token_exp = replay
+
+    # Validate the user is still present and active before re-issuing.
+    replay_user = users_integration.get_user(token_user_id, db)
+
+    if replay_user is None:
+        logger.warning(
+            "User ID <token_user_id> not found during token refresh replay",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
+        raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
+
+    users_integration.require_active_user(replay_user)
+
+    # Mint a fresh, stateless access token (safe to re-issue every retry).
+    replay_access_token_exp, replay_access_token = mint_access_token(replay_user, token_manager, session.id, policy)
+
+    # Web clients lost their CSRF token along with the rotation response, so
+    # mint a fresh one and bind it to the session (the refresh token itself
+    # is unchanged). Mobile clients do not use CSRF.
+    replay_csrf_token: str | None = None
+    if client_type == "web":
+        replay_csrf_token = token_manager.create_csrf_token()
+        sessions_integration.update_session_csrf_token(session.id, replay_csrf_token, db)
+        db.commit()
+
+    return build_token_response(
+        response,
+        client_type,
+        session.id,
+        replay_access_token,
+        replay_access_token_exp,
+        replay_refresh_token,
+        replay_refresh_token_exp,
+        replay_csrf_token,
+    )
 
 
 def refresh_token(
@@ -857,56 +936,10 @@ def refresh_token(
         raise core_exceptions.UnauthenticatedError("Token reuse detected. All sessions invalidated.", scheme="Bearer")
 
     if is_reused and in_grace:
-        # Idempotent in-grace replay. The presented refresh token was already
-        # rotated, but we are still inside the grace window, so this is a
-        # legitimate retry: a lost rotation response, or a racing/duplicate
-        # refresh from a background uploader. The presented token no longer
-        # matches the session's current refresh-token hash, so instead of a
-        # 401 we replay the exact replacement minted on the original rotation.
-        # The session is NOT re-rotated (no new rotated record, no
-        # rotation_count bump), so duplicate/concurrent refreshes converge.
-        replay = rotated_refresh_tokens_integration.get_grace_replay_token(refresh_token_value, db)
-
-        if replay is None:
-            # Replacement was cleaned up (or never stored); fall back to the
-            # standard invalid-token response.
-            raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
-
-        replay_refresh_token, replay_refresh_token_exp = replay
-
-        # Validate the user is still present and active before re-issuing.
-        replay_user = users_integration.get_user(token_user_id, db)
-
-        if replay_user is None:
-            logger.warning(
-                "User ID <token_user_id> not found during token refresh replay",
-                extra=core_logger.context(token_user_id=token_user_id),
-            )
-            raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
-
-        users_integration.require_active_user(replay_user)
-
-        # Mint a fresh, stateless access token (safe to re-issue every retry).
-        replay_access_token_exp, replay_access_token = mint_access_token(replay_user, token_manager, session.id, policy)
-
-        # Web clients lost their CSRF token along with the rotation response, so
-        # mint a fresh one and bind it to the session (the refresh token itself
-        # is unchanged). Mobile clients do not use CSRF.
-        replay_csrf_token: str | None = None
-        if client_type == "web":
-            replay_csrf_token = token_manager.create_csrf_token()
-            sessions_integration.update_session_csrf_token(session.id, replay_csrf_token, db)
-            db.commit()
-
-        return build_token_response(
-            response,
-            client_type,
-            session.id,
-            replay_access_token,
-            replay_access_token_exp,
-            replay_refresh_token,
-            replay_refresh_token_exp,
-            replay_csrf_token,
+        # A retry inside the grace window (a lost rotation response, or a duplicate refresh) is answered
+        # with the replacement minted on the original rotation; the session is not rotated again.
+        return _replay_rotation(
+            response, client_type, session, refresh_token_value, token_user_id, token_manager, policy, db
         )
 
     is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
@@ -942,14 +975,22 @@ def refresh_token(
     # replacement so a retry within the grace window can replay it.
     # store_rotated_token hashes the old token with HMAC-SHA256 for lookup
     # and encrypts the replacement at rest.
-    rotated_refresh_tokens_integration.store_rotated_token(
-        refresh_token_value,
-        session.token_family_id,
-        session.rotation_count,
-        db,
-        replacement_refresh_token=new_refresh_token,
-        replacement_refresh_token_exp=new_refresh_token_exp,
-    )
+    try:
+        rotated_refresh_tokens_integration.store_rotated_token(
+            refresh_token_value,
+            session.token_family_id,
+            session.rotation_count,
+            db,
+            replacement_refresh_token=new_refresh_token,
+            replacement_refresh_token_exp=new_refresh_token_exp,
+        )
+    except core_exceptions.ConflictError:
+        # A concurrent request presenting the same token recorded its rotation first and wins; this one
+        # answers with the winner's replacement instead of rotating the session a second time.
+        db.rollback()
+        return _replay_rotation(
+            response, client_type, session, refresh_token_value, token_user_id, token_manager, policy, db
+        )
 
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
@@ -965,8 +1006,9 @@ def refresh_token(
     )
     db.commit()
 
-    # Opportunistically refresh IdP tokens for all linked identity providers
-    identity_providers_integration.refresh_idp_tokens_if_needed(user.id, db)
+    # Retire expired IdP tokens now and queue the refresh of those about to expire; the provider
+    # calls run on a worker, never in this request.
+    identity_providers_integration.request_idp_token_refresh(user.id, db)
     db.commit()
 
     # Token delivery based on client type (web cookie vs mobile body) is

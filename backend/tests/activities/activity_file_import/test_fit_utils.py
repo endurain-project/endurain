@@ -2,6 +2,9 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
+import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.fit_frames as fit_frames
 import modules.activities.activity_file_import.fit_utils as fit_utils
 
@@ -841,3 +844,18 @@ class TestParseFrameActivity:
     def test_accepts_utc_plus_14_boundary(self):
         frame = _RawFrame(timestamp=1_000_000, local_timestamp=1_000_000 + 14 * 3600)
         assert fit_frames.parse_frame_activity(frame) == 14 * 3600
+
+
+class TestMalformedFitFile:
+    """A file that is not a valid FIT is the uploader's fault, so retrying the job cannot help."""
+
+    def test_garbage_is_rejected_as_invalid_input(self, tmp_path):
+        path = tmp_path / "bad.fit"
+        path.write_bytes(b"\x00" * 40)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            fit_utils.parse_fit_file(str(path))
+
+    def test_a_file_that_cannot_be_opened_stays_a_processing_error(self, tmp_path):
+        with pytest.raises(core_exceptions.ProcessingError):
+            fit_utils.parse_fit_file(str(tmp_path / "missing.fit"))

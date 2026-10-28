@@ -469,6 +469,25 @@ def record_deletion_attempt(user_id: int, db: Session) -> int | None:
     return db_user.deletion_attempts
 
 
+def is_deletion_cancelled(user_id: int, db: Session) -> bool:
+    """Tell whether an administrator reactivated a user whose deletion was queued.
+
+    The row is locked until the caller's transaction ends, so a reactivation cannot slip in between
+    this answer and the deletion it guards.
+
+    Args:
+        user_id: ID of the user being deleted.
+        db: Database session.
+
+    Returns:
+        True when the user exists and is no longer queued for deletion. False when the deletion should
+        go on, including when the user is already gone.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.id == user_id).with_for_update()
+    db_user = db.execute(stmt).scalar_one_or_none()
+    return db_user is not None and db_user.deletion_requested_at is None
+
+
 def delete_user(user_id: int, db: Session) -> None:
     """Stage the deletion of a user row (flushed, not committed).
 

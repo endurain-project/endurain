@@ -22,6 +22,7 @@ import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
@@ -36,6 +37,11 @@ logger = core_logger.get_logger(__name__)
 
 _Status = users_constants.DeletionStatus
 _Kind = users_constants.DeletionKind
+
+
+class _DeletionCancelledError(Exception):
+    """An administrator reactivated the account, so the deletion queued for it must not go on."""
+
 
 # Deletions are long and rare, so they get a pool of their own rather than the subscriber pool, where
 # they would hold the threads that deliver notifications and thumbnails.
@@ -91,6 +97,7 @@ def request_deletion(
 
     try:
         account_security_integration.delete_all_user_sessions(user_id, db)
+        sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
         users_crud.stage_deletion_request(user_id, db)
         _dispatch(user_id, states, storage, db, source=users_constants.DELETION_SOURCE_API)
     except BaseException:
@@ -187,6 +194,10 @@ def run_deletion(
     try:
         activities = _erase_activities(user_id)
         _delete_user_row(user_id)
+    except _DeletionCancelledError:
+        states.discard(user_id, _Kind.ACCOUNT)
+        logger.info("Account deletion cancelled by a reactivation", extra=core_logger.context(user_id=user_id))
+        return
     except Exception as err:
         if will_retry:
             logger.warning(
@@ -212,11 +223,15 @@ def _erase_activities(user_id: int) -> int:
 
     Returns:
         How many activities were deleted.
+
+    Raises:
+        _DeletionCancelledError: When the account was reactivated before a batch.
     """
     delete_batch = users_contributor_registry.erasers().delete_activities
     total = 0
     while True:
         with core_database.SessionLocal() as db:
+            _require_not_cancelled(user_id, db)
             deleted = delete_batch(user_id, users_constants.DELETION_BATCH_SIZE, db)
             db.commit()
         if not deleted:
@@ -228,6 +243,20 @@ def _erase_activities(user_id: int) -> int:
         )
 
 
+def _require_not_cancelled(user_id: int, db: Session) -> None:
+    """Stop the deletion when the account was reactivated; the row stays locked for the caller's transaction.
+
+    Args:
+        user_id: The user being deleted.
+        db: Database session.
+
+    Raises:
+        _DeletionCancelledError: When the account is no longer queued for deletion.
+    """
+    if users_crud.is_deletion_cancelled(user_id, db):
+        raise _DeletionCancelledError
+
+
 def _delete_user_row(user_id: int) -> None:
     """Delete the user row, which removes everything else that references it through the database cascade.
 
@@ -235,8 +264,12 @@ def _delete_user_row(user_id: int) -> None:
 
     Args:
         user_id: The user to delete.
+
+    Raises:
+        _DeletionCancelledError: When the account was reactivated.
     """
     with core_database.SessionLocal() as db:
+        _require_not_cancelled(user_id, db)
         if users_crud.get_user_by_id(user_id, db) is None:
             logger.debug("The user row was already deleted", extra=core_logger.context(user_id=user_id))
             return

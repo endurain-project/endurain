@@ -4,8 +4,12 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
+import core.exceptions as core_exceptions
 import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
+from tests._helpers.db import create_sqlite_session
 
 
 def _token(**overrides):
@@ -42,6 +46,20 @@ def test_create_rotated_token_stages_row(mock_db):
     mock_db.add.assert_called_once_with(token)
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
+
+
+def test_rotating_the_same_token_twice_is_a_conflict():
+    """The unique hash is what decides which of two concurrent refreshes rotates the token."""
+    db = create_sqlite_session()
+    values = _token().__dict__.copy()
+    values.pop("id")
+    data = rotated_token_schema.RotatedRefreshTokenCreate(**values)
+    rotated_token_crud.create_rotated_token(data, db)
+
+    with pytest.raises(core_exceptions.ConflictError):
+        rotated_token_crud.create_rotated_token(data, db)
+
+    db.close()
 
 
 def test_delete_operations_stage_and_return_row_counts(mock_db):
