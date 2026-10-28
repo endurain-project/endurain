@@ -173,7 +173,7 @@ def test_poop_list_and_count_filter_on_the_users_local_day(db):
 
 
 def test_every_interval_charts_its_whole_range(db):
-    """~500 daily records: each interval covers more than the last, and none is cut to a page."""
+    """~500 daily records: each interval covers its whole range, daily until a year of bars is exceeded."""
     import modules.health.health_steps.service as steps_service
 
     today = date(2026, 10, 28)
@@ -192,8 +192,8 @@ def test_every_interval_charts_its_whole_range(db):
         health_constants.Interval.LAST_7_DAYS: (_BUCKET.DAY, 8),
         health_constants.Interval.LAST_30_DAYS: (_BUCKET.DAY, 31),
         health_constants.Interval.LAST_90_DAYS: (_BUCKET.DAY, 91),
-        health_constants.Interval.LAST_YEAR: (_BUCKET.WEEK, len(sizes[health_constants.Interval.LAST_YEAR].points)),
-        health_constants.Interval.ALL_TIME: (_BUCKET.MONTH, len(sizes[health_constants.Interval.ALL_TIME].points)),
+        health_constants.Interval.LAST_YEAR: (_BUCKET.DAY, 366),
+        # 500 daily records exceed a year of bars, so the whole history is charted weekly.
+        health_constants.Interval.ALL_TIME: (_BUCKET.WEEK, len(sizes[health_constants.Interval.ALL_TIME].points)),
     }
-    assert 52 <= len(sizes[health_constants.Interval.LAST_YEAR].points) <= 54
-    assert 16 <= len(sizes[health_constants.Interval.ALL_TIME].points) <= 18
+    assert 71 <= len(sizes[health_constants.Interval.ALL_TIME].points) <= 73

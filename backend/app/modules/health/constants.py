@@ -39,11 +39,9 @@ class ChartBucket(Enum):
     MONTH = "month"
 
 
-#: The bucket each interval is charted in, so a chart holds at most about 90 points whatever the history length.
-CHART_BUCKET_BY_INTERVAL = {
-    Interval.LAST_7_DAYS: ChartBucket.DAY,
-    Interval.LAST_30_DAYS: ChartBucket.DAY,
-    Interval.LAST_90_DAYS: ChartBucket.DAY,
-    Interval.LAST_YEAR: ChartBucket.WEEK,
-    Interval.ALL_TIME: ChartBucket.MONTH,
-}
+#: The buckets a chart may use, finest first. A chart is daily and coarsens only while it would exceed
+#: ``MAX_CHART_POINTS``, so a daily metric stays daily for as long as the bars stay readable.
+CHART_BUCKETS = (ChartBucket.DAY, ChartBucket.WEEK, ChartBucket.MONTH)
+
+#: Most points a chart holds: a full year of daily bars, which is also a small response.
+MAX_CHART_POINTS = 366

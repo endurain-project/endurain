@@ -208,11 +208,12 @@ def get_health_poop_chart(
     """
     today = users_integration.local_today(user_id, db)
     since = health_computation.get_start_date_for_interval(interval.value, today)
-    bucket = health_constants.CHART_BUCKET_BY_INTERVAL[interval]
     tz_name = users_integration.resolve_timezone(user_id, db)
     if interval is health_constants.Interval.ALL_TIME:
         since = health_poop_crud.get_health_poop_first_day(user_id, tz_name, db) or since
-    counts = health_poop_crud.get_health_poop_chart(user_id, since, bucket, tz_name, db)
+    bucket, counts = health_computation.chart_points(
+        lambda bucket: health_poop_crud.get_health_poop_chart(user_id, since, bucket, tz_name, db)
+    )
     points = [
         health_schema.HealthChartPoint(
             date=count.date,

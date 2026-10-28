@@ -258,6 +258,7 @@ def get_health_water_chart(
         The interval's buckets, one point per bucket that holds a value.
     """
     since = health_computation.get_start_date_for_interval(interval.value, users_integration.local_today(user_id, db))
-    bucket = health_constants.CHART_BUCKET_BY_INTERVAL[interval]
-    points = health_water_crud.get_health_water_chart(user_id, since, bucket, db)
+    bucket, points = health_computation.chart_points(
+        lambda bucket: health_water_crud.get_health_water_chart(user_id, since, bucket, db)
+    )
     return health_schema.HealthChartSeries(bucket=bucket, points=points)

@@ -91,6 +91,25 @@ def chart_bucket_expression(day_column, bucket: health_constants.ChartBucket, si
     return func.greatest(cast(func.date_trunc(bucket.value, day_column), Date), since)
 
 
+def chart_points[PointT](
+    fetch: Callable[[health_constants.ChartBucket], list[PointT]],
+) -> tuple[health_constants.ChartBucket, list[PointT]]:
+    """Fetch a chart in the finest bucket that keeps it within ``MAX_CHART_POINTS``.
+
+    Args:
+        fetch: Reads the chart's points aggregated in the given bucket.
+
+    Returns:
+        The bucket used and its points; the coarsest bucket is used whatever its size.
+    """
+    for bucket in health_constants.CHART_BUCKETS[:-1]:
+        points = fetch(bucket)
+        if len(points) <= health_constants.MAX_CHART_POINTS:
+            return bucket, points
+    bucket = health_constants.CHART_BUCKETS[-1]
+    return bucket, fetch(bucket)
+
+
 def bucket_day_count(start: date, bucket: health_constants.ChartBucket, since: date, today: date) -> int:
     """Count the days of a chart bucket that fall inside the charted window.
 

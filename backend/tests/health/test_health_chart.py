@@ -2,7 +2,7 @@
 
 import importlib
 from datetime import date
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -88,18 +88,28 @@ def _sql(mock_db) -> str:
 
 
 class TestChartBucketing:
-    @pytest.mark.parametrize(
-        ("interval", "bucket"),
-        [
-            (_INTERVAL.LAST_7_DAYS, _BUCKET.DAY),
-            (_INTERVAL.LAST_30_DAYS, _BUCKET.DAY),
-            (_INTERVAL.LAST_90_DAYS, _BUCKET.DAY),
-            (_INTERVAL.LAST_YEAR, _BUCKET.WEEK),
-            (_INTERVAL.ALL_TIME, _BUCKET.MONTH),
-        ],
-    )
-    def test_every_interval_has_a_bucket(self, interval, bucket):
-        assert health_constants.CHART_BUCKET_BY_INTERVAL[interval] is bucket
+    def test_a_chart_that_fits_stays_daily(self):
+        fetch = MagicMock(return_value=list(range(health_constants.MAX_CHART_POINTS)))
+
+        bucket, points = health_computation.chart_points(fetch)
+
+        assert bucket is _BUCKET.DAY
+        assert len(points) == health_constants.MAX_CHART_POINTS
+        fetch.assert_called_once_with(_BUCKET.DAY)
+
+    def test_a_chart_that_does_not_fit_coarsens_until_it_does(self):
+        sizes = {_BUCKET.DAY: 500, _BUCKET.WEEK: 72, _BUCKET.MONTH: 17}
+
+        bucket, points = health_computation.chart_points(lambda b: list(range(sizes[b])))
+
+        assert (bucket, len(points)) == (_BUCKET.WEEK, 72)
+
+    def test_the_coarsest_bucket_is_used_whatever_its_size(self):
+        sizes = {_BUCKET.DAY: 5000, _BUCKET.WEEK: 1500, _BUCKET.MONTH: 400}
+
+        bucket, points = health_computation.chart_points(lambda b: list(range(sizes[b])))
+
+        assert (bucket, len(points)) == (_BUCKET.MONTH, 400)
 
     def test_a_day_bucket_spans_one_day(self):
         assert (
@@ -169,8 +179,8 @@ class TestAveragedService:
         with patch.object(crud, function, return_value=points) as mock_crud:
             series = getattr(service, function)(1, _INTERVAL.LAST_YEAR, mock_db)
 
-        mock_crud.assert_called_once_with(1, date(2023, 6, 2), _BUCKET.WEEK, mock_db)
-        assert series == health_schema.HealthChartSeries(bucket=_BUCKET.WEEK, points=points)
+        mock_crud.assert_called_once_with(1, date(2023, 6, 2), _BUCKET.DAY, mock_db)
+        assert series == health_schema.HealthChartSeries(bucket=_BUCKET.DAY, points=points)
 
 
 @pytest.mark.parametrize(("crud", "service", "route", "function", "column"), _AVERAGED)
@@ -217,16 +227,20 @@ class TestPoopCrud:
 class TestPoopService:
     @patch(_RESOLVE_TIMEZONE, return_value="UTC")
     @patch(_LOCAL_TODAY, return_value=date(2024, 6, 12))
+    @patch("modules.health.health_poop.service.health_poop_crud.get_health_poop_first_day", return_value=None)
     @patch("modules.health.health_poop.service.health_poop_crud.get_health_poop_chart")
-    def test_reports_movements_per_day_of_each_bucket(self, mock_crud, _today, _tz, mock_db):
-        mock_crud.return_value = [
+    def test_reports_movements_per_day_of_each_bucket(self, mock_crud, _first, _today, _tz, mock_db):
+        weekly = [
             health_schema.HealthChartPoint(date=date(2024, 6, 3), value=14.0),
             health_schema.HealthChartPoint(date=date(2024, 6, 10), value=3.0),
         ]
+        too_many_days = [health_schema.HealthChartPoint(date=date(2024, 6, 1), value=1.0)] * 400
+        mock_crud.side_effect = lambda _user, _since, bucket, _tz, _db: (
+            too_many_days if bucket is _BUCKET.DAY else weekly
+        )
 
-        series = health_poop_service.get_health_poop_chart(1, _INTERVAL.LAST_YEAR, mock_db)
+        series = health_poop_service.get_health_poop_chart(1, _INTERVAL.ALL_TIME, mock_db)
 
-        mock_crud.assert_called_once_with(1, date(2023, 6, 13), _BUCKET.WEEK, "UTC", mock_db)
         assert series.bucket is _BUCKET.WEEK
         # A full week of 14 movements is 2 a day; the current week has 3 days so far.
         assert [point.value for point in series.points] == [2.0, 1.0]
@@ -248,14 +262,16 @@ class TestPoopService:
     )
     @patch("modules.health.health_poop.service.health_poop_crud.get_health_poop_chart")
     def test_all_time_starts_the_first_month_at_the_first_movement(self, mock_crud, _first, _today, _tz, mock_db):
-        mock_crud.return_value = [
+        monthly = [
             health_schema.HealthChartPoint(date=date(2024, 2, 1), value=10.0),
             health_schema.HealthChartPoint(date=date(2024, 3, 1), value=31.0),
         ]
+        too_many = [health_schema.HealthChartPoint(date=date(2024, 2, 1), value=1.0)] * 400
+        mock_crud.side_effect = lambda _user, _since, bucket, _tz, _db: monthly if bucket is _BUCKET.MONTH else too_many
 
         series = health_poop_service.get_health_poop_chart(1, _INTERVAL.ALL_TIME, mock_db)
 
-        mock_crud.assert_called_once_with(1, date(2024, 2, 20), _BUCKET.MONTH, "UTC", mock_db)
+        mock_crud.assert_any_call(1, date(2024, 2, 20), _BUCKET.MONTH, "UTC", mock_db)
         # February counts only its 10 days from the 20th; March is a full month.
         assert [point.value for point in series.points] == [1.0, 1.0]
 

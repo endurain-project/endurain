@@ -64,7 +64,11 @@ useHealthMetricChart(chartRender)
 </script>
 
 <template>
-  <HealthChartCard :title="t('health.weight.chartTitle')" :accent-color="WEIGHT_COLOR">
+  <HealthChartCard
+    :title="t('health.weight.chartTitle')"
+    :accent-color="WEIGHT_COLOR"
+    :bucket="series.bucket"
+  >
     <!-- min-w-0 lets the canvas shrink inside the grid on mobile. -->
     <div ref="chartContainer" class="relative h-56 w-full min-w-0" />
   </HealthChartCard>
