@@ -749,7 +749,6 @@ export interface paths {
          *         mfa_request: MFA login request containing username and MFA code
          *         client_type: The type of client making the request ("web" or "mobile")
          *         pending_mfa_store: Store for pending MFA logins
-         *         identity_service: Identity service used to verify backup codes.
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
@@ -802,7 +801,7 @@ export interface paths {
          *         password_hasher: Utility for verifying token hashes.
          *         token_manager: Utility for creating tokens.
          *         db: Database session.
-         *         client_type: Client type ("web" or "mobile").
+         *         client_type: Client type (\"web\" or \"mobile\").
          *         x_csrf_token: CSRF token header (web clients only, optional on page reload).
          *
          *     Returns:
@@ -2173,6 +2172,8 @@ export interface paths {
          *     Args:
          *         db: SQLAlchemy database session dependency.
          *
+         *         service: Value used by this operation.
+         *
          *     Returns:
          *         A list of all configured identity providers.
          */
@@ -2185,6 +2186,9 @@ export interface paths {
          *     Args:
          *         idp_data: Data required to create the identity provider.
          *         db: SQLAlchemy database session dependency.
+         *
+         *         request: Value used by this operation.
+         *         service: Value used by this operation.
          *
          *     Returns:
          *         The newly created identity provider.
@@ -2212,6 +2216,7 @@ export interface paths {
          * @description Get the list of pre-configured IdP templates (admin only).
          *
          *     Args:
+         *         service: Value used by this operation.
          *
          *     Returns:
          *         A list of identity provider templates.
@@ -2242,6 +2247,9 @@ export interface paths {
          *         idp_data: The data to update the identity provider with.
          *         db: SQLAlchemy database session dependency.
          *
+         *         request: Value used by this operation.
+         *         service: Value used by this operation.
+         *
          *     Returns:
          *         The updated identity provider.
          *
@@ -2258,6 +2266,9 @@ export interface paths {
          *     Args:
          *         idp_id: The unique identifier of the identity provider to delete.
          *         db: SQLAlchemy database session dependency.
+         *
+         *         request: Value used by this operation.
+         *         service: Value used by this operation.
          *
          *     Raises:
          *         HTTPException: 404 if the provider is not found, 409 if users
@@ -2422,21 +2433,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm Password Reset
-         * @description Confirm a password reset using a token and new password.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         confirm_data: Token and new password data.
-         *         identity_service: Dependency-injected identity service.
-         *         db: Dependency-injected database session.
-         *
-         *     Returns:
-         *         Success message on successful password reset.
-         *
-         *     Raises:
-         *         HTTPException: 400 if token is invalid or expired.
-         *         HTTPException: 422 if the new password fails the account's password policy.
-         *         HTTPException: 500 if password reset fails.
+         * @description Confirm a password reset using a token and replacement password.
          */
         post: operations["confirm_password_reset_api_v1_password_reset_confirm_post"];
         delete?: never;
@@ -2456,18 +2453,7 @@ export interface paths {
         put?: never;
         /**
          * Request Password Reset
-         * @description Handle a password reset request.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         request_data: Pydantic model with the email address.
-         *         db: Dependency-injected database session.
-         *
-         *     Returns:
-         *         Generic success message to avoid user enumeration.
-         *
-         *     Raises:
-         *         HTTPException: 503 if email service is not configured.
+         * @description Request a password reset without revealing whether the email exists.
          */
         post: operations["request_password_reset_api_v1_password_reset_request_post"];
         delete?: never;
@@ -2492,7 +2478,6 @@ export interface paths {
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
          *         db: Database session.
          *         response: The response, which carries the user's ETag.
          *
@@ -2535,45 +2520,13 @@ export interface paths {
         };
         /**
          * Get User Api Keys
-         * @description Retrieve all API keys for the authenticated user.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         List of API key objects. Raw keys and hashes
-         *         are never included.
+         * @description List API keys for the authenticated user.
          */
         get: operations["get_user_api_keys_api_v1_profile_api_keys_get"];
         put?: never;
         /**
          * Create User Api Key
-         * @description Create a new API key for the authenticated user.
-         *
-         *     The raw key is returned once in this response and
-         *     cannot be retrieved again. Requested scopes must be
-         *     supported by API-key authentication.
-         *
-         *     Step-up verification is required (current password,
-         *     plus MFA code when MFA is enabled). API keys grant
-         *     persistent, long-lived access — a stolen access
-         *     token alone must not be sufficient to mint one.
-         *
-         *     Args:
-         *         data: Key creation data (name, scopes, expiry,
-         *             step-up credentials).
-         *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         Created API key including the raw key string.
-         *
-         *     Raises:
-         *         HTTPException: 401 if step-up verification fails.
-         *         HTTPException: 400 if scopes are not supported for API keys.
-         *         HTTPException: 404 if the user is not found.
+         * @description Create an API key after step-up verification.
          */
         post: operations["create_user_api_key_api_v1_profile_api_keys_post"];
         delete?: never;
@@ -2594,22 +2547,7 @@ export interface paths {
         post?: never;
         /**
          * Delete User Api Key
-         * @description Permanently delete an API key.
-         *
-         *     Hard-delete. The key is gone and cannot be used
-         *     or recovered after this operation.
-         *
-         *     Args:
-         *         api_key_id: UUID of the API key to delete.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: 404 if the key is not found or
-         *             does not belong to the authenticated user.
+         * @description Permanently delete an API key owned by the authenticated user.
          */
         delete: operations["delete_user_api_key_api_v1_profile_api_keys__api_key_id__delete"];
         options?: never;
@@ -2632,22 +2570,7 @@ export interface paths {
         head?: never;
         /**
          * Revoke User Api Key
-         * @description Revoke an API key (soft-disable).
-         *
-         *     The key record is retained for audit purposes but
-         *     will be rejected on any subsequent use.
-         *
-         *     Args:
-         *         api_key_id: UUID of the API key to revoke.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: 404 if the key is not found or
-         *             does not belong to the authenticated user.
+         * @description Revoke an API key owned by the authenticated user.
          */
         patch: operations["revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_patch"];
         trace?: never;
@@ -2718,7 +2641,6 @@ export interface paths {
          *         response: The response, which receives the cookie-deletion headers.
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
          *         step_up_store: Step-up lockout store.
          *         state: The platform state provider.
          *         storage: The platform storage provider.
@@ -2757,8 +2679,8 @@ export interface paths {
          *         email_change: The new address with the step-up credentials.
          *         token_user_id: User ID from access token.
          *         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
-         *         identity_service: Identity service dependency.
          *         step_up_store: Step-up lockout store.
+         *         db: Database session.
          *         db: Database session.
          */
         post: operations["edit_profile_email_api_v1_profile_email_change_post"];
@@ -2971,7 +2893,7 @@ export interface paths {
          *     Args:
          *         token_user_id (int): The authenticated user's ID extracted from the JWT access token.
          *             Injected automatically via dependency injection.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         list[dict]: A list of dictionaries representing the user's IdP links. Each dictionary contains:
@@ -2989,7 +2911,7 @@ export interface paths {
          *             - idp_provider_type (str): Type of provider (e.g., "oauth2", "oidc") (if available)
          *
          *     Raises:
-         *         HTTPException: May raise authentication/authorization errors via the dependency injection.
+         *         DomainError: May raise authentication/authorization errors via the dependency injection.
          */
         get: operations["get_my_identity_providers_api_v1_profile_idp_get"];
         put?: never;
@@ -3024,7 +2946,7 @@ export interface paths {
          *         idp_id (int): The ID of the identity provider to link.
          *         link_token (str): One-time link token from query parameter.
          *         request (Request): The FastAPI request object containing request context.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *         redirect: Optional frontend return path after linking.
          *
          *     Returns:
@@ -3074,14 +2996,15 @@ export interface paths {
          *         link_request (IdpLinkTokenRequest): Request with step-up credentials.
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): The authenticated user's ID extracted from the access token.
-         *         identity_service: Identity service dependency.
          *         step_up_store: Step-up lockout store.
+         *
+         *         db: Value used by this operation.
          *
          *     Returns:
          *         IdpLinkTokenResponse: Contains the one-time token and expiration time.
          *
          *     Raises:
-         *         HTTPException:
+         *         DomainError:
          *             - 401 UNAUTHORIZED: If step-up verification fails.
          *             - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
          *             - 409 CONFLICT: If the identity provider is already linked.
@@ -3119,19 +3042,20 @@ export interface paths {
          *         step_up (StepUpVerification): Step-up verification payload.
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): User ID extracted from the access token.
-         *         identity_service: Identity service dependency.
          *         step_up_store: Step-up lockout store.
+         *
+         *         db: Value used by this operation.
          *
          *     Returns:
          *         None: Returns 204 No Content on successful deletion.
          *
          *     Raises:
-         *         HTTPException (401): If step-up verification fails.
-         *         HTTPException (404): If the identity provider doesn't exist or
+         *         DomainError (401): If step-up verification fails.
+         *         DomainError (404): If the identity provider doesn't exist or
          *             is not linked to the user's account.
-         *         HTTPException (400): If attempting to unlink the last authentication method
+         *         DomainError (400): If attempting to unlink the last authentication method
          *             without having a password set (prevents account lockout).
-         *         HTTPException (500): If the deletion operation fails at the database level.
+         *         DomainError (500): If the deletion operation fails at the database level.
          *
          *     Notes:
          *         - Enforces step-up verification before unlinking.
@@ -3247,14 +3171,15 @@ export interface paths {
          *         request: FastAPI request object for rate limiting.
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service for code generation.
          *         step_up_store: Step-up lockout store.
+         *
+         *         db: Value used by this operation.
          *
          *     Returns:
          *         Response with generated backup codes and timestamp.
          *
          *     Raises:
-         *         HTTPException: 401 if step-up verification fails, 404 if
+         *         DomainError: 401 if step-up verification fails, 404 if
          *             user not found, 400 if MFA is not enabled.
          */
         post: operations["generate_mfa_backup_codes_api_v1_profile_mfa_backup_codes_post"];
@@ -3277,7 +3202,7 @@ export interface paths {
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         Backup code status with counts and creation date.
@@ -3317,14 +3242,15 @@ export interface paths {
          *         mfa_request: MFA disable request with current password and
          *             MFA code.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
          *         step_up_store: Step-up lockout store.
+         *
+         *         db: Value used by this operation.
          *
          *     Returns:
          *         Success message.
          *
          *     Raises:
-         *         HTTPException: 401 if the current password is wrong or
+         *         DomainError: 401 if the current password is wrong or
          *             the MFA code is invalid; 400 if MFA is not currently
          *             enabled.
          */
@@ -3358,23 +3284,23 @@ export interface paths {
          *     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
          *     issued by ``POST /profile/mfa/setup``. SSO-only accounts may
          *     omit ``current_password`` (see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`).
+         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         mfa_request: MFA setup request with TOTP code and (when the
          *             account has a local password) current password.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service instance for backup code
-         *             generation and step-up verification.
          *         mfa_secret_store: Temporary secret storage.
          *         step_up_store: Step-up lockout store.
+         *
+         *         db: Value used by this operation.
          *
          *     Returns:
          *         Success message and the freshly issued backup codes.
          *
          *     Raises:
-         *         HTTPException: 400 if no setup is in progress or the TOTP
+         *         DomainError: 400 if no setup is in progress or the TOTP
          *             code is invalid; 401 if step-up verification fails.
          */
         put: operations["enable_mfa_api_v1_profile_mfa_enable_put"];
@@ -3401,8 +3327,8 @@ export interface paths {
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
          *         mfa_secret_store: Temporary secret storage.
+         *         db: Database session.
          *
          *     Returns:
          *         MFA setup response with secret and QR code.
@@ -3427,7 +3353,7 @@ export interface paths {
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         MFA status response with enabled flag.
@@ -3458,13 +3384,14 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         mfa_request: MFA request with code to verify.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service instance for backup code verification.
+         *
+         *         db: Value used by this operation.
          *
          *     Returns:
          *         Success message.
          *
          *     Raises:
-         *         HTTPException: If MFA code is invalid.
+         *         DomainError: If MFA code is invalid.
          */
         post: operations["verify_mfa_api_v1_profile_mfa_verify_post"];
         delete?: never;
@@ -3506,8 +3433,8 @@ export interface paths {
          *             token.
          *         token_session_id: Session ID of the caller, preserved when
          *             other sessions are revoked.
-         *         identity_service: Identity service dependency.
          *         step_up_store: Step-up lockout store.
+         *         db: Database session.
          *
          *     Raises:
          *         HTTPException: 401 if step-up verification fails.
@@ -3586,7 +3513,7 @@ export interface paths {
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         List of session objects for the user.
@@ -3608,7 +3535,7 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         token_user_id: User ID from access token.
          *         token_session_id: The caller's current session, preserved.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         None.
@@ -3637,7 +3564,7 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         session_id: Session identifier to delete.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         None.
@@ -3833,6 +3760,8 @@ export interface paths {
          *     Args:
          *         db (Session): SQLAlchemy database session dependency.
          *
+         *         service: Value used by this operation.
+         *
          *     Returns:
          *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
          */
@@ -3858,6 +3787,7 @@ export interface paths {
          *
          *     This endpoint processes the OAuth authorization callback from external identity providers.
          *     It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
+         *
          *     Args:
          *         idp_slug (str): The slug identifier of the identity provider.
          *         password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency for session management.
@@ -3866,6 +3796,9 @@ export interface paths {
          *         code (str): Authorization code received from the identity provider.
          *         state (str): State parameter used for CSRF protection (database state ID).
          *         request (Request): The incoming HTTP request.
+         *
+         *         response: Value used by this operation.
+         *         service: Value used by this operation.
          *
          *     Returns:
          *         RedirectResponse: A redirect response to either:
@@ -3964,6 +3897,9 @@ export interface paths {
          *         token_exchange (TokenExchangeRequest): Request body with code_verifier.
          *         token_manager (TokenManager): Token manager dependency.
          *         db (Session): Database session dependency.
+         *
+         *         password_hasher: Value used by this operation.
+         *         service: Value used by this operation.
          *
          *     Returns:
          *         TokenExchangeResponse: JWT tokens (access, refresh, csrf) and metadata.
@@ -4433,6 +4369,8 @@ export interface paths {
          *         _check_scope: Scope validation dependency.
          *         db: Database session dependency.
          *
+         *         request: Value used by this operation.
+         *
          *     Returns:
          *         List of session objects for the specified user.
          */
@@ -4453,6 +4391,8 @@ export interface paths {
          *         _check_scope: Scope validation dependency.
          *         db: Database session dependency.
          *         exclude_session_id: Optional session to leave intact.
+         *
+         *         request: Value used by this operation.
          *
          *     Returns:
          *         None.
@@ -4483,6 +4423,8 @@ export interface paths {
          *         _check_scope: Scope validation dependency.
          *         db: Database session dependency.
          *
+         *         request: Value used by this operation.
+         *
          *     Returns:
          *         None.
          *
@@ -4506,18 +4448,7 @@ export interface paths {
         put?: never;
         /**
          * Verify Email
-         * @description Verify user email via sign-up token.
-         *
-         *     Args:
-         *         request: Incoming HTTP request.
-         *         confirm_data: Token confirmation payload.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Verification result with message and optional flags.
-         *
-         *     Raises:
-         *         HTTPException: 412 if email verification is not enabled.
+         * @description Verify an account's email address using its one-time token.
          */
         post: operations["verify_email_api_v1_sign_up_confirm_post"];
         delete?: never;
@@ -4537,19 +4468,7 @@ export interface paths {
         put?: never;
         /**
          * Signup
-         * @description Handle user sign-up request.
-         *
-         *     Args:
-         *         request: Incoming HTTP request.
-         *         user: Sign-up payload with user info.
-         *         identity_service: Injected identity service.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Sign-up result with message and flags.
-         *
-         *     Raises:
-         *         HTTPException: 403 if sign-up is disabled.
+         * @description Create an account using the configured sign-up policy.
          */
         post: operations["signup_api_v1_sign_up_request_post"];
         delete?: never;
@@ -4754,7 +4673,6 @@ export interface paths {
          *
          *     Args:
          *         db: Database session dependency.
-         *         identity_service: Identity service dependency.
          *         page: The requested page and page size.
          *         show_inactive: Optional filter by inactive status.
          *         show_email_unverified: Optional filter by email verification status.
@@ -4775,7 +4693,6 @@ export interface paths {
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         user: User creation data.
-         *         identity_service: Identity service dependency.
          *         db: Database session dependency.
          *
          *     Returns:
@@ -4962,7 +4879,6 @@ export interface paths {
          *         user_attributtes: User data to update.
          *         token_user_id: ID of the administrator making the edit.
          *         db: Database session dependency.
-         *         identity_service: Identity service dependency.
          *         response: The response, which carries the new ETag.
          *         if_match: The ``If-Match`` precondition.
          *
@@ -4981,7 +4897,6 @@ export interface paths {
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to delete.
-         *         identity_service: Identity service that revokes the user's sessions.
          *         states: Shared store of the deletion's state.
          *         storage: The platform storage provider.
          *         db: Database session dependency.
@@ -5015,7 +4930,6 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to approve.
          *         db: Database session dependency.
-         *         identity_service: Identity service dependency.
          */
         put: operations["approve_user_api_v1_users__user_id__approve_put"];
         post?: never;
@@ -5068,7 +4982,7 @@ export interface paths {
          *
          *     Args:
          *         user_id: ID of the user whose identity provider links to retrieve.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         The user's enriched identity provider links (empty list if none).
@@ -5100,7 +5014,7 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of the user to unlink the identity provider from.
          *         idp_id: ID of the identity provider to unlink.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         None
@@ -5158,7 +5072,7 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to update password for.
          *         user_attributes: New password data.
-         *         identity_service: Identity service dependency.
+         *         db: Database session dependency.
          */
         post: operations["edit_user_password_api_v1_users__user_id__password_change_post"];
         delete?: never;
@@ -8375,121 +8289,6 @@ export interface components {
             weight?: number | null;
         };
         /**
-         * IdentityProviderRead
-         * @description Represents an identity provider with decrypted client credentials.
-         *
-         *     Inherits from:
-         *         IdentityProviderBase
-         *
-         *     Attributes:
-         *         id (int): Unique identifier of the identity provider.
-         *         created_at (datetime): Timestamp when the identity provider was created.
-         *         updated_at (datetime): Timestamp when the identity provider was last updated.
-         *
-         *     Config:
-         *         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
-         *             forbid extra fields, and validate assignment.
-         *
-         *     Methods:
-         *         decrypt_client_id():
-         *             Decrypts the `client_id` attribute after loading from the database.
-         *
-         *                 IdentityProvider: The instance with the decrypted `client_id`.
-         */
-        IdentityProviderRead: {
-            /**
-             * Authorization Endpoint
-             * @description OAuth2/OIDC authorization endpoint
-             */
-            authorization_endpoint?: string | null;
-            /**
-             * Auto Create Users
-             * @description Auto-create users on first login
-             * @default true
-             */
-            auto_create_users: boolean;
-            /** Client Id */
-            client_id?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Enabled
-             * @description Whether this provider is enabled
-             * @default false
-             */
-            enabled: boolean;
-            /**
-             * Icon
-             * @description Icon name or URL
-             */
-            icon?: string | null;
-            /** Id */
-            id: number;
-            /**
-             * Issuer Url
-             * @description OIDC issuer/discovery URL
-             */
-            issuer_url?: string | null;
-            /**
-             * Jwks Uri
-             * @description OIDC JWKS URI
-             */
-            jwks_uri?: string | null;
-            /**
-             * Name
-             * @description Display name of the IdP
-             */
-            name: string;
-            /**
-             * Provider Type
-             * @description Provider type: oidc, oauth2, or saml
-             * @default oidc
-             */
-            provider_type: string;
-            /**
-             * Scopes
-             * @description OAuth2/OIDC scopes
-             * @default openid profile email
-             */
-            scopes: string;
-            /**
-             * Slug
-             * @description URL-safe identifier
-             */
-            slug: string;
-            /**
-             * Sync User Info
-             * @description Sync user info on each login
-             * @default true
-             */
-            sync_user_info: boolean;
-            /**
-             * Token Endpoint
-             * @description OAuth2/OIDC token endpoint
-             */
-            token_endpoint?: string | null;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /**
-             * User Mapping
-             * @description Claims mapping configuration
-             */
-            user_mapping?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Userinfo Endpoint
-             * @description OIDC userinfo endpoint
-             */
-            userinfo_endpoint?: string | null;
-        };
-        /**
          * IdentityProviderCreate
          * @description Schema for creating a new Identity Provider.
          *
@@ -8607,6 +8406,121 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /**
+         * IdentityProviderRead
+         * @description Represents an identity provider with decrypted client credentials.
+         *
+         *     Inherits from:
+         *         IdentityProviderBase
+         *
+         *     Attributes:
+         *         id (int): Unique identifier of the identity provider.
+         *         created_at (datetime): Timestamp when the identity provider was created.
+         *         updated_at (datetime): Timestamp when the identity provider was last updated.
+         *
+         *     Config:
+         *         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
+         *             forbid extra fields, and validate assignment.
+         *
+         *     Methods:
+         *         decrypt_client_id():
+         *             Decrypts the `client_id` attribute after loading from the database.
+         *
+         *                 IdentityProviderRead: The instance with the decrypted `client_id`.
+         */
+        IdentityProviderRead: {
+            /**
+             * Authorization Endpoint
+             * @description OAuth2/OIDC authorization endpoint
+             */
+            authorization_endpoint?: string | null;
+            /**
+             * Auto Create Users
+             * @description Auto-create users on first login
+             * @default true
+             */
+            auto_create_users: boolean;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Enabled
+             * @description Whether this provider is enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Icon
+             * @description Icon name or URL
+             */
+            icon?: string | null;
+            /** Id */
+            id: number;
+            /**
+             * Issuer Url
+             * @description OIDC issuer/discovery URL
+             */
+            issuer_url?: string | null;
+            /**
+             * Jwks Uri
+             * @description OIDC JWKS URI
+             */
+            jwks_uri?: string | null;
+            /**
+             * Name
+             * @description Display name of the IdP
+             */
+            name: string;
+            /**
+             * Provider Type
+             * @description Provider type: oidc, oauth2, or saml
+             * @default oidc
+             */
+            provider_type: string;
+            /**
+             * Scopes
+             * @description OAuth2/OIDC scopes
+             * @default openid profile email
+             */
+            scopes: string;
+            /**
+             * Slug
+             * @description URL-safe identifier
+             */
+            slug: string;
+            /**
+             * Sync User Info
+             * @description Sync user info on each login
+             * @default true
+             */
+            sync_user_info: boolean;
+            /**
+             * Token Endpoint
+             * @description OAuth2/OIDC token endpoint
+             */
+            token_endpoint?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * User Mapping
+             * @description Claims mapping configuration
+             */
+            user_mapping?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Userinfo Endpoint
+             * @description OIDC userinfo endpoint
+             */
+            userinfo_endpoint?: string | null;
         };
         /**
          * IdentityProviderTemplate
@@ -9098,7 +9012,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -9171,7 +9085,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -10442,7 +10356,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -10920,7 +10834,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -18720,9 +18634,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -18767,9 +18679,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
