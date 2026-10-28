@@ -283,6 +283,8 @@ def user_profile_summary(
     Returns:
         The profile's current-week and current-month stats and visible activity count.
     """
+    if anchor is None:
+        anchor = users_integration.local_today(requester_user_id, db)
     month_start, month_end = _month_bounds(requester_user_id, db, anchor=anchor)
     followee_ids = None if user_id == requester_user_id else _followees_of(requester_user_id, db)
     month_activity_count = activity_crud.count_user_activities(

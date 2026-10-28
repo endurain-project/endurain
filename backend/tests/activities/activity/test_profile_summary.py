@@ -34,3 +34,18 @@ def test_profile_summary_uses_visible_month_count_and_both_period_stats(mock_db)
     )
     week.assert_called_once_with(7, 3, mock_db, anchor=date(2026, 10, 27))
     month.assert_called_once_with(7, 3, mock_db, anchor=date(2026, 10, 27))
+
+
+def test_profile_summary_resolves_the_requesters_today_once_when_no_anchor_is_given(mock_db):
+    with (
+        patch.object(activity_service.users_integration, "local_today", return_value=date(2026, 10, 27)) as today,
+        patch.object(activity_service, "_followees_of", return_value=[]),
+        patch.object(activity_service, "week_stats") as week,
+        patch.object(activity_service, "month_stats") as month,
+        patch.object(activity_service.activity_crud, "count_user_activities", return_value=0),
+    ):
+        activity_service.user_profile_summary(3, 3, mock_db)
+
+    today.assert_called_once_with(3, mock_db)
+    week.assert_called_once_with(3, 3, mock_db, anchor=date(2026, 10, 27))
+    month.assert_called_once_with(3, 3, mock_db, anchor=date(2026, 10, 27))
