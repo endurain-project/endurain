@@ -37,12 +37,16 @@ class TestRequestDeletion:
         identity = identity or MagicMock()
         with (
             patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=jobs_enabled)),
+            patch(
+                f"{_MODULE}.account_security_integration.delete_all_user_sessions",
+                side_effect=lambda user_id, db: identity.delete_all_user_sessions(user_id),
+            ),
             patch(f"{_MODULE}.users_service") as users_service,
             patch(f"{_MODULE}.users_crud") as users_crud,
             patch(f"{_MODULE}.users_event_publishers") as publishers,
             patch(f"{_MODULE}._deletion_pool") as pool,
         ):
-            result = job_service.request_deletion(1, identity, states, MagicMock(), db)
+            result = job_service.request_deletion(1, states, MagicMock(), db)
         return result, identity, users_service, users_crud, publishers, pool
 
     def test_a_durable_deletion_signs_out_deactivates_and_publishes(self, states, mock_db):
@@ -95,7 +99,7 @@ class TestRequestDeletion:
         ):
             pool.require_capacity.side_effect = core_exceptions.ServiceUnavailableError("full")
             with pytest.raises(core_exceptions.ServiceUnavailableError):
-                job_service.request_deletion(1, MagicMock(), states, MagicMock(), mock_db)
+                job_service.request_deletion(1, states, MagicMock(), mock_db)
 
         assert states.get(1, _Kind) is None
 
@@ -107,7 +111,7 @@ class TestRequestDeletion:
         ):
             users_service.require_deletable_user.side_effect = core_exceptions.ConflictError("only admin")
             with pytest.raises(core_exceptions.ConflictError):
-                job_service.request_deletion(1, identity, states, MagicMock(), mock_db)
+                job_service.request_deletion(1, states, MagicMock(), mock_db)
 
         identity.delete_all_user_sessions.assert_not_called()
         users_crud.stage_deletion_request.assert_not_called()

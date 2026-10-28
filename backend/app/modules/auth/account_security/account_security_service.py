@@ -20,7 +20,6 @@ logger = core_logger.get_logger(__name__)
 
 if TYPE_CHECKING:
     import modules.auth.account_security.step_up_store as account_security_step_up_store
-    from modules.auth.identity_service import IdentityService
 
 
 def get_user_sessions(
@@ -84,7 +83,6 @@ def change_own_password(
     current_password: str,
     new_password: str,
     mfa_code: str | None,
-    identity_service: IdentityService,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
     revoke_other_sessions: bool = False,
@@ -98,7 +96,6 @@ def change_own_password(
         current_password: Current password supplied for step-up.
         new_password: New plaintext password to store.
         mfa_code: Optional MFA code supplied for step-up.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
         db: SQLAlchemy session.
         revoke_other_sessions: When True, delete all of the user's
@@ -118,7 +115,6 @@ def change_own_password(
         user_id,
         current_password,
         mfa_code,
-        identity_service,
         step_up_store,
         db,
     )
@@ -130,8 +126,9 @@ def change_own_password(
         server_settings,
         access_type,
         new_password,
+        db,
     )
-    identity_service.set_local_password_hash(user_id, hashed_password)
+    auth_password_policy.set_local_password_hash(user_id, hashed_password, db)
     db.commit()
     auth_mfa_integration.clear_pending_mfa_for_user(user_id)
 
@@ -150,7 +147,6 @@ def change_own_password(
 def change_managed_user_password(
     user_id: int,
     new_password: str,
-    identity_service: IdentityService,
     db: Session,
 ) -> None:
     """
@@ -159,7 +155,6 @@ def change_managed_user_password(
     Args:
         user_id: ID of the user whose password is changed.
         new_password: New plaintext password to store.
-        identity_service: Identity service dependency.
         db: SQLAlchemy session.
 
     Returns:
@@ -175,8 +170,9 @@ def change_managed_user_password(
         server_settings,
         access_type,
         new_password,
+        db,
     )
-    identity_service.set_local_password_hash(user_id, hashed_password)
+    auth_password_policy.set_local_password_hash(user_id, hashed_password, db)
     db.commit()
     revoked = auth_sessions_crud.delete_sessions_by_user(user_id, db)
     db.commit()

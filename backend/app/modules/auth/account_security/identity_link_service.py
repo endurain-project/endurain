@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import Request, status
 from sqlalchemy.orm import Session
 
@@ -24,9 +22,6 @@ import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
 
-if TYPE_CHECKING:
-    from modules.auth.identity_service import IdentityService
-
 
 def _domain_error(*, status_code: int, detail: str) -> core_exceptions.DomainError:
     """Translate the known account-security failure status to a domain error."""
@@ -46,7 +41,6 @@ def generate_link_token(
     link_request: idp_link_token_schema.IdpLinkTokenRequest,
     request: Request,
     token_user_id: int,
-    identity_service: IdentityService,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> idp_link_token_schema.IdpLinkTokenResponse:
@@ -55,7 +49,6 @@ def generate_link_token(
         token_user_id,
         link_request.current_password,
         link_request.mfa_code,
-        identity_service,
         step_up_store,
         db,
     )
@@ -96,7 +89,6 @@ def delete_identity_provider_link(
     idp_id: int,
     step_up: users_schema.StepUpVerification,
     token_user_id: int,
-    identity_service: IdentityService,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> None:
@@ -105,7 +97,6 @@ def delete_identity_provider_link(
         token_user_id,
         step_up.current_password,
         step_up.mfa_code,
-        identity_service,
         step_up_store,
         db,
     )
@@ -134,7 +125,7 @@ def delete_identity_provider_link(
     )
     remaining_idp_count = len(all_idp_links) - 1
 
-    if not identity_service.has_local_password(token_user_id) and remaining_idp_count == 0:
+    if not auth_credentials_crud.has_local_password(token_user_id, db) and remaining_idp_count == 0:
         raise _domain_error(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot unlink last authentication method. Please set a password first.",

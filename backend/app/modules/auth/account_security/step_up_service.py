@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -15,9 +14,6 @@ import modules.auth.mfa.integration_service as mfa_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
-
-if TYPE_CHECKING:
-    from modules.auth.identity_service import IdentityService
 
 
 def _step_up_key(user_id: int) -> str:
@@ -40,7 +36,6 @@ def verify_step_up_credentials(
     user_id: int,
     current_password: str | None,
     mfa_code: str | None,
-    identity_service: IdentityService,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> None:
@@ -76,7 +71,6 @@ def verify_step_up_credentials(
             accounts.
         mfa_code: TOTP or backup code, required when MFA is
             enabled. Ignored when MFA is disabled.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
         db: SQLAlchemy database session.
 
@@ -110,10 +104,7 @@ def verify_step_up_credentials(
         if not current_password:
             step_up_store.record_failed_attempt(key)
             raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
-        if not identity_service.verify_password(
-            current_password,
-            password_hash,
-        ):
+        if not auth_credentials_crud.verify_password(current_password, password_hash):
             step_up_store.record_failed_attempt(key)
             raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
     # else: SSO-only account; no password to verify. See docstring
@@ -123,7 +114,7 @@ def verify_step_up_credentials(
         if not mfa_code:
             step_up_store.record_failed_attempt(key)
             raise core_exceptions.UnauthenticatedError("MFA code required for this operation", scheme="Bearer")
-        if not mfa_integration.verify_user_mfa(user_id, mfa_code, identity_service, db):
+        if not mfa_integration.verify_user_mfa(user_id, mfa_code, auth_credentials_crud, db):
             step_up_store.record_failed_attempt(key)
             raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
 

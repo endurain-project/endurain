@@ -7,14 +7,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, Response
 
+import modules.auth.authentication.dependencies as auth_transport_dependencies
 import modules.auth.authentication.schema as auth_schema
-import modules.auth.utils as auth_utils
+import modules.auth.authentication.service as auth_utils
+import modules.auth.dependencies as auth_dependencies
 
 
 @pytest.fixture(autouse=True)
 def _session_policy(session_policy):
     """Serve the default session policy instead of reading it from the database."""
-    with patch("modules.auth.utils.server_settings_integration.get_session_policy", return_value=session_policy):
+    with patch(
+        "modules.auth.authentication.service.server_settings_integration.get_session_policy",
+        return_value=session_policy,
+    ):
         yield
 
 
@@ -42,8 +47,10 @@ class TestAuthenticateUser:
 
         # Mock the CRUD function to return our user
         with (
-            patch("modules.auth.utils.users_integration.get_user_by_username", return_value=mock_user),
-            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
+            patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
+            patch(
+                "modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=mock_credential
+            ),
         ):
             # Act
             result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)
@@ -53,7 +60,7 @@ class TestAuthenticateUser:
 
     def test_authenticate_user_invalid_username(self, password_hasher, mock_db):
         """Test authentication with invalid username raises 401."""
-        with patch("modules.auth.utils.users_integration.get_user_by_username", return_value=None):
+        with patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user("nonexistent", "password", password_hasher, mock_db)
             assert exc_info.value.status_code == 401
@@ -72,8 +79,10 @@ class TestAuthenticateUser:
         mock_credential.password_hash = hashed_password
 
         with (
-            patch("modules.auth.utils.users_integration.get_user_by_username", return_value=mock_user),
-            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
+            patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
+            patch(
+                "modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=mock_credential
+            ),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user(username, wrong_password, password_hasher, mock_db)
@@ -99,9 +108,11 @@ class TestAuthenticateUser:
         mock_credential.password_hash = old_hash
 
         with (
-            patch("modules.auth.utils.users_integration.get_user_by_username", return_value=mock_user),
-            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
-            patch("modules.auth.utils.auth_credentials_crud.set_local_password_hash") as mock_edit,
+            patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
+            patch(
+                "modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=mock_credential
+            ),
+            patch("modules.auth.authentication.service.auth_credentials_crud.set_local_password_hash") as mock_edit,
         ):
             # Act
             result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)
@@ -115,8 +126,8 @@ class TestAuthenticateUser:
         """SSO-only account (no local password) raises 401."""
         mock_user = MagicMock()
         with (
-            patch("modules.auth.utils.users_integration.get_user_by_username", return_value=mock_user),
-            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=None),
+            patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
+            patch("modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=None),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user("ssouser", "anypass", password_hasher, mock_db)
@@ -224,7 +235,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -257,7 +268,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "mobile"
 
-        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -285,7 +296,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.utils.auth_sessions_utils.create_session") as mock_create_session:
+        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session") as mock_create_session:
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -318,8 +329,11 @@ class TestCompleteLogin:
         response = Response()
 
         with (
-            patch("modules.auth.utils.server_settings_integration.get_session_policy", return_value=policy),
-            patch("modules.auth.utils.auth_sessions_utils.create_session") as mock_create_session,
+            patch(
+                "modules.auth.authentication.service.server_settings_integration.get_session_policy",
+                return_value=policy,
+            ),
+            patch("modules.auth.authentication.service.auth_sessions_utils.create_session") as mock_create_session,
         ):
             result = auth_utils.complete_login(
                 response, mock_request, sample_user_read, "web", password_hasher, token_manager, mock_db
@@ -335,7 +349,9 @@ class TestCompleteLogin:
     def test_set_refresh_token_cookie_expires_at_the_given_time(self):
         response = Response()
 
-        auth_utils.set_refresh_token_cookie(response, "tok", datetime(2031, 1, 5, 12, 0, tzinfo=UTC))
+        auth_transport_dependencies.set_refresh_token_cookie(
+            response, "tok", datetime(2031, 1, 5, 12, 0, tzinfo=UTC), environment="development"
+        )
 
         assert "05 jan 2031 12:00:00 gmt" in _set_cookie_headers(response)[-1].lower()
 
@@ -370,8 +386,8 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("modules.auth.utils.auth_sessions_utils.create_session"),
-            patch("modules.auth.utils.core_config.settings.ENVIRONMENT", "production"),
+            patch("modules.auth.authentication.service.auth_sessions_utils.create_session"),
+            patch("modules.auth.authentication.service.core_config.settings.ENVIRONMENT", "production"),
         ):
             # Act
             auth_utils.complete_login(
@@ -397,8 +413,8 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("modules.auth.utils.auth_sessions_utils.create_session"),
-            patch("modules.auth.utils.core_config.settings.ENVIRONMENT", "development"),
+            patch("modules.auth.authentication.service.auth_sessions_utils.create_session"),
+            patch("modules.auth.authentication.service.core_config.settings.ENVIRONMENT", "development"),
         ):
             # Act
             auth_utils.complete_login(
@@ -423,7 +439,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
             # Act
             auth_utils.complete_login(
                 response,
@@ -446,7 +462,9 @@ class TestCompleteLogin:
         """Test setting a refresh cookie clears all known old paths."""
         response = Response()
 
-        auth_utils.set_refresh_token_cookie(response, "new-refresh-token", datetime.now(UTC) + timedelta(days=7))
+        auth_transport_dependencies.set_refresh_token_cookie(
+            response, "new-refresh-token", datetime.now(UTC) + timedelta(days=7), environment="development"
+        )
 
         set_cookie_headers = [header.lower() for header in _set_cookie_headers(response)]
         assert any(
@@ -463,7 +481,7 @@ class TestCompleteLogin:
     @pytest.mark.asyncio
     async def test_clear_refresh_token_cookie_exception_handler(self):
         """Test missing-claim errors clear all refresh cookie paths."""
-        exc = auth_utils.ClearRefreshTokenCookieHTTPException(
+        exc = auth_transport_dependencies.ClearRefreshTokenCookieHTTPException(
             status_code=401,
             detail="Token is missing required claims.",
             headers={"WWW-Authenticate": "Bearer"},
@@ -471,7 +489,7 @@ class TestCompleteLogin:
 
         request = MagicMock()
         request.url.path = "/api/v1/auth/refresh"
-        response = await auth_utils.clear_refresh_token_cookie_exception_handler(
+        response = await auth_transport_dependencies.clear_refresh_token_cookie_exception_handler(
             request,
             exc,
         )
@@ -492,7 +510,7 @@ class TestCompleteLogin:
         response2 = Response()
         client_type = "web"
 
-        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
             # Act
             result1 = auth_utils.complete_login(
                 response1,
@@ -524,16 +542,25 @@ class TestIsSecureCookieEnvironment:
     """Tests for _is_secure_cookie_environment."""
 
     def test_returns_true_when_production(self):
-        with patch.object(auth_utils.core_config.settings, "ENVIRONMENT", "production"):
-            assert auth_utils._is_secure_cookie_environment() is True
+        with patch.object(auth_transport_dependencies.core_config.settings, "ENVIRONMENT", "production"):
+            assert (
+                auth_transport_dependencies._secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT)
+                is True
+            )
 
     def test_returns_true_when_demo(self):
-        with patch.object(auth_utils.core_config.settings, "ENVIRONMENT", "demo"):
-            assert auth_utils._is_secure_cookie_environment() is True
+        with patch.object(auth_transport_dependencies.core_config.settings, "ENVIRONMENT", "demo"):
+            assert (
+                auth_transport_dependencies._secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT)
+                is True
+            )
 
     def test_returns_false_when_development(self):
-        with patch.object(auth_utils.core_config.settings, "ENVIRONMENT", "development"):
-            assert auth_utils._is_secure_cookie_environment() is False
+        with patch.object(auth_transport_dependencies.core_config.settings, "ENVIRONMENT", "development"):
+            assert (
+                auth_transport_dependencies._secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT)
+                is False
+            )
 
 
 class TestClearRefreshTokenCookies:
@@ -541,8 +568,8 @@ class TestClearRefreshTokenCookies:
 
     def test_clears_cookies_on_all_paths(self):
         response = Response()
-        auth_utils.clear_refresh_token_cookies(response)
-        expected_paths = auth_utils.REFRESH_TOKEN_COOKIE_CLEAR_PATHS
+        auth_dependencies.clear_refresh_token_cookies(response)
+        expected_paths = auth_transport_dependencies.REFRESH_TOKEN_COOKIE_CLEAR_PATHS
         set_cookie_headers = [v.decode().lower() for k, v in response.raw_headers if k == b"set-cookie"]
         for path in expected_paths:
             assert any(
@@ -551,7 +578,7 @@ class TestClearRefreshTokenCookies:
 
     def test_uses_secure_httponly_samesite_attributes(self):
         response = Response()
-        auth_utils.clear_refresh_token_cookies(response)
+        auth_dependencies.clear_refresh_token_cookies(response)
         set_cookie_headers = [v.decode() for k, v in response.raw_headers if k == b"set-cookie"]
         for header in set_cookie_headers:
             lower = header.lower()
@@ -583,9 +610,9 @@ class TestCreateMobilePkceSessionResponse:
         mock_user.id = 1
 
         with (
-            patch("modules.auth.utils.idp_utils.validate_pkce_challenge"),
-            patch("modules.auth.utils.oauth_state_crud.create_oauth_state"),
-            patch("modules.auth.utils.auth_sessions_utils.create_session"),
+            patch("modules.auth.authentication.service.idp_utils.validate_pkce_challenge"),
+            patch("modules.auth.authentication.service.oauth_state_crud.create_oauth_state"),
+            patch("modules.auth.authentication.service.auth_sessions_utils.create_session"),
         ):
             result = auth_utils.create_mobile_pkce_session_response(
                 response=response,

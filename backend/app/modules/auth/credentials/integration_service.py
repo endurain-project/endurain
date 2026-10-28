@@ -55,6 +55,7 @@ def validate_and_hash_password_for_user(
     server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,
     password: str,
+    db: Session,
 ) -> str:
     """Validate and hash a password using the account's configured policy."""
     return credentials_service.validate_and_hash_password_for_user(server_settings, access_type, password)

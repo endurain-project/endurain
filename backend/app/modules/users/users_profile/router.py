@@ -17,15 +17,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, Security, UploadFile, status
 from fastapi.responses import StreamingResponse
 
-import core.config as core_config
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.integration_service as account_security_integration
-import modules.auth.authentication.dependencies as auth_authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_service as auth_identity_service
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
@@ -46,10 +43,6 @@ router = APIRouter()
 )
 def read_users_me(
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     db: core_dependencies.DbSession,
     response: Response,
 ) -> users_schema.UsersMe:
@@ -60,14 +53,13 @@ def read_users_me(
 
     Args:
         token_user_id: User ID from access token.
-        identity_service: Identity service dependency.
         db: Database session.
         response: The response, which carries the user's ETag.
 
     Returns:
         User object with integration and privacy settings.
     """
-    profile = profile_service.get_profile(token_user_id, identity_service, db)
+    profile = profile_service.get_profile(token_user_id, db)
     response.headers["ETag"] = core_etag.format_etag(profile.version)
     return profile
 
@@ -152,10 +144,6 @@ def edit_profile_email(
         str,
         Depends(auth_dependencies.get_sid_from_access_token),
     ],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -174,12 +162,11 @@ def edit_profile_email(
         email_change: The new address with the step-up credentials.
         token_user_id: User ID from access token.
         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
         db: Database session.
         db: Database session.
     """
-    profile_service.change_email(token_user_id, email_change, token_session_id, identity_service, step_up_store, db)
+    profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, db)
 
 
 @router.patch(
@@ -226,10 +213,6 @@ def edit_profile_password(
         str,
         Depends(auth_dependencies.get_sid_from_access_token),
     ],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -258,7 +241,6 @@ def edit_profile_password(
             token.
         token_session_id: Session ID of the caller, preserved when
             other sessions are revoked.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -270,7 +252,6 @@ def edit_profile_password(
         user_attributtes.current_password,
         user_attributtes.password,
         user_attributtes.mfa_code,
-        identity_service,
         step_up_store,
         db,
         revoke_other_sessions=user_attributtes.revoke_other_sessions,
@@ -317,10 +298,6 @@ def delete_my_account(
     response: Response,
     step_up: users_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -341,7 +318,6 @@ def delete_my_account(
         response: The response, which receives the cookie-deletion headers.
         step_up: Step-up verification payload.
         token_user_id: User ID from access token.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
         state: The platform state provider.
         storage: The platform storage provider.
@@ -350,10 +326,8 @@ def delete_my_account(
     Returns:
         The deletion's initial status.
     """
-    deletion = profile_service.delete_account(
-        token_user_id, step_up, identity_service, step_up_store, state, storage, db
-    )
-    auth_authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
+    deletion = profile_service.delete_account(token_user_id, step_up, step_up_store, state, storage, db)
+    auth_dependencies.clear_refresh_token_cookies(response)
     return deletion
 
 

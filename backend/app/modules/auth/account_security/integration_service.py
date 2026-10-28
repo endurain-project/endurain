@@ -9,7 +9,6 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow_servic
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.identity_provider_links.schema as identity_links_schema
-import modules.auth.identity_service as identity_service_module
 import modules.auth.mfa.schema as mfa_schema
 import modules.users.users.schema as users_schema
 
@@ -17,14 +16,11 @@ import modules.users.users.schema as users_schema
 def verify_step_up(
     step_up: users_schema.StepUpVerification,
     user_id: int,
-    identity_service: identity_service_module.IdentityService,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
 ) -> None:
     """Require fresh proof of identity for a sensitive account operation."""
-    step_up_service.verify_step_up_credentials(
-        user_id, step_up.current_password, step_up.mfa_code, identity_service, step_up_store, db
-    )
+    step_up_service.verify_step_up_credentials(user_id, step_up.current_password, step_up.mfa_code, step_up_store, db)
 
 
 def change_own_password(
@@ -32,7 +28,6 @@ def change_own_password(
     current_password: str,
     new_password: str,
     mfa_code: str | None,
-    identity_service: identity_service_module.IdentityService,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
     *,
@@ -45,7 +40,6 @@ def change_own_password(
         current_password,
         new_password,
         mfa_code,
-        identity_service,
         step_up_store,
         db,
         revoke_other_sessions=revoke_other_sessions,
@@ -56,11 +50,10 @@ def change_own_password(
 def change_managed_user_password(
     user_id: int,
     new_password: str,
-    identity_service: identity_service_module.IdentityService,
     db: Session,
 ) -> None:
     """Change a managed user's password and revoke their auth state."""
-    account_security_service.change_managed_user_password(user_id, new_password, identity_service, db)
+    account_security_service.change_managed_user_password(user_id, new_password, db)
 
 
 def delete_all_user_sessions(user_id: int, db: Session) -> None:

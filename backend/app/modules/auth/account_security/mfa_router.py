@@ -8,7 +8,6 @@ import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow_service
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.users.users.schema as users_schema
@@ -92,10 +91,6 @@ def enable_mfa(
     request: Request,
     mfa_request: mfa_schema.MFASetupRequest,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -125,8 +120,6 @@ def enable_mfa(
         mfa_request: MFA setup request with TOTP code and (when the
             account has a local password) current password.
         token_user_id: User ID from access token.
-        identity_service: Identity service instance for backup code
-            generation and step-up verification.
         mfa_secret_store: Temporary secret storage.
         step_up_store: Step-up lockout store.
 
@@ -137,9 +130,7 @@ def enable_mfa(
         DomainError: 400 if no setup is in progress or the TOTP
             code is invalid; 401 if step-up verification fails.
     """
-    return mfa_workflow_service.enable_mfa(
-        mfa_request, token_user_id, identity_service, step_up_store, mfa_secret_store, db
-    )
+    return mfa_workflow_service.enable_mfa(mfa_request, token_user_id, step_up_store, mfa_secret_store, db)
 
 
 @router.put("/disable", response_model=dict)
@@ -148,10 +139,6 @@ def disable_mfa(
     request: Request,
     mfa_request: mfa_schema.MFADisableRequest,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -174,7 +161,6 @@ def disable_mfa(
         mfa_request: MFA disable request with current password and
             MFA code.
         token_user_id: User ID from access token.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
 
     Returns:
@@ -185,7 +171,7 @@ def disable_mfa(
             the MFA code is invalid; 400 if MFA is not currently
             enabled.
     """
-    return mfa_workflow_service.disable_mfa(mfa_request, token_user_id, identity_service, step_up_store, db)
+    return mfa_workflow_service.disable_mfa(mfa_request, token_user_id, step_up_store, db)
 
 
 @router.post("/verify", response_model=dict)
@@ -194,10 +180,6 @@ def verify_mfa(
     request: Request,
     mfa_request: mfa_schema.MFARequest,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     db: core_dependencies.DbSession,
 ) -> dict:
     """Verify MFA code for authenticated user.
@@ -206,7 +188,6 @@ def verify_mfa(
         request: The incoming request, read by the rate limiter.
         mfa_request: MFA request with code to verify.
         token_user_id: User ID from access token.
-        identity_service: Identity service instance for backup code verification.
 
     Returns:
         Success message.
@@ -214,7 +195,7 @@ def verify_mfa(
     Raises:
         DomainError: If MFA code is invalid.
     """
-    return mfa_workflow_service.verify_mfa(mfa_request, token_user_id, identity_service, db)
+    return mfa_workflow_service.verify_mfa(mfa_request, token_user_id, db)
 
 
 @router.post(
@@ -228,10 +209,6 @@ def generate_mfa_backup_codes(
     request: Request,
     step_up: users_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -251,7 +228,6 @@ def generate_mfa_backup_codes(
         request: FastAPI request object for rate limiting.
         step_up: Step-up verification payload.
         token_user_id: User ID from access token.
-        identity_service: Identity service for code generation.
         step_up_store: Step-up lockout store.
 
     Returns:
@@ -261,4 +237,4 @@ def generate_mfa_backup_codes(
         DomainError: 401 if step-up verification fails, 404 if
             user not found, 400 if MFA is not enabled.
     """
-    return mfa_workflow_service.generate_backup_codes(step_up, token_user_id, identity_service, step_up_store, db)
+    return mfa_workflow_service.generate_backup_codes(step_up, token_user_id, step_up_store, db)

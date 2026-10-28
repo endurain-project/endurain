@@ -8,7 +8,6 @@ import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.utils as api_keys_utils
-import modules.auth.identity_service as identity_service_module
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -22,14 +21,11 @@ def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersAp
 def create_user_api_key(
     user_id: int,
     data: api_keys_schema.UsersApiKeyCreate,
-    identity_service: identity_service_module.IdentityService,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
 ) -> api_keys_schema.UsersApiKeyCreated:
     """Verify step-up, stage a key, and commit it before returning its secret once."""
-    step_up_service.verify_step_up_credentials(
-        user_id, data.current_password, data.mfa_code, identity_service, step_up_store, db
-    )
+    step_up_service.verify_step_up_credentials(user_id, data.current_password, data.mfa_code, step_up_store, db)
     user = users_integration.require_user(user_id, db)
     api_keys_utils.validate_api_key_scopes(data.scopes, user.access_type)
     raw_key = api_keys_utils.generate_api_key()

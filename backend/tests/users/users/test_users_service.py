@@ -5,6 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_provider_links.integration_service as identity_links_integration
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
@@ -35,11 +39,60 @@ def _signup() -> users_schema.UsersSignup:
     )
 
 
+_auth_service_mock: MagicMock | None = None
+_delete_all_sessions_mock: MagicMock
+
+
 def _identity() -> MagicMock:
-    identity = MagicMock()
-    identity.get_identity_link_counts_for_users.return_value = {}
-    identity.get_mfa_enabled_for_users.return_value = {}
-    return identity
+    global _auth_service_mock
+    _auth_service_mock = MagicMock()
+    _auth_service_mock.get_identity_link_counts_for_users.return_value = {}
+    _auth_service_mock.get_mfa_enabled_for_users.return_value = {}
+    return _auth_service_mock
+
+
+@pytest.fixture(autouse=True)
+def _auth_integration_mocks(monkeypatch):
+    """Mock auth integration boundaries while preserving each test's configured values."""
+    global _auth_service_mock
+    global _delete_all_sessions_mock
+    _auth_service_mock = None
+    _delete_all_sessions_mock = MagicMock()
+
+    def mock_call(name, *args):
+        if _auth_service_mock is None:
+            return {}
+        return getattr(_auth_service_mock, name)(*args)
+
+    monkeypatch.setattr(
+        identity_links_integration,
+        "get_identity_link_counts_for_users",
+        lambda ids, db: mock_call("get_identity_link_counts_for_users", ids),
+    )
+    monkeypatch.setattr(
+        mfa_integration,
+        "get_mfa_enabled_for_users",
+        lambda ids, db: mock_call("get_mfa_enabled_for_users", ids),
+    )
+    monkeypatch.setattr(
+        mfa_integration,
+        "create_users_mfa_row",
+        lambda user_id, db: mock_call("initialize_user_mfa", user_id),
+    )
+    monkeypatch.setattr(
+        credentials_integration,
+        "validate_and_hash_password_for_user",
+        lambda settings, access_type, password, db: mock_call(
+            "validate_and_hash_password_for_user", settings, access_type, password
+        ),
+    )
+    monkeypatch.setattr(
+        credentials_integration,
+        "set_local_password_hash",
+        lambda user_id, password_hash, db: mock_call("set_local_password_hash", user_id, password_hash),
+    )
+    _delete_all_sessions_mock.side_effect = lambda user_id, db: mock_call("delete_all_user_sessions", user_id)
+    monkeypatch.setattr(account_security_integration, "delete_all_user_sessions", _delete_all_sessions_mock)
 
 
 class TestRequirements:
@@ -190,11 +243,11 @@ class TestListUsers:
     def test_enriches_and_filters_by_authentication(self, mock_crud, mock_db):
         mock_crud.get_users_number.return_value = 2
         mock_crud.get_users_with_pagination.return_value = [_user(1, name="Alice"), _user(2, name="Bob")]
-        identity = MagicMock()
+        identity = _identity()
         identity.get_identity_link_counts_for_users.return_value = {1: 2}
         identity.get_mfa_enabled_for_users.return_value = {2: True}
 
-        result = users_service.list_users(identity, mock_db, page_number=1, num_records=10, show_external_auth=False)
+        result = users_service.list_users(mock_db, page_number=1, num_records=10, show_external_auth=False)
 
         assert result.total == 2
         assert [u.name for u in result.items] == ["Bob"]
@@ -204,11 +257,11 @@ class TestListUsers:
     def test_local_filter_drops_users_without_a_link(self, mock_crud, mock_db):
         mock_crud.get_users_number.return_value = 2
         mock_crud.get_users_with_pagination.return_value = [_user(1, name="Alice"), _user(2, name="Bob")]
-        identity = MagicMock()
+        identity = _identity()
         identity.get_identity_link_counts_for_users.return_value = {1: 1}
         identity.get_mfa_enabled_for_users.return_value = {}
 
-        result = users_service.list_users(identity, mock_db, show_local_auth=False)
+        result = users_service.list_users(mock_db, show_local_auth=False)
 
         assert [u.name for u in result.items] == ["Alice"]
 
@@ -218,7 +271,7 @@ class TestCreateUser:
     @patch(_SETTINGS)
     @patch(_CRUD)
     def test_hashes_creates_commits_then_stores_the_credential(self, mock_crud, mock_settings, mock_defaults, mock_db):
-        identity = MagicMock()
+        identity = _identity()
         identity.validate_and_hash_password_for_user.return_value = "hash"
         mock_crud.create_user.return_value = _user(7)
         user = users_schema.UsersCreate(
@@ -230,27 +283,27 @@ class TestCreateUser:
             password="password123",
         )
 
-        created = users_service.create_user(user, identity, mock_db)
+        created = users_service.create_user(user, mock_db)
 
         fields = mock_crud.create_user.call_args.args[0]
         assert fields["username"] == "newuser" and fields["email"] == "new@example.com"
         assert "password" not in fields
         mock_db.commit.assert_called_once()
         identity.set_local_password_hash.assert_called_once_with(7, "hash")
-        mock_defaults.assert_called_once_with(7, identity, mock_db)
+        mock_defaults.assert_called_once_with(7, mock_db)
         assert created.id == 7
 
     @patch(_SETTINGS)
     @patch(_CRUD)
     def test_duplicate_rolls_back_and_stores_no_credential(self, mock_crud, mock_settings, mock_db):
-        identity = MagicMock()
+        identity = _identity()
         mock_crud.create_user.side_effect = core_exceptions.ConflictError("dup")
         user = users_schema.UsersCreate(
             name="N", username="n", email="n@example.com", active=True, access_type="regular", password="password123"
         )
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.create_user(user, identity, mock_db)
+            users_service.create_user(user, mock_db)
 
         mock_db.rollback.assert_called_once()
         identity.set_local_password_hash.assert_not_called()
@@ -268,7 +321,7 @@ class TestAccountCreationIsOneUnit:
     def test_commit_follows_every_staged_write(
         self, mock_crud, mock_settings, mock_integrations, mock_privacy, mock_targets, mock_gear, mock_db
     ):
-        identity = MagicMock()
+        identity = _identity()
         identity.validate_and_hash_password_for_user.return_value = "hash"
         mock_crud.create_user.return_value = _user(7)
         order = MagicMock()
@@ -282,7 +335,7 @@ class TestAccountCreationIsOneUnit:
             name="N", username="n", email="n@example.com", active=True, access_type="regular", password="password123"
         )
 
-        users_service.create_user(user, identity, mock_db)
+        users_service.create_user(user, mock_db)
 
         names = [call[0] for call in order.mock_calls]
         assert names[-1] == "commit"
@@ -292,12 +345,11 @@ class TestAccountCreationIsOneUnit:
     @patch("modules.users.users.service._stage_default_data", side_effect=RuntimeError("mfa down"))
     @patch(_CRUD)
     def test_a_failed_part_commits_nothing(self, mock_crud, _defaults, mock_db):
-        identity = MagicMock()
         mock_crud.create_user.return_value = _user(3)
         settings = MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False)
 
         with pytest.raises(RuntimeError):
-            users_service.create_signup_user(_signup(), settings, identity, mock_db)
+            users_service.create_signup_user(_signup(), settings, mock_db)
 
         mock_db.commit.assert_not_called()
 
@@ -320,10 +372,9 @@ class TestCreateSignupUser:
     def test_account_state_follows_the_signup_policy(
         self, mock_crud, _defaults, verification, approval, active, email_verified, pending, mock_db
     ):
-        identity = MagicMock()
         mock_crud.create_user.return_value = _user(3)
 
-        users_service.create_signup_user(_signup(), self._settings(verification, approval), identity, mock_db)
+        users_service.create_signup_user(_signup(), self._settings(verification, approval), mock_db)
 
         fields = mock_crud.create_user.call_args.args[0]
         assert (fields["active"], fields["email_verified"], fields["pending_admin_approval"]) == (
@@ -337,10 +388,10 @@ class TestCreateSignupUser:
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
     def test_sso_account_gets_no_credential(self, mock_crud, _defaults, mock_db):
-        identity = MagicMock()
+        identity = _identity()
         mock_crud.create_user.return_value = _user(3)
 
-        users_service.create_signup_user(_signup(), self._settings(False, False), identity, mock_db, False)
+        users_service.create_signup_user(_signup(), self._settings(False, False), mock_db, False)
 
         identity.validate_and_hash_password_for_user.assert_not_called()
         identity.set_local_password_hash.assert_not_called()
@@ -361,7 +412,7 @@ class TestCreateSignupUser:
         mock_crud.create_user.side_effect = core_exceptions.ConflictError("email taken")
 
         with pytest.raises(core_exceptions.ConflictError) as exc:
-            users_service.create_signup_user(_signup(), self._settings(False, False), MagicMock(), mock_db)
+            users_service.create_signup_user(_signup(), self._settings(False, False), mock_db)
 
         assert exc.value.detail == "Unable to create user."
         mock_db.rollback.assert_called_once()
@@ -375,9 +426,9 @@ class TestStageDefaultData:
     def test_stages_every_default_row_without_committing(
         self, mock_integrations, mock_privacy, mock_targets, mock_gear, mock_db
     ):
-        identity = MagicMock()
+        identity = _identity()
 
-        users_service._stage_default_data(5, identity, mock_db)
+        users_service._stage_default_data(5, mock_db)
 
         mock_integrations.create_integrations.assert_called_once_with(5, mock_db)
         mock_privacy.create_privacy_settings.assert_called_once_with(5, mock_db)
@@ -413,11 +464,11 @@ class TestEdits:
     def test_edit_user_commits_and_reports_authentication(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1)
-        identity = MagicMock()
+        identity = _identity()
         identity.get_identity_link_counts_for_users.return_value = {1: 2}
         identity.get_mfa_enabled_for_users.return_value = {1: True}
 
-        result = users_service.edit_user(1, _edit(1), 9, identity, mock_db, if_match="*")
+        result = users_service.edit_user(1, _edit(1), 9, mock_db, if_match="*")
 
         mock_db.commit.assert_called_once()
         assert result.external_auth_count == 2
@@ -443,35 +494,33 @@ class TestEdits:
         order.attach_mock(mock_db.commit, "commit")
         order.attach_mock(identity.delete_all_user_sessions, "revoke")
 
-        users_service.edit_user(1, _edit(1, **{**before, **after}), 9, identity, mock_db, if_match="*")
+        users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
 
         assert [call[0] for call in order.mock_calls] == ["commit", "revoke"]
-        identity.delete_all_user_sessions.assert_called_once_with(1)
+        _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
 
     def test_an_edit_of_other_fields_keeps_the_sessions(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, name="Renamed")
-        identity = _identity()
 
-        users_service.edit_user(1, _edit(1, name="Renamed"), 9, identity, mock_db, if_match="*")
+        users_service.edit_user(1, _edit(1, name="Renamed"), 9, mock_db, if_match="*")
 
-        identity.delete_all_user_sessions.assert_not_called()
+        _delete_all_sessions_mock.assert_not_called()
 
     def test_an_administrator_editing_themselves_keeps_their_own_sessions(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, email="other@example.com")
-        identity = _identity()
 
-        users_service.edit_user(1, _edit(1, email="other@example.com"), 1, identity, mock_db, if_match="*")
+        users_service.edit_user(1, _edit(1, email="other@example.com"), 1, mock_db, if_match="*")
 
-        identity.delete_all_user_sessions.assert_not_called()
+        _delete_all_sessions_mock.assert_not_called()
 
     def test_edit_user_conflict_rolls_back(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.side_effect = core_exceptions.ConflictError("dup")
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.edit_user(1, _edit(1), 9, MagicMock(), mock_db, if_match="*")
+            users_service.edit_user(1, _edit(1), 9, mock_db, if_match="*")
 
         mock_db.rollback.assert_called_once()
         mock_db.commit.assert_not_called()

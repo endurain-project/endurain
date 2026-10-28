@@ -18,16 +18,15 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
+import modules.auth.authentication.security_stores as auth_security_stores
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.identity_providers.integration_service as idp_integration
 import modules.auth.identity_providers.utils as idp_utils
-import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.integration_service as oauth_state_crud
@@ -631,7 +630,6 @@ def verify_mfa_and_login(
     client_type: str,
     failed_attempts: failed_login_store.FailedLoginStore,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
-    identity_service: auth_identity_service.IdentityService,
     password_hasher: auth_password_hasher.PasswordHasher,
     token_manager: auth_token_manager.TokenManager,
     db: Session,
@@ -657,7 +655,6 @@ def verify_mfa_and_login(
         mfa_request: MFA login request containing username and MFA code
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
-        identity_service: Identity service used to verify backup codes.
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
@@ -710,7 +707,7 @@ def verify_mfa_and_login(
         )
 
     # Verify the MFA code (TOTP or backup code)
-    if not mfa_integration.verify_user_mfa(user_id, mfa_request.mfa_code, identity_service, db):
+    if not mfa_integration.verify_user_mfa(user_id, mfa_request.mfa_code, auth_credentials_crud, db):
         # Record failed attempt and apply lockout if threshold exceeded
         try:
             failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)

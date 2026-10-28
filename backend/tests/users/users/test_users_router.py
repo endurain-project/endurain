@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
+from fastapi.security import SecurityScopes
 from fastapi.testclient import TestClient
 
 import core.database as core_database
@@ -12,8 +13,6 @@ import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.constants as auth_constants
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_service as auth_identity_service
-import modules.auth.principal as auth_principal
 import modules.users.users.dependencies as users_dependencies
 import modules.users.users.schema as users_schema
 
@@ -27,12 +26,7 @@ def mock_db():
 
 
 @pytest.fixture
-def identity_service():
-    return MagicMock()
-
-
-@pytest.fixture
-def client(mock_db, identity_service):
+def client(mock_db):
     from modules.users.users.router import router
 
     app = FastAPI()
@@ -43,7 +37,6 @@ def client(mock_db, identity_service):
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
     app.dependency_overrides[users_dependencies.get_user_deletion_state_store] = lambda: MagicMock()
-    app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: identity_service
     return TestClient(app)
 
 
@@ -62,7 +55,7 @@ def _user(user_id: int, **overrides) -> users_schema.UsersRead:
 
 class TestReadUsers:
     @patch(f"{_SERVICE}.list_users")
-    def test_list_passes_the_query_through(self, mock_list, client, mock_db, identity_service):
+    def test_list_passes_the_query_through(self, mock_list, client, mock_db):
         mock_list.return_value = core_pagination.Page(items=[_user(1, name="Alice")], total=1, page=1, num_records=10)
 
         response = client.get("/users?page_number=1&num_records=10&show_external_auth=false")
@@ -70,7 +63,7 @@ class TestReadUsers:
         assert response.status_code == 200
         assert response.json()["items"][0]["name"] == "Alice"
         mock_list.assert_called_once()
-        assert mock_list.call_args.args == (identity_service, mock_db)
+        assert mock_list.call_args.args == (mock_db,)
         assert mock_list.call_args.kwargs["page_number"] == 1
         assert mock_list.call_args.kwargs["show_external_auth"] is False
 
@@ -132,7 +125,7 @@ class TestReadUsers:
 
 class TestCreateUser:
     @patch(f"{_SERVICE}.create_user")
-    def test_creates_through_the_service(self, mock_create, client, identity_service, mock_db):
+    def test_creates_through_the_service(self, mock_create, client, mock_db):
         mock_create.return_value = _user(1, name="New User", username="newuser", email="new@example.com")
 
         response = client.post(
@@ -149,7 +142,7 @@ class TestCreateUser:
 
         assert response.status_code == 201
         assert response.json()["username"] == "newuser"
-        assert mock_create.call_args.args[1:] == (identity_service, mock_db)
+        assert mock_create.call_args.args[1:] == (mock_db,)
 
     @patch(f"{_SERVICE}.create_user")
     def test_duplicate_is_a_conflict(self, mock_create, client):
@@ -209,7 +202,7 @@ class TestEditUser:
         assert response.status_code == 422
 
     @patch(f"{_SERVICE}.edit_user")
-    def test_returns_the_edited_user(self, mock_edit, client, identity_service, mock_db):
+    def test_returns_the_edited_user(self, mock_edit, client, mock_db):
         mock_edit.return_value = _user(1, name="Updated User", external_auth_count=2)
 
         response = client.put(
@@ -227,17 +220,17 @@ class TestEditUser:
         assert response.status_code == 200
         assert response.json()["external_auth_count"] == 2
         assert mock_edit.call_args.args[0] == 1
-        assert mock_edit.call_args.args[2:] == (9, identity_service, mock_db)
+        assert mock_edit.call_args.args[2:] == (9, mock_db)
 
 
 class TestApproveUser:
     @patch(f"{_SERVICE}.approve_user")
-    def test_approves_with_the_notice_in_the_same_unit_of_work(self, mock_approve, client, identity_service, mock_db):
+    def test_approves_with_the_notice_in_the_same_unit_of_work(self, mock_approve, client, mock_db):
         response = client.put("/users/1/approve", headers={"If-Match": '"1"'})
 
         assert response.status_code == 204
         assert response.content == b""
-        mock_approve.assert_called_once_with(1, identity_service, mock_db)
+        mock_approve.assert_called_once_with(1, mock_db)
 
     @patch(f"{_SERVICE}.approve_user")
     def test_unverified_email_is_refused(self, mock_approve, client):
@@ -249,12 +242,15 @@ class TestApproveUser:
 
 
 class TestEditUserPassword:
-    def test_success(self, client, identity_service):
-        response = client.post("/users/1/password/change", json={"password": "newpassword123"})
+    def test_success(self, client, mock_db):
+        with patch(
+            "modules.users.users.router.account_security_integration.change_managed_user_password"
+        ) as change_password:
+            response = client.post("/users/1/password/change", json={"password": "newpassword123"})
 
         assert response.status_code == 204
         assert response.content == b""
-        identity_service.change_managed_user_password.assert_called_once_with(1, "newpassword123")
+        change_password.assert_called_once_with(1, "newpassword123", mock_db)
 
 
 class TestDeleteUserPhoto:
@@ -269,7 +265,7 @@ class TestDeleteUserPhoto:
 
 class TestDeleteUser:
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion")
-    def test_queues_the_deletion(self, mock_request, client, mock_db, identity_service):
+    def test_queues_the_deletion(self, mock_request, client, mock_db):
         mock_request.return_value = users_schema.UserDeletionStatus(status="queued")
 
         response = client.delete("/users/1")
@@ -277,8 +273,8 @@ class TestDeleteUser:
         assert response.status_code == 202
         assert response.json() == {"status": "queued"}
         assert mock_request.call_args.args[0] == 1
-        assert mock_request.call_args.args[1] is identity_service
-        assert mock_request.call_args.args[4] == mock_db
+        assert mock_request.call_args.args[1] is not None
+        assert mock_request.call_args.args[3] == mock_db
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion")
     def test_unknown_user_is_not_found(self, mock_request, client):
@@ -363,23 +359,18 @@ class TestReadScopeEnforcement:
     def _client(scopes: tuple[str, ...]) -> TestClient:
         from modules.users.users.router import router
 
-        identity = auth_identity_service.DefaultIdentityService(MagicMock(), MagicMock(), MagicMock())
-        principal = auth_principal.Principal(
-            user_id=9,
-            username="member",
-            email="member@example.com",
-            is_active=True,
-            is_superuser=False,
-            scopes=frozenset(scopes),
-            credential=auth_principal.AccessTokenCred(session_id="sid"),
-        )
-        identity.resolve_from_access_token = lambda _token: principal
-
         app = FastAPI()
         app.include_router(router, prefix="/users")
         core_exceptions.register_exception_handlers(app)
-        app.dependency_overrides[auth_dependencies.get_access_token] = lambda: "token"
-        app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: identity
+
+        def check_scopes(security_scopes: SecurityScopes):
+            missing = set(security_scopes.scopes) - set(scopes)
+            if missing:
+                from fastapi import HTTPException
+
+                raise HTTPException(status_code=403, detail=f"Missing permissions: {missing}")
+
+        app.dependency_overrides[auth_dependencies.check_scopes] = check_scopes
         app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
         return TestClient(app)
 

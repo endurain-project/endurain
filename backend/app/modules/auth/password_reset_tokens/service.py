@@ -92,6 +92,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
             server_settings,
             users_schema.normalize_access_type(user.access_type),
             new_password,
+            db,
         )
     except core_exceptions.InvalidInputError as err:
         raise PasswordPolicyError(err.detail) from err

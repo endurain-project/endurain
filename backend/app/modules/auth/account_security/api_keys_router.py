@@ -8,7 +8,6 @@ import core.dependencies as core_dependencies
 import modules.auth.account_security.api_key_service as api_key_service
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_service as identity_service_module
 
 router = APIRouter()
 
@@ -27,10 +26,6 @@ def get_user_api_keys(
 def create_user_api_key(
     data: api_keys_schema.UsersApiKeyCreate,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        identity_service_module.IdentityService,
-        Depends(identity_service_module.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -39,7 +34,7 @@ def create_user_api_key(
     _: Annotated[None, Security(auth_dependencies.check_scopes, scopes=["profile"])],
 ) -> api_keys_schema.UsersApiKeyCreated:
     """Create an API key after step-up verification."""
-    return api_key_service.create_user_api_key(token_user_id, data, identity_service, step_up_store, db)
+    return api_key_service.create_user_api_key(token_user_id, data, step_up_store, db)
 
 
 @router.patch("/{api_key_id}/revoke", status_code=status.HTTP_204_NO_CONTENT, response_model=None)

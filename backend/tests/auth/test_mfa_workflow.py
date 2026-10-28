@@ -1,4 +1,4 @@
-"""Tests for auth._internal.services.mfa_workflow.
+"""Tests for the account-security MFA workflow.
 
 mfa_workflow is the security-critical route-facing facade profile routes call.
 It owns step-up verification, the pending setup-secret store, and response
@@ -19,14 +19,9 @@ from fastapi import status
 
 import core.exceptions as core_exceptions
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.schema as mfa_schema
 import modules.users.users.schema as users_schema
-
-
-@pytest.fixture
-def identity_service() -> MagicMock:
-    """Return a mock IdentityService."""
-    return MagicMock()
 
 
 @pytest.fixture
@@ -145,9 +140,7 @@ class TestEnableMfa:
     def _request(self) -> mfa_schema.MFASetupRequest:
         return mfa_schema.MFASetupRequest(mfa_code="123456", current_password="old-pass")
 
-    def test_happy_path_enables_and_clears_pending_secret(
-        self, mock_db, identity_service, step_up_store, mfa_secret_store
-    ):
+    def test_happy_path_enables_and_clears_pending_secret(self, mock_db, step_up_store, mfa_secret_store):
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
             patch(
@@ -162,7 +155,6 @@ class TestEnableMfa:
             result = mfa_workflow.enable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -172,18 +164,15 @@ class TestEnableMfa:
             7,
             "old-pass",
             None,
-            identity_service,
             step_up_store,
             mock_db,
         )
-        mock_enable.assert_called_once_with(7, "pending-secret", "123456", identity_service, mock_db)
+        mock_enable.assert_called_once_with(7, "pending-secret", "123456", credentials_integration, mock_db)
         mfa_secret_store.delete_secret.assert_called_once_with(7)
         assert len(mock_log.method_calls) == 1
         assert result == {"message": "MFA enabled successfully", "backup_codes": ["code-1", "code-2"]}
 
-    def test_step_up_failure_propagates_before_secret_lookup(
-        self, mock_db, identity_service, step_up_store, mfa_secret_store
-    ):
+    def test_step_up_failure_propagates_before_secret_lookup(self, mock_db, step_up_store, mfa_secret_store):
         with (
             patch(
                 "modules.auth.account_security.mfa_workflow_service.step_up_service.verify_step_up_credentials",
@@ -195,7 +184,6 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -205,7 +193,7 @@ class TestEnableMfa:
         mfa_secret_store.get_secret.assert_not_called()
         mock_enable.assert_not_called()
 
-    def test_no_pending_secret_raises_400(self, mock_db, identity_service, step_up_store, mfa_secret_store):
+    def test_no_pending_secret_raises_400(self, mock_db, step_up_store, mfa_secret_store):
         mfa_secret_store.get_secret.return_value = None
         with (
             patch("modules.auth.account_security.mfa_workflow_service.step_up_service.verify_step_up_credentials"),
@@ -215,7 +203,6 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -225,9 +212,7 @@ class TestEnableMfa:
         mock_enable.assert_not_called()
         mfa_secret_store.delete_secret.assert_not_called()
 
-    def test_invalid_mfa_code_keeps_pending_secret_for_retry(
-        self, mock_db, identity_service, step_up_store, mfa_secret_store
-    ):
+    def test_invalid_mfa_code_keeps_pending_secret_for_retry(self, mock_db, step_up_store, mfa_secret_store):
         """A wrong TOTP code must NOT discard the pending secret (allow retry)."""
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
@@ -241,7 +226,6 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -250,9 +234,7 @@ class TestEnableMfa:
         assert exc_info.value.detail == "Invalid MFA code"
         mfa_secret_store.delete_secret.assert_not_called()
 
-    def test_other_enable_error_discards_pending_secret(
-        self, mock_db, identity_service, step_up_store, mfa_secret_store
-    ):
+    def test_other_enable_error_discards_pending_secret(self, mock_db, step_up_store, mfa_secret_store):
         """Any non-"Invalid MFA code" failure clears the pending secret."""
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
@@ -266,7 +248,6 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -275,9 +256,7 @@ class TestEnableMfa:
         assert exc_info.value.status_code == status.HTTP_409_CONFLICT
         mfa_secret_store.delete_secret.assert_called_once_with(7)
 
-    def test_invalid_mfa_code_with_non_400_status_discards_secret(
-        self, mock_db, identity_service, step_up_store, mfa_secret_store
-    ):
+    def test_invalid_mfa_code_with_non_400_status_discards_secret(self, mock_db, step_up_store, mfa_secret_store):
         """Same detail but a non-400 status still discards the pending secret."""
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
@@ -291,7 +270,6 @@ class TestEnableMfa:
             mfa_workflow.enable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mfa_secret_store,
                 mock_db,
@@ -311,7 +289,7 @@ class TestDisableMfa:
     def _request(self) -> mfa_schema.MFADisableRequest:
         return mfa_schema.MFADisableRequest(mfa_code="123456", current_password="old-pass")
 
-    def test_happy_path_disables_after_step_up(self, mock_db, identity_service, step_up_store):
+    def test_happy_path_disables_after_step_up(self, mock_db, step_up_store):
         with (
             patch(
                 "modules.auth.account_security.mfa_workflow_service.step_up_service.verify_step_up_credentials"
@@ -324,7 +302,6 @@ class TestDisableMfa:
             result = mfa_workflow.disable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mock_db,
             )
@@ -333,7 +310,6 @@ class TestDisableMfa:
             7,
             "old-pass",
             "123456",
-            identity_service,
             step_up_store,
             mock_db,
         )
@@ -341,7 +317,7 @@ class TestDisableMfa:
         assert len(mock_log.method_calls) == 1
         assert result == {"message": "MFA disabled successfully"}
 
-    def test_step_up_failure_does_not_disable(self, mock_db, identity_service, step_up_store):
+    def test_step_up_failure_does_not_disable(self, mock_db, step_up_store):
         with (
             patch(
                 "modules.auth.account_security.mfa_workflow_service.step_up_service.verify_step_up_credentials",
@@ -355,7 +331,6 @@ class TestDisableMfa:
             mfa_workflow.disable_mfa(
                 self._request(),
                 7,
-                identity_service,
                 step_up_store,
                 mock_db,
             )
@@ -375,17 +350,17 @@ class TestVerifyMfa:
     def _request(self) -> mfa_schema.MFARequest:
         return mfa_schema.MFARequest(mfa_code="123456")
 
-    def test_valid_code_returns_success(self, mock_db, identity_service):
+    def test_valid_code_returns_success(self, mock_db):
         with patch(
             "modules.auth.account_security.mfa_workflow_service.mfa_integration.verify_user_mfa",
             return_value=True,
         ) as mock_verify:
-            result = mfa_workflow.verify_mfa(self._request(), 7, identity_service, mock_db)
+            result = mfa_workflow.verify_mfa(self._request(), 7, mock_db)
 
-        mock_verify.assert_called_once_with(7, "123456", identity_service, mock_db)
+        mock_verify.assert_called_once_with(7, "123456", credentials_integration, mock_db)
         assert result == {"message": "MFA code verified successfully"}
 
-    def test_invalid_code_raises_400(self, mock_db, identity_service):
+    def test_invalid_code_raises_400(self, mock_db):
         with (
             patch(
                 "modules.auth.account_security.mfa_workflow_service.mfa_integration.verify_user_mfa",
@@ -393,7 +368,7 @@ class TestVerifyMfa:
             ),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            mfa_workflow.verify_mfa(self._request(), 7, identity_service, mock_db)
+            mfa_workflow.verify_mfa(self._request(), 7, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert exc_info.value.detail == "Invalid MFA code"
@@ -410,7 +385,7 @@ class TestGenerateBackupCodes:
     def _step_up(self) -> users_schema.StepUpVerification:
         return users_schema.StepUpVerification(current_password="old-pass", mfa_code="123456")
 
-    def test_happy_path_returns_codes(self, mock_db, identity_service, step_up_store):
+    def test_happy_path_returns_codes(self, mock_db, step_up_store):
         user = MagicMock()
         user.id = 7
         with (
@@ -431,7 +406,6 @@ class TestGenerateBackupCodes:
             result = mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 7,
-                identity_service,
                 step_up_store,
                 mock_db,
             )
@@ -440,15 +414,14 @@ class TestGenerateBackupCodes:
             7,
             "old-pass",
             "123456",
-            identity_service,
             step_up_store,
             mock_db,
         )
-        mock_create.assert_called_once_with(7, identity_service, mock_db)
+        mock_create.assert_called_once_with(7, credentials_integration, mock_db)
         assert result.codes == ["a", "b", "c"]
         assert result.created_at is not None
 
-    def test_user_not_found_raises_404(self, mock_db, identity_service, step_up_store):
+    def test_user_not_found_raises_404(self, mock_db, step_up_store):
         with (
             patch("modules.auth.account_security.mfa_workflow_service.users_integration.get_user", return_value=None),
             patch(
@@ -459,7 +432,6 @@ class TestGenerateBackupCodes:
             mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 7,
-                identity_service,
                 step_up_store,
                 mock_db,
             )
@@ -467,7 +439,7 @@ class TestGenerateBackupCodes:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         mock_verify.assert_not_called()
 
-    def test_mfa_disabled_raises_400(self, mock_db, identity_service, step_up_store):
+    def test_mfa_disabled_raises_400(self, mock_db, step_up_store):
         user = MagicMock()
         with (
             patch("modules.auth.account_security.mfa_workflow_service.users_integration.get_user", return_value=user),
@@ -483,7 +455,6 @@ class TestGenerateBackupCodes:
             mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 7,
-                identity_service,
                 step_up_store,
                 mock_db,
             )
@@ -491,7 +462,7 @@ class TestGenerateBackupCodes:
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         mock_verify.assert_not_called()
 
-    def test_step_up_failure_does_not_create_codes(self, mock_db, identity_service, step_up_store):
+    def test_step_up_failure_does_not_create_codes(self, mock_db, step_up_store):
         user = MagicMock()
         user.id = 7
         with (
@@ -512,7 +483,6 @@ class TestGenerateBackupCodes:
             mfa_workflow.generate_backup_codes(
                 self._step_up(),
                 7,
-                identity_service,
                 step_up_store,
                 mock_db,
             )

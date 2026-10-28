@@ -19,7 +19,6 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
 import modules.auth.credentials.integration_service as auth_password_hasher
-import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.dependencies as mfa_dependencies
 
 logger = core_logger.get_logger(__name__)
@@ -139,10 +138,6 @@ def verify_mfa_and_login(
         mfa_dependencies.PendingMFAStore,
         Depends(mfa_dependencies.get_pending_mfa_store),
     ],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     password_hasher: Annotated[
         auth_password_hasher.PasswordHasher,
         Depends(auth_password_hasher.get_password_hasher),
@@ -174,7 +169,6 @@ def verify_mfa_and_login(
         mfa_request: MFA login request containing username and MFA code
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
-        identity_service: Identity service used to verify backup codes.
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
@@ -194,7 +188,6 @@ def verify_mfa_and_login(
         client_type,
         failed_attempts,
         pending_mfa_store,
-        identity_service,
         password_hasher,
         token_manager,
         db,

@@ -8,7 +8,6 @@ may consume lives in :mod:`modules.users.users.integration_service`.
 
 from collections.abc import Collection
 from datetime import date as datetime_date
-from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -17,6 +16,9 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.health.health_targets.integration_service as health_targets_integration
@@ -29,10 +31,6 @@ import modules.users.users.schema as users_schema
 import modules.users.users_default_gear.integration_service as users_default_gear_integration
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
-
-if TYPE_CHECKING:
-    import modules.auth.identity_service as auth_identity_service
-import modules.auth.account_security.integration_service as account_security_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -216,7 +214,6 @@ def require_user_by_email(email: str, db: Session) -> users_schema.UsersRead:
 
 
 def list_users(
-    identity_service: "auth_identity_service.IdentityService",
     db: Session,
     *,
     page_number: int = 1,
@@ -234,7 +231,6 @@ def list_users(
     records than ``num_records``.
 
     Args:
-        identity_service: Identity service that answers the authentication status.
         db: Database session.
         page_number: 1-based page number.
         num_records: Records per page.
@@ -254,8 +250,8 @@ def list_users(
     )
 
     user_ids = [user.id for user in users]
-    idp_counts = identity_service.get_identity_link_counts_for_users(user_ids)
-    mfa_enabled_map = identity_service.get_mfa_enabled_for_users(user_ids)
+    idp_counts = identity_links_integration.get_identity_link_counts_for_users(user_ids, db)
+    mfa_enabled_map = mfa_integration.get_mfa_enabled_for_users(user_ids, db)
 
     records: list[users_schema.UsersRead] = []
     for user in users:
@@ -273,36 +269,28 @@ def list_users(
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
-def _stage_default_data(
-    user_id: int, identity_service: "auth_identity_service.IdentityService | None", db: Session
-) -> None:
+def _stage_default_data(user_id: int, db: Session) -> None:
     """Stage the rows every new account starts with.
 
     Args:
         user_id: ID of the new user.
-        identity_service: Identity service for the auth-owned MFA row, or ``None`` for SSO provisioning.
         db: Database session.
     """
     user_integrations_integration.create_integrations(user_id, db)
     users_privacy_settings_integration.create_privacy_settings(user_id, db)
     health_targets_integration.create_health_targets(user_id, db)
     users_default_gear_integration.create_default_gear(user_id, db)
-    if identity_service is None:
-        mfa_integration.create_users_mfa_row(user_id, db)
-    else:
-        identity_service.initialize_user_mfa(user_id)
+    mfa_integration.create_users_mfa_row(user_id, db)
 
 
 def create_user(
     user: users_schema.UsersCreate,
-    identity_service: "auth_identity_service.IdentityService",
     db: Session,
 ) -> users_schema.UsersRead:
     """Create a user as an administrator, with their password and default data.
 
     Args:
         user: User creation data with a plain text password.
-        identity_service: Identity service that hashes and stores the password.
         db: Database session.
 
     Returns:
@@ -314,7 +302,9 @@ def create_user(
     """
     server_settings = server_settings_integration.get_server_settings(db)
     access_type = users_schema.normalize_access_type(user.access_type)
-    hashed_password = identity_service.validate_and_hash_password_for_user(server_settings, access_type, user.password)
+    hashed_password = credentials_integration.validate_and_hash_password_for_user(
+        server_settings, access_type, user.password, db
+    )
 
     fields = user.model_dump(exclude={"password", "access_type", "mfa_enabled"})
     fields.update(username=user.username.lower(), email=user.email.lower(), access_type=access_type)
@@ -324,8 +314,8 @@ def create_user(
         db.rollback()
         raise
 
-    identity_service.set_local_password_hash(created.id, hashed_password)
-    _stage_default_data(created.id, identity_service, db)
+    credentials_integration.set_local_password_hash(created.id, hashed_password, db)
+    _stage_default_data(created.id, db)
     db.commit()
     logger.info("User created", extra=core_logger.context(user_id=created.id))
     return created
@@ -334,7 +324,6 @@ def create_user(
 def _stage_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
-    identity_service: "auth_identity_service.IdentityService | None",
     db: Session,
     persist_credential: bool = True,
 ) -> users_schema.UsersRead:
@@ -346,7 +335,6 @@ def _stage_signup_user(
     Args:
         user: User sign-up data.
         server_settings: Server config for sign-up requirements.
-        identity_service: Identity service that hashes and stores the password.
         db: Database session.
         persist_credential: When True, validate the supplied password and store its hash.
             SSO-created accounts pass False so they get no local credential and stay SSO-only.
@@ -375,30 +363,27 @@ def _stage_signup_user(
 
     hashed_password: str | None = None
     if persist_credential:
-        if identity_service is None:
-            raise core_exceptions.InvalidInputError("Password validation service is required")
-        hashed_password = identity_service.validate_and_hash_password_for_user(
-            server_settings, users_schema.UserAccessType.REGULAR.value, user.password
+        hashed_password = credentials_integration.validate_and_hash_password_for_user(
+            server_settings, users_schema.UserAccessType.REGULAR.value, user.password, db
         )
 
     created = users_crud.create_user(fields, db)
 
     if hashed_password is not None:
-        identity_service.set_local_password_hash(created.id, hashed_password)
-    _stage_default_data(created.id, identity_service, db)
+        credentials_integration.set_local_password_hash(created.id, hashed_password, db)
+    _stage_default_data(created.id, db)
     return created
 
 
 def create_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
-    identity_service: "auth_identity_service.IdentityService | None",
     db: Session,
     persist_credential: bool = True,
 ) -> users_schema.UsersRead:
     """Create a user through sign-up or SSO and commit the staged defaults."""
     try:
-        created = _stage_signup_user(user, server_settings, identity_service, db, persist_credential)
+        created = _stage_signup_user(user, server_settings, db, persist_credential)
     except core_exceptions.ConflictError as err:
         db.rollback()
         # Abstract message to reduce information leakage.
@@ -415,7 +400,7 @@ def create_sso_user(
 ) -> users_schema.UsersRead:
     """Stage an SSO-only user with the defaults used by regular sign-up."""
     try:
-        created = _stage_signup_user(user, server_settings, None, db, persist_credential=False)
+        created = _stage_signup_user(user, server_settings, db, persist_credential=False)
     except core_exceptions.ConflictError as err:
         raise core_exceptions.ConflictError("Unable to create user.") from err
     logger.info("SSO user staged", extra=core_logger.context(user_id=created.id))
@@ -527,7 +512,6 @@ def edit_user(
     user_id: int,
     user: users_schema.UsersEdit,
     actor_id: int,
-    identity_service: "auth_identity_service.IdentityService",
     db: Session,
     *,
     if_match: str,
@@ -542,7 +526,6 @@ def edit_user(
         user_id: ID of the user to update.
         user: The user data to apply.
         actor_id: ID of the administrator making the edit.
-        identity_service: Identity service that answers the authentication status and ends sessions.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -569,8 +552,10 @@ def edit_user(
     if user_id != actor_id and _edit_ends_sessions(existing, updated):
         account_security_integration.delete_all_user_sessions(user_id, db)
 
-    updated.external_auth_count = identity_service.get_identity_link_counts_for_users([updated.id]).get(updated.id, 0)
-    updated.mfa_enabled = identity_service.get_mfa_enabled_for_users([updated.id]).get(updated.id, False)
+    updated.external_auth_count = identity_links_integration.get_identity_link_counts_for_users([updated.id], db).get(
+        updated.id, 0
+    )
+    updated.mfa_enabled = mfa_integration.get_mfa_enabled_for_users([updated.id], db).get(updated.id, False)
     return updated
 
 

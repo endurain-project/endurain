@@ -13,13 +13,13 @@ import core.logger as core_logger
 import core.network as core_network
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.api_keys.integration_service as auth_api_keys_integration
+import modules.auth.authentication.service as authentication_service
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.sessions.integration_service as auth_sessions_crud
-import modules.auth.utils as auth_utils
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
-from modules.auth.principal import (
+from modules.auth.contracts import (
     AccessTokenCred,
     ApiKeyCred,
     OAuthCred,
@@ -74,13 +74,13 @@ def authenticate_password(
 
     Returns:
         Principal: Resolved principal with a
-            :class:`~auth.principal.PasswordCred`.
+            :class:`~auth.contracts.PasswordCred`.
 
     Raises:
         HTTPException: 401 if the credentials are
             invalid or the account does not exist.
     """
-    user = auth_utils.authenticate_user(
+    user = authentication_service.authenticate_user(
         username,
         password,
         password_hasher,
@@ -106,7 +106,7 @@ def resolve_from_access_token(
 
     Returns:
         Principal: Resolved principal with an
-            :class:`~auth.principal.AccessTokenCred`.
+            :class:`~auth.contracts.AccessTokenCred`.
 
     Raises:
         HTTPException: 401 if the token is expired,
@@ -161,7 +161,7 @@ def resolve_from_api_key(
 
     Returns:
         Principal: Resolved principal with an
-            :class:`~auth.principal.ApiKeyCred`.
+            :class:`~auth.contracts.ApiKeyCred`.
 
     Raises:
         HTTPException: 401 if the key is not found,
@@ -239,7 +239,7 @@ def resolve_from_session_cookie(
 
     Returns:
         Principal: Resolved principal with a
-            :class:`~auth.principal.SessionCookieCred`.
+            :class:`~auth.contracts.SessionCookieCred`.
 
     Raises:
         HTTPException: 401 if the session is not
@@ -283,7 +283,7 @@ def issue_token_pair(
             access_token, refresh_token_exp,
             refresh_token, csrf_token)``.
     """
-    return auth_utils.create_tokens(user, token_manager, policy, session_id)
+    return authentication_service.create_tokens(user, token_manager, policy, session_id)
 
 
 def revoke_session(

@@ -8,9 +8,9 @@ import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
-import modules.auth._internal.security_stores as security_stores
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.authentication.failed_login_store as failed_login_store
+import modules.auth.authentication.security_stores as security_stores
 
 
 class TestNormalizeUsernameKey:

@@ -19,7 +19,6 @@ class TestChangeOwnPassword:
         mock_db,
     ):
         """Self-service password change hashes in auth and owns all auth side effects."""
-        identity_service = MagicMock()
         step_up_store = MagicMock()
 
         mock_user = MagicMock()
@@ -42,13 +41,15 @@ class TestChangeOwnPassword:
                 "modules.auth.account_security.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
                 return_value="hashed-new-pass",
             ) as mock_hash_password,
+            patch(
+                "modules.auth.account_security.account_security_service.auth_password_policy.set_local_password_hash"
+            ) as mock_set_password,
         ):
             account_security_service.change_own_password(
                 user_id=7,
                 current_password="old-pass",
                 new_password="new-pass",
                 mfa_code="123456",
-                identity_service=identity_service,
                 step_up_store=step_up_store,
                 db=mock_db,
             )
@@ -57,15 +58,11 @@ class TestChangeOwnPassword:
             7,
             "old-pass",
             "123456",
-            identity_service,
             step_up_store,
             mock_db,
         )
-        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass")
-        identity_service.set_local_password_hash.assert_called_once_with(
-            7,
-            "hashed-new-pass",
-        )
+        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass", mock_db)
+        mock_set_password.assert_called_once_with(7, "hashed-new-pass", mock_db)
         mock_clear_pending_mfa.assert_called_once_with(7)
         assert len(mock_log.method_calls) == 1
 
@@ -80,7 +77,6 @@ class TestChangeOwnPassword:
         """Admin users get the admin minimum password length policy."""
         from modules.users.users.schema import UserAccessType
 
-        identity_service = MagicMock()
         step_up_store = MagicMock()
 
         mock_user = MagicMock()
@@ -109,12 +105,11 @@ class TestChangeOwnPassword:
                 current_password="old-pass",
                 new_password="new-pass",
                 mfa_code=None,
-                identity_service=identity_service,
                 step_up_store=step_up_store,
                 db=mock_db,
             )
 
-        mock_hash_password.assert_called_once_with(mock_settings, "admin", "new-pass")
+        mock_hash_password.assert_called_once_with(mock_settings, "admin", "new-pass", mock_db)
 
 
 class TestChangeManagedUserPassword:
@@ -129,7 +124,6 @@ class TestChangeManagedUserPassword:
         mock_db,
     ):
         """Managed password change hashes in auth and owns all auth side effects."""
-        identity_service = MagicMock()
 
         mock_user = MagicMock()
         mock_user.access_type = "regular"
@@ -151,19 +145,19 @@ class TestChangeManagedUserPassword:
                 "modules.auth.account_security.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
                 return_value="hashed-managed-pass",
             ) as mock_hash_password,
+            patch(
+                "modules.auth.account_security.account_security_service.auth_password_policy.set_local_password_hash"
+            ) as mock_set_password,
         ):
             account_security_service.change_managed_user_password(
                 user_id=42,
                 new_password="new-pass",
-                identity_service=identity_service,
                 db=mock_db,
             )
 
-        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass")
-        identity_service.set_local_password_hash.assert_called_once_with(
-            42,
-            "hashed-managed-pass",
-        )
+        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass", mock_db)
+        mock_set_password.assert_called_once_with(42, "hashed-managed-pass", mock_db)
+
         mock_delete_sessions.assert_called_once_with(42, mock_db)
         mock_clear_pending_mfa.assert_called_once_with(42)
 

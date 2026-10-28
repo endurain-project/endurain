@@ -1,7 +1,6 @@
 """Sign-up token workflows and email preparation."""
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -17,9 +16,6 @@ import modules.notifications.integration_service as notifications_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
-
-if TYPE_CHECKING:
-    import modules.auth.identity_service as auth_identity_service
 
 
 def create_sign_up_token(user_id: int, db: Session) -> str:
@@ -147,7 +143,6 @@ def verify_sign_up_token(token: str, db: Session) -> int:
 
 def signup(
     user: users_schema.UsersSignup,
-    identity_service: "auth_identity_service.IdentityService",
     db: Session,
 ) -> sign_up_schema.SignUpResponse:
     """Create a user and stage the configured verification event."""
@@ -155,7 +150,7 @@ def signup(
     if not server_settings.signup_enabled:
         raise core_exceptions.PermissionDeniedError("User sign-up is not enabled on this server")
 
-    created_user = users_integration.create_signup_user(user, server_settings, identity_service, db)
+    created_user = users_integration.create_signup_user(user, server_settings, db)
     message = "User created successfully."
     email_verification_required: bool | None = None
     admin_approval_required: bool | None = None

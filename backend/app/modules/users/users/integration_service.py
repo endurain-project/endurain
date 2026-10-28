@@ -7,7 +7,6 @@ the boundary. Writes stage and the caller commits, except the listed units of wo
 
 from collections.abc import Collection
 from datetime import date
-from typing import TYPE_CHECKING
 
 import jasil.providers as platform_providers
 from fastapi import UploadFile
@@ -20,9 +19,6 @@ import modules.users.users.deletion_state_store as users_deletion_state_store
 import modules.users.users.photo_service as users_photo_service
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
-
-if TYPE_CHECKING:
-    import modules.auth.identity_service as auth_identity_service
 
 
 def get_user(user_id: int, db: Session) -> users_schema.UsersRead | None:
@@ -154,7 +150,6 @@ def require_admin_users(db: Session) -> list[users_schema.UsersRead]:
 def create_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
-    identity_service: "auth_identity_service.IdentityService",
     db: Session,
     persist_credential: bool = True,
 ) -> users_schema.UsersRead:
@@ -163,7 +158,6 @@ def create_signup_user(
     Args:
         user: User sign-up data.
         server_settings: Server config for sign-up requirements.
-        identity_service: Identity service that hashes and stores the password.
         db: Database session.
         persist_credential: When True, validate the supplied password and store its hash.
             SSO-created accounts pass False so they stay SSO-only.
@@ -174,7 +168,7 @@ def create_signup_user(
     Raises:
         ConflictError: If the username or email is already taken.
     """
-    return users_service.create_signup_user(user, server_settings, identity_service, db, persist_credential)
+    return users_service.create_signup_user(user, server_settings, db, persist_credential)
 
 
 def create_sso_user(
@@ -331,7 +325,6 @@ def delete_user_photo(user_id: int, storage: platform_providers.StorageProvider,
 
 def request_user_deletion(
     user_id: int,
-    identity_service: "auth_identity_service.IdentityService",
     state: platform_providers.StateProvider,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -342,7 +335,6 @@ def request_user_deletion(
 
     Args:
         user_id: The user to delete.
-        identity_service: Identity service that revokes the user's sessions.
         state: The platform state provider.
         storage: The platform storage provider.
         db: Database session.
@@ -355,7 +347,7 @@ def request_user_deletion(
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
     return users_deletion_job_service.request_deletion(
-        user_id, identity_service, users_deletion_state_store.UserDeletionStateStore(state), storage, db
+        user_id, users_deletion_state_store.UserDeletionStateStore(state), storage, db
     )
 
 

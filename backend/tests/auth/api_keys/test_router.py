@@ -8,7 +8,6 @@ from fastapi import HTTPException, status
 import core.exceptions as core_exceptions
 import modules.auth.api_keys.models as users_api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
-import modules.auth.identity_service as auth_identity_service
 
 
 class TestGetUserApiKeys:
@@ -433,8 +432,6 @@ class TestCreateUserApiKey:
         mock_user = MagicMock()
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
-        mock_identity_service = MagicMock()
-        fast_api_app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: mock_identity_service
         # Cause a controlled 401 so we can inspect the call
         mock_verify_step_up.side_effect = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -460,7 +457,7 @@ class TestCreateUserApiKey:
         # verify_step_up_credentials(user_id, password, mfa, …)
         assert positional[1] == "s3cr3t!"
         assert positional[2] == "123456"
-        assert positional[3] is mock_identity_service
+        assert positional[3] is not None
 
 
 class TestApiKeyResponseSafety:

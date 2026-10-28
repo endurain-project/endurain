@@ -59,7 +59,7 @@ def test_decisions_reach_the_service():
         users_integration.edit_user(1, "user", db, if_match="*")
         users_integration.edit_profile(1, "profile", db, if_match="*")
         users_integration.stage_email_verification(1, "settings", db)
-        users_integration.create_signup_user("signup", "settings", "identity", db, False)
+        users_integration.create_signup_user("signup", "settings", db, False)
 
     require_user.assert_called_once_with(1, db)
     require_active.assert_called_once_with("user")
@@ -67,4 +67,4 @@ def test_decisions_reach_the_service():
     edit.assert_called_once_with(1, "user", db, if_match="*")
     profile.assert_called_once_with(1, "profile", db, if_match="*")
     verify.assert_called_once_with(1, "settings", db)
-    signup.assert_called_once_with("signup", "settings", "identity", db, False)
+    signup.assert_called_once_with("signup", "settings", db, False)

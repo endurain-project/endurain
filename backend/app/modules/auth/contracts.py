@@ -19,11 +19,27 @@ __all__ = [
     "AccessTokenCred",
     "AnyCredential",
     "ApiKeyCred",
+    "AuthContext",
     "OAuthCred",
     "PasswordCred",
     "Principal",
     "SessionCookieCred",
 ]
+
+
+@dataclass
+class AuthContext:
+    """Unified authentication context for JWT and API-key credentials.
+
+    Attributes:
+        user_id: Authenticated user's ID.
+        scopes: Granted OAuth2 scopes.
+        auth_type: Credential source (``"jwt"`` or ``"api_key"``).
+    """
+
+    user_id: int
+    scopes: list[str]
+    auth_type: str
 
 
 # ---------------------------------------------------------------------------

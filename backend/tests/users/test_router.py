@@ -1,7 +1,8 @@
 """Tests for user management router functions."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
 
@@ -17,17 +18,15 @@ class TestEditUserPassword:
         """
         user_id = 42
         new_password = "new-secure-password"
-        identity_service = MagicMock()
         user_attributes = users_schema.UsersAdminEditPassword(password=new_password)
+        db = MagicMock()
 
-        users_router.edit_user_password(
-            request=MagicMock(),
-            user_id=user_id,
-            user_attributes=user_attributes,
-            identity_service=identity_service,
-        )
+        with patch.object(account_security_integration, "change_managed_user_password") as change_password:
+            users_router.edit_user_password(
+                request=MagicMock(),
+                user_id=user_id,
+                user_attributes=user_attributes,
+                db=db,
+            )
 
-        identity_service.change_managed_user_password.assert_called_once_with(
-            user_id,
-            new_password,
-        )
+        change_password.assert_called_once_with(user_id, new_password, db)

@@ -273,10 +273,9 @@ _TRANSPORT_FORBIDDEN = frozenset({"crud", "models", "query", "event_publishers"}
 _DATA_ROLES = frozenset({"schema", "contracts", "constants"})
 
 #: Roles of another top-level module that a converted module may import: its
-#: published surface. ``identity_service`` is ``auth``'s surface under another
-#: name (see the guide); no other module may follow it.
+#: published surface; no service implementation is an outbound surface.
 _OUTBOUND_ROLES = frozenset({"integration_service", "schema", "contracts", "constants", "events", "dependencies"})
-_OUTBOUND_SURFACE_STEMS = frozenset({"identity_service"})
+_OUTBOUND_SURFACE_STEMS = frozenset()
 
 #: Layer-rule exceptions as ``{(importer, imported): reason}``, in dotted paths
 #: rooted at ``app``. Every entry is a deliberate seam; anything else fails.

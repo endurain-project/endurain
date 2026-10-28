@@ -15,11 +15,7 @@ import model_registry as app_model_registry
 import module_registry as runtime_module_registry
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.model_registry as activities_model_registry
-import modules.auth.identity_providers.model_registry as auth_identity_providers_model_registry
-import modules.auth.mfa.model_registry as auth_mfa_model_registry
-import modules.auth.password_reset_tokens.model_registry as password_reset_tokens_model_registry
-import modules.auth.sessions.model_registry as auth_sessions_model_registry
-import modules.auth.sign_up_tokens.model_registry as sign_up_tokens_model_registry
+import modules.auth.model_registry as auth_model_registry
 import modules.followers.model_registry as followers_model_registry
 import modules.gears.model_registry as gears_model_registry
 import modules.health.model_registry as health_model_registry
@@ -131,11 +127,12 @@ def test_model_registries_collect_every_converted_model() -> None:
         if package.parent.name == "activities" and (package / "models.py").is_file()
     }
     assert set(activities_model_registry.MODEL_MODULES) == expected_activities
-    assert set(auth_sessions_model_registry.MODEL_MODULES) == {"modules.auth.sessions.models"}
-    assert set(auth_mfa_model_registry.MODEL_MODULES) == {"modules.auth.mfa.models"}
-    assert set(auth_identity_providers_model_registry.MODEL_MODULES) == {"modules.auth.identity_providers.models"}
-    assert set(password_reset_tokens_model_registry.MODEL_MODULES) == {"modules.auth.password_reset_tokens.models"}
-    assert set(sign_up_tokens_model_registry.MODEL_MODULES) == {"modules.auth.sign_up_tokens.models"}
+    expected_auth = {
+        f"modules.auth.{package.name}.models"
+        for package in sorted((_MODULES_DIR / "auth").iterdir())
+        if package.is_dir() and (package / "models.py").is_file()
+    }
+    assert set(auth_model_registry.MODEL_MODULES) == expected_auth
     assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
     expected_gears = {
         f"modules.gears.{package.name}.models"
@@ -159,11 +156,7 @@ def test_model_registries_collect_every_converted_model() -> None:
     assert set(users_model_registry.MODEL_MODULES) == expected_users
     assert (
         expected_activities
-        | set(auth_sessions_model_registry.MODEL_MODULES)
-        | set(auth_mfa_model_registry.MODEL_MODULES)
-        | set(auth_identity_providers_model_registry.MODEL_MODULES)
-        | set(password_reset_tokens_model_registry.MODEL_MODULES)
-        | set(sign_up_tokens_model_registry.MODEL_MODULES)
+        | expected_auth
         | set(followers_model_registry.MODEL_MODULES)
         | expected_gears
         | expected_health

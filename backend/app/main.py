@@ -39,11 +39,6 @@ import core.signing as core_signing
 import module_registry as runtime_module_registry
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.auth.authentication.dependencies as auth_dependencies
-import modules.auth.identity_provider_link_tokens.scheduled_jobs as idp_link_token_jobs
-import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
-import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_jobs
-import modules.auth.scheduled_jobs as auth_scheduled_jobs
-import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_tokens_jobs
 import modules.garmin.integration_service as garmin_integration
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
@@ -91,14 +86,6 @@ async def _safe_run_async[T, **P](
     except Exception as err:
         logger.error("Startup task failed", exc_info=err, extra=core_logger.context(task=label))
         return None
-
-
-def _purge_expired_tokens() -> None:
-    """Sweep expired/invalid auth-related tokens from the DB."""
-    password_reset_tokens_jobs.delete_expired_tokens_from_db()
-    sign_up_tokens_jobs.delete_expired_tokens_from_db()
-    oauth_state_scheduled_jobs.delete_expired_oauth_states_from_db()
-    idp_link_token_jobs.delete_expired_tokens_from_db()
 
 
 def _read_allowed_tile_domains() -> list[str]:
@@ -222,7 +209,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     core_scheduler.start_scheduler(
         [
             *core_scheduler.platform_jobs(),
-            *auth_scheduled_jobs.recurring_jobs(),
             *runtime_module_registry.recurring_jobs(),
         ]
     )
@@ -266,11 +252,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Phase 2: best-effort background syncs and clean-up. Provider activity syncs
     # are queued per user by activity ingestion's startup task below, so startup
     # does not wait on every user's provider round trips.
-    logger.info(
-        "Purging expired tokens (password reset, sign-up, OAuth state, IdP link)",
-        extra=core_logger.context(console=True),
-    )
-    _safe_run("purge_expired_tokens", _purge_expired_tokens)
     _safe_run(
         "check_connection_budget", lambda: core_database.check_connection_budget(core_config.settings.WEB_WORKERS)
     )

@@ -21,10 +21,9 @@ from unittest.mock import MagicMock
 import pytest
 
 import modules.auth.access_tokens.service as auth_token_manager
-import modules.auth.credentials.password_hasher as auth_password_hasher
+import modules.auth.authentication.principal_service as principal_service
 import modules.users.users.schema as users_schema
-from modules.auth.identity_service import DefaultIdentityService
-from modules.auth.principal import AccessTokenCred
+from modules.auth.contracts import AccessTokenCred
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -86,31 +85,21 @@ def mock_user_orm() -> MagicMock:
 
 
 @pytest.fixture
-def service_with_mocked_db(
-    token_manager: auth_token_manager.TokenManager,
-    mock_user_orm: MagicMock,
-) -> DefaultIdentityService:
-    """DefaultIdentityService whose DB lookups are mocked.
+def service_with_mocked_db(mock_user_orm: MagicMock) -> MagicMock:
+    """Principal service whose user lookups are mocked.
 
     Isolates pure resolution logic from real DB latency
     so the benchmark measures the code path, not I/O.
 
     Args:
-        token_manager: Real JWT token manager.
         mock_user_orm: Mock ORM user row.
 
     Returns:
-        DefaultIdentityService: Service under test.
+        MagicMock: Mock database session.
     """
     from unittest.mock import patch
 
     mock_db = MagicMock()
-    password_hasher = auth_password_hasher.get_password_hasher()
-    svc = DefaultIdentityService(
-        db=mock_db,
-        token_manager=token_manager,
-        password_hasher=password_hasher,
-    )
 
     # Patch DB utility used inside resolve_from_access_token
     import modules.users.users.integration_service as users_integration
@@ -128,7 +117,7 @@ def service_with_mocked_db(
     users_patcher.start()
     check_patcher.start()
 
-    yield svc
+    yield mock_db
 
     users_patcher.stop()
     check_patcher.stop()
@@ -144,7 +133,7 @@ class TestResolveFromAccessTokenBenchmark:
 
     def test_sequential_latency_under_limit(
         self,
-        service_with_mocked_db: DefaultIdentityService,
+        service_with_mocked_db: MagicMock,
         token_manager: auth_token_manager.TokenManager,
         sample_user_read: users_schema.UsersRead,
     ):
@@ -153,8 +142,7 @@ class TestResolveFromAccessTokenBenchmark:
         Baseline (2026-05-25, mocked DB):
             100 calls < 0.05 s (WALL_CLOCK_LIMIT_S = 1.0)
 
-        This gate confirms that routing through IdentityService
-        does not introduce unexpected overhead on the hot path.
+        This gate confirms that principal resolution stays within the expected hot-path budget.
         """
         _, access_token = token_manager.create_token(
             "bench-session", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
@@ -162,7 +150,7 @@ class TestResolveFromAccessTokenBenchmark:
 
         start = time.perf_counter()
         for _ in range(ITERATIONS):
-            principal = service_with_mocked_db.resolve_from_access_token(access_token)
+            principal = principal_service.resolve_from_access_token(access_token, token_manager, service_with_mocked_db)
         elapsed = time.perf_counter() - start
 
         assert principal.user_id == sample_user_read.id
@@ -188,12 +176,6 @@ class TestResolveFromAccessTokenBenchmark:
         import modules.users.users.integration_service as users_integration
 
         mock_db = MagicMock()
-        password_hasher = auth_password_hasher.get_password_hasher()
-        svc = DefaultIdentityService(
-            db=mock_db,
-            token_manager=token_manager,
-            password_hasher=password_hasher,
-        )
 
         _, access_token = token_manager.create_token(
             "bench-session", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
@@ -211,8 +193,8 @@ class TestResolveFromAccessTokenBenchmark:
                 return_value=None,
             ),
         ):
-            svc.resolve_from_access_token(access_token)
-            svc.resolve_from_access_token(access_token)
+            principal_service.resolve_from_access_token(access_token, token_manager, mock_db)
+            principal_service.resolve_from_access_token(access_token, token_manager, mock_db)
 
         # 2 calls → 2 DB roundtrips (caching is at the
         # request-state level, not the service level)

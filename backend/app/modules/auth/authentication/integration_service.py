@@ -1,12 +1,18 @@
-"""Identity operations consumed by the public authentication dependencies."""
+"""Principal operations exposed to the authentication dependency boundary."""
 
-import modules.auth.identity_service as identity_service_module
-from modules.auth.principal import Principal
+from fastapi import Request
+from sqlalchemy.orm import Session
+
+import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.authentication.principal_service as principal_service
+import modules.auth.contracts as auth_contracts
 
 
-def resolve_from_access_token(
-    access_token: str,
-    identity_service: identity_service_module.IdentityService,
-) -> Principal:
-    """Resolve an access token through the authentication boundary."""
-    return identity_service.resolve_from_access_token(access_token)
+def resolve_from_access_token(access_token: str, db: Session) -> auth_contracts.Principal:
+    """Resolve and validate an access token against the current database state."""
+    return principal_service.resolve_from_access_token(access_token, access_tokens_integration.get_token_manager(), db)
+
+
+def resolve_from_api_key(raw_key: str, request: Request, db: Session) -> auth_contracts.Principal:
+    """Resolve and validate an API key against the current database state."""
+    return principal_service.resolve_from_api_key(raw_key, request, db)

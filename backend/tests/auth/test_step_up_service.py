@@ -72,15 +72,13 @@ class TestVerifyStepUpCredentials:
         user_id=1,
         current_password=None,
         mfa_code=None,
-        identity_service=None,
+        password_valid=True,
         step_up_store=None,
         db=None,
         mock_user=None,
         mfa_enabled=False,
         mfa_valid=True,
     ):
-        if identity_service is None:
-            identity_service = MagicMock()
         if step_up_store is None:
             step_up_store = FakeStepUpStore()
         if db is None:
@@ -113,12 +111,15 @@ class TestVerifyStepUpCredentials:
                 "modules.auth.account_security.step_up_service.mfa_integration.verify_user_mfa",
                 return_value=mfa_valid,
             ),
+            patch(
+                "modules.auth.account_security.step_up_service.auth_credentials_crud.verify_password",
+                return_value=password_valid,
+            ),
         ):
             return step_up_service.verify_step_up_credentials(
                 user_id,
                 current_password,
                 mfa_code,
-                identity_service,
                 step_up_store,
                 db,
             )
@@ -313,14 +314,13 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = False
+        password_valid = False
         store = FakeStepUpStore()
 
         with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="wrong",
             )
@@ -331,15 +331,14 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = False
+        password_valid = False
         store = FakeStepUpStore()
 
         with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="wrong",
             )
@@ -350,13 +349,12 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         self._call(
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
             current_password="correct",
             mfa_enabled=False,
@@ -366,15 +364,14 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
         store._attempts["user:1"] = 4
 
         self._call(
             user_id=1,
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
             current_password="correct",
             mfa_enabled=False,
@@ -386,14 +383,13 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
@@ -407,15 +403,14 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
@@ -428,13 +423,12 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         self._call(
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
             current_password="correct",
             mfa_enabled=True,
@@ -446,14 +440,13 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
@@ -467,15 +460,14 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
@@ -501,7 +493,7 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = None
         mock_user.has_local_password = False
-        identity_service = MagicMock()
+        password_valid = True
         store = step_up_store_module.StepUpAttempts(MemoryState())
         key = "user:1"
         # Pre-load 3 failures (below threshold)
@@ -511,7 +503,7 @@ class TestVerifyStepUpCredentials:
         self._call(
             user_id=1,
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
             mfa_enabled=False,
         )

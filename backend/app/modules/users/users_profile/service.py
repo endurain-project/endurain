@@ -16,6 +16,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
 import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.followers.integration_service as followers_integration
 import modules.users.users.integration_service as users_integration
@@ -31,7 +32,6 @@ import modules.users.users_profile.utils as profile_utils
 
 if TYPE_CHECKING:
     import modules.auth.dependencies as auth_dependencies
-    import modules.auth.identity_service as auth_identity_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -51,14 +51,12 @@ _NON_EXPORTED_USER_FIELDS = (
 
 def get_profile(
     user_id: int,
-    identity_service: "auth_identity_service.IdentityService",
     db: Session,
 ) -> users_schema.UsersMe:
     """Assemble the authenticated user's profile.
 
     Args:
         user_id: The authenticated user.
-        identity_service: Identity service that answers the authentication status.
         db: Database session.
 
     Returns:
@@ -98,7 +96,7 @@ def get_profile(
             # Lets the frontend tell SSO-only accounts from accounts with a local password, so
             # step-up prompts can hide the password field. Both flags are auth-owned and come
             # through the auth boundary, so the hash never leaves it.
-            "has_local_password": identity_service.has_local_password(user_id),
+            "has_local_password": credentials_integration.has_local_password(user_id, db),
             "mfa_enabled": account_security_integration.get_mfa_status(user_id, db).mfa_enabled,
         }
     )
@@ -170,7 +168,6 @@ def change_email(
     user_id: int,
     change: users_schema.EmailChange,
     session_id: str,
-    identity_service: "auth_identity_service.IdentityService",
     step_up_store: "auth_dependencies.StepUpStore",
     db: Session,
 ) -> None:
@@ -185,7 +182,6 @@ def change_email(
         user_id: The authenticated user.
         change: The new address with the step-up credentials.
         session_id: The caller's current session, which stays signed in when other sessions are revoked.
-        identity_service: Identity service that verifies the step-up and queues the email.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -197,7 +193,6 @@ def change_email(
     account_security_integration.verify_step_up(
         users_schema.StepUpVerification(**change.model_dump(exclude={"email", "revoke_other_sessions"})),
         user_id,
-        identity_service,
         step_up_store,
         db,
     )
@@ -261,7 +256,6 @@ def edit_privacy_settings(
 def delete_account(
     user_id: int,
     step_up: users_schema.StepUpVerification,
-    identity_service: "auth_identity_service.IdentityService",
     step_up_store: "auth_dependencies.StepUpStore",
     state: platform_providers.StateProvider,
     storage: platform_providers.StorageProvider,
@@ -277,7 +271,6 @@ def delete_account(
     Args:
         user_id: The authenticated user.
         step_up: Step-up verification payload (password, and an MFA code when MFA is enabled).
-        identity_service: Identity service that verifies the step-up.
         step_up_store: Step-up lockout store.
         state: The platform state provider.
         storage: The platform storage provider.
@@ -290,8 +283,8 @@ def delete_account(
         HTTPException: If step-up verification fails.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    account_security_integration.verify_step_up(step_up, user_id, identity_service, step_up_store, db)
-    status = users_integration.request_user_deletion(user_id, identity_service, state, storage, db)
+    account_security_integration.verify_step_up(step_up, user_id, step_up_store, db)
+    status = users_integration.request_user_deletion(user_id, state, storage, db)
     logger.info("Account deletion requested by its owner", extra=core_logger.context(user_id=user_id))
     return status
 

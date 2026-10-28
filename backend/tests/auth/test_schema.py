@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.schema as auth_schema
+import modules.auth.authentication.service as auth_service
 
 
 class TestLoginRequest:
@@ -147,7 +148,6 @@ class TestAuthRouterErrors:
                 client_type="mobile",
                 failed_attempts=object(),
                 pending_mfa_store=object(),
-                identity_service=object(),
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
@@ -191,24 +191,18 @@ class TestAuthRouterErrors:
             log_messages.append(message)
 
         monkeypatch.setattr(
-            auth_router.mfa_integration,
+            auth_service.mfa_integration,
             "verify_user_mfa",
             lambda *args: False,
         )
         monkeypatch.setattr(
-            auth_router.logger,
+            auth_service.logger,
             "warning",
             capture_log,
         )
 
-        endpoint = getattr(
-            auth_router.verify_mfa_and_login,
-            "__wrapped__",
-            auth_router.verify_mfa_and_login,
-        )
-
         with pytest.raises(HTTPException) as exc_info:
-            await endpoint(
+            auth_service.verify_mfa_and_login(
                 response=None,
                 request=None,
                 mfa_request=auth_schema.MFALoginRequest(
@@ -218,7 +212,6 @@ class TestAuthRouterErrors:
                 client_type="web",
                 failed_attempts=object(),
                 pending_mfa_store=PendingMFAStore(),
-                identity_service=object(),
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
@@ -253,19 +246,13 @@ class TestAuthRouterErrors:
                 return None
 
         monkeypatch.setattr(
-            auth_router.mfa_integration,
+            auth_service.mfa_integration,
             "verify_user_mfa",
             lambda *args: True,
         )
 
-        endpoint = getattr(
-            auth_router.verify_mfa_and_login,
-            "__wrapped__",
-            auth_router.verify_mfa_and_login,
-        )
-
         with pytest.raises(HTTPException) as exc_info:
-            await endpoint(
+            auth_service.verify_mfa_and_login(
                 response=None,
                 request=None,
                 mfa_request=auth_schema.MFALoginRequest(
@@ -275,7 +262,6 @@ class TestAuthRouterErrors:
                 client_type="web",
                 failed_attempts=object(),
                 pending_mfa_store=PendingMFAStore(),
-                identity_service=object(),
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),

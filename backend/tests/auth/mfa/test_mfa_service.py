@@ -159,15 +159,15 @@ class TestEnableUserMFA:
         mock_verify.return_value = True
         mock_create_backup.return_value = ["CODE1", "CODE2"]
 
-        mock_identity_service = MagicMock()
+        mock_password_verifier = MagicMock()
 
         mock_db = MagicMock()
         with patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False):
-            result = mfa_service.enable_user_mfa(1, "secret", "123456", mock_identity_service, mock_db)
+            result = mfa_service.enable_user_mfa(1, "secret", "123456", mock_password_verifier, mock_db)
 
         assert result == ["CODE1", "CODE2"]
         mock_update_mfa.assert_called_once()
-        mock_create_backup.assert_called_once_with(1, mock_identity_service, mock_create_backup.call_args[0][2])
+        mock_create_backup.assert_called_once_with(1, mock_password_verifier, mock_create_backup.call_args[0][2])
         mock_db.commit.assert_called_once()
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
@@ -379,14 +379,14 @@ class TestVerifyUserMFA:
         mock_get_user.return_value = mock_user
         mock_verify.return_value = False
 
-        mock_identity_service = MagicMock()
+        mock_password_verifier = MagicMock()
 
         with patch(
             "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code", return_value=True
         ) as mock_backup:
-            result = mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_identity_service, MagicMock())
+            result = mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_password_verifier, MagicMock())
             assert result is True
-            mock_backup.assert_called_once_with(1, "ABCD-EFGH", mock_identity_service, mock_backup.call_args[0][3])
+            mock_backup.assert_called_once_with(1, "ABCD-EFGH", mock_password_verifier, mock_backup.call_args[0][3])
 
     @patch("modules.auth.mfa.service.verify_totp")
     @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
@@ -398,12 +398,12 @@ class TestVerifyUserMFA:
         mock_get_user.return_value = mock_user
         mock_verify.return_value = False
 
-        mock_identity_service = MagicMock()
+        mock_password_verifier = MagicMock()
 
         with patch(
             "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code", return_value=False
         ):
-            result = mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_identity_service, MagicMock())
+            result = mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_password_verifier, MagicMock())
             assert result is False
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
@@ -431,7 +431,7 @@ class TestVerifyUserMFA:
         mock_get_user.return_value = mock_user
         mock_verify.return_value = False
 
-        mock_identity_service = MagicMock()
+        mock_password_verifier = MagicMock()
 
         with (
             patch(
@@ -440,7 +440,7 @@ class TestVerifyUserMFA:
             ),
             pytest.raises(RuntimeError, match="storage failure"),
         ):
-            mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_identity_service, MagicMock())
+            mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_password_verifier, MagicMock())
 
 
 class TestIsMFAEnabledForUser:

@@ -41,8 +41,13 @@ import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnai
 import modules.activities.activity_thumbnail.subscriber_registry as activity_thumbnail_subscriber_registry
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_provider_link_tokens_scheduled_jobs
+import modules.auth.mfa.scheduled_jobs as auth_mfa_scheduled_jobs
+import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_scheduled_jobs
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
+import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_refresh_tokens_scheduled_jobs
+import modules.auth.sessions.scheduled_jobs as auth_sessions_scheduled_jobs
 import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_tokens_scheduled_jobs
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
 import modules.garmin.integration_service as garmin_integration
@@ -220,11 +225,43 @@ MODULES: tuple[RuntimeModule, ...] = (
         ),
     ),
     RuntimeModule(
+        name="oauth_state",
+        recurring_jobs=oauth_state_scheduled_jobs.recurring_jobs,
+        startup_tasks=(
+            StartupTask(
+                "purge_expired_oauth_states",
+                "Purging expired OAuth states",
+                oauth_state_scheduled_jobs.delete_expired_oauth_states_from_db,
+            ),
+        ),
+    ),
+    RuntimeModule(name="sessions", recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs),
+    RuntimeModule(name="rotated_refresh_tokens", recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs),
+    RuntimeModule(name="mfa", recurring_jobs=auth_mfa_scheduled_jobs.recurring_jobs),
+    RuntimeModule(
+        name="identity_provider_link_tokens",
+        recurring_jobs=identity_provider_link_tokens_scheduled_jobs.recurring_jobs,
+        startup_tasks=(
+            StartupTask(
+                "purge_expired_identity_provider_link_tokens",
+                "Purging expired identity-provider link tokens",
+                identity_provider_link_tokens_scheduled_jobs.delete_expired_tokens_from_db,
+            ),
+        ),
+    ),
+    RuntimeModule(
         name="password_reset_tokens",
         register_bus=password_reset_tokens_subscriber_registry.register_bus_subscribers,
         register_durable=password_reset_tokens_subscriber_registry.register_durable_handlers,
         nets=password_reset_tokens_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=password_reset_tokens_scheduled_jobs.recurring_jobs,
+        startup_tasks=(
+            StartupTask(
+                "purge_expired_password_reset_tokens",
+                "Purging expired password reset tokens",
+                password_reset_tokens_scheduled_jobs.delete_expired_tokens_from_db,
+            ),
+        ),
     ),
     RuntimeModule(
         name="sign_up_tokens",
@@ -232,6 +269,13 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=sign_up_tokens_subscriber_registry.register_durable_handlers,
         nets=sign_up_tokens_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=sign_up_tokens_scheduled_jobs.recurring_jobs,
+        startup_tasks=(
+            StartupTask(
+                "purge_expired_sign_up_tokens",
+                "Purging expired sign-up tokens",
+                sign_up_tokens_scheduled_jobs.delete_expired_tokens_from_db,
+            ),
+        ),
     ),
     RuntimeModule(
         name="notifications",

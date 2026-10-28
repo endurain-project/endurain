@@ -71,7 +71,6 @@ class TestGenerateLinkToken:
 
     def test_returns_token_on_success(self, mock_db):
         mock_token = MagicMock()
-        identity_service = MagicMock()
         step_up_store = MagicMock()
         link_request = MagicMock()
         link_request.current_password = "pass"
@@ -94,9 +93,7 @@ class TestGenerateLinkToken:
                 return_value=mock_token,
             ),
         ):
-            result = identity_link_service.generate_link_token(
-                1, link_request, request, 10, identity_service, step_up_store, mock_db
-            )
+            result = identity_link_service.generate_link_token(1, link_request, request, 10, step_up_store, mock_db)
 
         assert result is mock_token
 
@@ -109,9 +106,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
-            )
+            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
 
@@ -124,9 +119,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
-            )
+            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
 
@@ -144,9 +137,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
-            )
+            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 409
 
@@ -159,9 +150,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
-            )
+            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 401
 
@@ -191,8 +180,12 @@ class TestDeleteIdentityProviderLink:
                 "modules.auth.account_security.identity_link_service.auth_identity_links_crud.delete_user_identity_provider",
                 return_value=True,
             ),
+            patch(
+                "modules.auth.account_security.identity_link_service.auth_credentials_crud.has_local_password",
+                return_value=True,
+            ),
         ):
-            identity_link_service.delete_identity_provider_link(1, step_up, 10, MagicMock(), MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(1, step_up, 10, MagicMock(), mock_db)
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
@@ -203,7 +196,7 @@ class TestDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
 
@@ -220,14 +213,12 @@ class TestDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
 
     def test_raises_400_when_last_auth_method(self, mock_db):
         """Cannot unlink the last IdP when the user has no password."""
-        identity_service = MagicMock()
-        identity_service.has_local_password.return_value = False  # SSO-only
 
         with (
             patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
@@ -243,11 +234,13 @@ class TestDeleteIdentityProviderLink:
                 "modules.auth.account_security.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
                 return_value=[MagicMock()],  # exactly 1 link → remaining_idp_count == 0
             ),
+            patch(
+                "modules.auth.account_security.identity_link_service.auth_credentials_crud.has_local_password",
+                return_value=False,
+            ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(
-                1, MagicMock(), 10, identity_service, MagicMock(), mock_db
-            )
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 400
         assert "Cannot unlink last authentication method" in exc.value.detail
@@ -327,6 +320,10 @@ class TestAdminDeleteIdentityProviderLink:
             patch(
                 "modules.auth.account_security.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
                 return_value=[MagicMock()],  # exactly 1 link → remaining_idp_count == 0
+            ),
+            patch(
+                "modules.auth.account_security.identity_link_service.auth_credentials_crud.has_local_password",
+                return_value=False,
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.auth_credentials_crud.get_credential",

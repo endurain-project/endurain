@@ -11,7 +11,6 @@ import core.rate_limit as core_rate_limit
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
-import modules.auth.identity_service as auth_identity_service
 import modules.users.users.deletion_job_service as users_deletion_job_service
 import modules.users.users.dependencies as users_dependencies
 import modules.users.users.photo_service as users_photo_service
@@ -29,10 +28,6 @@ router = APIRouter()
 )
 def read_users_all_pagination(
     db: core_dependencies.DbSession,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     show_inactive: Annotated[
         bool | None,
@@ -63,7 +58,6 @@ def read_users_all_pagination(
 
     Args:
         db: Database session dependency.
-        identity_service: Identity service dependency.
         page: The requested page and page size.
         show_inactive: Optional filter by inactive status.
         show_email_unverified: Optional filter by email verification status.
@@ -76,7 +70,6 @@ def read_users_all_pagination(
         Paginated list of users with total count.
     """
     return users_service.list_users(
-        identity_service,
         db,
         page_number=page.page_number,
         num_records=page.num_records,
@@ -228,10 +221,6 @@ def read_users_full(
 def create_user(
     request: Request,
     user: users_schema.UsersCreate,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     db: core_dependencies.DbSession,
 ) -> users_schema.UsersRead:
     """Create a new user (admin operation).
@@ -239,13 +228,12 @@ def create_user(
     Args:
         request: The incoming request, read by the rate limiter.
         user: User creation data.
-        identity_service: Identity service dependency.
         db: Database session dependency.
 
     Returns:
         Created user data.
     """
-    return users_service.create_user(user, identity_service, db)
+    return users_service.create_user(user, db)
 
 
 @router.post(
@@ -290,10 +278,6 @@ def edit_user(
     user_attributtes: users_schema.UsersEdit,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     response: Response,
     if_match: core_dependencies.IfMatch,
 ) -> users_schema.UsersRead:
@@ -307,14 +291,13 @@ def edit_user(
         user_attributtes: User data to update.
         token_user_id: ID of the administrator making the edit.
         db: Database session dependency.
-        identity_service: Identity service dependency.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition.
 
     Returns:
         Updated user data.
     """
-    updated = users_service.edit_user(user_id, user_attributtes, token_user_id, identity_service, db, if_match=if_match)
+    updated = users_service.edit_user(user_id, user_attributtes, token_user_id, db, if_match=if_match)
     response.headers["ETag"] = core_etag.format_etag(updated.version)
     return updated
 
@@ -352,10 +335,7 @@ def edit_user_password(
     request: Request,
     user_id: core_dependencies.PositiveId,
     user_attributes: users_schema.UsersAdminEditPassword,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
 ) -> None:
     """Update user password.
 
@@ -363,12 +343,9 @@ def edit_user_password(
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to update password for.
         user_attributes: New password data.
-        identity_service: Identity service dependency.
+        db: Database session dependency.
     """
-    identity_service.change_managed_user_password(
-        user_id,
-        user_attributes.password,
-    )
+    account_security_integration.change_managed_user_password(user_id, user_attributes.password, db)
 
 
 @router.delete(
@@ -408,10 +385,6 @@ def delete_user_photo(
 def delete_user(
     request: Request,
     user_id: core_dependencies.PositiveId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     states: users_dependencies.UserDeletionStateStoreDep,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
@@ -424,7 +397,6 @@ def delete_user(
     Args:
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to delete.
-        identity_service: Identity service that revokes the user's sessions.
         states: Shared store of the deletion's state.
         storage: The platform storage provider.
         db: Database session dependency.
@@ -436,7 +408,7 @@ def delete_user(
         NotFoundError: If the user does not exist.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    return users_deletion_job_service.request_deletion(user_id, identity_service, states, storage, db)
+    return users_deletion_job_service.request_deletion(user_id, states, storage, db)
 
 
 @router.get(

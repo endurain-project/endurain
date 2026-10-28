@@ -275,7 +275,7 @@ class TokenManager:
 
         Wraps :meth:`validate_token_expiration` for ``TokenType.ACCESS`` and
         applies the shared logging policy used by the access-token validation
-        dependency and ``IdentityService``: expired tokens log at ``debug``
+        dependency and principal resolution: expired tokens log at ``debug``
         (an expected, routine condition) while all other validation failures
         log at ``error``. The original :class:`core_exceptions.UnauthenticatedError` is re-raised
         unchanged so callers keep the same 401 semantics.

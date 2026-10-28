@@ -41,7 +41,7 @@ class TestUsePasswordResetToken:
             password_reset_service.use_password_reset_token("plain", "new password", mock_db)
 
         claim.assert_called_once_with(hashlib.sha256(b"plain").hexdigest(), mock_db)
-        hash_password.assert_called_once_with(settings, "regular", "new password")
+        hash_password.assert_called_once_with(settings, "regular", "new password", mock_db)
         assert [call[0] for call in order.mock_calls] == [
             "password",
             "tokens",

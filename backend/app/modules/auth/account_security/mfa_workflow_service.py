@@ -15,7 +15,6 @@ Profile routes depend on this module, never on ``modules.auth.mfa.*`` directly.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from fastapi import status
 from sqlalchemy.orm import Session
@@ -24,6 +23,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as account_security_step_up_store
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
@@ -33,9 +33,6 @@ import modules.users.users.schema as users_schema
 from modules.auth.mfa.contracts import MFASecretStoreBackend
 
 logger = core_logger.get_logger(__name__)
-
-if TYPE_CHECKING:
-    from modules.auth.identity_service import IdentityService
 
 
 def get_mfa_status(
@@ -99,7 +96,6 @@ def setup_mfa(
 def enable_mfa(
     request: mfa_schema.MFASetupRequest,
     token_user_id: int,
-    identity_service: IdentityService,
     step_up_store: account_security_step_up_store.StepUpStore,
     mfa_secret_store: MFASecretStoreBackend,
     db: Session,
@@ -109,7 +105,6 @@ def enable_mfa(
         token_user_id,
         request.current_password,
         None,
-        identity_service,
         step_up_store,
         db,
     )
@@ -123,7 +118,7 @@ def enable_mfa(
             token_user_id,
             secret,
             request.mfa_code,
-            identity_service,
+            credentials_integration,
             db,
         )
         db.commit()
@@ -142,7 +137,6 @@ def enable_mfa(
 def disable_mfa(
     request: mfa_schema.MFADisableRequest,
     token_user_id: int,
-    identity_service: IdentityService,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> dict:
@@ -151,7 +145,6 @@ def disable_mfa(
         token_user_id,
         request.current_password,
         request.mfa_code,
-        identity_service,
         step_up_store,
         db,
     )
@@ -164,14 +157,13 @@ def disable_mfa(
 def verify_mfa(
     request: mfa_schema.MFARequest,
     token_user_id: int,
-    identity_service: IdentityService,
     db: Session,
 ) -> dict:
     """Verify an MFA code for the authenticated user."""
     is_valid = mfa_integration.verify_user_mfa(
         token_user_id,
         request.mfa_code,
-        identity_service,
+        credentials_integration,
         db,
     )
     if not is_valid:
@@ -184,7 +176,6 @@ def verify_mfa(
 def generate_backup_codes(
     step_up: users_schema.StepUpVerification,
     token_user_id: int,
-    identity_service: IdentityService,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> mfa_backup_codes_schema.MFABackupCodesResponse:
@@ -201,14 +192,13 @@ def generate_backup_codes(
         token_user_id,
         step_up.current_password,
         step_up.mfa_code,
-        identity_service,
         step_up_store,
         db,
     )
 
     codes = mfa_backup_codes_integration.create_backup_codes(
         token_user_id,
-        identity_service,
+        credentials_integration,
         db,
     )
     db.commit()

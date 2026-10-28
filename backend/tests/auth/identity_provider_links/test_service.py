@@ -197,10 +197,10 @@ class TestEnrichUserIdentityProviders:
         mock_get_idps.assert_called_once_with([1, 2, 3], mock_db)
 
 
-class TestIdentityServiceLinkDelegation:
-    """Tests for IdentityService link/unlink delegation methods.
+class TestIdentityLinkServiceOperations:
+    """Tests for Identity-link service operations.
 
     Note: link_external_identity and unlink_external_identity were removed from
-    IdentityService in Phase 8.3; those operations are now handled directly by
+    The identity-provider links module exposes its own integration behavior; operations are handled by
     auth.identity_link_service. This class is retained as a placeholder.
     """

@@ -12,7 +12,6 @@ repeated, so a job a worker died in is simply run again.
 """
 
 from datetime import timedelta
-from typing import TYPE_CHECKING
 
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
@@ -22,6 +21,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
@@ -31,10 +31,6 @@ import modules.users.users.events as users_events
 import modules.users.users.photo_service as users_photo_service
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
-
-if TYPE_CHECKING:
-    import modules.auth.identity_service as auth_identity_service
-import modules.auth.account_security.integration_service as account_security_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -61,7 +57,6 @@ def shutdown_deletion_pool(*, wait: bool = False) -> None:
 
 def request_deletion(
     user_id: int,
-    identity_service: "auth_identity_service.IdentityService",
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -73,7 +68,6 @@ def request_deletion(
 
     Args:
         user_id: The user to delete.
-        identity_service: Identity service that revokes the user's sessions.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
         db: Database session.

@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.auth._internal.internal_dependencies as auth_security
-import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.public_router as auth_router
+import modules.auth.authentication.security_stores as auth_security_stores
+import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.password_hasher as auth_password_hasher
-import modules.auth.identity_service as auth_identity_service
+import modules.auth.dependencies as auth_security
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 
 
@@ -116,16 +116,8 @@ def fake_pending_mfa_store():
 
 
 @pytest.fixture
-def mock_identity_service():
-    """Return an IdentityService test double."""
-    service = MagicMock()
-    return service
-
-
-@pytest.fixture
 def auth_app(
     mock_db,
-    mock_identity_service,
     password_hasher,
     token_manager,
     fake_failed_login_store,
@@ -141,7 +133,6 @@ def auth_app(
         return app.state._client_type
 
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
-    app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: mock_identity_service
     app.dependency_overrides[auth_password_hasher.get_password_hasher] = lambda: password_hasher
     app.dependency_overrides[auth_token_manager.get_token_manager] = lambda: token_manager
     app.dependency_overrides[auth_router.authentication_dependencies.header_client_type_scheme] = _client_type
@@ -606,9 +597,9 @@ class TestMFAVerifyEndpoint:
         auth_client,
         auth_app,
         fake_pending_mfa_store,
-        mock_identity_service,
+        mock_db,
     ):
-        """Backup-code MFA login calls mfa_backup_codes.utils directly (not via IdentityService)."""
+        """Backup-code MFA login calls mfa_backup_codes.utils directly (through the credentials integration)."""
         fake_pending_mfa_store.add_pending_login("testuser", 1)
         mock_mfa = MagicMock()
         mock_mfa.mfa_enabled = True
@@ -651,8 +642,8 @@ class TestMFAVerifyEndpoint:
         mock_backup_verify.assert_called_once_with(
             1,
             "A3K9-7BDF",
-            mock_identity_service,
-            mock_backup_verify.call_args[0][3],
+            auth_credentials_crud,
+            mock_db,
         )
 
     def test_mfa_verify_no_pending_login_returns_400(

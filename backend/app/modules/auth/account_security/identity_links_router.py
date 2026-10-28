@@ -10,7 +10,6 @@ import modules.auth.account_security.identity_link_service as identity_link_serv
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
-import modules.auth.identity_service as auth_identity_service
 import modules.users.users.schema as users_schema
 
 router = APIRouter(dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
@@ -27,10 +26,6 @@ def generate_link_token(
     link_request: idp_link_token_schema.IdpLinkTokenRequest,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -60,7 +55,6 @@ def generate_link_token(
         link_request (IdpLinkTokenRequest): Request with step-up credentials.
         request (Request): The FastAPI request object.
         token_user_id (int): The authenticated user's ID extracted from the access token.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
 
     Returns:
@@ -73,9 +67,7 @@ def generate_link_token(
             - 409 CONFLICT: If the identity provider is already linked.
             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
     """
-    return identity_link_service.generate_link_token(
-        idp_id, link_request, request, token_user_id, identity_service, step_up_store, db
-    )
+    return identity_link_service.generate_link_token(idp_id, link_request, request, token_user_id, step_up_store, db)
 
 
 # Identity Provider Management Endpoints
@@ -130,10 +122,6 @@ def delete_my_identity_provider(
     step_up: users_schema.StepUpVerification,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -154,7 +142,6 @@ def delete_my_identity_provider(
         step_up (StepUpVerification): Step-up verification payload.
         request (Request): The FastAPI request object.
         token_user_id (int): User ID extracted from the access token.
-        identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
 
     Returns:
@@ -176,7 +163,5 @@ def delete_my_identity_provider(
         - Uses token-based authentication to ensure users can only
           unlink their own IdPs.
     """
-    identity_link_service.delete_identity_provider_link(
-        idp_id, step_up, token_user_id, identity_service, step_up_store, db
-    )
+    identity_link_service.delete_identity_provider_link(idp_id, step_up, token_user_id, step_up_store, db)
     return None
