@@ -191,7 +191,7 @@ class TestAuthRouterErrors:
             log_messages.append(message)
 
         monkeypatch.setattr(
-            auth_router.mfa_service,
+            auth_router.mfa_integration,
             "verify_user_mfa",
             lambda *args: False,
         )
@@ -253,7 +253,7 @@ class TestAuthRouterErrors:
                 return None
 
         monkeypatch.setattr(
-            auth_router.mfa_service,
+            auth_router.mfa_integration,
             "verify_user_mfa",
             lambda *args: True,
         )

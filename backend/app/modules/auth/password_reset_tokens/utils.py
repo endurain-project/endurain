@@ -16,10 +16,10 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import core.mail as core_mail
-import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.integration_service as auth_password_policy
+import modules.auth.mfa.integration_service as auth_mfa_integration
 import modules.auth.password_reset_tokens.crud as password_reset_tokens_crud
 import modules.auth.password_reset_tokens.event_publishers as password_reset_tokens_event_publishers
 import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
@@ -210,7 +210,7 @@ def use_password_reset_token(
 
     # Drop any in-flight pending-MFA login that was started with the
     # now-rotated password.
-    auth_security_stores.clear_pending_mfa_for_user(token_user_id)
+    auth_mfa_integration.clear_pending_mfa_for_user(token_user_id)
 
 
 def delete_invalid_tokens_from_db() -> None:

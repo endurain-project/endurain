@@ -8,15 +8,11 @@ backend is used.
 
 from typing import NoReturn
 
-import jasil.runtime as platform_runtime
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
-import core.logger as core_logger
-
-logger = core_logger.get_logger(__name__)
 
 _MFA_SECRET_KEY_PREFIX = "endurain:auth:mfa:setup_secret"  # noqa: S105 - storage key prefix, not a credential
 _DEFAULT_TTL_SECONDS: int = 300
@@ -35,18 +31,16 @@ class MFASecretStoreUnavailableError(core_exceptions.ServiceUnavailableError, Ru
     default_detail = "MFA setup temporarily unavailable"
 
 
-def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
+def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
     """
     Log a storage outage and re-raise it as an MFA-store error.
 
     Args:
-        operation: Storage operation that failed.
         err: The provider outage error.
 
     Raises:
         MFASecretStoreUnavailableError: Always raised.
     """
-    logger.error(f"MFA secret storage failed: {operation}", exc_info=err)
     raise MFASecretStoreUnavailableError("MFA secret storage is unavailable") from err
 
 
@@ -86,13 +80,12 @@ def _encrypt_secret(secret: str) -> str:
     return encrypted_secret
 
 
-def _decrypt_secret(encrypted_secret: str, user_id: int) -> str | None:
+def _decrypt_secret(encrypted_secret: str) -> str | None:
     """
     Decrypt an encrypted MFA secret.
 
     Args:
         encrypted_secret: Fernet-encrypted MFA setup secret.
-        user_id: User ID used for sanitized logging.
 
     Returns:
         Decrypted MFA setup secret, or None on failure.
@@ -102,26 +95,8 @@ def _decrypt_secret(encrypted_secret: str, user_id: int) -> str | None:
     """
     try:
         return core_cryptography.decrypt_token_fernet(encrypted_secret)
-    except Exception as err:
-        logger.error(f"Failed to decrypt MFA secret for user {user_id}: {type(err).__name__}", exc_info=err)
+    except Exception:
         return None
-
-
-def _log_secret_stored(user_id: int, ttl_seconds: int) -> None:
-    """
-    Log MFA secret storage without exposing the secret.
-
-    Args:
-        user_id: User ID associated with the setup secret.
-        ttl_seconds: Secret time-to-live in seconds.
-
-    Returns:
-        None.
-
-    Raises:
-        None.
-    """
-    logger.debug(f"Securely stored MFA secret for user {user_id} (expires in {ttl_seconds}s)")
 
 
 class MFASecretStore:
@@ -130,27 +105,19 @@ class MFASecretStore:
 
     Attributes:
         DEFAULT_TTL_SECONDS: Default secret lifetime in seconds.
-        _state_override: Explicit provider (tests); ``None`` resolves the
-            process-wide provider lazily at call time.
-        _ttl_seconds: Secret lifetime in seconds.
+        _state: Explicit platform state provider.
     """
 
     DEFAULT_TTL_SECONDS: int = _DEFAULT_TTL_SECONDS
 
-    def __init__(self, state: StateProvider | None = None, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> None:
+    def __init__(self, state: StateProvider) -> None:
         """
         Initialize the MFA secret store.
 
         Args:
-            state: Optional explicit state provider (defaults to the process-wide one).
-            ttl_seconds: Time-to-live for secrets in seconds.
+            state: Platform state provider.
         """
-        self._state_override = state
-        self._ttl_seconds = ttl_seconds
-
-    @property
-    def _state(self) -> StateProvider:
-        return self._state_override if self._state_override is not None else platform_runtime.get_state()
+        self._state = state
 
     def _key(self, user_id: int) -> str:
         """Build the storage key for a user's pending MFA secret."""
@@ -171,10 +138,9 @@ class MFASecretStore:
         """
         encrypted_secret = _encrypt_secret(secret)
         try:
-            self._state.set(self._key(user_id), encrypted_secret.encode(), ttl_seconds=self._ttl_seconds)
+            self._state.set(self._key(user_id), encrypted_secret.encode(), ttl_seconds=_DEFAULT_TTL_SECONDS)
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("add MFA setup secret", err)
-        _log_secret_stored(user_id, self._ttl_seconds)
+            _raise_store_unavailable(err)
 
     def get_secret(self, user_id: int) -> str | None:
         """
@@ -192,10 +158,10 @@ class MFASecretStore:
         try:
             encrypted_secret = self._state.get(self._key(user_id))
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("get MFA setup secret", err)
+            _raise_store_unavailable(err)
         if encrypted_secret is None:
             return None
-        return _decrypt_secret(encrypted_secret.decode(), user_id)
+        return _decrypt_secret(encrypted_secret.decode())
 
     def delete_secret(self, user_id: int) -> None:
         """
@@ -211,8 +177,8 @@ class MFASecretStore:
         """
         try:
             self._state.delete(self._key(user_id))
-        except StateBackendUnavailableError as err:
-            logger.warning("Failed to delete MFA setup secret; entry will expire naturally via TTL", exc_info=err)
+        except StateBackendUnavailableError:
+            return
 
     def has_secret(self, user_id: int) -> bool:
         """
@@ -230,7 +196,7 @@ class MFASecretStore:
         try:
             return self._state.get(self._key(user_id)) is not None
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("check MFA setup secret", err)
+            _raise_store_unavailable(err)
 
     def clear_all(self) -> None:
         """
@@ -245,24 +211,4 @@ class MFASecretStore:
         try:
             self._state.delete_prefix(f"{_MFA_SECRET_KEY_PREFIX}:")
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("clear MFA setup secrets", err)
-
-
-# Single provider-backed implementation; the alias is kept for existing call
-# sites that annotate against the store type.
-MFASecretStoreBackend = MFASecretStore
-
-mfa_secret_store = MFASecretStore()
-
-
-def get_mfa_secret_store() -> MFASecretStore:
-    """
-    Get the module-level MFA secret store instance.
-
-    Returns:
-        The global MFA secret store instance.
-
-    Raises:
-        None.
-    """
-    return mfa_secret_store
+            _raise_store_unavailable(err)

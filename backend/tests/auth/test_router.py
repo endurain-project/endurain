@@ -14,6 +14,7 @@ import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.identity_service as auth_identity_service
+import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.router as auth_router
 
 
@@ -141,7 +142,7 @@ def auth_app(
     app.dependency_overrides[auth_token_manager.get_token_manager] = lambda: token_manager
     app.dependency_overrides[auth_security.header_client_type_scheme] = _client_type
     app.dependency_overrides[auth_security_stores.get_failed_login_attempts] = lambda: fake_failed_login_store
-    app.dependency_overrides[auth_security_stores.get_pending_mfa_store] = lambda: fake_pending_mfa_store
+    app.dependency_overrides[auth_mfa_dependencies.get_pending_mfa_store] = lambda: fake_pending_mfa_store
 
     return app
 
@@ -161,7 +162,7 @@ class TestLoginEndpoint:
     """Tests for POST /auth/login endpoint."""
 
     @patch("modules.auth.router.auth_utils.complete_login")
-    @patch("modules.auth.router.mfa_service.is_mfa_enabled_for_user")
+    @patch("modules.auth.router.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.auth_utils.authenticate_user")
     def test_login_web_success(
@@ -200,7 +201,7 @@ class TestLoginEndpoint:
         assert data["token_type"] == "bearer"
 
     @patch("modules.auth.router.auth_utils.complete_login")
-    @patch("modules.auth.router.mfa_service.is_mfa_enabled_for_user")
+    @patch("modules.auth.router.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.auth_utils.authenticate_user")
     def test_login_mobile_success(
@@ -290,7 +291,7 @@ class TestLoginEndpoint:
         assert response.status_code == 429
         assert "locked" in response.json()["detail"].lower()
 
-    @patch("modules.auth.router.mfa_service.is_mfa_enabled_for_user")
+    @patch("modules.auth.router.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.auth_utils.authenticate_user")
     def test_login_mfa_required_returns_202(
@@ -331,7 +332,7 @@ class TestLoginEndpoint:
         assert "together" in response.json()["detail"]
 
     @patch("modules.auth.router.auth_utils.create_mobile_pkce_session_response")
-    @patch("modules.auth.router.mfa_service.is_mfa_enabled_for_user")
+    @patch("modules.auth.router.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.auth_utils.authenticate_user")
     def test_login_mobile_pkce_returns_session_response(
@@ -434,7 +435,7 @@ class TestLoginEndpoint:
         assert "unavailable" in response.json()["detail"].lower()
 
     @patch("modules.auth.router.auth_utils.complete_login")
-    @patch("modules.auth.router.mfa_service.is_mfa_enabled_for_user")
+    @patch("modules.auth.router.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.auth_utils.authenticate_user")
     def test_login_store_unavailable_on_reset_attempts_returns_503(
@@ -464,7 +465,7 @@ class TestLoginEndpoint:
         assert "unavailable" in response.json()["detail"].lower()
 
     @patch("modules.auth.router.auth_utils.complete_login")
-    @patch("modules.auth.router.mfa_service.is_mfa_enabled_for_user")
+    @patch("modules.auth.router.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.auth_utils.authenticate_user")
     def test_login_store_unavailable_on_add_pending_returns_503(
@@ -491,7 +492,7 @@ class TestLoginEndpoint:
         )
         assert response.status_code == 503
 
-    @patch("modules.auth.router.mfa_service.is_mfa_enabled_for_user")
+    @patch("modules.auth.router.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.auth_utils.authenticate_user")
     def test_login_mfa_required_mobile_returns_dict(
@@ -527,7 +528,7 @@ class TestMFAVerifyEndpoint:
     @patch("modules.auth.router.auth_utils.complete_login")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.mfa_service.verify_user_mfa")
+    @patch("modules.auth.router.mfa_integration.verify_user_mfa")
     def test_mfa_verify_success(
         self,
         mock_verify_mfa,
@@ -565,7 +566,7 @@ class TestMFAVerifyEndpoint:
         assert response.status_code == 200
         assert response.json()["access_token"] == "at-mfa"
 
-    @patch("modules.auth.router.mfa_service.verify_user_mfa")
+    @patch("modules.auth.router.mfa_integration.verify_user_mfa")
     def test_mfa_verify_invalid_code_returns_400(
         self,
         mock_verify_mfa,
@@ -623,10 +624,16 @@ class TestMFAVerifyEndpoint:
             "refresh_token_expires_in": 604800,
         }
 
-        with patch(
-            "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code",
-            return_value=True,
-        ) as mock_backup_verify:
+        with (
+            patch(
+                "modules.auth.mfa.service.auth_mfa_crud.get_user_mfa_row",
+                return_value=MagicMock(mfa_enabled=True, mfa_secret="encrypted-secret"),
+            ),
+            patch(
+                "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code",
+                return_value=True,
+            ) as mock_backup_verify,
+        ):
             response = auth_client.post(
                 "/auth/mfa/verify",
                 json={
@@ -734,7 +741,7 @@ class TestMFAVerifyEndpoint:
         assert response.status_code == 503
         assert "unavailable" in response.json()["detail"].lower()
 
-    @patch("modules.auth.router.mfa_service.verify_user_mfa")
+    @patch("modules.auth.router.mfa_integration.verify_user_mfa")
     def test_mfa_verify_store_unavailable_on_record_failed_returns_503(
         self,
         mock_verify_mfa,
@@ -755,7 +762,7 @@ class TestMFAVerifyEndpoint:
         assert response.status_code == 503
         assert "unavailable" in response.json()["detail"].lower()
 
-    @patch("modules.auth.router.mfa_service.verify_user_mfa")
+    @patch("modules.auth.router.mfa_integration.verify_user_mfa")
     def test_mfa_verify_store_unavailable_on_claim_pending_returns_503(
         self,
         mock_verify_mfa,
@@ -777,7 +784,7 @@ class TestMFAVerifyEndpoint:
         assert "unavailable" in response.json()["detail"].lower()
 
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.mfa_service.verify_user_mfa")
+    @patch("modules.auth.router.mfa_integration.verify_user_mfa")
     def test_mfa_verify_user_not_found_returns_401(
         self,
         mock_verify_mfa,
@@ -799,7 +806,7 @@ class TestMFAVerifyEndpoint:
 
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.mfa_service.verify_user_mfa")
+    @patch("modules.auth.router.mfa_integration.verify_user_mfa")
     def test_mfa_verify_store_unavailable_on_reset_returns_503(
         self,
         mock_verify_mfa,
@@ -829,7 +836,7 @@ class TestMFAVerifyEndpoint:
     @patch("modules.auth.router.auth_utils.create_mobile_pkce_session_response")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.mfa_service.verify_user_mfa")
+    @patch("modules.auth.router.mfa_integration.verify_user_mfa")
     def test_mfa_verify_mobile_pkce_returns_session_response(
         self,
         mock_verify_mfa,

@@ -51,7 +51,7 @@ import modules.auth.api_keys.integration_service as auth_api_keys_integration
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.credentials.integration_service as auth_password_policy
-import modules.auth.mfa.crud as auth_mfa_crud
+import modules.auth.mfa.integration_service as auth_mfa_integration
 import modules.auth.sessions.integration_service as auth_sessions_crud
 import modules.auth.sign_up_tokens.utils as auth_sign_up_tokens_utils
 import modules.auth.utils as auth_utils
@@ -73,8 +73,8 @@ if TYPE_CHECKING:
     import modules.auth._internal.security_stores as auth_security_stores
     import modules.auth.identity_provider_link_tokens.schema as auth_idp_link_tokens_schema
     import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+    import modules.auth.mfa.contracts as auth_mfa_contracts
     import modules.auth.mfa.schema as auth_mfa_schema
-    import modules.auth.mfa.setup_store as auth_mfa_setup_store
     import modules.auth.mfa_backup_codes.schema as auth_mfa_backup_codes_schema
     import modules.auth.sessions.schema as auth_sessions_schema
     import modules.server_settings.schema as server_settings_schema
@@ -532,7 +532,7 @@ class IdentityService(Protocol):
     def setup_mfa(
         self,
         user_id: int,
-        mfa_secret_store: auth_mfa_setup_store.MFASecretStoreBackend,
+        mfa_secret_store: auth_mfa_contracts.MFASecretStoreBackend,
     ) -> auth_mfa_schema.MFASetupResponse:
         """Create MFA setup material and store the pending setup secret.
 
@@ -550,7 +550,7 @@ class IdentityService(Protocol):
         request: auth_mfa_schema.MFASetupRequest,
         user_id: int,
         step_up_store: auth_security_stores.StepUpStore,
-        mfa_secret_store: auth_mfa_setup_store.MFASecretStoreBackend,
+        mfa_secret_store: auth_mfa_contracts.MFASecretStoreBackend,
     ) -> dict:
         """Enable MFA using the pending secret and a verification code.
 
@@ -1302,7 +1302,7 @@ class DefaultIdentityService:
         Returns:
             None.
         """
-        auth_mfa_crud.create_users_mfa_row(user_id, self._db)
+        auth_mfa_integration.create_users_mfa_row(user_id, self._db)
 
     # ------------------------------------------------------------------
     # Account-security workflows (delegate to auth._internal.services.*)
@@ -1373,7 +1373,7 @@ class DefaultIdentityService:
     def setup_mfa(
         self,
         user_id: int,
-        mfa_secret_store: auth_mfa_setup_store.MFASecretStoreBackend,
+        mfa_secret_store: auth_mfa_contracts.MFASecretStoreBackend,
     ) -> auth_mfa_schema.MFASetupResponse:
         """Create MFA setup material and store the pending setup secret."""
         return auth_mfa_workflow.setup_mfa(user_id, self._db, mfa_secret_store)
@@ -1383,7 +1383,7 @@ class DefaultIdentityService:
         request: auth_mfa_schema.MFASetupRequest,
         user_id: int,
         step_up_store: auth_security_stores.StepUpStore,
-        mfa_secret_store: auth_mfa_setup_store.MFASecretStoreBackend,
+        mfa_secret_store: auth_mfa_contracts.MFASecretStoreBackend,
     ) -> dict:
         """Enable MFA using the pending secret and a verification code."""
         return auth_mfa_workflow.enable_mfa(

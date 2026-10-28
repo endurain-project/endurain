@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.credentials.integration_service as auth_credentials_crud
-import modules.auth.mfa.service as mfa_service
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -130,7 +130,7 @@ def verify_step_up_credentials(
     # else: SSO-only account; no password to verify. See docstring
     # and docs/developer-guide/auth-boundary.md "Known Structural Debt".
 
-    if mfa_service.is_mfa_enabled_for_user(user_id, db):
+    if mfa_integration.is_mfa_enabled_for_user(user_id, db):
         if not mfa_code:
             step_up_store.record_failed_attempt(key)
             raise HTTPException(
@@ -138,7 +138,7 @@ def verify_step_up_credentials(
                 detail="MFA code required for this operation",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        if not mfa_service.verify_user_mfa(user_id, mfa_code, identity_service, db):
+        if not mfa_integration.verify_user_mfa(user_id, mfa_code, identity_service, db):
             step_up_store.record_failed_attempt(key)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

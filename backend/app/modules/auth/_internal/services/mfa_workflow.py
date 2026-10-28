@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
-import modules.auth.mfa.crud as mfa_crud
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.mfa.schema as mfa_schema
-import modules.auth.mfa.service as mfa_service
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
-from modules.auth.mfa.setup_store import MFASecretStoreBackend
+from modules.auth.mfa.contracts import MFASecretStoreBackend
 
 logger = core_logger.get_logger(__name__)
 
@@ -43,7 +43,7 @@ def get_mfa_status(
     db: Session,
 ) -> mfa_schema.MFAStatusResponse:
     """Return whether MFA is enabled for the user."""
-    is_enabled = mfa_service.is_mfa_enabled_for_user(token_user_id, db)
+    is_enabled = mfa_integration.is_mfa_enabled_for_user(token_user_id, db)
     return mfa_schema.MFAStatusResponse(mfa_enabled=is_enabled)
 
 
@@ -52,7 +52,7 @@ def get_mfa_enabled_for_users(
     db: Session,
 ) -> dict[int, bool]:
     """Return MFA-enabled state per user ID in a single query."""
-    return mfa_crud.get_mfa_enabled_for_users(user_ids, db)
+    return mfa_integration.get_mfa_enabled_for_users(user_ids, db)
 
 
 def get_backup_code_status(
@@ -90,7 +90,7 @@ def setup_mfa(
     mfa_secret_store: MFASecretStoreBackend,
 ) -> mfa_schema.MFASetupResponse:
     """Create MFA setup material and store pending setup secret."""
-    response = mfa_service.setup_user_mfa(token_user_id, db)
+    response = mfa_integration.setup_user_mfa(token_user_id, db)
     mfa_secret_store.add_secret(token_user_id, response.secret)
     return response
 
@@ -121,7 +121,7 @@ def enable_mfa(
         )
 
     try:
-        backup_codes = mfa_service.enable_user_mfa(
+        backup_codes = mfa_integration.enable_user_mfa(
             token_user_id,
             secret,
             request.mfa_code,
@@ -134,7 +134,7 @@ def enable_mfa(
             "message": "MFA enabled successfully",
             "backup_codes": backup_codes,
         }
-    except HTTPException as exc:
+    except (HTTPException, core_exceptions.DomainError) as exc:
         if not (exc.status_code == status.HTTP_400_BAD_REQUEST and exc.detail == "Invalid MFA code"):
             mfa_secret_store.delete_secret(token_user_id)
         raise
@@ -156,7 +156,7 @@ def disable_mfa(
         step_up_store,
         db,
     )
-    mfa_service.disable_user_mfa(token_user_id, db)
+    mfa_integration.disable_user_mfa(token_user_id, db)
     logger.info(f"User {token_user_id} disabled MFA (step-up verified)")
     return {"message": "MFA disabled successfully"}
 
@@ -168,7 +168,7 @@ def verify_mfa(
     db: Session,
 ) -> dict:
     """Verify an MFA code for the authenticated user."""
-    is_valid = mfa_service.verify_user_mfa(
+    is_valid = mfa_integration.verify_user_mfa(
         token_user_id,
         request.mfa_code,
         identity_service,
@@ -199,7 +199,7 @@ def generate_backup_codes(
             detail="User not found",
         )
 
-    if not mfa_service.is_mfa_enabled_for_user(token_user_id, db):
+    if not mfa_integration.is_mfa_enabled_for_user(token_user_id, db):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA must be enabled to generate backup codes",

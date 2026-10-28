@@ -105,11 +105,11 @@ class TestVerifyStepUpCredentials:
                 return_value=password_hash,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.mfa_service.is_mfa_enabled_for_user",
+                "modules.auth._internal.services.step_up_service.mfa_integration.is_mfa_enabled_for_user",
                 return_value=mfa_enabled,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.mfa_service.verify_user_mfa",
+                "modules.auth._internal.services.step_up_service.mfa_integration.verify_user_mfa",
                 return_value=mfa_valid,
             ),
         ):

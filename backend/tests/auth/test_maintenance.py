@@ -1,47 +1,10 @@
-"""Tests for auth.maintenance.
-
-``modules.auth.maintenance`` is the single surface ``core.scheduler`` uses to run
-recurring auth cleanup jobs. It re-exports lower-level ``*.utils`` callables
-unchanged and defines one thin wrapper, ``cleanup_expired_pending_mfa_logins``,
-which delegates to ``modules.auth._internal.security_stores``.
-
-These tests verify the delegation wrapper and that the public maintenance
-contract (the re-exported names and ``__all__``) stays intact, since the whole
-point of this module is to keep the scheduler decoupled from the scatter of
-low-level auth utils modules.
-"""
-
-from unittest.mock import patch
+"""Tests for auth.maintenance's remaining scheduled-work exports."""
 
 import modules.auth.maintenance as auth_maintenance
 
 
-class TestCleanupExpiredPendingMfaLogins:
-    """The wrapper delegates to auth._internal.security_stores."""
-
-    def test_delegates_to_security_stores_and_returns_result(self):
-        with patch(
-            "modules.auth.maintenance.auth_security_stores.cleanup_expired_pending_mfa_logins",
-            return_value=5,
-        ) as mock_cleanup:
-            result = auth_maintenance.cleanup_expired_pending_mfa_logins()
-
-        mock_cleanup.assert_called_once_with()
-        assert result == 5
-
-    def test_passes_through_none_result(self):
-        with patch(
-            "modules.auth.maintenance.auth_security_stores.cleanup_expired_pending_mfa_logins",
-            return_value=None,
-        ) as mock_cleanup:
-            result = auth_maintenance.cleanup_expired_pending_mfa_logins()
-
-        mock_cleanup.assert_called_once_with()
-        assert result is None
-
-
 class TestMaintenanceContract:
-    """The re-exported maintenance surface stays stable for the scheduler."""
+    """The auth maintenance exports preserve the source callables."""
 
     def test_all_exports_are_present_and_callable(self):
         for name in auth_maintenance.__all__:
@@ -49,7 +12,6 @@ class TestMaintenanceContract:
             assert callable(getattr(auth_maintenance, name)), f"export not callable: {name}"
 
     def test_reexports_point_to_underlying_callables(self):
-        """Re-exported names must be the same objects as their source utils."""
         from modules.auth.identity_provider_link_tokens.scheduled_jobs import (
             delete_expired_tokens_from_db as delete_idp_link_expired_tokens_from_db,
         )

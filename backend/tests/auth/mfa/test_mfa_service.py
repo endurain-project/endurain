@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
 
 import core.exceptions as core_exceptions
 import modules.auth.mfa.service as mfa_service
@@ -126,16 +125,10 @@ class TestSetupUserMFA:
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(core_exceptions.NotFoundError):
             mfa_service.setup_user_mfa(1, MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 404
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_mfa_already_enabled(self, mock_get_user):
@@ -143,11 +136,11 @@ class TestSetupUserMFA:
         mock_user.mfa_enabled = True
         mock_get_user.return_value = mock_user
 
-        with pytest.raises(Exception) as exc_info:
+        with (
+            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
             mfa_service.setup_user_mfa(1, MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 400
 
 
 class TestEnableUserMFA:
@@ -168,25 +161,21 @@ class TestEnableUserMFA:
 
         mock_identity_service = MagicMock()
 
+        mock_db = MagicMock()
         with patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False):
-            result = mfa_service.enable_user_mfa(1, "secret", "123456", mock_identity_service, MagicMock())
+            result = mfa_service.enable_user_mfa(1, "secret", "123456", mock_identity_service, mock_db)
 
         assert result == ["CODE1", "CODE2"]
         mock_update_mfa.assert_called_once()
         mock_create_backup.assert_called_once_with(1, mock_identity_service, mock_create_backup.call_args[0][2])
+        mock_db.commit.assert_called_once()
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(core_exceptions.NotFoundError):
             mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 404
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_mfa_already_enabled(self, mock_get_user):
@@ -194,11 +183,11 @@ class TestEnableUserMFA:
         mock_user.mfa_enabled = True
         mock_get_user.return_value = mock_user
 
-        with pytest.raises(Exception) as exc_info:
+        with (
+            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
             mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 400
 
     @patch("modules.auth.mfa.service.verify_totp")
     @patch("modules.auth.mfa.service.users_integration.require_user")
@@ -210,12 +199,9 @@ class TestEnableUserMFA:
 
         with (
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            pytest.raises(Exception) as exc_info,
+            pytest.raises(core_exceptions.InvalidInputError),
         ):
             mfa_service.enable_user_mfa(1, "secret", "000000", MagicMock(), MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 400
 
     @patch("modules.auth.mfa.service.verify_totp")
     @patch("modules.auth.mfa.service.core_cryptography.encrypt_token_fernet")
@@ -229,12 +215,9 @@ class TestEnableUserMFA:
 
         with (
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            pytest.raises(Exception) as exc_info,
+            pytest.raises(core_exceptions.ProcessingError),
         ):
             mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 500
 
 
 class TestDisableUserMFA:
@@ -248,23 +231,18 @@ class TestDisableUserMFA:
         mock_user.mfa_enabled = True
         mock_get_user.return_value = mock_user
 
-        mfa_service.disable_user_mfa(1, MagicMock())
+        with patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True):
+            mfa_service.disable_user_mfa(1, MagicMock())
 
         mock_update_mfa.assert_called_once()
         mock_delete_codes.assert_called_once()
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(core_exceptions.NotFoundError):
             mfa_service.disable_user_mfa(1, MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 404
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_mfa_not_enabled(self, mock_get_user):
@@ -274,12 +252,9 @@ class TestDisableUserMFA:
 
         with (
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            pytest.raises(Exception) as exc_info,
+            pytest.raises(core_exceptions.InvalidInputError),
         ):
             mfa_service.disable_user_mfa(1, MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 400
 
 
 class TestVerifyUserMFA:
@@ -349,16 +324,10 @@ class TestVerifyUserMFA:
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(core_exceptions.NotFoundError):
             mfa_service.verify_user_mfa(1, "123456", MagicMock(), MagicMock())
-
-        assert exc_info.typename == "HTTPException"
-        assert exc_info.value.status_code == 404
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_mfa_not_enabled_returns_false(self, mock_get_user):

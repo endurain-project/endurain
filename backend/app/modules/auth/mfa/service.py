@@ -19,25 +19,21 @@ from __future__ import annotations
 
 import base64
 from io import BytesIO
-from typing import TYPE_CHECKING
 
 import pyotp
 import qrcode
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
-
-if TYPE_CHECKING:
-    import modules.auth.identity_service as auth_identity_service
 
 # ---------------------------------------------------------------------------
 # TOTP / QR-code helpers (pure, no DB)
@@ -120,15 +116,12 @@ def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupResponse:
         MFA setup response with secret and QR code.
 
     Raises:
-        HTTPException: If user not found or MFA already enabled.
+        InvalidInputError: If MFA is already enabled.
     """
     user = users_integration.require_user(user_id, db)
 
     if is_mfa_enabled_for_user(user_id, db):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA is already enabled for this user",
-        )
+        raise core_exceptions.InvalidInputError("MFA is already enabled for this user")
 
     secret = generate_totp_secret()
     qr_code = generate_qr_code(secret, user.username)
@@ -140,7 +133,7 @@ def enable_user_mfa(
     user_id: int,
     secret: str,
     mfa_code: str,
-    identity_service: auth_identity_service.IdentityService,
+    password_hasher: credentials_contracts.SupportsHashPassword,
     db: Session,
 ) -> list[str]:
     """
@@ -150,38 +143,34 @@ def enable_user_mfa(
         user_id: User ID to enable MFA for.
         secret: TOTP secret to verify.
         mfa_code: MFA code to verify.
-        identity_service: Identity service dependency.
+        password_hasher: Hasher used to store backup codes.
         db: Database session.
 
     Returns:
         List of generated backup codes.
 
     Raises:
-        HTTPException: If user not found, MFA already enabled, code
-            invalid, or encryption fails.
+        InvalidInputError: If MFA is already enabled or the code is invalid.
+        ProcessingError: If the secret cannot be encrypted.
     """
     users_integration.require_user(user_id, db)
 
     if is_mfa_enabled_for_user(user_id, db):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA is already enabled for this user",
-        )
+        raise core_exceptions.InvalidInputError("MFA is already enabled for this user")
 
     if not verify_totp(secret, mfa_code):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid MFA code")
+        raise core_exceptions.InvalidInputError("Invalid MFA code")
 
     encrypted_secret = core_cryptography.encrypt_token_fernet(secret)
 
     if not encrypted_secret:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to encrypt MFA secret",
-        )
+        raise core_exceptions.ProcessingError("Failed to encrypt MFA secret")
 
     auth_mfa_crud.update_user_mfa(user_id, db, encrypted_secret=encrypted_secret)
 
-    backup_codes = mfa_backup_codes_integration.create_backup_codes(user_id, identity_service, db)
+    backup_codes = mfa_backup_codes_integration.create_backup_codes(user_id, password_hasher, db)
+    db.commit()
+    logger.info("User enabled MFA", extra=core_logger.context(user_id=user_id))
 
     return backup_codes
 
@@ -203,25 +192,24 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
         db: Database session.
 
     Raises:
-        HTTPException: 404 if the user is not found, 400 if MFA
+        NotFoundError if the user is not found, InvalidInputError if MFA
             is not currently enabled.
     """
     users_integration.require_user(user_id, db)
 
     if not is_mfa_enabled_for_user(user_id, db):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA is not enabled for this user",
-        )
+        raise core_exceptions.InvalidInputError("MFA is not enabled for this user")
 
     auth_mfa_crud.update_user_mfa(user_id, db)
     mfa_backup_codes_integration.delete_user_backup_codes(user_id, db)
+    db.commit()
+    logger.info("User disabled MFA", extra=core_logger.context(user_id=user_id))
 
 
 def verify_user_mfa(
     user_id: int,
     mfa_code: str,
-    identity_service: auth_identity_service.IdentityService,
+    password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,
 ) -> bool:
     """
@@ -230,14 +218,14 @@ def verify_user_mfa(
     Args:
         user_id: User ID to verify MFA for.
         mfa_code: MFA code to verify (6-digit TOTP or 8-character backup code).
-        identity_service: Identity service dependency.
+        password_verifier: Verifier used to check backup codes.
         db: Database session.
 
     Returns:
         True if code is valid, False otherwise.
 
     Raises:
-        HTTPException: If user not found.
+        NotFoundError: If user not found.
 
     Notes:
         - First tries TOTP verification (6 digits)
@@ -262,12 +250,12 @@ def verify_user_mfa(
                 return False
 
             if verify_totp(secret, normalized_code):
-                logger.debug(f"User {user_id} verified MFA with TOTP")
+                logger.debug("User verified MFA with TOTP", extra=core_logger.context(user_id=user_id))
                 return True
         except ValueError as err:
             # Covers binascii.Error (non-base32 secret) and any other value
             # error from the pyotp stack; treat as verification failure.
-            logger.error(f"Error in TOTP verification: {err}", exc_info=err)
+            logger.error("Error in TOTP verification", exc_info=err, extra=core_logger.context(user_id=user_id))
             return False
         # Unexpected errors (I/O, crypto infrastructure failures, etc.) are
         # intentionally left unhandled so they surface to the global handler
@@ -280,7 +268,7 @@ def verify_user_mfa(
         and mfa_backup_codes_integration.verify_and_consume_backup_code(
             user_id,
             normalized_code,
-            identity_service,
+            password_verifier,
             db,
         )
     ):

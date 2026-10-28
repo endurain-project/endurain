@@ -7,6 +7,7 @@ composition root can collect it alongside every other module's declaration.
 
 import core.scheduler as core_scheduler
 import modules.auth.maintenance as auth_maintenance
+import modules.auth.mfa.scheduled_jobs as auth_mfa_scheduled_jobs
 
 
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
@@ -23,6 +24,7 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
         None.
     """
     return (
+        *auth_mfa_scheduled_jobs.recurring_jobs(),
         core_scheduler.ScheduledJob(
             auth_maintenance.delete_invalid_password_reset_tokens_from_db,
             60,
@@ -52,10 +54,5 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             auth_maintenance.cleanup_expired_rotated_tokens,
             1,
             "delete expired rotated tokens from the database",
-        ),
-        core_scheduler.ScheduledJob(
-            auth_maintenance.cleanup_expired_pending_mfa_logins,
-            5,
-            "evict expired pending MFA login entries",
         ),
     )

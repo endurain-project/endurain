@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
 import modules.auth.credentials.integration_service as auth_password_policy
+import modules.auth.mfa.integration_service as auth_mfa_integration
 import modules.auth.sessions.integration_service as auth_sessions_crud
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.server_settings.integration_service as server_settings_integration
@@ -19,6 +19,7 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 if TYPE_CHECKING:
+    import modules.auth._internal.security_stores as auth_security_stores
     from modules.auth.identity_service import IdentityService
 
 
@@ -123,7 +124,7 @@ def change_own_password(
     )
     identity_service.set_local_password_hash(user_id, hashed_password)
     db.commit()
-    auth_security_stores.clear_pending_mfa_for_user(user_id)
+    auth_mfa_integration.clear_pending_mfa_for_user(user_id)
 
     if revoke_other_sessions:
         revoked = auth_sessions_crud.delete_sessions_by_user(
@@ -170,4 +171,4 @@ def change_managed_user_password(
     db.commit()
     auth_sessions_crud.delete_sessions_by_user(user_id, db)
     db.commit()
-    auth_security_stores.clear_pending_mfa_for_user(user_id)
+    auth_mfa_integration.clear_pending_mfa_for_user(user_id)

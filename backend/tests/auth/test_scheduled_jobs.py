@@ -6,14 +6,25 @@ the scheduler's hard-coded list.
 """
 
 import modules.auth.maintenance as auth_maintenance
+import modules.auth.mfa.scheduled_jobs as mfa_scheduled_jobs
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
 
 
 class TestRecurringJobs:
-    def test_every_callable_comes_from_the_maintenance_surface(self):
-        """Auth's scheduled work is reached through its one maintenance module."""
+    def test_every_callable_comes_from_its_owning_surface(self):
+        """The auth aggregate collects jobs from the owning auth packages."""
         surface = {getattr(auth_maintenance, name) for name in auth_maintenance.__all__}
+        surface.update(job.func for job in mfa_scheduled_jobs.recurring_jobs())
         assert {job.func for job in auth_scheduled_jobs.recurring_jobs()} <= surface
+
+    def test_pending_mfa_cleanup_runs_every_five_minutes(self):
+        jobs = [
+            job
+            for job in auth_scheduled_jobs.recurring_jobs()
+            if job.func is mfa_scheduled_jobs.cleanup_expired_pending_mfa_logins
+        ]
+        assert len(jobs) == 1
+        assert jobs[0].minutes == 5
 
     def test_idp_link_token_cleanup_runs_every_five_minutes(self):
         jobs = [

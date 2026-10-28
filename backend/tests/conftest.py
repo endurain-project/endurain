@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
-import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
 
@@ -406,7 +406,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         return None
 
     app.dependency_overrides[auth_internal_dependencies.header_client_type_scheme] = _client_type_override
-    app.dependency_overrides[auth_security_stores.get_pending_mfa_store] = lambda: fake_store
+    app.dependency_overrides[auth_mfa_dependencies.get_pending_mfa_store] = lambda: fake_store
 
     # Override auth-internal dependencies for auth router endpoint tests.
     app.dependency_overrides[auth_internal_dependencies.validate_access_token_expiration] = _mock_validate_access_token

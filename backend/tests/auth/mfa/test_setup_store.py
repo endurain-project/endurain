@@ -6,14 +6,15 @@ import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
+import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.mfa.setup_store as auth_mfa_setup_store
 
 
 class TestMFASecretStore:
     """MFASecretStore backed by the platform StateProvider."""
 
-    def _make_store(self, ttl: int = 300) -> auth_mfa_setup_store.MFASecretStore:
-        return auth_mfa_setup_store.MFASecretStore(state=MemoryState(), ttl_seconds=ttl)
+    def _make_store(self) -> auth_mfa_setup_store.MFASecretStore:
+        return auth_mfa_setup_store.MFASecretStore(state=MemoryState())
 
     def test_lifecycle(self):
         store = self._make_store()
@@ -78,7 +79,7 @@ class TestEncryptionHelpers:
         with patch(
             "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet", side_effect=Exception("bad decrypt")
         ):
-            assert auth_mfa_setup_store._decrypt_secret("bad-encrypted-data", 123) is None
+            assert auth_mfa_setup_store._decrypt_secret("bad-encrypted-data") is None
 
 
 class TestMFASecretStoreUnavailable:
@@ -111,7 +112,10 @@ class TestMFASecretStoreUnavailable:
 
 
 class TestGetMFASecretStore:
-    """get_mfa_secret_store: returns the module singleton."""
+    """get_mfa_secret_store: binds a store to the injected platform provider."""
 
     def test_returns_singleton(self):
-        assert auth_mfa_setup_store.get_mfa_secret_store() is auth_mfa_setup_store.mfa_secret_store
+        state = MemoryState()
+        store = auth_mfa_dependencies.get_mfa_secret_store(state)
+        assert isinstance(store, auth_mfa_setup_store.MFASecretStore)
+        assert store._state is state

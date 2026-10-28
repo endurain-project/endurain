@@ -23,7 +23,7 @@ from fastapi.security import SecurityScopes
 
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.identity_service as auth_identity_service
-import modules.auth.mfa.setup_store as auth_mfa_setup_store
+import modules.auth.mfa.dependencies as auth_mfa_dependencies
 from modules.auth._internal.internal_dependencies import (
     AuthContext,
     _resolve_and_cache_principal,
@@ -136,5 +136,5 @@ StepUpStore = auth_security_stores.StepUpStore
 get_step_up_attempts = auth_security_stores.get_step_up_attempts
 
 # Re-export the pending-MFA-secret store type and dep getter for non-auth modules
-MFASecretStoreBackend = auth_mfa_setup_store.MFASecretStoreBackend
-get_mfa_secret_store = auth_mfa_setup_store.get_mfa_secret_store
+MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend
+get_mfa_secret_store = auth_mfa_dependencies.get_mfa_secret_store

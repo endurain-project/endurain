@@ -23,7 +23,8 @@ import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.identity_service as auth_identity_service
-import modules.auth.mfa.service as mfa_service
+import modules.auth.mfa.dependencies as mfa_dependencies
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.rotated_refresh_tokens.integration_service as auth_sessions_rotated_tokens_utils
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.integration_service as auth_sessions_integration
@@ -111,8 +112,8 @@ async def login_for_access_token(
         Depends(auth_security_stores.get_failed_login_attempts),
     ],
     pending_mfa_store: Annotated[
-        auth_security_stores.PendingMFAStore,
-        Depends(auth_security_stores.get_pending_mfa_store),
+        mfa_dependencies.PendingMFAStore,
+        Depends(mfa_dependencies.get_pending_mfa_store),
     ],
     password_hasher: Annotated[
         auth_password_hasher.PasswordHasher,
@@ -206,7 +207,7 @@ async def login_for_access_token(
     users_integration.require_active_user(user)
 
     # Check if MFA is enabled for this user
-    if mfa_service.is_mfa_enabled_for_user(user.id, db):
+    if mfa_integration.is_mfa_enabled_for_user(user.id, db):
         # Store the user for pending MFA verification
         try:
             pending_mfa_store.add_pending_login(form_data.username, user.id)
@@ -271,8 +272,8 @@ async def verify_mfa_and_login(
         Depends(auth_security_stores.get_failed_login_attempts),
     ],
     pending_mfa_store: Annotated[
-        auth_security_stores.PendingMFAStore,
-        Depends(auth_security_stores.get_pending_mfa_store),
+        mfa_dependencies.PendingMFAStore,
+        Depends(mfa_dependencies.get_pending_mfa_store),
     ],
     identity_service: Annotated[
         auth_identity_service.IdentityService,
@@ -362,7 +363,7 @@ async def verify_mfa_and_login(
         )
 
     # Verify the MFA code (TOTP or backup code)
-    if not mfa_service.verify_user_mfa(user_id, mfa_request.mfa_code, identity_service, db):
+    if not mfa_integration.verify_user_mfa(user_id, mfa_request.mfa_code, identity_service, db):
         # Record failed attempt and apply lockout if threshold exceeded
         try:
             failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)

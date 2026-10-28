@@ -21,7 +21,7 @@ class TestUsePasswordResetToken:
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.mark_user_password_reset_tokens_used")
     @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
-    @patch("modules.auth.password_reset_tokens.utils.auth_security_stores.clear_pending_mfa_for_user")
+    @patch("modules.auth.password_reset_tokens.utils.auth_mfa_integration.clear_pending_mfa_for_user")
     def test_revokes_sessions_after_successful_reset(
         self,
         mock_clear_pending_mfa,
@@ -166,7 +166,7 @@ class TestUsePasswordResetToken:
         mock_edit_password.assert_not_called()
         mock_db.commit.assert_not_called()
 
-    @patch("modules.auth.password_reset_tokens.utils.auth_security_stores.clear_pending_mfa_for_user")
+    @patch("modules.auth.password_reset_tokens.utils.auth_mfa_integration.clear_pending_mfa_for_user")
     @patch("modules.auth.password_reset_tokens.utils.auth_sessions_crud.delete_sessions_by_user")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.mark_user_password_reset_tokens_used")
     @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")

@@ -400,6 +400,15 @@ def _excepted(importer: str, imported: str) -> bool:
 #: surface write **stages** and its caller commits; what is listed here is
 #: deliberately a self-contained unit of work, with the reason it has to be.
 _SURFACE_UNITS_OF_WORK: dict[str, str] = {
+    "mfa.integration_service.enable_user_mfa": (
+        "Enabling MFA and replacing backup codes is one security transition that commits atomically."
+    ),
+    "mfa.integration_service.disable_user_mfa": (
+        "Disabling MFA and deleting backup codes commits as one security transition."
+    ),
+    "mfa.integration_service.verify_user_mfa": (
+        "A verified backup code is consumed durably before the caller proceeds with login or step-up."
+    ),
     "sessions.integration_service.create_session": (
         "Session creation owns its token hashing, metadata snapshot and commit as one lifecycle operation."
     ),

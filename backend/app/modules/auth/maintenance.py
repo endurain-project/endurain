@@ -11,7 +11,6 @@ are re-exported unchanged so their sync/async nature and arguments are
 preserved.
 """
 
-import modules.auth._internal.security_stores as auth_security_stores
 from modules.auth.identity_provider_link_tokens.scheduled_jobs import (
     delete_expired_tokens_from_db as delete_idp_link_expired_tokens_from_db,
 )
@@ -26,7 +25,6 @@ from modules.auth.sign_up_tokens.utils import (
 )
 
 __all__ = [
-    "cleanup_expired_pending_mfa_logins",
     "cleanup_expired_rotated_tokens",
     "cleanup_idle_sessions",
     "delete_expired_oauth_states_from_db",
@@ -34,8 +32,3 @@ __all__ = [
     "delete_invalid_password_reset_tokens_from_db",
     "delete_invalid_sign_up_tokens_from_db",
 ]
-
-
-def cleanup_expired_pending_mfa_logins() -> int:
-    """Evict expired pending MFA login entries."""
-    return auth_security_stores.cleanup_expired_pending_mfa_logins()

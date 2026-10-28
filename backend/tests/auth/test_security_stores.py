@@ -2,7 +2,7 @@
 
 import hashlib
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from jasil.backends.state_memory import MemoryState
@@ -127,97 +127,6 @@ class TestFailedLoginAttempts:
         assert store.is_locked_out("bob") is False
 
 
-class TestPendingMFALogin:
-    """Pending MFA bookkeeping plus MFA lockout (5/10/15)."""
-
-    def _store(self) -> security_stores.PendingMFALogin:
-        return security_stores.PendingMFALogin(state=MemoryState())
-
-    def test_add_and_get(self):
-        store = self._store()
-        store.add_pending_login("alice", 42)
-        assert store.get_pending_login("alice") == 42
-        assert store.has_pending_login("alice") is True
-
-    def test_claim_is_single_use(self):
-        store = self._store()
-        store.add_pending_login("alice", 42)
-        assert store.claim_pending_login("alice") == 42
-        assert store.claim_pending_login("alice") is None
-
-    def test_delete(self):
-        store = self._store()
-        store.add_pending_login("alice", 42)
-        store.delete_pending_login("alice")
-        assert store.get_pending_login("alice") is None
-
-    def test_missing_returns_none(self):
-        store = self._store()
-        assert store.get_pending_login("nobody") is None
-        assert store.has_pending_login("nobody") is False
-
-    def test_username_is_normalized(self):
-        store = self._store()
-        store.add_pending_login("Alice", 7)
-        assert store.get_pending_login("  alice ") == 7
-
-    def test_clear_for_user_removes_only_matching(self):
-        store = self._store()
-        store.add_pending_login("alice", 5)
-        store.add_pending_login("bob", 9)
-        assert store.clear_for_user(5) == 1
-        assert store.get_pending_login("alice") is None
-        assert store.get_pending_login("bob") == 9
-
-    def test_clear_for_user_no_match_returns_zero(self):
-        store = self._store()
-        store.add_pending_login("alice", 5)
-        assert store.clear_for_user(999) == 0
-        assert store.get_pending_login("alice") == 5
-
-    def test_get_pending_evicts_corrupt_value(self):
-        state = MemoryState()
-        store = security_stores.PendingMFALogin(state=state)
-        state.set(store._pending_key("alice"), b"not-an-int")
-        assert store.get_pending_login("alice") is None
-        assert state.get(store._pending_key("alice")) is None
-
-    def test_cleanup_expired_returns_zero(self):
-        assert self._store().cleanup_expired() == 0
-
-    def test_mfa_lockout_applied_at_5(self):
-        store = self._store()
-        for _ in range(5):
-            store.record_failed_attempt("alice")
-        assert store.is_locked_out("alice") is True
-
-    def test_mfa_reset_clears_lockout(self):
-        store = self._store()
-        for _ in range(5):
-            store.record_failed_attempt("alice")
-        store.reset_attempts("alice")
-        assert store.is_locked_out("alice") is False
-
-    def test_clear_all_clears_pending_and_lockout(self):
-        store = self._store()
-        store.add_pending_login("alice", 1)
-        for _ in range(5):
-            store.record_failed_attempt("alice")
-        store.clear_all()
-        assert store.get_pending_login("alice") is None
-        assert store.is_locked_out("alice") is False
-
-    def test_mfa_and_login_use_separate_namespaces(self):
-        state = MemoryState()
-        pending = security_stores.PendingMFALogin(state=state)
-        login = security_stores.FailedLoginAttempts(state=state)
-        pending.add_pending_login("alice", 1)
-        for _ in range(5):
-            login.record_failed_attempt("alice")
-        assert pending.is_locked_out("alice") is False
-        assert pending.get_pending_login("alice") == 1
-
-
 class TestStepUpAttempts:
     """Step-up lockout (5/10/15); keys are stable user identifiers, not normalized."""
 
@@ -280,26 +189,6 @@ class TestUnavailable:
         with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
             store.clear_all()
 
-    def test_add_pending_raises(self):
-        store = security_stores.PendingMFALogin(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
-            store.add_pending_login("alice", 1)
-
-    def test_get_pending_raises(self):
-        store = security_stores.PendingMFALogin(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
-            store.get_pending_login("alice")
-
-    def test_claim_pending_raises(self):
-        store = security_stores.PendingMFALogin(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
-            store.claim_pending_login("alice")
-
-    def test_clear_for_user_raises(self):
-        store = security_stores.PendingMFALogin(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
-            store.clear_for_user(1)
-
 
 class TestDependencyFunctions:
     """Module-level singletons and helpers."""
@@ -307,17 +196,5 @@ class TestDependencyFunctions:
     def test_get_failed_login_attempts_returns_singleton(self):
         assert security_stores.get_failed_login_attempts() is security_stores.failed_login_attempts
 
-    def test_get_pending_mfa_store_returns_singleton(self):
-        assert security_stores.get_pending_mfa_store() is security_stores.pending_mfa_store
-
     def test_get_step_up_attempts_returns_singleton(self):
         assert security_stores.get_step_up_attempts() is security_stores.step_up_attempts
-
-    def test_cleanup_expired_pending_mfa_logins_is_noop(self):
-        security_stores.cleanup_expired_pending_mfa_logins()
-
-    def test_clear_pending_mfa_for_user_swallows_outage(self):
-        failing = MagicMock()
-        failing.iter_keys.side_effect = StateBackendUnavailableError("down")
-        with patch.object(security_stores, "pending_mfa_store", security_stores.PendingMFALogin(state=failing)):
-            assert security_stores.clear_pending_mfa_for_user(1) == 0
