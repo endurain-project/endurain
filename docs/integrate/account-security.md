@@ -139,6 +139,9 @@ X-Client-Type: web|mobile
 }
 ```
 
+!!! note "A TOTP code works once"
+    The server accepts each authenticator code a single time. Submitting the same code again, on this endpoint or on any other that asks for an MFA code, fails like an invalid code until the next 30-second code appears.
+
 !!! tip "Backup Code Format"
     Users can also use a backup code instead of a TOTP code. Backup codes are in `XXXX-XXXX` format (e.g., `A3K9-7BDF`). See [MFA Backup Codes](#mfa-backup-codes) for details.
 
