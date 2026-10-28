@@ -1,11 +1,13 @@
 """Auth-owned user-to-identity-provider link database models (table: ``users_identity_providers``)."""
 
 from datetime import datetime
+
 from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
+
 
 class IdentityLink(Base):
     """
@@ -76,4 +78,3 @@ class IdentityLink(Base):
         nullable=True,
         comment="Last refresh token update",
     )
-

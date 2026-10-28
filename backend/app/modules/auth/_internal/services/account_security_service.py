@@ -10,7 +10,7 @@ import core.config as core_config
 import core.logger as core_logger
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
-import modules.auth.credentials.service as auth_password_policy
+import modules.auth.credentials.integration_service as auth_password_policy
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.server_settings.integration_service as server_settings_integration
@@ -120,8 +120,7 @@ def change_own_password(
     server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_integration.require_user(user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
-    hashed_password = auth_password_policy.validate_and_hash_for_user(
-        identity_service,
+    hashed_password = auth_password_policy.validate_and_hash_password_for_user(
         server_settings,
         access_type,
         new_password,
@@ -165,8 +164,7 @@ def change_managed_user_password(
     server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_integration.require_user(user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
-    hashed_password = auth_password_policy.validate_and_hash_for_user(
-        identity_service,
+    hashed_password = auth_password_policy.validate_and_hash_password_for_user(
         server_settings,
         access_type,
         new_password,

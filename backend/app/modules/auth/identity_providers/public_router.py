@@ -14,14 +14,13 @@ import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
 import core.rate_limit as core_rate_limit
-import modules.auth.credentials.password_hasher as auth_password_hasher
-import modules.auth.access_tokens.service as auth_token_manager
+import modules.auth.access_tokens.integration_service as auth_token_manager
+import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.service as idp_service
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
-import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.utils as auth_sessions_utils
 import modules.auth.utils as auth_utils
@@ -183,7 +182,7 @@ async def initiate_login(
                 client_type = "web"  # Default to web if invalid
 
         # Generate OAuth state and nonce
-        state_id, nonce = oauth_state_utils.create_state_id_and_nonce()
+        state_id, nonce = oauth_state_crud.create_state_id_and_nonce()
 
         # Get client IP address
         client_ip = core_network.get_ip_address(request)

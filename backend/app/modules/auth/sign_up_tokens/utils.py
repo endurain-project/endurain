@@ -15,11 +15,11 @@ import core.config as core_config
 import core.i18n as core_i18n
 import core.logger as core_logger
 import core.mail as core_mail
+import modules.auth.computation as token_hashing
 import modules.auth.sign_up_tokens.crud as sign_up_tokens_crud
 import modules.auth.sign_up_tokens.email_messages as sign_up_tokens_email_messages
 import modules.auth.sign_up_tokens.event_publishers as sign_up_tokens_event_publishers
 import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
-import modules.auth.computation as token_hashing
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 from core.database import SessionLocal

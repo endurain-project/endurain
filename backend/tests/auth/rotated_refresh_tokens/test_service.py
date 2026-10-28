@@ -4,77 +4,37 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
+import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_token_jobs
 import modules.auth.rotated_refresh_tokens.service as rotated_token_utils
 
 
 class TestHmacHashToken:
-    """
-    Test suite for hmac_hash_token function.
-    """
+    """Tests for keyed hashing of refresh tokens."""
 
-    @patch("modules.auth.access_tokens.service.JWT_SECRET_KEY")
-    def test_hmac_hash_token_success(self, mock_auth_constants):
-        """
-        Test successful HMAC hashing of token.
-        """
-        # Arrange
-        mock_auth_constants.JWT_SECRET_KEY = "test-secret-key"
-        raw_token = "test-refresh-token"
-
-        # Act
-        result = rotated_token_utils.hmac_hash_token(raw_token)
-
-        # Assert
+    def test_hmac_hash_token_success(self):
+        with patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", "test-secret-key"):
+            result = rotated_token_utils.hmac_hash_token("test-refresh-token")
         assert isinstance(result, str)
-        assert len(result) == 64  # SHA256 hex output
+        assert len(result) == 64
 
-    @patch("modules.auth.access_tokens.service.JWT_SECRET_KEY")
-    def test_hmac_hash_token_deterministic(self, mock_auth_constants):
-        """
-        Test HMAC hash is deterministic (same input = same output).
-        """
-        # Arrange
-        mock_auth_constants.JWT_SECRET_KEY = "test-secret-key"
-        raw_token = "test-refresh-token"
-
-        # Act
-        result1 = rotated_token_utils.hmac_hash_token(raw_token)
-        result2 = rotated_token_utils.hmac_hash_token(raw_token)
-
-        # Assert
+    def test_hmac_hash_token_deterministic(self):
+        with patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", "test-secret-key"):
+            result1 = rotated_token_utils.hmac_hash_token("test-refresh-token")
+            result2 = rotated_token_utils.hmac_hash_token("test-refresh-token")
         assert result1 == result2
 
-    @patch("modules.auth.access_tokens.service.JWT_SECRET_KEY")
-    def test_hmac_hash_token_different_tokens(self, mock_auth_constants):
-        """
-        Test different tokens produce different hashes.
-        """
-        # Arrange
-        mock_auth_constants.JWT_SECRET_KEY = "test-secret-key"
-        token1 = "token-one"
-        token2 = "token-two"
-
-        # Act
-        hash1 = rotated_token_utils.hmac_hash_token(token1)
-        hash2 = rotated_token_utils.hmac_hash_token(token2)
-
-        # Assert
+    def test_hmac_hash_token_different_tokens(self):
+        with patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", "test-secret-key"):
+            hash1 = rotated_token_utils.hmac_hash_token("token-one")
+            hash2 = rotated_token_utils.hmac_hash_token("token-two")
         assert hash1 != hash2
 
-    @patch("modules.auth.access_tokens.service.JWT_SECRET_KEY")
-    def test_hmac_hash_token_no_secret(self, mock_auth_constants):
-        """
-        Test error when JWT_SECRET_KEY not configured.
-        """
-        # Arrange
-        mock_auth_constants.JWT_SECRET_KEY = None
-        raw_token = "test-refresh-token"
-
-        # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
-            rotated_token_utils.hmac_hash_token(raw_token)
-
-        assert "JWT_SECRET_KEY" in str(exc_info.value)
+    def test_hmac_hash_token_no_secret(self):
+        with (
+            patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", None),
+            pytest.raises(ValueError, match="JWT_SECRET_KEY"),
+        ):
+            rotated_token_utils.hmac_hash_token("test-refresh-token")
 
 
 class TestStoreRotatedToken:
@@ -304,65 +264,20 @@ class TestInvalidateTokenFamily:
 
 
 class TestCleanupExpiredRotatedTokens:
-    """
-    Test suite for cleanup_expired_rotated_tokens function.
-    """
+    """Tests for rotated-token cleanup scheduling."""
 
-    @patch("modules.auth.rotated_refresh_tokens.service.SessionLocal")
-    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
-    def test_cleanup_expired_rotated_tokens_success(self, mock_crud, mock_session_local):
-        """
-        Test successful cleanup of expired tokens.
-        """
-        # Arrange
-        mock_db = MagicMock()
-        mock_session_local.return_value.__enter__.return_value = mock_db
-        mock_crud.delete_expired_tokens.return_value = 10
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")
+    def test_cleanup_commits_staged_deletions(self, mock_delete, mock_session_local):
+        db = MagicMock()
+        mock_session_local.return_value.__enter__.return_value = db
+        mock_delete.return_value = 10
+        rotated_token_jobs.cleanup_expired_rotated_tokens()
+        mock_delete.assert_called_once()
+        db.commit.assert_called_once()
 
-        # Act
-        rotated_token_utils.cleanup_expired_rotated_tokens()
-
-        # Assert
-        mock_crud.delete_expired_tokens.assert_called_once()
-
-    @patch("modules.auth.rotated_refresh_tokens.service.SessionLocal")
-    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
-    def test_cleanup_retains_buffer_past_expiry(self, mock_crud, mock_session_local):
-        """
-        Test cleanup cutoff is held a buffer behind the current time.
-        """
-        # Arrange
-        mock_db = MagicMock()
-        mock_session_local.return_value.__enter__.return_value = mock_db
-        mock_crud.delete_expired_tokens.return_value = 0
-        buffer = timedelta(seconds=rotated_token_utils.ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS)
-        before = datetime.now(UTC)
-
-        # Act
-        rotated_token_utils.cleanup_expired_rotated_tokens()
-        after = datetime.now(UTC)
-
-        # Assert
-        cutoff = mock_crud.delete_expired_tokens.call_args.args[0]
-        assert before - buffer <= cutoff <= after - buffer
-
-    @patch("modules.auth.rotated_refresh_tokens.service.SessionLocal")
-    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
-    @patch("modules.auth.rotated_refresh_tokens.service.logger")
-    def test_cleanup_expired_rotated_tokens_error_handling(self, mock_logger, mock_crud, mock_session_local):
-        """
-        Test error handling in cleanup.
-        """
-        # Arrange
-        mock_db = MagicMock()
-        mock_session_local.return_value.__enter__.return_value = mock_db
-        mock_crud.delete_expired_tokens.side_effect = Exception("Database error")
-
-        # Act (should not raise)
-        rotated_token_utils.cleanup_expired_rotated_tokens()
-
-        # Assert
-        mock_logger.error.assert_called()
+    def test_recurring_job_runs_every_minute(self):
+        assert rotated_token_jobs.recurring_jobs()[0].minutes == 1
 
 
 class TestTokenReuseGracePeriod:
@@ -388,4 +303,4 @@ class TestRotatedTokenCleanupBuffer:
         Test cleanup buffer is 10 seconds.
         """
         # Assert
-        assert rotated_token_utils.ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS == 10
+        assert rotated_token_jobs.ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS == 10

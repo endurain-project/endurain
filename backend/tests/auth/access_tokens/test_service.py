@@ -2,7 +2,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-import core.exceptions as core_exceptions
 from joserfc.errors import (
     InsecureClaimError,
     InvalidPayloadError,
@@ -10,6 +9,7 @@ from joserfc.errors import (
     MissingClaimError,
 )
 
+import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
 from modules.users.users.schema import UserAccessType, UsersRead
 

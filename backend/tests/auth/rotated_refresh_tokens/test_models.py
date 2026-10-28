@@ -104,4 +104,4 @@ class TestRotatedRefreshTokenModel:
         model = rotated_token_models.RotatedRefreshToken
 
         # Assert
-        assert hasattr(model, "users_session")
+        assert not hasattr(model, "users_session")

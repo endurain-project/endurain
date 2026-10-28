@@ -12,17 +12,18 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import core.mail as core_mail
 import modules.auth._internal.security_stores as auth_security_stores
-import modules.auth.credentials.crud as auth_credentials_crud
-import modules.auth.credentials.service as auth_password_policy
+import modules.auth.computation as token_hashing
+import modules.auth.credentials.integration_service as auth_credentials_crud
+import modules.auth.credentials.integration_service as auth_password_policy
 import modules.auth.password_reset_tokens.crud as password_reset_tokens_crud
 import modules.auth.password_reset_tokens.event_publishers as password_reset_tokens_event_publishers
 import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
 import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.computation as token_hashing
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -176,29 +177,23 @@ def use_password_reset_token(
     db_user = users_integration.require_user(token_user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
     try:
-        hashed_password = auth_password_policy.validate_and_hash_for_user(
-            identity_service,
+        hashed_password = auth_password_policy.validate_and_hash_password_for_user(
             server_settings,
             access_type,
             new_password,
         )
-    except HTTPException as err:
-        # Re-raised as 422 (distinct from the 400 above) so callers can tell a
-        # weak new password apart from an invalid/expired token instead of
-        # conflating both under the same status code.
-        if err.status_code == status.HTTP_400_BAD_REQUEST:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=err.detail,
-            ) from err
-        raise
+    except core_exceptions.InvalidInputError as err:
+        # Keep weak-password failures distinct from invalid reset tokens.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=err.detail,
+        ) from err
 
     try:
-        auth_credentials_crud.upsert_password_hash(
+        auth_credentials_crud.set_local_password_hash(
             token_user_id,
             hashed_password,
             db,
-            commit=False,
         )
         password_reset_tokens_crud.mark_user_password_reset_tokens_used(token_user_id, db)
         auth_sessions_crud.delete_sessions_by_user(token_user_id, db, commit=False)

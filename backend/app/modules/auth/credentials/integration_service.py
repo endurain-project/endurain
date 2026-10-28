@@ -7,6 +7,9 @@ import modules.auth.credentials.password_hasher as credentials_password_hasher
 import modules.auth.credentials.service as credentials_service
 import modules.server_settings.schema as server_settings_schema
 
+PasswordHasher = credentials_password_hasher.PasswordHasher
+PasswordPolicyError = credentials_password_hasher.PasswordPolicyError
+
 
 def get_credential(user_id: int, db: Session) -> credentials_contracts.CredentialRead | None:
     """Return the user's local credential DTO."""

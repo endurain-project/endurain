@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.auth._internal.security_stores as auth_security_stores
-import modules.auth.credentials.crud as auth_credentials_crud
+import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.mfa.service as mfa_service
 import modules.users.users.integration_service as users_integration
 
@@ -108,8 +108,8 @@ def verify_step_up_credentials(
     # Guard: ensure the user exists (raises 404 otherwise).
     users_integration.require_user(user_id, db)
 
-    credential = auth_credentials_crud.get_credential(user_id, db)
-    if credential is not None:
+    password_hash = auth_credentials_crud.get_password_hash(user_id, db)
+    if password_hash is not None:
         if not current_password:
             step_up_store.record_failed_attempt(key)
             raise HTTPException(
@@ -119,7 +119,7 @@ def verify_step_up_credentials(
             )
         if not identity_service.verify_password(
             current_password,
-            credential.password_hash,
+            password_hash,
         ):
             step_up_store.record_failed_attempt(key)
             raise HTTPException(

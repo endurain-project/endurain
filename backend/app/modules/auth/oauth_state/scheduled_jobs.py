@@ -1,10 +1,9 @@
 """Scheduled OAuth-state cleanup."""
 
-from core.database import SessionLocal
-
 import core.logger as core_logger
 import core.scheduler as core_scheduler
 import modules.auth.oauth_state.service as oauth_state_service
+from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 

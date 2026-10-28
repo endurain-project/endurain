@@ -6,7 +6,6 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-import core.database as core_database
 import core.logger as core_logger
 import modules.auth.computation as token_hashing
 import modules.auth.identity_provider_link_tokens.crud as idp_link_token_crud
@@ -69,32 +68,11 @@ def generate_idp_link_token(
     # Store in database
     db_token = idp_link_token_crud.create_idp_link_token(token_data, db)
 
-    logger.debug(f"Generated IdP link token for user {user_id}, idp {idp_id} (expires in {TOKEN_EXPIRY_SECONDS}s)")
+    logger.debug("Generated identity-provider link token", extra=core_logger.context(user_id=user_id, idp_id=idp_id))
 
     return idp_link_token_schema.IdpLinkTokenResponse(token=token, expires_at=db_token.expires_at)
 
 
-def delete_idp_link_expired_tokens_from_db() -> None:
-    """
-    Remove expired IdP link tokens from the database.
-
-    Opens a new database session and deletes any expired IdP link tokens
-    (older than 60 seconds). Logs the number of deleted tokens if one or
-    more were removed.
-
-    This function is designed to be run as a scheduled task on application
-    startup to clean up expired one-time link tokens.
-
-    Returns:
-        None
-
-    Notes:
-        - IdP link tokens expire after 60 seconds (set during creation).
-        - The operation is idempotent: running it repeatedly when there
-          are no expired tokens will have no further effect.
-    """
-    with core_database.SessionLocal() as db:
-        num_deleted = idp_link_token_crud.delete_expired_tokens(db)
-
-        if num_deleted > 0:
-            logger.info(f"Deleted {num_deleted} expired IdP link token(s) from database")
+def delete_expired_tokens(db: Session) -> int:
+    """Stage deletion of expired one-time link tokens."""
+    return idp_link_token_crud.delete_expired_tokens(db)

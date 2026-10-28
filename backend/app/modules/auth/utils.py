@@ -20,12 +20,11 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.network as core_network
-import modules.auth.credentials.password_hasher as auth_password_hasher
-import modules.auth.access_tokens.service as auth_token_manager
-import modules.auth.credentials.crud as auth_credentials_crud
+import modules.auth.access_tokens.integration_service as auth_token_manager
+import modules.auth.credentials.integration_service as auth_credentials_crud
+import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
-import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.utils as auth_sessions_utils
 import modules.server_settings.contracts as server_settings_contracts
@@ -115,7 +114,7 @@ def authenticate_user(
 
     # Update user hash if applicable
     if updated_hash:
-        auth_credentials_crud.upsert_password_hash(user.id, updated_hash, db)
+        auth_credentials_crud.set_local_password_hash(user.id, updated_hash, db)
 
     # Return the user if the password is correct
     return user
@@ -487,7 +486,7 @@ def create_mobile_pkce_session_response(
     session_id = str(uuid4())
 
     # Create OAuth state record for PKCE (reuse SSO infrastructure)
-    state_id, nonce = oauth_state_utils.create_state_id_and_nonce()
+    state_id, nonce = oauth_state_crud.create_state_id_and_nonce()
     client_ip = core_network.get_ip_address(request)
 
     oauth_state_crud.create_oauth_state(

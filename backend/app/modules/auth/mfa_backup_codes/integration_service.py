@@ -2,10 +2,10 @@
 
 from sqlalchemy.orm import Session
 
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.mfa_backup_codes.contracts as mfa_backup_codes_contracts
 import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 import modules.auth.mfa_backup_codes.service as mfa_backup_codes_service
-import modules.auth.credentials.contracts as credentials_contracts
 
 
 def get_user_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_contracts.BackupCodeRead]:

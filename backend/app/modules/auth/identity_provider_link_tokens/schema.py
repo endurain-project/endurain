@@ -46,7 +46,11 @@ class IdpLinkTokenCreate(BaseModel):
         description="Client IP address",
     )
 
-    model_config = ConfigDict(strict=True)
+    model_config = ConfigDict(from_attributes=True, strict=True)
+
+
+class IdpLinkTokenRead(IdpLinkTokenCreate):
+    """Persisted one-time link-token record."""
 
 
 class IdpLinkTokenRequest(BaseModel):

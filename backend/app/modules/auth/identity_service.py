@@ -39,18 +39,19 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth._internal.services.account_security_service as auth_account_security_service
 import modules.auth._internal.services.identity_link_service as auth_identity_link_service
 import modules.auth._internal.services.mfa_workflow as auth_mfa_workflow
 import modules.auth._internal.services.step_up_service as auth_step_up_service
-import modules.auth.access_tokens.service as auth_token_manager
+import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.api_keys.integration_service as auth_api_keys_integration
-import modules.auth.credentials.crud as auth_credentials_crud
+import modules.auth.credentials.integration_service as auth_credentials_crud
+import modules.auth.credentials.integration_service as auth_password_hasher
+import modules.auth.credentials.integration_service as auth_password_policy
 import modules.auth.mfa.crud as auth_mfa_crud
-import modules.auth.credentials.service as auth_password_policy
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sign_up_tokens.utils as auth_sign_up_tokens_utils
 import modules.auth.utils as auth_utils
@@ -1159,17 +1160,9 @@ class DefaultIdentityService:
             HTTPException: 400 if the password policy fails.
         """
         try:
-            self._password_hasher.validate_password(
-                password,
-                min_length,
-                password_type,
-            )
-        except auth_password_hasher.PasswordPolicyError as err:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(err),
-            ) from err
-        return self._password_hasher.hash_password(password)
+            return auth_password_hasher.validate_and_hash_password(password, min_length, password_type)
+        except core_exceptions.InvalidInputError as err:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err.detail) from err
 
     def validate_and_hash_password_for_user(
         self,
@@ -1190,7 +1183,7 @@ class DefaultIdentityService:
         Raises:
             HTTPException: 400 if the password policy fails.
         """
-        return auth_password_policy.validate_and_hash_for_user(self, server_settings, access_type, password)
+        return auth_password_policy.validate_and_hash_password_for_user(server_settings, access_type, password)
 
     def request_sign_up_approved_email(self, user_id: int, *, commit: Callable[[], None]) -> bool:
         """Commit an approval together with the notice telling the user their sign-up was approved.
@@ -1224,7 +1217,7 @@ class DefaultIdentityService:
         Returns:
             Secure hash.
         """
-        return self._password_hasher.hash_password(password)
+        return auth_password_hasher.hash_password(password)
 
     def verify_password(
         self,
@@ -1240,7 +1233,7 @@ class DefaultIdentityService:
         Returns:
             True if the password matches, False otherwise.
         """
-        return self._password_hasher.verify_password(password, password_hash)
+        return auth_password_hasher.verify_password(password, password_hash)
 
     def get_password_hash(self, user_id: int) -> str | None:
         """Return a user's stored local password hash, or ``None``.
@@ -1254,8 +1247,7 @@ class DefaultIdentityService:
         Returns:
             The stored password hash, or ``None`` if no credential exists.
         """
-        credential = auth_credentials_crud.get_credential(user_id, self._db)
-        return credential.password_hash if credential is not None else None
+        return auth_credentials_crud.get_password_hash(user_id, self._db)
 
     def has_local_password(self, user_id: int) -> bool:
         """Return whether a user has a local password credential.
@@ -1270,7 +1262,7 @@ class DefaultIdentityService:
         Returns:
             True if a local credential row exists, False otherwise.
         """
-        return auth_credentials_crud.get_credential(user_id, self._db) is not None
+        return auth_credentials_crud.has_local_password(user_id, self._db)
 
     def set_local_password_hash(self, user_id: int, password_hash: str) -> None:
         """Stage the insert or update of a user's local password hash.
@@ -1284,7 +1276,7 @@ class DefaultIdentityService:
         Returns:
             None.
         """
-        auth_credentials_crud.upsert_password_hash(user_id, password_hash, self._db, commit=False)
+        auth_credentials_crud.set_local_password_hash(user_id, password_hash, self._db)
 
     def clear_local_password(self, user_id: int) -> None:
         """Remove a user's local password credential, if present.
@@ -1295,7 +1287,7 @@ class DefaultIdentityService:
         Returns:
             None.
         """
-        auth_credentials_crud.delete_credential(user_id, self._db)
+        auth_credentials_crud.clear_local_password(user_id, self._db)
 
     def initialize_user_mfa(self, user_id: int) -> None:
         """Stage the default (disabled) MFA row for a new user.
@@ -1310,7 +1302,7 @@ class DefaultIdentityService:
         Returns:
             None.
         """
-        auth_mfa_crud.create_users_mfa_row(user_id, self._db, commit=False)
+        auth_mfa_crud.create_users_mfa_row(user_id, self._db)
 
     # ------------------------------------------------------------------
     # Account-security workflows (delegate to auth._internal.services.*)

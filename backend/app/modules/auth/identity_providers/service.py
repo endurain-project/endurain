@@ -25,11 +25,11 @@ import core.config as core_config
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth.credentials.password_hasher as auth_password_hasher
-import modules.auth.access_tokens.service as auth_token_manager
-import modules.auth.identity_provider_links.crud as auth_identity_links_crud
-import modules.auth.identity_provider_links.models as auth_identity_links_models
-import modules.auth.identity_provider_links.service as auth_identity_links_utils
+import modules.auth.access_tokens.integration_service as auth_token_manager
+import modules.auth.credentials.integration_service as auth_password_hasher
+import modules.auth.identity_provider_links.contracts as auth_identity_links_contracts
+import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
+import modules.auth.identity_provider_links.integration_service as auth_identity_links_utils
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_service as auth_identity_service
@@ -1954,7 +1954,7 @@ class IdentityProviderService:
             logger.error(f"Error in revoke_idp_token for user {user_id}, idp {idp_id}: {err}", exc_info=err)
             return False
 
-    def _is_token_expired_by_age(self, link: auth_identity_links_models.IdentityLink) -> bool:
+    def _is_token_expired_by_age(self, link: auth_identity_links_contracts.IdentityLinkRead) -> bool:
         """
         Check if an IdP refresh token has exceeded the maximum age policy.
 
@@ -1963,7 +1963,7 @@ class IdentityProviderService:
         configured maximum age.
 
         Args:
-            link (auth_identity_links_models.IdentityLink): The user-IdP link containing token metadata.
+            link (auth_identity_links_contracts.IdentityLinkRead): The user-IdP link containing token metadata.
 
         Returns:
             bool: True if the token exceeds maximum age, False otherwise.
@@ -2003,7 +2003,7 @@ class IdentityProviderService:
         max_age = timedelta(days=MAX_IDP_TOKEN_AGE_DAYS)
         return token_age > max_age
 
-    def _should_refresh_idp_token(self, link: auth_identity_links_models.IdentityLink) -> TokenAction:
+    def _should_refresh_idp_token(self, link: auth_identity_links_contracts.IdentityLinkRead) -> TokenAction:
         """
         Determine what action to take for an IdP token based on expiry and age policies.
 
@@ -2014,7 +2014,7 @@ class IdentityProviderService:
         4. Rate limiting - whether the token was refreshed very recently
 
         Args:
-            link (auth_identity_links_models.IdentityLink): The user-IdP link containing token metadata.
+            link (auth_identity_links_contracts.IdentityLinkRead): The user-IdP link containing token metadata.
 
         Returns:
             TokenAction: The action to take (SKIP, REFRESH, or CLEAR).

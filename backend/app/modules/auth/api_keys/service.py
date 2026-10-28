@@ -17,7 +17,9 @@ def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersAp
     return api_keys_crud.get_api_keys_by_user_id(user_id, db)
 
 
-def create_user_api_key(user_id: int, data: api_keys_schema.UsersApiKeyCreate, db: Session) -> api_keys_schema.UsersApiKeyCreated:
+def create_user_api_key(
+    user_id: int, data: api_keys_schema.UsersApiKeyCreate, db: Session
+) -> api_keys_schema.UsersApiKeyCreated:
     """Create a user API key and return its raw secret once."""
     user = users_integration.get_user(user_id, db)
     if user is None:

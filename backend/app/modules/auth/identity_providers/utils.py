@@ -14,10 +14,10 @@ import core.async_bridge as core_async_bridge
 import core.config as core_config
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth.identity_provider_links.crud as auth_identity_links_crud
+import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.service as idp_service
-import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
+import modules.auth.oauth_state.integration_service as oauth_state_utils
 
 logger = core_logger.get_logger(__name__)
 

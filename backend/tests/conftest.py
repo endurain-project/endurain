@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
-import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.access_tokens.service as auth_token_manager
+import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
@@ -441,11 +441,13 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     # Generic overrides
     _override_if_exists(
         app,
-        "modules.auth.credentials.password_hasher",
+        "modules.auth.credentials.integration_service",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "modules.auth.access_tokens.service", "get_token_manager", lambda: token_manager)
+    _override_if_exists(
+        app, "modules.auth.access_tokens.integration_service", "get_token_manager", lambda: token_manager
+    )
     _override_if_exists(app, "session.auth_token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
@@ -523,11 +525,13 @@ def fast_api_app_public(password_hasher, token_manager, mock_db) -> FastAPI:
     # Generic overrides
     _override_if_exists(
         app,
-        "modules.auth.credentials.password_hasher",
+        "modules.auth.credentials.integration_service",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "modules.auth.access_tokens.service", "get_token_manager", lambda: token_manager)
+    _override_if_exists(
+        app, "modules.auth.access_tokens.integration_service", "get_token_manager", lambda: token_manager
+    )
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
     ) or _override_if_exists(app, "app.core.database", "get_db", lambda: mock_db)

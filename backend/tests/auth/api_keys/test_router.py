@@ -5,7 +5,9 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException, status
 
+import core.exceptions as core_exceptions
 import modules.auth.api_keys.models as users_api_keys_models
+import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.identity_service as auth_identity_service
 
 
@@ -66,9 +68,9 @@ class TestCreateUserApiKey:
     """
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
-    @patch("modules.auth.api_keys.router.api_keys_utils.validate_api_key_scopes")
+    @patch("modules.auth.api_keys.service.api_keys_utils.validate_api_key_scopes")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_create_user_api_key_success(
         self,
         mock_get_user,
@@ -98,7 +100,18 @@ class TestCreateUserApiKey:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = (mock_orm_key, "endurain_rawsecretkey")
+        mock_create.return_value = api_keys_schema.UsersApiKeyCreated(
+            id=mock_orm_key.id,
+            user_id=1,
+            name=mock_orm_key.name,
+            key_prefix=mock_orm_key.key_prefix,
+            scopes=mock_orm_key.scopes,
+            expires_at=None,
+            last_used_at=None,
+            created_at=now,
+            is_active=True,
+            key="endurain_rawsecretkey",
+        )
 
         payload = {
             "name": "FitoTrack",
@@ -118,11 +131,14 @@ class TestCreateUserApiKey:
         assert "key" in data
         assert data["key"] == "endurain_rawsecretkey"
 
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
-    def test_create_user_api_key_user_not_found_returns_404(self, mock_get_user, fast_api_client, fast_api_app):
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
+    def test_create_user_api_key_user_not_found_returns_404(
+        self, mock_get_user, fast_api_client, fast_api_app, mock_db
+    ):
         """Test that 404 is returned when the authenticated user is not found."""
         # Arrange
         mock_get_user.return_value = None
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         payload = {
             "name": "FitoTrack",
@@ -139,9 +155,9 @@ class TestCreateUserApiKey:
         # Assert
         assert response.status_code == 404
 
-    @patch("modules.auth.api_keys.router.api_keys_utils.validate_api_key_scopes")
+    @patch("modules.auth.api_keys.service.api_keys_utils.validate_api_key_scopes")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_create_user_api_key_scope_exceeds_permission_returns_400(
         self,
         mock_get_user,
@@ -156,7 +172,7 @@ class TestCreateUserApiKey:
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
         mock_verify_step_up.return_value = None
-        mock_validate_scopes.side_effect = ValueError(
+        mock_validate_scopes.side_effect = core_exceptions.InvalidInputError(
             "Unsupported API key scopes: {'users:write'}. Valid scopes: {'activities:upload'}"
         )
 
@@ -225,7 +241,7 @@ class TestCreateUserApiKey:
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_create_user_api_key_missing_password_returns_401(
         self,
         mock_get_user,
@@ -265,7 +281,7 @@ class TestCreateUserApiKey:
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_create_user_api_key_wrong_password_returns_401(
         self,
         mock_get_user,
@@ -306,7 +322,7 @@ class TestCreateUserApiKey:
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_create_user_api_key_mfa_missing_code_returns_401(
         self,
         mock_get_user,
@@ -347,7 +363,7 @@ class TestCreateUserApiKey:
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_create_user_api_key_mfa_invalid_code_returns_401(
         self,
         mock_get_user,
@@ -389,7 +405,7 @@ class TestCreateUserApiKey:
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_step_up_failure_does_not_call_create_api_key(
         self,
         mock_get_user,
@@ -427,7 +443,7 @@ class TestCreateUserApiKey:
         mock_create.assert_not_called()
 
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_create_passes_password_and_mfa_code_to_step_up(
         self,
         mock_get_user,
@@ -526,9 +542,9 @@ class TestApiKeyResponseSafety:
         assert "key_hash" not in item, "key_hash must not appear in list response"
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
-    @patch("modules.auth.api_keys.router.api_keys_utils.validate_api_key_scopes")
+    @patch("modules.auth.api_keys.service.api_keys_utils.validate_api_key_scopes")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_created_response_includes_raw_key_once(
         self,
         mock_get_user,
@@ -562,9 +578,17 @@ class TestApiKeyResponseSafety:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = (
-            mock_orm_key,
-            "endurain_rawsecretkey",
+        mock_create.return_value = api_keys_schema.UsersApiKeyCreated(
+            id=mock_orm_key.id,
+            user_id=1,
+            name=mock_orm_key.name,
+            key_prefix=mock_orm_key.key_prefix,
+            scopes=mock_orm_key.scopes,
+            expires_at=None,
+            last_used_at=None,
+            created_at=now,
+            is_active=True,
+            key="endurain_rawsecretkey",
         )
 
         payload = {
@@ -586,9 +610,9 @@ class TestApiKeyResponseSafety:
         assert raw_key_occurrences == 1, "Raw key must appear exactly once"
 
     @patch("modules.auth.api_keys.router.api_keys_service.create_user_api_key")
-    @patch("modules.auth.api_keys.router.api_keys_utils.validate_api_key_scopes")
+    @patch("modules.auth.api_keys.service.api_keys_utils.validate_api_key_scopes")
     @patch("modules.auth.api_keys.router.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.api_keys.router.users_integration.get_user")
+    @patch("modules.auth.api_keys.service.users_integration.get_user")
     def test_created_response_excludes_key_hash(
         self,
         mock_get_user,
@@ -622,9 +646,17 @@ class TestApiKeyResponseSafety:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = (
-            mock_orm_key,
-            "endurain_rawsecretkey",
+        mock_create.return_value = api_keys_schema.UsersApiKeyCreated(
+            id=mock_orm_key.id,
+            user_id=1,
+            name=mock_orm_key.name,
+            key_prefix=mock_orm_key.key_prefix,
+            scopes=mock_orm_key.scopes,
+            expires_at=None,
+            last_used_at=None,
+            created_at=now,
+            is_active=True,
+            key="endurain_rawsecretkey",
         )
 
         payload = {

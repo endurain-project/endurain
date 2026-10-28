@@ -3,10 +3,10 @@
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.auth.identity_provider_links.crud as auth_identity_links_crud
-import modules.auth.identity_provider_links.models as auth_identity_links_models
+import modules.auth.identity_provider_links.contracts as auth_identity_links_contracts
+import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
-import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.integration_service as idp_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -44,7 +44,7 @@ def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
 
 
 def enrich_user_identity_providers(
-    idp_links: list[auth_identity_links_models.IdentityLink],
+    idp_links: list[auth_identity_links_contracts.IdentityLinkRead],
     user_id: int,
     db: Session,
 ) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
@@ -67,7 +67,7 @@ def enrich_user_identity_providers(
 
     # Batch fetch all IDPs at once (single query)
     idp_ids = [link.idp_id for link in idp_links]
-    idps = idp_crud.get_identity_providers_by_ids(idp_ids, db)
+    idps = idp_integration.get_identity_providers_by_ids(idp_ids, db)
     idp_map = {idp.id: idp for idp in idps}
 
     enriched_links: list[auth_identity_links_schema.UsersIdentityProviderResponse] = []
@@ -75,7 +75,10 @@ def enrich_user_identity_providers(
     for link in idp_links:
         idp = idp_map.get(link.idp_id)
         if idp is None:
-            logger.warning(f"IDP with id {link.idp_id} not found for user {user_id}, skipping enrichment")
+            logger.warning(
+                "Identity provider not found while enriching user links",
+                extra=core_logger.context(user_id=user_id, idp_id=link.idp_id),
+            )
             continue
 
         link_data = auth_identity_links_schema.UsersIdentityProviderResponse(

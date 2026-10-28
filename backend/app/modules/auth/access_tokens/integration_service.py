@@ -1,7 +1,11 @@
 """Operations exposed by the access-token package to auth peers."""
 
+import modules.auth.access_tokens.contracts as access_tokens_contracts
 import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.computation as auth_computation
+
+TokenManager = access_tokens_service.TokenManager
+TokenType = access_tokens_contracts.TokenType
 
 
 def get_token_manager() -> access_tokens_service.TokenManager:

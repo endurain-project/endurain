@@ -87,9 +87,7 @@ class TokenManager:
 
         """
         if algorithm not in JWT_ALLOWED_ALGORITHMS:
-            raise ValueError(
-                f"algorithm={algorithm!r} is not in the JWT allow-list {sorted(JWT_ALLOWED_ALGORITHMS)}."
-            )
+            raise ValueError(f"algorithm={algorithm!r} is not in the JWT allow-list {sorted(JWT_ALLOWED_ALGORITHMS)}.")
         self.secret_key = secret_key
         self.algorithm = algorithm
         self._key = OctKey.import_key(secret_key)
@@ -118,9 +116,9 @@ class TokenManager:
             return payload.claims[claim]
         except KeyError as err:
             logger.error(
-                f"Claim '{claim}' not found in token: {err}",
+                "Requested token claim is missing",
                 exc_info=err,
-                extra=core_logger.context(credential="token"),
+                extra=core_logger.context(credential="token", claim=claim),
             )
             raise core_exceptions.UnauthenticatedError(f"Claim '{claim}' is missing in the token.") from err
         except core_exceptions.UnauthenticatedError:
@@ -128,7 +126,7 @@ class TokenManager:
             raise
         except Exception as err:
             logger.error(
-                f"Unexpected error retrieving claim: {type(err).__name__}",
+                "Unexpected error retrieving token claim",
                 exc_info=err,
                 extra=core_logger.context(credential="token"),
             )
@@ -158,21 +156,21 @@ class TokenManager:
             return jwt.decode(token, self._key, algorithms=[self.algorithm])
         except InvalidPayloadError as payload_err:
             logger.error(
-                f"Invalid token payload: {payload_err}",
+                "Invalid token payload",
                 exc_info=payload_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Invalid token payload") from payload_err
         except DecodeError as decode_err:
             logger.error(
-                f"Error decoding token: {decode_err}",
+                "Error decoding token",
                 exc_info=decode_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Unable to decode token") from decode_err
         except Exception as err:
             logger.error(
-                f"Unexpected error decoding token: {type(err).__name__}",
+                "Unexpected error decoding token",
                 exc_info=err,
                 extra=core_logger.context(credential="token"),
             )
@@ -232,7 +230,7 @@ class TokenManager:
             claims_requests.validate(payload.claims)
         except MissingClaimError as missing_err:
             logger.error(
-                f"JWT missing claim error: {missing_err}",
+                "JWT is missing required claims",
                 exc_info=missing_err,
                 extra=core_logger.context(credential="token"),
             )
@@ -241,21 +239,21 @@ class TokenManager:
             raise core_exceptions.UnauthenticatedError("Token is expired.") from expired_err
         except InvalidTokenError as invalid_err:
             logger.error(
-                f"JWT is not valid yet error: {invalid_err}",
+                "JWT is not valid yet",
                 exc_info=invalid_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Token is not valid yet.") from invalid_err
         except InsecureClaimError as insecure_err:
             logger.error(
-                f"JWT insecure claim error: {insecure_err}",
+                "JWT contains an insecure claim",
                 exc_info=insecure_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Token has insecure claims.") from insecure_err
         except InvalidClaimError as claims_err:
             logger.error(
-                f"JWT claims validation error: {claims_err}",
+                "JWT claim validation failed",
                 exc_info=claims_err,
                 extra=core_logger.context(credential="token"),
             )
@@ -265,7 +263,7 @@ class TokenManager:
             raise
         except Exception as err:
             logger.error(
-                f"Unexpected error validating token: {type(err).__name__}",
+                "Unexpected error validating token",
                 exc_info=err,
                 extra=core_logger.context(credential="token"),
             )
@@ -295,7 +293,7 @@ class TokenManager:
             log_level = logging.DEBUG if "expired" in http_err.detail.lower() else logging.ERROR
             logger.log(
                 log_level,
-                f"Access token validation failed: {http_err.detail}",
+                "Access token validation failed",
                 exc_info=http_err,
                 extra=core_logger.context(credential="access_token"),
             )

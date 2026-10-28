@@ -128,7 +128,7 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
     if now <= rotated_token.expires_at:
         # Within grace period - might be legitimate retry
         logger.warning(
-            f"Token reuse within grace period for family {rotated_token.token_family_id}",
+            "Token reuse within grace period",
             extra=core_logger.context(
                 token_family_id=rotated_token.token_family_id, rotation_count=rotated_token.rotation_count
             ),
@@ -137,7 +137,7 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
 
     # Past grace period - likely theft!
     logger.error(
-        f"Token reuse detected after grace period for family {rotated_token.token_family_id}",
+        "Token reuse detected after grace period",
         extra=core_logger.context(
             token_family_id=rotated_token.token_family_id,
             rotation_count=rotated_token.rotation_count,
@@ -210,11 +210,15 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
     num_tokens_deleted = rotated_token_crud.delete_by_family(token_family_id, db)
 
     logger.error(
-        f"Invalidated token family {token_family_id} due to reuse: "
-        f"{num_sessions_deleted} sessions, {num_tokens_deleted} tokens",
+        "Invalidated refresh-token family after reuse detection",
         extra=core_logger.context(
             token_family_id=token_family_id, sessions_deleted=num_sessions_deleted, tokens_deleted=num_tokens_deleted
         ),
     )
 
     return num_sessions_deleted
+
+
+def delete_expired_tokens(cutoff_time: datetime, db: Session) -> int:
+    """Stage deletion of expired rotated-token records."""
+    return rotated_token_crud.delete_expired_tokens(cutoff_time, db)

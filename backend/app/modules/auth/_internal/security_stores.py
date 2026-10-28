@@ -18,6 +18,8 @@ from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.hashing as core_hashing
 import core.logger as core_logger
+import modules.auth.lockout.contracts as auth_lockout_contracts
+import modules.auth.lockout.integration_service as auth_lockout_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -84,19 +86,8 @@ def _username_digest(username: str) -> str:
 
 
 def username_log_identifier(username: str) -> str:
-    """
-    Build a non-reversible username identifier for logs.
-
-    Args:
-        username: Username to normalize and hash.
-
-    Returns:
-        Log-safe username identifier.
-
-    Raises:
-        None.
-    """
-    return f"username_hash={_username_digest(username)}"
+    """Build a non-reversible username identifier for logs."""
+    return auth_lockout_integration.username_log_identifier(username)
 
 
 def _now_epoch() -> int:
@@ -107,30 +98,6 @@ def _now_epoch() -> int:
 def _datetime_from_epoch(epoch_seconds: int) -> datetime:
     """Convert an epoch timestamp to a timezone-aware UTC datetime."""
     return datetime.fromtimestamp(epoch_seconds, tz=UTC)
-
-
-def _log_lockout(display_name: str, duration_label: str, username: str, failed_count: int) -> None:
-    """
-    Log a progressive lockout event.
-
-    Args:
-        display_name: Human-readable store name.
-        duration_label: Human-readable lockout duration.
-        username: Normalized username being locked out.
-        failed_count: Failed attempt count that caused the lockout.
-
-    Returns:
-        None.
-
-    Raises:
-        None.
-    """
-    logger.warning(
-        f"{display_name} lockout ({duration_label}) applied to user "
-        f"{username_log_identifier(username)} after {failed_count} "
-        "failed attempts",
-        extra=core_logger.context(username_hash=_username_digest(username), failed_attempts=failed_count),
-    )
 
 
 @runtime_checkable
@@ -195,125 +162,57 @@ class StepUpStore(Protocol):
 # Progressive-lockout thresholds. Each entry is ``(failed_count_threshold,
 # lockout_seconds, duration_label)`` in ascending order; the highest matched
 # threshold wins.
-_LOGIN_LOCKOUT_THRESHOLDS: tuple[tuple[int, int, str], ...] = (
-    (5, 5 * 60, "5 min"),
-    (10, 30 * 60, "30 min"),
-    (20, 24 * 60 * 60, "24 hours"),
-)
-_MFA_LOCKOUT_THRESHOLDS: tuple[tuple[int, int, str], ...] = (
-    (5, 5 * 60, "5 min"),
-    (10, 30 * 60, "30 min"),
-    (15, 2 * 60 * 60, "2 hours"),
-)
-_STEP_UP_LOCKOUT_THRESHOLDS: tuple[tuple[int, int, str], ...] = (
-    (5, 5 * 60, "5 min"),
-    (10, 30 * 60, "30 min"),
-    (15, 2 * 60 * 60, "2 hours"),
-)
+_LOGIN_LOCKOUT_THRESHOLDS = auth_lockout_contracts.LOGIN_LOCKOUT_TIERS
+_MFA_LOCKOUT_THRESHOLDS = auth_lockout_contracts.MFA_LOCKOUT_TIERS
+_STEP_UP_LOCKOUT_THRESHOLDS = auth_lockout_contracts.STEP_UP_LOCKOUT_TIERS
 
 
 class _ProgressiveLockout:
-    """
-    Progressive-lockout counter delegated to ``StateProvider.record_tiered_failure``.
-
-    Shared by all three security stores; the memory-vs-Redis atomicity lives in
-    the provider, so this class only holds the thresholds and key layout.
-
-    Attributes:
-        _get_state: Callable returning the active state provider.
-        _name: Logical store name used in key prefixes.
-        _display_name: Human-readable name used in logs.
-        _thresholds: ``(count, seconds, label)`` tuples, ascending.
-        _attempts_ttl_seconds: TTL for failed-attempt counters.
-        _normalize: Optional key-normaliser applied before hashing.
-    """
+    """Bind a lockout configuration to the active state provider on first use."""
 
     def __init__(
         self,
-        get_state: "Callable[[], StateProvider]",
+        get_state: Callable[[], StateProvider],
         name: str,
         display_name: str,
         thresholds: tuple[tuple[int, int, str], ...],
         attempts_ttl_seconds: int,
-        normalize_key: "Callable[[str], str] | None" = None,
+        normalize_key: Callable[[str], str] | None = None,
     ) -> None:
         self._get_state = get_state
         self._name = name
         self._display_name = display_name
         self._thresholds = thresholds
         self._attempts_ttl_seconds = attempts_ttl_seconds
-        self._normalize = normalize_key or (lambda key: key)
+        self._normalize = normalize_key
+        self._lockout: auth_lockout_contracts.LockoutStore | None = None
 
-    def _digest(self, key: str) -> str:
-        return core_hashing.sha256_hex(self._normalize(key))
-
-    def _counter_key(self, key: str) -> str:
-        return f"{_AUTH_KEY_PREFIX}:{self._name}:attempts:{self._digest(key)}"
-
-    def _gate_key(self, key: str) -> str:
-        return f"{_AUTH_KEY_PREFIX}:{self._name}:lockout:{self._digest(key)}"
-
-    def _duration_label(self, failed_count: int) -> str:
-        for threshold, _lockout_seconds, label in reversed(self._thresholds):
-            if failed_count >= threshold:
-                return label
-        return "unknown"
+    def _provider(self) -> auth_lockout_contracts.LockoutStore:
+        if self._lockout is None:
+            self._lockout = auth_lockout_integration.new_progressive_lockout(
+                self._get_state(),
+                name=self._name,
+                display_name=self._display_name,
+                tiers=self._thresholds,
+                attempts_ttl_seconds=self._attempts_ttl_seconds,
+                normalize_key=self._normalize,
+            )
+        return self._lockout
 
     def is_locked_out(self, key: str) -> bool:
-        return self.get_lockout_time(key) is not None
+        return self._provider().is_locked_out(key)
 
     def get_lockout_time(self, key: str) -> datetime | None:
-        gate_key = self._gate_key(key)
-        try:
-            raw_gate = self._get_state().get(gate_key)
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable("get lockout time", err)
-        if raw_gate is None:
-            return None
-        try:
-            gate_until = int(raw_gate.decode())
-        except (TypeError, ValueError):
-            self._delete(gate_key, "delete invalid lockout")
-            return None
-        if gate_until <= _now_epoch():
-            self._delete(gate_key, "delete expired lockout")
-            return None
-        return _datetime_from_epoch(gate_until)
+        return self._provider().get_lockout_time(key)
 
     def record_failed_attempt(self, key: str) -> int:
-        tiers = tuple((count, seconds) for count, seconds, _label in self._thresholds)
-        try:
-            outcome = self._get_state().record_tiered_failure(
-                self._counter_key(key),
-                self._gate_key(key),
-                tiers,
-                self._attempts_ttl_seconds,
-            )
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable("record failed attempt", err)
-        if outcome.newly_locked:
-            _log_lockout(self._display_name, self._duration_label(outcome.count), self._normalize(key), outcome.count)
-        return outcome.count
+        return self._provider().record_failed_attempt(key)
 
     def reset_attempts(self, key: str) -> None:
-        state = self._get_state()
-        try:
-            state.delete(self._counter_key(key))
-            state.delete(self._gate_key(key))
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable("reset attempts", err)
+        self._provider().reset_attempts(key)
 
     def clear_all(self) -> None:
-        try:
-            self._get_state().delete_prefix(f"{_AUTH_KEY_PREFIX}:{self._name}:")
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable("clear lockout store", err)
-
-    def _delete(self, key: str, operation: str) -> None:
-        try:
-            self._get_state().delete(key)
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable(operation, err)
+        self._provider().clear_all()
 
 
 class FailedLoginAttempts:

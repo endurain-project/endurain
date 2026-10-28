@@ -11,13 +11,13 @@ import core.logger as core_logger
 import core.network as core_network
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
-import modules.auth.credentials.crud as auth_credentials_crud
-import modules.auth.identity_provider_link_tokens.crud as idp_link_token_crud
+import modules.auth.credentials.integration_service as auth_credentials_crud
+import modules.auth.identity_provider_link_tokens.integration_service as idp_link_token_crud
+import modules.auth.identity_provider_link_tokens.integration_service as idp_link_token_utils
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
-import modules.auth.identity_provider_link_tokens.service as idp_link_token_utils
-import modules.auth.identity_provider_links.crud as auth_identity_links_crud
+import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
+import modules.auth.identity_provider_links.integration_service as auth_identity_links_utils
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
-import modules.auth.identity_provider_links.service as auth_identity_links_utils
 import modules.auth.identity_providers.crud as idp_crud
 import modules.users.users.schema as users_schema
 

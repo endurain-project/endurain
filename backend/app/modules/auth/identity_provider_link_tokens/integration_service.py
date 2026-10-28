@@ -22,7 +22,7 @@ def generate_idp_link_token(
     return idp_link_token_service.generate_idp_link_token(user_id, idp_id, ip_address, db)
 
 
-def get_idp_link_token_by_hash(token_hash: str, db: Session):
+def get_idp_link_token_by_hash(token_hash: str, db: Session) -> idp_link_token_schema.IdpLinkTokenRead | None:
     """Return a matching, unused link-token DTO."""
     return idp_link_token_crud.get_idp_link_token_by_hash(token_hash, db)
 

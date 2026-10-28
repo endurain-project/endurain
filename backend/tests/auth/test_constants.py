@@ -1,7 +1,7 @@
 """Tests for auth.constants module."""
 
-import modules.auth.constants as auth_constants
 import modules.auth.access_tokens.service as access_tokens_service
+import modules.auth.constants as auth_constants
 
 
 class TestJWTConstants:

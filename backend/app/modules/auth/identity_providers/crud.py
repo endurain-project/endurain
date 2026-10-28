@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 import core.cryptography as core_cryptography
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.auth.identity_provider_links.crud as auth_identity_links_crud
+import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.schema as idp_schema
 

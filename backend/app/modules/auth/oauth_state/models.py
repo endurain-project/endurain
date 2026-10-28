@@ -1,11 +1,13 @@
 """SQLAlchemy ORM model for OAuth/SSO flow state persistence."""
 
 from datetime import datetime
+
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
+
 
 class OAuthState(Base):
     """
@@ -112,4 +114,3 @@ class OAuthState(Base):
         index=True,
         comment="True when state is consumed (prevents replay)",
     )
-

@@ -20,7 +20,6 @@ class TestChangeOwnPassword:
     ):
         """Self-service password change hashes in auth and owns all auth side effects."""
         identity_service = MagicMock()
-        identity_service.validate_and_hash_password.return_value = "hashed-new-pass"
         step_up_store = MagicMock()
 
         mock_user = MagicMock()
@@ -39,6 +38,10 @@ class TestChangeOwnPassword:
                 "modules.auth._internal.services.account_security_service.users_integration.require_user",
                 return_value=mock_user,
             ),
+            patch(
+                "modules.auth._internal.services.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
+                return_value="hashed-new-pass",
+            ) as mock_hash_password,
         ):
             account_security_service.change_own_password(
                 user_id=7,
@@ -58,11 +61,7 @@ class TestChangeOwnPassword:
             step_up_store,
             mock_db,
         )
-        identity_service.validate_and_hash_password.assert_called_once_with(
-            "new-pass",
-            8,
-            "strict",
-        )
+        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass")
         identity_service.set_local_password_hash.assert_called_once_with(
             7,
             "hashed-new-pass",
@@ -82,7 +81,6 @@ class TestChangeOwnPassword:
         from modules.users.users.schema import UserAccessType
 
         identity_service = MagicMock()
-        identity_service.validate_and_hash_password.return_value = "hashed-admin-pass"
         step_up_store = MagicMock()
 
         mock_user = MagicMock()
@@ -101,6 +99,10 @@ class TestChangeOwnPassword:
                 "modules.auth._internal.services.account_security_service.users_integration.require_user",
                 return_value=mock_user,
             ),
+            patch(
+                "modules.auth._internal.services.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
+                return_value="hashed-admin-pass",
+            ) as mock_hash_password,
         ):
             account_security_service.change_own_password(
                 user_id=1,
@@ -112,11 +114,7 @@ class TestChangeOwnPassword:
                 db=mock_db,
             )
 
-        identity_service.validate_and_hash_password.assert_called_once_with(
-            "new-pass",
-            16,
-            "strict",
-        )
+        mock_hash_password.assert_called_once_with(mock_settings, "admin", "new-pass")
 
 
 class TestChangeManagedUserPassword:
@@ -132,7 +130,6 @@ class TestChangeManagedUserPassword:
     ):
         """Managed password change hashes in auth and owns all auth side effects."""
         identity_service = MagicMock()
-        identity_service.validate_and_hash_password.return_value = "hashed-managed-pass"
 
         mock_user = MagicMock()
         mock_user.access_type = "regular"
@@ -150,6 +147,10 @@ class TestChangeManagedUserPassword:
                 "modules.auth._internal.services.account_security_service.users_integration.require_user",
                 return_value=mock_user,
             ),
+            patch(
+                "modules.auth._internal.services.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
+                return_value="hashed-managed-pass",
+            ) as mock_hash_password,
         ):
             account_security_service.change_managed_user_password(
                 user_id=42,
@@ -158,11 +159,7 @@ class TestChangeManagedUserPassword:
                 db=mock_db,
             )
 
-        identity_service.validate_and_hash_password.assert_called_once_with(
-            "new-pass",
-            8,
-            "strict",
-        )
+        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass")
         identity_service.set_local_password_hash.assert_called_once_with(
             42,
             "hashed-managed-pass",

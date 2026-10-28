@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 
 from core.database import Base
 
+
 class IdentityProvider(Base):
     """
     Represents an external Identity Provider (IdP) configuration for authentication.
@@ -144,4 +145,3 @@ class IdentityProvider(Base):
         onupdate=func.now(),
         comment="When this provider was last updated",
     )
-

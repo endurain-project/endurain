@@ -9,6 +9,7 @@ import json
 
 import pytest
 
+import core.exceptions as core_exceptions
 import modules.auth.api_keys.utils as api_keys_utils
 
 
@@ -69,17 +70,17 @@ class TestValidateApiKeyScopes:
 
     def test_unsupported_scope_raises(self):
         """An unsupported scope raises ValueError."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
             api_keys_utils.validate_api_key_scopes(["admin:all"], "standard")
 
     def test_empty_scopes_raises(self):
         """An empty scope list raises ValueError."""
-        with pytest.raises(ValueError):
+        with pytest.raises(core_exceptions.InvalidInputError):
             api_keys_utils.validate_api_key_scopes([], "standard")
 
     def test_mixed_valid_and_invalid_raises(self):
         """A mix of valid and invalid scopes raises ValueError."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
             api_keys_utils.validate_api_key_scopes(["activities:upload", "admin:all"], "standard")
 
     def test_user_access_type_ignored(self):

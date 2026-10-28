@@ -1,73 +1,50 @@
-"""Tests for ``modules.auth.credentials.crud``."""
+"""Tests for staged credential persistence operations."""
 
+from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import modules.auth.credentials.crud as auth_credentials_crud
-import modules.auth.credentials.models as auth_credentials_models
+import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.credentials.crud as credentials_crud
 
 
-class TestGetCredential:
-    """``get_credential`` returns the user's credential row or ``None``."""
+def test_get_credential_returns_internal_dto(mock_db):
+    row = SimpleNamespace(
+        user_id=3, password_hash="secret-hash", created_at=datetime.now(UTC), updated_at=datetime.now(UTC)
+    )
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    def test_returns_existing_row(self):
-        db = MagicMock()
-        fake_row = MagicMock(spec=auth_credentials_models.LocalCredential)
-        db.execute.return_value.scalar_one_or_none.return_value = fake_row
+    result = credentials_crud.get_credential(3, mock_db)
 
-        result = auth_credentials_crud.get_credential(42, db)
-
-        assert result is fake_row
-        db.execute.assert_called_once()
-
-    def test_returns_none_when_absent(self):
-        db = MagicMock()
-        db.execute.return_value.scalar_one_or_none.return_value = None
-
-        result = auth_credentials_crud.get_credential(42, db)
-
-        assert result is None
+    assert result == credentials_contracts.CredentialRead.model_validate(row)
 
 
-class TestUpsertPasswordHash:
-    """``upsert_password_hash`` inserts when absent, updates when present."""
-
-    def test_inserts_when_absent(self):
-        db = MagicMock()
-        db.execute.return_value.scalar_one_or_none.return_value = None
-        fake_row = MagicMock(spec=auth_credentials_models.LocalCredential)
-
-        with (
-            patch("modules.auth.credentials.crud.select", return_value=MagicMock()),
-            patch(
-                "modules.auth.credentials.crud.auth_credentials_models.LocalCredential",
-                return_value=fake_row,
-            ) as ctor,
-        ):
-            auth_credentials_crud.upsert_password_hash(7, "hash-value", db)
-
-        ctor.assert_called_once_with(user_id=7, password_hash="hash-value")
-        db.add.assert_called_once_with(fake_row)
-        db.commit.assert_called_once()
-
-    def test_updates_when_present(self):
-        db = MagicMock()
-        existing = MagicMock(spec=auth_credentials_models.LocalCredential)
-        db.execute.return_value.scalar_one_or_none.return_value = existing
-
-        auth_credentials_crud.upsert_password_hash(7, "new-hash", db)
-
-        assert existing.password_hash == "new-hash"
-        db.add.assert_not_called()
-        db.commit.assert_called_once()
+def test_upsert_password_hash_inserts_and_flushes(mock_db):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = None
+    row = MagicMock()
+    with (
+        patch("modules.auth.credentials.crud.select", return_value=MagicMock()),
+        patch("modules.auth.credentials.crud.credentials_models.LocalCredential", return_value=row),
+    ):
+        credentials_crud.upsert_password_hash(3, "new-hash", mock_db)
+    mock_db.add.assert_called_once_with(row)
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()
 
 
-class TestDeleteCredential:
-    """``delete_credential`` removes the user's credential row."""
+def test_upsert_password_hash_updates_existing_row(mock_db):
+    row = MagicMock()
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    def test_executes_delete_and_commits(self):
-        db = MagicMock()
+    credentials_crud.upsert_password_hash(3, "new-hash", mock_db)
 
-        auth_credentials_crud.delete_credential(7, db)
+    assert row.password_hash == "new-hash"
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()
 
-        db.execute.assert_called_once()
-        db.commit.assert_called_once()
+
+def test_delete_credential_stages_deletion(mock_db):
+    credentials_crud.delete_credential(3, mock_db)
+    mock_db.execute.assert_called_once()
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()

@@ -1,339 +1,166 @@
-"""CRUD operations for user identity provider links."""
+"""Persistence operations for identity-provider links."""
 
 from datetime import UTC, datetime
 
-from fastapi import HTTPException
-from sqlalchemy import exists, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 
-import core.decorators as core_decorators
-import modules.auth.identity_provider_links.models as auth_identity_links_models
-
-
-@core_decorators.handle_db_errors
-def check_user_identity_providers_by_idp_id(
-    idp_id: int,
-    db: Session,
-) -> bool:
-    """
-    Check if any user links exist for an identity provider.
-
-    Args:
-        idp_id: The ID of the identity provider.
-        db: SQLAlchemy database session.
-
-    Returns:
-        True if at least one user is linked, False otherwise.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(exists().where(auth_identity_links_models.IdentityLink.idp_id == idp_id))
-    return db.execute(stmt).scalar() or False
+import core.exceptions as core_exceptions
+import modules.auth.identity_provider_links.contracts as identity_link_contracts
+import modules.auth.identity_provider_links.models as identity_link_models
+import modules.auth.identity_provider_links.serializers as identity_link_serializers
 
 
-@core_decorators.handle_db_errors
-def get_user_identity_providers_by_user_id(
-    user_id: int,
-    db: Session,
-) -> list[auth_identity_links_models.IdentityLink]:
-    """
-    Retrieve all identity provider links for a user.
-
-    Args:
-        user_id: The ID of the user.
-        db: SQLAlchemy database session.
-
-    Returns:
-        List of IdentityLink objects linked to the user.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(auth_identity_links_models.IdentityLink).where(
-        auth_identity_links_models.IdentityLink.user_id == user_id
-    )
-    return list(db.execute(stmt).scalars().all())
+def check_user_identity_providers_by_idp_id(idp_id: int, db: Session) -> bool:
+    """Return whether an identity provider has linked users."""
+    statement = select(exists().where(identity_link_models.IdentityLink.idp_id == idp_id))
+    return bool(db.execute(statement).scalar())
 
 
-@core_decorators.handle_db_errors
+def get_user_identity_providers_by_user_id(user_id: int, db: Session) -> list[identity_link_contracts.IdentityLinkRead]:
+    """Return the user's identity-provider links."""
+    statement = select(identity_link_models.IdentityLink).where(identity_link_models.IdentityLink.user_id == user_id)
+    rows = db.execute(statement).scalars().all()
+    return [identity_link_serializers.to_read_contract(row) for row in rows]
+
+
 def get_user_identity_provider_by_user_id_and_idp_id(
     user_id: int,
     idp_id: int,
     db: Session,
-) -> auth_identity_links_models.IdentityLink | None:
-    """
-    Retrieve identity provider link for a user.
-
-    Args:
-        user_id: The ID of the user.
-        idp_id: The ID of the identity provider.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The IdentityLink instance if found, None
-        otherwise.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(auth_identity_links_models.IdentityLink).where(
-        auth_identity_links_models.IdentityLink.user_id == user_id,
-        auth_identity_links_models.IdentityLink.idp_id == idp_id,
+) -> identity_link_contracts.IdentityLinkRead | None:
+    """Return a link for a user and identity provider."""
+    statement = select(identity_link_models.IdentityLink).where(
+        identity_link_models.IdentityLink.user_id == user_id,
+        identity_link_models.IdentityLink.idp_id == idp_id,
     )
-    return db.execute(stmt).scalar_one_or_none()
+    row = db.execute(statement).scalar_one_or_none()
+    return identity_link_serializers.to_read_contract(row) if row is not None else None
 
 
-@core_decorators.handle_db_errors
 def get_user_identity_provider_by_subject_and_idp_id(
     idp_id: int,
     idp_subject: str,
     db: Session,
-) -> auth_identity_links_models.IdentityLink | None:
-    """
-    Retrieve identity provider link by IdP and subject.
-
-    Args:
-        idp_id: The ID of the identity provider.
-        idp_subject: The subject identifier from the IdP.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The matching IdentityLink record if found,
-        None otherwise.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(auth_identity_links_models.IdentityLink).where(
-        auth_identity_links_models.IdentityLink.idp_id == idp_id,
-        auth_identity_links_models.IdentityLink.idp_subject == idp_subject,
+) -> identity_link_contracts.IdentityLinkRead | None:
+    """Return a link matching an identity provider and subject."""
+    statement = select(identity_link_models.IdentityLink).where(
+        identity_link_models.IdentityLink.idp_id == idp_id,
+        identity_link_models.IdentityLink.idp_subject == idp_subject,
     )
-    return db.execute(stmt).scalar_one_or_none()
+    row = db.execute(statement).scalar_one_or_none()
+    return identity_link_serializers.to_read_contract(row) if row is not None else None
 
 
-@core_decorators.handle_db_errors
 def create_user_identity_provider(
     user_id: int,
     idp_id: int,
     idp_subject: str,
     db: Session,
-) -> auth_identity_links_models.IdentityLink:
-    """
-    Create a link between a user and an identity provider.
-
-    Args:
-        user_id: The ID of the user to link.
-        idp_id: The ID of the identity provider.
-        idp_subject: The subject identifier from the IdP.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The newly created IdentityLink link object.
-
-    Raises:
-        HTTPException: 409 error if link already exists.
-        HTTPException: 500 error if database operation fails.
-    """
-    db_link = auth_identity_links_models.IdentityLink(
+) -> identity_link_contracts.IdentityLinkRead:
+    """Stage a user-to-provider link, translating unique-key races."""
+    row = identity_link_models.IdentityLink(
         user_id=user_id,
         idp_id=idp_id,
         idp_subject=idp_subject,
         last_login=func.now(),
     )
-    db.add(db_link)
+    db.flush()
     try:
-        db.commit()
+        with db.begin_nested():
+            db.add(row)
+            db.flush()
     except IntegrityError as err:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="Identity provider already linked") from err
-    db.refresh(db_link)
-    return db_link
+        raise core_exceptions.ConflictError("Identity provider already linked") from err
+    return identity_link_serializers.to_read_contract(row)
 
 
-@core_decorators.handle_db_errors
 def update_user_identity_provider_last_login(
     user_id: int,
     idp_id: int,
     db: Session,
-) -> auth_identity_links_models.IdentityLink | None:
-    """
-    Update last login timestamp for a user-IdP link.
-
-    Args:
-        user_id: The ID of the user.
-        idp_id: The ID of the identity provider.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The updated IdentityLink link if found, None
-        otherwise.
-
-    Raises:
-        HTTPException: 500 error if database operation fails.
-    """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(
-        user_id,
-        idp_id,
-        db,
-    )
-    if db_link:
-        db_link.last_login = datetime.now(UTC)
-        db.commit()
-        db.refresh(db_link)
-    return db_link
+) -> identity_link_contracts.IdentityLinkRead | None:
+    """Stage an update to a link's last-login timestamp."""
+    row = db.execute(
+        select(identity_link_models.IdentityLink).where(
+            identity_link_models.IdentityLink.user_id == user_id,
+            identity_link_models.IdentityLink.idp_id == idp_id,
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None
+    row.last_login = datetime.now(UTC)
+    db.flush()
+    return identity_link_serializers.to_read_contract(row)
 
 
-@core_decorators.handle_db_errors
 def store_user_identity_provider_tokens(
     user_id: int,
     idp_id: int,
     encrypted_refresh_token: str,
     access_token_expires_at: datetime,
     db: Session,
-) -> auth_identity_links_models.IdentityLink | None:
-    """
-    Store encrypted IdP tokens for a user-IdP link.
-
-    Token must be pre-encrypted with Fernet before calling.
-
-    Args:
-        user_id: The ID of the user.
-        idp_id: The ID of the identity provider.
-        encrypted_refresh_token: Fernet-encrypted refresh token.
-        access_token_expires_at: Access token expiry time.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The updated IdentityLink link if found, None
-        otherwise.
-
-    Raises:
-        HTTPException: 500 error if database operation fails.
-    """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(
-        user_id,
-        idp_id,
-        db,
-    )
-    if db_link:
-        db_link.idp_refresh_token = encrypted_refresh_token
-        db_link.idp_access_token_expires_at = access_token_expires_at
-        db_link.idp_refresh_token_updated_at = datetime.now(UTC)
-        db.commit()
-        db.refresh(db_link)
-    return db_link
+) -> identity_link_contracts.IdentityLinkRead | None:
+    """Stage encrypted provider-token metadata on a link."""
+    row = db.execute(
+        select(identity_link_models.IdentityLink).where(
+            identity_link_models.IdentityLink.user_id == user_id,
+            identity_link_models.IdentityLink.idp_id == idp_id,
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None
+    row.idp_refresh_token = encrypted_refresh_token
+    row.idp_access_token_expires_at = access_token_expires_at
+    row.idp_refresh_token_updated_at = datetime.now(UTC)
+    db.flush()
+    return identity_link_serializers.to_read_contract(row)
 
 
-@core_decorators.handle_db_errors
 def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
     user_id: int,
     idp_id: int,
     db: Session,
 ) -> bool:
-    """
-    Clear IdP refresh token and metadata.
+    """Stage removal of stored provider-token metadata."""
+    row = db.execute(
+        select(identity_link_models.IdentityLink).where(
+            identity_link_models.IdentityLink.user_id == user_id,
+            identity_link_models.IdentityLink.idp_id == idp_id,
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return False
+    row.idp_refresh_token = None
+    row.idp_access_token_expires_at = None
+    row.idp_refresh_token_updated_at = None
+    db.flush()
+    return True
 
-    Called when user logs out, token refresh fails, user unlinks
-    IdP, or security requires token invalidation.
 
-    Args:
-        user_id: The ID of the user.
-        idp_id: The ID of the identity provider.
-        db: SQLAlchemy database session.
-
-    Returns:
-        True if token was cleared, False if link not found.
-
-    Raises:
-        HTTPException: 500 error if database operation fails.
-    """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(
-        user_id,
-        idp_id,
-        db,
+def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
+    """Stage deletion of a user's identity-provider link."""
+    result = db.execute(
+        delete(identity_link_models.IdentityLink).where(
+            identity_link_models.IdentityLink.user_id == user_id,
+            identity_link_models.IdentityLink.idp_id == idp_id,
+        )
     )
-    if db_link:
-        db_link.idp_refresh_token = None
-        db_link.idp_access_token_expires_at = None
-        db_link.idp_refresh_token_updated_at = None
-        db.commit()
-        return True
-    return False
+    db.flush()
+    return bool(result.rowcount)
 
 
-@core_decorators.handle_db_errors
-def delete_user_identity_provider(
-    user_id: int,
-    idp_id: int,
-    db: Session,
-) -> bool:
-    """
-    Delete link between user and identity provider.
-
-    Implements defense-in-depth by clearing sensitive token
-    data before deletion.
-
-    Args:
-        user_id: The ID of the user.
-        idp_id: The ID of the identity provider to unlink.
-        db: SQLAlchemy database session.
-
-    Returns:
-        True if link was found and deleted, False otherwise.
-
-    Raises:
-        HTTPException: 500 error if database operation fails.
-    """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(
-        user_id,
-        idp_id,
-        db,
-    )
-    if db_link:
-        # Clear sensitive data first (defense in depth)
-        db_link.idp_refresh_token = None
-        db_link.idp_access_token_expires_at = None
-        db_link.idp_refresh_token_updated_at = None
-        db.commit()
-
-        # Then delete the link
-        db.delete(db_link)
-        db.commit()
-        return True
-    return False
-
-
-@core_decorators.handle_db_errors
-def get_identity_link_counts_for_users(
-    user_ids: list[int],
-    db: Session,
-) -> dict[int, int]:
-    """
-    Return identity provider link count per user in a single query.
-
-    Args:
-        user_ids: List of user IDs to count links for.
-        db: SQLAlchemy database session.
-
-    Returns:
-        Dict mapping user_id to the number of linked IdPs.
-        Users with no links are not present in the result (default to 0).
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
+def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict[int, int]:
+    """Return the number of identity-provider links for each matching user."""
     if not user_ids:
         return {}
-    stmt = (
+    statement = (
         select(
-            auth_identity_links_models.IdentityLink.user_id,
-            func.count(auth_identity_links_models.IdentityLink.id).label("cnt"),
+            identity_link_models.IdentityLink.user_id,
+            func.count(identity_link_models.IdentityLink.id).label("count"),
         )
-        .where(auth_identity_links_models.IdentityLink.user_id.in_(user_ids))
-        .group_by(auth_identity_links_models.IdentityLink.user_id)
+        .where(identity_link_models.IdentityLink.user_id.in_(user_ids))
+        .group_by(identity_link_models.IdentityLink.user_id)
     )
-    rows = db.execute(stmt).all()
-    return {row.user_id: row.cnt for row in rows}
+    return {row.user_id: row.count for row in db.execute(statement).all()}
