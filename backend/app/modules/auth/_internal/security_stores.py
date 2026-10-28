@@ -79,26 +79,10 @@ class FailedLoginStore(Protocol):
     def clear_all(self) -> None: ...
 
 
-@runtime_checkable
-class StepUpStore(Protocol):
-    """Contract for step-up lockout stores. Keys are stable user identifiers."""
-
-    def is_locked_out(self, key: str) -> bool: ...
-
-    def get_lockout_time(self, key: str) -> datetime | None: ...
-
-    def record_failed_attempt(self, key: str) -> int: ...
-
-    def reset_attempts(self, key: str) -> None: ...
-
-    def clear_all(self) -> None: ...
-
-
 # Progressive-lockout thresholds. Each entry is ``(failed_count_threshold,
 # lockout_seconds, duration_label)`` in ascending order; the highest matched
 # threshold wins.
 _LOGIN_LOCKOUT_THRESHOLDS = auth_lockout_contracts.LOGIN_LOCKOUT_TIERS
-_STEP_UP_LOCKOUT_THRESHOLDS = auth_lockout_contracts.STEP_UP_LOCKOUT_TIERS
 
 
 class _ProgressiveLockout:
@@ -194,60 +178,9 @@ class FailedLoginAttempts:
         self._lockout.clear_all()
 
 
-class StepUpAttempts:
-    """
-    Track failed step-up verification attempts (5/10/15 → 5m/30m/2h).
-
-    Keys are stable user identifiers (e.g. ``user:{user_id}``).
-
-    Attributes:
-        _state_override: Explicit provider (tests); ``None`` resolves lazily.
-        _lockout: Shared progressive-lockout helper.
-    """
-
-    def __init__(self, state: StateProvider | None = None) -> None:
-        self._state_override = state
-        self._lockout = _ProgressiveLockout(
-            self._get_state,
-            name="step_up",
-            display_name="Step-up",
-            thresholds=_STEP_UP_LOCKOUT_THRESHOLDS,
-            attempts_ttl_seconds=2 * 60 * 60,
-        )
-
-    def _get_state(self) -> StateProvider:
-        return self._state_override if self._state_override is not None else platform_runtime.get_state()
-
-    def is_locked_out(self, key: str) -> bool:
-        """Check if a user key is locked out from step-up."""
-        return self._lockout.is_locked_out(key)
-
-    def get_lockout_time(self, key: str) -> datetime | None:
-        """Get the step-up lockout expiry for a user key, if locked out."""
-        return self._lockout.get_lockout_time(key)
-
-    def record_failed_attempt(self, key: str) -> int:
-        """Record a failed step-up attempt and return the current count."""
-        return self._lockout.record_failed_attempt(key)
-
-    def reset_attempts(self, key: str) -> None:
-        """Reset the step-up failure counter for a user key."""
-        self._lockout.reset_attempts(key)
-
-    def clear_all(self) -> None:
-        """Clear all step-up failure records."""
-        self._lockout.clear_all()
-
-
 failed_login_attempts: FailedLoginStore = FailedLoginAttempts()
-step_up_attempts: StepUpStore = StepUpAttempts()
 
 
 def get_failed_login_attempts() -> FailedLoginStore:
     """Dependency injection for failed-login attempt storage."""
     return failed_login_attempts
-
-
-def get_step_up_attempts() -> StepUpStore:
-    """Dependency injection for step-up attempt tracking."""
-    return step_up_attempts

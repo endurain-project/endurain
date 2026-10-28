@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth._internal.security_stores as auth_security_stores
-import modules.auth._internal.services.step_up_service as step_up_service
+import modules.auth.account_security.step_up_service as step_up_service
+import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.identity_provider_link_tokens.integration_service as idp_link_token_crud
 import modules.auth.identity_provider_link_tokens.integration_service as idp_link_token_utils
@@ -27,13 +28,26 @@ if TYPE_CHECKING:
     from modules.auth.identity_service import IdentityService
 
 
+def _domain_error(*, status_code: int, detail: str) -> core_exceptions.DomainError:
+    """Translate the known account-security failure status to a domain error."""
+    if status_code == status.HTTP_404_NOT_FOUND:
+        return core_exceptions.NotFoundError(detail)
+    if status_code == status.HTTP_409_CONFLICT:
+        return core_exceptions.ConflictError(detail)
+    if status_code == status.HTTP_400_BAD_REQUEST:
+        return core_exceptions.InvalidInputError(detail)
+    if status_code == status.HTTP_401_UNAUTHORIZED:
+        return core_exceptions.UnauthenticatedError(detail)
+    return core_exceptions.ProcessingError(detail)
+
+
 def generate_link_token(
     idp_id: int,
     link_request: idp_link_token_schema.IdpLinkTokenRequest,
     request: Request,
     token_user_id: int,
     identity_service: IdentityService,
-    step_up_store: auth_security_stores.StepUpStore,
+    step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> idp_link_token_schema.IdpLinkTokenResponse:
     """Generate a one-time IdP link token after step-up verification."""
@@ -48,7 +62,7 @@ def generate_link_token(
 
     idp = idp_integration.get_identity_provider(idp_id, db)
     if not idp or not idp.enabled:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Identity provider not found or disabled",
         )
@@ -59,7 +73,7 @@ def generate_link_token(
         db,
     )
     if existing_link:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Identity provider {idp.name} is already linked to your account",
         )
@@ -71,6 +85,7 @@ def generate_link_token(
         ip_address=ip_address,
         db=db,
     )
+    db.commit()
 
     logger.debug(f"Generated link token for user {token_user_id}, idp_id={idp_id} ({idp.name})")
 
@@ -82,7 +97,7 @@ def delete_identity_provider_link(
     step_up: users_schema.StepUpVerification,
     token_user_id: int,
     identity_service: IdentityService,
-    step_up_store: auth_security_stores.StepUpStore,
+    step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> None:
     """Unlink an IdP while enforcing anti-lockout checks."""
@@ -97,7 +112,7 @@ def delete_identity_provider_link(
 
     idp = idp_integration.get_identity_provider(idp_id, db)
     if idp is None:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Identity provider with id {idp_id} not found",
         )
@@ -108,7 +123,7 @@ def delete_identity_provider_link(
         db,
     )
     if not link:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Identity provider {idp.name} is not linked to your account",
         )
@@ -120,7 +135,7 @@ def delete_identity_provider_link(
     remaining_idp_count = len(all_idp_links) - 1
 
     if not identity_service.has_local_password(token_user_id) and remaining_idp_count == 0:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot unlink last authentication method. Please set a password first.",
         )
@@ -132,10 +147,11 @@ def delete_identity_provider_link(
     )
 
     if not success:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to unlink identity provider",
         )
+    db.commit()
 
     logger.info(f"User {token_user_id} unlinked IdP: idp_id={idp_id} ({idp.name})")
 
@@ -161,14 +177,14 @@ def admin_delete_identity_provider_link(
         None.
 
     Raises:
-        HTTPException: 404 if the IdP or the user-IdP link does not
+        DomainError: 404 if the IdP or the user-IdP link does not
             exist, 400 if unlinking would remove the user's last
             authentication method, 500 if the deletion fails at the
             database level.
     """
     idp = idp_integration.get_identity_provider(idp_id, db)
     if idp is None:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Identity provider with id {idp_id} not found",
         )
@@ -179,7 +195,7 @@ def admin_delete_identity_provider_link(
         db,
     )
     if not link:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Identity provider {idp.name} is not linked to this user",
         )
@@ -192,17 +208,18 @@ def admin_delete_identity_provider_link(
 
     has_local_password = auth_credentials_crud.get_credential(user_id, db) is not None
     if not has_local_password and remaining_idp_count == 0:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot unlink last authentication method. User has no password set.",
         )
 
     success = auth_identity_links_crud.delete_user_identity_provider(user_id, idp_id, db)
     if not success:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to unlink identity provider",
         )
+    db.commit()
 
     logger.info(f"Admin unlinked IdP for user {user_id}: idp_id={idp_id} ({idp.name})")
 
@@ -238,21 +255,21 @@ def validate_and_claim_browser_link_token(
         The user ID encoded in the token.
 
     Raises:
-        HTTPException: 401 if token is invalid, expired, or IdP mismatch.
-        HTTPException: 400 if token was already used (race/replay).
-        HTTPException: 409 if the IdP is already linked to the user.
+        DomainError: 401 if token is invalid, expired, or IdP mismatch.
+        DomainError: 400 if token was already used (race/replay).
+        DomainError: 409 if the IdP is already linked to the user.
     """
     link_token_hash = idp_link_token_utils.hash_idp_link_token(link_token)
     db_token = idp_link_token_crud.get_idp_link_token_by_hash(link_token_hash, db)
     if not db_token:
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired link token",
         )
 
     if db_token.idp_id != idp_id:
         logger.warning(f"Link token IdP mismatch: token idp_id={db_token.idp_id}, requested idp_id={idp_id}")
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid link token for this identity provider",
         )
@@ -266,17 +283,18 @@ def validate_and_claim_browser_link_token(
     if existing_link:
         idp = idp_integration.get_identity_provider(idp_id, db)
         idp_name = idp.name if idp else f"ID {idp_id}"
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Identity provider {idp_name} is already linked to your account",
         )
 
     if not idp_link_token_crud.mark_token_as_used(link_token_hash, db):
         logger.warning(f"IdP link token replay/race rejected for user {token_user_id}: token row {db_token.id}")
-        raise HTTPException(
+        raise _domain_error(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired link token",
         )
+    db.commit()
 
     return token_user_id
 

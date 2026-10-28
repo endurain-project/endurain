@@ -21,7 +21,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import SecurityScopes
 
-import modules.auth._internal.security_stores as auth_security_stores
+import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 from modules.auth._internal.internal_dependencies import (
@@ -132,8 +132,8 @@ __all__ = [
 ]
 
 # Re-export step-up store type and dep getter for non-auth modules
-StepUpStore = auth_security_stores.StepUpStore
-get_step_up_attempts = auth_security_stores.get_step_up_attempts
+StepUpStore = account_security_step_up_store.StepUpStore
+get_step_up_attempts = account_security_step_up_store.get_step_up_attempts
 
 # Re-export the pending-MFA-secret store type and dep getter for non-auth modules
 MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend

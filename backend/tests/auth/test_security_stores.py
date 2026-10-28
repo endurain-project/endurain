@@ -9,6 +9,7 @@ from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
 import modules.auth._internal.security_stores as security_stores
+import modules.auth.account_security.step_up_store as step_up_store_module
 
 
 class TestNormalizeUsernameKey:
@@ -130,8 +131,8 @@ class TestFailedLoginAttempts:
 class TestStepUpAttempts:
     """Step-up lockout (5/10/15); keys are stable user identifiers, not normalized."""
 
-    def _store(self) -> security_stores.StepUpAttempts:
-        return security_stores.StepUpAttempts(state=MemoryState())
+    def _store(self) -> step_up_store_module.StepUpAttempts:
+        return step_up_store_module.StepUpAttempts(state=MemoryState())
 
     def test_lockout_applied_at_5(self):
         store = self._store()
@@ -196,5 +197,6 @@ class TestDependencyFunctions:
     def test_get_failed_login_attempts_returns_singleton(self):
         assert security_stores.get_failed_login_attempts() is security_stores.failed_login_attempts
 
-    def test_get_step_up_attempts_returns_singleton(self):
-        assert security_stores.get_step_up_attempts() is security_stores.step_up_attempts
+    def test_get_step_up_attempts_uses_injected_provider(self):
+        state = MemoryState()
+        assert isinstance(step_up_store_module.get_step_up_attempts(state), step_up_store_module.StepUpAttempts)

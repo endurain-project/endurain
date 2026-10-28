@@ -32,6 +32,7 @@ import modules.users.users_privacy_settings.integration_service as users_privacy
 
 if TYPE_CHECKING:
     import modules.auth.identity_service as auth_identity_service
+import modules.auth.account_security.integration_service as account_security_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -566,7 +567,7 @@ def edit_user(
     logger.info("User edited by an administrator", extra=core_logger.context(user_id=user_id))
 
     if user_id != actor_id and _edit_ends_sessions(existing, updated):
-        identity_service.delete_all_user_sessions(user_id)
+        account_security_integration.delete_all_user_sessions(user_id, db)
 
     updated.external_auth_count = identity_service.get_identity_link_counts_for_users([updated.id]).get(updated.id, 0)
     updated.mfa_enabled = identity_service.get_mfa_enabled_for_users([updated.id]).get(updated.id, False)

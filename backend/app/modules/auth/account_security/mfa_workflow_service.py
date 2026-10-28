@@ -2,7 +2,7 @@
 
 Module layering (where MFA logic lives):
 
-- ``modules.auth._internal.services.mfa_workflow`` (this module): the workflow facade profile
+- ``modules.auth.account_security.mfa_workflow_service`` (this module): the workflow facade profile
   routes call. It composes lower-level helpers and owns step-up verification,
   the pending setup-secret store, and response/schema shaping.
 - ``modules.auth.mfa.service``: pure TOTP/QR helpers plus the per-user state helpers
@@ -17,13 +17,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.auth._internal.security_stores as auth_security_stores
-import modules.auth._internal.services.step_up_service as step_up_service
+import modules.auth.account_security.step_up_service as step_up_service
+import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
@@ -86,11 +86,12 @@ def get_backup_code_status(
 
 def setup_mfa(
     token_user_id: int,
-    db: Session,
     mfa_secret_store: MFASecretStoreBackend,
+    db: Session,
 ) -> mfa_schema.MFASetupResponse:
     """Create MFA setup material and store pending setup secret."""
     response = mfa_integration.setup_user_mfa(token_user_id, db)
+    db.commit()
     mfa_secret_store.add_secret(token_user_id, response.secret)
     return response
 
@@ -99,9 +100,9 @@ def enable_mfa(
     request: mfa_schema.MFASetupRequest,
     token_user_id: int,
     identity_service: IdentityService,
-    step_up_store: auth_security_stores.StepUpStore,
-    db: Session,
+    step_up_store: account_security_step_up_store.StepUpStore,
     mfa_secret_store: MFASecretStoreBackend,
+    db: Session,
 ) -> dict:
     """Enable MFA using pending secret and verification code."""
     step_up_service.verify_step_up_credentials(
@@ -115,10 +116,7 @@ def enable_mfa(
 
     secret = mfa_secret_store.get_secret(token_user_id)
     if not secret:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No MFA setup in progress. Please run setup first.",
-        )
+        raise core_exceptions.InvalidInputError("No MFA setup in progress. Please run setup first.")
 
     try:
         backup_codes = mfa_integration.enable_user_mfa(
@@ -128,13 +126,14 @@ def enable_mfa(
             identity_service,
             db,
         )
+        db.commit()
         mfa_secret_store.delete_secret(token_user_id)
         logger.info(f"User {token_user_id} enabled MFA (step-up verified)")
         return {
             "message": "MFA enabled successfully",
             "backup_codes": backup_codes,
         }
-    except (HTTPException, core_exceptions.DomainError) as exc:
+    except core_exceptions.DomainError as exc:
         if not (exc.status_code == status.HTTP_400_BAD_REQUEST and exc.detail == "Invalid MFA code"):
             mfa_secret_store.delete_secret(token_user_id)
         raise
@@ -144,7 +143,7 @@ def disable_mfa(
     request: mfa_schema.MFADisableRequest,
     token_user_id: int,
     identity_service: IdentityService,
-    step_up_store: auth_security_stores.StepUpStore,
+    step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> dict:
     """Disable MFA after step-up verification."""
@@ -157,6 +156,7 @@ def disable_mfa(
         db,
     )
     mfa_integration.disable_user_mfa(token_user_id, db)
+    db.commit()
     logger.info(f"User {token_user_id} disabled MFA (step-up verified)")
     return {"message": "MFA disabled successfully"}
 
@@ -175,11 +175,9 @@ def verify_mfa(
         db,
     )
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid MFA code",
-        )
+        raise core_exceptions.InvalidInputError("Invalid MFA code")
 
+    db.commit()
     return {"message": "MFA code verified successfully"}
 
 
@@ -187,23 +185,17 @@ def generate_backup_codes(
     step_up: users_schema.StepUpVerification,
     token_user_id: int,
     identity_service: IdentityService,
-    step_up_store: auth_security_stores.StepUpStore,
+    step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> mfa_backup_codes_schema.MFABackupCodesResponse:
     """Generate new backup codes for an MFA-enabled account."""
     user = users_integration.get_user(token_user_id, db)
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        raise core_exceptions.NotFoundError("User not found")
 
     if not mfa_integration.is_mfa_enabled_for_user(token_user_id, db):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA must be enabled to generate backup codes",
-        )
+        raise core_exceptions.InvalidInputError("MFA must be enabled to generate backup codes")
 
     step_up_service.verify_step_up_credentials(
         token_user_id,

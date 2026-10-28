@@ -34,6 +34,7 @@ import modules.users.users.service as users_service
 
 if TYPE_CHECKING:
     import modules.auth.identity_service as auth_identity_service
+import modules.auth.account_security.integration_service as account_security_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -95,7 +96,7 @@ def request_deletion(
         raise core_exceptions.ConflictError("An account deletion is already in progress")
 
     try:
-        identity_service.delete_all_user_sessions(user_id)
+        account_security_integration.delete_all_user_sessions(user_id, db)
         users_crud.stage_deletion_request(user_id, db)
         _dispatch(user_id, states, storage, db, source=users_constants.DELETION_SOURCE_API)
     except BaseException:

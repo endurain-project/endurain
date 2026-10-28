@@ -13,11 +13,11 @@ Key Features:
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 import core.dependencies as core_dependencies
-import modules.auth.identity_service as auth_identity_service
+import modules.auth.account_security.integration_service as account_security_integration
 
 # Define the API router
 router = APIRouter()
@@ -32,10 +32,7 @@ def link_identity_provider(
     idp_id: core_dependencies.PositiveId,
     link_token: Annotated[str, Query(alias="link_token")],
     request: Request,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
     redirect: Annotated[
         str | None,
         Query(
@@ -58,7 +55,7 @@ def link_identity_provider(
         idp_id (int): The ID of the identity provider to link.
         link_token (str): One-time link token from query parameter.
         request (Request): The FastAPI request object containing request context.
-        identity_service: Identity service dependency.
+        db: Database session.
         redirect: Optional frontend return path after linking.
 
     Returns:
@@ -66,7 +63,7 @@ def link_identity_provider(
             with HTTP 307 status code.
 
     """
-    authorization_url = identity_service.start_browser_idp_link(link_token, idp_id, redirect, request)
+    authorization_url = account_security_integration.start_browser_idp_link(link_token, idp_id, redirect, request, db)
 
     return RedirectResponse(
         url=authorization_url,

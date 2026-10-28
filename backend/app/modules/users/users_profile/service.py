@@ -15,6 +15,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.followers.integration_service as followers_integration
 import modules.users.users.integration_service as users_integration
@@ -98,7 +99,7 @@ def get_profile(
             # step-up prompts can hide the password field. Both flags are auth-owned and come
             # through the auth boundary, so the hash never leaves it.
             "has_local_password": identity_service.has_local_password(user_id),
-            "mfa_enabled": identity_service.get_mfa_status(user_id).mfa_enabled,
+            "mfa_enabled": account_security_integration.get_mfa_status(user_id, db).mfa_enabled,
         }
     )
 
@@ -193,10 +194,12 @@ def change_email(
         NotFoundError: If the user does not exist.
         ConflictError: If the email is already taken.
     """
-    identity_service.verify_step_up(
+    account_security_integration.verify_step_up(
         users_schema.StepUpVerification(**change.model_dump(exclude={"email", "revoke_other_sessions"})),
         user_id,
+        identity_service,
         step_up_store,
+        db,
     )
     try:
         changed = users_integration.stage_email_change(user_id, change.email, db)
@@ -209,7 +212,7 @@ def change_email(
     logger.info("Email changed", extra=core_logger.context(user_id=user_id))
 
     if change.revoke_other_sessions:
-        identity_service.delete_other_user_sessions(user_id, session_id)
+        account_security_integration.delete_other_user_sessions(user_id, session_id, db)
     verification_queued = sign_up_tokens_integration.request_email_reverification(user_id, db)
     db.commit()
     if not verification_queued:
@@ -287,7 +290,7 @@ def delete_account(
         HTTPException: If step-up verification fails.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    identity_service.verify_step_up(step_up, user_id, step_up_store)
+    account_security_integration.verify_step_up(step_up, user_id, identity_service, step_up_store, db)
     status = users_integration.request_user_deletion(user_id, identity_service, state, storage, db)
     logger.info("Account deletion requested by its owner", extra=core_logger.context(user_id=user_id))
     return status

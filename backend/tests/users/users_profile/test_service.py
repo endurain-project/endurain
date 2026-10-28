@@ -58,7 +58,19 @@ class TestChangeEmail:
             mfa_code="123456",
             revoke_other_sessions=revoke_other_sessions,
         )
-        profile_service.change_email(1, change, "sid-1", identity, store, mock_db)
+        with (
+            patch(
+                "modules.auth.account_security.integration_service.verify_step_up",
+                side_effect=lambda step_up, user_id, identity_service, step_up_store, db: (
+                    identity_service.verify_step_up(step_up, user_id, step_up_store)
+                ),
+            ),
+            patch(
+                "modules.auth.account_security.integration_service.delete_other_user_sessions",
+                side_effect=lambda user_id, session_id, db: identity.delete_other_user_sessions(user_id, session_id),
+            ),
+        ):
+            profile_service.change_email(1, change, "sid-1", identity, store, mock_db)
 
     @patch(f"{_MODULE}.users_integration")
     def test_changes_only_after_the_step_up_passes_then_commits_and_asks_for_verification(self, mock_users, mock_db):
@@ -214,7 +226,13 @@ class TestDeleteAccount:
         order.attach_mock(identity.verify_step_up, "step_up")
         order.attach_mock(mock_users.request_user_deletion, "delete")
 
-        result = profile_service.delete_account(1, step_up, identity, store, state, storage, mock_db)
+        with patch(
+            "modules.auth.account_security.integration_service.verify_step_up",
+            side_effect=lambda value, user_id, identity_service, step_up_store, db: identity_service.verify_step_up(
+                value, user_id, step_up_store
+            ),
+        ):
+            result = profile_service.delete_account(1, step_up, identity, store, state, storage, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
         identity.verify_step_up.assert_called_once_with(step_up, 1, store)
@@ -226,7 +244,15 @@ class TestDeleteAccount:
         identity = MagicMock()
         identity.verify_step_up.side_effect = core_exceptions.PermissionDeniedError("wrong password")
 
-        with pytest.raises(core_exceptions.PermissionDeniedError):
+        with (
+            pytest.raises(core_exceptions.PermissionDeniedError),
+            patch(
+                "modules.auth.account_security.integration_service.verify_step_up",
+                side_effect=lambda step_up, user_id, identity_service, step_up_store, db: (
+                    identity_service.verify_step_up(step_up, user_id, step_up_store)
+                ),
+            ),
+        ):
             profile_service.delete_account(1, MagicMock(), identity, MagicMock(), MagicMock(), MagicMock(), mock_db)
 
         mock_users.request_user_deletion.assert_not_called()

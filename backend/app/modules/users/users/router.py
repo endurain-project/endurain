@@ -8,6 +8,7 @@ import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_service as auth_identity_service
@@ -469,21 +470,18 @@ def read_user_deletion_status(
 )
 def get_user_identity_providers(
     user_id: core_dependencies.PositiveId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
 ) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
     """List the identity provider links of a specific user (admin).
 
     Args:
         user_id: ID of the user whose identity provider links to retrieve.
-        identity_service: Identity service dependency.
+        db: Database session.
 
     Returns:
         The user's enriched identity provider links (empty list if none).
     """
-    return identity_service.get_user_identity_provider_links(user_id)
+    return account_security_integration.get_user_identity_provider_links(user_id, db)
 
 
 @router.delete(
@@ -497,10 +495,7 @@ def delete_user_identity_provider(
     request: Request,
     user_id: core_dependencies.PositiveId,
     idp_id: core_dependencies.PositiveId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
 ) -> None:
     """Unlink an identity provider from a specific user (admin).
 
@@ -508,9 +503,9 @@ def delete_user_identity_provider(
         request: The incoming request, read by the rate limiter.
         user_id: ID of the user to unlink the identity provider from.
         idp_id: ID of the identity provider to unlink.
-        identity_service: Identity service dependency.
+        db: Database session.
 
     Returns:
         None
     """
-    identity_service.admin_delete_identity_provider_link(user_id, idp_id)
+    account_security_integration.admin_delete_identity_provider_link(user_id, idp_id, db)

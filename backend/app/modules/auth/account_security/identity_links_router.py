@@ -2,17 +2,18 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Security, status
 
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
+import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_service as auth_identity_service
 import modules.users.users.schema as users_schema
 
-router = APIRouter()
+router = APIRouter(dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
 
 
 @router.post(
@@ -34,6 +35,7 @@ def generate_link_token(
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
     ],
+    db: core_dependencies.DbSession,
 ) -> idp_link_token_schema.IdpLinkTokenResponse:
     """Generate a one-time token for linking an identity provider.
 
@@ -65,33 +67,25 @@ def generate_link_token(
         IdpLinkTokenResponse: Contains the one-time token and expiration time.
 
     Raises:
-        HTTPException:
+        DomainError:
             - 401 UNAUTHORIZED: If step-up verification fails.
             - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
             - 409 CONFLICT: If the identity provider is already linked.
             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
     """
-    return identity_service.generate_link_token(
-        idp_id=idp_id,
-        link_request=link_request,
-        request=request,
-        user_id=token_user_id,
-        step_up_store=step_up_store,
+    return identity_link_service.generate_link_token(
+        idp_id, link_request, request, token_user_id, identity_service, step_up_store, db
     )
 
 
 # Identity Provider Management Endpoints
 @router.get(
     "",
-    status_code=status.HTTP_200_OK,
     response_model=list[auth_identity_links_schema.UsersIdentityProviderResponse],
 )
 def get_my_identity_providers(
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
 ) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
     """Retrieve all identity provider links for the authenticated user.
 
@@ -102,7 +96,7 @@ def get_my_identity_providers(
     Args:
         token_user_id (int): The authenticated user's ID extracted from the JWT access token.
             Injected automatically via dependency injection.
-        identity_service: Identity service dependency.
+        db: Database session.
 
     Returns:
         list[dict]: A list of dictionaries representing the user's IdP links. Each dictionary contains:
@@ -120,10 +114,9 @@ def get_my_identity_providers(
             - idp_provider_type (str): Type of provider (e.g., "oauth2", "oidc") (if available)
 
     Raises:
-        HTTPException: May raise authentication/authorization errors via the dependency injection.
+        DomainError: May raise authentication/authorization errors via the dependency injection.
     """
-    # Get enriched IdP links via the identity-service boundary
-    return identity_service.get_user_identity_provider_links(token_user_id)
+    return identity_link_service.get_user_identity_provider_links(token_user_id, db)
 
 
 @router.post(
@@ -145,6 +138,7 @@ def delete_my_identity_provider(
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
     ],
+    db: core_dependencies.DbSession,
 ) -> None:
     """Delete (unlink) an identity provider from the authenticated user's account.
 
@@ -167,12 +161,12 @@ def delete_my_identity_provider(
         None: Returns 204 No Content on successful deletion.
 
     Raises:
-        HTTPException (401): If step-up verification fails.
-        HTTPException (404): If the identity provider doesn't exist or
+        DomainError (401): If step-up verification fails.
+        DomainError (404): If the identity provider doesn't exist or
             is not linked to the user's account.
-        HTTPException (400): If attempting to unlink the last authentication method
+        DomainError (400): If attempting to unlink the last authentication method
             without having a password set (prevents account lockout).
-        HTTPException (500): If the deletion operation fails at the database level.
+        DomainError (500): If the deletion operation fails at the database level.
 
     Notes:
         - Enforces step-up verification before unlinking.
@@ -182,10 +176,7 @@ def delete_my_identity_provider(
         - Uses token-based authentication to ensure users can only
           unlink their own IdPs.
     """
-    identity_service.delete_identity_provider_link(
-        idp_id=idp_id,
-        step_up=step_up,
-        user_id=token_user_id,
-        step_up_store=step_up_store,
+    identity_link_service.delete_identity_provider_link(
+        idp_id, step_up, token_user_id, identity_service, step_up_store, db
     )
     return None

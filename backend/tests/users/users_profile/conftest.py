@@ -12,12 +12,16 @@ import core.config as core_config
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
+import modules.auth.account_security.account_security_service as account_security_service
+import modules.auth.account_security.identity_link_service as identity_link_service
+import modules.auth.account_security.identity_links_router as auth_idp_profile_router
+import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.account_security.mfa_router as auth_mfa_profile_router
+import modules.auth.account_security.mfa_workflow_service as mfa_workflow_service
+import modules.auth.account_security.sessions_router as auth_sessions_profile_router
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_providers.profile_router as auth_idp_profile_router
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
-import modules.auth.mfa.profile_router as auth_mfa_profile_router
-import modules.auth.sessions.profile_router as auth_sessions_profile_router
 import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_state_store as profile_export_state_store
@@ -93,6 +97,7 @@ def profile_app(
     mock_identity_service,
     import_states,
     export_states,
+    monkeypatch,
 ) -> FastAPI:
     app = FastAPI()
 
@@ -117,6 +122,115 @@ def profile_app(
     app.dependency_overrides[auth_mfa_dependencies.get_mfa_secret_store] = lambda: fake_mfa_secret_store
     app.dependency_overrides[profile_dependencies.get_profile_import_state_store] = lambda: import_states
     app.dependency_overrides[profile_dependencies.get_profile_export_state_store] = lambda: export_states
+
+    monkeypatch.setattr(
+        account_security_integration,
+        "verify_step_up",
+        lambda step_up, user_id, identity, store, db: identity.verify_step_up(step_up, user_id, store),
+    )
+    monkeypatch.setattr(
+        account_security_integration,
+        "change_own_password",
+        lambda user_id, current_password, new_password, mfa_code, identity, store, db, **kwargs: (
+            identity.change_own_password(
+                user_id=user_id,
+                current_password=current_password,
+                new_password=new_password,
+                mfa_code=mfa_code,
+                step_up_store=store,
+                **kwargs,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        account_security_integration,
+        "delete_other_user_sessions",
+        lambda user_id, session_id, db: mock_identity_service.delete_other_user_sessions(user_id, session_id),
+    )
+    monkeypatch.setattr(
+        account_security_integration,
+        "get_mfa_status",
+        lambda user_id, db: mock_identity_service.get_mfa_status(user_id),
+    )
+    monkeypatch.setattr(
+        account_security_service,
+        "get_user_sessions",
+        lambda user_id, db: mock_identity_service.get_user_sessions(user_id),
+    )
+    monkeypatch.setattr(
+        account_security_service,
+        "delete_user_session",
+        lambda session_id, user_id, db: mock_identity_service.delete_user_session(session_id, user_id),
+    )
+    monkeypatch.setattr(
+        account_security_service,
+        "delete_other_user_sessions",
+        lambda user_id, session_id, db: mock_identity_service.delete_other_user_sessions(user_id, session_id),
+    )
+    monkeypatch.setattr(
+        mfa_workflow_service,
+        "get_mfa_status",
+        lambda user_id, db: mock_identity_service.get_mfa_status(user_id),
+    )
+    monkeypatch.setattr(
+        mfa_workflow_service,
+        "get_backup_code_status",
+        lambda user_id, db: mock_identity_service.get_backup_code_status(user_id),
+    )
+    monkeypatch.setattr(
+        mfa_workflow_service,
+        "setup_mfa",
+        lambda user_id, store, db: mock_identity_service.setup_mfa(user_id, store),
+    )
+    monkeypatch.setattr(
+        mfa_workflow_service,
+        "enable_mfa",
+        lambda request, user_id, identity, step_up_store, secret_store, db: identity.enable_mfa(
+            request=request, user_id=user_id, step_up_store=step_up_store, mfa_secret_store=secret_store
+        ),
+    )
+    monkeypatch.setattr(
+        mfa_workflow_service,
+        "disable_mfa",
+        lambda request, user_id, identity, store, db: identity.disable_mfa(
+            request=request, user_id=user_id, step_up_store=store
+        ),
+    )
+    monkeypatch.setattr(
+        mfa_workflow_service,
+        "verify_mfa",
+        lambda request, user_id, identity, db: identity.verify_mfa(request=request, user_id=user_id),
+    )
+    monkeypatch.setattr(
+        mfa_workflow_service,
+        "generate_backup_codes",
+        lambda step_up, user_id, identity, store, db: identity.generate_backup_codes(
+            step_up=step_up, user_id=user_id, step_up_store=store
+        ),
+    )
+    monkeypatch.setattr(
+        identity_link_service,
+        "generate_link_token",
+        lambda idp_id, request, http_request, user_id, identity, store, db: identity.generate_link_token(
+            idp_id=idp_id,
+            link_request=request,
+            request=http_request,
+            user_id=user_id,
+            step_up_store=store,
+        ),
+    )
+    monkeypatch.setattr(
+        identity_link_service,
+        "get_user_identity_provider_links",
+        lambda user_id, db: mock_identity_service.get_user_identity_provider_links(user_id),
+    )
+    monkeypatch.setattr(
+        identity_link_service,
+        "delete_identity_provider_link",
+        lambda idp_id, step_up, user_id, identity, store, db: identity.delete_identity_provider_link(
+            idp_id=idp_id, step_up=step_up, user_id=user_id, step_up_store=store
+        ),
+    )
 
     return app
 

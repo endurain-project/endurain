@@ -2,14 +2,15 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Request, status
+from fastapi import APIRouter, Depends, Path, Request, Security, status
 
+import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
+import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_service as auth_identity_service
 import modules.auth.sessions.schema as auth_sessions_schema
 
-router = APIRouter()
+router = APIRouter(dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
 
 #: The identifier of one of the caller's sessions, as the auth boundary issued it.
 SessionId = Annotated[str, Path(min_length=1)]
@@ -17,26 +18,22 @@ SessionId = Annotated[str, Path(min_length=1)]
 
 @router.get(
     "",
-    status_code=status.HTTP_200_OK,
     response_model=list[auth_sessions_schema.UsersSessionsRead],
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
 ) -> list[auth_sessions_schema.UsersSessionsRead]:
     """Retrieve all sessions for authenticated user.
 
     Args:
         token_user_id: User ID from access token.
-        identity_service: Identity service dependency.
+        db: Database session.
 
     Returns:
         List of session objects for the user.
     """
-    return identity_service.get_user_sessions(token_user_id)
+    return account_security_service.get_user_sessions(token_user_id, db)
 
 
 @router.delete(
@@ -52,10 +49,7 @@ def delete_profile_other_sessions(
         str,
         Depends(auth_dependencies.get_sid_from_access_token),
     ],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
 ) -> None:
     """Revoke all of the authenticated user's other sessions.
 
@@ -69,12 +63,12 @@ def delete_profile_other_sessions(
         request: The incoming request, read by the rate limiter.
         token_user_id: User ID from access token.
         token_session_id: The caller's current session, preserved.
-        identity_service: Identity service dependency.
+        db: Database session.
 
     Returns:
         None.
     """
-    identity_service.delete_other_user_sessions(token_user_id, token_session_id)
+    account_security_service.delete_other_user_sessions(token_user_id, token_session_id, db)
 
 
 @router.delete(
@@ -87,10 +81,7 @@ def delete_profile_session(
     request: Request,
     session_id: SessionId,
     token_user_id: auth_dependencies.CurrentUserId,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    db: core_dependencies.DbSession,
 ) -> None:
     """Delete user session from database.
 
@@ -98,9 +89,9 @@ def delete_profile_session(
         request: The incoming request, read by the rate limiter.
         session_id: Session identifier to delete.
         token_user_id: User ID from access token.
-        identity_service: Identity service dependency.
+        db: Database session.
 
     Returns:
         None.
     """
-    identity_service.delete_user_session(session_id, token_user_id)
+    account_security_service.delete_user_session(session_id, token_user_id, db)

@@ -42,11 +42,12 @@ import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth._internal.services.account_security_service as auth_account_security_service
-import modules.auth._internal.services.identity_link_service as auth_identity_link_service
-import modules.auth._internal.services.mfa_workflow as auth_mfa_workflow
-import modules.auth._internal.services.step_up_service as auth_step_up_service
 import modules.auth.access_tokens.integration_service as auth_token_manager
+import modules.auth.account_security.account_security_service as auth_account_security_service
+import modules.auth.account_security.identity_link_service as auth_identity_link_service
+import modules.auth.account_security.mfa_workflow_service as auth_mfa_workflow
+import modules.auth.account_security.step_up_service as auth_step_up_service
+import modules.auth.account_security.step_up_store as auth_step_up_store
 import modules.auth.api_keys.integration_service as auth_api_keys_integration
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.integration_service as auth_password_hasher
@@ -70,7 +71,6 @@ from modules.auth.principal import (
 logger = core_logger.get_logger(__name__)
 
 if TYPE_CHECKING:
-    import modules.auth._internal.security_stores as auth_security_stores
     import modules.auth.identity_provider_link_tokens.schema as auth_idp_link_tokens_schema
     import modules.auth.identity_provider_links.schema as auth_identity_links_schema
     import modules.auth.mfa.contracts as auth_mfa_contracts
@@ -467,7 +467,7 @@ class IdentityService(Protocol):
         current_password: str,
         new_password: str,
         mfa_code: str | None,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
         revoke_other_sessions: bool = False,
         current_session_id: str | None = None,
     ) -> None:
@@ -549,7 +549,7 @@ class IdentityService(Protocol):
         self,
         request: auth_mfa_schema.MFASetupRequest,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
         mfa_secret_store: auth_mfa_contracts.MFASecretStoreBackend,
     ) -> dict:
         """Enable MFA using the pending secret and a verification code.
@@ -572,7 +572,7 @@ class IdentityService(Protocol):
         self,
         request: auth_mfa_schema.MFADisableRequest,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> dict:
         """Disable MFA after step-up verification.
 
@@ -608,7 +608,7 @@ class IdentityService(Protocol):
         self,
         step_up: users_schema.StepUpVerification,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> auth_mfa_backup_codes_schema.MFABackupCodesResponse:
         """Generate new backup codes for an MFA-enabled account.
 
@@ -631,7 +631,7 @@ class IdentityService(Protocol):
         link_request: auth_idp_link_tokens_schema.IdpLinkTokenRequest,
         request: Request,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> auth_idp_link_tokens_schema.IdpLinkTokenResponse:
         """Generate a one-time IdP link token after step-up verification.
 
@@ -663,7 +663,7 @@ class IdentityService(Protocol):
         self,
         step_up: users_schema.StepUpVerification,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> None:
         """Require fresh proof of identity for a sensitive account operation.
 
@@ -682,7 +682,7 @@ class IdentityService(Protocol):
         idp_id: int,
         step_up: users_schema.StepUpVerification,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> None:
         """Unlink an IdP while enforcing anti-lockout checks.
 
@@ -1340,7 +1340,7 @@ class DefaultIdentityService:
         current_password: str,
         new_password: str,
         mfa_code: str | None,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
         revoke_other_sessions: bool = False,
         current_session_id: str | None = None,
     ) -> None:
@@ -1380,13 +1380,13 @@ class DefaultIdentityService:
         mfa_secret_store: auth_mfa_contracts.MFASecretStoreBackend,
     ) -> auth_mfa_schema.MFASetupResponse:
         """Create MFA setup material and store the pending setup secret."""
-        return auth_mfa_workflow.setup_mfa(user_id, self._db, mfa_secret_store)
+        return auth_mfa_workflow.setup_mfa(user_id, mfa_secret_store, self._db)
 
     def enable_mfa(
         self,
         request: auth_mfa_schema.MFASetupRequest,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
         mfa_secret_store: auth_mfa_contracts.MFASecretStoreBackend,
     ) -> dict:
         """Enable MFA using the pending secret and a verification code."""
@@ -1395,15 +1395,15 @@ class DefaultIdentityService:
             user_id,
             self,
             step_up_store,
-            self._db,
             mfa_secret_store,
+            self._db,
         )
 
     def disable_mfa(
         self,
         request: auth_mfa_schema.MFADisableRequest,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> dict:
         """Disable MFA after step-up verification."""
         return auth_mfa_workflow.disable_mfa(request, user_id, self, step_up_store, self._db)
@@ -1416,7 +1416,7 @@ class DefaultIdentityService:
         self,
         step_up: users_schema.StepUpVerification,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> auth_mfa_backup_codes_schema.MFABackupCodesResponse:
         """Generate new backup codes for an MFA-enabled account."""
         return auth_mfa_workflow.generate_backup_codes(step_up, user_id, self, step_up_store, self._db)
@@ -1427,7 +1427,7 @@ class DefaultIdentityService:
         link_request: auth_idp_link_tokens_schema.IdpLinkTokenRequest,
         request: Request,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> auth_idp_link_tokens_schema.IdpLinkTokenResponse:
         """Generate a one-time IdP link token after step-up verification."""
         return auth_identity_link_service.generate_link_token(
@@ -1448,7 +1448,7 @@ class DefaultIdentityService:
         self,
         step_up: users_schema.StepUpVerification,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> None:
         """Require fresh proof of identity for a sensitive account operation."""
         auth_step_up_service.verify_step_up_credentials(
@@ -1465,7 +1465,7 @@ class DefaultIdentityService:
         idp_id: int,
         step_up: users_schema.StepUpVerification,
         user_id: int,
-        step_up_store: auth_security_stores.StepUpStore,
+        step_up_store: auth_step_up_store.StepUpStore,
     ) -> None:
         """Unlink an IdP while enforcing anti-lockout checks."""
         auth_identity_link_service.delete_identity_provider_link(

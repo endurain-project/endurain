@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.auth._internal.security_stores as auth_security_stores
+import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.users.users.integration_service as users_integration
@@ -40,7 +41,7 @@ def verify_step_up_credentials(
     current_password: str | None,
     mfa_code: str | None,
     identity_service: IdentityService,
-    step_up_store: auth_security_stores.StepUpStore,
+    step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> None:
     """
@@ -83,7 +84,7 @@ def verify_step_up_credentials(
         None.
 
     Raises:
-        HTTPException: 429 if the user is currently locked out;
+        DomainError: 429 if the user is currently locked out;
             401 if the current password is wrong, is missing for
             an account that has one, or when MFA is enabled and
             the supplied code is missing or invalid.
@@ -92,18 +93,14 @@ def verify_step_up_credentials(
 
     if step_up_store.is_locked_out(key):
         lockout_until = step_up_store.get_lockout_time(key)
-        retry_after = 0
-        if lockout_until is not None:
-            from datetime import UTC, datetime
-
-            remaining = lockout_until - datetime.now(UTC)
-            retry_after = max(0, int(remaining.total_seconds()))
         logger.warning(f"Step-up blocked for user {user_id}: locked out")
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many failed step-up attempts. Try again later.",
-            headers={"Retry-After": str(retry_after)},
+        error = core_exceptions.TooManyRequestsError(
+            "Too many failed step-up attempts. Try again later.", retry_at=lockout_until
         )
+        if lockout_until is not None:
+            retry_after = max(0, int((lockout_until - datetime.now(UTC)).total_seconds()))
+            error.headers = {"Retry-After": str(retry_after)}
+        raise error
 
     # Guard: ensure the user exists (raises 404 otherwise).
     users_integration.require_user(user_id, db)
@@ -112,39 +109,23 @@ def verify_step_up_credentials(
     if password_hash is not None:
         if not current_password:
             step_up_store.record_failed_attempt(key)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Step-up verification failed",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
         if not identity_service.verify_password(
             current_password,
             password_hash,
         ):
             step_up_store.record_failed_attempt(key)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Step-up verification failed",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
     # else: SSO-only account; no password to verify. See docstring
     # and docs/developer-guide/auth-boundary.md "Known Structural Debt".
 
     if mfa_integration.is_mfa_enabled_for_user(user_id, db):
         if not mfa_code:
             step_up_store.record_failed_attempt(key)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="MFA code required for this operation",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("MFA code required for this operation", scheme="Bearer")
         if not mfa_integration.verify_user_mfa(user_id, mfa_code, identity_service, db):
             step_up_store.record_failed_attempt(key)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Step-up verification failed",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
 
     # All factors passed — reset the failure counter.
     step_up_store.reset_attempts(key)

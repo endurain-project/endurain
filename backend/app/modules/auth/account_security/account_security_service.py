@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.auth._internal.services.step_up_service as step_up_service
+import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.credentials.integration_service as auth_password_policy
 import modules.auth.mfa.integration_service as auth_mfa_integration
 import modules.auth.sessions.integration_service as auth_sessions_crud
@@ -19,7 +19,7 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 if TYPE_CHECKING:
-    import modules.auth._internal.security_stores as auth_security_stores
+    import modules.auth.account_security.step_up_store as account_security_step_up_store
     from modules.auth.identity_service import IdentityService
 
 
@@ -38,6 +38,15 @@ def delete_user_session(
 ) -> None:
     """Delete one authenticated user's session."""
     auth_sessions_crud.delete_session(session_id, token_user_id, db)
+    db.commit()
+
+
+def delete_all_user_sessions(user_id: int, db: Session) -> int:
+    """Revoke every session belonging to a user."""
+    revoked = auth_sessions_crud.delete_sessions_by_user(user_id, db)
+    db.commit()
+    logger.info("Revoked a user's sessions", extra=core_logger.context(user_id=user_id, revoked=revoked))
+    return revoked
 
 
 def delete_other_user_sessions(
@@ -76,7 +85,7 @@ def change_own_password(
     new_password: str,
     mfa_code: str | None,
     identity_service: IdentityService,
-    step_up_store: auth_security_stores.StepUpStore,
+    step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
     revoke_other_sessions: bool = False,
     current_session_id: str | None = None,
@@ -103,7 +112,7 @@ def change_own_password(
         None.
 
     Raises:
-        HTTPException: If step-up verification or persistence fails.
+        DomainError: If step-up verification or persistence fails.
     """
     step_up_service.verify_step_up_credentials(
         user_id,
@@ -157,7 +166,7 @@ def change_managed_user_password(
         None.
 
     Raises:
-        HTTPException: If password persistence fails.
+        DomainError: If password persistence fails.
     """
     server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_integration.require_user(user_id, db)
@@ -169,6 +178,10 @@ def change_managed_user_password(
     )
     identity_service.set_local_password_hash(user_id, hashed_password)
     db.commit()
-    auth_sessions_crud.delete_sessions_by_user(user_id, db)
+    revoked = auth_sessions_crud.delete_sessions_by_user(user_id, db)
     db.commit()
     auth_mfa_integration.clear_pending_mfa_for_user(user_id)
+    logger.info(
+        "Changed a managed user's password and revoked sessions",
+        extra=core_logger.context(user_id=user_id, revoked=revoked),
+    )

@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 
+import modules.auth.api_keys.crud as api_keys_crud
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.service as api_keys_service
 import modules.auth.api_keys.utils as api_keys_utils
@@ -25,3 +26,35 @@ def hash_api_key(raw_key: str) -> str:
 def json_to_scopes(scopes_json: str) -> list[str]:
     """Decode the scopes stored on an API key."""
     return api_keys_utils.json_to_scopes(scopes_json)
+
+
+def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersApiKeyRead]:
+    """List API keys owned by a user."""
+    return api_keys_crud.get_api_keys_by_user_id(user_id, db)
+
+
+def create_api_key(
+    user_id: int,
+    data: api_keys_schema.UsersApiKeyCreate,
+    raw_key: str,
+    db: Session,
+) -> api_keys_schema.UsersApiKeyRead:
+    """Stage a new API key for the account-security owner to commit."""
+    return api_keys_crud.create_api_key(
+        user_id,
+        data,
+        raw_key,
+        api_keys_utils.hash_api_key(raw_key),
+        api_keys_utils.scopes_to_json(data.scopes),
+        db,
+    )
+
+
+def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+    """Stage revocation of a user's API key."""
+    api_keys_crud.revoke_api_key(api_key_id, user_id, db)
+
+
+def delete_api_key(api_key_id: str, user_id: int, db: Session) -> None:
+    """Stage deletion of a user's API key."""
+    api_keys_crud.delete_api_key(api_key_id, user_id, db)

@@ -4,11 +4,12 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+from jasil.backends.state_memory import MemoryState
 from sqlalchemy.orm import Session
 
-import modules.auth._internal.security_stores as security_stores
-import modules.auth._internal.services.step_up_service as step_up_service
+import core.exceptions as core_exceptions
+import modules.auth.account_security.step_up_service as step_up_service
+import modules.auth.account_security.step_up_store as step_up_store_module
 
 
 class FakeStepUpStore:
@@ -97,19 +98,19 @@ class TestVerifyStepUpCredentials:
 
         with (
             patch(
-                "modules.auth._internal.services.step_up_service.users_integration.require_user",
+                "modules.auth.account_security.step_up_service.users_integration.require_user",
                 return_value=mock_user,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.auth_credentials_crud.get_password_hash",
+                "modules.auth.account_security.step_up_service.auth_credentials_crud.get_password_hash",
                 return_value=password_hash,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.mfa_integration.is_mfa_enabled_for_user",
+                "modules.auth.account_security.step_up_service.mfa_integration.is_mfa_enabled_for_user",
                 return_value=mfa_enabled,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.mfa_integration.verify_user_mfa",
+                "modules.auth.account_security.step_up_service.mfa_integration.verify_user_mfa",
                 return_value=mfa_valid,
             ),
         ):
@@ -130,20 +131,20 @@ class TestVerifyStepUpCredentials:
         store = FakeStepUpStore()
         store.set_locked("user:1", seconds=300)
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(user_id=1, step_up_store=store)
 
         assert exc.value.status_code == 429
 
-    def test_locked_out_includes_retry_after_header(self):
+    def test_locked_out_carries_retry_time(self):
         store = FakeStepUpStore()
         store.set_locked("user:1", seconds=300)
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(user_id=1, step_up_store=store)
 
-        assert "Retry-After" in exc.value.headers
-        assert int(exc.value.headers["Retry-After"]) > 0
+        assert isinstance(exc.value, core_exceptions.TooManyRequestsError)
+        assert exc.value.retry_at is not None
 
     def test_lockout_not_applied_when_not_locked(self):
         # Should not raise 429
@@ -195,7 +196,7 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
                 step_up_store=store,
@@ -212,7 +213,7 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
@@ -229,7 +230,7 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
                 step_up_store=store,
@@ -246,7 +247,7 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
@@ -283,7 +284,7 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
                 step_up_store=store,
@@ -298,7 +299,7 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
@@ -316,7 +317,7 @@ class TestVerifyStepUpCredentials:
         identity_service.verify_password.return_value = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
                 identity_service=identity_service,
@@ -334,7 +335,7 @@ class TestVerifyStepUpCredentials:
         identity_service.verify_password.return_value = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
@@ -389,7 +390,7 @@ class TestVerifyStepUpCredentials:
         identity_service.verify_password.return_value = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
                 identity_service=identity_service,
@@ -410,7 +411,7 @@ class TestVerifyStepUpCredentials:
         identity_service.verify_password.return_value = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
@@ -449,7 +450,7 @@ class TestVerifyStepUpCredentials:
         identity_service.verify_password.return_value = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
                 identity_service=identity_service,
@@ -470,7 +471,7 @@ class TestVerifyStepUpCredentials:
         identity_service.verify_password.return_value = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
                 user_id=1,
                 mock_user=mock_user,
@@ -489,7 +490,7 @@ class TestVerifyStepUpCredentials:
     # ----------------------------------------------------------------
 
     def test_lockout_applied_after_threshold(self):
-        store = security_stores.StepUpAttempts()
+        store = step_up_store_module.StepUpAttempts(MemoryState())
         key = "user:99"
         for _ in range(5):
             store.record_failed_attempt(key)
@@ -501,7 +502,7 @@ class TestVerifyStepUpCredentials:
         mock_user.password = None
         mock_user.has_local_password = False
         identity_service = MagicMock()
-        store = security_stores.StepUpAttempts()
+        store = step_up_store_module.StepUpAttempts(MemoryState())
         key = "user:1"
         # Pre-load 3 failures (below threshold)
         for _ in range(3):

@@ -21,6 +21,7 @@ import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.rate_limit as core_rate_limit
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_service as auth_identity_service
 import modules.users.users.integration_service as users_integration
@@ -174,6 +175,7 @@ def edit_profile_email(
         identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
         db: Database session.
+        db: Database session.
     """
     profile_service.change_email(token_user_id, email_change, token_session_id, identity_service, step_up_store, db)
 
@@ -230,6 +232,7 @@ def edit_profile_password(
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
     ],
+    db: core_dependencies.DbSession,
 ) -> None:
     """Update user password after step-up verification.
 
@@ -255,16 +258,19 @@ def edit_profile_password(
             other sessions are revoked.
         identity_service: Identity service dependency.
         step_up_store: Step-up lockout store.
+        db: Database session.
 
     Raises:
         HTTPException: 401 if step-up verification fails.
     """
-    identity_service.change_own_password(
-        user_id=token_user_id,
-        current_password=user_attributtes.current_password,
-        new_password=user_attributtes.password,
-        mfa_code=user_attributtes.mfa_code,
-        step_up_store=step_up_store,
+    account_security_integration.change_own_password(
+        token_user_id,
+        user_attributtes.current_password,
+        user_attributtes.password,
+        user_attributtes.mfa_code,
+        identity_service,
+        step_up_store,
+        db,
         revoke_other_sessions=user_attributtes.revoke_other_sessions,
         current_session_id=token_session_id,
     )
