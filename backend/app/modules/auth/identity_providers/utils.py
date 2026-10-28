@@ -1,6 +1,7 @@
 """Utility helpers and pre-configured templates for identity providers."""
 
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.schema as idp_schema
@@ -78,6 +79,48 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
         return False
 
     return "://" in value
+
+
+def append_query_params(url: str, params: dict[str, str]) -> str:
+    """Append query parameters to a URL or relative path, preserving any existing query.
+
+    Args:
+        url: An absolute URL or a relative path.
+        params: The parameters to add; an existing parameter of the same name is replaced.
+
+    Returns:
+        The URL with the parameters in its query.
+    """
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update(params)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def build_link_result_url(host: str, redirect_path: str | None, idp_name: str | None, *, success: bool) -> str:
+    """Build the post-link redirect that carries the result to the originating client.
+
+    Honors a caller-supplied return path captured at link initiation (validated there against open
+    redirects): a relative path is resolved against the frontend host, while a custom URI scheme is handed
+    off directly to the native client. Falls back to the security settings path when no return path was
+    provided.
+
+    Args:
+        host: The configured frontend host.
+        redirect_path: The validated return path or custom scheme, or None.
+        idp_name: Provider display name (included on success).
+        success: Whether the link succeeded.
+
+    Returns:
+        The absolute URL (or custom-scheme URL) to redirect the browser to.
+    """
+    params = {"idp_link": "success" if success else "error"}
+    if success and idp_name is not None:
+        params["idp_name"] = idp_name
+    if redirect_path and is_custom_scheme_redirect(redirect_path):
+        return append_query_params(redirect_path, params)
+    base = redirect_path or "/settings/security"
+    return f"{host}{append_query_params(base, params)}"
 
 
 # Pre-configured templates for common IdPs

@@ -8,7 +8,8 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
+from urllib.parse import quote
 from uuid import uuid4
 
 import httpx2
@@ -32,6 +33,7 @@ import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
+import modules.auth.computation as auth_computation
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.contracts as auth_identity_links_contracts
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
@@ -117,17 +119,6 @@ class IdentityProviderService:
         self._state = state
         self._frontend_host = frontend_host
         self._api_version = api_version
-
-    def log_public_flow_event(
-        self,
-        level: Literal["debug", "info", "warning", "error"],
-        message: str,
-        *,
-        exc_info: BaseException | None = None,
-        extra: dict[str, object] | None = None,
-    ) -> None:
-        """Record an OAuth flow outcome detected by its transport adapter."""
-        getattr(logger, level)(message, exc_info=exc_info, extra=extra)
 
     def create_login_oauth_state(
         self,
@@ -1170,6 +1161,194 @@ class IdentityProviderService:
                 extra=core_logger.context(name=idp.name, user_id=user_id, err=err),
             )
             raise core_exceptions.ProcessingError("Failed to initiate identity provider linking") from err
+
+    def begin_login(
+        self,
+        idp_slug: str,
+        code_challenge: str,
+        code_challenge_method: str,
+        redirect: str | None,
+        client_ip: str | None,
+        header_client_type: str | None,
+        allowed_redirect_schemes: set[str],
+        db: Session,
+    ) -> str:
+        """Validate a login request and return the provider's authorization URL.
+
+        PKCE is required of every client (OAuth 2.1). The client type comes from ``X-Client-Type`` unless the
+        redirect is a custom scheme, which marks a native app: the browser leg of the flow cannot carry the
+        header, so the validated redirect is the authoritative signal.
+
+        Args:
+            idp_slug: Slug of the provider to log in through.
+            code_challenge: PKCE challenge the token exchange will be checked against.
+            code_challenge_method: PKCE method, which must be ``S256``.
+            redirect: Frontend path to return to after login.
+            client_ip: Address of the client that started the flow.
+            header_client_type: The ``X-Client-Type`` header, if any.
+            allowed_redirect_schemes: Custom URI schemes a redirect may use.
+            db: Database session.
+
+        Returns:
+            The authorization URL to send the browser to.
+
+        Raises:
+            NotFoundError: If the provider does not exist or is disabled.
+            InvalidInputError: If PKCE or the redirect is missing or malformed.
+        """
+        idp = self.get_identity_provider_by_slug(idp_slug, db)
+        if not idp or not idp.enabled:
+            raise core_exceptions.NotFoundError("Identity provider not found or disabled")
+        if not code_challenge:
+            raise core_exceptions.InvalidInputError("code_challenge is required (PKCE mandatory for all clients)")
+        if code_challenge_method != "S256":
+            raise core_exceptions.InvalidInputError("code_challenge_method must be S256")
+        auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
+        # Refused before anything is stored, so a login cannot be turned into an open redirect.
+        identity_provider_utils.validate_redirect_url(redirect, allowed_redirect_schemes)
+
+        if identity_provider_utils.is_custom_scheme_redirect(redirect):
+            client_type = "mobile"
+        else:
+            client_type = header_client_type if header_client_type in ("web", "mobile") else "web"
+
+        state_id = self.create_login_oauth_state(
+            idp.id,
+            client_type=client_type,
+            ip_address=client_ip,
+            redirect_path=redirect,
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method,
+            db=db,
+        )
+        return self.initiate_login(idp, db, redirect, oauth_state_id=state_id)
+
+    def prepare_callback(
+        self, idp_slug: str, state: str, db: Session
+    ) -> tuple[identity_provider_contracts.IdentityProviderState, oauth_state_schema.OAuthStateRead]:
+        """Accept a provider callback: find its provider and claim its one-time state.
+
+        The state is looked up by its opaque id and checked against the provider named in the URL, because
+        without that a state minted for one provider could be replayed against another's callback. It is then
+        claimed atomically, so of two concurrent callbacks with the same state only one continues. A state
+        that is unknown, bound elsewhere or already used gets the same answer, so a caller learns nothing
+        about which of those it was.
+
+        Args:
+            idp_slug: Slug of the provider from the callback URL.
+            state: The ``state`` parameter the provider echoed back.
+            db: Database session.
+
+        Returns:
+            The provider and the claimed OAuth state.
+
+        Raises:
+            NotFoundError: If the provider does not exist or is disabled.
+            InvalidInputError: If the state is unknown, expired, bound to another provider or already used.
+        """
+        idp = self.get_identity_provider_by_slug(idp_slug, db)
+        if not idp or not idp.enabled:
+            raise core_exceptions.NotFoundError("Identity provider not found or disabled")
+
+        oauth_state = self.get_unused_oauth_state(state, db)
+        if not oauth_state:
+            logger.warning(
+                "OAuth state not found in database: <value_1>",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
+            )
+            raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
+        if oauth_state.idp_id is not None and oauth_state.idp_id != idp.id:
+            logger.warning(
+                "OAuth state IdP mismatch for state <value_1>: state.idp_id=<idp_id>, callback idp.id=<id>",
+                extra=core_logger.context(
+                    value_1=core_hashing.log_fingerprint(state), idp_id=oauth_state.idp_id, id=idp.id
+                ),
+            )
+            raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
+        if not self.claim_oauth_state(state, db):
+            logger.warning(
+                "OAuth state replay/race rejected: <value_1>",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
+            )
+            raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
+
+        logger.debug(
+            "OAuth callback received for state <value_1> (client_type=<client_type>)",
+            extra=core_logger.context(value_1=core_hashing.log_fingerprint(state), client_type=oauth_state.client_type),
+        )
+        return idp, oauth_state
+
+    def complete_callback(
+        self,
+        idp: identity_provider_contracts.IdentityProviderState,
+        code: str,
+        state: str,
+        oauth_state: oauth_state_schema.OAuthStateRead,
+        request: Any,
+        password_hasher: credentials_integration.PasswordHasher,
+        db: Session,
+    ) -> str:
+        """Finish a callback and return where to send the browser, whatever happened.
+
+        This is the browser leg of the flow, so it always ends in a redirect: a failure after the state was
+        claimed (the provider refused the code, a user could not be created) must not leave the user on a JSON
+        error. A failed link returns to the page that started it with an error flag, and a failed login to the
+        login page.
+
+        Args:
+            idp: The provider the callback came from.
+            code: The authorization code.
+            state: The ``state`` parameter, as the provider echoed it.
+            oauth_state: The claimed OAuth state.
+            request: The incoming request, recorded on the new session.
+            password_hasher: Hasher for the session's refresh token.
+            db: Database session.
+
+        Returns:
+            The URL to redirect the browser to.
+        """
+        try:
+            result = self.handle_callback(idp, code, state, password_hasher, oauth_state, db)
+            user = result["user"]
+
+            if result.get("mode") == "link":
+                logger.info(
+                    "IdP link successful for user <username>, IdP <name>",
+                    extra=core_logger.context(username=user.username, name=idp.name),
+                )
+                return identity_provider_utils.build_link_result_url(
+                    self._frontend_host, oauth_state.redirect_path, idp.name, success=True
+                )
+
+            # Login: a session without tokens, which the token exchange completes after PKCE.
+            session_id = self.create_callback_session(user, request, password_hasher, oauth_state.id, db)
+            redirect_url = f"{self._frontend_host}/login?sso=success&session_id={session_id}"
+            redirect_path = result.get("redirect_path")
+            if redirect_path:
+                # Encoded so a "&" or "#" in the path cannot start another query parameter; "/" and ":" stay
+                # readable and the frontend decodes the value back.
+                redirect_url += f"&redirect={quote(redirect_path, safe='/:')}"
+                # A custom scheme tells the frontend to skip its own token exchange and pass the session id on
+                # to the native app.
+                if "://" in redirect_path and not redirect_path.startswith("http"):
+                    redirect_url += "&external_redirect=true"
+
+            # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.
+            logger.info(
+                "SSO login successful for user <username> via <name> (session=<value_3>)",
+                extra=core_logger.context(
+                    username=user.username, name=idp.name, value_3=core_hashing.log_fingerprint(session_id)
+                ),
+            )
+            return redirect_url
+        except Exception as err:
+            logger.error("Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err))
+            # A link attempt is the one whose OAuth state carries the user who started it.
+            if oauth_state.user_id is not None:
+                return identity_provider_utils.build_link_result_url(
+                    self._frontend_host, oauth_state.redirect_path, None, success=False
+                )
+            return f"{self._frontend_host}/login?error=sso_failed"
 
     def handle_callback(
         self,
