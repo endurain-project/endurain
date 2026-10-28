@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Φίλτρα",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Ποδήλατο",
     "shoes": "Παπούτσια",
@@ -91,7 +89,6 @@
     "unsupported": "Αυτός ο τύπος εξοπλισμού δεν παρακολουθεί εξαρτήματα.",
     "noneActive": "Όλα τα εξαρτήματα είναι ανενεργά. Ενεργοποιήστε την «Εμφάνιση ανενεργών» για να τα δείτε.",
     "inactive": "Ανενεργό",
-    "unitHours": "h",
     "purchasedOn": "Αγοράστηκε στις {date}",
     "wearLabel": "Φθορά {name}",
     "actions": {

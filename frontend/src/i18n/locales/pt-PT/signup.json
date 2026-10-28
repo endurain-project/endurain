@@ -37,9 +37,6 @@
   "errorGeneral": "O registo falhou. Tenta novamente.",
   "signupDisabled": "O registo não está ativado neste servidor",
   "imageAlt": "Ilustração de registo do Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Catalão",
     "zh-Hans": "Chinês (simplificado)",

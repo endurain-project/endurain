@@ -155,7 +155,7 @@ const dialogTitle = computed(() =>
 // Racquets have no odometer, so the distance field is hidden for that type.
 const showDistance = computed(() => values.gearType !== GEAR_TYPE.RACQUET)
 const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
+  props.units === 'imperial' ? t('app.units.mi') : t('app.units.km'),
 )
 const distanceLabel = computed(
   () => `${t('gears.form.initialDistance')} (${distanceUnitLabel.value})`,

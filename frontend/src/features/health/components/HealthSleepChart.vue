@@ -58,7 +58,7 @@ const chartRender = computed<ChartRenderOptions>(() => {
     kind: 'bar',
     series,
     labels,
-    valueFormat: (value) => formatHoursMinutes(value * 3600),
+    valueFormat: (value) => formatHoursMinutes(value * 3600, t),
   }
 })
 

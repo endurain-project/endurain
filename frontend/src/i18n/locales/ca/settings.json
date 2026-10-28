@@ -119,13 +119,9 @@
       "unitsMetric": "Mètric",
       "unitsImperial": "Imperial",
       "height": "Alçada",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Els peus han d'estar entre 0 i 10",
       "inchesInvalid": "Les polzades han d'estar entre 0 i 11",
       "maxHeartRate": "FC màxima",
-      "unitBpm": "bpm",
       "currency": "Moneda",
       "currencies": {
         "euro": "Euro",
@@ -491,13 +487,6 @@
       "distance": "Distància",
       "elevation": "Elevació",
       "duration": "Durada"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Edita l'objectiu {name}",

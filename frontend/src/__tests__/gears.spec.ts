@@ -21,6 +21,7 @@ import {
   metersToDisplayDistance,
 } from '@/features/gears/utils/format'
 import { GEAR_TYPE, presentGearType } from '@/features/gears/utils/gearType'
+import i18n from '@/i18n'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
@@ -240,8 +241,9 @@ describe('gear format helpers', () => {
   })
 
   it('formats durations as compact hours and minutes', () => {
-    expect(formatDuration(3661)).toBe('1h 1m')
-    expect(formatDuration(2700)).toBe('45m')
-    expect(formatDuration(0)).toBe('0m')
+    const t = i18n.global.t
+    expect(formatDuration(3661, t)).toBe('1h 1m')
+    expect(formatDuration(2700, t)).toBe('45m')
+    expect(formatDuration(0, t)).toBe('0m')
   })
 })

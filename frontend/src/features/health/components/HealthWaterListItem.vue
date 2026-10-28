@@ -22,7 +22,7 @@ const { t, locale } = useI18n()
 
 /** Primary water string, or an em dash when the entry carries no amount. */
 const amountLabel = computed(() =>
-  props.entry.amountMl === null ? '—' : formatWater(props.entry.amountMl, props.units),
+  props.entry.amountMl === null ? '—' : formatWater(props.entry.amountMl, props.units, t),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))

@@ -37,9 +37,6 @@
   "errorGeneral": "El registro falló. Inténtalo de nuevo.",
   "signupDisabled": "El registro no está habilitado en este servidor",
   "imageAlt": "Ilustración de registro de Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Catalán",
     "zh-Hans": "Chino (simplificado)",

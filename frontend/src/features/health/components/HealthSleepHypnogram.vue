@@ -134,7 +134,7 @@ const segments = computed(() =>
       label: t(`health.sleep.hypnogram.${item.lane.labelKey}`),
       startLabel: clockLabel.value(item.startMs),
       endLabel: clockLabel.value(item.endMs),
-      durationLabel: formatHoursMinutes(durationSeconds),
+      durationLabel: formatHoursMinutes(durationSeconds, t),
     }
   }),
 )

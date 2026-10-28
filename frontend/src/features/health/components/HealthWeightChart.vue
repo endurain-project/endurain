@@ -32,7 +32,9 @@ function toDisplay(kg: number): number {
 }
 
 /** Unit suffix shown on the y-axis ticks and tooltip. */
-const unitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const unitLabel = computed(() =>
+  props.units === 'imperial' ? t('app.units.lb') : t('app.units.kg'),
+)
 
 /**
  * Entries that carry a weight value, oldest-first so the line reads left → right

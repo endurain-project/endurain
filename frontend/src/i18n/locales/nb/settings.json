@@ -119,13 +119,9 @@
       "unitsMetric": "Metrisk",
       "unitsImperial": "Imperisk",
       "height": "Høyde",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Fot må være mellom 0 og 10",
       "inchesInvalid": "Tommer må være mellom 0 og 11",
       "maxHeartRate": "Maks puls",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -491,13 +487,6 @@
       "distance": "Distanse",
       "elevation": "Stigning",
       "duration": "Varighet"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Rediger {name}-mål",

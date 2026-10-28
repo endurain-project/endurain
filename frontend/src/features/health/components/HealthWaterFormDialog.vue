@@ -136,7 +136,7 @@ const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.water.form.editTitle') : t('health.water.form.addTitle'),
 )
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const amountUnitLabel = computed(() => (isImperial.value ? t('app.units.flOz') : t('app.units.ml')))
 const amountLabel = computed(() => `${t('health.water.form.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */

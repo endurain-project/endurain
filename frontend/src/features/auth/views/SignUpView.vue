@@ -406,7 +406,7 @@ onMounted(async () => {
             </template>
           </FormField>
 
-          <FormField v-if="isMetric" :label="`${t('signup.height')} (${t('signup.unitCm')})`">
+          <FormField v-if="isMetric" :label="`${t('signup.height')} (${t('app.units.cm')})`">
             <template #default="{ fieldId }">
               <input
                 :id="fieldId"
@@ -435,13 +435,13 @@ onMounted(async () => {
                     :class="inputFieldClass"
                     :aria-describedby="describedBy"
                     :aria-invalid="invalid"
-                    :aria-label="`${t('signup.height')} (${t('signup.unitFeet')})`"
+                    :aria-label="`${t('signup.height')} (${t('app.units.ft')})`"
                     name="heightFeet"
                     type="number"
                     min="0"
                     max="10"
                     step="1"
-                    :placeholder="t('signup.unitFeet')"
+                    :placeholder="t('app.units.ft')"
                     :disabled="isSubmitting"
                     @blur="handleBlur('heightFeet')"
                   />
@@ -455,13 +455,13 @@ onMounted(async () => {
                     :class="inputFieldClass"
                     :aria-describedby="describedBy"
                     :aria-invalid="invalid"
-                    :aria-label="`${t('signup.height')} (${t('signup.unitInches')})`"
+                    :aria-label="`${t('signup.height')} (${t('app.units.in')})`"
                     name="heightInches"
                     type="number"
                     min="0"
                     max="11"
                     step="1"
-                    :placeholder="t('signup.unitInches')"
+                    :placeholder="t('app.units.in')"
                     :disabled="isSubmitting"
                     @blur="handleBlur('heightInches')"
                   />

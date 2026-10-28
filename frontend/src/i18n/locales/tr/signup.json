@@ -37,9 +37,6 @@
   "errorGeneral": "Kayıt başarısız oldu. Lütfen tekrar deneyin.",
   "signupDisabled": "Bu sunucuda kayıt etkin değil",
   "imageAlt": "Endurain kayıt görseli",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalanca",
     "zh-Hans": "Çince (Basitleştirilmiş)",

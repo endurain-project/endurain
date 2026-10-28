@@ -188,11 +188,11 @@ const sortedTypes = computed(() =>
   ),
 )
 const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
+  props.units === 'imperial' ? t('app.units.mi') : t('app.units.km'),
 )
 const expectedLabel = computed(() =>
   isTimeBasedGear(props.gearType)
-    ? `${t('gears.components.form.expectedTime')} (${t('gears.components.unitHours')})`
+    ? `${t('gears.components.form.expectedTime')} (${t('app.units.h')})`
     : `${t('gears.components.form.expectedDistance')} (${distanceUnitLabel.value})`,
 )
 const purchaseValueLabel = computed(

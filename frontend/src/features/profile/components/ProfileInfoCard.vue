@@ -37,7 +37,7 @@ const heightDisplay = computed<string | null>(() => {
     return null
   }
   if (props.profile.units === 'metric') {
-    return `${props.profile.height} ${t('settings.users.form.unitCm')}`
+    return `${props.profile.height} ${t('app.units.cm')}`
   }
   const { feet, inches } = cmToFeetInches(props.profile.height)
   return `${feet}' ${inches}"`
@@ -67,7 +67,7 @@ const fields = computed<{ label: string; value: string | null }[]>(() => [
   {
     label: t('settings.users.form.maxHeartRate'),
     value: props.profile.maxHeartRate
-      ? `${props.profile.maxHeartRate} ${t('settings.users.form.unitBpm')}`
+      ? `${props.profile.maxHeartRate} ${t('app.units.bpm')}`
       : null,
   },
   {

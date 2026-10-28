@@ -76,7 +76,7 @@ const startedLabel = computed(() =>
   props.entry.fastStartTime ? formatMediumDateTime(props.entry.fastStartTime, locale.value) : '',
 )
 const targetLabel = computed(() =>
-  hasTarget.value ? formatHoursMinutes(props.entry.targetDurationSeconds as number) : null,
+  hasTarget.value ? formatHoursMinutes(props.entry.targetDurationSeconds as number, t) : null,
 )
 </script>
 

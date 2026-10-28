@@ -35,5 +35,16 @@
     "edit": "Bewerken",
     "supported": "Markdown ondersteund",
     "empty": "Niets om een voorbeeld van te tonen"
+  },
+  "units": {
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "ft": "ft",
+    "cm": "cm",
+    "in": "in",
+    "bpm": "bpm",
+    "kcal": "kcal",
+    "h": "u"
   }
 }

@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtrid",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Jalgratas",
     "shoes": "Jalanõud",
@@ -91,7 +89,6 @@
     "unsupported": "See varustuse tüüp ei jälgi komponente.",
     "noneActive": "Kõik komponendid on mitteaktiivsed. Lülita sisse „Näita mitteaktiivseid“, et neid näha.",
     "inactive": "Mitteaktiivne",
-    "unitHours": "h",
     "purchasedOn": "Ostetud {date}",
     "wearLabel": "{name} kulumine",
     "actions": {

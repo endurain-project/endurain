@@ -37,9 +37,6 @@
   "errorGeneral": "Tilmelding mislykkedes. Prøv venligst igen.",
   "signupDisabled": "Tilmelding er ikke aktiveret på denne server",
   "imageAlt": "Endurain tilmeldingsillustration",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Catalansk",
     "zh-Hans": "Kinesisk (forenklet)",

@@ -34,7 +34,7 @@ const statusVariant = computed(() =>
 /** Recorded length of the fast, shown in parentheses after the type. */
 const durationLabel = computed(() =>
   props.entry.actualDurationSeconds != null
-    ? formatHoursMinutes(props.entry.actualDurationSeconds)
+    ? formatHoursMinutes(props.entry.actualDurationSeconds, t)
     : null,
 )
 

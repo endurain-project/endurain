@@ -119,13 +119,9 @@
       "unitsMetric": "Metriniai",
       "unitsImperial": "Imperiniai",
       "height": "Ūgis",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Pėdos turi būti nuo 0 iki 10",
       "inchesInvalid": "Coliai turi būti nuo 0 iki 11",
       "maxHeartRate": "Maks. pulsas",
-      "unitBpm": "bpm",
       "currency": "Valiuta",
       "currencies": {
         "euro": "Euras",
@@ -491,13 +487,6 @@
       "distance": "Atstumas",
       "elevation": "Aukščio pokytis",
       "duration": "Trukmė"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Redaguoti tikslą {name}",

@@ -37,9 +37,6 @@
   "errorGeneral": "Registratie mislukt. Probeer het opnieuw.",
   "signupDisabled": "Registratie is niet ingeschakeld op deze server",
   "imageAlt": "Endurain registratie-illustratie",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Catalaans",
     "zh-Hans": "Chinees (vereenvoudigd)",

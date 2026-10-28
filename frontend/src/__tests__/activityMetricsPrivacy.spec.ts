@@ -8,6 +8,7 @@ import {
   isActivityOwner,
   streamMetricVisibility,
 } from '@/features/activities/utils/privacy'
+import i18n from '@/i18n'
 
 import { makeActivity, NO_PRIVACY } from './fixtures/activity'
 
@@ -153,8 +154,9 @@ describe('buildActivityMetrics', () => {
 
 describe('formatLapTempo', () => {
   it('uses pace for running and speed for cycling', () => {
-    expect(formatLapTempo(0.3, null, 1, 'metric')).toBe('5:00 min/km')
-    expect(formatLapTempo(null, 10, 4, 'metric')).toBe('36.00 km/h')
-    expect(formatLapTempo(null, null, 1, 'metric')).toBe('--')
+    const t = i18n.global.t
+    expect(formatLapTempo(0.3, null, 1, 'metric', t)).toBe('5:00 min/km')
+    expect(formatLapTempo(null, 10, 4, 'metric', t)).toBe('36.00 km/h')
+    expect(formatLapTempo(null, null, 1, 'metric', t)).toBe('--')
   })
 })

@@ -37,9 +37,6 @@
   "errorGeneral": "Registrering misslyckades. Försök igen.",
   "signupDisabled": "Registrering är inte aktiverat på den här servern",
   "imageAlt": "Endurain registreringsillustration",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalanska",
     "zh-Hans": "Kinesiska (förenklad)",

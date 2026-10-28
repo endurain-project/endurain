@@ -35,5 +35,16 @@
     "edit": "Επεξεργασία",
     "supported": "Υποστηρίζεται Markdown",
     "empty": "Τίποτα για προεπισκόπηση"
+  },
+  "units": {
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "ft": "ft",
+    "cm": "cm",
+    "in": "in",
+    "bpm": "bpm",
+    "kcal": "kcal",
+    "h": "h"
   }
 }

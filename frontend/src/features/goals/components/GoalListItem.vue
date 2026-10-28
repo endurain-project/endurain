@@ -38,12 +38,12 @@ const activityLabel = computed(() => t(ACTIVITY_TYPE_LABEL_KEYS[props.goal.activ
 
 /** The unit suffix for a distance target. */
 const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.miles') : t('settings.goals.unit.km'),
+  props.units === 'imperial' ? t('app.units.mi') : t('app.units.km'),
 )
 
 /** The unit suffix for an elevation target. */
 const elevationUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.feet') : t('settings.goals.unit.meters'),
+  props.units === 'imperial' ? t('app.units.ft') : t('app.units.m'),
 )
 
 /** The formatted target value, expressed in the viewer's units. */
@@ -51,7 +51,7 @@ const targetText = computed<string>(() => {
   const goal = props.goal
   switch (goal.goalType) {
     case 'calories':
-      return `${goal.calories ?? 0} ${t('settings.goals.unit.calories')}`
+      return `${goal.calories ?? 0} ${t('app.units.kcal')}`
     case 'activities':
       return `${goal.activitiesNumber ?? 0}`
     case 'distance':
@@ -59,7 +59,7 @@ const targetText = computed<string>(() => {
     case 'elevation':
       return `${metersToElevationValue(goal.elevationMeters ?? 0, props.units)} ${elevationUnit.value}`
     case 'duration':
-      return formatGoalDuration(goal.durationSeconds ?? 0)
+      return formatGoalDuration(goal.durationSeconds ?? 0, t)
   }
   return ''
 })

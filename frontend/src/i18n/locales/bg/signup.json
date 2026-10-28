@@ -37,9 +37,6 @@
   "errorGeneral": "Регистрацията е неуспешна. Моля, опитайте отново.",
   "signupDisabled": "Регистрацията не е разрешена на този сървър",
   "imageAlt": "Илюстрация за регистрация в Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Каталонски",
     "zh-Hans": "Китайски (опростен)",

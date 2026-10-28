@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtre",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Sykkel",
     "shoes": "Sko",
@@ -91,7 +89,6 @@
     "unsupported": "Denne utstyrstypen sporer ikke komponenter.",
     "noneActive": "Alle komponenter er inaktive. Slå på «Vis inaktive» for å se dem.",
     "inactive": "Inaktiv",
-    "unitHours": "t",
     "purchasedOn": "Kjøpt {date}",
     "wearLabel": "Slitasje på {name}",
     "actions": {

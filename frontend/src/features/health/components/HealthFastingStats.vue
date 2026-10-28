@@ -36,13 +36,13 @@ const tiles = computed(() => [
     label: t('health.fasting.stats.avgDuration'),
     value:
       props.stats.avgDurationSeconds != null
-        ? formatHoursMinutes(props.stats.avgDurationSeconds)
+        ? formatHoursMinutes(props.stats.avgDurationSeconds, t)
         : '—',
   },
   {
     key: 'totalTime',
     label: t('health.fasting.stats.totalTime'),
-    value: formatHoursMinutes(props.stats.totalFastingSeconds),
+    value: formatHoursMinutes(props.stats.totalFastingSeconds, t),
   },
   {
     key: 'completionRate',

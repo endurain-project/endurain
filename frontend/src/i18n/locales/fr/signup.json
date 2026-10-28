@@ -37,9 +37,6 @@
   "errorGeneral": "L'inscription a échoué. Veuillez réessayer.",
   "signupDisabled": "L'inscription n'est pas activée sur ce serveur",
   "imageAlt": "Illustration d'inscription Endurain",
-  "unitCm": "cm",
-  "unitFeet": "pi",
-  "unitInches": "po",
   "languages": {
     "ca": "Catalan",
     "zh-Hans": "Chinois (simplifié)",

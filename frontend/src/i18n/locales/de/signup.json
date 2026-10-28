@@ -37,9 +37,6 @@
   "errorGeneral": "Registrierung fehlgeschlagen. Bitte versuche es erneut.",
   "signupDisabled": "Registrierung ist auf diesem Server nicht aktiviert",
   "imageAlt": "Endurain Registrierungs-Illustration",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Katalanisch",
     "zh-Hans": "Chinesisch (Vereinfacht)",

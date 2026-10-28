@@ -27,7 +27,7 @@ const tiles = computed(() => buildActivityMetrics(props.activity, props.units, p
       :key="tile.key"
       :label="t(tile.labelKey)"
       :value="tile.value"
-      :unit="tile.unit"
+      :unit="tile.unit && t(tile.unit)"
       :accent="tile.accent"
       class=""
     />

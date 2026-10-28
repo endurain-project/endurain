@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtri",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Velosipēds",
     "shoes": "Apavi",
@@ -91,7 +89,6 @@
     "unsupported": "Šis inventāra veids neizseko komponentus.",
     "noneActive": "Visi komponenti ir neaktīvi. Ieslēdziet \"Rādīt neaktīvos\", lai tos redzētu.",
     "inactive": "Neaktīvs",
-    "unitHours": "h",
     "purchasedOn": "Iegādāts {date}",
     "wearLabel": "{name} nodilums",
     "actions": {

@@ -37,9 +37,6 @@
   "errorGeneral": "Înscrierea a eșuat. Te rugăm să încerci din nou.",
   "signupDisabled": "Înscrierea nu este activată pe acest server",
   "imageAlt": "Ilustrație de înscriere Endurain",
-  "unitCm": "cm",
-  "unitFeet": "ft",
-  "unitInches": "in",
   "languages": {
     "ca": "Catalană",
     "zh-Hans": "Chineză (simplificată)",

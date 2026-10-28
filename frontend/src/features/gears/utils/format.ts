@@ -1,4 +1,5 @@
 import type { Schemas } from '@/types'
+import type { Translate } from '@/features/activities/utils/format'
 
 import { kmToMiles } from '@/utils/units'
 
@@ -47,11 +48,14 @@ export function metersToDisplayDistance(meters: number, units: Schemas['Units'])
  * hour), matching how gear totals are summarized.
  *
  * @param totalSeconds - Duration in seconds.
+ * @param t - Translates the duration pattern.
  * @returns A compact human-readable duration, e.g. `12h 30m` or `45m`.
  */
-export function formatDuration(totalSeconds: number): string {
+export function formatDuration(totalSeconds: number, t: Translate): string {
   const safe = Math.max(0, Math.floor(totalSeconds))
   const hours = Math.floor(safe / 3600)
   const minutes = Math.floor((safe % 3600) / 60)
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+  return hours > 0
+    ? t('app.units.hoursMinutes', { hours, minutes })
+    : t('app.units.minutes', { minutes })
 }

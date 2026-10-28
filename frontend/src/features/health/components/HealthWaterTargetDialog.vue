@@ -73,7 +73,7 @@ const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>(
   onSubmit: submitForm,
 })
 
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const amountUnitLabel = computed(() => (isImperial.value ? t('app.units.flOz') : t('app.units.ml')))
 const amountLabel = computed(() => `${t('health.water.target.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */

@@ -49,6 +49,7 @@ import {
 } from '@/features/health/services/health'
 import { formatBodyMass, formatHealthEntryDate } from '@/features/health/utils/healthFormat'
 import { kgToLbs, lbsToKg } from '@/utils/units'
+import i18n from '@/i18n'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
@@ -115,11 +116,11 @@ describe('formatHealthEntryDate', () => {
 
 describe('formatBodyMass', () => {
   it('formats kilograms to two decimals for metric users', () => {
-    expect(formatBodyMass(3.2, 'metric')).toBe('3.20 kg')
+    expect(formatBodyMass(3.2, 'metric', i18n.global.t)).toBe('3.20 kg')
   })
 
   it('converts to pounds for imperial users', () => {
-    expect(formatBodyMass(5, 'imperial')).toBe(`${kgToLbs(5).toFixed(2)} lb`)
+    expect(formatBodyMass(5, 'imperial', i18n.global.t)).toBe(`${kgToLbs(5).toFixed(2)} lb`)
   })
 })
 

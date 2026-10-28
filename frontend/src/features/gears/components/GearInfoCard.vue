@@ -42,10 +42,10 @@ const emit = defineEmits<{
 const { t, locale } = useI18n()
 
 const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
+  props.units === 'imperial' ? t('app.units.mi') : t('app.units.km'),
 )
 const totalDistance = computed(() => metersToDisplayDistance(props.gear.totalDistance, props.units))
-const totalTime = computed(() => formatDuration(props.gear.totalTime))
+const totalTime = computed(() => formatDuration(props.gear.totalTime, t))
 const componentsCost = computed(
   () =>
     `${currencySymbol(props.currency)}${Math.round(props.gear.totalComponentsCost * 100) / 100}`,

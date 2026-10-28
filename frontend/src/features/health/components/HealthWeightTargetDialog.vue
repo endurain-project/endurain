@@ -80,7 +80,9 @@ const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>(
   onSubmit: submitForm,
 })
 
-const massUnitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() =>
+  props.units === 'imperial' ? t('app.units.lb') : t('app.units.kg'),
+)
 const weightLabel = computed(() => `${t('health.weight.target.weight')} (${massUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */

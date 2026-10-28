@@ -149,7 +149,9 @@ const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.weight.form.editTitle') : t('health.weight.form.addTitle'),
 )
-const massUnitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() =>
+  props.units === 'imperial' ? t('app.units.lb') : t('app.units.kg'),
+)
 const weightLabel = computed(() => `${t('health.weight.form.weight')} (${massUnitLabel.value})`)
 const boneMassLabel = computed(() => `${t('health.weight.form.boneMass')} (${massUnitLabel.value})`)
 const muscleMassLabel = computed(

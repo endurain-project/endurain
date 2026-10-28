@@ -119,13 +119,9 @@
       "unitsMetric": "Metriskā",
       "unitsImperial": "Imperiskā",
       "height": "Augums",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Pēdām jābūt no 0 līdz 10",
       "inchesInvalid": "Collām jābūt no 0 līdz 11",
       "maxHeartRate": "Maks. sirdsdarbība",
-      "unitBpm": "bpm",
       "currency": "Valūta",
       "currencies": {
         "euro": "Eiro",
@@ -491,13 +487,6 @@
       "distance": "Distance",
       "elevation": "Augstuma ieguvums",
       "duration": "Ilgums"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Rediģēt mērķi {name}",

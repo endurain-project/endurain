@@ -35,5 +35,16 @@
     "edit": "Редагувати",
     "supported": "Підтримується Markdown",
     "empty": "Немає що переглядати"
+  },
+  "units": {
+    "km": "km",
+    "mi": "mi",
+    "m": "m",
+    "ft": "ft",
+    "cm": "cm",
+    "in": "in",
+    "bpm": "bpm",
+    "kcal": "kcal",
+    "h": "h"
   }
 }

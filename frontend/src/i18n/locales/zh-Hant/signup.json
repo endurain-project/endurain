@@ -37,9 +37,6 @@
   "errorGeneral": "註冊失敗，請再試一次。",
   "signupDisabled": "此伺服器未開放註冊",
   "imageAlt": "Endurain 註冊插圖",
-  "unitCm": "公分",
-  "unitFeet": "英尺",
-  "unitInches": "英吋",
   "languages": {
     "ca": "加泰隆尼亞語",
     "zh-Hans": "中文（簡體）",

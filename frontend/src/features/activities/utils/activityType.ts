@@ -251,6 +251,17 @@ export function activityTypeUsesKnots(type: number): boolean {
 }
 
 /**
+ * Whether cadence is presented in steps per minute (running and walking)
+ * rather than revolutions per minute.
+ *
+ * @param type - Numeric activity type.
+ * @returns Whether SPM applies.
+ */
+export function activityTypeUsesSpm(type: number): boolean {
+  return activityTypeIsRunning(type) || activityTypeIsWalking(type)
+}
+
+/**
  * Whether the activity is primarily distance-paced (pace metric) rather than
  * speed-based, mirroring v1's pace-vs-speed split.
  *

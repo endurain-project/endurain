@@ -104,6 +104,7 @@ const streamCharts = computed(() => {
     activity.value,
     units.value,
     streamMetricVisibility(activity.value, currentUserId.value),
+    t,
   )
 })
 
