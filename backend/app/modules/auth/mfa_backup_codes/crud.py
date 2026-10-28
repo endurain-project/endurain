@@ -1,57 +1,26 @@
-"""CRUD operations for MFA backup codes."""
-
-from __future__ import annotations
+"""Persistence operations for MFA backup codes."""
 
 from datetime import UTC, datetime
-from typing import Any
 
-from fastapi import HTTPException, status
-from sqlalchemy import CursorResult, delete, or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
-import core.logger as core_logger
+import core.exceptions as core_exceptions
+import modules.auth.mfa_backup_codes.contracts as mfa_backup_codes_contracts
 import modules.auth.mfa_backup_codes.models as mfa_backup_codes_models
-import modules.auth.mfa_backup_codes.utils as mfa_backup_codes_utils
-from modules.auth._internal.password_hasher import SupportsHashPassword
-
-logger = core_logger.get_logger(__name__)
+import modules.auth.mfa_backup_codes.serializers as mfa_backup_codes_serializers
 
 
-@core_decorators.handle_db_errors
-def get_user_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_models.MFABackupCode]:
-    """Retrieve all MFA backup codes for a user.
-
-    Args:
-        user_id: User ID to fetch backup codes for.
-        db: Database session.
-
-    Returns:
-        List of MFABackupCode models for the user (used and unused).
-
-    Raises:
-        HTTPException: If a database error occurs.
-    """
-    stmt = select(mfa_backup_codes_models.MFABackupCode).where(
-        mfa_backup_codes_models.MFABackupCode.user_id == user_id,
-    )
-    return list(db.execute(stmt).scalars().all())
+def get_user_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_contracts.BackupCodeRead]:
+    """Return stored backup codes for a user."""
+    rows = db.execute(
+        select(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id)
+    ).scalars()
+    return [mfa_backup_codes_serializers.to_read_schema(row) for row in rows]
 
 
-@core_decorators.handle_db_errors
-def get_user_unused_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_models.MFABackupCode]:
-    """Retrieve all unused MFA backup codes for a user.
-
-    Args:
-        user_id: User ID to fetch unused backup codes for.
-        db: Database session.
-
-    Returns:
-        List of MFABackupCode models that have not been consumed.
-
-    Raises:
-        HTTPException: If a database error occurs.
-    """
+def get_user_unused_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_contracts.BackupCodeRead]:
+    """Return live, unused backup codes for a user."""
     now = datetime.now(UTC)
     stmt = select(mfa_backup_codes_models.MFABackupCode).where(
         mfa_backup_codes_models.MFABackupCode.user_id == user_id,
@@ -61,112 +30,42 @@ def get_user_unused_backup_codes(user_id: int, db: Session) -> list[mfa_backup_c
             mfa_backup_codes_models.MFABackupCode.expires_at > now,
         ),
     )
-    return list(db.execute(stmt).scalars().all())
+    rows = db.execute(stmt).scalars()
+    return [mfa_backup_codes_serializers.to_read_schema(row) for row in rows]
 
 
-@core_decorators.handle_db_errors
-def create_backup_codes(
-    user_id: int,
-    password_hasher: SupportsHashPassword,
-    db: Session,
-    count: int = 10,
-) -> list[str]:
-    """Atomically (re)generate MFA backup codes for a user.
-
-    Existing codes for the user are removed and replaced with ``count`` newly
-    generated codes within a single transaction. The plaintext codes are
-    returned to the caller exactly once and only the Argon2 hashes are
-    persisted.
-
-    Args:
-        user_id: User ID to (re)generate backup codes for.
-        password_hasher: Object implementing SupportsHashPassword, used to hash the generated codes.
-        db: Database session.
-        count: Number of backup codes to generate. Defaults to 10.
-
-    Returns:
-        List of plaintext backup codes shown to the user once.
-
-    Raises:
-        HTTPException: If a database error occurs. The transaction is rolled
-            back so previously stored codes remain intact.
-    """
-    # Remove any existing codes within the same transaction so that a failure
-    # below leaves the user's previous backup codes intact.
+def create_backup_codes(user_id: int, code_hashes: list[str], db: Session) -> None:
+    """Replace a user's backup codes with already-hashed values."""
     db.execute(
         delete(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id)
     )
-
-    plaintext_codes: list[str] = []
-    for _ in range(count):
-        code = mfa_backup_codes_utils.generate_backup_code()
-        code_hash = password_hasher.hash_password(code)
-        db.add(
+    db.add_all(
+        [
             mfa_backup_codes_models.MFABackupCode(
                 user_id=user_id,
                 code_hash=code_hash,
                 created_at=datetime.now(UTC),
             )
-        )
-        plaintext_codes.append(code)
-
-    db.commit()
-
-    logger.info(f"Created backup codes for user ID {user_id}")
-
-    return plaintext_codes
+            for code_hash in code_hashes
+        ]
+    )
+    db.flush()
 
 
-@core_decorators.handle_db_errors
 def mark_backup_code_as_used(code_id: int, user_id: int, db: Session) -> None:
-    """Mark a single backup code as used by primary key.
-
-    Args:
-        code_id: Primary key of the backup code to consume.
-        user_id: Expected owner of the backup code; mismatches raise 404 to
-            avoid leaking ownership information.
-        db: Database session.
-
-    Raises:
-        HTTPException: 404 if the code does not exist, does not belong to the
-            user, or has already been consumed. 500 on database errors.
-    """
-    db_code = db.get(mfa_backup_codes_models.MFABackupCode, code_id)
-
-    if db_code is None or db_code.user_id != user_id or db_code.used:
-        logger.warning(f"No unused backup code found to mark as used for user ID {user_id}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Backup code not found or already used",
-        )
-
-    db_code.used = True
-    db_code.used_at = datetime.now(UTC)
-    db.commit()
-    db.refresh(db_code)
-
-    logger.info(f"Marked backup code as used for user ID {user_id}")
+    """Stage consumption of one unused backup code."""
+    row = db.get(mfa_backup_codes_models.MFABackupCode, code_id)
+    if row is None or row.user_id != user_id or row.used:
+        raise core_exceptions.NotFoundError("Backup code not found or already used")
+    row.used = True
+    row.used_at = datetime.now(UTC)
+    db.flush()
 
 
-@core_decorators.handle_db_errors
 def delete_user_backup_codes(user_id: int, db: Session) -> int:
-    """Delete all MFA backup codes for a user.
-
-    Args:
-        user_id: User ID whose backup codes should be removed.
-        db: Database session.
-
-    Returns:
-        Number of backup code rows deleted.
-
-    Raises:
-        HTTPException: If a database error occurs.
-    """
-    stmt = delete(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id)
-    result: CursorResult[Any] = db.execute(stmt)
-    db.commit()
-
-    num_deleted = result.rowcount or 0
-    logger.info(f"Deleted {num_deleted} backup codes for user ID: {user_id}")
-
-    return num_deleted
+    """Stage deletion of all backup codes for a user."""
+    result = db.execute(
+        delete(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id)
+    )
+    db.flush()
+    return result.rowcount or 0

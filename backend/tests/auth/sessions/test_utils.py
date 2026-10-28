@@ -309,7 +309,7 @@ class TestVerifyCsrfToken:
     """
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         "test-secret-key",
     )
     def test_verify_csrf_token_valid_returns_true(self):
@@ -332,7 +332,7 @@ class TestVerifyCsrfToken:
         assert result is True
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         "test-secret-key",
     )
     def test_verify_csrf_token_wrong_candidate_returns_false(self):
@@ -356,7 +356,7 @@ class TestVerifyCsrfToken:
         assert result is False
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         "test-secret-key",
     )
     def test_hash_csrf_token_deterministic(self):
@@ -376,7 +376,7 @@ class TestVerifyCsrfToken:
         assert len(digest1) == 64  # SHA-256 hex = 64 chars
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         "key-a",
     )
     def test_hash_csrf_token_different_keys_produce_different_digests(
@@ -391,7 +391,7 @@ class TestVerifyCsrfToken:
         digest_key_a = _auth_sessions_utils._hash_csrf_token(token)
 
         with patch(
-            "modules.auth.constants.JWT_SECRET_KEY",
+            "modules.auth.access_tokens.service.JWT_SECRET_KEY",
             "key-b",
         ):
             digest_key_b = _auth_sessions_utils._hash_csrf_token(token)
@@ -723,7 +723,7 @@ class TestCreateSessionUtilsCsrf:
     """
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
     @patch("modules.auth.sessions.utils.auth_sessions_crud.create_session")
@@ -767,7 +767,7 @@ class TestCreateSessionUtilsCsrf:
         assert persisted_session.csrf_token_hash == expected_hash
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
     @patch("modules.auth.sessions.utils.auth_sessions_crud.create_session")
@@ -809,7 +809,7 @@ class TestEditSessionUtilsCsrf:
     """
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
     @patch("modules.auth.sessions.utils.auth_sessions_crud.edit_session")
@@ -866,7 +866,7 @@ class TestEditSessionUtilsCsrf:
         assert updated_session.csrf_token_hash == expected_hash
 
     @patch(
-        "modules.auth.constants.JWT_SECRET_KEY",
+        "modules.auth.access_tokens.service.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
     @patch("modules.auth.sessions.utils.auth_sessions_crud.edit_session")

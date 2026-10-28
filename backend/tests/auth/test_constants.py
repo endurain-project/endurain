@@ -1,6 +1,7 @@
 """Tests for auth.constants module."""
 
 import modules.auth.constants as auth_constants
+import modules.auth.access_tokens.service as access_tokens_service
 
 
 class TestJWTConstants:
@@ -8,15 +9,15 @@ class TestJWTConstants:
 
     def test_jwt_algorithm_is_set(self):
         """Test that JWT algorithm is defined and is a valid algorithm."""
-        assert auth_constants.JWT_ALGORITHM is not None
-        assert isinstance(auth_constants.JWT_ALGORITHM, str)
-        assert auth_constants.JWT_ALGORITHM in ["HS256", "HS384", "HS512"]
+        assert access_tokens_service.JWT_ALGORITHM is not None
+        assert isinstance(access_tokens_service.JWT_ALGORITHM, str)
+        assert access_tokens_service.JWT_ALGORITHM in ["HS256", "HS384", "HS512"]
 
     def test_secret_key_is_set(self):
         """Test that SECRET_KEY is configured."""
-        assert auth_constants.JWT_SECRET_KEY is not None
-        assert isinstance(auth_constants.JWT_SECRET_KEY, str)
-        assert len(auth_constants.JWT_SECRET_KEY) >= 32
+        assert access_tokens_service.JWT_SECRET_KEY is not None
+        assert isinstance(access_tokens_service.JWT_SECRET_KEY, str)
+        assert len(access_tokens_service.JWT_SECRET_KEY) >= 32
 
 
 class TestScopeConstants:
@@ -166,5 +167,5 @@ class TestScopeConstants:
         actually execute it since constants are already initialized.
         """
         # Verify constants are set correctly
-        assert auth_constants.JWT_SECRET_KEY is not None
-        assert len(auth_constants.JWT_SECRET_KEY) >= 32
+        assert access_tokens_service.JWT_SECRET_KEY is not None
+        assert len(access_tokens_service.JWT_SECRET_KEY) >= 32

@@ -17,7 +17,7 @@ import core.network as core_network
 import modules.auth.identity_provider_links.crud as auth_identity_links_crud
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.service as idp_service
-import modules.auth.oauth_state.utils as oauth_state_utils
+import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 
 logger = core_logger.get_logger(__name__)
 

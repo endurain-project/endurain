@@ -20,12 +20,12 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.network as core_network
-import modules.auth._internal.password_hasher as auth_password_hasher
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.credentials.password_hasher as auth_password_hasher
+import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.credentials.crud as auth_credentials_crud
 import modules.auth.identity_providers.utils as idp_utils
-import modules.auth.oauth_state.crud as oauth_state_crud
-import modules.auth.oauth_state.utils as oauth_state_utils
+import modules.auth.oauth_state.integration_service as oauth_state_crud
+import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.utils as auth_sessions_utils
 import modules.server_settings.contracts as server_settings_contracts

@@ -1,19 +1,10 @@
 """Auth-owned session database models (table: ``users_sessions``)."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
-
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.auth.oauth_state.models import OAuthState
-    from modules.auth.rotated_refresh_tokens.models import (
-        RotatedRefreshToken,
-    )
-
 
 class UsersSessions(Base):
     """
@@ -43,9 +34,6 @@ class UsersSessions(Base):
         last_rotation_at: Timestamp of last token rotation.
         csrf_token_hash: Hashed CSRF token for refresh
             validation.
-        oauth_state: Relationship to OAuthState model.
-        rotated_refresh_tokens: Relationship to
-            RotatedRefreshToken model.
     """
 
     __tablename__ = "users_sessions"
@@ -146,11 +134,3 @@ class UsersSessions(Base):
         comment="Hashed CSRF token for refresh validation",
     )
 
-    # Relationship to OAuthState model
-    oauth_state: Mapped["OAuthState | None"] = relationship(back_populates="users_sessions")
-
-    # Relationship to RotatedRefreshToken model
-    rotated_refresh_tokens: Mapped[list["RotatedRefreshToken"]] = relationship(
-        back_populates="users_session",
-        cascade="all, delete-orphan",
-    )

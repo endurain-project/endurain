@@ -1,17 +1,11 @@
 """Auth-owned user-to-identity-provider link database models (table: ``users_identity_providers``)."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
-
 from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.auth.identity_providers.models import IdentityProvider
-
 
 class IdentityLink(Base):
     """
@@ -27,7 +21,6 @@ class IdentityLink(Base):
         idp_refresh_token: Encrypted refresh token.
         idp_access_token_expires_at: Access token expiry time.
         idp_refresh_token_updated_at: Refresh token update time.
-        identity_providers: Relationship to IdentityProvider model.
     """
 
     __tablename__ = "users_identity_providers"
@@ -84,7 +77,3 @@ class IdentityLink(Base):
         comment="Last refresh token update",
     )
 
-    # Relationships
-    identity_providers: Mapped["IdentityProvider"] = relationship(
-        back_populates="user_identity_providers",
-    )

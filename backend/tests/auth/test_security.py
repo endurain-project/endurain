@@ -9,7 +9,7 @@ from fastapi import HTTPException, Request, status
 from joserfc.errors import MissingClaimError
 
 import modules.auth._internal.internal_dependencies as auth_security
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.utils as auth_utils
 from modules.auth.identity_service import IdentityService
 from modules.auth.principal import AccessTokenCred, ApiKeyCred, Principal

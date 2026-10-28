@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.auth._internal.password_hasher as auth_password_hasher
+import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
 
 # ---------------------------------------------------------------------------

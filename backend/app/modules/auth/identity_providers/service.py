@@ -25,15 +25,15 @@ import core.config as core_config
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth._internal.password_hasher as auth_password_hasher
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.credentials.password_hasher as auth_password_hasher
+import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.identity_provider_links.crud as auth_identity_links_crud
 import modules.auth.identity_provider_links.models as auth_identity_links_models
-import modules.auth.identity_provider_links.utils as auth_identity_links_utils
+import modules.auth.identity_provider_links.service as auth_identity_links_utils
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_service as auth_identity_service
-import modules.auth.oauth_state.crud as oauth_state_crud
+import modules.auth.oauth_state.integration_service as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
@@ -2105,7 +2105,7 @@ def create_link_oauth_state(
 ) -> None:
     """Persist the OAuth-state row for a browser IdP-link flow (auth-boundary facade).
 
-    Wraps ``modules.auth.oauth_state.crud.create_oauth_state`` so the non-auth browser
+    Wraps ``modules.auth.oauth_state.integration_service.create_oauth_state`` so the non-auth browser
     link router can start the link flow without importing the auth OAuth-state
     data layer directly.
 

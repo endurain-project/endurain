@@ -6,11 +6,10 @@ from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
 import core.logger as core_logger
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.token_hashing as token_hashing
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
@@ -44,7 +43,7 @@ def hmac_hash_token(token: str) -> str:
     Raises:
         ValueError: If JWT_SECRET_KEY is not configured.
     """
-    return token_hashing.hmac_sha256(token)
+    return access_tokens_integration.hmac_sha256(token)
 
 
 def store_rotated_token(
@@ -219,29 +218,3 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
     )
 
     return num_sessions_deleted
-
-
-def cleanup_expired_rotated_tokens() -> None:
-    """
-    Cleanup job to delete expired rotated tokens.
-
-    Called by the scheduler to periodically remove tokens that
-    have exceeded the grace period. Should run every 1 minute.
-    Exceptions are caught and logged to avoid breaking the
-    scheduler.
-
-    Returns:
-        None.
-    """
-    with SessionLocal() as db:
-        try:
-            # Retain rotated records a few seconds past their grace window so a
-            # boundary retry can still be replayed and post-grace reuse is still
-            # caught as theft (see ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS).
-            cutoff_time = datetime.now(UTC) - timedelta(seconds=ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS)
-            deleted_count = rotated_token_crud.delete_expired_tokens(cutoff_time, db)
-
-            if deleted_count > 0:
-                logger.info(f"Cleaned up {deleted_count} expired rotated tokens")
-        except Exception as err:
-            logger.error(f"Error in cleanup_expired_rotated_tokens: {err}", exc_info=err)

@@ -18,13 +18,13 @@ import core.dependencies as core_dependencies
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
-import modules.auth._internal.password_hasher as auth_password_hasher
+import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth._internal.security_stores as auth_security_stores
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.service as mfa_service
-import modules.auth.rotated_refresh_tokens.utils as auth_sessions_rotated_tokens_utils
+import modules.auth.rotated_refresh_tokens.service as auth_sessions_rotated_tokens_utils
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.utils as auth_sessions_utils

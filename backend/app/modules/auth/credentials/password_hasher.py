@@ -8,23 +8,10 @@ FastAPI dependency.
 import secrets
 import string
 from collections.abc import Iterable
-from typing import Protocol
 
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
-
-
-class SupportsHashPassword(Protocol):
-    """Structural protocol for objects that can hash a password."""
-
-    def hash_password(self, password: str) -> str: ...
-
-
-class SupportsVerifyPassword(Protocol):
-    """Structural protocol for objects that can verify a password against a hash."""
-
-    def verify_password(self, password: str, password_hash: str) -> bool: ...
 
 
 class PasswordPolicyError(ValueError):

@@ -26,7 +26,7 @@ import modules.auth._internal.services.step_up_service as step_up_service
 import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.service as mfa_service
-import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
+import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -60,7 +60,7 @@ def get_backup_code_status(
     db: Session,
 ) -> mfa_backup_codes_schema.MFABackupCodeStatus:
     """Retrieve MFA backup code status for the authenticated user."""
-    codes = mfa_backup_codes_crud.get_user_backup_codes(token_user_id, db)
+    codes = mfa_backup_codes_integration.get_user_backup_codes(token_user_id, db)
 
     if not codes:
         return mfa_backup_codes_schema.MFABackupCodeStatus(
@@ -214,11 +214,12 @@ def generate_backup_codes(
         db,
     )
 
-    codes = mfa_backup_codes_crud.create_backup_codes(
+    codes = mfa_backup_codes_integration.create_backup_codes(
         token_user_id,
         identity_service,
         db,
     )
+    db.commit()
 
     logger.info(f"User {user.id} generated MFA backup codes (step-up verified)")
 

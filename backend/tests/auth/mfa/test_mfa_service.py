@@ -153,7 +153,7 @@ class TestSetupUserMFA:
 class TestEnableUserMFA:
     """Test suite for enable_user_mfa function."""
 
-    @patch("modules.auth.mfa.service.mfa_backup_codes_crud.create_backup_codes")
+    @patch("modules.auth.mfa.service.mfa_backup_codes_integration.create_backup_codes")
     @patch("modules.auth.mfa.service.verify_totp")
     @patch("modules.auth.mfa.service.core_cryptography.encrypt_token_fernet")
     @patch("modules.auth.mfa.service.auth_mfa_crud.update_user_mfa")
@@ -240,7 +240,7 @@ class TestEnableUserMFA:
 class TestDisableUserMFA:
     """Test suite for disable_user_mfa function."""
 
-    @patch("modules.auth.mfa.service.mfa_backup_codes_crud.delete_user_backup_codes")
+    @patch("modules.auth.mfa.service.mfa_backup_codes_integration.delete_user_backup_codes")
     @patch("modules.auth.mfa.service.auth_mfa_crud.update_user_mfa")
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_successful_disable(self, mock_get_user, mock_update_mfa, mock_delete_codes):
@@ -413,7 +413,7 @@ class TestVerifyUserMFA:
         mock_identity_service = MagicMock()
 
         with patch(
-            "modules.auth.mfa.service.mfa_backup_codes_utils.verify_and_consume_backup_code", return_value=True
+            "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code", return_value=True
         ) as mock_backup:
             result = mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_identity_service, MagicMock())
             assert result is True
@@ -432,7 +432,7 @@ class TestVerifyUserMFA:
         mock_identity_service = MagicMock()
 
         with patch(
-            "modules.auth.mfa.service.mfa_backup_codes_utils.verify_and_consume_backup_code", return_value=False
+            "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code", return_value=False
         ):
             result = mfa_service.verify_user_mfa(1, "ABCD-EFGH", mock_identity_service, MagicMock())
             assert result is False
@@ -466,7 +466,7 @@ class TestVerifyUserMFA:
 
         with (
             patch(
-                "modules.auth.mfa.service.mfa_backup_codes_utils.verify_and_consume_backup_code",
+                "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code",
                 side_effect=RuntimeError("storage failure"),
             ),
             pytest.raises(RuntimeError, match="storage failure"),

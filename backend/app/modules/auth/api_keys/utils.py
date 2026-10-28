@@ -3,7 +3,8 @@
 import json
 import secrets
 
-import modules.auth.token_hashing as token_hashing
+import core.exceptions as core_exceptions
+import modules.auth.computation as token_hashing
 
 SUPPORTED_API_KEY_SCOPES = frozenset({"activities:upload"})
 
@@ -60,11 +61,13 @@ def validate_api_key_scopes(
             are restricted to activity uploads.
 
     Raises:
-        ValueError: If any requested scope is not supported.
+        InvalidInputError: If any requested scope is not supported.
     """
     unsupported = set(requested_scopes) - SUPPORTED_API_KEY_SCOPES
     if unsupported or not requested_scopes:
-        raise ValueError(f"Unsupported API key scopes: {unsupported}. Valid scopes: {SUPPORTED_API_KEY_SCOPES}")
+        raise core_exceptions.InvalidInputError(
+            f"Unsupported API key scopes: {unsupported}. Valid scopes: {SUPPORTED_API_KEY_SCOPES}"
+        )
 
 
 def scopes_to_json(scopes: list[str]) -> str:

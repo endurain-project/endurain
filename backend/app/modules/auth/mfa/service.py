@@ -31,8 +31,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.mfa.schema as mfa_schema
-import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
-import modules.auth.mfa_backup_codes.utils as mfa_backup_codes_utils
+import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -182,7 +181,7 @@ def enable_user_mfa(
 
     auth_mfa_crud.update_user_mfa(user_id, db, encrypted_secret=encrypted_secret)
 
-    backup_codes = mfa_backup_codes_crud.create_backup_codes(user_id, identity_service, db)
+    backup_codes = mfa_backup_codes_integration.create_backup_codes(user_id, identity_service, db)
 
     return backup_codes
 
@@ -216,7 +215,7 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
         )
 
     auth_mfa_crud.update_user_mfa(user_id, db)
-    mfa_backup_codes_crud.delete_user_backup_codes(user_id, db)
+    mfa_backup_codes_integration.delete_user_backup_codes(user_id, db)
 
 
 def verify_user_mfa(
@@ -278,13 +277,14 @@ def verify_user_mfa(
     elif (
         len(normalized_code) == 9
         and normalized_code[4] == "-"
-        and mfa_backup_codes_utils.verify_and_consume_backup_code(
+        and mfa_backup_codes_integration.verify_and_consume_backup_code(
             user_id,
             normalized_code,
             identity_service,
             db,
         )
     ):
+        db.commit()
         return True
 
     # Invalid format or code didn't match

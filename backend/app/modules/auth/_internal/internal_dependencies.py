@@ -36,7 +36,7 @@ from joserfc.errors import MissingClaimError
 
 import core.config as core_config
 import core.logger as core_logger
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.constants as auth_constants
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.utils as auth_utils

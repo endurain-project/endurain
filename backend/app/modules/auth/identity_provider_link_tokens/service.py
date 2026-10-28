@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.logger as core_logger
+import modules.auth.computation as token_hashing
 import modules.auth.identity_provider_link_tokens.crud as idp_link_token_crud
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
-import modules.auth.token_hashing as token_hashing
 
 logger = core_logger.get_logger(__name__)
 

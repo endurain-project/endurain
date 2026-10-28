@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import modules.auth._internal.internal_dependencies as auth_security
-import modules.auth._internal.password_hasher as auth_password_hasher
+import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth._internal.security_stores as auth_security_stores
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.router as auth_router
 
@@ -624,7 +624,7 @@ class TestMFAVerifyEndpoint:
         }
 
         with patch(
-            "modules.auth.mfa.service.mfa_backup_codes_utils.verify_and_consume_backup_code",
+            "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code",
             return_value=True,
         ) as mock_backup_verify:
             response = auth_client.post(

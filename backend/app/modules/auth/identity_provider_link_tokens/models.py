@@ -1,16 +1,12 @@
 """SQLAlchemy ORM models for IdP link tokens."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.auth.identity_providers.models import IdentityProvider
 
 
 class IdpLinkToken(Base):
@@ -30,7 +26,6 @@ class IdpLinkToken(Base):
         expires_at: Hard expiry at 60 seconds from creation.
         used: Single-use flag to prevent replay attacks.
         ip_address: Client IP address for optional validation.
-        identity_provider: Relationship to IdentityProvider model.
     """
 
     __tablename__ = "idp_link_tokens"
@@ -89,6 +84,3 @@ class IdpLinkToken(Base):
         nullable=True,
         comment="Client IP address (IPv6 max length)",
     )
-
-    # Relationships
-    identity_provider: Mapped["IdentityProvider"] = relationship(foreign_keys=[idp_id])

@@ -17,12 +17,12 @@ import core.logger as core_logger
 import core.mail as core_mail
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.credentials.crud as auth_credentials_crud
-import modules.auth.password_policy as auth_password_policy
+import modules.auth.credentials.service as auth_password_policy
 import modules.auth.password_reset_tokens.crud as password_reset_tokens_crud
 import modules.auth.password_reset_tokens.event_publishers as password_reset_tokens_event_publishers
 import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
 import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.token_hashing as token_hashing
+import modules.auth.computation as token_hashing
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema

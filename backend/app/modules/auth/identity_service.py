@@ -2,8 +2,8 @@
 
 Defines the ``IdentityService`` boundary type that non-auth modules must use
 to consume identity.  The boundary hides the concrete helpers
-(:mod:`modules.auth._internal.internal_dependencies`, :mod:`modules.auth._internal.password_hasher`,
-:mod:`modules.auth._internal.token_manager`) from external callers and makes them mockable in
+(:mod:`modules.auth._internal.internal_dependencies`, :mod:`modules.auth.credentials.password_hasher`,
+:mod:`modules.auth.access_tokens.service`) from external callers and makes them mockable in
 isolation.
 
 Transaction contract
@@ -41,17 +41,16 @@ from sqlalchemy.orm import Session
 import core.dependencies as core_dependencies
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth._internal.password_hasher as auth_password_hasher
+import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth._internal.services.account_security_service as auth_account_security_service
 import modules.auth._internal.services.identity_link_service as auth_identity_link_service
 import modules.auth._internal.services.mfa_workflow as auth_mfa_workflow
 import modules.auth._internal.services.step_up_service as auth_step_up_service
-import modules.auth._internal.token_manager as auth_token_manager
-import modules.auth.api_keys.crud as auth_api_keys_crud
-import modules.auth.api_keys.utils as auth_api_keys_utils
+import modules.auth.access_tokens.service as auth_token_manager
+import modules.auth.api_keys.integration_service as auth_api_keys_integration
 import modules.auth.credentials.crud as auth_credentials_crud
 import modules.auth.mfa.crud as auth_mfa_crud
-import modules.auth.password_policy as auth_password_policy
+import modules.auth.credentials.service as auth_password_policy
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sign_up_tokens.utils as auth_sign_up_tokens_utils
 import modules.auth.utils as auth_utils
@@ -983,8 +982,8 @@ class DefaultIdentityService:
             HTTPException: 401 if the key is not found,
                 revoked, or expired.
         """
-        computed_hash = auth_api_keys_utils.hash_api_key(raw_key)
-        db_key = auth_api_keys_crud.get_api_key_by_hash(computed_hash, self._db)
+        computed_hash = auth_api_keys_integration.hash_api_key(raw_key)
+        db_key = auth_api_keys_integration.get_api_key_by_hash(computed_hash, self._db)
 
         # Constant-time comparison prevents timing attacks
         # even when the key is not found.
@@ -1018,7 +1017,7 @@ class DefaultIdentityService:
 
         # Best-effort last_used_at update; never fails the request.
         try:
-            auth_api_keys_crud.update_last_used(db_key.id, self._db)
+            auth_api_keys_integration.update_last_used(db_key.id, self._db)
         except SQLAlchemyError as err:
             logger.warning(f"Failed to update last_used_at for API key {db_key.id}: {err}", exc_info=err)
 
@@ -1032,7 +1031,7 @@ class DefaultIdentityService:
             ),
         )
 
-        scopes = auth_api_keys_utils.json_to_scopes(db_key.scopes)
+        scopes = auth_api_keys_integration.json_to_scopes(db_key.scopes)
         return self._build_principal(
             user,
             scopes,

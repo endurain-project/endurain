@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+import core.exceptions as core_exceptions
 from joserfc.errors import (
     InsecureClaimError,
     InvalidPayloadError,
@@ -10,7 +10,7 @@ from joserfc.errors import (
     MissingClaimError,
 )
 
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.access_tokens.service as auth_token_manager
 from modules.users.users.schema import UserAccessType, UsersRead
 
 
@@ -53,7 +53,7 @@ class TestTokenManagerSecurity:
 
     def test_get_token_claim_with_missing_claim(self, token_manager, sample_user_read):
         """
-        Test that get_token_claim raises an HTTPException with status code 401 when attempting to retrieve a claim
+        Test that get_token_claim raises an core_exceptions.UnauthenticatedError with status code 401 when attempting to retrieve a claim
         that does not exist in the token. Verifies that the exception detail message indicates the claim is missing.
         """
         session_id = "test-session-id"
@@ -61,7 +61,7 @@ class TestTokenManagerSecurity:
             session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
             token_manager.get_token_claim(token, "nonexistent_claim")
         assert exc_info.value.status_code == 401
         assert "missing" in exc_info.value.detail.lower()
@@ -124,14 +124,14 @@ class TestTokenManagerSecurity:
 
     def test_decode_token_with_invalid_token(self, token_manager):
         """
-        Tests that the `decode_token` method of the token manager raises an HTTPException with status code 401
+        Tests that the `decode_token` method of the token manager raises an core_exceptions.UnauthenticatedError with status code 401
         when provided with various invalid JWT tokens.
 
         Args:
             token_manager: An instance of the token manager to be tested.
 
         Asserts:
-            - An HTTPException is raised for each invalid token.
+            - An core_exceptions.UnauthenticatedError is raised for each invalid token.
             - The raised exception has a status code of 401.
         """
         invalid_tokens = [
@@ -142,7 +142,7 @@ class TestTokenManagerSecurity:
         ]
 
         for invalid_token in invalid_tokens:
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.decode_token(invalid_token)
             assert exc_info.value.status_code == 401
 
@@ -150,7 +150,7 @@ class TestTokenManagerSecurity:
         """
         Test that decoding a token with a different secret key than the one used to create it raises an HTTP 401 Unauthorized exception.
 
-        This test creates a token using one instance of TokenManager with a specific secret key, then attempts to decode the token using another TokenManager instance with a different secret key. It asserts that an HTTPException with status code 401 is raised, indicating unauthorized access due to the wrong secret.
+        This test creates a token using one instance of TokenManager with a specific secret key, then attempts to decode the token using another TokenManager instance with a different secret key. It asserts that an core_exceptions.UnauthenticatedError with status code 401 is raised, indicating unauthorized access due to the wrong secret.
         """
         # Create token with one manager
         manager1 = auth_token_manager.TokenManager(secret_key="secret-key-one-min-32-characters-long")
@@ -160,7 +160,7 @@ class TestTokenManagerSecurity:
 
         # Try to decode with different manager
         manager2 = auth_token_manager.TokenManager(secret_key="secret-key-two-min-32-characters-long")
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
             manager2.decode_token(token)
         assert exc_info.value.status_code == 401
 
@@ -169,7 +169,7 @@ class TestTokenManagerSecurity:
         Test that `validate_token_expiration` does not raise an exception when provided with a valid (non-expired) token.
 
         This test creates a valid access token using the token manager and verifies that calling
-        `validate_token_expiration` with this token does not raise an `HTTPException`. If an exception is raised,
+        `validate_token_expiration` with this token does not raise an `core_exceptions.UnauthenticatedError`. If an exception is raised,
         the test fails, indicating that valid tokens are incorrectly being marked as expired.
         """
         session_id = "test-session-id"
@@ -180,12 +180,12 @@ class TestTokenManagerSecurity:
         # Should not raise an exception
         try:
             token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
-        except HTTPException:
-            pytest.fail("Valid token should not raise HTTPException")
+        except core_exceptions.UnauthenticatedError:
+            pytest.fail("Valid token should not raise core_exceptions.UnauthenticatedError")
 
     def test_validate_token_expiration_with_expired_token(self, token_manager):
         """
-        Test that validate_token_expiration raises an HTTPException with status code 401
+        Test that validate_token_expiration raises an core_exceptions.UnauthenticatedError with status code 401
         when provided with an expired JWT token.
 
         Args:
@@ -193,12 +193,12 @@ class TestTokenManagerSecurity:
             token_manager: The token manager instance to be tested.
 
         Asserts:
-            - An HTTPException is raised when an expired token is validated.
+            - An core_exceptions.UnauthenticatedError is raised when an expired token is validated.
             - The exception's status code is 401 (Unauthorized).
         """
         token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzaWQiOiJzZXNzaW9uLWlkIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwic3ViIjoxLCJzY29wZSI6WyJwcm9maWxlIiwidXNlcnM6cmVhZCIsImdlYXJzOnJlYWQiLCJnZWFyczp3cml0ZSIsImFjdGl2aXRpZXM6cmVhZCIsImFjdGl2aXRpZXM6d3JpdGUiLCJoZWFsdGg6cmVhZCIsImhlYWx0aDp3cml0ZSIsImhlYWx0aF90YXJnZXRzOnJlYWQiLCJoZWFsdGhfdGFyZ2V0czp3cml0ZSJdLCJpYXQiOjE3NTk5NTMxODUsIm5iZiI6MTc1OTk1MzE4NSwiZXhwIjoxNzU5OTU0MDg1LCJqdGkiOiI3OWY2NDJlZC00NzNkLTQxMGYtYWMyNS0yMjYxMDU5YTM4NjIifQ.VSizGzvIIi_EJYD_YmfZBEBE_9aJbhLW-25cD1kEOeM"
 
-        with pytest.raises(HTTPException) as excinfo:
+        with pytest.raises(core_exceptions.UnauthenticatedError) as excinfo:
             token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
 
         assert excinfo.value.status_code == 401
@@ -345,7 +345,7 @@ class TestTokenManagerSecurity:
 
         This test creates a valid token, deliberately modifies (tampers with) its contents,
         and then attempts to decode it. The expected behavior is that the token manager
-        raises an HTTPException with a 401 status code, indicating unauthorized access
+        raises an core_exceptions.UnauthenticatedError with a 401 status code, indicating unauthorized access
         due to token tampering.
 
         Args:
@@ -353,7 +353,7 @@ class TestTokenManagerSecurity:
             sample_user_read: A sample user object used for token creation.
 
         Raises:
-            HTTPException: If the tampered token is detected as invalid, with status code 401.
+            core_exceptions.UnauthenticatedError: If the tampered token is detected as invalid, with status code 401.
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
@@ -363,25 +363,25 @@ class TestTokenManagerSecurity:
         # Tamper with the token
         tampered_token = token[:-5] + "XXXXX"
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
             token_manager.decode_token(tampered_token)
         assert exc_info.value.status_code == 401
 
     def test_empty_token_handling(self, token_manager):
         """
-        Test that the token manager raises an HTTPException with status code 401
+        Test that the token manager raises an core_exceptions.UnauthenticatedError with status code 401
         when attempting to decode an empty token string.
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
             token_manager.decode_token("")
         assert exc_info.value.status_code == 401
 
     def test_none_token_handling(self, token_manager):
         """
         Test that the token_manager.decode_token method raises an appropriate exception
-        (HTTPException, AttributeError, or TypeError) when called with a None token.
+        (core_exceptions.UnauthenticatedError, AttributeError, or TypeError) when called with a None token.
         """
-        with pytest.raises((HTTPException, AttributeError, TypeError)):
+        with pytest.raises((core_exceptions.UnauthenticatedError, AttributeError, TypeError)):
             token_manager.decode_token(None)
 
     def test_token_algorithm_is_secure(self, token_manager):
@@ -443,7 +443,7 @@ class TestTokenManagerSecurity:
 
         # Mock decode_token to raise a generic exception
         with patch.object(token_manager, "decode_token", side_effect=RuntimeError("Test error")):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.get_token_claim(token, "sub")
             assert exc_info.value.status_code == 401
             assert "Unable to retrieve claim" in exc_info.value.detail
@@ -455,7 +455,7 @@ class TestTokenManagerSecurity:
         # Create an invalid token that will trigger InvalidPayloadError
         invalid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.invalid"
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
             token_manager.decode_token(invalid_token)
         assert exc_info.value.status_code == 401
 
@@ -468,13 +468,13 @@ class TestTokenManagerSecurity:
         )
 
         # Mock the validation to raise InsecureClaimError
-        with patch("modules.auth._internal.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
+        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
             mock_instance = MagicMock()
             mock_instance.validate.side_effect = InsecureClaimError("Insecure")
             mock_registry.return_value = mock_instance
 
-            # Should raise HTTPException with 401 status
-            with pytest.raises(HTTPException) as exc_info:
+            # Should raise core_exceptions.UnauthenticatedError with 401 status
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
             assert "insecure claims" in exc_info.value.detail.lower()
@@ -488,7 +488,7 @@ class TestTokenManagerSecurity:
         )
 
         with patch.object(token_manager, "decode_token", side_effect=RuntimeError("Test error")):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
             assert "expired or invalid" in exc_info.value.detail
@@ -502,12 +502,12 @@ class TestTokenManagerSecurity:
         )
 
         # Mock to raise MissingClaimError
-        with patch("modules.auth._internal.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
+        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
             mock_instance = MagicMock()
             mock_instance.validate.side_effect = MissingClaimError("sub")
             mock_registry.return_value = mock_instance
 
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
             assert "missing required claims" in exc_info.value.detail
@@ -518,19 +518,19 @@ class TestTokenManagerSecurity:
 
         Note: InvalidClaimError is a subclass of InvalidTokenError,
         so this test also covers the InvalidClaimError path since
-        both raise the same HTTPException for "not valid yet".
+        both raise the same core_exceptions.UnauthenticatedError for "not valid yet".
         """
         _, token = token_manager.create_token(
             "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Mock to raise InvalidTokenError
-        with patch("modules.auth._internal.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
+        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
             mock_instance = MagicMock()
             mock_instance.validate.side_effect = InvalidTokenError("not valid yet")
             mock_registry.return_value = mock_instance
 
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
             assert "not valid yet" in exc_info.value.detail
@@ -541,10 +541,10 @@ class TestTokenManagerSecurity:
         """
 
         with patch(
-            "modules.auth._internal.token_manager.jwt.decode",
+            "modules.auth.access_tokens.service.jwt.decode",
             side_effect=InvalidPayloadError("Invalid payload"),
         ):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.decode_token("invalid_token")
             assert exc_info.value.status_code == 401
             assert "Invalid token payload" in exc_info.value.detail
@@ -554,10 +554,10 @@ class TestTokenManagerSecurity:
         Test that decode_token handles generic exceptions correctly.
         """
         with patch(
-            "modules.auth._internal.token_manager.jwt.decode",
+            "modules.auth.access_tokens.service.jwt.decode",
             side_effect=RuntimeError("Unexpected error"),
         ):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.decode_token("invalid_token")
             assert exc_info.value.status_code == 401
             assert "Unable to decode token" in exc_info.value.detail

@@ -1,116 +1,55 @@
-"""CRUD operations for rotated refresh tokens."""
+"""Persistence operations for rotated refresh tokens."""
 
 from datetime import datetime
-from typing import Any
 
-from sqlalchemy import CursorResult, delete, select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
 
-@core_decorators.handle_db_errors
 def get_rotated_token_by_hash(
     hashed_token: str,
     db: Session,
-) -> rotated_token_models.RotatedRefreshToken | None:
-    """
-    Retrieve a rotated token by its hashed value.
-
-    Args:
-        hashed_token: The hashed refresh token to search for.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The RotatedRefreshToken if found, None otherwise.
-
-    Raises:
-        HTTPException: If database error occurs.
-    """
-    stmt = select(rotated_token_models.RotatedRefreshToken).where(
-        rotated_token_models.RotatedRefreshToken.hashed_token == hashed_token
-    )
-    return db.execute(stmt).scalar_one_or_none()
+) -> rotated_token_schema.RotatedRefreshTokenRead | None:
+    """Return a rotated token by hash."""
+    row = db.execute(
+        select(rotated_token_models.RotatedRefreshToken).where(
+            rotated_token_models.RotatedRefreshToken.hashed_token == hashed_token
+        )
+    ).scalar_one_or_none()
+    return rotated_token_schema.RotatedRefreshTokenRead.model_validate(row) if row is not None else None
 
 
-@core_decorators.handle_db_errors
 def create_rotated_token(
     rotated_token: rotated_token_schema.RotatedRefreshTokenCreate,
     db: Session,
-) -> rotated_token_models.RotatedRefreshToken:
-    """
-    Store a rotated refresh token in the database.
-
-    Args:
-        rotated_token: The rotated token data to store.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The created RotatedRefreshToken object.
-
-    Raises:
-        HTTPException: If database error occurs.
-    """
-    db_rotated_token = rotated_token_models.RotatedRefreshToken(
-        token_family_id=rotated_token.token_family_id,
-        hashed_token=rotated_token.hashed_token,
-        rotation_count=rotated_token.rotation_count,
-        rotated_at=rotated_token.rotated_at,
-        expires_at=rotated_token.expires_at,
-        replacement_refresh_token=rotated_token.replacement_refresh_token,
-        replacement_refresh_token_exp=rotated_token.replacement_refresh_token_exp,
-    )
-
-    db.add(db_rotated_token)
-    db.commit()
-    db.refresh(db_rotated_token)
-
-    return db_rotated_token
+) -> rotated_token_schema.RotatedRefreshTokenRead:
+    """Stage a rotated refresh-token record."""
+    row = rotated_token_models.RotatedRefreshToken(**rotated_token.model_dump())
+    db.add(row)
+    db.flush()
+    return rotated_token_schema.RotatedRefreshTokenRead.model_validate(row)
 
 
-@core_decorators.handle_db_errors
 def delete_expired_tokens(cutoff_time: datetime, db: Session) -> int:
-    """
-    Delete rotated tokens older than the cutoff time.
-
-    Args:
-        cutoff_time: Tokens with expires_at before this deleted.
-        db: SQLAlchemy database session.
-
-    Returns:
-        Number of tokens deleted.
-
-    Raises:
-        HTTPException: If database error occurs.
-    """
-    stmt = delete(rotated_token_models.RotatedRefreshToken).where(
-        rotated_token_models.RotatedRefreshToken.expires_at < cutoff_time
+    """Stage deletion of expired rotated-token records."""
+    result = db.execute(
+        delete(rotated_token_models.RotatedRefreshToken).where(
+            rotated_token_models.RotatedRefreshToken.expires_at < cutoff_time
+        )
     )
-    result: CursorResult[Any] = db.execute(stmt)
-    db.commit()
-    return result.rowcount
+    db.flush()
+    return result.rowcount or 0
 
 
-@core_decorators.handle_db_errors
 def delete_by_family(token_family_id: str, db: Session) -> int:
-    """
-    Delete all rotated tokens for a specific token family.
-
-    Args:
-        token_family_id: The family ID to delete tokens for.
-        db: SQLAlchemy database session.
-
-    Returns:
-        Number of tokens deleted.
-
-    Raises:
-        HTTPException: If database error occurs.
-    """
-    stmt = delete(rotated_token_models.RotatedRefreshToken).where(
-        rotated_token_models.RotatedRefreshToken.token_family_id == token_family_id
+    """Stage deletion of rotated tokens in a family."""
+    result = db.execute(
+        delete(rotated_token_models.RotatedRefreshToken).where(
+            rotated_token_models.RotatedRefreshToken.token_family_id == token_family_id
+        )
     )
-    result: CursorResult[Any] = db.execute(stmt)
-    db.commit()
-    return result.rowcount
+    db.flush()
+    return result.rowcount or 0

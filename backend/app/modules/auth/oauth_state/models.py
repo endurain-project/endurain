@@ -1,18 +1,11 @@
 """SQLAlchemy ORM model for OAuth/SSO flow state persistence."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
-
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.auth.identity_providers.models import IdentityProvider
-    from modules.auth.sessions.models import UsersSessions
-
 
 class OAuthState(Base):
     """
@@ -35,8 +28,6 @@ class OAuthState(Base):
         created_at: Timestamp for expiry calculation.
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
-        identity_provider: Relationship to IdentityProvider model.
-        users_sessions: Relationship to UsersSessions model.
     """
 
     __tablename__ = "oauth_states"
@@ -122,8 +113,3 @@ class OAuthState(Base):
         comment="True when state is consumed (prevents replay)",
     )
 
-    # Relationships
-    identity_provider: Mapped["IdentityProvider | None"] = relationship(
-        "IdentityProvider", back_populates="oauth_states"
-    )
-    users_sessions: Mapped[list["UsersSessions"]] = relationship("UsersSessions", back_populates="oauth_state")

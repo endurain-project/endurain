@@ -7,7 +7,7 @@ import secrets
 from sqlalchemy.orm import Session
 
 import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
-from modules.auth._internal.password_hasher import SupportsVerifyPassword
+import modules.auth.credentials.contracts as credentials_contracts
 
 # Backup-code alphabet: uppercase ASCII + digits with visually ambiguous
 # characters removed (0, O, 1, I) to reduce user transcription errors.
@@ -29,10 +29,18 @@ def generate_backup_code() -> str:
     return f"{code[:4]}-{code[4:]}"
 
 
+def create_backup_codes(user_id: int, password_hasher: credentials_contracts.SupportsHashPassword, db: Session) -> list[str]:
+    """Generate and stage replacement backup codes for a user."""
+    codes = [generate_backup_code() for _ in range(10)]
+    code_hashes = [password_hasher.hash_password(code) for code in codes]
+    mfa_backup_codes_crud.create_backup_codes(user_id, code_hashes, db)
+    return codes
+
+
 def verify_and_consume_backup_code(
     user_id: int,
     code: str,
-    password_verifier: SupportsVerifyPassword,
+    password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,
 ) -> bool:
     """Verify and consume a backup code for MFA authentication.

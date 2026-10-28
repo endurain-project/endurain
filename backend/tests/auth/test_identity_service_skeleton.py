@@ -315,11 +315,11 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_utils.hash_api_key",
+                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
                 return_value="a" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_crud.get_api_key_by_hash",
+                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
@@ -327,9 +327,9 @@ class TestResolveFromApiKey:
                 return_value=mock_user,
             ),
             patch("modules.auth.identity_service.users_integration.require_active_user"),
-            patch("modules.auth.identity_service.auth_api_keys_crud.update_last_used"),
+            patch("modules.auth.identity_service.auth_api_keys_integration.update_last_used"),
             patch(
-                "modules.auth.identity_service.auth_api_keys_utils.json_to_scopes",
+                "modules.auth.identity_service.auth_api_keys_integration.json_to_scopes",
                 return_value=["profile"],
             ),
         ):
@@ -350,11 +350,11 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_utils.hash_api_key",
+                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
                 return_value="b" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_crud.get_api_key_by_hash",
+                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=None,
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -378,11 +378,11 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_utils.hash_api_key",
+                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
                 return_value="c" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_crud.get_api_key_by_hash",
+                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
@@ -411,11 +411,11 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_utils.hash_api_key",
+                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
                 return_value="d" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_crud.get_api_key_by_hash",
+                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
@@ -450,11 +450,11 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_utils.hash_api_key",
+                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
                 return_value="e" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_crud.get_api_key_by_hash",
+                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
@@ -463,11 +463,11 @@ class TestResolveFromApiKey:
             ),
             patch("modules.auth.identity_service.users_integration.require_active_user"),
             patch(
-                "modules.auth.identity_service.auth_api_keys_crud.update_last_used",
+                "modules.auth.identity_service.auth_api_keys_integration.update_last_used",
                 side_effect=SQLAlchemyError("db down"),
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_utils.json_to_scopes",
+                "modules.auth.identity_service.auth_api_keys_integration.json_to_scopes",
                 return_value=["profile"],
             ),
         ):
@@ -739,7 +739,7 @@ class TestValidateAndHashPassword:
         assert result == "$argon2id$hash"
 
     def test_password_policy_error_raises_400(self, service, mock_password_hasher):
-        from modules.auth._internal.password_hasher import PasswordPolicyError
+        from modules.auth.credentials.password_hasher import PasswordPolicyError
 
         mock_password_hasher.validate_password.side_effect = PasswordPolicyError("Too short")
         with pytest.raises(HTTPException) as exc_info:

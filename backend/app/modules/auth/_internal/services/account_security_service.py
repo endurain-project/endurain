@@ -10,7 +10,7 @@ import core.config as core_config
 import core.logger as core_logger
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
-import modules.auth.password_policy as auth_password_policy
+import modules.auth.credentials.service as auth_password_policy
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.server_settings.integration_service as server_settings_integration

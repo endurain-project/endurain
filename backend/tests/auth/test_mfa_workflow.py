@@ -79,7 +79,7 @@ class TestGetBackupCodeStatus:
 
     def test_no_codes_returns_empty_status(self, mock_db):
         with patch(
-            "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.get_user_backup_codes",
+            "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_integration.get_user_backup_codes",
             return_value=[],
         ) as mock_get:
             result = mfa_workflow.get_backup_code_status(7, mock_db)
@@ -99,7 +99,7 @@ class TestGetBackupCodeStatus:
             MagicMock(used=True, created_at=created),
         ]
         with patch(
-            "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.get_user_backup_codes",
+            "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_integration.get_user_backup_codes",
             return_value=codes,
         ):
             result = mfa_workflow.get_backup_code_status(7, mock_db)
@@ -418,7 +418,7 @@ class TestGenerateBackupCodes:
                 "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
             ) as mock_verify,
             patch(
-                "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes",
+                "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_integration.create_backup_codes",
                 return_value=["a", "b", "c"],
             ) as mock_create,
             patch("modules.auth._internal.services.mfa_workflow.logger"),
@@ -500,7 +500,7 @@ class TestGenerateBackupCodes:
                 side_effect=HTTPException(status_code=401, detail="bad"),
             ),
             patch(
-                "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes"
+                "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_integration.create_backup_codes"
             ) as mock_create,
             pytest.raises(HTTPException) as exc_info,
         ):

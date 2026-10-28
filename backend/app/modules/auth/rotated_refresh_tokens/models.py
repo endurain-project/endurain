@@ -1,15 +1,11 @@
 """Rotated refresh token database models for reuse detection."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.auth.sessions.models import UsersSessions
 
 
 class RotatedRefreshToken(Base):
@@ -27,7 +23,6 @@ class RotatedRefreshToken(Base):
             refresh token replayed for in-grace retries.
         replacement_refresh_token_exp: Expiry of the
             replacement refresh token.
-        user_session: Relationship to UsersSessions model.
     """
 
     __tablename__ = "rotated_refresh_tokens"
@@ -72,9 +67,4 @@ class RotatedRefreshToken(Base):
         DateTime(timezone=True),
         nullable=True,
         comment="Expiry of the replacement refresh token",
-    )
-
-    # Relationship to UsersSessions model
-    users_session: Mapped["UsersSessions"] = relationship(
-        back_populates="rotated_refresh_tokens",
     )

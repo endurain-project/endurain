@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-import modules.auth.password_policy as password_policy
+import modules.auth.credentials.service as password_policy
 
 
 class TestResolvePasswordMinLength:

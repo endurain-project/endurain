@@ -2,17 +2,15 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 import core.dependencies as core_dependencies
 import modules.auth._internal.internal_dependencies as auth_internal_dependencies
 import modules.auth._internal.services.step_up_service as step_up_service
-import modules.auth.api_keys.crud as auth_api_keys_crud
 import modules.auth.api_keys.schema as api_keys_schema
-import modules.auth.api_keys.utils as api_keys_utils
+import modules.auth.api_keys.service as api_keys_service
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_service as auth_identity_service
-import modules.users.users.integration_service as users_integration
 
 # Define the API router
 router = APIRouter()
@@ -41,7 +39,7 @@ async def get_user_api_keys(
         List of API key objects. Raw keys and hashes
         are never included.
     """
-    return auth_api_keys_crud.get_api_keys_by_user_id(token_user_id, db)  # type: ignore[return-value]
+    return api_keys_service.get_user_api_keys(token_user_id, db)
 
 
 @router.post(
@@ -92,13 +90,6 @@ async def create_user_api_key(
         HTTPException: 400 if scopes are not supported for API keys.
         HTTPException: 404 if the user is not found.
     """
-    db_user = users_integration.get_user(token_user_id, db)
-    if db_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
     step_up_service.verify_step_up_credentials(
         token_user_id,
         data.current_password,
@@ -108,28 +99,7 @@ async def create_user_api_key(
         db,
     )
 
-    try:
-        api_keys_utils.validate_api_key_scopes(data.scopes, db_user.access_type)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    db_api_key, raw_key = auth_api_keys_crud.create_api_key(token_user_id, data, db)
-
-    return api_keys_schema.UsersApiKeyCreated(
-        id=db_api_key.id,
-        user_id=db_api_key.user_id,
-        name=db_api_key.name,
-        key_prefix=db_api_key.key_prefix,
-        scopes=db_api_key.scopes,
-        expires_at=db_api_key.expires_at,
-        last_used_at=db_api_key.last_used_at,
-        created_at=db_api_key.created_at,
-        is_active=db_api_key.is_active,
-        key=raw_key,
-    )
+    return api_keys_service.create_user_api_key(token_user_id, data, db)
 
 
 @router.patch(
@@ -162,7 +132,7 @@ async def revoke_user_api_key(
         HTTPException: 404 if the key is not found or
             does not belong to the authenticated user.
     """
-    auth_api_keys_crud.revoke_api_key(api_key_id, token_user_id, db)
+    api_keys_service.revoke_user_api_key(api_key_id, token_user_id, db)
 
 
 @router.delete(
@@ -195,4 +165,4 @@ async def delete_user_api_key(
         HTTPException: 404 if the key is not found or
             does not belong to the authenticated user.
     """
-    auth_api_keys_crud.delete_api_key(api_key_id, token_user_id, db)
+    api_keys_service.delete_user_api_key(api_key_id, token_user_id, db)
