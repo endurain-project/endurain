@@ -1618,3 +1618,58 @@ class TestSumUserActivitiesPerTimeframeAndTypes:
         shown, hidden_excluded = (str(call.args[0]) for call in mock_db.execute.call_args_list)
         assert "is_hidden" not in shown
         assert "is_hidden" in hidden_excluded
+
+
+class TestHiddenStartTimeDoesNotLeakThroughQueries:
+    """A follower sees a hidden start time as null, so a filter or an order must not reveal it either."""
+
+    @staticmethod
+    def _sql(mock_db) -> str:
+        return str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+
+    @staticmethod
+    def _where(sql: str) -> str:
+        """The WHERE clause alone: the column named in the SELECT list is not a filter."""
+        import re
+
+        return re.split(r"\s+WHERE\s+", sql, maxsplit=1)[1].split("ORDER BY")[0]
+
+    def _page(self, mock_db, *, owner, **kwargs):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        crud.get_user_activities_with_pagination(1, mock_db, user_is_owner=owner, followee_ids=[1], **kwargs)
+        return self._sql(mock_db)
+
+    def test_a_date_filter_skips_hidden_start_times_for_a_non_owner(self, mock_db):
+        sql = self._page(mock_db, owner=False, start_date=date(2026, 5, 1))
+
+        assert "hide_start_time" in self._where(sql)
+
+    def test_a_date_filter_is_unchanged_for_the_owner(self, mock_db):
+        sql = self._page(mock_db, owner=True, start_date=date(2026, 5, 1))
+
+        assert "hide_start_time" not in self._where(sql)
+
+    def test_no_date_filter_means_hidden_activities_are_still_listed(self, mock_db):
+        sql = self._page(mock_db, owner=False)
+
+        assert "hide_start_time" not in self._where(sql)
+
+    def test_a_time_sort_does_not_rank_hidden_start_times_for_a_non_owner(self, mock_db):
+        sql = self._page(mock_db, owner=False, sort_by="start_time")
+
+        assert "CASE" in sql.split("ORDER BY")[1]
+
+    def test_the_owner_sorts_by_the_real_time(self, mock_db):
+        sql = self._page(mock_db, owner=True, sort_by="start_time")
+
+        assert "CASE" not in sql.split("ORDER BY")[1]
+
+    def test_the_count_applies_the_same_date_rule(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.scalar_one.return_value = 0
+        crud.count_user_activities(1, mock_db, start_date=date(2026, 5, 1), user_is_owner=False, followee_ids=[1])
+
+        assert "hide_start_time" in self._where(self._sql(mock_db))

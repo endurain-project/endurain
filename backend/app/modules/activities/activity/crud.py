@@ -63,6 +63,12 @@ _NUMERIC_SORT_COLUMNS = {
     activity_models.Activity.average_hr,
 }
 
+# Columns that say when an activity happened, which an owner may hide from other readers.
+_TIME_SORT_COLUMNS = {
+    activity_models.Activity.start_time,
+    activity_models.Activity.end_time,
+}
+
 # Text columns coalesced to "" so an unset place name orders with the empty ones
 # instead of wherever the backend happens to put NULL.
 _TEXT_SORT_COLUMNS = {
@@ -72,27 +78,33 @@ _TEXT_SORT_COLUMNS = {
 }
 
 
-def _sort_order_by(sort_by: str | None, sort_order: str | None) -> list[Any]:
+def _sort_order_by(sort_by: str | None, sort_order: str | None, *, mask_hidden_times: bool = False) -> list[Any]:
     """Build the ORDER BY clauses for an activity list request.
 
     Args:
         sort_by: The requested sort key, already validated by the transport layer.
         sort_order: ``asc`` or ``desc``; anything else orders descending.
+        mask_hidden_times: Whether the reader must not learn a hidden start time. An activity whose owner hid
+            its start time then ties with the other hidden ones on a time key, because its place in the
+            order would otherwise reveal when it happened.
 
     Returns:
-        One clause per column the key orders by, highest precedence first.
+        One clause per column the key orders by, highest precedence first, then the id so pages are stable.
     """
     ascending = bool(sort_order and sort_order.lower() == "asc")
     columns = SORT_MAP.get(sort_by or "", _DEFAULT_SORT_COLUMNS)
     clauses = []
     for column in columns:
-        if column in _NUMERIC_SORT_COLUMNS:
+        if mask_hidden_times and column in _TIME_SORT_COLUMNS:
+            ordered = case((activity_models.Activity.hide_start_time.is_(True), None), else_=column)
+        elif column in _NUMERIC_SORT_COLUMNS:
             ordered = func.coalesce(column, _NULL_SORT_SENTINEL if ascending else -_NULL_SORT_SENTINEL)
         elif column in _TEXT_SORT_COLUMNS:
             ordered = func.coalesce(column, "")
         else:
             ordered = column
         clauses.append(ordered.asc() if ascending else ordered.desc())
+    clauses.append(activity_models.Activity.id.asc() if ascending else activity_models.Activity.id.desc())
     return clauses
 
 
@@ -199,6 +211,10 @@ def _apply_user_activity_filters(
     # Date filters are evaluated in each activity's own timezone, so a
     # user filtering "1 May" gets their 1 May, not UTC's.
     stmt = stmt.where(*activity_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
+    if not user_is_owner and (start_date is not None or end_date is not None):
+        # A window that matched a hidden start time would reveal it: narrowing the window until the activity
+        # drops out of the results pins down the date.
+        stmt = stmt.where(activity_models.Activity.hide_start_time.is_(False))
     if name_search:
         stmt = stmt.where(activity_query.name_search_condition(name_search))
     return stmt
@@ -426,7 +442,7 @@ def get_user_activities_with_pagination(
         followee_ids=followee_ids,
     )
 
-    stmt = stmt.order_by(*_sort_order_by(sort_by, sort_order))
+    stmt = stmt.order_by(*_sort_order_by(sort_by, sort_order, mask_hidden_times=not user_is_owner))
 
     stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
 
