@@ -25,11 +25,11 @@ import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.profile_router as auth_idp_profile_router
 import modules.auth.identity_providers.router as identity_providers_router
 import modules.auth.mfa.profile_router as auth_mfa_profile_router
-import modules.auth.password_reset_tokens.router as password_reset_tokens_router
+import modules.auth.password_reset_tokens.public_router as password_reset_tokens_router
 import modules.auth.router as auth_router
 import modules.auth.sessions.profile_router as auth_sessions_profile_router
 import modules.auth.sessions.router as auth_sessions_router
-import modules.auth.sign_up_tokens.router as sign_up_tokens_router
+import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
 import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
 import modules.gears.gear.router as gears_router

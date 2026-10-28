@@ -329,10 +329,6 @@ def approve_user(
     request: Request,
     user_id: core_dependencies.PositiveId,
     db: core_dependencies.DbSession,
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
 ) -> None:
     """Approve pending user account.
 
@@ -340,9 +336,8 @@ def approve_user(
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to approve.
         db: Database session dependency.
-        identity_service: Identity service dependency.
     """
-    users_service.approve_user(user_id, identity_service, db)
+    users_service.approve_user(user_id, db)
 
 
 @router.post(

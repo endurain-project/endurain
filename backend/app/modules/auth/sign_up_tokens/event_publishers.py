@@ -1,7 +1,5 @@
 """Publish the sign-up domain events through the platform publish facade."""
 
-from collections.abc import Callable
-
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
@@ -47,21 +45,19 @@ def publish_sign_up_approval_requested(user_id: int, admin_user_id: int, db: Ses
     )
 
 
-def publish_sign_up_approved(user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
-    """Publish ``auth.sign_up_approved`` for an approved user, atomically with the approval.
+def publish_sign_up_approved(user_id: int, db: Session) -> None:
+    """Stage ``auth.sign_up_approved`` in the caller's transaction.
 
     Args:
         user_id: The approved user.
         db: The producer's DB session, holding the uncommitted approval.
-        commit: Commit the approval and outbox event together.
     """
     payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
-    platform_publisher.publish_committing(
+    platform_publisher.publish_on_commit(
         sign_up_tokens_events.SIGN_UP_APPROVED,
         payload.model_dump(),
         source="api:approve_user",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
-        commit=commit,
         schema_version=payload.SCHEMA_VERSION,
     )

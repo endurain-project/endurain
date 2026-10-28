@@ -17,6 +17,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.server_settings.integration_service as server_settings_integration
@@ -601,12 +602,11 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     return True
 
 
-def approve_user(user_id: int, identity_service: "auth_identity_service.IdentityService", db: Session) -> None:
-    """Approve a pending user by activating them, and commit with the notice that tells them.
+def approve_user(user_id: int, db: Session) -> None:
+    """Approve a pending user, staging the notice event in the same transaction.
 
     Args:
         user_id: ID of the user to approve.
-        identity_service: Identity service that commits the approval together with the notice email.
         db: Database session.
 
     Raises:
@@ -618,7 +618,8 @@ def approve_user(user_id: int, identity_service: "auth_identity_service.Identity
         raise core_exceptions.InvalidInputError("User email is not verified")
 
     users_crud.update_user(user_id, {"pending_admin_approval": False, "active": True}, db)
-    notified = identity_service.request_sign_up_approved_email(user_id, commit=db.commit)
+    notified = sign_up_tokens_integration.request_sign_up_approved_email(user_id, db)
+    db.commit()
     logger.info("User approved", extra=core_logger.context(user_id=user_id, notified=notified))
 
 

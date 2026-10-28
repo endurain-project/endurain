@@ -26,16 +26,6 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
     return (
         *auth_mfa_scheduled_jobs.recurring_jobs(),
         core_scheduler.ScheduledJob(
-            auth_maintenance.delete_invalid_password_reset_tokens_from_db,
-            60,
-            "delete invalid password reset tokens from the database",
-        ),
-        core_scheduler.ScheduledJob(
-            auth_maintenance.delete_invalid_sign_up_tokens_from_db,
-            60,
-            "delete invalid sign-up tokens from the database",
-        ),
-        core_scheduler.ScheduledJob(
             auth_maintenance.delete_expired_oauth_states_from_db,
             5,
             "delete expired OAuth states from the database",

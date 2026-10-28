@@ -7,7 +7,9 @@ the scheduler's hard-coded list.
 
 import modules.auth.maintenance as auth_maintenance
 import modules.auth.mfa.scheduled_jobs as mfa_scheduled_jobs
+import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_jobs
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
+import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_jobs
 
 
 class TestRecurringJobs:
@@ -40,3 +42,9 @@ class TestRecurringJobs:
         """The description is the job's stable ID, so a duplicate silently drops a job."""
         descriptions = [job.description for job in auth_scheduled_jobs.recurring_jobs()]
         assert len(descriptions) == len(set(descriptions))
+
+    def test_token_cleanup_is_owned_by_each_token_package(self):
+        for jobs_module in (password_reset_jobs, sign_up_jobs):
+            jobs = jobs_module.recurring_jobs()
+            assert len(jobs) == 1
+            assert jobs[0].minutes == 60

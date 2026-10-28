@@ -208,8 +208,8 @@ class TestTokenExchange:
         )
         assert response.status_code == 404
 
-    @patch("modules.auth.identity_providers.public_router.users_integration.require_user")
-    @patch("modules.auth.identity_providers.public_router.users_integration.require_active_user")
+    @patch("modules.auth.identity_providers.service.users_integration.require_user")
+    @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.auth_utils.create_tokens")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
@@ -394,7 +394,7 @@ class TestHandleCallbackRedirects:
 
     @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
-    @patch("modules.auth.identity_providers.public_router.users_integration.require_active_user")
+    @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
@@ -433,7 +433,7 @@ class TestHandleCallbackRedirects:
 
     @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
-    @patch("modules.auth.identity_providers.public_router.users_integration.require_active_user")
+    @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
@@ -476,7 +476,7 @@ class TestHandleCallbackRedirects:
     @patch("modules.auth.identity_providers.public_router.logger")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
-    @patch("modules.auth.identity_providers.public_router.users_integration.require_active_user")
+    @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
@@ -527,7 +527,7 @@ class TestHandleCallbackRedirects:
 
     @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
-    @patch("modules.auth.identity_providers.public_router.users_integration.require_active_user")
+    @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
     @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")

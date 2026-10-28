@@ -40,9 +40,9 @@ import module_registry as runtime_module_registry
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as idp_link_token_jobs
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
-import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
+import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_jobs
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
-import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
+import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_tokens_jobs
 import modules.auth.utils as auth_utils
 import modules.garmin.integration_service as garmin_integration
 import modules.server_settings.constants as server_settings_constants
@@ -95,8 +95,8 @@ async def _safe_run_async[T, **P](
 
 def _purge_expired_tokens() -> None:
     """Sweep expired/invalid auth-related tokens from the DB."""
-    password_reset_tokens_utils.delete_invalid_tokens_from_db()
-    sign_up_tokens_utils.delete_invalid_tokens_from_db()
+    password_reset_tokens_jobs.delete_expired_tokens_from_db()
+    sign_up_tokens_jobs.delete_expired_tokens_from_db()
     oauth_state_scheduled_jobs.delete_expired_oauth_states_from_db()
     idp_link_token_jobs.delete_expired_tokens_from_db()
 

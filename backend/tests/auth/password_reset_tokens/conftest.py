@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import modules.auth.credentials.password_hasher as auth_password_hasher
-import modules.auth.password_reset_tokens.router as prt_router
+import modules.auth.password_reset_tokens.public_router as prt_router
 
 
 @pytest.fixture

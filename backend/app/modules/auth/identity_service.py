@@ -53,7 +53,7 @@ import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.credentials.integration_service as auth_password_policy
 import modules.auth.mfa.integration_service as auth_mfa_integration
 import modules.auth.sessions.integration_service as auth_sessions_crud
-import modules.auth.sign_up_tokens.utils as auth_sign_up_tokens_utils
+import modules.auth.sign_up_tokens.integration_service as auth_sign_up_tokens_integration
 import modules.auth.utils as auth_utils
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.integration_service as users_integration
@@ -1195,7 +1195,9 @@ class DefaultIdentityService:
         Returns:
             True if the notice was queued, False if outgoing email is not configured.
         """
-        return auth_sign_up_tokens_utils.request_sign_up_approved_email(user_id, self._db, commit=commit)
+        queued = auth_sign_up_tokens_integration.request_sign_up_approved_email(user_id, self._db)
+        commit()
+        return queued
 
     def request_email_reverification(self, user_id: int) -> bool:
         """Queue the verification email for a user whose address just changed.
@@ -1206,7 +1208,9 @@ class DefaultIdentityService:
         Returns:
             True if the email was queued, False if outgoing email is not configured.
         """
-        return auth_sign_up_tokens_utils.request_email_reverification(user_id, self._db)
+        queued = auth_sign_up_tokens_integration.request_email_reverification(user_id, self._db)
+        self._db.commit()
+        return queued
 
     def hash_password(self, password: str) -> str:
         """Return a secure hash for a trusted generated secret.

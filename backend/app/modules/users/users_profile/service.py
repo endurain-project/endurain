@@ -15,6 +15,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
+import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.followers.integration_service as followers_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -209,7 +210,9 @@ def change_email(
 
     if change.revoke_other_sessions:
         identity_service.delete_other_user_sessions(user_id, session_id)
-    if not identity_service.request_email_reverification(user_id):
+    verification_queued = sign_up_tokens_integration.request_email_reverification(user_id, db)
+    db.commit()
+    if not verification_queued:
         logger.warning(
             "Email changed but cannot be verified: outgoing email is not configured",
             extra=core_logger.context(user_id=user_id),

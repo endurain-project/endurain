@@ -1,426 +1,153 @@
-"""Tests for password reset token utilities."""
+"""Tests for password-reset workflows after their move to service.py."""
 
 import hashlib
 from unittest.mock import MagicMock, patch
 
-import jasil.providers as platform_providers
 import pytest
-from fastapi import HTTPException, status
-from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
-import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
+import modules.auth.password_reset_tokens.service as password_reset_service
 
 
 class TestUsePasswordResetToken:
-    """
-    Test suite for use_password_reset_token function.
-    """
-
-    @patch("modules.auth.password_reset_tokens.utils.auth_sessions_crud.delete_sessions_by_user")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.mark_user_password_reset_tokens_used")
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
-    @patch("modules.auth.password_reset_tokens.utils.auth_mfa_integration.clear_pending_mfa_for_user")
-    def test_revokes_sessions_after_successful_reset(
-        self,
-        mock_clear_pending_mfa,
-        mock_claim_token,
-        mock_edit_password,
-        mock_mark_user_tokens_used,
-        mock_delete_sessions,
-        mock_db,
+    @patch("modules.auth.password_reset_tokens.service.mfa_integration.clear_pending_mfa_for_user")
+    @patch("modules.auth.password_reset_tokens.service.sessions_integration.delete_sessions_by_user")
+    @patch("modules.auth.password_reset_tokens.service.password_reset_crud.mark_user_password_reset_tokens_used")
+    @patch("modules.auth.password_reset_tokens.service.credentials_integration.set_local_password_hash")
+    @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token")
+    def test_password_and_sessions_commit_before_pending_mfa_is_cleared(
+        self, claim, set_password, mark_tokens, delete_sessions, clear_pending, mock_db
     ):
-        """
-        Test password reset hashes password in auth service then deletes existing user sessions.
-        """
-        # Arrange
-        user_id = 42
-        token = "plain-reset-token"
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-        mock_claim_token.return_value = user_id
-
-        identity_service = MagicMock()
-        identity_service.validate_and_hash_password.return_value = "hashed-password"
-
-        mock_user = MagicMock()
-        mock_user.access_type = "regular"
-        mock_settings = MagicMock()
-        mock_settings.password_length_regular_users = 8
-        mock_settings.password_length_admin_users = 12
-        mock_settings.password_type = "strict"
-
-        # Act
+        user = MagicMock(access_type="regular")
+        settings = MagicMock()
+        claim.return_value = 42
+        order = MagicMock()
+        order.attach_mock(set_password, "password")
+        order.attach_mock(mark_tokens, "tokens")
+        order.attach_mock(delete_sessions, "sessions")
+        order.attach_mock(mock_db.commit, "commit")
+        order.attach_mock(clear_pending, "clear_pending")
         with (
             patch(
-                "modules.auth.password_reset_tokens.utils.server_settings_integration.get_server_settings",
-                return_value=mock_settings,
+                "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
+                return_value=settings,
             ),
+            patch("modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=user),
             patch(
-                "modules.auth.password_reset_tokens.utils.users_integration.require_user",
-                return_value=mock_user,
-            ),
-            patch(
-                "modules.auth.password_reset_tokens.utils.auth_password_policy.validate_and_hash_password_for_user",
-                return_value="hashed-password",
-            ),
+                "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",
+                return_value="hashed",
+            ) as hash_password,
         ):
-            password_reset_tokens_utils.use_password_reset_token(
-                token,
-                "new-password",
-                identity_service,
-                mock_db,
-            )
+            password_reset_service.use_password_reset_token("plain", "new password", mock_db)
 
-        # Assert
-        mock_claim_token.assert_called_once_with(token_hash, mock_db)
-        mock_edit_password.assert_called_once_with(
-            user_id,
-            "hashed-password",
-            mock_db,
-        )
-        mock_mark_user_tokens_used.assert_called_once_with(user_id, mock_db)
-        mock_delete_sessions.assert_called_once_with(user_id, mock_db)
-        mock_db.commit.assert_called_once_with()
-        mock_clear_pending_mfa.assert_called_once_with(user_id)
+        claim.assert_called_once_with(hashlib.sha256(b"plain").hexdigest(), mock_db)
+        hash_password.assert_called_once_with(settings, "regular", "new password")
+        assert [call[0] for call in order.mock_calls] == [
+            "password",
+            "tokens",
+            "sessions",
+            "commit",
+            "clear_pending",
+        ]
+        clear_pending.assert_called_once_with(42)
 
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
-    def test_invalid_token_raises_bad_request(
-        self,
-        mock_claim_token,
-        mock_edit_password,
-        mock_db,
-    ):
-        """
-        Test invalid password reset token is rejected.
-        """
-        # Arrange
-        mock_claim_token.return_value = None
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            password_reset_tokens_utils.use_password_reset_token(
-                "plain-reset-token",
-                "new-password",
-                MagicMock(),
-                mock_db,
-            )
-
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-        mock_edit_password.assert_not_called()
+    @patch(
+        "modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=None
+    )
+    def test_invalid_token_is_a_domain_error(self, _claim, mock_db):
+        with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired"):
+            password_reset_service.use_password_reset_token("invalid", "replacement", mock_db)
         mock_db.commit.assert_not_called()
 
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
-    def test_weak_password_raises_422_distinct_from_invalid_token(
-        self,
-        mock_claim_token,
-        mock_edit_password,
-        mock_db,
-    ):
-        """
-        A password-policy failure is surfaced as 422 (not 400), so callers can
-        tell it apart from an invalid/expired token.
-        """
-        # Arrange
-        mock_claim_token.return_value = 42
-
-        identity_service = MagicMock()
-        identity_service.validate_and_hash_password.side_effect = core_exceptions.InvalidInputError(
-            "Password is too short (got 4, need \u2265 8)."
-        )
-
-        mock_user = MagicMock()
-        mock_user.access_type = "regular"
-        mock_settings = MagicMock()
-        mock_settings.password_length_regular_users = 8
-        mock_settings.password_length_admin_users = 12
-        mock_settings.password_type = "strict"
-
-        # Act & Assert
+    @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=42)
+    def test_password_policy_error_preserves_422(self, _claim, mock_db):
         with (
+            patch("modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings"),
             patch(
-                "modules.auth.password_reset_tokens.utils.server_settings_integration.get_server_settings",
-                return_value=mock_settings,
+                "modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=MagicMock()
             ),
             patch(
-                "modules.auth.password_reset_tokens.utils.users_integration.require_user",
-                return_value=mock_user,
+                "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",
+                side_effect=core_exceptions.InvalidInputError("Password is too short"),
             ),
-            patch(
-                "modules.auth.password_reset_tokens.utils.auth_password_policy.validate_and_hash_password_for_user",
-                side_effect=core_exceptions.InvalidInputError("Password is too short (got 4, need ≥ 8)."),
-            ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(password_reset_service.PasswordPolicyError) as exc_info,
         ):
-            password_reset_tokens_utils.use_password_reset_token(
-                "plain-reset-token",
-                "weak",
-                identity_service,
-                mock_db,
-            )
-
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-        assert exc_info.value.detail == "Password is too short (got 4, need \u2265 8)."
-        mock_edit_password.assert_not_called()
+            password_reset_service.use_password_reset_token("valid", "weak", mock_db)
+        assert exc_info.value.status_code == 422
+        assert exc_info.value.detail == "Password is too short"
         mock_db.commit.assert_not_called()
 
-    @patch("modules.auth.password_reset_tokens.utils.auth_mfa_integration.clear_pending_mfa_for_user")
-    @patch("modules.auth.password_reset_tokens.utils.auth_sessions_crud.delete_sessions_by_user")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.mark_user_password_reset_tokens_used")
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
-    def test_rolls_back_when_commit_fails(
-        self,
-        mock_claim_token,
-        mock_edit_password,
-        mock_mark_user_tokens_used,
-        mock_delete_sessions,
-        mock_clear_pending_mfa,
-        mock_db,
-    ):
-        """
-        Test failed reset transaction rolls back database changes.
-        """
-        # Arrange
-        mock_claim_token.return_value = 42
-        mock_db.commit.side_effect = SQLAlchemyError("commit failed")
 
-        identity_service = MagicMock()
-        identity_service.validate_and_hash_password.return_value = "hashed-password"
-        mock_user = MagicMock()
-        mock_user.access_type = "regular"
-        mock_settings = MagicMock()
-        mock_settings.password_length_regular_users = 8
-        mock_settings.password_length_admin_users = 12
-        mock_settings.password_type = "strict"
+class TestCreatePasswordResetToken:
+    @patch("modules.auth.password_reset_tokens.service.password_reset_crud.create_password_reset_token")
+    @patch("modules.auth.password_reset_tokens.service.password_reset_crud.mark_user_password_reset_tokens_used")
+    @patch("modules.auth.password_reset_tokens.service.token_hashing.generate_token_and_hash")
+    def test_stages_replacement_and_commits(self, generate, invalidate, create, mock_db):
+        generate.return_value = ("plain", "hashed")
 
-        # Act & Assert
-        with (
-            patch(
-                "modules.auth.password_reset_tokens.utils.server_settings_integration.get_server_settings",
-                return_value=mock_settings,
-            ),
-            patch(
-                "modules.auth.password_reset_tokens.utils.users_integration.require_user",
-                return_value=mock_user,
-            ),
-            patch(
-                "modules.auth.password_reset_tokens.utils.auth_password_policy.validate_and_hash_password_for_user",
-                return_value="hashed-password",
-            ),
-            pytest.raises(HTTPException) as exc_info,
-        ):
-            password_reset_tokens_utils.use_password_reset_token(
-                "plain-reset-token",
-                "new-password",
-                identity_service,
-                mock_db,
-            )
+        assert password_reset_service.create_password_reset_token(7, mock_db) == "plain"
 
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_edit_password.assert_called_once()
-        mock_mark_user_tokens_used.assert_called_once()
-        mock_delete_sessions.assert_called_once()
-        mock_db.rollback.assert_called_once_with()
-        mock_clear_pending_mfa.assert_not_called()
+        invalidate.assert_called_once_with(7, mock_db)
+        token = create.call_args.args[0]
+        assert token.user_id == 7
+        assert token.token_hash == "hashed"
+        mock_db.commit.assert_called_once()
 
 
-class TestCreatePasswordResetTokenUtils:
-    """Test suite for the create_password_reset_token utility function."""
-
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.create_password_reset_token")
-    @patch("modules.auth.password_reset_tokens.utils.token_hashing.generate_token_and_hash")
-    def test_returns_plaintext_token_not_hash(self, mock_gen, mock_create, mock_db):
-        """
-        Returns the plaintext token; only the hash is persisted.
-        """
-        # Arrange
-        mock_gen.return_value = ("plain-token-123", "sha256-hash-xyz")
-
-        # Act
-        result = password_reset_tokens_utils.create_password_reset_token(user_id=1, db=mock_db)
-
-        # Assert
-        assert result == "plain-token-123"
-        mock_create.assert_called_once()
-        # Verify the schema object passed to crud has the hash, not the token
-        schema_obj = mock_create.call_args.args[0]
-        assert schema_obj.token_hash == "sha256-hash-xyz"
-        assert schema_obj.user_id == 1
-        assert schema_obj.used is False
-
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.create_password_reset_token")
-    @patch("modules.auth.password_reset_tokens.utils.token_hashing.generate_token_and_hash")
-    def test_crud_error_propagates(self, mock_gen, mock_create, mock_db):
-        """
-        HTTPException from the CRUD layer propagates to the caller.
-        """
-        # Arrange
-        mock_gen.return_value = ("token", "hash")
-        mock_create.side_effect = HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        )
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            password_reset_tokens_utils.create_password_reset_token(user_id=1, db=mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-
-
-class TestRequestPasswordResetEmail:
-    """Test suite for request_password_reset_email."""
+class TestRequestPasswordReset:
+    @patch(
+        "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=False
+    )
+    def test_mail_unavailable_is_a_domain_error(self, _configured, mock_db):
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
+            password_reset_service.request_password_reset_email("user@example.com", mock_db)
 
     @patch(
-        "modules.auth.password_reset_tokens.utils.server_settings_integration.is_mail_configured", return_value=False
+        "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
     )
-    def test_raises_503_when_mail_not_configured(self, _configured, mock_db):
-        with pytest.raises(HTTPException) as exc_info:
-            password_reset_tokens_utils.request_password_reset_email("user@example.com", mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    @patch("modules.auth.password_reset_tokens.service.users_integration.get_user_by_email")
+    @patch(
+        "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=True
+    )
+    def test_unknown_or_inactive_users_are_not_disclosed(self, _configured, get_user, publish, mock_db):
+        get_user.return_value = None
+        password_reset_service.request_password_reset_email("nobody@example.com", mock_db)
+        get_user.return_value = MagicMock(active=False)
+        password_reset_service.request_password_reset_email("inactive@example.com", mock_db)
+        publish.assert_not_called()
+        mock_db.commit.assert_not_called()
 
     @patch(
-        "modules.auth.password_reset_tokens.utils.password_reset_tokens_event_publishers.publish_password_reset_requested"
+        "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
     )
-    @patch("modules.auth.password_reset_tokens.utils.users_integration.get_user_by_email")
-    @patch("modules.auth.password_reset_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
-    def test_unknown_or_inactive_user_publishes_nothing(self, _configured, mock_get_user, mock_publish, mock_db):
-        mock_get_user.return_value = None
-        password_reset_tokens_utils.request_password_reset_email("nobody@example.com", mock_db)
-
-        mock_get_user.return_value = MagicMock(active=False)
-        password_reset_tokens_utils.request_password_reset_email("inactive@example.com", mock_db)
-
-        mock_publish.assert_not_called()
-
     @patch(
-        "modules.auth.password_reset_tokens.utils.password_reset_tokens_event_publishers.publish_password_reset_requested"
+        "modules.auth.password_reset_tokens.service.users_integration.get_user_by_email",
+        return_value=MagicMock(id=9, active=True),
     )
-    @patch("modules.auth.password_reset_tokens.utils.users_integration.get_user_by_email")
-    @patch("modules.auth.password_reset_tokens.utils.server_settings_integration.is_mail_configured", return_value=True)
-    def test_active_user_publishes_event(self, _configured, mock_get_user, mock_publish, mock_db):
-        mock_get_user.return_value = MagicMock(id=9, active=True)
-
-        password_reset_tokens_utils.request_password_reset_email("user@example.com", mock_db)
-
-        mock_publish.assert_called_once_with(9, mock_db)
-
-
-class TestSendPasswordResetEmailToUser:
-    """Test suite for send_password_reset_email_to_user."""
-
-    @patch("modules.auth.password_reset_tokens.utils.users_integration.get_user")
-    def test_missing_or_inactive_user_is_skipped(self, mock_get_user, mock_db):
-        mail = MagicMock()
-
-        mock_get_user.return_value = None
-        assert password_reset_tokens_utils.send_password_reset_email_to_user(1, mail, mock_db) is False
-
-        mock_get_user.return_value = MagicMock(active=False)
-        assert password_reset_tokens_utils.send_password_reset_email_to_user(1, mail, mock_db) is False
-
-        mail.send.assert_not_called()
-
-    @patch("modules.auth.password_reset_tokens.utils.create_password_reset_token", return_value="plain-token")
-    @patch("modules.auth.password_reset_tokens.utils.users_integration.get_user")
-    def test_sends_localized_email_with_reset_link(self, mock_get_user, _create_token, mock_db):
-        mock_get_user.return_value = MagicMock(
-            id=3, active=True, name="Alice", email="alice@example.com", preferred_language="en"
-        )
-        mail = MagicMock()
-
-        assert password_reset_tokens_utils.send_password_reset_email_to_user(3, mail, mock_db) is True
-
-        message = mail.send.call_args.args[0]
-        assert message.to == ["alice@example.com"]
-        assert "reset-password?token=plain-token" in message.text
-
-    @patch("modules.auth.password_reset_tokens.utils.create_password_reset_token", return_value="plain-token")
-    @patch("modules.auth.password_reset_tokens.utils.users_integration.get_user")
-    def test_permanent_failure_is_not_retried(self, mock_get_user, _create_token, mock_db):
-        mock_get_user.return_value = MagicMock(
-            id=3, active=True, name="A", email="a@example.com", preferred_language="en"
-        )
-        mail = MagicMock()
-        mail.send.side_effect = platform_providers.MailError("refused", status=550)
-
-        assert password_reset_tokens_utils.send_password_reset_email_to_user(3, mail, mock_db) is False
-
-    @patch("modules.auth.password_reset_tokens.utils.create_password_reset_token", return_value="plain-token")
-    @patch("modules.auth.password_reset_tokens.utils.users_integration.get_user")
-    def test_transient_failure_propagates_for_retry(self, mock_get_user, _create_token, mock_db):
-        mock_get_user.return_value = MagicMock(
-            id=3, active=True, name="A", email="a@example.com", preferred_language="en"
-        )
-        mail = MagicMock()
-        mail.send.side_effect = platform_providers.MailError("unreachable")
-
-        with pytest.raises(platform_providers.MailError):
-            password_reset_tokens_utils.send_password_reset_email_to_user(3, mail, mock_db)
+    @patch(
+        "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=True
+    )
+    def test_active_user_event_is_committed(self, _configured, _user, publish, mock_db):
+        password_reset_service.request_password_reset_email("user@example.com", mock_db)
+        publish.assert_called_once_with(9, mock_db)
+        mock_db.commit.assert_called_once()
 
 
-class TestDeleteInvalidTokensFromDb:
-    """Test suite for delete_invalid_tokens_from_db function."""
+class TestPreparePasswordResetEmail:
+    @patch("modules.auth.password_reset_tokens.service.users_integration.get_user", return_value=None)
+    def test_missing_user_is_skipped(self, _user, mock_db):
+        assert password_reset_service.prepare_password_reset_email(5, "https://example.test", mock_db) is None
 
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.delete_expired_password_reset_tokens")
-    @patch("modules.auth.password_reset_tokens.utils.SessionLocal")
-    def test_calls_delete_expired_tokens_with_db_session(self, mock_session_local, mock_delete):
-        """
-        Opens a SessionLocal context manager and delegates to the
-        CRUD delete function.
-        """
-        # Arrange
-        mock_db = MagicMock()
-        mock_session_local.return_value.__enter__.return_value = mock_db
-        mock_session_local.return_value.__exit__.return_value = False
-        mock_delete.return_value = 0
+    @patch("modules.auth.password_reset_tokens.service.password_reset_email_messages.get_password_reset_email")
+    @patch("modules.auth.password_reset_tokens.service.create_password_reset_token", return_value="plain-token")
+    @patch(
+        "modules.auth.password_reset_tokens.service.users_integration.get_user",
+        return_value=MagicMock(id=5, active=True, preferred_language="en", name="Test", email="test@example.test"),
+    )
+    def test_prepares_localized_content_with_reset_link(self, _user, _token, build_email, mock_db):
+        build_email.return_value = ("subject", "html", "text")
 
-        # Act
-        password_reset_tokens_utils.delete_invalid_tokens_from_db()
+        result = password_reset_service.prepare_password_reset_email(5, "https://example.test", mock_db)
 
-        # Assert
-        mock_delete.assert_called_once_with(mock_db)
-
-    @patch("modules.auth.password_reset_tokens.utils.logger")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.delete_expired_password_reset_tokens")
-    @patch("modules.auth.password_reset_tokens.utils.SessionLocal")
-    def test_logs_when_expired_tokens_deleted(self, mock_session_local, mock_delete, mock_log):
-        """
-        Logs a message when at least one expired token is deleted.
-        """
-        # Arrange
-        mock_db = MagicMock()
-        mock_session_local.return_value.__enter__.return_value = mock_db
-        mock_session_local.return_value.__exit__.return_value = False
-        mock_delete.return_value = 3
-
-        # Act
-        password_reset_tokens_utils.delete_invalid_tokens_from_db()
-
-        # Assert
-        assert len(mock_log.method_calls) == 1
-        log_msg = mock_log.info.call_args.args[0]
-        assert "3" in log_msg
-
-    @patch("modules.auth.password_reset_tokens.utils.logger")
-    @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.delete_expired_password_reset_tokens")
-    @patch("modules.auth.password_reset_tokens.utils.SessionLocal")
-    def test_does_not_log_when_nothing_deleted(self, mock_session_local, mock_delete, mock_log):
-        """
-        Does not log when no expired tokens are found.
-        """
-        # Arrange
-        mock_db = MagicMock()
-        mock_session_local.return_value.__enter__.return_value = mock_db
-        mock_session_local.return_value.__exit__.return_value = False
-        mock_delete.return_value = 0
-
-        # Act
-        password_reset_tokens_utils.delete_invalid_tokens_from_db()
-
-        # Assert
-        mock_log.assert_not_called()
+        assert result == ("test@example.test", "subject", "html", "text")
+        assert "reset-password?token=plain-token" in build_email.call_args.args[1]

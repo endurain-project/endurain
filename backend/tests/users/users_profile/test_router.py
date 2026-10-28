@@ -414,8 +414,13 @@ class TestEditUser:
 class TestEditProfileEmail:
     """Tests for POST /profile/email/change — edit_profile_email."""
 
+    @patch(
+        "modules.users.users_profile.service.sign_up_tokens_integration.request_email_reverification", return_value=True
+    )
     @patch("modules.users.users_profile.service.users_integration.stage_email_change")
-    def test_success_runs_the_step_up_and_asks_for_verification(self, _stage, profile_client, mock_identity_service):
+    def test_success_runs_the_step_up_and_asks_for_verification(
+        self, _stage, mock_reverification, profile_client, mock_identity_service
+    ):
         response = profile_client.post(
             PREFIX + "/email/change",
             json={"email": "new@example.com", "current_password": "pw", "mfa_code": None},
@@ -423,9 +428,10 @@ class TestEditProfileEmail:
 
         assert response.status_code == 204
         mock_identity_service.verify_step_up.assert_called_once()
-        mock_identity_service.request_email_reverification.assert_called_once()
+        mock_reverification.assert_called_once()
 
-    def test_step_up_fails(self, profile_client, mock_identity_service):
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_reverification")
+    def test_step_up_fails(self, mock_reverification, profile_client, mock_identity_service):
         mock_identity_service.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
 
         response = profile_client.post(
@@ -434,7 +440,7 @@ class TestEditProfileEmail:
         )
 
         assert response.status_code == 401
-        mock_identity_service.request_email_reverification.assert_not_called()
+        mock_reverification.assert_not_called()
 
     def test_the_address_must_be_valid(self, profile_client):
         response = profile_client.post(

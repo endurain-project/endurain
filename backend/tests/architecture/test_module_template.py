@@ -16,7 +16,9 @@ import module_registry as runtime_module_registry
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.model_registry as activities_model_registry
 import modules.auth.mfa.model_registry as auth_mfa_model_registry
+import modules.auth.password_reset_tokens.model_registry as password_reset_tokens_model_registry
 import modules.auth.sessions.model_registry as auth_sessions_model_registry
+import modules.auth.sign_up_tokens.model_registry as sign_up_tokens_model_registry
 import modules.followers.model_registry as followers_model_registry
 import modules.gears.model_registry as gears_model_registry
 import modules.health.model_registry as health_model_registry
@@ -63,6 +65,7 @@ def _absolute_imports(path: Path) -> set[str]:
 #: test below fails on an entry that has grown a surface, so the list cannot
 #: outlive the exemption.
 _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
+    "password_reset_tokens": "Public flow plus reactive email; no other package calls it.",
     "health_dashboard": (
         "Read-only and top of the health namespace: it consolidates the other health packages' "
         "surfaces into the daily dashboard route. Nothing calls it."
@@ -129,6 +132,8 @@ def test_model_registries_collect_every_converted_model() -> None:
     assert set(activities_model_registry.MODEL_MODULES) == expected_activities
     assert set(auth_sessions_model_registry.MODEL_MODULES) == {"modules.auth.sessions.models"}
     assert set(auth_mfa_model_registry.MODEL_MODULES) == {"modules.auth.mfa.models"}
+    assert set(password_reset_tokens_model_registry.MODEL_MODULES) == {"modules.auth.password_reset_tokens.models"}
+    assert set(sign_up_tokens_model_registry.MODEL_MODULES) == {"modules.auth.sign_up_tokens.models"}
     assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
     expected_gears = {
         f"modules.gears.{package.name}.models"
@@ -154,6 +159,8 @@ def test_model_registries_collect_every_converted_model() -> None:
         expected_activities
         | set(auth_sessions_model_registry.MODEL_MODULES)
         | set(auth_mfa_model_registry.MODEL_MODULES)
+        | set(password_reset_tokens_model_registry.MODEL_MODULES)
+        | set(sign_up_tokens_model_registry.MODEL_MODULES)
         | set(followers_model_registry.MODEL_MODULES)
         | expected_gears
         | expected_health
