@@ -1,4 +1,4 @@
-import modules.auth.sessions.rotated_refresh_tokens.models as rotated_token_models
+import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 
 
 class TestRotatedRefreshTokenModel:

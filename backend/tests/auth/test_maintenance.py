@@ -50,12 +50,12 @@ class TestMaintenanceContract:
 
     def test_reexports_point_to_underlying_callables(self):
         """Re-exported names must be the same objects as their source utils."""
-        from modules.auth.identity_providers.link_tokens.utils import delete_idp_link_expired_tokens_from_db
+        from modules.auth.identity_provider_link_tokens.utils import delete_idp_link_expired_tokens_from_db
         from modules.auth.oauth_state.utils import delete_expired_oauth_states_from_db
         from modules.auth.password_reset_tokens.utils import (
             delete_invalid_tokens_from_db as src_delete_password_reset,
         )
-        from modules.auth.sessions.rotated_refresh_tokens.utils import cleanup_expired_rotated_tokens
+        from modules.auth.rotated_refresh_tokens.utils import cleanup_expired_rotated_tokens
         from modules.auth.sessions.utils import cleanup_idle_sessions
         from modules.auth.sign_up_tokens.utils import (
             delete_invalid_tokens_from_db as src_delete_sign_up,

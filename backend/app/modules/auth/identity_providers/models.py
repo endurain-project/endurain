@@ -10,7 +10,7 @@ from sqlalchemy.sql import func
 from core.database import Base
 
 if TYPE_CHECKING:
-    from modules.auth.identity_providers.links.models import IdentityLink
+    from modules.auth.identity_provider_links.models import IdentityLink
     from modules.auth.oauth_state.models import OAuthState
 
 

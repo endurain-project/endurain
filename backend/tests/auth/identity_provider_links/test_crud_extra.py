@@ -7,8 +7,8 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
-from modules.auth.identity_providers.links import crud as auth_identity_links_crud
-from modules.auth.identity_providers.links.models import IdentityLink
+from modules.auth.identity_provider_links import crud as auth_identity_links_crud
+from modules.auth.identity_provider_links.models import IdentityLink
 
 
 class TestCheckUserIdentityProvidersByIdpId:
@@ -309,7 +309,7 @@ class TestCreateUserIdentityProvider:
 
         # Patch the IdentityLink constructor
         with patch(
-            "modules.auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink"
+            "modules.auth.identity_provider_links.crud.auth_identity_links_models.IdentityLink"
         ) as mock_constructor:
             mock_constructor.return_value = mock_link
 
@@ -364,7 +364,7 @@ class TestUpdateUserIdentityProviderLastLogin:
         mock_link.idp_id = 1
 
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
@@ -391,7 +391,7 @@ class TestUpdateUserIdentityProviderLastLogin:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
 
@@ -427,7 +427,7 @@ class TestStoreUserIdentityProviderTokens:
         encrypted_token = "encrypted_refresh_token_xyz"
 
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
@@ -459,7 +459,7 @@ class TestStoreUserIdentityProviderTokens:
         expires_at = datetime.now(UTC)
 
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
 
@@ -493,7 +493,7 @@ class TestClearUserIdentityProviderRefreshToken:
         mock_link.idp_refresh_token_updated_at = datetime.now(UTC)
 
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
@@ -522,7 +522,7 @@ class TestClearUserIdentityProviderRefreshToken:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
 
@@ -557,7 +557,7 @@ class TestDeleteUserIdentityProvider:
         mock_link.idp_refresh_token = "token"
 
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
@@ -584,7 +584,7 @@ class TestDeleteUserIdentityProvider:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
 
@@ -610,7 +610,7 @@ class TestDeleteUserIdentityProvider:
         mock_link.id = 1
 
         with patch(
-            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit.side_effect = SQLAlchemyError("Database error")

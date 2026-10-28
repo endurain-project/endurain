@@ -13,8 +13,8 @@ import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
+import modules.auth.rotated_refresh_tokens.crud as auth_sessions_rotated_tokens_crud
 import modules.auth.sessions.models as auth_sessions_models
-import modules.auth.sessions.rotated_refresh_tokens.crud as auth_sessions_rotated_tokens_crud
 import modules.auth.sessions.schema as auth_sessions_schema
 
 logger = core_logger.get_logger(__name__)

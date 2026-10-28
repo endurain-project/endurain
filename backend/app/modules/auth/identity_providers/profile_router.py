@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Request, status
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_providers.link_tokens.schema as idp_link_token_schema
-import modules.auth.identity_providers.links.schema as auth_identity_links_schema
+import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
+import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_service as auth_identity_service
 import modules.users.users.schema as users_schema
 

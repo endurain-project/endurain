@@ -38,7 +38,7 @@ import core.scheduler as core_scheduler
 import core.signing as core_signing
 import module_registry as runtime_module_registry
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
-import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
+import modules.auth.identity_provider_link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.scheduled_jobs as auth_scheduled_jobs

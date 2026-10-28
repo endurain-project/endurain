@@ -9,7 +9,7 @@ import core.etag as core_etag
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_providers.links.schema as auth_identity_links_schema
+import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_service as auth_identity_service
 import modules.users.users.deletion_job_service as users_deletion_job_service
 import modules.users.users.dependencies as users_dependencies

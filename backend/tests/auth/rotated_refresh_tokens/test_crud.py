@@ -6,10 +6,10 @@ from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
-import modules.auth.sessions.rotated_refresh_tokens.crud as rotated_token_crud
-import modules.auth.sessions.rotated_refresh_tokens.models as _auth_rotated_token_models
-import modules.auth.sessions.rotated_refresh_tokens.models as rotated_token_models
-import modules.auth.sessions.rotated_refresh_tokens.schema as rotated_token_schema
+import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
+import modules.auth.rotated_refresh_tokens.models as _auth_rotated_token_models
+import modules.auth.rotated_refresh_tokens.models as rotated_token_models
+import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
 
 class TestGetRotatedTokenByHash:

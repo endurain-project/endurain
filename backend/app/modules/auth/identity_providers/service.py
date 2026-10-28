@@ -27,10 +27,10 @@ import core.logger as core_logger
 import core.network as core_network
 import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.identity_provider_links.crud as auth_identity_links_crud
+import modules.auth.identity_provider_links.models as auth_identity_links_models
+import modules.auth.identity_provider_links.utils as auth_identity_links_utils
 import modules.auth.identity_providers.crud as idp_crud
-import modules.auth.identity_providers.links.crud as auth_identity_links_crud
-import modules.auth.identity_providers.links.models as auth_identity_links_models
-import modules.auth.identity_providers.links.utils as auth_identity_links_utils
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.oauth_state.crud as oauth_state_crud

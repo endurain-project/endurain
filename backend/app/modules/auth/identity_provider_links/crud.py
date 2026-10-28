@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
 import core.decorators as core_decorators
-import modules.auth.identity_providers.links.models as auth_identity_links_models
+import modules.auth.identity_provider_links.models as auth_identity_links_models
 
 
 @core_decorators.handle_db_errors

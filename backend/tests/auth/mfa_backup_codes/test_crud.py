@@ -8,8 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import operators
 
 import core.exceptions as core_exceptions
-import modules.auth.mfa.backup_codes.crud as backup_crud
-import modules.auth.mfa.backup_codes.models as backup_models
+import modules.auth.mfa_backup_codes.crud as backup_crud
+import modules.auth.mfa_backup_codes.models as backup_models
 
 
 class TestGetUserBackupCodes:
@@ -108,8 +108,8 @@ class TestCreateBackupCodes:
 
         # Mock the model instantiation to avoid SQLAlchemy mapper issues
         with (
-            patch("modules.auth.mfa.backup_codes.crud.delete") as mock_sa_delete,
-            patch("modules.auth.mfa.backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
+            patch("modules.auth.mfa_backup_codes.crud.delete") as mock_sa_delete,
+            patch("modules.auth.mfa_backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
         ):
             mock_sa_delete.return_value.where.return_value = MagicMock()
             # Act
@@ -128,8 +128,8 @@ class TestCreateBackupCodes:
 
         # Mock the model instantiation to avoid SQLAlchemy mapper issues
         with (
-            patch("modules.auth.mfa.backup_codes.crud.delete") as mock_sa_delete,
-            patch("modules.auth.mfa.backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
+            patch("modules.auth.mfa_backup_codes.crud.delete") as mock_sa_delete,
+            patch("modules.auth.mfa_backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
         ):
             mock_sa_delete.return_value.where.return_value = MagicMock()
             # Act
@@ -147,8 +147,8 @@ class TestCreateBackupCodes:
 
         # Mock the model instantiation to avoid SQLAlchemy mapper issues
         with (
-            patch("modules.auth.mfa.backup_codes.crud.delete") as mock_sa_delete,
-            patch("modules.auth.mfa.backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
+            patch("modules.auth.mfa_backup_codes.crud.delete") as mock_sa_delete,
+            patch("modules.auth.mfa_backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
         ):
             mock_sa_delete.return_value.where.return_value = MagicMock()
             # Act
@@ -165,8 +165,8 @@ class TestCreateBackupCodes:
 
         # Mock the model instantiation to avoid SQLAlchemy mapper issues
         with (
-            patch("modules.auth.mfa.backup_codes.crud.delete") as mock_sa_delete,
-            patch("modules.auth.mfa.backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
+            patch("modules.auth.mfa_backup_codes.crud.delete") as mock_sa_delete,
+            patch("modules.auth.mfa_backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
         ):
             mock_sa_delete.return_value.where.return_value = MagicMock()
             # Act & Assert
@@ -184,8 +184,8 @@ class TestCreateBackupCodes:
 
         # Use db.execute to trigger HTTPException re-raise path
         with (
-            patch("modules.auth.mfa.backup_codes.crud.delete") as mock_sa_delete,
-            patch("modules.auth.mfa.backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
+            patch("modules.auth.mfa_backup_codes.crud.delete") as mock_sa_delete,
+            patch("modules.auth.mfa_backup_codes.crud.mfa_backup_codes_models.MFABackupCode"),
         ):
             mock_sa_delete.return_value.where.return_value = MagicMock()
             mock_db.execute.side_effect = http_exc

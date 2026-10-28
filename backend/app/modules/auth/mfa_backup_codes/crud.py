@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.auth.mfa.backup_codes.models as mfa_backup_codes_models
-import modules.auth.mfa.backup_codes.utils as mfa_backup_codes_utils
+import modules.auth.mfa_backup_codes.models as mfa_backup_codes_models
+import modules.auth.mfa_backup_codes.utils as mfa_backup_codes_utils
 from modules.auth._internal.password_hasher import SupportsHashPassword
 
 logger = core_logger.get_logger(__name__)

@@ -24,9 +24,9 @@ import modules.auth._internal.token_manager as auth_token_manager
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.service as mfa_service
+import modules.auth.rotated_refresh_tokens.utils as auth_sessions_rotated_tokens_utils
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.sessions.rotated_refresh_tokens.utils as auth_sessions_rotated_tokens_utils
 import modules.auth.sessions.utils as auth_sessions_utils
 import modules.auth.utils as auth_utils
 import modules.server_settings.integration_service as server_settings_integration

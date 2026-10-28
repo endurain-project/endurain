@@ -3,10 +3,10 @@
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import modules.auth.identity_provider_links.crud as auth_identity_links_crud
+import modules.auth.identity_provider_links.models as auth_identity_links_models
+import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.crud as idp_crud
-import modules.auth.identity_providers.links.crud as auth_identity_links_crud
-import modules.auth.identity_providers.links.models as auth_identity_links_models
-import modules.auth.identity_providers.links.schema as auth_identity_links_schema
 
 logger = core_logger.get_logger(__name__)
 

@@ -3,7 +3,7 @@
 mfa_workflow is the security-critical route-facing facade profile routes call.
 It owns step-up verification, the pending setup-secret store, and response
 shaping while orchestrating the lower-level ``modules.auth.mfa.service`` /
-``modules.auth.mfa.backup_codes.crud`` helpers.
+``modules.auth.mfa_backup_codes.crud`` helpers.
 
 These tests mock the lower-level helpers (patched at the
 ``modules.auth._internal.services.mfa_workflow`` namespace) and assert the orchestration

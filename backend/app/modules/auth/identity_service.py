@@ -71,11 +71,11 @@ logger = core_logger.get_logger(__name__)
 
 if TYPE_CHECKING:
     import modules.auth._internal.security_stores as auth_security_stores
-    import modules.auth.identity_providers.link_tokens.schema as auth_idp_link_tokens_schema
-    import modules.auth.identity_providers.links.schema as auth_identity_links_schema
-    import modules.auth.mfa.backup_codes.schema as auth_mfa_backup_codes_schema
+    import modules.auth.identity_provider_link_tokens.schema as auth_idp_link_tokens_schema
+    import modules.auth.identity_provider_links.schema as auth_identity_links_schema
     import modules.auth.mfa.schema as auth_mfa_schema
     import modules.auth.mfa.setup_store as auth_mfa_setup_store
+    import modules.auth.mfa_backup_codes.schema as auth_mfa_backup_codes_schema
     import modules.auth.sessions.schema as auth_sessions_schema
     import modules.server_settings.schema as server_settings_schema
 

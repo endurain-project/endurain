@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Request, Response, status
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_service as auth_identity_service
-import modules.auth.mfa.backup_codes.schema as mfa_backup_codes_schema
 import modules.auth.mfa.schema as mfa_schema
+import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.users.users.schema as users_schema
 
 router = APIRouter()

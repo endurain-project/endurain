@@ -6,7 +6,7 @@ import secrets
 
 from sqlalchemy.orm import Session
 
-import modules.auth.mfa.backup_codes.crud as mfa_backup_codes_crud
+import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 from modules.auth._internal.password_hasher import SupportsVerifyPassword
 
 # Backup-code alphabet: uppercase ASCII + digits with visually ambiguous

@@ -7,8 +7,8 @@ from sqlalchemy import CursorResult, delete, select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
-import modules.auth.sessions.rotated_refresh_tokens.models as rotated_token_models
-import modules.auth.sessions.rotated_refresh_tokens.schema as rotated_token_schema
+import modules.auth.rotated_refresh_tokens.models as rotated_token_models
+import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
 
 @core_decorators.handle_db_errors

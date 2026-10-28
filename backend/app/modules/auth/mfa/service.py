@@ -29,10 +29,10 @@ from sqlalchemy.orm import Session
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.auth.mfa.backup_codes.crud as mfa_backup_codes_crud
-import modules.auth.mfa.backup_codes.utils as mfa_backup_codes_utils
 import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.mfa.schema as mfa_schema
+import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
+import modules.auth.mfa_backup_codes.utils as mfa_backup_codes_utils
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)

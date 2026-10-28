@@ -10,7 +10,7 @@ from core.database import Base
 
 if TYPE_CHECKING:
     from modules.auth.oauth_state.models import OAuthState
-    from modules.auth.sessions.rotated_refresh_tokens.models import (
+    from modules.auth.rotated_refresh_tokens.models import (
         RotatedRefreshToken,
     )
 

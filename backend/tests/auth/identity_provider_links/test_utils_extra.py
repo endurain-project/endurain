@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from modules.auth.identity_providers.links import utils as user_idp_utils
+from modules.auth.identity_provider_links import utils as user_idp_utils
 
 
 class TestEnrichUserIdentityProviders:
@@ -76,7 +76,7 @@ class TestEnrichUserIdentityProviders:
         mock_idp2.provider_type = "oauth2"
 
         with patch(
-            "modules.auth.identity_providers.links.utils.idp_crud.get_identity_providers_by_ids"
+            "modules.auth.identity_provider_links.utils.idp_crud.get_identity_providers_by_ids"
         ) as mock_get_idps:
             mock_get_idps.return_value = [mock_idp1, mock_idp2]
 
@@ -129,10 +129,8 @@ class TestEnrichUserIdentityProviders:
         mock_idp1.provider_type = "oauth2"
 
         with (
-            patch(
-                "modules.auth.identity_providers.links.utils.idp_crud.get_identity_providers_by_ids"
-            ) as mock_get_idps,
-            patch("modules.auth.identity_providers.links.utils.logger") as mock_logger,
+            patch("modules.auth.identity_provider_links.utils.idp_crud.get_identity_providers_by_ids") as mock_get_idps,
+            patch("modules.auth.identity_provider_links.utils.logger") as mock_logger,
         ):
             mock_get_idps.return_value = [mock_idp1]
 
@@ -163,10 +161,8 @@ class TestEnrichUserIdentityProviders:
         mock_link.linked_at = now
 
         with (
-            patch(
-                "modules.auth.identity_providers.links.utils.idp_crud.get_identity_providers_by_ids"
-            ) as mock_get_idps,
-            patch("modules.auth.identity_providers.links.utils.logger") as mock_logger,
+            patch("modules.auth.identity_provider_links.utils.idp_crud.get_identity_providers_by_ids") as mock_get_idps,
+            patch("modules.auth.identity_provider_links.utils.logger") as mock_logger,
         ):
             mock_get_idps.return_value = []
 
@@ -193,7 +189,7 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_providers.links.utils.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.utils.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_link = MagicMock()
             mock_link.idp_refresh_token = "encrypted_token_xyz"
@@ -216,7 +212,7 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_providers.links.utils.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.utils.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
 
@@ -237,7 +233,7 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_providers.links.utils.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.utils.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_link = MagicMock()
             mock_link.idp_refresh_token = None

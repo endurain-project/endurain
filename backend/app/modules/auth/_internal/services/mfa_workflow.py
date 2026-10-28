@@ -23,11 +23,11 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
-import modules.auth.mfa.backup_codes.crud as mfa_backup_codes_crud
-import modules.auth.mfa.backup_codes.schema as mfa_backup_codes_schema
 import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.service as mfa_service
+import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
+import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 from modules.auth.mfa.setup_store import MFASecretStoreBackend

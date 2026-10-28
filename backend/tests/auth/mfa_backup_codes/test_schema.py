@@ -1,5 +1,5 @@
 """
-Tests for auth.mfa.backup_codes.schema module.
+Tests for auth.mfa_backup_codes.schema module.
 
 This module tests Pydantic schemas for MFA backup codes.
 """
@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-import modules.auth.mfa.backup_codes.schema as mfa_schema
+import modules.auth.mfa_backup_codes.schema as mfa_schema
 
 
 class TestMFABackupCodesResponse:

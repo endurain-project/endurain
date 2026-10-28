@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
 import core.logger as core_logger
+import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
+import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.sessions.rotated_refresh_tokens.crud as rotated_token_crud
-import modules.auth.sessions.rotated_refresh_tokens.schema as rotated_token_schema
 import modules.auth.token_hashing as token_hashing
 from core.database import SessionLocal
 

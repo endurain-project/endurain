@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.auth.identity_providers.link_tokens.models as idp_link_token_models
-import modules.auth.identity_providers.link_tokens.schema as idp_link_token_schema
+import modules.auth.identity_provider_link_tokens.models as idp_link_token_models
+import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 
 logger = core_logger.get_logger(__name__)
 
