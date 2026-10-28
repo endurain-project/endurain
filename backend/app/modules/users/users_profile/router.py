@@ -17,11 +17,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, Security, UploadFile, status
 from fastapi.responses import StreamingResponse
 
+import core.config as core_config
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.authentication.dependencies as auth_authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_service as auth_identity_service
 import modules.users.users.integration_service as users_integration
@@ -351,7 +353,7 @@ def delete_my_account(
     deletion = profile_service.delete_account(
         token_user_id, step_up, identity_service, step_up_store, state, storage, db
     )
-    identity_service.clear_session_cookies(response)
+    auth_authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
     return deletion
 
 

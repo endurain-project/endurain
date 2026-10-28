@@ -1199,7 +1199,8 @@ class TestDeleteMyAccount:
     """Tests for POST /profile/delete-account — delete_my_account."""
 
     @patch("modules.users.users_profile.router.profile_service.delete_account")
-    def test_success(self, mock_delete, profile_client, mock_identity_service):
+    @patch("modules.users.users_profile.router.auth_authentication_dependencies.clear_refresh_token_cookies")
+    def test_success(self, mock_clear_cookies, mock_delete, profile_client, mock_identity_service):
         mock_delete.return_value = users_schema.UserDeletionStatus(status="queued")
         response = profile_client.post(
             PREFIX + "/delete-account",
@@ -1210,7 +1211,7 @@ class TestDeleteMyAccount:
         assert response.json() == {"status": "queued"}
         assert mock_delete.call_args.args[0] == 1
         assert mock_delete.call_args.args[1].current_password == "secret-password"
-        mock_identity_service.clear_session_cookies.assert_called_once()
+        mock_clear_cookies.assert_called_once()
 
     @patch("modules.users.users_profile.router.profile_service.delete_account")
     def test_the_only_administrator_is_refused(self, mock_delete, profile_client, mock_identity_service):

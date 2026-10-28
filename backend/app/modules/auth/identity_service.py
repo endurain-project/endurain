@@ -29,26 +29,23 @@ never use a module-level singleton.
 
 from __future__ import annotations
 
-import hmac
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Protocol, runtime_checkable
 
 from fastapi import Depends, HTTPException, Request, Response, status
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import core.network as core_network
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.account_security.account_security_service as auth_account_security_service
 import modules.auth.account_security.identity_link_service as auth_identity_link_service
 import modules.auth.account_security.mfa_workflow_service as auth_mfa_workflow
 import modules.auth.account_security.step_up_service as auth_step_up_service
 import modules.auth.account_security.step_up_store as auth_step_up_store
-import modules.auth.api_keys.integration_service as auth_api_keys_integration
+import modules.auth.authentication.principal_service as auth_principal_service
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.credentials.integration_service as auth_password_policy
@@ -57,7 +54,6 @@ import modules.auth.sessions.integration_service as auth_sessions_crud
 import modules.auth.sign_up_tokens.integration_service as auth_sign_up_tokens_integration
 import modules.auth.utils as auth_utils
 import modules.server_settings.contracts as server_settings_contracts
-import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 from modules.auth.principal import (
     AccessTokenCred,
@@ -853,28 +849,8 @@ class DefaultIdentityService:
         scopes: list[str],
         credential: (PasswordCred | AccessTokenCred | ApiKeyCred | SessionCookieCred | OAuthCred),
     ) -> Principal:
-        """Build a ``Principal`` from an ORM user row.
-
-        Args:
-            user: SQLAlchemy ``Users`` model instance.
-            scopes: List of granted OAuth2 scope strings.
-            credential: Typed credential variant.
-
-        Returns:
-            Principal: Frozen principal ready to cache on
-                ``request.state``.
-        """
-        return Principal(
-            user_id=user.id,  # type: ignore[attr-defined]
-            username=user.username,  # type: ignore[attr-defined]
-            email=user.email,  # type: ignore[attr-defined]
-            is_active=bool(user.active),  # type: ignore[attr-defined]
-            is_superuser=(
-                user.access_type == "admin"  # type: ignore[attr-defined]
-            ),
-            scopes=frozenset(scopes),
-            credential=credential,
-        )
+        """Delegate principal operations to authentication.principal_service."""
+        return auth_principal_service._build_principal(user, scopes, credential)
 
     # ------------------------------------------------------------------
     # Protocol methods
@@ -885,197 +861,30 @@ class DefaultIdentityService:
         username: str,
         password: str,
     ) -> Principal:
-        """Verify username/password and return a Principal.
-
-        Args:
-            username: The username supplied by the caller.
-            password: The plaintext password to verify.
-
-        Returns:
-            Principal: Resolved principal with a
-                :class:`~auth.principal.PasswordCred`.
-
-        Raises:
-            HTTPException: 401 if the credentials are
-                invalid or the account does not exist.
-        """
-        user = auth_utils.authenticate_user(
-            username,
-            password,
-            self._password_hasher,
-            self._db,
-        )
-        # Scopes are determined by the token-issuing step;
-        # at password-auth time we return an empty set so
-        # callers know authentication succeeded but must
-        # call issue_token_pair to get scoped tokens.
-        return self._build_principal(user, [], PasswordCred(username=username))
+        """Delegate principal operations to authentication.principal_service."""
+        return auth_principal_service.authenticate_password(username, password, self._password_hasher, self._db)
 
     def resolve_from_access_token(
         self,
         access_token: str,
     ) -> Principal:
-        """Validate a JWT access token and return a Principal.
-
-        Args:
-            access_token: The raw JWT string from the
-                Authorization header.
-
-        Returns:
-            Principal: Resolved principal with an
-                :class:`~auth.principal.AccessTokenCred`.
-
-        Raises:
-            HTTPException: 401 if the token is expired,
-                invalid, or the user is not found.
-        """
-        self._token_manager.validate_access_expiration_logged(access_token)
-
-        sub = self._token_manager.get_token_claim(access_token, "sub")
-        if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: 'sub' claim must be a decimal string",
-            )
-
-        scope = self._token_manager.get_token_claim(access_token, "scope")
-        if not isinstance(scope, list):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: 'scope' claim must be a list",
-            )
-
-        sid = self._token_manager.get_token_claim(access_token, "sid")
-        if not isinstance(sid, str):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=("Invalid token: 'sid' claim must be a string"),
-            )
-
-        user = users_integration.require_user(int(sub), self._db)
-        users_integration.require_active_user(user)
-
-        return self._build_principal(
-            user,
-            scope,
-            AccessTokenCred(session_id=sid),
-        )
+        """Delegate principal operations to authentication.principal_service."""
+        return auth_principal_service.resolve_from_access_token(access_token, self._token_manager, self._db)
 
     def resolve_from_api_key(
         self,
         raw_key: str,
         request: Request,
     ) -> Principal:
-        """Validate a raw API key and return a Principal.
-
-        Args:
-            raw_key: The plain-text API key from the
-                ``X-API-Key`` header or ``?api_key=``
-                query parameter.
-            request: The current HTTP request (used for
-                audit logging).
-
-        Returns:
-            Principal: Resolved principal with an
-                :class:`~auth.principal.ApiKeyCred`.
-
-        Raises:
-            HTTPException: 401 if the key is not found,
-                revoked, or expired.
-        """
-        computed_hash = auth_api_keys_integration.hash_api_key(raw_key)
-        db_key = auth_api_keys_integration.get_api_key_by_hash(computed_hash, self._db)
-
-        # Constant-time comparison prevents timing attacks
-        # even when the key is not found.
-        stored_hash = db_key.key_hash if db_key else ("0" * 64)
-        if not hmac.compare_digest(stored_hash, computed_hash):
-            db_key = None
-
-        if db_key is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid API key",
-                headers={"WWW-Authenticate": "ApiKey"},
-            )
-
-        user = users_integration.require_user(db_key.user_id, self._db)
-        users_integration.require_active_user(user)
-
-        if not db_key.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="API key has been revoked",
-                headers={"WWW-Authenticate": "ApiKey"},
-            )
-
-        if db_key.expires_at is not None and datetime.now(UTC) > db_key.expires_at:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="API key has expired",
-                headers={"WWW-Authenticate": "ApiKey"},
-            )
-
-        # Best-effort last_used_at update; never fails the request.
-        try:
-            auth_api_keys_integration.update_last_used(db_key.id, self._db)
-        except SQLAlchemyError as err:
-            logger.warning(f"Failed to update last_used_at for API key {db_key.id}: {err}", exc_info=err)
-
-        logger.info(
-            "API key authenticated",
-            extra=core_logger.context(
-                key_prefix=db_key.key_prefix,
-                user_id=db_key.user_id,
-                endpoint=request.url.path,
-                ip=core_network.get_ip_address(request),
-            ),
-        )
-
-        scopes = auth_api_keys_integration.json_to_scopes(db_key.scopes)
-        return self._build_principal(
-            user,
-            scopes,
-            ApiKeyCred(
-                api_key_id=db_key.id,
-                key_prefix=db_key.key_prefix,
-            ),
-        )
+        """Delegate principal operations to authentication.principal_service."""
+        return auth_principal_service.resolve_from_api_key(raw_key, request, self._db)
 
     def resolve_from_session_cookie(
         self,
         session_id: str,
     ) -> Principal:
-        """Validate a session ID and return a Principal.
-
-        Args:
-            session_id: The session identifier from the
-                cookie or token ``sid`` claim.
-
-        Returns:
-            Principal: Resolved principal with a
-                :class:`~auth.principal.SessionCookieCred`.
-
-        Raises:
-            HTTPException: 401 if the session is not
-                found or has expired.
-        """
-        db_session = auth_sessions_crud.get_session_by_id_not_expired(session_id, self._db)
-        if db_session is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session not found or expired",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        user = users_integration.require_user(db_session.user_id, self._db)
-        users_integration.require_active_user(user)
-
-        return self._build_principal(
-            user,
-            [],
-            SessionCookieCred(session_id=session_id),
-        )
+        """Delegate principal operations to authentication.principal_service."""
+        return auth_principal_service.resolve_from_session_cookie(session_id, self._db)
 
     def issue_token_pair(
         self,
@@ -1083,39 +892,16 @@ class DefaultIdentityService:
         policy: server_settings_contracts.SessionPolicy,
         session_id: str | None = None,
     ) -> tuple[str, datetime, str, datetime, str, str]:
-        """Issue an access/refresh token pair for a user.
-
-        Args:
-            user: The validated user object.
-            policy: The token lifetimes to apply.
-            session_id: Optional existing session
-                identifier; a new UUID is generated
-                when ``None``.
-
-        Returns:
-            tuple: ``(session_id, access_token_exp,
-                access_token, refresh_token_exp,
-                refresh_token, csrf_token)``.
-        """
-        return auth_utils.create_tokens(user, self._token_manager, policy, session_id)
+        """Delegate principal operations to authentication.principal_service."""
+        return auth_principal_service.issue_token_pair(user, policy, self._token_manager, session_id)
 
     def revoke_session(
         self,
         session_id: str,
         user_id: int,
     ) -> None:
-        """Revoke and delete a session.
-
-        Args:
-            session_id: The session to revoke.
-            user_id: Owner of the session (used to
-                prevent cross-user revocations).
-
-        Raises:
-            HTTPException: 404 if the session is not
-                found for this user.
-        """
-        auth_sessions_crud.delete_session(session_id, user_id, self._db)
+        """Delegate principal operations to authentication.principal_service."""
+        return auth_principal_service.revoke_session(session_id, user_id, self._db)
 
     def check_scope(
         self,

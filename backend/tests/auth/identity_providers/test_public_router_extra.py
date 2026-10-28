@@ -238,7 +238,7 @@ class TestTokenExchange:
 
     @patch("modules.auth.identity_providers.service.users_integration.require_user")
     @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
-    @patch("modules.auth.identity_providers.public_router.auth_utils.create_tokens")
+    @patch("modules.auth.identity_providers.public_router.authentication_service.create_tokens")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
@@ -289,7 +289,7 @@ class TestTokenExchange:
         )
 
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
-    @patch("modules.auth.identity_providers.public_router.auth_utils.create_tokens")
+    @patch("modules.auth.identity_providers.public_router.authentication_service.create_tokens")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
     def test_client_type_mismatch_does_not_mint_tokens_or_claim_session(

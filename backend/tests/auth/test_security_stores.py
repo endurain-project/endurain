@@ -10,6 +10,7 @@ from jasil.providers import StateBackendUnavailableError
 
 import modules.auth._internal.security_stores as security_stores
 import modules.auth.account_security.step_up_store as step_up_store_module
+import modules.auth.authentication.failed_login_store as failed_login_store
 
 
 class TestNormalizeUsernameKey:
@@ -73,8 +74,8 @@ class TestUsernameLogIdentifier:
 class TestFailedLoginAttempts:
     """Login lockout: 5/10/20 failures -> 5m/30m/24h."""
 
-    def _store(self) -> security_stores.FailedLoginAttempts:
-        return security_stores.FailedLoginAttempts(state=MemoryState())
+    def _store(self) -> failed_login_store.FailedLoginAttempts:
+        return failed_login_store.FailedLoginAttempts(state=MemoryState())
 
     def test_not_locked_initially(self):
         store = self._store()
@@ -171,22 +172,22 @@ class TestUnavailable:
         return state
 
     def test_record_failed_attempt_raises(self):
-        store = security_stores.FailedLoginAttempts(state=self._failing_state())
+        store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
             store.record_failed_attempt("alice")
 
     def test_is_locked_out_raises(self):
-        store = security_stores.FailedLoginAttempts(state=self._failing_state())
+        store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
             store.is_locked_out("alice")
 
     def test_reset_raises(self):
-        store = security_stores.FailedLoginAttempts(state=self._failing_state())
+        store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
             store.reset_attempts("alice")
 
     def test_clear_all_raises(self):
-        store = security_stores.FailedLoginAttempts(state=self._failing_state())
+        store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
             store.clear_all()
 
@@ -195,7 +196,9 @@ class TestDependencyFunctions:
     """Module-level singletons and helpers."""
 
     def test_get_failed_login_attempts_returns_singleton(self):
-        assert security_stores.get_failed_login_attempts() is security_stores.failed_login_attempts
+        assert failed_login_store.get_failed_login_attempts(
+            MemoryState()
+        ) != failed_login_store.get_failed_login_attempts(MemoryState())
 
     def test_get_step_up_attempts_uses_injected_provider(self):
         state = MemoryState()

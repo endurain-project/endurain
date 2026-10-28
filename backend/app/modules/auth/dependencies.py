@@ -22,17 +22,32 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import SecurityScopes
 
 import modules.auth.account_security.step_up_store as account_security_step_up_store
+import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
+import modules.auth.principal as auth_principal
 from modules.auth._internal.internal_dependencies import (
     AuthContext,
-    _resolve_and_cache_principal,
     get_access_token,
     get_sid_from_access_token,
     get_sub_from_access_token,
     get_user_id_from_auth,
     validate_access_token_or_api_key,
 )
+
+
+def _resolve_and_cache_principal(
+    access_token: str,
+    request: Request,
+    identity_service: auth_identity_service.IdentityService,
+) -> auth_principal.Principal:
+    """Resolve a principal once per request and cache it on the request state."""
+    cached = getattr(request.state, "principal", None)
+    if cached is not None:
+        return cached
+    principal = authentication_integration.resolve_from_access_token(access_token, identity_service)
+    request.state.principal = principal
+    return principal
 
 
 def validate_access_token(

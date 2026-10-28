@@ -16,7 +16,6 @@ through :class:`~auth.identity_service.IdentityService`, which also asserts the
 user exists and is active). Use that instead.
 """
 
-import logging
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -28,11 +27,9 @@ from fastapi import (
     status,
 )
 from fastapi.security import (
-    APIKeyCookie,
     APIKeyHeader,
     OAuth2PasswordBearer,
 )
-from joserfc.errors import MissingClaimError
 
 import core.config as core_config
 import core.exceptions as core_exceptions
@@ -40,8 +37,30 @@ import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.constants as auth_constants
 import modules.auth.identity_service as auth_identity_service
-import modules.auth.utils as auth_utils
+from modules.auth.authentication.dependencies import (
+    ClientTypeHeader,
+    cookie_refresh_token_scheme,
+    get_and_return_refresh_token,
+    get_refresh_token,
+    get_sid_from_refresh_token,
+    get_sub_from_refresh_token,
+    header_client_type_scheme,
+    header_csrf_token_scheme,
+    validate_refresh_token,
+)
 from modules.auth.principal import AccessTokenCred, Principal
+
+__all__ = [
+    "ClientTypeHeader",
+    "cookie_refresh_token_scheme",
+    "get_and_return_refresh_token",
+    "get_refresh_token",
+    "get_sid_from_refresh_token",
+    "get_sub_from_refresh_token",
+    "header_client_type_scheme",
+    "header_csrf_token_scheme",
+    "validate_refresh_token",
+]
 
 logger = core_logger.get_logger(__name__)
 
@@ -53,23 +72,7 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
-class ClientTypeHeader(APIKeyHeader):
-    """Required ``X-Client-Type`` header whose absence is a 400, not an authentication failure."""
-
-    def make_not_authenticated_error(self) -> HTTPException:
-        """Build the error raised when the header is missing.
-
-        Returns:
-            A 400 naming the missing header, so an integrator does not mistake it for bad credentials.
-        """
-        return HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing required X-Client-Type header (web or mobile)",
-        )
-
-
 # Define the API key header for the client type
-header_client_type_scheme = ClientTypeHeader(name="X-Client-Type")
 
 # Define the API key header for third-party API key auth
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -97,13 +100,8 @@ class AuthContext:
 
 
 # Define the API key header for CSRF token
-header_csrf_token_scheme = APIKeyHeader(name="X-CSRF-Token", auto_error=False)
 
 # Define the API key cookie for the refresh token
-cookie_refresh_token_scheme = APIKeyCookie(
-    name="endurain_refresh_token",
-    auto_error=False,
-)
 
 
 def _resolve_and_cache_principal(
@@ -350,165 +348,6 @@ def get_sid_from_access_token(
 
 
 ## REFRESH TOKEN VALIDATION
-def get_refresh_token(
-    non_cookie_refresh_token: Annotated[str | None, Depends(oauth2_scheme)],
-    cookie_refresh_token: str | None = Depends(cookie_refresh_token_scheme),
-    client_type: str = Depends(header_client_type_scheme),
-) -> str | None:
-    """
-    Retrieves the refresh token from either the Authorization header or a cookie, depending on the client type.
-
-    Args:
-        non_cookie_refresh_token (str | None): The refresh token provided via the Authorization header (if present).
-        cookie_refresh_token (str | None): The refresh token provided via a cookie (if present).
-        client_type (str): The type of client making the request, extracted from the request headers.
-
-    Returns:
-        str: The resolved refresh token based on the provided sources and client type.
-
-    Raises:
-        HTTPException: If no valid refresh token is found or the client type is invalid.
-    """
-    return get_token(non_cookie_refresh_token, cookie_refresh_token, client_type, auth_token_manager.TokenType.REFRESH)
-
-
-def validate_refresh_token(
-    refresh_token: Annotated[str, Depends(get_refresh_token)],
-    token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
-    ],
-) -> None:
-    """
-    Validates the expiration of a refresh token using the provided token manager.
-
-    Args:
-        refresh_token (str): The refresh token to be validated, extracted via dependency injection.
-        token_manager (auth_token_manager.TokenManager): The token manager instance used to validate the token, injected via dependency.
-
-    Raises:
-        HTTPException: If the refresh token is expired or invalid, or if an unexpected error occurs during validation.
-
-    Logs:
-        Errors and unexpected exceptions are logged with context, including a redacted refresh token.
-    """
-    try:
-        # Validate the token expiration and type
-        token_manager.validate_token_expiration(
-            refresh_token,
-            auth_token_manager.TokenType.REFRESH,
-        )
-    except HTTPException as http_err:
-        log_level = logging.DEBUG if "expired" in http_err.detail.lower() else logging.ERROR
-        logger.log(
-            log_level,
-            f"Refresh token validation failed: {http_err.detail}",
-            exc_info=http_err,
-            extra=core_logger.context(credential="refresh_token"),
-        )
-        # If a pre-upgrade token (e.g. missing the ``typ`` claim) reaches
-        # this point the SPA would otherwise loop forever: every page load
-        # would resend the same stale cookie, refresh would 401, and the
-        # client would never recover. A custom exception handler clears
-        # both the legacy root-scoped cookie and the current auth-scoped
-        # cookie using separate Set-Cookie headers. We only do this for
-        # ``MissingClaimError``-style failures to avoid logging users out
-        # on transient issues.
-        if isinstance(http_err.__cause__, MissingClaimError):
-            raise auth_utils.ClearRefreshTokenCookieHTTPException(
-                status_code=http_err.status_code,
-                detail=http_err.detail,
-                headers=http_err.headers,
-            ) from http_err
-        raise
-    except core_exceptions.DomainError as err:
-        raise HTTPException(status_code=err.status_code, detail=err.detail) from err
-    except Exception as err:
-        logger.error(
-            f"Unexpected error during refresh token validation: {type(err).__name__}",
-            exc_info=err,
-            extra=core_logger.context(credential="refresh_token"),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during token validation",
-        ) from err
-
-
-def get_sub_from_refresh_token(
-    refresh_token: Annotated[str, Depends(get_refresh_token)],
-    token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
-    ],
-) -> int:
-    """
-    Retrieves the user ID ('sub' claim) from a given refresh token.
-
-    Args:
-        refresh_token (str): The refresh token from which to extract the user ID.
-        token_manager (auth_token_manager.TokenManager): The token manager instance used to validate and parse the token.
-
-    Returns:
-        int: The user ID associated with the provided refresh token.
-
-    Raises:
-        Exception: If the token is invalid or the 'sub' claim is not found.
-    """
-    # Return the user ID associated with the token
-    sub = token_manager.get_token_claim(refresh_token, "sub")
-    if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sub' claim must be a decimal string",
-        )
-    return int(sub)
-
-
-def get_sid_from_refresh_token(
-    refresh_token: Annotated[str, Depends(get_refresh_token)],
-    token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
-    ],
-) -> str:
-    """
-    Retrieves the session ID ('sid') from a given refresh token.
-
-    Args:
-        refresh_token (str): The refresh token from which to extract the session ID.
-        token_manager (auth_token_manager.TokenManager): The token manager used to validate and extract claims from the token.
-
-    Returns:
-        str: The session ID associated with the provided refresh token.
-
-    Raises:
-        Exception: If the token is invalid or the 'sid' claim is not present.
-    """
-    # Return the session ID associated with the token
-    sid = token_manager.get_token_claim(refresh_token, "sid")
-    if not isinstance(sid, str):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sid' claim must be a string",
-        )
-    return sid
-
-
-def get_and_return_refresh_token(
-    refresh_token: Annotated[str, Depends(get_refresh_token)],
-) -> str:
-    """
-    Retrieves and returns the refresh token from the request dependencies.
-
-    Args:
-        refresh_token (str): The refresh token extracted via dependency injection.
-
-    Returns:
-        str: The provided refresh token.
-    """
-    # Return token
-    return refresh_token
 
 
 ## API KEY + UNIFIED AUTH

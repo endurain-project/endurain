@@ -46,11 +46,11 @@ import modules.activities.activity_streams.router as activity_streams_router
 import modules.activities.activity_thumbnail.public_router as activity_thumbnail_public_router
 import modules.activities.activity_workout_steps.public_router as activity_workout_steps_public_router
 import modules.auth.account_security.identity_links_router as auth_idp_profile_router
-import modules.auth.identity_providers.public_router as idp_public_router
 import modules.auth.account_security.mfa_router as auth_mfa_profile_router
-import modules.auth.password_reset_tokens.public_router as password_reset_router
-import modules.auth.router as auth_router
 import modules.auth.account_security.sessions_router as auth_sessions_profile_router
+import modules.auth.authentication.public_router as auth_router
+import modules.auth.identity_providers.public_router as idp_public_router
+import modules.auth.password_reset_tokens.public_router as password_reset_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
 import modules.followers.router as followers_router

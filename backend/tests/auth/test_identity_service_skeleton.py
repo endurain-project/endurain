@@ -215,10 +215,10 @@ class TestResolveFromAccessToken:
 
         with (
             patch(
-                "modules.auth.identity_service.users_integration.require_user",
+                "modules.auth.authentication.principal_service.users_integration.require_user",
                 return_value=mock_user,
             ),
-            patch("modules.auth.identity_service.users_integration.require_active_user"),
+            patch("modules.auth.authentication.principal_service.users_integration.require_active_user"),
         ):
             result = service.resolve_from_access_token("token123")
 
@@ -315,21 +315,21 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.hash_api_key",
                 return_value="a" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
-                "modules.auth.identity_service.users_integration.require_user",
+                "modules.auth.authentication.principal_service.users_integration.require_user",
                 return_value=mock_user,
             ),
-            patch("modules.auth.identity_service.users_integration.require_active_user"),
-            patch("modules.auth.identity_service.auth_api_keys_integration.update_last_used"),
+            patch("modules.auth.authentication.principal_service.users_integration.require_active_user"),
+            patch("modules.auth.authentication.principal_service.auth_api_keys_integration.update_last_used"),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.json_to_scopes",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.json_to_scopes",
                 return_value=["profile"],
             ),
         ):
@@ -350,11 +350,11 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.hash_api_key",
                 return_value="b" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=None,
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -378,18 +378,18 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.hash_api_key",
                 return_value="c" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
-                "modules.auth.identity_service.users_integration.require_user",
+                "modules.auth.authentication.principal_service.users_integration.require_user",
                 return_value=_mock_user(),
             ),
-            patch("modules.auth.identity_service.users_integration.require_active_user"),
+            patch("modules.auth.authentication.principal_service.users_integration.require_active_user"),
             pytest.raises(HTTPException) as exc_info,
         ):
             service.resolve_from_api_key("revoked", mock_request)
@@ -411,18 +411,18 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.hash_api_key",
                 return_value="d" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
-                "modules.auth.identity_service.users_integration.require_user",
+                "modules.auth.authentication.principal_service.users_integration.require_user",
                 return_value=_mock_user(),
             ),
-            patch("modules.auth.identity_service.users_integration.require_active_user"),
+            patch("modules.auth.authentication.principal_service.users_integration.require_active_user"),
             pytest.raises(HTTPException) as exc_info,
         ):
             service.resolve_from_api_key("expired_key", mock_request)
@@ -450,24 +450,24 @@ class TestResolveFromApiKey:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.hash_api_key",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.hash_api_key",
                 return_value="e" * 64,
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.get_api_key_by_hash",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.get_api_key_by_hash",
                 return_value=mock_db_key,
             ),
             patch(
-                "modules.auth.identity_service.users_integration.require_user",
+                "modules.auth.authentication.principal_service.users_integration.require_user",
                 return_value=mock_user,
             ),
-            patch("modules.auth.identity_service.users_integration.require_active_user"),
+            patch("modules.auth.authentication.principal_service.users_integration.require_active_user"),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.update_last_used",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.update_last_used",
                 side_effect=SQLAlchemyError("db down"),
             ),
             patch(
-                "modules.auth.identity_service.auth_api_keys_integration.json_to_scopes",
+                "modules.auth.authentication.principal_service.auth_api_keys_integration.json_to_scopes",
                 return_value=["profile"],
             ),
         ):
@@ -496,14 +496,14 @@ class TestResolveFromSessionCookie:
 
         with (
             patch(
-                "modules.auth.identity_service.auth_sessions_crud.get_session_by_id_not_expired",
+                "modules.auth.authentication.principal_service.auth_sessions_crud.get_session_by_id_not_expired",
                 return_value=mock_session,
             ),
             patch(
-                "modules.auth.identity_service.users_integration.require_user",
+                "modules.auth.authentication.principal_service.users_integration.require_user",
                 return_value=mock_user,
             ),
-            patch("modules.auth.identity_service.users_integration.require_active_user"),
+            patch("modules.auth.authentication.principal_service.users_integration.require_active_user"),
         ):
             result = service.resolve_from_session_cookie("sess-abc")
 
@@ -518,7 +518,7 @@ class TestResolveFromSessionCookie:
         """Raises 401 when the session is not found or expired."""
         with (
             patch(
-                "modules.auth.identity_service.auth_sessions_crud.get_session_by_id_not_expired",
+                "modules.auth.authentication.principal_service.auth_sessions_crud.get_session_by_id_not_expired",
                 return_value=None,
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -600,7 +600,7 @@ class TestRevokeSession:
         service: DefaultIdentityService,
     ):
         """Delegates to auth_sessions_crud.delete_session."""
-        with patch("modules.auth.identity_service.auth_sessions_crud.delete_session") as mock_delete:
+        with patch("modules.auth.authentication.principal_service.auth_sessions_crud.delete_session") as mock_delete:
             service.revoke_session("sess-1", user_id=42)
 
         mock_delete.assert_called_once_with("sess-1", 42, service._db)
@@ -612,7 +612,7 @@ class TestRevokeSession:
         """Propagates HTTPException(404) raised by delete_session."""
         with (
             patch(
-                "modules.auth.identity_service.auth_sessions_crud.delete_session",
+                "modules.auth.authentication.principal_service.auth_sessions_crud.delete_session",
                 side_effect=HTTPException(status_code=404, detail="not found"),
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -855,7 +855,7 @@ class TestDeleteAllUserSessions:
 
     def test_deletes_every_session_of_the_user(self, service, mock_db):
         with patch(
-            "modules.auth.identity_service.auth_sessions_crud.delete_sessions_by_user", return_value=3
+            "modules.auth.authentication.principal_service.auth_sessions_crud.delete_sessions_by_user", return_value=3
         ) as delete:
             service.delete_all_user_sessions(7)
 

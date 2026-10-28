@@ -38,12 +38,12 @@ import core.scheduler as core_scheduler
 import core.signing as core_signing
 import module_registry as runtime_module_registry
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
+import modules.auth.authentication.dependencies as auth_dependencies
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as idp_link_token_jobs
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_jobs
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
 import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_tokens_jobs
-import modules.auth.utils as auth_utils
 import modules.garmin.integration_service as garmin_integration
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
@@ -434,8 +434,8 @@ def create_app() -> FastAPI:
         core_rate_limit.rate_limit_exceeded_handler,  # type: ignore[arg-type]
     )
     fastapi_app.add_exception_handler(
-        auth_utils.ClearRefreshTokenCookieHTTPException,
-        auth_utils.clear_refresh_token_cookie_exception_handler,  # type: ignore[arg-type]
+        auth_dependencies.ClearRefreshTokenCookieHTTPException,
+        auth_dependencies.clear_refresh_token_cookie_exception_handler,  # type: ignore[arg-type]
     )
     # Single API boundary for the transport-agnostic domain errors raised by the
     # application layers (services, ingestion pipeline, file parsers). Those

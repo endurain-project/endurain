@@ -14,13 +14,14 @@ import core.logger as core_logger
 import core.network as core_network
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as auth_token_manager
+import modules.auth.authentication.dependencies as authentication_dependencies
+import modules.auth.authentication.service as authentication_service
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
 import modules.auth.sessions.integration_service as auth_sessions_crud
-import modules.auth.utils as auth_utils
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 
@@ -548,7 +549,7 @@ def exchange_tokens_for_session(
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = auth_utils.create_tokens(
+        ) = authentication_service.create_tokens(
             user, token_manager, server_settings_integration.get_session_policy(db), session_id
         )
 
@@ -583,13 +584,18 @@ def exchange_tokens_for_session(
 
         # Set refresh token cookie for web clients (enables logout).
         # Cookie attributes (Secure, SameSite, Path, expiry) are
-        # centralised in auth_utils.set_refresh_token_cookie so this
+        # centralised in authentication_dependencies.set_refresh_token_cookie so this
         # SSO flow stays in lockstep with password login and /refresh
         # — previously this site used FRONTEND_PROTOCOL and could
         # issue a non-Secure refresh cookie when that env var was
         # missing or mis-set in production.
         if client_type == "web":
-            auth_utils.set_refresh_token_cookie(response, refresh_token, refresh_token_exp)
+            authentication_dependencies.set_refresh_token_cookie(
+                response,
+                refresh_token,
+                refresh_token_exp,
+                environment=core_config.settings.ENVIRONMENT,
+            )
 
         # Note: tokens_exchanged was flipped atomically together
         # with the refresh-token hash above, so no second write is

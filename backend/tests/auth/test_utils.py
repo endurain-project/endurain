@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, Response
 
-import modules.auth.schema as auth_schema
+import modules.auth.authentication.schema as auth_schema
 import modules.auth.utils as auth_utils
 
 

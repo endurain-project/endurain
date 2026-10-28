@@ -12,8 +12,8 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-import modules.auth.router as auth_router
-import modules.auth.schema as auth_schema
+import modules.auth.authentication.public_router as auth_router
+import modules.auth.authentication.schema as auth_schema
 
 
 class TestLoginRequest:
