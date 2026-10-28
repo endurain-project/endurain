@@ -30,6 +30,7 @@ vi.mock('@/services/http', () => ({
 function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): IdentityProviderDto {
   return {
     id: 3,
+    version: 1,
     name: 'Keycloak',
     slug: 'keycloak',
     provider_type: 'oidc',
@@ -91,6 +92,7 @@ describe('mapIdentityProvider', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     expect(mapIdentityProvider(makeProviderDto())).toEqual({
       id: 3,
+      version: 1,
       name: 'Keycloak',
       slug: 'keycloak',
       providerType: 'oidc',
@@ -192,9 +194,12 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: null }))
+    await updateIdentityProvider(3, makeInput({ clientSecret: null }), 4)
 
-    expect(apiFetch).toHaveBeenCalledWith('/idp/3', expect.objectContaining({ method: 'PUT' }))
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/idp/3',
+      expect.objectContaining({ method: 'PUT', headers: { 'If-Match': '"4"' } }),
+    )
     const parsed = JSON.parse(body as string) as Record<string, unknown>
     expect(parsed).not.toHaveProperty('client_secret')
     expect(parsed).toMatchObject({ name: 'Keycloak', enabled: true })
@@ -207,7 +212,7 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }))
+    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }), 4)
 
     expect((JSON.parse(body as string) as Record<string, unknown>).client_secret).toBe('rotated')
   })

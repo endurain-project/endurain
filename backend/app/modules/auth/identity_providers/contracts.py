@@ -28,5 +28,6 @@ class IdentityProviderState(BaseModel):
     user_mapping: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime
+    version: int
 
     model_config = ConfigDict(from_attributes=True, frozen=True)

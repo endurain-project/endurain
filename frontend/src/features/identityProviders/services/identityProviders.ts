@@ -9,6 +9,7 @@ import type {
 } from '@/features/identityProviders/types'
 
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 
 /**
  * Maps a raw `IdentityProvider` payload to the clean {@link IdentityProvider}
@@ -21,6 +22,7 @@ import { apiFetch } from '@/services/http'
 export function mapIdentityProvider(dto: IdentityProviderDto): IdentityProvider {
   return {
     id: dto.id,
+    version: rowVersion(dto.version),
     name: dto.name,
     slug: dto.slug,
     providerType: dto.provider_type,
@@ -160,12 +162,14 @@ export async function createIdentityProvider(
  *
  * @param id - The provider id.
  * @param input - The clean provider input.
+ * @param version - The provider version read by the editor.
  * @returns The updated provider, mapped to the clean model.
  * @throws {HttpError} When the request fails (e.g. duplicate slug, not found).
  */
 export async function updateIdentityProvider(
   id: number,
   input: IdentityProviderInput,
+  version: number,
 ): Promise<IdentityProvider> {
   const payload: IdentityProviderUpdateDto = { ...toWireBase(input) }
   if (input.clientSecret) {
@@ -173,6 +177,7 @@ export async function updateIdentityProvider(
   }
   const dto = await apiFetch<IdentityProviderDto>(`/idp/${id}`, {
     method: 'PUT',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })
   return mapIdentityProvider(dto)

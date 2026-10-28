@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ListPanel } from '@/components/ui/list-panel'
 import { useToasts } from '@/composables/useToasts'
+import { HttpError } from '@/services/http'
 import { toProviderInput } from '@/features/identityProviders/services/identityProviders'
 import {
   useDeleteIdentityProviderMutation,
@@ -91,12 +92,23 @@ const togglingId = ref<number | null>(null)
 function onToggle(provider: IdentityProvider, enabled: boolean): void {
   togglingId.value = provider.id
   updateMutation.mutate(
-    { id: provider.id, input: { ...toProviderInput(provider), enabled } },
+    {
+      id: provider.id,
+      input: { ...toProviderInput(provider), enabled },
+      version: provider.version,
+    },
     {
       onSuccess: () => {
         toasts.success(enabled ? t('settings.idp.enableSuccess') : t('settings.idp.disableSuccess'))
       },
-      onError: () => toasts.error(t('settings.idp.toggleError')),
+      onError: (error) =>
+        toasts.error(
+          t(
+            error instanceof HttpError && error.status === 412
+              ? 'settings.idp.form.staleError'
+              : 'settings.idp.toggleError',
+          ),
+        ),
       onSettled: () => {
         togglingId.value = null
       },

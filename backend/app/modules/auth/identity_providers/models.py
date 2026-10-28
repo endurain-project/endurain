@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, String
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -35,6 +35,7 @@ class IdentityProvider(Base):
             fields.
         created_at (datetime): Timestamp when the provider was created.
         updated_at (datetime): Timestamp when the provider was last updated.
+        version (int): Optimistic-concurrency counter exposed as the ETag.
     """
 
     __tablename__ = "identity_providers"
@@ -144,3 +145,12 @@ class IdentityProvider(Base):
         onupdate=func.now(),
         comment="When this provider was last updated",
     )
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

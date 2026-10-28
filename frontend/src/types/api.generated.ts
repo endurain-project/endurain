@@ -8418,6 +8418,7 @@ export interface components {
          *         id (int): Unique identifier of the identity provider.
          *         created_at (datetime): Timestamp when the identity provider was created.
          *         updated_at (datetime): Timestamp when the identity provider was last updated.
+         *         version (int): Optimistic-concurrency counter, also sent as the ETag.
          *
          *     Config:
          *         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
@@ -8521,6 +8522,12 @@ export interface components {
              * @description OIDC userinfo endpoint
              */
             userinfo_endpoint?: string | null;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * IdentityProviderTemplate
@@ -16473,6 +16480,8 @@ export interface operations {
             /** @description Successful Response */
             201: {
                 headers: {
+                    /** @description The version of this identity provider */
+                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16531,7 +16540,9 @@ export interface operations {
     update_identity_provider_api_v1_idp__idp_id__put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 idp_id: number;
             };
@@ -16546,14 +16557,34 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description The new version of this identity provider */
+                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["IdentityProviderRead"];
                 };
             };
+            /** @description The identity provider has changed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description If-Match is required */
+            428: {
                 headers: {
                     [name: string]: unknown;
                 };

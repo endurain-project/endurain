@@ -20,6 +20,9 @@ Without this a `PATCH` is last-writer-wins: the app open on a phone and a laptop
 
 The version travels as an HTTP entity tag, the standard mechanism for this, so no bespoke field is needed in every payload. The tag is the version in quotes (`"3"`), a *strong* tag.
 
+The identity-provider administration form edits a stored provider with `PUT /idp/{idp_id}`. Its list items carry the
+version, the create and update responses return an `ETag`, and the update requires that tag in `If-Match`.
+
 ## Where each piece lives
 
 | Layer | File | What it does |

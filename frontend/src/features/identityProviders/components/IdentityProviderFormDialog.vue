@@ -145,7 +145,11 @@ async function submitForm(values: ProviderFormValues): Promise<void> {
   const input = buildInput(values)
   try {
     if (props.provider) {
-      await updateMutation.mutateAsync({ id: props.provider.id, input })
+      await updateMutation.mutateAsync({
+        id: props.provider.id,
+        input,
+        version: props.provider.version,
+      })
       emit('success', t('settings.idp.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)
@@ -153,7 +157,9 @@ async function submitForm(values: ProviderFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (error instanceof HttpError && error.status === 412) {
+      emit('error', t('settings.idp.form.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.idp.form.slugConflict'))
     } else {
       emit('error', t('settings.idp.form.saveError'))

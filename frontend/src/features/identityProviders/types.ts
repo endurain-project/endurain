@@ -35,6 +35,8 @@ export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplate']
  */
 export interface IdentityProvider {
   id: number
+  /** Row version echoed as `If-Match` when the provider is edited. */
+  version: number
   name: string
   slug: string
   providerType: string

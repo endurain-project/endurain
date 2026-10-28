@@ -109,6 +109,7 @@ A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never ma
 | Your default gear | `PATCH /profile/default_gear` |
 | Your goals | `PUT /profile/goals/{id}` |
 | Users (administrators) | `PUT /users/{id}` |
+| Identity providers (administrators) | `PUT /idp/{idp_id}` |
 | Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
 
 Creating, deleting and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`.

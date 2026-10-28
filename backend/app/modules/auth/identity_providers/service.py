@@ -26,6 +26,7 @@ from joserfc.jwk import ECKey, OctKey, RSAKey
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
@@ -193,9 +194,29 @@ class IdentityProviderService:
         return identity_provider_serializers.to_read(state)
 
     def update_identity_provider(
-        self, idp_id: int, data: identity_provider_schema.IdentityProviderUpdate, db: Session
+        self,
+        idp_id: int,
+        data: identity_provider_schema.IdentityProviderUpdate,
+        db: Session,
+        *,
+        if_match: str,
     ) -> identity_provider_schema.IdentityProviderRead:
-        """Update a provider and commit the change."""
+        """Update a provider only when the client's version is current.
+
+        Args:
+            idp_id: Identity-provider row to update.
+            data: Replacement fields.
+            db: Database session.
+            if_match: Version tag the client read.
+
+        Returns:
+            The updated provider.
+
+        Raises:
+            NotFoundError: When the provider is missing or removed during the update.
+            PreconditionFailedError: When the provider changed since the client read it.
+            ConflictError: When the new slug is already in use.
+        """
         current = idp_crud.get_identity_provider(idp_id, db)
         if current is None:
             raise core_exceptions.NotFoundError("Identity provider not found")
@@ -203,10 +224,16 @@ class IdentityProviderService:
         slug = values.get("slug")
         if slug and slug.lower() != current.slug and idp_crud.get_identity_provider_by_slug(slug.lower(), db):
             raise core_exceptions.ConflictError(f"Identity provider with slug '{slug.lower()}' already exists")
-        state = idp_crud.update_identity_provider(idp_id, data, db)
-        if state is None:
-            raise core_exceptions.NotFoundError("Identity provider not found")
-        db.commit()
+        with core_etag.refuse_stale_write(
+            db,
+            "identity provider",
+            lambda: idp_crud.identity_provider_exists(idp_id, db),
+            "Identity provider not found",
+        ):
+            state = idp_crud.update_identity_provider(idp_id, data, db, if_match=if_match)
+            if state is None:
+                raise core_exceptions.NotFoundError("Identity provider not found")
+            db.commit()
         logger.info("Updated identity provider", extra=core_logger.context(idp_id=state.id))
         return identity_provider_serializers.to_read(state)
 

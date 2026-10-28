@@ -672,9 +672,10 @@ one pattern. Recorded here so a review does not reopen them.
   `core.dependencies.IfMatch`, so a request without the header is refused with 428 and a stale one with 412
   (`core.etag.require_if_match`). `If-Match: *` is the explicit "overwrite whatever is there", used by data
   migrations and by a surface that is a system writer (the profile importer, the Garmin sync). Today that covers
-  activities, gears, gear components, server and mail settings, every health table, and the users, privacy
-  settings, default gear and goals tables. A full-record write is a `PUT` and a partial one a `PATCH`; a
-  singleton the caller owns (`/health/targets`, `/profile`, `/profile/privacy`, `/profile/default_gear`) names no id.
+  activities, gears, gear components, identity-provider configuration, server and mail settings, every health
+  table, and the users, privacy settings, default gear and goals tables. A full-record write is a `PUT` and a partial
+  one a `PATCH`; a singleton the caller owns (`/health/targets`, `/profile`, `/profile/privacy`,
+  `/profile/default_gear`) names no id.
   How each layer takes part, and the checklist for a new resource, is in
   [Versioned writes](optimistic-concurrency.md).
 - **Request parameters.** A path or query parameter's constraint is part of its type

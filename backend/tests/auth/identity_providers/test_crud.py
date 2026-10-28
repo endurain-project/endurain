@@ -28,6 +28,7 @@ def _row(**overrides):
         "user_mapping": None,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
+        "version": 1,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -55,6 +56,7 @@ def test_create_provider_stages_and_returns_encrypted_state(mock_db):
         row.id = 1
         row.created_at = datetime.now(UTC)
         row.updated_at = datetime.now(UTC)
+        row.version = 1
 
     mock_db.flush.side_effect = flush
 
@@ -77,12 +79,29 @@ def test_update_provider_stages_without_committing(mock_db):
         client_id="new-client-id",
     )
 
-    state = idp_crud.update_identity_provider(1, data, mock_db)
+    state = idp_crud.update_identity_provider(1, data, mock_db, if_match='"1"')
 
     assert state.name == "Updated"
     assert state.slug == "updated"
     assert state.client_id != "new-client-id"
     mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()
+
+
+def test_update_provider_checks_the_version_before_mutating(mock_db):
+    import pytest
+
+    import core.exceptions as core_exceptions
+
+    row = _row(version=2)
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+    data = idp_schema.IdentityProviderUpdate(name="Stale", slug="provider")
+
+    with pytest.raises(core_exceptions.PreconditionFailedError):
+        idp_crud.update_identity_provider(1, data, mock_db, if_match='"1"')
+
+    assert row.name == "Provider"
+    mock_db.flush.assert_not_called()
     mock_db.commit.assert_not_called()
 
 

@@ -139,6 +139,7 @@ class IdentityProviderRead(IdentityProviderBase):
         id (int): Unique identifier of the identity provider.
         created_at (datetime): Timestamp when the identity provider was created.
         updated_at (datetime): Timestamp when the identity provider was last updated.
+        version (int): Optimistic-concurrency counter, also sent as the ETag.
 
     Config:
         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
@@ -154,6 +155,11 @@ class IdentityProviderRead(IdentityProviderBase):
     id: StrictInt
     created_at: datetime
     updated_at: datetime
+    version: StrictInt = Field(
+        default=1,
+        ge=1,
+        description="Optimistic-concurrency counter, also sent as the ETag",
+    )
 
     model_config = ConfigDict(from_attributes=True, extra="forbid", validate_assignment=True)
 

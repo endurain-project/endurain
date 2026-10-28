@@ -82,9 +82,13 @@ export function useCreateIdentityProviderMutation() {
 export function useUpdateIdentityProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<IdentityProvider, Error, { id: number; input: IdentityProviderInput }>({
+  return useMutation<
+    IdentityProvider,
+    Error,
+    { id: number; input: IdentityProviderInput; version: number }
+  >({
     mutationKey: queryKeys.identityProviders.all(),
-    mutationFn: ({ id, input }) => updateIdentityProvider(id, input),
+    mutationFn: ({ id, input, version }) => updateIdentityProvider(id, input, version),
     onSettled: () => invalidateIdentityProviders(client),
   })
 }
