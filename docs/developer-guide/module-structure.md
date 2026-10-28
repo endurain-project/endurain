@@ -675,7 +675,7 @@ one pattern. Recorded here so a review does not reopen them.
   activities, gears, gear components, identity-provider configuration, server and mail settings, every health
   table, and the users, privacy settings, default gear and goals tables. A full-record write is a `PUT` and a partial
   one a `PATCH`; a singleton the caller owns (`/health/targets`, `/profile`, `/profile/privacy`,
-  `/profile/default_gear`) names no id.
+  `/profile/default-gear`) names no id.
   How each layer takes part, and the checklist for a new resource, is in
   [Versioned writes](optimistic-concurrency.md).
 - **Request parameters.** A path or query parameter's constraint is part of its type
@@ -756,6 +756,22 @@ the conformance test's allowlist.
   off by default. The 30 s pool wait and the 30 s lock timeout are still constants in `core/database.py`.
 - **Observability.** Logs are the only signal; queue depth, job
   duration and dead-letter counts are not exported as metrics.
+- **Broad exception handling.** `except Exception` and `BaseException` handlers are concentrated in `users`
+  (the profile export), `auth` (the identity-provider service) and `activities`, and in the provider sync and
+  link services of `strava` and `garmin`; `followers`, `gears`, `health` and `notifications` have none. Many are
+  deliberate boundaries (a job records a failure and re-raises, a provider call degrades to a warning), but each
+  should name the errors it expects. Narrowing them in bulk risks hiding a real failure as an expected one, so
+  they are narrowed as the code around them is touched.
+- **Oversized services and `*_utils.py` files.** `auth/identity_providers/service.py` (about 2,400 lines),
+  `auth/authentication/service.py` and `users/users_profile/export_service.py` each hold several jobs, and a dozen
+  `utils.py` or `*_utils.py` files (in `auth`, `users_profile`, `users_goals`, `garmin`, `server_settings` and
+  the activity file parsers) name no role. The guide asks that a file's name state its role; splitting these is a
+  refactor with no behaviour change, so it is left until a feature needs the code apart.
+- **Fresh re-authentication for SSO-only step-up.** An account with no local password skips the password factor of
+  a step-up, and has no MFA factor unless MFA is on, so a stolen access token on such an account can create API
+  keys, link a provider or enable MFA without proving anything again. The fix is to require a recent identity
+  provider re-authentication for these accounts, which is a feature of its own; `step_up_service` carries a
+  `TODO(issue)` for it until the tracker issue exists.
 - **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which
   grows with the follow count. A peer-published, read-only query fragment (a followee subquery)
   would avoid the list but needs its own allowed-import entry and test, so it is undecided.
@@ -803,8 +819,8 @@ These constraints remain visible until a coordinated design change resolves them
   scalar foreign keys with database `ON DELETE` behaviour.
 
 - **Auth collections are not paginated.** `GET /sessions/user/{user_id}`,
-  `GET /profile/sessions`, `GET /profile/api_keys`, `GET /idp` and
-  `GET /profile/idp` return bare arrays, against the convention that a list a
+  `GET /profile/sessions`, `GET /profile/api-keys`, `GET /identity-providers` and
+  `GET /profile/identity-providers` return bare arrays, against the convention that a list a
   client receives is a `core.pagination.Page`. Changing these shapes breaks
   existing API clients, including the mobile app, so it waits for a coordinated
   client release.

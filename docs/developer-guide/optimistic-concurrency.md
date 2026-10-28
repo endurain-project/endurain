@@ -24,7 +24,7 @@ The Strava client credentials are versioned with the rest of the user's integrat
 `integrations_version`, and `PUT /strava/client` requires it in `If-Match`. Ending a fast with
 `POST /health/fasting/{id}/complete` changes the session, so it requires the session's version too.
 
-The identity-provider administration form edits a stored provider with `PUT /idp/{idp_id}`. Its list items carry the
+The identity-provider administration form edits a stored provider with `PUT /identity-providers/{idp_id}`. Its list items carry the
 version, the create and update responses return an `ETag`, and the update requires that tag in `If-Match`.
 
 ## Where each piece lives

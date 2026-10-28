@@ -14,7 +14,7 @@
 
 ## Users profile
 
-The profile router also serves the privacy settings routes (`/profile/privacy`). The profile's sessions, two-step verification and identity provider links (`/profile/sessions`, `/profile/mfa` and `/profile/idp`) are served by the auth module; see [Authentication](authentication.md).
+The profile router also serves the privacy settings routes (`/profile/privacy`). The profile's sessions, two-step verification and identity provider links (`/profile/sessions`, `/profile/mfa` and `/profile/identity-providers`) are served by the auth module; see [Authentication](authentication.md).
 
 ::: backend.app.modules.users.users_profile.router
     handler: python

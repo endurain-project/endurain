@@ -32,8 +32,8 @@ Identity providers must be configured with the following parameters:
 Users can link their Endurain account to an OAuth provider:
 
 1. User must be authenticated with a valid session
-2. Create a one-time link token with `POST /profile/idp/{idp_id}/link/token`. Local-password accounts must include `current_password`; accounts with MFA enabled must also include `mfa_code`. SSO-only accounts may omit `current_password`.
-3. Open `/profile/idp/{idp_id}/link?link_token=<token>` in the browser before the token expires (60 seconds)
+2. Create a one-time link token with `POST /profile/identity-providers/{idp_id}/link/token`. Local-password accounts must include `current_password`; accounts with MFA enabled must also include `mfa_code`. SSO-only accounts may omit `current_password`.
+3. Open `/profile/identity-providers/{idp_id}/link?link_token=<token>` in the browser before the token expires (60 seconds)
 4. Authenticate with the identity provider
 5. Provider is linked to the existing account
 

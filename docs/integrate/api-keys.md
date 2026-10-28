@@ -78,7 +78,7 @@ Creating an API key also requires step-up verification because the key is a long
 **Create API Key Request:**
 
 ```http
-POST /api/v1/profile/api_keys
+POST /api/v1/profile/api-keys
 Authorization: Bearer {access_token}
 X-Client-Type: web
 X-CSRF-Token: {csrf_token}
@@ -121,7 +121,7 @@ Content-Type: application/json
 !!! warning "Save the key immediately"
     The `key` field is returned **only in this response**. It is not stored by the server and cannot be retrieved later. Store it in a secure location (e.g., a password manager or secrets vault) before dismissing the response.
 
-**List API Keys Response (`GET /profile/api_keys`):**
+**List API Keys Response (`GET /profile/api-keys`):**
 
 ```json
 [
@@ -141,11 +141,11 @@ Content-Type: application/json
 
 The `key` field is **never** returned in list or subsequent get responses — only `key_prefix` is shown for identification.
 
-**Revoke API Key (`PATCH /profile/api_keys/{id}/revoke`):**
+**Revoke API Key (`POST /profile/api-keys/{id}/revoke`):**
 
 Revocation soft-deletes the key by setting `is_active = false`. Revoked keys are rejected immediately but remain visible in the list (useful for audit purposes). Returns HTTP 204 on success.
 
-**Delete API Key (`DELETE /profile/api_keys/{id}`):**
+**Delete API Key (`DELETE /profile/api-keys/{id}`):**
 
 Permanently removes the key from the database. Returns HTTP 204 on success.
 

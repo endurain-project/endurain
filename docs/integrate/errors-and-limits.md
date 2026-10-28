@@ -106,11 +106,11 @@ A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never ma
 | Health targets | `PATCH /health/targets` |
 | Your profile | `PATCH /profile`, using the profile's `ETag` or `version` |
 | Your privacy settings | `PATCH /profile/privacy`, using `privacy_settings_version` from `GET /profile` (the privacy settings have their own version) |
-| Your default gear | `PATCH /profile/default_gear` |
+| Your default gear | `PATCH /profile/default-gear` |
 | Your goals | `PUT /profile/goals/{id}` |
 | Users (administrators) | `PUT /users/{id}` |
 | Your Strava client credentials | `PUT /strava/client`, using `integrations_version` from `GET /profile` |
-| Identity providers (administrators) | `PUT /idp/{idp_id}` |
+| Identity providers (administrators) | `PUT /identity-providers/{idp_id}` |
 | Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
 
 Creating, deleting and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`.
