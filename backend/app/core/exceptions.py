@@ -106,6 +106,25 @@ class PermissionDeniedError(DomainError):
     default_detail = "Forbidden"
 
 
+class UnauthenticatedError(DomainError):
+    """The caller did not provide valid authentication credentials."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthorized"
+    title = "Unauthorized"
+    default_detail = "Not authenticated"
+
+    def __init__(self, detail: str | None = None, *, scheme: str = "Bearer") -> None:
+        """Initialise the error with the authentication challenge to return.
+
+        Args:
+            detail: Message returned to the client.
+            scheme: Authentication scheme named by ``WWW-Authenticate``.
+        """
+        super().__init__(detail)
+        self.headers = {"WWW-Authenticate": scheme}
+
+
 class InvalidInputError(DomainError):
     """The request is well-formed but semantically unusable."""
 
@@ -340,6 +359,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         code=exc.code,
         title=exc.title,
         detail=exc.detail,
+        headers=getattr(exc, "headers", None),
     )
 
 
