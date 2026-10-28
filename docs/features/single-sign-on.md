@@ -179,6 +179,11 @@ If **Allow local username and password login** is enabled, the auto-redirect is 
 - **Cause**: For security (account-takeover prevention), Endurain auto-links an SSO identity to an **existing** local account by email only when the identity provider asserts the email is verified via the standard OIDC `email_verified` claim. Providers that omit this claim, or report the email as unverified, are refused.
 - **Solution**: Configure the identity provider to verify email addresses and include `email_verified: true` in the userinfo/ID token (request the `email` scope), or link the provider from **Settings → Security** while signed in to the existing account.
 
+**Problem**: "Cannot link this identity provider to an existing account because the account email is not verified" (HTTP 403)
+
+- **Cause**: Endurain also requires the existing local account's email to be verified before it auto-links an SSO identity by email, because an unverified address can be set by anyone on their own account.
+- **Solution**: Verify the email address of the existing account, then sign in with SSO again.
+
 **Problem**: SSO button doesn't appear on login page
 
 - **Solution**: 
