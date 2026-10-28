@@ -177,6 +177,15 @@ def create_signup_user(
     return users_service.create_signup_user(user, server_settings, identity_service, db, persist_credential)
 
 
+def create_sso_user(
+    user: users_schema.UsersSignup,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    db: Session,
+) -> users_schema.UsersRead:
+    """Create an SSO-only user through the users module."""
+    return users_service.create_sso_user(user, server_settings, db)
+
+
 def stage_email_verification(
     user_id: int,
     server_settings: server_settings_schema.ServerSettingsRead,

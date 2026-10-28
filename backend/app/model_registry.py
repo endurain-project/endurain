@@ -4,6 +4,7 @@ import pathlib
 from importlib import import_module
 
 import modules.activities.model_registry as activities_model_registry
+import modules.auth.identity_providers.model_registry as auth_identity_providers_model_registry
 import modules.auth.mfa.model_registry as auth_mfa_model_registry
 import modules.auth.password_reset_tokens.model_registry as password_reset_tokens_model_registry
 import modules.auth.sessions.model_registry as auth_sessions_model_registry
@@ -23,6 +24,7 @@ _CONVERTED_MODEL_MODULES = frozenset(
         *activities_model_registry.MODEL_MODULES,
         *auth_sessions_model_registry.MODEL_MODULES,
         *auth_mfa_model_registry.MODEL_MODULES,
+        *auth_identity_providers_model_registry.MODEL_MODULES,
         *password_reset_tokens_model_registry.MODEL_MODULES,
         *sign_up_tokens_model_registry.MODEL_MODULES,
         *follower_models.MODEL_MODULES,

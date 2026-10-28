@@ -5,13 +5,23 @@ from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.public_router as public_router
+
+public_router.idp_crud = idp_crud
+public_router.idp_service = MagicMock(idp_service=MagicMock())
+_test_service = public_router.idp_service.idp_service
+_test_service.get_identity_provider_by_slug.side_effect = lambda slug, db: idp_crud.get_identity_provider_by_slug(
+    slug, db
+)
 
 
 def _build_app() -> TestClient:
     app = FastAPI()
     app.include_router(public_router.router, prefix="/api/v1/public/idp")
+    app.dependency_overrides[idp_dependencies.get_identity_provider_service] = lambda: _test_service
     return TestClient(app)
 
 

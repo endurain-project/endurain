@@ -17,8 +17,8 @@ import modules.auth.identity_provider_link_tokens.integration_service as idp_lin
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
-import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.integration_service as auth_identity_providers
+import modules.auth.identity_providers.integration_service as idp_integration
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
@@ -46,7 +46,7 @@ def generate_link_token(
         db,
     )
 
-    idp = idp_crud.get_identity_provider(idp_id, db)
+    idp = idp_integration.get_identity_provider(idp_id, db)
     if not idp or not idp.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -95,7 +95,7 @@ def delete_identity_provider_link(
         db,
     )
 
-    idp = idp_crud.get_identity_provider(idp_id, db)
+    idp = idp_integration.get_identity_provider(idp_id, db)
     if idp is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -166,7 +166,7 @@ def admin_delete_identity_provider_link(
             authentication method, 500 if the deletion fails at the
             database level.
     """
-    idp = idp_crud.get_identity_provider(idp_id, db)
+    idp = idp_integration.get_identity_provider(idp_id, db)
     if idp is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -264,7 +264,7 @@ def validate_and_claim_browser_link_token(
     token_user_id = db_token.user_id
     existing_link = auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(token_user_id, idp_id, db)
     if existing_link:
-        idp = idp_crud.get_identity_provider(idp_id, db)
+        idp = idp_integration.get_identity_provider(idp_id, db)
         idp_name = idp.name if idp else f"ID {idp_id}"
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

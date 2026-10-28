@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -16,17 +15,14 @@ import core.network as core_network
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.credentials.integration_service as auth_password_hasher
-import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.schema as idp_schema
-import modules.auth.identity_providers.service as idp_service
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
 import modules.auth.sessions.integration_service as auth_sessions_crud
-import modules.auth.sessions.integration_service as auth_sessions_utils
 import modules.auth.utils as auth_utils
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
-import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -74,7 +70,10 @@ def _build_link_result_url(redirect_path: str | None, idp_name: str | None, *, s
     response_model=list[idp_schema.IdentityProviderPublic],
     status_code=status.HTTP_200_OK,
 )
-async def get_enabled_identity_providers(db: core_dependencies.DbSession):
+def get_enabled_identity_providers(
+    db: core_dependencies.DbSession,
+    service: idp_dependencies.IdentityProviderService,
+) -> list[idp_schema.IdentityProviderPublic]:
     """
     Retrieve a list of enabled identity providers from the database.
 
@@ -84,24 +83,16 @@ async def get_enabled_identity_providers(db: core_dependencies.DbSession):
     Returns:
         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
     """
-    providers = idp_crud.get_enabled_identity_providers(db)
-    return [
-        idp_schema.IdentityProviderPublic(
-            id=p.id,
-            name=p.name,
-            slug=p.slug,
-            icon=p.icon,
-        )
-        for p in providers
-    ]
+    return service.get_enabled_identity_providers(db)
 
 
 @router.get("/login/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-async def initiate_login(
+def initiate_login(
     idp_slug: str,
     request: Request,
     db: core_dependencies.DbSession,
+    service: idp_dependencies.IdentityProviderService,
     code_challenge: Annotated[
         str,
         Query(
@@ -145,7 +136,7 @@ async def initiate_login(
     """
     try:
         # Get the identity provider
-        idp = idp_crud.get_identity_provider_by_slug(idp_slug, db)
+        idp = service.get_identity_provider_by_slug(idp_slug, db)
         if not idp or not idp.enabled:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -168,7 +159,7 @@ async def initiate_login(
         idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
 
         # Validate redirect URL to prevent open redirect vulnerability
-        idp_utils.validate_redirect_url(redirect)
+        idp_utils.validate_redirect_url(redirect, core_config.settings.ALLOWED_REDIRECT_SCHEMES)
 
         # Preserve mobile intent for custom-scheme redirects.
         # The browser step of the flow cannot reliably carry X-Client-Type,
@@ -203,9 +194,7 @@ async def initiate_login(
         logger.debug(f"OAuth state created: {state_id} for IdP {idp.slug} (client_type={client_type})")
 
         # Initiate the OAuth flow with database state ID (no cookies)
-        authorization_url = await idp_service.idp_service.initiate_login(
-            idp, request, db, redirect, oauth_state_id=state_id
-        )
+        authorization_url = service.initiate_login(idp, db, redirect, oauth_state_id=state_id)
 
         return RedirectResponse(url=authorization_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     except HTTPException:
@@ -220,7 +209,7 @@ async def initiate_login(
 
 @router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-async def handle_callback(
+def handle_callback(
     request: Request,
     response: Response,
     idp_slug: str,
@@ -233,6 +222,7 @@ async def handle_callback(
         Depends(auth_token_manager.get_token_manager),
     ],
     db: core_dependencies.DbSession,
+    service: idp_dependencies.IdentityProviderService,
     code: str = Query(..., description="Authorization code from IdP"),
     state: str = Query(..., description="State parameter for CSRF protection"),
 ):
@@ -269,7 +259,7 @@ async def handle_callback(
     oauth_state = None
     try:
         # Get the identity provider
-        idp = idp_crud.get_identity_provider_by_slug(idp_slug, db)
+        idp = service.get_identity_provider_by_slug(idp_slug, db)
         if not idp or not idp.enabled:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -323,9 +313,7 @@ async def handle_callback(
         )
 
         # Process the OAuth callback (service will handle both DB and cookie state)
-        result = await idp_service.idp_service.handle_callback(
-            idp, code, state, request, password_hasher, db, oauth_state
-        )
+        result = service.handle_callback(idp, code, state, password_hasher, db, oauth_state)
 
         user = result["user"]
         is_link_mode = result.get("mode") == "link"
@@ -342,33 +330,8 @@ async def handle_callback(
                 status_code=status.HTTP_307_TEMPORARY_REDIRECT,
             )
 
-        # LOGIN MODE: Create session WITHOUT tokens (tokens created during exchange)
-        # Validate that the user is active before creating a session
-        users_integration.require_active_user(user)
-
-        # Convert to UsersRead schema
-        user_read = users_schema.UsersRead.model_validate(user)
-
-        # Generate session ID
-        session_id = str(uuid4())
-
-        # Create the session and store it in the database
-        if not oauth_state:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="OAuth state required for token exchange",
-            )
-
-        auth_sessions_utils.create_session(
-            session_id,
-            user_read,
-            request,
-            None,
-            password_hasher,
-            datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
-            db,
-            oauth_state_id=oauth_state.id,
-        )
+        # LOGIN MODE: Create a session without tokens; token exchange supplies them after PKCE.
+        session_id = service.create_callback_session(user, request, password_hasher, db, oauth_state.id)
 
         # Redirect to frontend with session_id for token exchange
         frontend_url = core_config.settings.ENDURAIN_HOST
@@ -420,7 +383,7 @@ async def handle_callback(
     status_code=status.HTTP_200_OK,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-async def exchange_tokens_for_session(
+def exchange_tokens_for_session(
     session_id: str,
     request: Request,
     response: Response,

@@ -6,7 +6,34 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.public_router as public_router
+import modules.auth.identity_providers.service as idp_service_module
+import modules.auth.sessions.integration_service as sessions_integration
+import modules.users.users.schema as users_schema
+
+public_router.idp_crud = idp_crud
+public_router.idp_service = MagicMock(idp_service=MagicMock())
+public_router.auth_sessions_utils = sessions_integration
+public_router.users_schema = users_schema
+_test_service = public_router.idp_service.idp_service
+_test_service.get_enabled_identity_providers.side_effect = lambda db: idp_crud.get_enabled_identity_providers(db)
+_test_service.get_identity_provider_by_slug.side_effect = lambda slug, db: idp_crud.get_identity_provider_by_slug(
+    slug, db
+)
+
+
+def _create_callback_session(user, request, password_hasher, db, oauth_state_id):
+    idp_service_module.users_integration.require_active_user(user)
+    session_user = users_schema.UsersRead.model_validate(user)
+    sessions_integration.create_session(
+        "test-session-id", session_user, request, None, password_hasher, None, db, oauth_state_id=oauth_state_id
+    )
+    return "test-session-id"
+
+
+_test_service.create_callback_session.side_effect = _create_callback_session
 
 
 @pytest.fixture(autouse=True)
@@ -25,6 +52,7 @@ def _build_app(mock_db) -> TestClient:
     app = FastAPI()
     app.include_router(public_router.router, prefix="/api/v1/public/idp")
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
+    app.dependency_overrides[idp_dependencies.get_identity_provider_service] = lambda: _test_service
     return TestClient(app)
 
 

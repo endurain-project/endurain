@@ -6,10 +6,10 @@ import pytest
 from pydantic import ValidationError
 
 from modules.auth.identity_providers.schema import (
-    IdentityProvider,
     IdentityProviderBase,
     IdentityProviderCreate,
     IdentityProviderPublic,
+    IdentityProviderRead,
     IdentityProviderTemplate,
     IdentityProviderUpdate,
     TokenExchangeRequest,
@@ -392,7 +392,7 @@ class TestIdentityProvider:
         now = datetime.now(UTC)
 
         # Act
-        idp = IdentityProvider(
+        idp = IdentityProviderRead(
             id=1,
             name="Test Provider",
             slug="test-provider",
@@ -421,7 +421,7 @@ class TestIdentityProvider:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            IdentityProvider(
+            IdentityProviderRead(
                 name="Test",
                 slug="test",
                 client_id="client-123",
@@ -440,7 +440,7 @@ class TestIdentityProvider:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            IdentityProvider(id=1, name="Test", slug="test", client_id="client-123")
+            IdentityProviderRead(id=1, name="Test", slug="test", client_id="client-123")
 
         assert "created_at" in str(exc_info.value) or "updated_at" in str(exc_info.value)
 
@@ -455,7 +455,7 @@ class TestIdentityProvider:
         encrypted_id = "gAAAAABtest_encrypted_token"
 
         # Act
-        idp = IdentityProvider(
+        idp = IdentityProviderRead(
             id=1,
             name="Test",
             slug="test",
@@ -478,7 +478,7 @@ class TestIdentityProvider:
         plain_id = "plain-client-id"
 
         # Act
-        idp = IdentityProvider(
+        idp = IdentityProviderRead(
             id=1,
             name="Test",
             slug="test",
@@ -500,7 +500,7 @@ class TestIdentityProvider:
         now = datetime.now(UTC)
 
         # Act
-        idp = IdentityProvider(
+        idp = IdentityProviderRead(
             id=1,
             name="Test",
             slug="test",
@@ -821,6 +821,6 @@ class TestTokenExchangeResponse:
             "core.cryptography.decrypt_token_fernet",
             side_effect=Exception("Decryption error"),
         ):
-            idp = IdentityProvider(**idp_data)
+            idp = IdentityProviderRead(**idp_data)
             # Should return encrypted value if decryption fails
             assert idp.client_id is not None

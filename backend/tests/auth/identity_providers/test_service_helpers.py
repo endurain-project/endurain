@@ -14,19 +14,19 @@ mocking HTTP flows:
 - ``TokenAction`` — token-rotation policy enum values.
 """
 
-from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 
+import core.exceptions as core_exceptions
 from modules.auth.identity_providers.service import IdentityProviderService, TokenAction
 
 
 @pytest.fixture
 def service() -> IdentityProviderService:
     """Return a fresh service instance with empty caches."""
-    return IdentityProviderService()
+    return IdentityProviderService(MagicMock(), "https://endurain.example", "test")
 
 
 class TestMapUserClaims:
@@ -87,10 +87,7 @@ class TestGetRedirectUri:
     """_get_redirect_uri builds the public callback URL."""
 
     def test_builds_expected_callback_url(self, service):
-        mock_settings = MagicMock()
-        mock_settings.ENDURAIN_HOST = "https://endurain.example"
-        with patch("modules.auth.identity_providers.service.core_config.settings", mock_settings):
-            uri = service._get_redirect_uri("my-idp")
+        uri = service._get_redirect_uri("my-idp")
         assert uri == "https://endurain.example/api/v1/public/idp/callback/my-idp"
 
 
@@ -115,7 +112,7 @@ class TestDecryptClientId:
                 "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 return_value="",
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             service._decrypt_client_id(idp)
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -129,7 +126,7 @@ class TestDecryptClientId:
                 "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 side_effect=ValueError("bad token"),
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             service._decrypt_client_id(idp)
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -156,7 +153,7 @@ class TestDecryptClientSecret:
                 "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 return_value="",
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             service._decrypt_client_secret(idp)
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -170,50 +167,10 @@ class TestDecryptClientSecret:
                 "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 side_effect=ValueError("bad token"),
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             service._decrypt_client_secret(idp)
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-
-
-class TestPruneExpiredCaches:
-    """_prune_expired_caches evicts only stale entries."""
-
-    def test_evicts_expired_discovery_entries(self, service):
-        now = datetime.now(UTC)
-        service._discovery_cache = {1: {"x": 1}, 2: {"y": 2}}
-        service._cache_expiry = {
-            1: now - timedelta(minutes=1),  # expired
-            2: now + timedelta(hours=1),  # valid
-        }
-        service._prune_expired_caches()
-        assert 1 not in service._discovery_cache
-        assert 1 not in service._cache_expiry
-        assert 2 in service._discovery_cache
-
-    def test_evicts_expired_jwks_entries(self, service):
-        now = datetime.now(UTC)
-        service._jwks_cache = {
-            "stale": {"jwks": {}, "cached_at": now - service._cache_ttl - timedelta(seconds=1)},
-            "fresh": {"jwks": {}, "cached_at": now},
-        }
-        service._prune_expired_caches()
-        assert "stale" not in service._jwks_cache
-        assert "fresh" in service._jwks_cache
-
-    def test_evicts_jwks_entry_missing_cached_at(self, service):
-        service._jwks_cache = {"no-timestamp": {"jwks": {}, "cached_at": None}}
-        service._prune_expired_caches()
-        assert "no-timestamp" not in service._jwks_cache
-
-    def test_keeps_all_when_nothing_expired(self, service):
-        now = datetime.now(UTC)
-        service._discovery_cache = {1: {"x": 1}}
-        service._cache_expiry = {1: now + timedelta(hours=1)}
-        service._jwks_cache = {"fresh": {"jwks": {}, "cached_at": now}}
-        service._prune_expired_caches()
-        assert service._discovery_cache == {1: {"x": 1}}
-        assert "fresh" in service._jwks_cache
 
 
 class TestTokenActionEnum:
@@ -230,21 +187,23 @@ class TestBoundaryFacades:
     data operations without importing the auth CRUD layer directly (auth-boundary)."""
 
     def test_get_identity_provider_delegates_to_crud(self):
-        import modules.auth.identity_providers.service as idp_service
+        import modules.auth.identity_providers.integration_service as idp_integration
 
         db = MagicMock()
         provider = MagicMock()
-        with patch.object(idp_service.idp_crud, "get_identity_provider", return_value=provider) as get:
-            result = idp_service.get_identity_provider(7, db)
+        with patch.object(
+            idp_integration.identity_providers_crud, "get_identity_provider", return_value=provider
+        ) as get:
+            result = idp_integration.get_identity_provider(7, db)
         get.assert_called_once_with(7, db)
         assert result is provider
 
     def test_create_link_oauth_state_delegates_to_crud(self):
-        import modules.auth.identity_providers.service as idp_service
+        import modules.auth.identity_providers.integration_service as idp_integration
 
         db = MagicMock()
-        with patch.object(idp_service.oauth_state_crud, "create_oauth_state") as create:
-            idp_service.create_link_oauth_state(
+        with patch.object(idp_integration.oauth_state_integration, "create_oauth_state") as create:
+            idp_integration.create_link_oauth_state(
                 db,
                 state_id="state-id",
                 idp_id=3,

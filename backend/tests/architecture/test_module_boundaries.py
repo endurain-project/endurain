@@ -400,33 +400,6 @@ def _excepted(importer: str, imported: str) -> bool:
 #: surface write **stages** and its caller commits; what is listed here is
 #: deliberately a self-contained unit of work, with the reason it has to be.
 _SURFACE_UNITS_OF_WORK: dict[str, str] = {
-    "mfa.integration_service.enable_user_mfa": (
-        "Enabling MFA and replacing backup codes is one security transition that commits atomically."
-    ),
-    "mfa.integration_service.disable_user_mfa": (
-        "Disabling MFA and deleting backup codes commits as one security transition."
-    ),
-    "mfa.integration_service.verify_user_mfa": (
-        "A verified backup code is consumed durably before the caller proceeds with login or step-up."
-    ),
-    "sessions.integration_service.create_session": (
-        "Session creation owns its token hashing, metadata snapshot and commit as one lifecycle operation."
-    ),
-    "sessions.integration_service.edit_session": (
-        "Refresh-token rotation owns the updated hash, rotation metadata and commit as one lifecycle operation."
-    ),
-    "sessions.integration_service.update_session_csrf_token": (
-        "A CSRF binding is only usable after the session update is committed."
-    ),
-    "sessions.integration_service.delete_session": (
-        "Session, OAuth state and rotated-token family cleanup must commit together."
-    ),
-    "sessions.integration_service.claim_session_for_token_exchange": (
-        "The conditional claim and OAuth-state cleanup commit together so the one-time exchange cannot be replayed."
-    ),
-    "sessions.integration_service.invalidate_token_family": (
-        "All sessions and rotated tokens in the compromised family are invalidated in one commit."
-    ),
     "users.integration_service.create_signup_user": (
         "Creates the user row, the auth-owned password hash and MFA row, and every default row as one "
         "commit, so an account never exists without its credential or MFA row; a caller composing the "

@@ -8375,7 +8375,7 @@ export interface components {
             weight?: number | null;
         };
         /**
-         * IdentityProvider
+         * IdentityProviderRead
          * @description Represents an identity provider with decrypted client credentials.
          *
          *     Inherits from:
@@ -8396,7 +8396,7 @@ export interface components {
          *
          *                 IdentityProvider: The instance with the decrypted `client_id`.
          */
-        IdentityProvider: {
+        IdentityProviderRead: {
             /**
              * Authorization Endpoint
              * @description OAuth2/OIDC authorization endpoint
@@ -16529,7 +16529,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProvider"][];
+                    "application/json": components["schemas"]["IdentityProviderRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -16562,7 +16562,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProvider"];
+                    "application/json": components["schemas"]["IdentityProviderRead"];
                 };
             };
             /** @description Validation Error */
@@ -16635,7 +16635,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProvider"];
+                    "application/json": components["schemas"]["IdentityProviderRead"];
                 };
             };
             /** @description Validation Error */

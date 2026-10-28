@@ -17,6 +17,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_weight.integration_service as health_weight_integration
@@ -271,19 +272,24 @@ def list_users(
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
-def _stage_default_data(user_id: int, identity_service: "auth_identity_service.IdentityService", db: Session) -> None:
+def _stage_default_data(
+    user_id: int, identity_service: "auth_identity_service.IdentityService | None", db: Session
+) -> None:
     """Stage the rows every new account starts with.
 
     Args:
         user_id: ID of the new user.
-        identity_service: Identity service that stages the auth-owned MFA row.
+        identity_service: Identity service for the auth-owned MFA row, or ``None`` for SSO provisioning.
         db: Database session.
     """
     user_integrations_integration.create_integrations(user_id, db)
     users_privacy_settings_integration.create_privacy_settings(user_id, db)
     health_targets_integration.create_health_targets(user_id, db)
     users_default_gear_integration.create_default_gear(user_id, db)
-    identity_service.initialize_user_mfa(user_id)
+    if identity_service is None:
+        mfa_integration.create_users_mfa_row(user_id, db)
+    else:
+        identity_service.initialize_user_mfa(user_id)
 
 
 def create_user(
@@ -324,14 +330,14 @@ def create_user(
     return created
 
 
-def create_signup_user(
+def _stage_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
-    identity_service: "auth_identity_service.IdentityService",
+    identity_service: "auth_identity_service.IdentityService | None",
     db: Session,
     persist_credential: bool = True,
 ) -> users_schema.UsersRead:
-    """Create a user through sign-up or SSO, with their default data.
+    """Stage a user through sign-up or SSO, with their default data.
 
     The account's state follows the server's sign-up policy: it starts inactive when email
     verification or admin approval is required.
@@ -368,22 +374,50 @@ def create_signup_user(
 
     hashed_password: str | None = None
     if persist_credential:
+        if identity_service is None:
+            raise core_exceptions.InvalidInputError("Password validation service is required")
         hashed_password = identity_service.validate_and_hash_password_for_user(
             server_settings, users_schema.UserAccessType.REGULAR.value, user.password
         )
 
-    try:
-        created = users_crud.create_user(fields, db)
-    except core_exceptions.ConflictError as err:
-        db.rollback()
-        # Abstract message to reduce information leakage.
-        raise core_exceptions.ConflictError("Unable to create user.") from err
+    created = users_crud.create_user(fields, db)
 
     if hashed_password is not None:
         identity_service.set_local_password_hash(created.id, hashed_password)
     _stage_default_data(created.id, identity_service, db)
+    return created
+
+
+def create_signup_user(
+    user: users_schema.UsersSignup,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    identity_service: "auth_identity_service.IdentityService | None",
+    db: Session,
+    persist_credential: bool = True,
+) -> users_schema.UsersRead:
+    """Create a user through sign-up or SSO and commit the staged defaults."""
+    try:
+        created = _stage_signup_user(user, server_settings, identity_service, db, persist_credential)
+    except core_exceptions.ConflictError as err:
+        db.rollback()
+        # Abstract message to reduce information leakage.
+        raise core_exceptions.ConflictError("Unable to create user.") from err
     db.commit()
     logger.info("User signed up", extra=core_logger.context(user_id=created.id))
+    return created
+
+
+def create_sso_user(
+    user: users_schema.UsersSignup,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    db: Session,
+) -> users_schema.UsersRead:
+    """Stage an SSO-only user with the defaults used by regular sign-up."""
+    try:
+        created = _stage_signup_user(user, server_settings, None, db, persist_credential=False)
+    except core_exceptions.ConflictError as err:
+        raise core_exceptions.ConflictError("Unable to create user.") from err
+    logger.info("SSO user staged", extra=core_logger.context(user_id=created.id))
     return created
 
 

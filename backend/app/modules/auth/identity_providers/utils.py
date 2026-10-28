@@ -4,25 +4,17 @@ import base64
 import hashlib
 import hmac
 import re
-from collections.abc import Callable
 from typing import Any
 
-from fastapi import HTTPException, Request, status
-from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
-import core.async_bridge as core_async_bridge
-import core.config as core_config
 import core.logger as core_logger
-import core.network as core_network
-import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
 import modules.auth.identity_providers.schema as idp_schema
-import modules.auth.identity_providers.service as idp_service
-import modules.auth.oauth_state.integration_service as oauth_state_utils
 
 logger = core_logger.get_logger(__name__)
 
 
-def validate_redirect_url(redirect: str | None) -> None:
+def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:
     """
     Validate the redirect URL to prevent open redirect vulnerabilities.
 
@@ -63,7 +55,7 @@ def validate_redirect_url(redirect: str | None) -> None:
     # Handle custom URI schemes (e.g., gadgetbridge://callback)
     if "://" in value:
         scheme = value.split("://", 1)[0].lower()
-        allowed = core_config.settings.ALLOWED_REDIRECT_SCHEMES
+        allowed = allowed_schemes
         if scheme not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -315,251 +307,3 @@ def get_idp_template(template_id: str) -> dict[str, Any] | None:
         dict[str, Any] | None: The template dictionary if found, otherwise None.
     """
     return IDP_TEMPLATES.get(template_id)
-
-
-async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
-    """
-    Refreshes identity provider (IdP) tokens for a user if needed based on token expiration policies.
-
-    This function retrieves all IdP links associated with a user and evaluates each token's
-    state to determine the appropriate action: refresh if nearing expiry, clear if maximum
-    age is exceeded, or skip if still valid.
-
-    The function is designed to be non-blocking and opportunistic - errors during token
-    refresh or clearing are logged but do not raise exceptions, allowing the application
-    to continue normal operation even if IdP token management fails.
-
-    Args:
-        user_id (int): The ID of the user whose IdP tokens should be checked and refreshed.
-        db (Session): SQLAlchemy database session for performing database operations.
-
-    Returns:
-        None: This function performs side effects (token refresh/clearing) but returns nothing.
-
-    Raises:
-        Does not raise exceptions. All errors are caught, logged, and suppressed to ensure
-        IdP token management does not disrupt normal application flow.
-
-    Notes:
-        - If a user has no IdP links, the function returns early without performing any operations.
-        - Token refresh attempts that fail are logged but the user session remains valid.
-        - Tokens exceeding maximum age are cleared for security, requiring user re-authentication.
-        - Individual IdP operation failures do not prevent checking other IdP links.
-    """
-    try:
-        # Get all IdP links for this user
-        idp_links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
-
-        if not idp_links:
-            # User has no IdP links - nothing to refresh
-            return
-
-        # Check each IdP link and take appropriate action
-        for link in idp_links:
-            try:
-                # Determine what action to take for this IdP token (policy-based)
-                action = idp_service.idp_service._should_refresh_idp_token(link)
-
-                if action == idp_service.TokenAction.REFRESH:
-                    # Token is close to expiry - attempt to refresh
-                    logger.debug(f"Attempting to refresh IdP token for user {user_id}, idp {link.idp_id}")
-
-                    # Attempt to refresh the IdP session
-                    result = await idp_service.idp_service.refresh_idp_session(user_id, link.idp_id, db)
-
-                    if result:
-                        logger.debug(f"Successfully refreshed IdP token for user {user_id}, idp {link.idp_id}")
-                    else:
-                        logger.debug(
-                            f"IdP token refresh failed for user {user_id}, idp {link.idp_id}. "
-                            "User may need to re-authenticate with IdP later."
-                        )
-
-                elif action == idp_service.TokenAction.CLEAR:
-                    # Token has exceeded maximum age - clear it for security
-                    logger.info(f"Clearing expired IdP token (max age exceeded) for user {user_id}, idp {link.idp_id}")
-
-                    success = auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                        user_id, link.idp_id, db
-                    )
-
-                    if success:
-                        logger.info(
-                            f"Successfully cleared expired IdP token for user {user_id}, idp {link.idp_id}. "
-                            "User will need to re-authenticate with IdP."
-                        )
-                    else:
-                        logger.warning(f"Failed to clear expired IdP token for user {user_id}, idp {link.idp_id}")
-
-                else:  # idp_service.TokenAction.SKIP
-                    # Token is still valid and not close to expiry - no action needed
-                    pass
-
-            except Exception as err:
-                # Log individual IdP operation failure but continue with other IdPs
-                logger.warning(
-                    f"Error checking/refreshing IdP token for user {user_id}, idp {link.idp_id}: {err}", exc_info=err
-                )
-                # Continue to next IdP link
-
-    except Exception as err:
-        # Catch-all for unexpected errors (e.g., database query failure)
-        logger.warning(f"Error retrieving IdP links for user {user_id}: {err}", exc_info=err)
-        # Don't raise - IdP token refresh is opportunistic and non-blocking
-
-
-async def clear_all_idp_tokens(user_id: int, db: Session, revoke_at_idp: bool = False) -> None:
-    """
-    Clear all IdP (Identity Provider) refresh tokens for a user.
-
-    This function retrieves all IdP links associated with a user and clears their
-    refresh tokens. It supports optional revocation at the IdP level before clearing
-    tokens locally.
-
-    Args:
-        user_id (int): The ID of the user whose IdP tokens should be cleared.
-        db (Session): The database session to use for queries.
-        revoke_at_idp (bool, optional): If True, attempts to revoke tokens at the
-            IdP provider level (RFC 7009) before clearing locally. Defaults to False.
-
-    Returns:
-        None
-
-    Raises:
-        This function does not raise exceptions. All errors are logged and handled
-        gracefully to ensure logout processes are not interrupted.
-
-    Notes:
-        - If no IdP links exist for the user, the function returns early.
-        - Token revocation at the IdP is best-effort; local clearing always proceeds
-          regardless of revocation success or failure.
-        - Individual IdP token clearing failures do not prevent clearing tokens for
-          other IdPs.
-        - All errors are logged with appropriate severity levels (debug, info, warning).
-    """
-    try:
-        # Get all IdP links for this user
-        idp_links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
-
-        if not idp_links:
-            # User has no IdP links - nothing to clear
-            return
-
-        # Clear tokens for each IdP link
-        for link in idp_links:
-            try:
-                # Optionally attempt to revoke token at IdP first (RFC 7009)
-                if revoke_at_idp:
-                    try:
-                        revoked = await idp_service.idp_service.revoke_idp_token(user_id, link.idp_id, db)
-                        if revoked:
-                            logger.info(f"Revoked IdP token at provider for user {user_id}, idp {link.idp_id}")
-                        else:
-                            logger.debug(
-                                f"IdP token revocation not supported or failed for user {user_id}, idp {link.idp_id}. "
-                                "Will clear locally."
-                            )
-                    except Exception as revoke_err:
-                        # Log revocation failure but continue with local clearing
-                        logger.warning(
-                            f"Error revoking IdP token for user {user_id}, idp {link.idp_id}: {revoke_err}. "
-                            "Will clear locally.",
-                            exc_info=revoke_err,
-                        )
-
-                # Always clear locally regardless of revocation result
-                success = auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                    user_id, link.idp_id, db
-                )
-
-                if success:
-                    logger.debug(f"Cleared IdP refresh token for user {user_id}, idp {link.idp_id} on logout")
-                else:
-                    logger.debug(f"No IdP refresh token to clear for user {user_id}, idp {link.idp_id}")
-
-            except Exception as err:
-                # Log individual IdP token clearing failure but continue with other IdPs
-                logger.warning(f"Error clearing IdP token for user {user_id}, idp {link.idp_id}: {err}", exc_info=err)
-                # Continue to next IdP link
-
-    except Exception as err:
-        # Catch-all for unexpected errors (e.g., database query failure)
-        logger.warning(f"Error retrieving IdP links for user {user_id} during logout: {err}", exc_info=err)
-        # Don't raise - IdP token clearing is a best-effort security measure
-
-
-def start_browser_link(
-    link_token: str,
-    idp_id: int,
-    redirect: str | None,
-    request: Request,
-    claim_link_token: Callable[..., int],
-    db: Session,
-) -> str:
-    """Claim a one-time link token and return the identity provider's authorization URL.
-
-    Runs on a worker thread (a synchronous route), so the asynchronous authorization-URL build is
-    handed to the main event loop, which owns the shared HTTP client.
-
-    Args:
-        link_token: Plaintext one-time link token from the query string.
-        idp_id: The identity provider to link.
-        redirect: Optional frontend return path or configured custom scheme.
-        request: The incoming request.
-        claim_link_token: Callable that validates and claims the link token, returning the user id.
-        db: Active database session.
-
-    Returns:
-        The identity provider's authorization URL.
-
-    Raises:
-        HTTPException: 400 for a bad redirect target, 401 for an invalid, expired or used link token,
-            404 when the provider does not exist or is disabled, 409 when it is already linked,
-            500 when the flow cannot be started.
-    """
-    # Validate the optional return path up front (open-redirect guard) so a bad target fails
-    # before the one-time link token is consumed.
-    validate_redirect_url(redirect)
-
-    client_ip = core_network.get_ip_address(request)
-    token_user_id = claim_link_token(link_token=link_token, idp_id=idp_id, client_ip=client_ip)
-
-    idp = idp_service.get_identity_provider(idp_id, db)
-    if not idp or not idp.enabled:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Identity provider not found or disabled",
-        )
-
-    state, nonce = oauth_state_utils.create_state_id_and_nonce()
-
-    # A custom-scheme return target signals a native/mobile handoff (mirrors the login flow); a
-    # plain relative path is a normal web return.
-    client_type = "mobile" if is_custom_scheme_redirect(redirect) else "web"
-
-    idp_service.create_link_oauth_state(
-        db=db,
-        state_id=state,
-        idp_id=idp_id,
-        nonce=nonce,
-        client_type=client_type,
-        ip_address=client_ip,
-        user_id=token_user_id,
-        redirect_path=redirect,
-    )
-
-    future = core_async_bridge.dispatch(
-        idp_service.idp_service.initiate_link(idp, request, token_user_id, db, oauth_state_id=state)
-    )
-    if future is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to initiate identity provider linking",
-        )
-    authorization_url = future.result()
-
-    logger.info(
-        "User initiated an identity provider link",
-        extra=core_logger.context(user_id=token_user_id, idp_id=idp_id),
-    )
-    return authorization_url

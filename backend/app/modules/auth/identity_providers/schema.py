@@ -134,7 +134,7 @@ class IdentityProviderUpdate(IdentityProviderBase):
     client_secret: StrictStr | None = Field(default=None, min_length=1, max_length=512)
 
 
-class IdentityProvider(IdentityProviderBase):
+class IdentityProviderRead(IdentityProviderBase):
     """
     Represents an identity provider with decrypted client credentials.
 
@@ -154,7 +154,7 @@ class IdentityProvider(IdentityProviderBase):
         decrypt_client_id():
             Decrypts the `client_id` attribute after loading from the database.
 
-                IdentityProvider: The instance with the decrypted `client_id`.
+                IdentityProviderRead: The instance with the decrypted `client_id`.
     """
 
     id: StrictInt

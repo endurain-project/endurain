@@ -21,14 +21,15 @@ verification is exercised end to end.
 import base64
 import json
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx2
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from joserfc import jwt
 from joserfc.jwk import RSAKey
 
+import core.exceptions as core_exceptions
 from modules.auth.identity_providers.service import IdentityProviderService
 
 # ---------------------------------------------------------------------------
@@ -99,10 +100,37 @@ def _fake_jwt(header: dict, payload: dict | None = None) -> str:
     return f"{b64(header)}.{b64(payload or {})}.signature"
 
 
+class _MemoryState:
+    def __init__(self):
+        self.values: dict[str, bytes] = {}
+        self.expiry: dict[str, float] = {}
+
+    def get(self, key: str) -> bytes | None:
+        if self.expiry.get(key, 0) <= time.monotonic():
+            self.values.pop(key, None)
+            self.expiry.pop(key, None)
+        return self.values.get(key)
+
+    def set(self, key: str, value: bytes, *, ttl_seconds: int) -> None:
+        self.values[key] = value
+        self.expiry[key] = time.monotonic() + ttl_seconds
+
+
+class _NetworkGuardError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+
+
 @pytest.fixture
-def service() -> IdentityProviderService:
-    """Return a fresh service instance with empty caches."""
-    return IdentityProviderService()
+def state_provider() -> _MemoryState:
+    return _MemoryState()
+
+
+@pytest.fixture
+def service(state_provider) -> IdentityProviderService:
+    """Return a fresh service instance backed by shared test state."""
+    return IdentityProviderService(state_provider, "https://app.example", "test")
 
 
 # ---------------------------------------------------------------------------
@@ -113,44 +141,39 @@ def service() -> IdentityProviderService:
 class TestVerifyIdTokenHeaderGuards:
     """Header-shape and algorithm allow-list checks reject before fetch."""
 
-    @pytest.mark.asyncio
-    async def test_malformed_token_not_three_parts_raises_401(self, service):
-        with pytest.raises(HTTPException) as exc_info:
-            await service._verify_id_token("only.two", JWKS_URI, ISS, AUD)
+    def test_malformed_token_not_three_parts_raises_401(self, service):
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
+            service._verify_id_token("only.two", JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "format" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_missing_kid_raises_401(self, service):
+    def test_missing_kid_raises_401(self, service):
         token = _fake_jwt({"alg": "RS256"})
-        with pytest.raises(HTTPException) as exc_info:
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "key identifier" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_missing_alg_raises_401(self, service):
+    def test_missing_alg_raises_401(self, service):
         token = _fake_jwt({"kid": KID})
-        with pytest.raises(HTTPException) as exc_info:
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "algorithm" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_alg_none_is_rejected(self, service):
+    def test_alg_none_is_rejected(self, service):
         """alg=none must be rejected (signature-bypass attack)."""
         token = _fake_jwt({"alg": "none", "kid": KID})
-        with pytest.raises(HTTPException) as exc_info:
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "unsupported signature algorithm" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_symmetric_hs256_is_rejected(self, service):
+    def test_symmetric_hs256_is_rejected(self, service):
         """HS256 must be rejected (RS256→HS256 key-confusion attack)."""
         token = _fake_jwt({"alg": "HS256", "kid": KID})
-        with pytest.raises(HTTPException) as exc_info:
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "unsupported signature algorithm" in exc_info.value.detail.lower()
 
@@ -163,27 +186,25 @@ class TestVerifyIdTokenHeaderGuards:
 class TestVerifyIdTokenKeyResolution:
     """Key lookup in the JWKS document."""
 
-    @pytest.mark.asyncio
-    async def test_no_matching_kid_raises_401(self, service, rsa_key):
+    def test_no_matching_kid_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{**rsa_key.as_dict(private=False), "kid": "different-kid"}]}
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=jwks)),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=jwks)),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "unknown key" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_unsupported_key_type_raises_401(self, service, rsa_key):
+    def test_unsupported_key_type_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{"kid": KID, "kty": "UNKNOWN"}]}
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=jwks)),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=jwks)),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "key type" in exc_info.value.detail.lower()
 
@@ -196,58 +217,53 @@ class TestVerifyIdTokenKeyResolution:
 class TestVerifyIdTokenSignatureAndClaims:
     """End-to-end verification with real RSA signing."""
 
-    @pytest.mark.asyncio
-    async def test_valid_token_returns_claims(self, service, rsa_key):
+    def test_valid_token_returns_claims(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
-        with patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))):
-            claims = await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+        with patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+            claims = service._verify_id_token(token, JWKS_URI, ISS, AUD)
             assert claims["sub"] == "user-1"
             assert claims["iss"] == ISS
 
-    @pytest.mark.asyncio
-    async def test_signature_from_wrong_key_raises_401(self, service, rsa_key, other_rsa_key):
+    def test_signature_from_wrong_key_raises_401(self, service, rsa_key, other_rsa_key):
         """Token signed by a different private key (same kid) must fail."""
         token = _sign(rsa_key, _valid_claims())
         # JWKS advertises the *other* key's public half under the same kid.
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(other_rsa_key))),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(other_rsa_key))),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "signature" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_expired_token_raises_401(self, service, rsa_key):
+    def test_expired_token_raises_401(self, service, rsa_key):
         now = int(time.time())
         token = _sign(rsa_key, _valid_claims(exp=now - 10, iat=now - 3600))
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "expired" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_issuer_mismatch_raises_401(self, service, rsa_key):
+    def test_issuer_mismatch_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(iss="https://evil.example.com"))
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "claim" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_audience_mismatch_raises_401(self, service, rsa_key):
+    def test_audience_mismatch_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(aud="some-other-client"))
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+            service._verify_id_token(token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -259,41 +275,37 @@ class TestVerifyIdTokenSignatureAndClaims:
 class TestVerifyIdTokenNonce:
     """Nonce binding prevents ID-token replay across sessions."""
 
-    @pytest.mark.asyncio
-    async def test_matching_nonce_passes(self, service, rsa_key):
+    def test_matching_nonce_passes(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(nonce="session-nonce"))
-        with patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))):
-            claims = await service._verify_id_token(token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
+        with patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+            claims = service._verify_id_token(token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
             assert claims["nonce"] == "session-nonce"
 
-    @pytest.mark.asyncio
-    async def test_missing_nonce_when_expected_raises_401(self, service, rsa_key):
+    def test_missing_nonce_when_expected_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())  # no nonce claim
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
+            service._verify_id_token(token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "nonce" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_nonce_mismatch_raises_401(self, service, rsa_key):
+    def test_nonce_mismatch_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(nonce="attacker-nonce"))
         with (
-            patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))),
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._verify_id_token(token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
+            service._verify_id_token(token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "nonce mismatch" in exc_info.value.detail.lower()
 
-    @pytest.mark.asyncio
-    async def test_nonce_not_checked_when_not_expected(self, service, rsa_key):
+    def test_nonce_not_checked_when_not_expected(self, service, rsa_key):
         """When no nonce is expected, a token without nonce still verifies."""
         token = _sign(rsa_key, _valid_claims())
-        with patch.object(service, "_fetch_jwks", AsyncMock(return_value=_public_jwks(rsa_key))):
-            claims = await service._verify_id_token(token, JWKS_URI, ISS, AUD)
+        with patch.object(service, "_fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+            claims = service._verify_id_token(token, JWKS_URI, ISS, AUD)
             assert claims["sub"] == "user-1"
 
 
@@ -305,11 +317,13 @@ class TestVerifyIdTokenNonce:
 class TestFetchJwks:
     """JWKS retrieval: caching, SSRF guard, and error mapping."""
 
-    def _client_returning(self, *, json_value=None, raise_for_status_exc=None, get_exc=None) -> AsyncMock:
-        """Build a mock httpx2.AsyncClient with a single GET behaviour."""
-        client = AsyncMock()
+    def _client_returning(self, *, json_value=None, raise_for_status_exc=None, get_exc=None) -> MagicMock:
+        """Build a mock HTTP client context with a single GET behaviour."""
+        client = MagicMock()
+        client.__enter__.return_value = client
+        client.__exit__.return_value = False
         if get_exc is not None:
-            client.get = AsyncMock(side_effect=get_exc)
+            client.get = MagicMock(side_effect=get_exc)
             return client
         response = MagicMock()
         if raise_for_status_exc is not None:
@@ -317,56 +331,53 @@ class TestFetchJwks:
         else:
             response.raise_for_status.return_value = None
         response.json.return_value = json_value
-        client.get = AsyncMock(return_value=response)
+        client.get = MagicMock(return_value=response)
         return client
 
-    @pytest.mark.asyncio
-    async def test_cache_hit_returns_without_network(self, service):
-        from datetime import UTC, datetime
-
+    def test_cache_hit_returns_without_network(self, service, state_provider):
         cached = {"keys": [{"kid": KID, "kty": "RSA"}]}
-        service._jwks_cache[JWKS_URI] = {"jwks": cached, "cached_at": datetime.now(UTC)}
-        with patch.object(service, "_get_http_client", AsyncMock()) as mock_client:
-            result = await service._fetch_jwks(JWKS_URI)
-        assert result is cached
+        state_provider.values[service._jwks_key(JWKS_URI)] = json.dumps(cached).encode()
+        state_provider.expiry[service._jwks_key(JWKS_URI)] = time.monotonic() + 60
+        with (
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
+            patch.object(service, "_http_client") as mock_client,
+        ):
+            result = service._fetch_jwks(JWKS_URI)
+        assert result == cached
         mock_client.assert_not_called()
 
-    @pytest.mark.asyncio
-    async def test_successful_fetch_caches_result(self, service):
+    def test_successful_fetch_caches_result(self, service):
         jwks = {"keys": [{"kid": KID, "kty": "RSA"}]}
         client = self._client_returning(json_value=jwks)
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
-            patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
+            patch.object(service, "_http_client", MagicMock(return_value=client)),
         ):
-            result = await service._fetch_jwks(JWKS_URI)
+            result = service._fetch_jwks(JWKS_URI)
             assert result == jwks
-            assert JWKS_URI in service._jwks_cache
+            assert service._jwks_key(JWKS_URI) in service._state.values
 
-    @pytest.mark.asyncio
-    async def test_invalid_structure_is_rejected(self, service):
+    def test_invalid_structure_is_rejected(self, service):
         client = self._client_returning(json_value={"no_keys": True})
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
-            patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
+            patch.object(service, "_http_client", MagicMock(return_value=client)),
         ):
-            with pytest.raises(HTTPException) as exc_info:
-                await service._fetch_jwks(JWKS_URI)
+            with pytest.raises(core_exceptions.DomainError) as exc_info:
+                service._fetch_jwks(JWKS_URI)
             assert exc_info.value.status_code == status.HTTP_502_BAD_GATEWAY
 
-    @pytest.mark.asyncio
-    async def test_timeout_raises_504(self, service):
+    def test_timeout_raises_504(self, service):
         client = self._client_returning(get_exc=httpx2.TimeoutException("timeout"))
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
-            patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
+            patch.object(service, "_http_client", MagicMock(return_value=client)),
         ):
-            with pytest.raises(HTTPException) as exc_info:
-                await service._fetch_jwks(JWKS_URI)
+            with pytest.raises(core_exceptions.DomainError) as exc_info:
+                service._fetch_jwks(JWKS_URI)
             assert exc_info.value.status_code == status.HTTP_504_GATEWAY_TIMEOUT
 
-    @pytest.mark.asyncio
-    async def test_http_status_error_raises_502(self, service):
+    def test_http_status_error_raises_502(self, service):
         err = httpx2.HTTPStatusError(
             "boom",
             request=MagicMock(),
@@ -375,14 +386,13 @@ class TestFetchJwks:
         client = self._client_returning(raise_for_status_exc=err)
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
-            patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
+            patch.object(service, "_http_client", MagicMock(return_value=client)),
         ):
-            with pytest.raises(HTTPException) as exc_info:
-                await service._fetch_jwks(JWKS_URI)
+            with pytest.raises(core_exceptions.DomainError) as exc_info:
+                service._fetch_jwks(JWKS_URI)
             assert exc_info.value.status_code == status.HTTP_502_BAD_GATEWAY
 
-    @pytest.mark.asyncio
-    async def test_ssrf_guard_blocks_before_any_fetch(self, service):
+    def test_ssrf_guard_blocks_before_any_fetch(self, service):
         """A private/internal JWKS URL must be blocked before any HTTP call.
 
         The SSRF guard fires before ``_get_http_client``/``client.get``, and its
@@ -390,14 +400,13 @@ class TestFetchJwks:
         """
         with (
             patch(
-                "modules.auth.identity_providers.service.core_network.reject_private_url_async",
-                new_callable=AsyncMock,
-                side_effect=HTTPException(status_code=400, detail="blocked"),
+                "modules.auth.identity_providers.service.core_network.reject_private_url",
+                side_effect=core_exceptions.InvalidInputError("blocked"),
             ),
-            patch.object(service, "_get_http_client", AsyncMock()) as mock_client,
-            pytest.raises(HTTPException) as exc_info,
+            patch.object(service, "_http_client", MagicMock()) as mock_client,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._fetch_jwks("http://169.254.169.254/jwks")
+            service._fetch_jwks("http://169.254.169.254/jwks")
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         mock_client.assert_not_called()
 
@@ -406,30 +415,27 @@ class TestGetOidcConfigurationGuardFailures:
     """Discovery logs why the SSRF guard did not clear the issuer URL."""
 
     @staticmethod
-    async def _discover_with_guard_failure(service, status_code: int, detail: str):
+    def _discover_with_guard_failure(service, status_code: int, detail: str):
         idp = MagicMock(issuer_url="https://idp.example.com", id=1)
         idp.name = "Test IdP"
         with (
             patch(
-                "modules.auth.identity_providers.service.core_network.reject_private_url_async",
-                new_callable=AsyncMock,
-                side_effect=HTTPException(status_code=status_code, detail=detail),
+                "modules.auth.identity_providers.service.core_network.reject_private_url",
+                side_effect=_NetworkGuardError(status_code, detail),
             ),
             patch("modules.auth.identity_providers.service.logger") as mock_logger,
         ):
-            result = await service.get_oidc_configuration(idp)
+            result = service.get_oidc_configuration(idp)
         return result, mock_logger.warning.call_args[0][0]
 
-    @pytest.mark.asyncio
-    async def test_blocked_url_points_the_operator_at_ssrf_allowed_hosts(self, service):
-        result, message = await self._discover_with_guard_failure(
+    def test_blocked_url_points_the_operator_at_ssrf_allowed_hosts(self, service):
+        result, message = self._discover_with_guard_failure(
             service, status.HTTP_400_BAD_REQUEST, "URL resolves to a non-public address"
         )
         assert result is None
         assert "was rejected" in message
         assert "SSRF_ALLOWED_HOSTS" in message
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("status_code", "detail"),
         [
@@ -437,12 +443,50 @@ class TestGetOidcConfigurationGuardFailures:
             (status.HTTP_504_GATEWAY_TIMEOUT, "Hostname resolution timed out"),
         ],
     )
-    async def test_unchecked_url_is_not_blamed_on_the_allowlist(self, service, status_code, detail):
-        result, message = await self._discover_with_guard_failure(service, status_code, detail)
+    def test_unchecked_url_is_not_blamed_on_the_allowlist(self, service, status_code, detail):
+        result, message = self._discover_with_guard_failure(service, status_code, detail)
         assert result is None
         assert "could not be checked" in message
         assert detail in message
         assert "SSRF_ALLOWED_HOSTS" not in message
+
+
+def test_discovery_cache_is_shared_between_services_and_refetches_after_expiry(state_provider):
+    idp = MagicMock(id=23, name="Test IdP", issuer_url="https://idp.example.com")
+    document = {"issuer": idp.issuer_url, "jwks_uri": JWKS_URI}
+
+    def client_with_document():
+        client = MagicMock()
+        client.__enter__.return_value = client
+        response = MagicMock()
+        response.json.return_value = document
+        response.raise_for_status.return_value = None
+        client.get.return_value = response
+        return client
+
+    first = IdentityProviderService(state_provider, "https://app.example", "test")
+    second = IdentityProviderService(state_provider, "https://app.example", "test")
+    first_client = client_with_document()
+    with (
+        patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
+        patch.object(first, "_http_client", return_value=first_client),
+    ):
+        assert first.get_oidc_configuration(idp) == document
+    first_client.get.assert_called_once()
+
+    with patch.object(second, "_http_client") as second_client:
+        assert second.get_oidc_configuration(idp) == document
+    second_client.assert_not_called()
+
+    key = first._discovery_key(idp.id)
+    state_provider.expiry[key] = time.monotonic() - 1
+    expired_client = client_with_document()
+    with (
+        patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
+        patch.object(second, "_http_client", return_value=expired_client),
+    ):
+        assert second.get_oidc_configuration(idp) == document
+    expired_client.get.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -453,15 +497,14 @@ class TestGetOidcConfigurationGuardFailures:
 class TestGetUserinfo:
     """Orchestration of userinfo endpoint and verified ID-token claims."""
 
-    @pytest.mark.asyncio
-    async def test_userinfo_endpoint_only_returns_claims(self, service):
-        client = AsyncMock()
+    def test_userinfo_endpoint_only_returns_claims(self, service):
+        client = MagicMock()
         response = MagicMock()
         response.raise_for_status.return_value = None
         response.json.return_value = {"sub": "user-1", "email": "a@example.com"}
-        client.get = AsyncMock(return_value=response)
+        client.get = MagicMock(return_value=response)
         with patch("modules.auth.identity_providers.service.core_network.reject_private_url"):
-            result = await service._get_userinfo(
+            result = service._get_userinfo(
                 token_response={"access_token": "at"},
                 userinfo_endpoint="https://idp.example.com/userinfo",
                 client=client,
@@ -471,19 +514,18 @@ class TestGetUserinfo:
             )
         assert result == {"sub": "user-1", "email": "a@example.com"}
 
-    @pytest.mark.asyncio
-    async def test_id_token_claims_override_userinfo_on_merge(self, service):
-        client = AsyncMock()
+    def test_id_token_claims_override_userinfo_on_merge(self, service):
+        client = MagicMock()
         response = MagicMock()
         response.raise_for_status.return_value = None
         response.json.return_value = {"sub": "endpoint-sub", "name": "From Endpoint"}
-        client.get = AsyncMock(return_value=response)
+        client.get = MagicMock(return_value=response)
         verified = {"sub": "verified-sub", "email": "v@example.com"}
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
-            patch.object(service, "_verify_id_token", AsyncMock(return_value=verified)),
+            patch.object(service, "_verify_id_token", MagicMock(return_value=verified)),
         ):
-            result = await service._get_userinfo(
+            result = service._get_userinfo(
                 token_response={"access_token": "at", "id_token": "idt"},
                 userinfo_endpoint="https://idp.example.com/userinfo",
                 client=client,
@@ -496,49 +538,46 @@ class TestGetUserinfo:
         assert result["email"] == "v@example.com"
         assert result["name"] == "From Endpoint"
 
-    @pytest.mark.asyncio
-    async def test_id_token_only_returns_verified_claims(self, service):
+    def test_id_token_only_returns_verified_claims(self, service):
         verified = {"sub": "verified-sub"}
-        with patch.object(service, "_verify_id_token", AsyncMock(return_value=verified)):
-            result = await service._get_userinfo(
+        with patch.object(service, "_verify_id_token", MagicMock(return_value=verified)):
+            result = service._get_userinfo(
                 token_response={"id_token": "idt"},
                 userinfo_endpoint=None,
-                client=AsyncMock(),
+                client=MagicMock(),
                 jwks_uri=JWKS_URI,
                 expected_issuer=ISS,
                 expected_audience=AUD,
             )
         assert result == verified
 
-    @pytest.mark.asyncio
-    async def test_id_token_verification_failure_is_reraised(self, service):
+    def test_id_token_verification_failure_is_reraised(self, service):
         with (
             patch.object(
                 service,
                 "_verify_id_token",
-                AsyncMock(side_effect=HTTPException(status_code=401, detail="bad signature")),
+                MagicMock(side_effect=core_exceptions.UnauthenticatedError("bad signature")),
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._get_userinfo(
+            service._get_userinfo(
                 token_response={"id_token": "idt"},
                 userinfo_endpoint=None,
-                client=AsyncMock(),
+                client=MagicMock(),
                 jwks_uri=JWKS_URI,
                 expected_issuer=ISS,
                 expected_audience=AUD,
             )
         assert exc_info.value.status_code == 401
 
-    @pytest.mark.asyncio
-    async def test_no_userinfo_and_no_verifiable_id_token_raises_500(self, service):
+    def test_no_userinfo_and_no_verifiable_id_token_raises_500(self, service):
         """Nothing to return → fail closed with 500."""
-        result_client = AsyncMock()
+        result_client = MagicMock()
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._get_userinfo(
+            service._get_userinfo(
                 token_response={},
                 userinfo_endpoint=None,
                 client=result_client,
@@ -548,17 +587,16 @@ class TestGetUserinfo:
             )
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    @pytest.mark.asyncio
-    async def test_endpoint_failure_falls_back_to_verified_id_token(self, service):
+    def test_endpoint_failure_falls_back_to_verified_id_token(self, service):
         """If the userinfo endpoint errors, a verified ID token still wins."""
-        client = AsyncMock()
-        client.get = AsyncMock(side_effect=httpx2.RequestError("network down"))
+        client = MagicMock()
+        client.get = MagicMock(side_effect=httpx2.RequestError("network down"))
         verified = {"sub": "verified-sub"}
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
-            patch.object(service, "_verify_id_token", AsyncMock(return_value=verified)),
+            patch.object(service, "_verify_id_token", MagicMock(return_value=verified)),
         ):
-            result = await service._get_userinfo(
+            result = service._get_userinfo(
                 token_response={"access_token": "at", "id_token": "idt"},
                 userinfo_endpoint="https://idp.example.com/userinfo",
                 client=client,

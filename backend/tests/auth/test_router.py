@@ -877,7 +877,7 @@ class TestMFAVerifyEndpoint:
 class TestRefreshEndpoint:
     """Tests for POST /auth/refresh endpoint."""
 
-    @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.router.idp_integration.refresh_idp_tokens_if_needed")
     @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
@@ -1034,7 +1034,7 @@ class TestRefreshEndpoint:
         assert "reuse" in response.json()["detail"].lower()
         mock_invalidate.assert_called_once()
 
-    @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.router.idp_integration.refresh_idp_tokens_if_needed")
     @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
@@ -1182,7 +1182,7 @@ class TestRefreshEndpoint:
         mock_store_rotated.assert_not_called()
         mock_edit_session.assert_not_called()
 
-    @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.router.idp_integration.refresh_idp_tokens_if_needed")
     @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
@@ -1272,7 +1272,7 @@ class TestRefreshEndpoint:
         assert response.json()["access_token"] == "new-at"
 
     @patch("modules.auth.router.auth_sessions_integration.verify_csrf_token")
-    @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.router.idp_integration.refresh_idp_tokens_if_needed")
     @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
@@ -1534,7 +1534,7 @@ class TestRefreshEndpoint:
         assert response.status_code == 401
         assert "authenticate" in response.json()["detail"].lower()
 
-    @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
+    @patch("modules.auth.router.idp_integration.refresh_idp_tokens_if_needed")
     @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
@@ -1820,7 +1820,7 @@ class TestRefreshEndpoint:
 class TestLogoutEndpoint:
     """Tests for POST /auth/logout endpoint."""
 
-    @patch("modules.auth.router.idp_utils.clear_all_idp_tokens")
+    @patch("modules.auth.router.idp_integration.clear_all_idp_tokens")
     @patch("modules.auth.router.auth_sessions_integration.delete_session")
     @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_success(
@@ -1956,7 +1956,7 @@ class TestLogoutEndpoint:
         assert "PKCE" in response.json()["detail"]
 
     @patch("modules.auth.router.auth_utils.clear_refresh_token_cookies")
-    @patch("modules.auth.router.idp_utils.clear_all_idp_tokens")
+    @patch("modules.auth.router.idp_integration.clear_all_idp_tokens")
     @patch("modules.auth.router.auth_sessions_integration.delete_session")
     @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_web_clears_refresh_cookies(
@@ -2006,7 +2006,7 @@ class TestLogoutEndpoint:
         mock_clear_cookies.assert_called_once()
 
     @patch("modules.auth.router.auth_utils.clear_refresh_token_cookies")
-    @patch("modules.auth.router.idp_utils.clear_all_idp_tokens")
+    @patch("modules.auth.router.idp_integration.clear_all_idp_tokens")
     @patch("modules.auth.router.auth_sessions_integration.delete_session")
     @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_mobile_succeeds_without_cookie_clearing(

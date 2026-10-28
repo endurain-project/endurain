@@ -1518,11 +1518,9 @@ class DefaultIdentityService:
         request: Request,
     ) -> str:
         """Claim a one-time link token and return the identity provider's authorization URL."""
-        # Imported here: the identity-provider utils import the identity-provider service, which
-        # imports this module.
-        import modules.auth.identity_providers.utils as idp_utils
+        import modules.auth.identity_providers.integration_service as idp_integration
 
-        return idp_utils.start_browser_link(
+        return idp_integration.start_browser_link(
             link_token,
             idp_id,
             redirect,

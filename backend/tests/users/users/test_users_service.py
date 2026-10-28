@@ -345,6 +345,17 @@ class TestCreateSignupUser:
         identity.validate_and_hash_password_for_user.assert_not_called()
         identity.set_local_password_hash.assert_not_called()
 
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_CRUD)
+    def test_sso_user_stages_without_committing(self, mock_crud, _defaults, mock_db):
+        mock_crud.create_user.return_value = _user(3)
+
+        created = users_service.create_sso_user(_signup(), self._settings(False, False), mock_db)
+
+        assert created.id == 3
+        mock_db.commit.assert_not_called()
+        mock_db.rollback.assert_not_called()
+
     @patch(_CRUD)
     def test_duplicate_gives_an_abstract_conflict(self, mock_crud, mock_db):
         mock_crud.create_user.side_effect = core_exceptions.ConflictError("email taken")
@@ -530,12 +541,14 @@ class TestApproveAndVerify:
         mock_crud.get_user_by_id.return_value = _user(1, email_verified=True)
         mock_db.commit.side_effect = RuntimeError("commit failed")
 
-        with patch(
-            "modules.users.users.service.sign_up_tokens_integration.request_sign_up_approved_email",
-            return_value=True,
-        ) as mock_request:
-            with pytest.raises(RuntimeError, match="commit failed"):
-                users_service.approve_user(1, mock_db)
+        with (
+            patch(
+                "modules.users.users.service.sign_up_tokens_integration.request_sign_up_approved_email",
+                return_value=True,
+            ) as mock_request,
+            pytest.raises(RuntimeError, match="commit failed"),
+        ):
+            users_service.approve_user(1, mock_db)
 
         mock_crud.update_user.assert_called_once()
         mock_request.assert_called_once_with(1, mock_db)

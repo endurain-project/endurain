@@ -1,15 +1,19 @@
 """Service layer for identity provider OAuth2/OIDC flows."""
 
 import base64
+import hashlib
 import json
 import secrets as secrets_module
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
+from uuid import uuid4
 
 import httpx2
-from authlib.integrations.httpx_client import AsyncOAuth2Client
-from fastapi import HTTPException, Request, status
+from authlib.integrations.httpx_client import OAuth2Client
+from jasil.providers import StateBackendUnavailableError, StateProvider
 from joserfc import jwt
 from joserfc.errors import (
     BadSignatureError,
@@ -21,26 +25,63 @@ from joserfc.errors import (
 from joserfc.jwk import ECKey, OctKey, RSAKey
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.cryptography as core_cryptography
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.identity_provider_links.contracts as auth_identity_links_contracts
 import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
 import modules.auth.identity_provider_links.integration_service as auth_identity_links_utils
+import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
-import modules.auth.identity_providers.models as idp_models
-import modules.auth.identity_service as auth_identity_service
+import modules.auth.identity_providers.schema as identity_provider_schema
+import modules.auth.identity_providers.serializers as identity_provider_serializers
+import modules.auth.identity_providers.utils as identity_provider_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
 import modules.auth.oauth_state.schema as oauth_state_schema
+import modules.auth.oauth_state.utils as oauth_state_utils
+import modules.auth.sessions.integration_service as auth_sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
+
+
+class UpstreamTimeoutError(core_exceptions.DomainError):
+    """An identity provider did not answer before the request timed out."""
+
+    status_code = 504
+    code = "upstream-timeout"
+    title = "Gateway Timeout"
+    default_detail = "Identity provider request timed out"
+
+
+def _identity_provider_error(status_code: int, detail: str) -> core_exceptions.DomainError:
+    """Return a transport-neutral error for an identity-provider failure."""
+    error_types = {
+        400: core_exceptions.InvalidInputError,
+        401: core_exceptions.UnauthenticatedError,
+        403: core_exceptions.PermissionDeniedError,
+        404: core_exceptions.NotFoundError,
+        409: core_exceptions.ConflictError,
+        500: core_exceptions.ProcessingError,
+        502: core_exceptions.UpstreamError,
+        504: UpstreamTimeoutError,
+    }
+    return error_types[status_code](detail)
+
+
+def _network_domain_error(error: Exception, fallback_status: int, fallback_detail: str) -> core_exceptions.DomainError:
+    """Translate legacy network errors into transport-neutral domain errors."""
+    status_code = getattr(error, "status_code", fallback_status)
+    detail = getattr(error, "detail", fallback_detail)
+    if status_code not in {400, 401, 403, 404, 409, 500, 502, 504}:
+        status_code = fallback_status
+    return _identity_provider_error(status_code, str(detail))
+
 
 # Constants for token rotation policy
 MAX_IDP_TOKEN_AGE_DAYS = 90
@@ -90,66 +131,201 @@ class TokenAction(Enum):
 
 
 class IdentityProviderService:
-    def __init__(self):
-        """
-        Initializes the service with in-memory caches for discovery data and their expiry times,
-        sets the cache time-to-live (TTL) to 1 hour, and prepares an optional asynchronous HTTP client.
-        """
-        self._discovery_cache: dict[int, dict[str, Any]] = {}
-        self._cache_expiry: dict[int, datetime] = {}
-        self._jwks_cache: dict[str, dict[str, Any]] = {}  # Cache JWKS by issuer URL
-        self._cache_ttl = timedelta(hours=1)
-        self._http_client: httpx2.AsyncClient | None = None
+    CACHE_TTL_SECONDS = 3600
 
-    def _prune_expired_caches(self) -> None:
-        """
-        Evict expired entries from the discovery and JWKS caches.
+    def __init__(self, state: StateProvider, frontend_host: str, api_version: str) -> None:
+        """Initialize the service with shared state and entrypoint configuration."""
+        self._state = state
+        self._frontend_host = frontend_host
+        self._api_version = api_version
 
-        Both caches are keyed by admin-controlled values (IdP id /
-        JWKS URI), so growth is bounded in practice. Pruning on every
-        write keeps memory usage proportional to the number of
-        currently-active providers rather than to lifetime churn.
-        """
-        now = datetime.now(UTC)
+    def list_identity_providers(self, db: Session) -> list[identity_provider_schema.IdentityProviderRead]:
+        """List configured providers for the admin interface."""
+        return [identity_provider_serializers.to_read(state) for state in idp_crud.get_all_identity_providers(db)]
 
-        # Discovery cache uses a parallel _cache_expiry map
-        expired_idp_ids = [idp_id for idp_id, expires_at in self._cache_expiry.items() if expires_at <= now]
-        for idp_id in expired_idp_ids:
-            self._discovery_cache.pop(idp_id, None)
-            self._cache_expiry.pop(idp_id, None)
+    def get_identity_provider(
+        self, idp_id: int, db: Session
+    ) -> identity_provider_contracts.IdentityProviderState | None:
+        """Return an identity-provider state by id."""
+        return idp_crud.get_identity_provider(idp_id, db)
 
-        # JWKS cache stores cached_at inline
-        expired_jwks_uris = [
-            uri
-            for uri, entry in self._jwks_cache.items()
-            if (entry.get("cached_at") is None) or (now - entry["cached_at"]) >= self._cache_ttl
-        ]
-        for uri in expired_jwks_uris:
-            self._jwks_cache.pop(uri, None)
+    def get_identity_provider_by_slug(
+        self, slug: str, db: Session
+    ) -> identity_provider_contracts.IdentityProviderState | None:
+        """Return an identity-provider state by slug."""
+        return idp_crud.get_identity_provider_by_slug(slug, db)
 
-    async def _get_http_client(self) -> httpx2.AsyncClient:
-        """
-        Asynchronously retrieves or creates an instance of httpx2.AsyncClient for making HTTP requests.
-
-        If the HTTP client does not already exist, it initializes a new AsyncClient with a timeout of 10 seconds
-        and connection limits (maximum 5 keep-alive connections and 10 total connections). Returns the client instance.
-
-        Returns:
-            httpx2.AsyncClient: The HTTP client instance for asynchronous requests.
-        """
-        if self._http_client is None:
-            self._http_client = httpx2.AsyncClient(
-                timeout=10.0,
-                limits=httpx2.Limits(max_keepalive_connections=5, max_connections=10),
-                follow_redirects=True,
-                headers={
-                    "User-Agent": f"Endurain/{core_config.API_VERSION} (OIDC Client)",
-                    "Accept": "application/json",
-                },
+    def get_enabled_identity_providers(self, db: Session) -> list[identity_provider_schema.IdentityProviderPublic]:
+        """Return public fields for enabled identity providers."""
+        return [
+            identity_provider_schema.IdentityProviderPublic(
+                id=state.id, name=state.name, slug=state.slug, icon=state.icon
             )
-        return self._http_client
+            for state in idp_crud.get_enabled_identity_providers(db)
+        ]
 
-    async def _fetch_jwks(self, jwks_uri: str) -> dict[str, Any]:
+    def get_idp_templates(self) -> list[identity_provider_schema.IdentityProviderTemplate]:
+        """Return the configured provider templates."""
+        return identity_provider_utils.get_idp_templates()
+
+    def create_identity_provider(
+        self, data: identity_provider_schema.IdentityProviderCreate, db: Session
+    ) -> identity_provider_schema.IdentityProviderRead:
+        """Create a provider after checking its normalized slug."""
+        slug = data.slug.lower()
+        if idp_crud.get_identity_provider_by_slug(slug, db) is not None:
+            raise core_exceptions.ConflictError(f"Identity provider with slug '{slug}' already exists")
+        state = idp_crud.create_identity_provider(data, db)
+        db.commit()
+        logger.info("Created identity provider", extra=core_logger.context(idp_id=state.id))
+        return identity_provider_serializers.to_read(state)
+
+    def update_identity_provider(
+        self, idp_id: int, data: identity_provider_schema.IdentityProviderUpdate, db: Session
+    ) -> identity_provider_schema.IdentityProviderRead:
+        """Update a provider and commit the change."""
+        current = idp_crud.get_identity_provider(idp_id, db)
+        if current is None:
+            raise core_exceptions.NotFoundError("Identity provider not found")
+        values = data.model_dump(exclude_unset=True)
+        slug = values.get("slug")
+        if slug and slug.lower() != current.slug and idp_crud.get_identity_provider_by_slug(slug.lower(), db):
+            raise core_exceptions.ConflictError(f"Identity provider with slug '{slug.lower()}' already exists")
+        state = idp_crud.update_identity_provider(idp_id, data, db)
+        if state is None:
+            raise core_exceptions.NotFoundError("Identity provider not found")
+        db.commit()
+        logger.info("Updated identity provider", extra=core_logger.context(idp_id=state.id))
+        return identity_provider_serializers.to_read(state)
+
+    def delete_identity_provider(self, idp_id: int, db: Session) -> None:
+        """Delete an unlinked provider and commit the change."""
+        if idp_crud.get_identity_provider(idp_id, db) is None:
+            raise core_exceptions.NotFoundError("Identity provider not found")
+        if auth_identity_links_utils.check_user_identity_providers_by_idp_id(idp_id, db):
+            raise core_exceptions.ConflictError("Cannot delete identity provider with linked users")
+        if not idp_crud.delete_identity_provider(idp_id, db):
+            raise core_exceptions.NotFoundError("Identity provider not found")
+        db.commit()
+        logger.info("Deleted identity provider", extra=core_logger.context(idp_id=idp_id))
+
+    def start_browser_link(
+        self,
+        link_token: str,
+        idp_id: int,
+        redirect: str | None,
+        client_ip: str | None,
+        claim_link_token: Callable[..., int],
+        db: Session,
+        allowed_schemes: set[str],
+    ) -> str:
+        """Claim a browser link token, stage OAuth state, and return the provider URL."""
+        identity_provider_utils.validate_redirect_url(redirect, allowed_schemes)
+        user_id = claim_link_token(link_token=link_token, idp_id=idp_id, client_ip=client_ip)
+        idp = idp_crud.get_identity_provider(idp_id, db)
+        if idp is None or not idp.enabled:
+            raise core_exceptions.NotFoundError("Identity provider not found or disabled")
+        state_id, nonce = oauth_state_utils.create_state_id_and_nonce()
+        client_type = "mobile" if identity_provider_utils.is_custom_scheme_redirect(redirect) else "web"
+        oauth_state_crud.create_oauth_state(
+            db=db,
+            state_id=state_id,
+            idp_id=idp_id,
+            nonce=nonce,
+            client_type=client_type,
+            ip_address=client_ip,
+            user_id=user_id,
+            redirect_path=redirect,
+        )
+        authorization_url = self.initiate_link(idp, user_id, db, oauth_state_id=state_id)
+        logger.info(
+            "User initiated an identity provider link", extra=core_logger.context(user_id=user_id, idp_id=idp_id)
+        )
+        return authorization_url
+
+    def refresh_idp_tokens_if_needed(self, user_id: int, db: Session) -> None:
+        """Refresh or clear the user's stored IdP tokens when policy requires it."""
+        links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
+        for link in links:
+            try:
+                action = self._should_refresh_idp_token(link)
+                if action is TokenAction.REFRESH:
+                    self.refresh_idp_session(user_id, link.idp_id, db)
+                elif action is TokenAction.CLEAR:
+                    auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                        user_id, link.idp_id, db
+                    )
+            except Exception as err:
+                logger.warning(
+                    "Could not refresh identity-provider token",
+                    exc_info=err,
+                    extra=core_logger.context(user_id=user_id, idp_id=link.idp_id),
+                )
+
+    def clear_all_idp_tokens(self, user_id: int, db: Session, revoke_at_idp: bool = False) -> None:
+        """Clear locally stored IdP tokens, optionally revoking them remotely."""
+        links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
+        for link in links:
+            try:
+                if revoke_at_idp:
+                    try:
+                        self.revoke_idp_token(user_id, link.idp_id, db)
+                    except Exception as err:
+                        logger.warning(
+                            "Could not revoke identity-provider token during logout",
+                            exc_info=err,
+                            extra=core_logger.context(user_id=user_id, idp_id=link.idp_id),
+                        )
+                auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                    user_id, link.idp_id, db
+                )
+            except Exception as err:
+                logger.warning(
+                    "Could not clear identity-provider token during logout",
+                    exc_info=err,
+                    extra=core_logger.context(user_id=user_id, idp_id=link.idp_id),
+                )
+
+    @staticmethod
+    def _discovery_key(idp_id: int) -> str:
+        return f"endurain:idp:oidc-discovery:{idp_id}"
+
+    @staticmethod
+    def _jwks_key(jwks_uri: str) -> str:
+        uri_hash = hashlib.sha256(jwks_uri.encode()).hexdigest()
+        return f"endurain:idp:jwks:{uri_hash}"
+
+    def _read_cache(self, key: str) -> dict[str, Any] | None:
+        try:
+            value = self._state.get(key)
+        except StateBackendUnavailableError as err:
+            logger.warning("OIDC cache read failed", exc_info=err)
+            return None
+        if value is None:
+            return None
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, UnicodeDecodeError, TypeError) as err:
+            logger.warning("OIDC cache contained invalid JSON", exc_info=err)
+            return None
+
+    def _write_cache(self, key: str, value: dict[str, Any]) -> None:
+        try:
+            self._state.set(key, json.dumps(value).encode(), ttl_seconds=self.CACHE_TTL_SECONDS)
+        except (StateBackendUnavailableError, TypeError, ValueError) as err:
+            logger.warning("OIDC cache write failed", exc_info=err)
+
+    @contextmanager
+    def _http_client(self) -> Iterator[httpx2.Client]:
+        """Open a short-lived HTTP client for one outbound request."""
+        with httpx2.Client(
+            timeout=10.0,
+            follow_redirects=True,
+            headers={"User-Agent": f"Endurain/{self._api_version} (OIDC Client)", "Accept": "application/json"},
+        ) as client:
+            yield client
+
+    def _fetch_jwks(self, jwks_uri: str) -> dict[str, Any]:
         """
         Fetches the JSON Web Key Set (JWKS) from the identity provider.
 
@@ -168,7 +344,7 @@ class IdentityProviderService:
             A dictionary containing the JWKS response with 'keys' array
 
         Raises:
-            HTTPException: If the JWKS cannot be fetched (network errors, timeouts, invalid JSON)
+            domain error: If the JWKS cannot be fetched (network errors, timeouts, invalid JSON)
 
         Example JWKS response:
         {
@@ -183,14 +359,10 @@ class IdentityProviderService:
             ]
         }
         """
-        # Check cache first
-        now = datetime.now(UTC)
-        if jwks_uri in self._jwks_cache:
-            cached_data = self._jwks_cache[jwks_uri]
-            cached_at = cached_data.get("cached_at")
-            if cached_at and (now - cached_at) < self._cache_ttl:
-                logger.debug(f"Using cached JWKS for {jwks_uri}")
-                return cached_data["jwks"]
+        cached = self._read_cache(self._jwks_key(jwks_uri))
+        if cached is not None:
+            logger.debug("Using cached JWKS")
+            return cached
 
         # Fetch JWKS from IdP
         try:
@@ -202,11 +374,10 @@ class IdentityProviderService:
             # attacker pivot via signed token replay.
             # Self-hosted IdPs on private networks can
             # be opted in via SSRF_ALLOWED_HOSTS.
-            await core_network.reject_private_url_async(jwks_uri, purpose="oidc_jwks")
-            client = await self._get_http_client()
+            core_network.reject_private_url(jwks_uri, purpose="oidc_jwks")
             logger.debug(f"Fetching JWKS from {jwks_uri}")
-
-            response = await client.get(jwks_uri)
+            with self._http_client() as client:
+                response = client.get(jwks_uri)
             response.raise_for_status()
 
             jwks = response.json()
@@ -214,14 +385,12 @@ class IdentityProviderService:
             # Validate JWKS structure
             if not isinstance(jwks, dict) or "keys" not in jwks:
                 logger.error(f"Invalid JWKS format from {jwks_uri}: missing 'keys' array")
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
+                raise _identity_provider_error(
+                    status_code=502,
                     detail="Identity provider returned invalid JWKS format",
                 )
 
-            # Cache the JWKS with timestamp
-            self._jwks_cache[jwks_uri] = {"jwks": jwks, "cached_at": now}
-            self._prune_expired_caches()
+            self._write_cache(self._jwks_key(jwks_uri), jwks)
 
             logger.debug(f"Successfully fetched and cached JWKS from {jwks_uri} ({len(jwks.get('keys', []))} keys)")
 
@@ -229,32 +398,29 @@ class IdentityProviderService:
 
         except httpx2.TimeoutException as err:
             logger.error(f"Timeout fetching JWKS from {jwks_uri}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            raise _identity_provider_error(
+                status_code=504,
                 detail="Timeout retrieving signing keys from identity provider",
             ) from err
         except httpx2.HTTPStatusError as err:
             logger.error(f"HTTP error fetching JWKS from {jwks_uri}: {err.response.status_code}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
+            raise _identity_provider_error(
+                status_code=502,
                 detail=f"Identity provider JWKS endpoint returned error: {err.response.status_code}",
             ) from err
         except json.JSONDecodeError as err:
             logger.error(f"Invalid JSON in JWKS response from {jwks_uri}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
+            raise _identity_provider_error(
+                status_code=502,
                 detail="Identity provider returned invalid JWKS JSON",
             ) from err
-        except HTTPException:
+        except core_exceptions.DomainError:
             raise
         except Exception as err:
             logger.error(f"Unexpected error fetching JWKS from {jwks_uri}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve signing keys from identity provider",
-            ) from err
+            raise _network_domain_error(err, 500, "Failed to retrieve signing keys from identity provider") from err
 
-    async def _verify_id_token(
+    def _verify_id_token(
         self,
         id_token: str,
         jwks_uri: str,
@@ -287,7 +453,7 @@ class IdentityProviderService:
             Dictionary containing the verified JWT claims (sub, email, name, etc.)
 
         Raises:
-            HTTPException: If verification fails (invalid signature, expired token, claim mismatch)
+            domain error: If verification fails (invalid signature, expired token, claim mismatch)
 
         Security Notes:
             - BadSignatureError: Token was tampered with or signed by wrong key
@@ -301,8 +467,8 @@ class IdentityProviderService:
             parts = id_token.split(".")
             if len(parts) != 3:
                 logger.warning(f"Invalid JWT format: expected 3 parts, got {len(parts)}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
+                raise _identity_provider_error(
+                    status_code=401,
                     detail="Invalid ID token format",
                 )
 
@@ -321,15 +487,15 @@ class IdentityProviderService:
 
             if not kid:
                 logger.warning("ID token header missing 'kid' claim")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
+                raise _identity_provider_error(
+                    status_code=401,
                     detail="ID token missing key identifier",
                 )
 
             if not alg:
                 logger.warning("ID token header missing 'alg' claim")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
+                raise _identity_provider_error(
+                    status_code=401,
                     detail="ID token missing algorithm",
                 )
 
@@ -339,15 +505,15 @@ class IdentityProviderService:
             # key-confusion attacks against the public JWKS keys.
             if alg not in ID_TOKEN_ALLOWED_ALGORITHMS:
                 logger.warning(f"ID token uses disallowed algorithm: {alg}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
+                raise _identity_provider_error(
+                    status_code=401,
                     detail="ID token uses an unsupported signature algorithm",
                 )
 
             logger.debug(f"ID token header: kid={kid}, alg={alg}")
 
             # Step 2: Fetch JWKS from IdP
-            jwks = await self._fetch_jwks(jwks_uri)
+            jwks = self._fetch_jwks(jwks_uri)
 
             # Step 3: Find the matching key in JWKS
             matching_key = None
@@ -358,8 +524,8 @@ class IdentityProviderService:
 
             if not matching_key:
                 logger.warning(f"No matching key found in JWKS for kid={kid}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
+                raise _identity_provider_error(
+                    status_code=401,
                     detail="ID token signed with unknown key",
                 )
 
@@ -376,8 +542,8 @@ class IdentityProviderService:
                 key = OctKey.import_key(matching_key)
             else:
                 logger.warning(f"Unsupported key type in JWKS: {key_type}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
+                raise _identity_provider_error(
+                    status_code=401,
                     detail=f"Unsupported key type: {key_type}",
                 )
 
@@ -414,15 +580,15 @@ class IdentityProviderService:
                 token_nonce = claims.get("nonce")
                 if not token_nonce:
                     logger.warning("ID token missing nonce claim but nonce was expected")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
+                    raise _identity_provider_error(
+                        status_code=401,
                         detail="ID token missing nonce",
                     )
 
                 if token_nonce != expected_nonce:
                     logger.warning(f"ID token nonce mismatch: expected {expected_nonce}, got {token_nonce}")
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
+                    raise _identity_provider_error(
+                        status_code=401,
                         detail="ID token nonce mismatch",
                     )
 
@@ -431,42 +597,42 @@ class IdentityProviderService:
 
         except BadSignatureError as err:
             logger.warning(f"ID token signature verification failed: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            raise _identity_provider_error(
+                status_code=401,
                 detail="ID token signature is invalid",
             ) from err
         except ExpiredTokenError as err:
             logger.warning(f"ID token has expired: {err}", exc_info=err)
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="ID token has expired") from err
+            raise _identity_provider_error(status_code=401, detail="ID token has expired") from err
         except InvalidClaimError as err:
             logger.warning(f"ID token claim validation failed: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            raise _identity_provider_error(
+                status_code=401,
                 detail=f"ID token claim validation failed: {err}",
             ) from err
         except MissingClaimError as err:
             logger.warning(f"ID token missing required claim: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            raise _identity_provider_error(
+                status_code=401,
                 detail=f"ID token missing required claim: {err}",
             ) from err
         except InvalidPayloadError as err:
             logger.warning(f"ID token payload is invalid: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+            raise _identity_provider_error(
+                status_code=401,
                 detail="ID token payload is invalid",
             ) from err
-        except HTTPException:
-            # Re-raise HTTPExceptions from _fetch_jwks or our own validations
+        except core_exceptions.DomainError:
+            # Re-raise domain errors from _fetch_jwks or our own validations
             raise
         except Exception as err:
             logger.error(f"Unexpected error verifying ID token: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise _identity_provider_error(
+                status_code=500,
                 detail="Failed to verify ID token",
             ) from err
 
-    async def get_oidc_configuration(self, idp: idp_models.IdentityProvider) -> dict[str, Any] | None:
+    def get_oidc_configuration(self, idp: identity_provider_contracts.IdentityProviderState) -> dict[str, Any] | None:
         """
         Retrieves the OpenID Connect (OIDC) discovery configuration for a given identity provider.
         This method attempts to fetch the OIDC configuration from the provider's well-known discovery endpoint.
@@ -474,7 +640,7 @@ class IdentityProviderService:
         If the configuration is cached and not expired, it is returned directly from the cache.
         Otherwise, it fetches the configuration over HTTP, caches it, and returns the result.
         Args:
-            idp (idp_models.IdentityProvider): The identity provider instance containing the issuer URL and unique ID.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the issuer URL and unique ID.
         Returns:
             dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if fetching fails
             or the issuer URL is not provided.
@@ -485,10 +651,9 @@ class IdentityProviderService:
             return None
 
         # Check cache
-        if idp.id in self._discovery_cache and datetime.now(UTC) < self._cache_expiry.get(
-            idp.id, datetime.min.replace(tzinfo=UTC)
-        ):
-            return self._discovery_cache[idp.id]
+        cached = self._read_cache(self._discovery_key(idp.id))
+        if cached is not None:
+            return cached
 
         # Construct the discovery URL
         discovery_url = f"{idp.issuer_url.rstrip('/')}/.well-known/openid-configuration"
@@ -496,18 +661,15 @@ class IdentityProviderService:
         try:
             # SSRF guard for the admin-supplied issuer
             # URL: see jwks_uri rationale above.
-            await core_network.reject_private_url_async(discovery_url, purpose="oidc_discovery")
+            core_network.reject_private_url(discovery_url, purpose="oidc_discovery")
             # Fetch the configuration
-            client = await self._get_http_client()
-            response = await client.get(discovery_url)
+            with self._http_client() as client:
+                response = client.get(discovery_url)
 
             response.raise_for_status()
             config = response.json()
 
-            # Cache the configuration
-            self._discovery_cache[idp.id] = config
-            self._cache_expiry[idp.id] = datetime.now(UTC) + self._cache_ttl
-            self._prune_expired_caches()
+            self._write_cache(self._discovery_key(idp.id), config)
 
             return config
         except httpx2.HTTPStatusError as err:
@@ -525,8 +687,8 @@ class IdentityProviderService:
         except httpx2.RequestError as err:
             logger.warning(f"Request error fetching OIDC discovery for {idp.name}. URL: {discovery_url}. Error: {err}")
             return None
-        except HTTPException as err:
-            if err.status_code == status.HTTP_400_BAD_REQUEST:
+        except core_exceptions.DomainError as err:
+            if err.status_code == 400:
                 # The SSRF guard refused the URL. Log with an actionable
                 # hint for the operator so they know about the
                 # SSRF_ALLOWED_HOSTS escape hatch for self-hosted IdPs.
@@ -544,6 +706,17 @@ class IdentityProviderService:
                 )
             return None
         except Exception as err:
+            if hasattr(err, "status_code") and hasattr(err, "detail"):
+                if err.status_code == 400:
+                    logger.warning(
+                        f"OIDC discovery for {idp.name} was rejected: {err.detail}. URL: {discovery_url}. "
+                        "If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS."
+                    )
+                else:
+                    logger.warning(
+                        f"OIDC discovery for {idp.name} could not be checked: {err.detail}. URL: {discovery_url}."
+                    )
+                return None
             logger.warning(f"Failed to fetch OIDC discovery for {idp.name}: {err}")
             return None
 
@@ -557,10 +730,10 @@ class IdentityProviderService:
         Returns:
             str: The complete redirect URI for the specified identity provider.
         """
-        base_url = core_config.settings.ENDURAIN_HOST
+        base_url = self._frontend_host
         return f"{base_url}/api/v1/public/idp/callback/{idp_slug}"
 
-    def _decrypt_client_id(self, idp: idp_models.IdentityProvider) -> str:
+    def _decrypt_client_id(self, idp: identity_provider_contracts.IdentityProviderState) -> str:
         """
         Decrypts the client ID of the given identity provider.
 
@@ -569,13 +742,13 @@ class IdentityProviderService:
         and raises an HTTP 500 exception indicating a configuration error.
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider instance containing the encrypted client ID.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the encrypted client ID.
 
         Returns:
             str: The decrypted client ID.
 
         Raises:
-            HTTPException: If decryption fails or returns an empty value, an HTTP 500 error is raised.
+            domain error: If decryption fails or returns an empty value, an HTTP 500 error is raised.
         """
         try:
             client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
@@ -584,12 +757,12 @@ class IdentityProviderService:
             return client_id
         except Exception as err:
             logger.error(f"Failed to decrypt client ID for IdP {idp.name}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise _identity_provider_error(
+                status_code=500,
                 detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
             ) from err
 
-    def _decrypt_client_secret(self, idp: idp_models.IdentityProvider) -> str:
+    def _decrypt_client_secret(self, idp: identity_provider_contracts.IdentityProviderState) -> str:
         """
         Decrypt the IdP client secret using Fernet encryption.
 
@@ -597,17 +770,17 @@ class IdentityProviderService:
         and ensure consistent error handling across all OAuth flows.
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider with encrypted client secret.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider with encrypted client secret.
 
         Returns:
             str: The decrypted client secret.
 
         Raises:
-            HTTPException: If decryption fails or returns empty value (500 Internal Server Error).
+            domain error: If decryption fails or returns empty value (500 Internal Server Error).
 
         Security Note:
             - Decrypted secret only exists in function scope (not logged)
-            - Raises HTTPException to prevent OAuth flows with invalid credentials
+            - Raises domain error to prevent OAuth flows with invalid credentials
         """
         try:
             client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
@@ -616,12 +789,12 @@ class IdentityProviderService:
             return client_secret
         except Exception as err:
             logger.error(f"Failed to decrypt client secret for IdP {idp.name}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise _identity_provider_error(
+                status_code=500,
                 detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
             ) from err
 
-    async def _resolve_token_endpoint(self, idp: idp_models.IdentityProvider) -> str:
+    def _resolve_token_endpoint(self, idp: identity_provider_contracts.IdentityProviderState) -> str:
         """
         Resolve the token endpoint URL for an IdP, using OIDC discovery if needed.
 
@@ -629,13 +802,13 @@ class IdentityProviderService:
         configuration first and falling back to OIDC discovery if available.
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider configuration.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider configuration.
 
         Returns:
             str: The token endpoint URL.
 
         Raises:
-            HTTPException: If token endpoint cannot be resolved (500 Internal Server Error).
+            domain error: If token endpoint cannot be resolved (500 Internal Server Error).
 
         Note:
             - Manual configuration (idp.token_endpoint) takes precedence
@@ -647,7 +820,7 @@ class IdentityProviderService:
         # Try OIDC discovery if token endpoint not manually configured
         if not token_endpoint and idp.issuer_url:
             try:
-                config = await self.get_oidc_configuration(idp)
+                config = self.get_oidc_configuration(idp)
                 if config:
                     token_endpoint = config.get("token_endpoint")
             except Exception as err:
@@ -655,8 +828,8 @@ class IdentityProviderService:
                 # Continue - will raise below if still no endpoint
 
         if not token_endpoint:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
+            raise _identity_provider_error(
+                status_code=502,
                 detail=(
                     f"Identity provider {idp.name} token endpoint could "
                     "not be resolved. Verify the issuer URL is reachable; "
@@ -670,7 +843,7 @@ class IdentityProviderService:
         # re-validated), so a trusted issuer could still advertise an
         # internal target. Refuse private/internal addresses unless
         # explicitly opted in via SSRF_ALLOWED_HOSTS.
-        await core_network.reject_private_url_async(token_endpoint, purpose="oidc_token")
+        core_network.reject_private_url(token_endpoint, purpose="oidc_token")
 
         return token_endpoint
 
@@ -679,7 +852,7 @@ class IdentityProviderService:
         client_id: str,
         client_secret: str,
         redirect_uri: str | None = None,
-    ) -> AsyncOAuth2Client:
+    ) -> OAuth2Client:
         """
         Create an OAuth2 client for communicating with IdP token endpoints.
 
@@ -692,22 +865,24 @@ class IdentityProviderService:
             redirect_uri (str | None): The redirect URI (required for authorization code flow).
 
         Returns:
-            AsyncOAuth2Client: Configured OAuth2 client instance.
+            OAuth2Client: Configured OAuth2 client instance.
 
         Note:
             - For authorization code flow: provide redirect_uri
             - For refresh token flow: redirect_uri can be None
         """
-        return AsyncOAuth2Client(
+        return OAuth2Client(
             client_id=client_id,
             client_secret=client_secret,
             redirect_uri=redirect_uri,
+            timeout=10.0,
+            follow_redirects=True,
+            headers={"User-Agent": f"Endurain/{self._api_version} (OIDC Client)", "Accept": "application/json"},
         )
 
-    async def initiate_login(
+    def initiate_login(
         self,
-        idp: idp_models.IdentityProvider,
-        request: Request,
+        idp: identity_provider_contracts.IdentityProviderState,
         db: Session,
         redirect_path: str | None = None,
         oauth_state_id: str | None = None,
@@ -720,7 +895,7 @@ class IdentityProviderService:
 
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider instance containing configuration details.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing configuration details.
             request (Request): The current HTTP request object.
             db (Session): The database session.
             redirect_path (str | None): Optional frontend path to redirect to after successful login.
@@ -730,7 +905,7 @@ class IdentityProviderService:
             str: The authorization URL to which the user should be redirected to initiate login.
 
         Raises:
-            HTTPException: If the identity provider is not properly configured or if an error occurs during initiation.
+            domain error: If the identity provider is not properly configured or if an error occurs during initiation.
         """
         try:
             client_id = self._decrypt_client_id(idp)
@@ -740,13 +915,13 @@ class IdentityProviderService:
 
             # Try OIDC discovery if issuer URL is provided
             if not authorization_endpoint and idp.issuer_url:
-                config = await self.get_oidc_configuration(idp)
+                config = self.get_oidc_configuration(idp)
                 if config:
                     authorization_endpoint = config.get("authorization_endpoint")
 
             if not authorization_endpoint:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
+                raise _identity_provider_error(
+                    status_code=502,
                     detail=(
                         f"Identity provider {idp.name} authorization "
                         "endpoint could not be resolved. Verify the "
@@ -758,15 +933,15 @@ class IdentityProviderService:
 
             # Retrieve database-backed OAuth state (mandatory for all clients)
             if not oauth_state_id:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise _identity_provider_error(
+                    status_code=500,
                     detail="OAuth state ID is required (PKCE mandatory)",
                 )
 
             oauth_state_obj = oauth_state_crud.get_oauth_state_by_id_and_not_used(oauth_state_id, db)
             if not oauth_state_obj:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise _identity_provider_error(
+                    status_code=500,
                     detail="OAuth state not found",
                 )
 
@@ -777,25 +952,23 @@ class IdentityProviderService:
             redirect_uri = self._get_redirect_uri(idp.slug)
             scopes = idp.scopes or "openid profile email"
 
-            client = AsyncOAuth2Client(client_id=client_id, redirect_uri=redirect_uri, scope=scopes)
-
-            authorization_url, _ = client.create_authorization_url(authorization_endpoint, state=state, nonce=nonce)
+            with OAuth2Client(client_id=client_id, redirect_uri=redirect_uri, scope=scopes) as client:
+                authorization_url, _ = client.create_authorization_url(authorization_endpoint, state=state, nonce=nonce)
 
             return authorization_url
 
-        except HTTPException:
+        except core_exceptions.DomainError:
             raise
         except Exception as err:
             logger.error(f"Error initiating OAuth login for IdP {idp.name}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise _identity_provider_error(
+                status_code=500,
                 detail="Failed to initiate SSO login",
             ) from err
 
-    async def initiate_link(
+    def initiate_link(
         self,
-        idp: idp_models.IdentityProvider,
-        request: Request,
+        idp: identity_provider_contracts.IdentityProviderState,
         user_id: int,
         db: Session,
         oauth_state_id: str | None = None,
@@ -806,7 +979,7 @@ class IdentityProviderService:
         login page. Uses database-backed OAuth state for security and replay protection.
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider configuration object containing
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider configuration object containing
                 client credentials, endpoints, and other OAuth/OIDC settings.
             request (Request): The FastAPI request object used to access and store session data.
             user_id (int): The ID of the authenticated user who is linking their account to the
@@ -818,7 +991,7 @@ class IdentityProviderService:
             str: The authorization URL to redirect the user to for identity provider authentication.
 
         Raises:
-            HTTPException:
+            domain error:
                 - 500 status code if the identity provider is not properly configured (missing
                   authorization endpoint).
                 - 500 status code if OAuth state ID is missing or invalid.
@@ -837,13 +1010,13 @@ class IdentityProviderService:
 
             # Try OIDC discovery if issuer URL is provided
             if not authorization_endpoint and idp.issuer_url:
-                config = await self.get_oidc_configuration(idp)
+                config = self.get_oidc_configuration(idp)
                 if config:
                     authorization_endpoint = config.get("authorization_endpoint")
 
             if not authorization_endpoint:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
+                raise _identity_provider_error(
+                    status_code=502,
                     detail=(
                         f"Identity provider {idp.name} authorization "
                         "endpoint could not be resolved. Verify the "
@@ -855,22 +1028,22 @@ class IdentityProviderService:
 
             # Retrieve database-backed OAuth state (required for link mode)
             if not oauth_state_id:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise _identity_provider_error(
+                    status_code=500,
                     detail="OAuth state ID is required for secure linking",
                 )
 
             oauth_state_obj = oauth_state_crud.get_oauth_state_by_id_and_not_used(oauth_state_id, db)
             if not oauth_state_obj:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise _identity_provider_error(
+                    status_code=500,
                     detail="OAuth state not found",
                 )
 
             # Validate user_id matches (security check for link mode)
             if oauth_state_obj.user_id != user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise _identity_provider_error(
+                    status_code=500,
                     detail="OAuth state user mismatch",
                 )
 
@@ -881,27 +1054,25 @@ class IdentityProviderService:
             redirect_uri = self._get_redirect_uri(idp.slug)
             scopes = idp.scopes or "openid profile email"
 
-            client = AsyncOAuth2Client(client_id=client_id, redirect_uri=redirect_uri, scope=scopes)
-
-            authorization_url, _ = client.create_authorization_url(authorization_endpoint, state=state, nonce=nonce)
+            with OAuth2Client(client_id=client_id, redirect_uri=redirect_uri, scope=scopes) as client:
+                authorization_url, _ = client.create_authorization_url(authorization_endpoint, state=state, nonce=nonce)
 
             return authorization_url
 
-        except HTTPException:
+        except core_exceptions.DomainError:
             raise
         except Exception as err:
             logger.error(f"Error initiating OAuth link for IdP {idp.name}, user {user_id}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise _identity_provider_error(
+                status_code=500,
                 detail="Failed to initiate identity provider linking",
             ) from err
 
-    async def handle_callback(
+    def handle_callback(
         self,
-        idp: idp_models.IdentityProvider,
+        idp: identity_provider_contracts.IdentityProviderState,
         code: str,
         state: str,
-        request: Request,
         password_hasher: auth_password_hasher.PasswordHasher,
         db: Session,
         oauth_state: oauth_state_schema.OAuthStateRead,
@@ -913,7 +1084,7 @@ class IdentityProviderService:
         information, and either creates/updates a user session (login mode) or links
         the identity provider to an existing user account (link mode).
         Args:
-            idp (idp_models.IdentityProvider): The identity provider configuration object.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider configuration object.
             code (str): The authorization code returned by the identity provider.
             state (str): The state parameter for CSRF protection (database state ID).
             request (Request): The FastAPI/Starlette request object.
@@ -930,7 +1101,7 @@ class IdentityProviderService:
                 - mode (optional): "link" if this was a link operation (not present for login)
 
         Raises:
-            HTTPException: With appropriate status codes for various error conditions:
+            domain error: With appropriate status codes for various error conditions:
                 - 400 BAD_REQUEST: Invalid/expired state, missing parameters, user ID mismatch
                 - 404 NOT_FOUND: User not found during link mode
                 - 409 CONFLICT: IdP account already linked to a user
@@ -946,6 +1117,7 @@ class IdentityProviderService:
             - Performs ID token verification if JWKS URI is available
             - Cleans up OAuth state from database after successful completion
         """
+        oauth_client: OAuth2Client | None = None
         try:
             # Use database-backed OAuth state (mandatory for all clients)
             redirect_path = oauth_state.redirect_path
@@ -965,7 +1137,7 @@ class IdentityProviderService:
             # Decrypt credentials and resolve endpoints using helper methods
             client_id = self._decrypt_client_id(idp)
             client_secret = self._decrypt_client_secret(idp)
-            token_endpoint = await self._resolve_token_endpoint(idp)
+            token_endpoint = self._resolve_token_endpoint(idp)
 
             # Get OIDC configuration (for userinfo, jwks_uri, issuer)
             userinfo_endpoint = idp.userinfo_endpoint
@@ -974,7 +1146,7 @@ class IdentityProviderService:
 
             if idp.issuer_url:
                 try:
-                    config = await self.get_oidc_configuration(idp)
+                    config = self.get_oidc_configuration(idp)
                     if config:
                         # Get userinfo endpoint if not manually configured
                         if not userinfo_endpoint:
@@ -1000,17 +1172,17 @@ class IdentityProviderService:
             redirect_uri = self._get_redirect_uri(idp.slug)
 
             try:
-                client = self._create_oauth_client(
+                oauth_client = self._create_oauth_client(
                     client_id=client_id,
                     client_secret=client_secret,
                     redirect_uri=redirect_uri,
                 )
 
-                token_response = await client.fetch_token(token_endpoint, grant_type="authorization_code", code=code)
+                token_response = oauth_client.fetch_token(token_endpoint, grant_type="authorization_code", code=code)
             except httpx2.TimeoutException as err:
                 logger.error(f"Timeout connecting to IdP {idp.name} token endpoint: {err}", exc_info=err)
-                raise HTTPException(
-                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                raise _identity_provider_error(
+                    status_code=504,
                     detail=f"Identity provider {idp.name} is not responding. Please try again later.",
                 ) from err
             except httpx2.HTTPStatusError as err:
@@ -1026,40 +1198,40 @@ class IdentityProviderService:
                 else:
                     detail = f"Identity provider {idp.name} returned an error. Please try again later."
 
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
+                raise _identity_provider_error(
+                    status_code=502,
                     detail=detail,
                 ) from err
             except httpx2.RequestError as err:
                 logger.error(f"Network error connecting to IdP {idp.name}: {err}", exc_info=err)
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
+                raise _identity_provider_error(
+                    status_code=502,
                     detail=f"Unable to connect to identity provider {idp.name}. Please check your network connection.",
                 ) from err
             except Exception as err:
                 logger.error(f"Unexpected error during token exchange with IdP {idp.name}: {err}", exc_info=err)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise _identity_provider_error(
+                    status_code=500,
                     detail="Failed to complete authentication. Please try again.",
                 ) from err
 
-            # Get user information with ID token verification
-            userinfo = await self._get_userinfo(
-                token_response=token_response,
-                userinfo_endpoint=userinfo_endpoint,
-                client=client,
-                jwks_uri=jwks_uri,
-                expected_issuer=expected_issuer,
-                expected_audience=client_id,
-                expected_nonce=expected_nonce,
-            )
+                # Get user information with ID token verification
+                userinfo = self._get_userinfo(
+                    token_response=token_response,
+                    userinfo_endpoint=userinfo_endpoint,
+                    client=oauth_client,
+                    jwks_uri=jwks_uri,
+                    expected_issuer=expected_issuer,
+                    expected_audience=client_id,
+                    expected_nonce=expected_nonce,
+                )
 
             # Extract subject (unique user identifier)
             subject = userinfo.get("sub") or userinfo.get("id")
             if not subject:
                 logger.error(f"IdP {idp.name} did not provide 'sub' or 'id' claim in userinfo: {list(userinfo.keys())}")
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
+                raise _identity_provider_error(
+                    status_code=502,
                     detail=f"Identity provider {idp.name} did not provide required user identifier. Please contact administrator.",
                 )
 
@@ -1070,8 +1242,8 @@ class IdentityProviderService:
                 # Verify user exists
                 user = users_integration.get_user(link_user_id, db)
                 if not user:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
+                    raise _identity_provider_error(
+                        status_code=404,
                         detail="User not found",
                     )
 
@@ -1082,14 +1254,14 @@ class IdentityProviderService:
                 if existing_link:
                     # Check if it's already linked to THIS user
                     if existing_link.user_id == link_user_id:
-                        raise HTTPException(
-                            status_code=status.HTTP_409_CONFLICT,
+                        raise _identity_provider_error(
+                            status_code=409,
                             detail=f"This {idp.name} account is already linked to your account",
                         )
                     else:
                         # Linked to a DIFFERENT user - security issue
-                        raise HTTPException(
-                            status_code=status.HTTP_409_CONFLICT,
+                        raise _identity_provider_error(
+                            status_code=409,
                             detail=f"This {idp.name} account is already linked to another user",
                         )
 
@@ -1100,10 +1272,10 @@ class IdentityProviderService:
 
                 # Update user info if sync is enabled
                 if idp.sync_user_info:
-                    user = await self._update_user_from_idp(user, idp, userinfo, db)
+                    user = self._update_user_from_idp(user, idp, userinfo, db)
 
                 # Store IdP tokens for future use
-                await self._store_idp_tokens(link_user_id, idp.id, token_response, db)
+                self._store_idp_tokens(link_user_id, idp.id, token_response, db)
 
                 logger.info(f"User {user.username} (id={link_user_id}) linked IdP {idp.name} (subject={subject})")
 
@@ -1116,10 +1288,10 @@ class IdentityProviderService:
                 }
             else:
                 # LOGIN MODE: Find or create user and establish session
-                user = await self._find_or_create_user(idp, subject, userinfo, password_hasher, db)
+                user = self._find_or_create_user(idp, subject, userinfo, password_hasher, db)
 
                 # Store IdP tokens for future session renewal
-                await self._store_idp_tokens(user.id, idp.id, token_response, db)
+                self._store_idp_tokens(user.id, idp.id, token_response, db)
 
                 logger.info(f"User {user.username} authenticated via IdP {idp.name}")
 
@@ -1131,22 +1303,50 @@ class IdentityProviderService:
                     "client_type": client_type,
                 }
 
-        except HTTPException:
-            # Re-raise HTTPExceptions as-is (already have proper status codes and messages)
+        except core_exceptions.DomainError:
+            # Re-raise domain errors as-is (already have proper status codes and messages)
             raise
         except Exception as err:
             # Catch-all for unexpected errors
             logger.error(f"Unexpected error handling OAuth callback for IdP {idp.name}: {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise _identity_provider_error(
+                status_code=500,
                 detail=f"An unexpected error occurred during authentication with {idp.name}. Please try again or contact administrator.",
             ) from err
+        finally:
+            if oauth_client is not None:
+                oauth_client.close()
 
-    async def _get_userinfo(
+    def create_callback_session(
+        self,
+        user: Any,
+        request: Any,
+        password_hasher: auth_password_hasher.PasswordHasher,
+        db: Session,
+        oauth_state_id: str,
+    ) -> str:
+        """Create the token-exchange session for a successful SSO login."""
+        users_integration.require_active_user(user)
+        user_read = users_schema.UsersRead.model_validate(user)
+        session_id = str(uuid4())
+        expires_at = datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl
+        auth_sessions_integration.create_session(
+            session_id,
+            user_read,
+            request,
+            None,
+            password_hasher,
+            expires_at,
+            db,
+            oauth_state_id=oauth_state_id,
+        )
+        return session_id
+
+    def _get_userinfo(
         self,
         token_response: dict[str, Any],
         userinfo_endpoint: str | None,
-        client: AsyncOAuth2Client,
+        client: OAuth2Client,
         jwks_uri: str | None,
         expected_issuer: str | None,
         expected_audience: str,
@@ -1168,7 +1368,7 @@ class IdentityProviderService:
         Args:
             token_response (dict[str, Any]): The OAuth2 token response containing access and/or ID tokens.
             userinfo_endpoint (str | None): The endpoint URL to fetch user information, if available.
-            client (AsyncOAuth2Client): The asynchronous OAuth2 client used to make HTTP requests.
+            client (OAuth2Client): The asynchronous OAuth2 client used to make HTTP requests.
             jwks_uri (str | None): The JWKS endpoint URL for verifying ID token signatures.
             expected_issuer (str | None): Expected 'iss' claim value from OIDC discovery.
             expected_audience (str): Expected 'aud' claim value (typically the client_id).
@@ -1178,7 +1378,7 @@ class IdentityProviderService:
             dict[str, Any]: The user information claims retrieved from the identity provider.
 
         Raises:
-            HTTPException: If user information cannot be retrieved from either the userinfo endpoint or the ID token,
+            domain error: If user information cannot be retrieved from either the userinfo endpoint or the ID token,
                           or if ID token verification fails.
         """
         # Try to get from userinfo endpoint first
@@ -1192,12 +1392,12 @@ class IdentityProviderService:
             # explicitly opted in via SSRF_ALLOWED_HOSTS. Raised outside the
             # try/except below so the guard's 4xx is not swallowed as a
             # userinfo fetch failure.
-            await core_network.reject_private_url_async(userinfo_endpoint, purpose="oidc_userinfo")
+            core_network.reject_private_url(userinfo_endpoint, purpose="oidc_userinfo")
             try:
                 # Use the access token to fetch userinfo
                 access_token = token_response.get("access_token")
                 if access_token:
-                    response = await client.get(
+                    response = client.get(
                         userinfo_endpoint,
                         headers={"Authorization": f"Bearer {access_token}"},
                     )
@@ -1223,7 +1423,7 @@ class IdentityProviderService:
             try:
                 # SECURITY: Verify ID token signature using JWKS
                 # This replaces the insecure manual base64 decode
-                id_token_claims = await self._verify_id_token(
+                id_token_claims = self._verify_id_token(
                     id_token=id_token,
                     jwks_uri=jwks_uri,
                     expected_issuer=expected_issuer,
@@ -1245,14 +1445,14 @@ class IdentityProviderService:
                     # Only ID token available, return verified claims
                     return id_token_claims
 
-            except HTTPException:
+            except core_exceptions.DomainError:
                 # Re-raise verification errors (signature failed, expired, etc.)
                 # These are security-critical and should not be ignored
                 raise
             except Exception as err:
                 logger.error(f"Unexpected error verifying ID token: {err}", exc_info=err)
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise _identity_provider_error(
+                    status_code=500,
                     detail="Failed to verify ID token",
                 ) from err
 
@@ -1269,12 +1469,12 @@ class IdentityProviderService:
 
         # If we get here, we couldn't retrieve or verify any user information
         logger.error("Failed to retrieve user information from userinfo endpoint or ID token")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise _identity_provider_error(
+            status_code=500,
             detail="Unable to retrieve user information from identity provider. Please contact administrator.",
         )
 
-    async def _store_idp_tokens(
+    def _store_idp_tokens(
         self,
         user_id: int,
         idp_id: int,
@@ -1355,7 +1555,9 @@ class IdentityProviderService:
             # Authentication succeeds even if token storage fails
             # User will need to re-auth when session expires, but that's acceptable
 
-    def _map_user_claims(self, idp: idp_models.IdentityProvider, claims: dict[str, Any]) -> dict[str, Any]:
+    def _map_user_claims(
+        self, idp: identity_provider_contracts.IdentityProviderState, claims: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Maps user claims from an identity provider to a standardized user dictionary.
 
@@ -1364,7 +1566,7 @@ class IdentityProviderService:
         using both default and custom mappings defined in the identity provider.
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider instance containing optional custom user mapping.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing optional custom user mapping.
             claims (dict[str, Any]): The dictionary of claims received from the identity provider.
 
         Returns:
@@ -1414,9 +1616,9 @@ class IdentityProviderService:
             return value.strip().lower() == "true"
         return False
 
-    async def _find_or_create_user(
+    def _find_or_create_user(
         self,
-        idp: idp_models.IdentityProvider,
+        idp: identity_provider_contracts.IdentityProviderState,
         subject: str,
         userinfo: dict[str, Any],
         password_hasher: auth_password_hasher.PasswordHasher,
@@ -1433,7 +1635,7 @@ class IdentityProviderService:
         3. If still not found and auto-creation is enabled, create a new user from the IdP information.
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider instance.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance.
             subject (str): The unique subject identifier from the IdP.
             userinfo (Dict[str, Any]): User information/claims from the IdP.
             password_hasher (auth_password_hasher.PasswordHasher): The password hasher instance.
@@ -1443,7 +1645,7 @@ class IdentityProviderService:
             users_schema.UsersRead: The found or newly created user instance.
 
         Raises:
-            HTTPException: If an existing account matches the email but the IdP
+            domain error: If an existing account matches the email but the IdP
                 did not assert a verified email (403), or if user creation is
                 disabled for the identity provider and no existing user is found.
         """
@@ -1456,8 +1658,8 @@ class IdentityProviderService:
             # relationship (link.users) and crossing the module boundary.
             user = users_integration.get_user(link.user_id, db)
             if user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                raise _identity_provider_error(
+                    status_code=404,
                     detail="User not found",
                 )
             # Update last login timestamp
@@ -1465,7 +1667,7 @@ class IdentityProviderService:
 
             # Update user info if sync is enabled
             if idp.sync_user_info:
-                user = await self._update_user_from_idp(user, idp, userinfo, db)
+                user = self._update_user_from_idp(user, idp, userinfo, db)
             return user
 
         # Try to find by email (for linking existing accounts).
@@ -1489,8 +1691,8 @@ class IdentityProviderService:
                         f"Refusing to link IdP {idp.name} to existing account "
                         f"{user.username}: provider did not assert a verified email"
                     )
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
+                    raise _identity_provider_error(
+                        status_code=403,
                         detail=(
                             "Cannot link this identity provider to an existing "
                             "account because the provider did not verify the "
@@ -1505,23 +1707,23 @@ class IdentityProviderService:
 
                 # Update user info if sync is enabled
                 if idp.sync_user_info:
-                    user = await self._update_user_from_idp(user, idp, userinfo, db)
+                    user = self._update_user_from_idp(user, idp, userinfo, db)
                 return user
 
         # Create new user if auto-creation is enabled
         if not idp.auto_create_users:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+            raise _identity_provider_error(
+                status_code=403,
                 detail="User account creation is disabled for this identity provider",
             )
 
-        user = await self._create_user_from_idp(idp, subject, mapped_data, password_hasher, db)
+        user = self._create_user_from_idp(idp, subject, mapped_data, password_hasher, db)
 
         return user
 
-    async def _create_user_from_idp(
+    def _create_user_from_idp(
         self,
-        idp: idp_models.IdentityProvider,
+        idp: identity_provider_contracts.IdentityProviderState,
         subject: str,
         mapped_data: dict[str, Any],
         password_hasher: auth_password_hasher.PasswordHasher,
@@ -1538,7 +1740,7 @@ class IdentityProviderService:
         verified since we trust the IdP's verification.
 
         Args:
-            idp (idp_models.IdentityProvider): The identity provider instance.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance.
             subject (str): The unique subject identifier from the IdP.
             mapped_data (Dict[str, Any]): User data mapped from the IdP (e.g., username, email, name).
             password_hasher (auth_password_hasher.PasswordHasher): The password hasher instance.
@@ -1548,7 +1750,7 @@ class IdentityProviderService:
             users_schema.UsersRead: The newly created user instance.
 
         Raises:
-            HTTPException: If user creation fails (e.g., duplicate username/email).
+            domain error: If user creation fails (e.g., duplicate username/email).
         """
         # Generate a random password solely to satisfy the required
         # UsersSignup.password field. It is never validated, hashed, or
@@ -1582,22 +1784,7 @@ class IdentityProviderService:
 
         server_settings = server_settings_integration.get_server_settings(db)
 
-        # Build a real identity service to satisfy the create_signup_user
-        # signature. SSO accounts opt out of local-credential persistence
-        # (persist_credential=False) so no password hash is written.
-        identity_service = auth_identity_service.DefaultIdentityService(
-            db=db,
-            token_manager=auth_token_manager.get_token_manager(),
-            password_hasher=password_hasher,
-        )
-
-        created_user = users_integration.create_signup_user(
-            user_signup,
-            server_settings,
-            identity_service,
-            db,
-            persist_credential=False,
-        )
+        created_user = users_integration.create_sso_user(user_signup, server_settings, db)
 
         # Create the IdP link
         auth_identity_links_crud.create_user_identity_provider(created_user.id, idp.id, subject, db)
@@ -1606,10 +1793,10 @@ class IdentityProviderService:
 
         return created_user
 
-    async def _update_user_from_idp(
+    def _update_user_from_idp(
         self,
         user: users_schema.UsersRead,
-        idp: idp_models.IdentityProvider,
+        idp: identity_provider_contracts.IdentityProviderState,
         userinfo: dict[str, Any],
         db: Session,
     ) -> users_schema.UsersRead:
@@ -1626,7 +1813,7 @@ class IdentityProviderService:
 
         Args:
             user (users_schema.UsersRead): The user schema instance to update.
-            idp (idp_models.IdentityProvider): The identity provider instance with user_mapping config.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance with user_mapping config.
             userinfo (Dict[str, Any]): The user information claims received from the IdP.
             db (Session): The SQLAlchemy database session.
 
@@ -1670,7 +1857,7 @@ class IdentityProviderService:
 
         return user
 
-    async def refresh_idp_session(
+    def refresh_idp_session(
         self,
         user_id: int,
         idp_id: int,
@@ -1694,7 +1881,7 @@ class IdentityProviderService:
                 or None if the refresh failed (expired/revoked token, network error, etc.).
 
         Raises:
-            HTTPException: If the IdP is not found, disabled, or misconfigured.
+            domain error: If the IdP is not found, disabled, or misconfigured.
 
         Example return value:
             {
@@ -1712,8 +1899,8 @@ class IdentityProviderService:
         # Get the IdP configuration
         idp = idp_crud.get_identity_provider(idp_id, db)
         if not idp or not idp.enabled:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise _identity_provider_error(
+                status_code=404,
                 detail=f"Identity provider (ID: {idp_id}) not found or disabled",
             )
 
@@ -1742,11 +1929,12 @@ class IdentityProviderService:
             return None
 
         # Resolve endpoints and credentials using helper methods
-        token_endpoint = await self._resolve_token_endpoint(idp)
+        token_endpoint = self._resolve_token_endpoint(idp)
         client_id = self._decrypt_client_id(idp)
         client_secret = self._decrypt_client_secret(idp)
 
         # Create OAuth client for token refresh
+        client: OAuth2Client | None = None
         try:
             client = self._create_oauth_client(
                 client_id=client_id,
@@ -1755,7 +1943,7 @@ class IdentityProviderService:
             )
 
             # Exchange refresh token for new tokens
-            token_response = await client.fetch_token(
+            token_response = client.fetch_token(
                 token_endpoint,
                 grant_type="refresh_token",
                 refresh_token=refresh_token,
@@ -1764,7 +1952,7 @@ class IdentityProviderService:
             logger.debug(f"Successfully refreshed IdP session for user {user_id}, idp {idp_id}")
 
             # Store the new tokens (they may include a new refresh token)
-            await self._store_idp_tokens(user_id, idp_id, token_response, db)
+            self._store_idp_tokens(user_id, idp_id, token_response, db)
 
             return token_response
 
@@ -1807,8 +1995,11 @@ class IdentityProviderService:
                 f"Unexpected error refreshing IdP session for user {user_id}, idp {idp_id}: {err}", exc_info=err
             )
             return None
+        finally:
+            if client is not None:
+                client.close()
 
-    async def revoke_idp_token(
+    def revoke_idp_token(
         self,
         user_id: int,
         idp_id: int,
@@ -1845,7 +2036,7 @@ class IdentityProviderService:
             - client_id and client_secret for authentication
 
         Example:
-            success = await idp_service.revoke_idp_token(user_id=123, idp_id=1, db=db)
+            success = idp_service.revoke_idp_token(user_id=123, idp_id=1, db=db)
             if success:
                 # Token revoked at IdP
                 clear_local_token()
@@ -1886,7 +2077,7 @@ class IdentityProviderService:
             revocation_endpoint = None
             if idp.issuer_url:
                 try:
-                    config = await self.get_oidc_configuration(idp)
+                    config = self.get_oidc_configuration(idp)
                     if config:
                         revocation_endpoint = config.get("revocation_endpoint")
                 except Exception as err:
@@ -1910,17 +2101,17 @@ class IdentityProviderService:
 
             # Call the revocation endpoint (RFC 7009)
             try:
-                client = await self._get_http_client()
-                response = await client.post(
-                    revocation_endpoint,
-                    data={
-                        "token": refresh_token,
-                        "token_type_hint": "refresh_token",
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                    },
-                    headers={"Content-Type": "application/x-www-form-urlencoded"},
-                )
+                with self._http_client() as client:
+                    response = client.post(
+                        revocation_endpoint,
+                        data={
+                            "token": refresh_token,
+                            "token_type_hint": "refresh_token",
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                        },
+                        headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    )
 
                 # RFC 7009: The revocation endpoint responds with HTTP 200
                 # for both successful revocations and invalid tokens
@@ -2031,7 +2222,7 @@ class IdentityProviderService:
             link = auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
             action = self._should_refresh_idp_token(link)
             if action == TokenAction.REFRESH:
-                await self.refresh_idp_session(user_id, idp_id, db)
+                self.refresh_idp_session(user_id, idp_id, db)
             elif action == TokenAction.CLEAR:
                 auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id, idp_id, db)
         """
@@ -2069,66 +2260,3 @@ class IdentityProviderService:
 
         # Token is still valid and not close to expiry
         return TokenAction.SKIP
-
-
-# Global service instance
-idp_service = IdentityProviderService()
-
-
-def get_identity_provider(idp_id: int, db: Session) -> idp_models.IdentityProvider | None:
-    """Public facade over the identity-provider CRUD lookup.
-
-    Lets non-auth callers (the browser IdP-link redirect router) fetch a provider
-    without importing ``modules.auth.identity_providers.crud`` directly, keeping the auth
-    data layer behind the boundary enforced by import-linter.
-
-    Args:
-        idp_id: The identity provider id.
-        db: Active database session.
-
-    Returns:
-        The identity provider, or ``None`` when it does not exist.
-    """
-    return idp_crud.get_identity_provider(idp_id, db)
-
-
-def create_link_oauth_state(
-    db: Session,
-    *,
-    state_id: str,
-    idp_id: int,
-    nonce: str,
-    client_type: str,
-    ip_address: str | None,
-    user_id: int,
-    redirect_path: str | None,
-) -> None:
-    """Persist the OAuth-state row for a browser IdP-link flow (auth-boundary facade).
-
-    Wraps ``modules.auth.oauth_state.integration_service.create_oauth_state`` so the non-auth browser
-    link router can start the link flow without importing the auth OAuth-state
-    data layer directly.
-
-    Args:
-        db: Active database session.
-        state_id: The generated OAuth ``state`` id.
-        idp_id: The identity provider being linked.
-        nonce: The OIDC nonce bound to this flow.
-        client_type: ``"web"`` or ``"mobile"``.
-        ip_address: The initiating client IP, when known.
-        user_id: The user the link is for (its presence marks link mode).
-        redirect_path: The frontend return target after linking.
-
-    Returns:
-        None.
-    """
-    oauth_state_crud.create_oauth_state(
-        db=db,
-        state_id=state_id,
-        idp_id=idp_id,
-        nonce=nonce,
-        client_type=client_type,
-        ip_address=ip_address,
-        user_id=user_id,
-        redirect_path=redirect_path,
-    )

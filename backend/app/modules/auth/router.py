@@ -21,7 +21,7 @@ import modules.auth._internal.internal_dependencies as auth_internal_dependencie
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.credentials.integration_service as auth_password_hasher
-import modules.auth.identity_providers.utils as idp_utils
+import modules.auth.identity_providers.integration_service as idp_integration
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
@@ -690,7 +690,7 @@ async def refresh_token(
     )
 
     # Opportunistically refresh IdP tokens for all linked identity providers
-    await idp_utils.refresh_idp_tokens_if_needed(user.id, db)
+    idp_integration.refresh_idp_tokens_if_needed(user.id, db)
 
     # Token delivery based on client type (web cookie vs mobile body) is
     # centralised in auth_utils.build_token_response so login, /refresh, and
@@ -781,7 +781,7 @@ async def logout(
         auth_sessions_integration.delete_session(session.id, token_user_id, db)
 
         # Clear all IdP refresh tokens for security
-        await idp_utils.clear_all_idp_tokens(token_user_id, db)
+        idp_integration.clear_all_idp_tokens(token_user_id, db)
 
     if client_type == "web":
         auth_utils.clear_refresh_token_cookies(response)

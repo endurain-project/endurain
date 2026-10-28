@@ -1,7 +1,7 @@
 import type { Schemas } from '@/types'
 
 /** Raw authenticated identity-provider payload (snake_case wire shape). */
-export type IdentityProviderDto = Schemas['IdentityProvider']
+export type IdentityProviderDto = Schemas['IdentityProviderRead']
 
 /** Create body for a new identity provider (client secret required). */
 export type IdentityProviderCreateDto = Schemas['IdentityProviderCreate']

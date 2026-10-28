@@ -15,6 +15,7 @@ import model_registry as app_model_registry
 import module_registry as runtime_module_registry
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.model_registry as activities_model_registry
+import modules.auth.identity_providers.model_registry as auth_identity_providers_model_registry
 import modules.auth.mfa.model_registry as auth_mfa_model_registry
 import modules.auth.password_reset_tokens.model_registry as password_reset_tokens_model_registry
 import modules.auth.sessions.model_registry as auth_sessions_model_registry
@@ -132,6 +133,7 @@ def test_model_registries_collect_every_converted_model() -> None:
     assert set(activities_model_registry.MODEL_MODULES) == expected_activities
     assert set(auth_sessions_model_registry.MODEL_MODULES) == {"modules.auth.sessions.models"}
     assert set(auth_mfa_model_registry.MODEL_MODULES) == {"modules.auth.mfa.models"}
+    assert set(auth_identity_providers_model_registry.MODEL_MODULES) == {"modules.auth.identity_providers.models"}
     assert set(password_reset_tokens_model_registry.MODEL_MODULES) == {"modules.auth.password_reset_tokens.models"}
     assert set(sign_up_tokens_model_registry.MODEL_MODULES) == {"modules.auth.sign_up_tokens.models"}
     assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
@@ -159,6 +161,7 @@ def test_model_registries_collect_every_converted_model() -> None:
         expected_activities
         | set(auth_sessions_model_registry.MODEL_MODULES)
         | set(auth_mfa_model_registry.MODEL_MODULES)
+        | set(auth_identity_providers_model_registry.MODEL_MODULES)
         | set(password_reset_tokens_model_registry.MODEL_MODULES)
         | set(sign_up_tokens_model_registry.MODEL_MODULES)
         | set(followers_model_registry.MODEL_MODULES)

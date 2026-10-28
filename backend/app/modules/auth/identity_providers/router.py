@@ -1,30 +1,25 @@
-"""HTTP routes for managing identity providers (admin only)."""
+"""Admin routes for identity-provider configuration."""
 
-from collections.abc import Callable
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Security, status
+from fastapi import APIRouter, Security, status
 
 import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.schema as idp_schema
-import modules.auth.identity_providers.utils as idp_utils
 
-# Define the API router
 router = APIRouter()
 
 
 @router.get(
     "",
-    response_model=list[idp_schema.IdentityProvider],
+    response_model=list[idp_schema.IdentityProviderRead],
     status_code=status.HTTP_200_OK,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
-async def list_identity_providers(
+def list_identity_providers(
     db: core_dependencies.DbSession,
-) -> list[idp_schema.IdentityProvider]:
+    service: idp_dependencies.IdentityProviderService,
+) -> list[idp_schema.IdentityProviderRead]:
     """
     Retrieve a list of all identity providers.
 
@@ -34,7 +29,7 @@ async def list_identity_providers(
     Returns:
         A list of all configured identity providers.
     """
-    return idp_crud.get_all_identity_providers(db)
+    return service.list_identity_providers(db)
 
 
 @router.get(
@@ -43,7 +38,7 @@ async def list_identity_providers(
     status_code=status.HTTP_200_OK,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
-async def list_idp_templates() -> list[idp_schema.IdentityProviderTemplate]:
+def list_idp_templates(service: idp_dependencies.IdentityProviderService) -> list[idp_schema.IdentityProviderTemplate]:
     """
     Get the list of pre-configured IdP templates (admin only).
 
@@ -52,19 +47,20 @@ async def list_idp_templates() -> list[idp_schema.IdentityProviderTemplate]:
     Returns:
         A list of identity provider templates.
     """
-    return idp_utils.get_idp_templates()
+    return service.get_idp_templates()
 
 
 @router.post(
     "",
-    response_model=idp_schema.IdentityProvider,
+    response_model=idp_schema.IdentityProviderRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
 )
-async def create_identity_provider(
+def create_identity_provider(
     idp_data: idp_schema.IdentityProviderCreate,
     db: core_dependencies.DbSession,
-) -> idp_schema.IdentityProvider:
+    service: idp_dependencies.IdentityProviderService,
+) -> idp_schema.IdentityProviderRead:
     """
     Create a new identity provider.
 
@@ -79,21 +75,21 @@ async def create_identity_provider(
         HTTPException: 409 if the slug already exists, 500 on
             database errors.
     """
-    return idp_crud.create_identity_provider(idp_data, db)
+    return service.create_identity_provider(idp_data, db)
 
 
 @router.put(
     "/{idp_id}",
-    response_model=idp_schema.IdentityProvider,
+    response_model=idp_schema.IdentityProviderRead,
     status_code=status.HTTP_200_OK,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
 )
-async def update_identity_provider(
-    idp_id: int,
-    _validate_id: Annotated[Callable, Depends(idp_dependencies.validate_idp_id)],
+def update_identity_provider(
+    idp_id: core_dependencies.PositiveId,
     idp_data: idp_schema.IdentityProviderUpdate,
     db: core_dependencies.DbSession,
-) -> idp_schema.IdentityProvider:
+    service: idp_dependencies.IdentityProviderService,
+) -> idp_schema.IdentityProviderRead:
     """
     Update an existing identity provider.
 
@@ -109,7 +105,7 @@ async def update_identity_provider(
         HTTPException: 404 if the provider is not found, 409 on slug
             conflict, 500 on database errors.
     """
-    return idp_crud.update_identity_provider(idp_id, idp_data, db)
+    return service.update_identity_provider(idp_id, idp_data, db)
 
 
 @router.delete(
@@ -117,10 +113,10 @@ async def update_identity_provider(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
 )
-async def delete_identity_provider(
-    idp_id: int,
-    _validate_id: Annotated[Callable, Depends(idp_dependencies.validate_idp_id)],
+def delete_identity_provider(
+    idp_id: core_dependencies.PositiveId,
     db: core_dependencies.DbSession,
+    service: idp_dependencies.IdentityProviderService,
 ) -> None:
     """
     Delete an identity provider by ID.
@@ -133,4 +129,4 @@ async def delete_identity_provider(
         HTTPException: 404 if the provider is not found, 409 if users
             are still linked to the provider.
     """
-    idp_crud.delete_identity_provider(idp_id, db)
+    service.delete_identity_provider(idp_id, db)

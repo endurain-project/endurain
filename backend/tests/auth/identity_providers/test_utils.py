@@ -1,7 +1,5 @@
 """Tests for identity_providers.utils module."""
 
-from unittest.mock import patch
-
 import pytest
 from fastapi import HTTPException
 
@@ -12,8 +10,16 @@ from modules.auth.identity_providers.utils import (
     get_idp_templates,
     validate_pkce_challenge,
     validate_pkce_verifier,
-    validate_redirect_url,
 )
+from modules.auth.identity_providers.utils import (
+    validate_redirect_url as _validate_redirect_url,
+)
+
+
+def validate_redirect_url(redirect, allowed_schemes=None):
+    if allowed_schemes is None:
+        allowed_schemes = {"endurain"}
+    return _validate_redirect_url(redirect, allowed_schemes)
 
 
 class TestValidatePkceChallenge:
@@ -559,11 +565,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - No exception when scheme is in allowed set
         """
-        with patch(
-            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            {"endurain"},
-        ):
-            validate_redirect_url("endurain://endurain/oauth/callback")
+        validate_redirect_url("endurain://endurain/oauth/callback", {"endurain"})
 
     def test_custom_scheme_case_insensitive(self):
         """Scheme comparison must be case-insensitive.
@@ -571,11 +573,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - ENDURAIN:// is allowed when 'endurain' configured
         """
-        with patch(
-            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            {"endurain"},
-        ):
-            validate_redirect_url("ENDURAIN://endurain/callback")
+        validate_redirect_url("ENDURAIN://endurain/callback", {"endurain"})
 
     def test_multiple_custom_schemes_allowed(self):
         """Multiple schemes can be configured simultaneously.
@@ -584,12 +582,8 @@ class TestValidateRedirectUrl:
             - Both schemes accepted independently
         """
         schemes = {"endurain", "myapp"}
-        with patch(
-            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            schemes,
-        ):
-            validate_redirect_url("endurain://callback")
-            validate_redirect_url("myapp://callback")
+        validate_redirect_url("endurain://callback", schemes)
+        validate_redirect_url("myapp://callback", schemes)
 
     # ------------------------------------------------------------------
     # Inputs that MUST raise HTTPException(400)
@@ -631,14 +625,8 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 when scheme not configured
         """
-        with (
-            patch(
-                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-                set(),
-            ),
-            pytest.raises(HTTPException) as exc_info,
-        ):
-            validate_redirect_url("endurain://callback")
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("endurain://callback", set())
         assert exc_info.value.status_code == 400
         assert "not allowed" in exc_info.value.detail.lower()
 
@@ -648,14 +636,8 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 when only a different scheme is configured
         """
-        with (
-            patch(
-                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-                {"endurain"},
-            ),
-            pytest.raises(HTTPException) as exc_info,
-        ):
-            validate_redirect_url("myapp://callback")
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("myapp://callback", {"endurain"})
         assert exc_info.value.status_code == 400
 
     def test_path_traversal_double_dot_is_rejected(self):

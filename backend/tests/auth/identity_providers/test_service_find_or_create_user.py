@@ -6,12 +6,12 @@ linking: an external identity may only be auto-linked to an EXISTING local
 account when the IdP asserts a verified email (OIDC ``email_verified``).
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 from modules.auth.identity_providers.service import IdentityProviderService
 
 
@@ -52,10 +52,9 @@ class TestIsEmailVerified:
 class TestFindOrCreateUserEmailLinking:
     """Test suite for email-based linking gate in _find_or_create_user."""
 
-    @pytest.mark.asyncio
-    async def test_unverified_email_existing_account_is_rejected(self):
+    def test_unverified_email_existing_account_is_rejected(self):
         """Linking to an existing account must fail when email unverified."""
-        service = IdentityProviderService()
+        service = IdentityProviderService(MagicMock(), "https://app.example", "test")
         idp = _make_idp()
         mock_db = MagicMock(spec=Session)
         password_hasher = MagicMock()
@@ -76,18 +75,17 @@ class TestFindOrCreateUserEmailLinking:
             patch(
                 "modules.auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
             ) as mock_link,
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
-            await service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
+            service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
 
         assert exc_info.value.status_code == 403
         # No link must be created for the unverified takeover attempt.
         mock_link.assert_not_called()
 
-    @pytest.mark.asyncio
-    async def test_verified_email_existing_account_is_linked(self):
+    def test_verified_email_existing_account_is_linked(self):
         """Linking to an existing account succeeds when email is verified."""
-        service = IdentityProviderService()
+        service = IdentityProviderService(MagicMock(), "https://app.example", "test")
         idp = _make_idp()
         mock_db = MagicMock(spec=Session)
         password_hasher = MagicMock()
@@ -110,15 +108,14 @@ class TestFindOrCreateUserEmailLinking:
                 "modules.auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
             ) as mock_link,
         ):
-            result = await service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
+            result = service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
 
         assert result is existing_user
         mock_link.assert_called_once_with(existing_user.id, idp.id, "subject-123", mock_db)
 
-    @pytest.mark.asyncio
-    async def test_unverified_email_no_existing_account_creates_user(self):
+    def test_unverified_email_no_existing_account_creates_user(self):
         """Unverified email with no existing account still auto-creates."""
-        service = IdentityProviderService()
+        service = IdentityProviderService(MagicMock(), "https://app.example", "test")
         idp = _make_idp()
         mock_db = MagicMock(spec=Session)
         password_hasher = MagicMock()
@@ -138,10 +135,10 @@ class TestFindOrCreateUserEmailLinking:
             patch.object(
                 service,
                 "_create_user_from_idp",
-                new=AsyncMock(return_value=created_user),
+                new=MagicMock(return_value=created_user),
             ) as mock_create,
         ):
-            result = await service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
+            result = service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
 
         assert result is created_user
         mock_create.assert_called_once()

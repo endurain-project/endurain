@@ -1,0 +1,32 @@
+"""Internal contracts for identity-provider persistence and OIDC flows."""
+
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict
+
+
+class IdentityProviderState(BaseModel):
+    """Stored provider configuration, including encrypted credentials."""
+
+    id: int
+    name: str
+    slug: str
+    provider_type: str
+    enabled: bool
+    client_id: str | None
+    client_secret: str | None
+    issuer_url: str | None
+    authorization_endpoint: str | None
+    token_endpoint: str | None
+    userinfo_endpoint: str | None
+    jwks_uri: str | None
+    scopes: str | None
+    icon: str | None
+    auto_create_users: bool
+    sync_user_info: bool
+    user_mapping: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True, frozen=True)
