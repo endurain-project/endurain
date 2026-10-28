@@ -7,7 +7,7 @@
  */
 
 import type { Schemas } from '@/types'
-import type { FastingSnapshot } from '@/features/health/types'
+import type { FastingSnapshot, HealthChartBucket } from '@/features/health/types'
 
 import { kgToLbs, mlToFlOz } from '@/utils/units'
 
@@ -109,6 +109,28 @@ export function formatHealthEntryDate(date: string | null, locale = 'en'): strin
   return Number.isNaN(parsed.getTime())
     ? ''
     : new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parsed)
+}
+
+/**
+ * Formats the first day of a chart bucket for an axis label: the month and year for a monthly
+ * bucket (e.g. `Jun 2026`), the medium date otherwise (a week is labelled by its Monday).
+ *
+ * @param date - The bucket's first day as `yyyy-mm-dd`.
+ * @param bucket - The span the bucket aggregates.
+ * @param locale - BCP-47 locale tag controlling the output language.
+ * @returns The localized label, or an empty string when `date` is unparseable.
+ */
+export function formatHealthChartLabel(
+  date: string,
+  bucket: HealthChartBucket,
+  locale = 'en',
+): string {
+  if (bucket !== 'month') return formatHealthEntryDate(date, locale)
+  const [year, month] = date.split('-').map(Number)
+  if (!year || !month) return ''
+  return new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(
+    new Date(year, month - 1, 1),
+  )
 }
 
 /**

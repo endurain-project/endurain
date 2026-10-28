@@ -306,6 +306,34 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
         "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
         "is written once. It owns no table or session and asks no module."
     ),
+    (
+        "modules.health.health_sleep.crud",
+        "modules.health.computation",
+    ): (
+        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
+    (
+        "modules.health.health_steps.crud",
+        "modules.health.computation",
+    ): (
+        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
+    (
+        "modules.health.health_water.crud",
+        "modules.health.computation",
+    ): (
+        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
+    (
+        "modules.health.health_weight.crud",
+        "modules.health.computation",
+    ): (
+        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
 }
 
 #: Top-level modules that sit below another, as ``{module: modules it may not import}``.

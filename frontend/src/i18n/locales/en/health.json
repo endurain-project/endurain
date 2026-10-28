@@ -1,6 +1,7 @@
 {
   "title": "Health",
   "subtitle": "See all your health data in one place",
+  "chartError": "Couldn't load the chart for this time range.",
   "nav": {
     "label": "Health sections",
     "soon": "Soon",

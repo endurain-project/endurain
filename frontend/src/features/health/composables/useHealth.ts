@@ -12,6 +12,7 @@ import type {
   FastingEntry,
   FastingEntryInput,
   FastingStatus,
+  HealthChartMetric,
   HealthInterval,
   PoopEntry,
   PoopEntryInput,
@@ -46,6 +47,7 @@ import {
   fetchActiveFasting,
   fetchFastingEntries,
   fetchFastingStats,
+  fetchHealthChart,
   fetchHealthDashboard,
   fetchHealthTargets,
   fetchStepsEntries,
@@ -159,6 +161,30 @@ function useHealthEntriesQuery<Page, Interval extends string>(
         },
         signal,
       ),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
+    placeholderData: keepPreviousData,
+    enabled: isAuthenticated,
+  })
+}
+
+/**
+ * A metric aggregated over an interval, for the zone charts. Independent of the paginated list, so
+ * the chart covers the whole interval in one request instead of the list's current page. Keyed on the
+ * metric and interval, so changing the interval refetches while the previous chart stays on screen.
+ *
+ * @param metric - The metric to chart.
+ * @param interval - Reactive time window to chart.
+ * @returns The TanStack Query result for the metric's chart series.
+ */
+export function useHealthChartQuery(
+  metric: HealthChartMetric,
+  interval: MaybeRefOrGetter<HealthInterval>,
+) {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery({
+    queryKey: computed(() => queryKeys.health.chart(metric, toValue(interval))),
+    queryFn: ({ signal }) => fetchHealthChart(metric, toValue(interval), signal),
     staleTime: HEALTH_QUERY_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: isAuthenticated,

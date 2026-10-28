@@ -23,3 +23,27 @@ class Interval(Enum):
     LAST_90_DAYS = "last_90_days"
     LAST_YEAR = "last_year"
     ALL_TIME = "all_time"
+
+
+class ChartBucket(Enum):
+    """Calendar span one chart point aggregates.
+
+    Attributes:
+        DAY: One point per day.
+        WEEK: One point per ISO week, dated its Monday.
+        MONTH: One point per month, dated its first day.
+    """
+
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+
+
+#: The bucket each interval is charted in, so a chart holds at most about 90 points whatever the history length.
+CHART_BUCKET_BY_INTERVAL = {
+    Interval.LAST_7_DAYS: ChartBucket.DAY,
+    Interval.LAST_30_DAYS: ChartBucket.DAY,
+    Interval.LAST_90_DAYS: ChartBucket.DAY,
+    Interval.LAST_YEAR: ChartBucket.WEEK,
+    Interval.ALL_TIME: ChartBucket.MONTH,
+}

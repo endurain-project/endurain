@@ -15,6 +15,7 @@ import modules.health.constants as health_constants
 import modules.health.health_weight.bmi as health_weight_bmi
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
+import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -252,3 +253,22 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session) -> No
     logger.debug(
         "Deleted a weight record", extra=core_logger.context(user_id=user_id, health_weight_id=health_weight_id)
     )
+
+
+def get_health_weight_chart(
+    user_id: int, interval: health_constants.Interval, db: Session
+) -> health_schema.HealthChartSeries:
+    """Chart a user's weight over an interval.
+
+    Args:
+        user_id: The records' owner.
+        interval: The window to chart.
+        db: Database session.
+
+    Returns:
+        The interval's buckets, one point per bucket that holds a value.
+    """
+    since = health_computation.get_start_date_for_interval(interval.value, users_integration.local_today(user_id, db))
+    bucket = health_constants.CHART_BUCKET_BY_INTERVAL[interval]
+    points = health_weight_crud.get_health_weight_chart(user_id, since, bucket, db)
+    return health_schema.HealthChartSeries(bucket=bucket, points=points)

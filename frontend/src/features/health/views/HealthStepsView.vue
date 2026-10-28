@@ -9,6 +9,7 @@ import HealthStepsChart from '@/features/health/components/HealthStepsChart.vue'
 import HealthStepsFormDialog from '@/features/health/components/HealthStepsFormDialog.vue'
 import HealthStepsListItem from '@/features/health/components/HealthStepsListItem.vue'
 import HealthStepsTargetDialog from '@/features/health/components/HealthStepsTargetDialog.vue'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -23,6 +24,7 @@ import {
   useDeleteStepsEntryMutation,
   useHealthTargetsQuery,
   useStepsEntriesQuery,
+  useHealthChartQuery,
 } from '@/features/health/composables/useHealth'
 
 const { t } = useI18n()
@@ -49,6 +51,7 @@ const targets = computed(() => targetsQuery.data.value ?? null)
 const targetSteps = computed(() => targets.value?.steps ?? null)
 
 const listQuery = useStepsEntriesQuery(page, recordsPerPage, interval)
+const chartQuery = useHealthChartQuery('steps', interval)
 
 /** Steps entries on the current page (newest first). */
 const entries = computed(() => listQuery.data.value?.records ?? [])
@@ -63,14 +66,14 @@ const isPending = computed(() => listQuery.isPending.value)
 const isError = computed(() => listQuery.isError.value)
 const isEmpty = computed(() => !isPending.value && !isError.value && entries.value.length === 0)
 
-/** The chart is shown only when a provider is bundled and there is data to plot. */
-const showChart = computed(
-  () =>
-    chart.isAvailable &&
-    !isPending.value &&
-    !isError.value &&
-    entries.value.some((entry) => entry.steps !== null),
-)
+/**
+ * The whole interval's chart series, independent of the list's page. `null` when no chart
+ * provider is bundled or the interval holds nothing to plot.
+ */
+const chartSeries = computed(() => {
+  const series = chartQuery.data.value
+  return chart.isAvailable && series && series.points.length > 0 ? series : null
+})
 
 // Changing the interval changes the result set, so restart at the first page.
 watch(interval, resetPage)
@@ -157,7 +160,10 @@ function confirmDelete(): void {
       </div>
     </div>
 
-    <HealthStepsChart v-if="showChart" :entries="entries" :target-steps="targetSteps" />
+    <HealthStepsChart v-if="chartSeries" :series="chartSeries" :target-steps="targetSteps" />
+    <Alert v-else-if="chartQuery.isError.value" kind="error">
+      {{ t('health.chartError') }}
+    </Alert>
 
     <ListPanel
       v-model:page="page"

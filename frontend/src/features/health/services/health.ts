@@ -12,6 +12,8 @@ import type {
   FastingSnapshot,
   FastingStats,
   FastingStatus,
+  HealthChartMetric,
+  HealthChartSeries,
   HealthDashboard,
   HealthInterval,
   HealthTargets,
@@ -43,6 +45,7 @@ type HealthStepsDto = Schemas['HealthStepsRead']
 type HealthWaterDto = Schemas['HealthWaterRead']
 type HealthPoopDto = Schemas['HealthPoopRead']
 type HealthSleepDto = Schemas['HealthSleepRead']
+type HealthChartSeriesDto = Schemas['HealthChartSeries']
 
 /** Maps a raw targets DTO to the clean {@link HealthTargets} model. */
 function mapTargets(dto: HealthTargetsDto): HealthTargets {
@@ -172,6 +175,39 @@ async function fetchHealthHistoryPage<Dto, Entry>(
     { signal },
   )
   return { records: response.items.map(mapEntry), total: response.total }
+}
+
+/** Endpoint of each metric's aggregated chart series, relative to `/health`. */
+const CHART_PATHS: Record<HealthChartMetric, string> = {
+  sleep: 'sleep/chart',
+  rhr: 'sleep/chart/resting-heart-rate',
+  steps: 'steps/chart',
+  weight: 'weight/chart',
+  water: 'water/chart',
+  poop: 'poop/chart',
+}
+
+/**
+ * Fetches a metric aggregated over an interval: one point per day, week or month depending on the
+ * interval, so the chart covers the whole range in a single small request.
+ *
+ * @param metric - The metric to chart.
+ * @param interval - The time window to chart.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The interval's bucket size and its points, oldest first.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchHealthChart(
+  metric: HealthChartMetric,
+  interval: HealthInterval,
+  signal?: AbortSignal,
+): Promise<HealthChartSeries> {
+  const search = new URLSearchParams({ interval })
+  const dto = await apiFetch<HealthChartSeriesDto>(
+    `/health/${CHART_PATHS[metric]}?${search.toString()}`,
+    { signal },
+  )
+  return { bucket: dto.bucket, points: dto.points.map(({ date, value }) => ({ date, value })) }
 }
 
 /** Creates a health resource and maps the returned record. */

@@ -17,6 +17,7 @@ import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_poop.schema as health_poop_schema
+import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -59,8 +60,9 @@ def list_health_poop(
         The page of records; ``total`` counts every record within the interval.
     """
     since = _since(user_id, interval, db)
-    total = health_poop_crud.get_health_poop_number_by_user_id(user_id, db, since)
-    records = health_poop_crud.get_health_poop_by_user_id(user_id, db, page_number, num_records, since)
+    tz_name = users_integration.resolve_timezone(user_id, db)
+    total = health_poop_crud.get_health_poop_number_by_user_id(user_id, db, since, tz_name)
+    records = health_poop_crud.get_health_poop_by_user_id(user_id, db, page_number, num_records, since, tz_name)
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
@@ -186,3 +188,36 @@ def delete_health_poop(user_id: int, health_poop_id: int, db: Session) -> None:
     logger.debug(
         "Deleted a bowel movement record", extra=core_logger.context(user_id=user_id, health_poop_id=health_poop_id)
     )
+
+
+def get_health_poop_chart(
+    user_id: int, interval: health_constants.Interval, db: Session
+) -> health_schema.HealthChartSeries:
+    """Chart a user's daily bowel-movement frequency over an interval.
+
+    Each value is the bucket's movements per day, so a week or month stays comparable with the daily target.
+    The all-time window opens at the first movement, so its first month is not diluted by days before it.
+
+    Args:
+        user_id: The records' owner.
+        interval: The window to chart.
+        db: Database session.
+
+    Returns:
+        The interval's buckets, one point per bucket that holds a movement.
+    """
+    today = users_integration.local_today(user_id, db)
+    since = health_computation.get_start_date_for_interval(interval.value, today)
+    bucket = health_constants.CHART_BUCKET_BY_INTERVAL[interval]
+    tz_name = users_integration.resolve_timezone(user_id, db)
+    if interval is health_constants.Interval.ALL_TIME:
+        since = health_poop_crud.get_health_poop_first_day(user_id, tz_name, db) or since
+    counts = health_poop_crud.get_health_poop_chart(user_id, since, bucket, tz_name, db)
+    points = [
+        health_schema.HealthChartPoint(
+            date=count.date,
+            value=round(count.value / health_computation.bucket_day_count(count.date, bucket, since, today), 2),
+        )
+        for count in counts
+    ]
+    return health_schema.HealthChartSeries(bucket=bucket, points=points)

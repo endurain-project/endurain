@@ -1578,6 +1578,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/health/poop/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Poop Chart
+         * @description Chart the authenticated user's daily bowel-movement frequency over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Declared before the ``/{health_poop_id}`` route so ``chart`` is not read as an id.
+         *     Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_poop_chart_api_v1_health_poop_chart_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/poop/{health_poop_id}": {
         parameters: {
             query?: never;
@@ -1686,6 +1718,68 @@ export interface paths {
          *         health_sleep_schema.HealthSleepRead: The created health sleep data.
          */
         post: operations["create_health_sleep_api_v1_health_sleep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/sleep/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Sleep Chart
+         * @description Chart the authenticated user's total sleep seconds over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_sleep_chart_api_v1_health_sleep_chart_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/sleep/chart/resting-heart-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Sleep Resting Heart Rate Chart
+         * @description Chart the authenticated user's resting heart rate over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_sleep_resting_heart_rate_chart_api_v1_health_sleep_chart_resting_heart_rate_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1825,6 +1919,37 @@ export interface paths {
          *         health_steps_schema.HealthSteps: The created health steps data.
          */
         post: operations["create_health_steps_api_v1_health_steps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/steps/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Steps Chart
+         * @description Chart the authenticated user's steps over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_steps_chart_api_v1_health_steps_chart_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2000,6 +2125,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/health/water/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Water Chart
+         * @description Chart the authenticated user's water intake over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_water_chart_api_v1_health_water_chart_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/water/{health_water_id}": {
         parameters: {
             query?: never;
@@ -2091,6 +2247,37 @@ export interface paths {
          *         health_weight_schema.HealthWeightRead: The created health weight record.
          */
         post: operations["create_health_weight_api_v1_health_weight_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/weight/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Weight Chart
+         * @description Chart the authenticated user's weight over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_weight_chart_api_v1_health_weight_chart_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5914,6 +6101,17 @@ export interface components {
          */
         BristolType: 1 | 2 | 3 | 4 | 5 | 6 | 7;
         /**
+         * ChartBucket
+         * @description Calendar span one chart point aggregates.
+         *
+         *     Attributes:
+         *         DAY: One point per day.
+         *         WEEK: One point per ISO week, dated its Monday.
+         *         MONTH: One point per month, dated its first day.
+         * @enum {string}
+         */
+        ChartBucket: "day" | "week" | "month";
+        /**
          * Color
          * @description Enumeration of common stool color descriptions.
          *
@@ -6730,6 +6928,36 @@ export interface components {
          * @enum {string}
          */
         HRVStatus: "BALANCED" | "UNBALANCED" | "LOW" | "POOR";
+        /**
+         * HealthChartPoint
+         * @description One aggregated point of a health chart.
+         *
+         *     Attributes:
+         *         date: First day of the bucket the point aggregates.
+         *         value: The bucket's aggregated value, in the metric's stored unit.
+         */
+        HealthChartPoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Value */
+            value: number;
+        };
+        /**
+         * HealthChartSeries
+         * @description A health metric aggregated over an interval, oldest bucket first.
+         *
+         *     Attributes:
+         *         bucket: The span each point aggregates.
+         *         points: The buckets that hold data.
+         */
+        HealthChartSeries: {
+            bucket: components["schemas"]["ChartBucket"];
+            /** Points */
+            points: components["schemas"]["HealthChartPoint"][];
+        };
         /**
          * HealthDashboardResponse
          * @description Consolidated dashboard response with current health metrics.
@@ -15532,6 +15760,47 @@ export interface operations {
             };
         };
     };
+    read_health_poop_chart_api_v1_health_poop_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     read_health_poop_by_id_api_v1_health_poop__health_poop_id__get: {
         parameters: {
             query?: never;
@@ -15741,6 +16010,88 @@ export interface operations {
             };
         };
     };
+    read_health_sleep_chart_api_v1_health_sleep_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_health_sleep_resting_heart_rate_chart_api_v1_health_sleep_chart_resting_heart_rate_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete: {
         parameters: {
             query?: never;
@@ -15917,6 +16268,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthStepsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_health_steps_chart_api_v1_health_steps_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
                 };
             };
             /** @description Validation Error */
@@ -16181,6 +16573,47 @@ export interface operations {
             };
         };
     };
+    read_health_water_chart_api_v1_health_water_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_water_api_v1_health_water__health_water_id__delete: {
         parameters: {
             query?: never;
@@ -16328,6 +16761,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthWeightRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_health_weight_chart_api_v1_health_weight_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
                 };
             };
             /** @description Validation Error */

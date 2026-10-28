@@ -48,19 +48,21 @@ class TestReads:
     def test_number_with_a_lower_bound(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 1
 
-        health_poop_crud.get_health_poop_number_by_user_id(1, mock_db, datetime_date(2024, 1, 1))
+        health_poop_crud.get_health_poop_number_by_user_id(1, mock_db, datetime_date(2024, 1, 1), "Asia/Tokyo")
 
-        assert "health_poop.date_time >=" in str(mock_db.execute.call_args.args[0])
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "Asia/Tokyo" in compiled
+        assert ">=" in compiled
 
     def test_list_paginates_and_bounds(self, mock_db):
         _returns_scalars(mock_db, [_row()])
 
-        result = health_poop_crud.get_health_poop_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1))
+        result = health_poop_crud.get_health_poop_by_user_id(1, mock_db, 2, 10, datetime_date(2024, 1, 1), "Asia/Tokyo")
 
         assert len(result) == 1
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
         assert "LIMIT 10 OFFSET 10" in compiled
-        assert "health_poop.date_time >=" in compiled
+        assert "Asia/Tokyo" in compiled
 
     def test_by_id_found(self, mock_db):
         _returns_one(mock_db, _row())

@@ -3,11 +3,12 @@
 Owns no table, runs no statement and calls no module, so every health package can use it.
 """
 
+import calendar
 from collections.abc import Callable
 from datetime import date, timedelta
 from typing import Protocol
 
-from sqlalchemy import func
+from sqlalchemy import Date, cast, func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -71,6 +72,47 @@ def local_date_expression(column, tz_name: str):
     """
     # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
     return func.date(func.timezone(tz_name, column))
+
+
+def chart_bucket_expression(day_column, bucket: health_constants.ChartBucket, since: date):
+    """Return ``day_column`` (a date) truncated to the first day of its chart bucket, within the window.
+
+    The bucket the window opens in is dated the window's first day rather than its own first day, so a
+    point is never labelled with a day the chart does not cover.
+
+    Args:
+        day_column: A date column or expression.
+        bucket: The span to truncate to.
+        since: First day of the charted window.
+
+    Returns:
+        A SQL expression yielding the bucket's first day inside the window.
+    """
+    return func.greatest(cast(func.date_trunc(bucket.value, day_column), Date), since)
+
+
+def bucket_day_count(start: date, bucket: health_constants.ChartBucket, since: date, today: date) -> int:
+    """Count the days of a chart bucket that fall inside the charted window.
+
+    The window opens at ``since`` and closes at ``today``, so the first and the current bucket count only
+    the days they actually span.
+
+    Args:
+        start: The bucket's first day.
+        bucket: The span the bucket aggregates.
+        since: First day of the charted window.
+        today: The athlete's current calendar date.
+
+    Returns:
+        The number of days, at least one.
+    """
+    if bucket is health_constants.ChartBucket.DAY:
+        return 1
+    if bucket is health_constants.ChartBucket.WEEK:
+        end = start + timedelta(days=6)
+    else:
+        end = start.replace(day=calendar.monthrange(start.year, start.month)[1])
+    return max((min(end, today) - max(start, since)).days + 1, 1)
 
 
 def upsert_for_day[RecordT: _HasId](

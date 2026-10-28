@@ -50,6 +50,12 @@ export const queryKeys = {
     targets: () => ['health', 'targets'] as const,
     /** The consolidated daily dashboard stats (today's metrics + last weight). */
     dashboard: () => ['health', 'dashboard'] as const,
+    /**
+     * @param metric - The charted health metric.
+     * @param interval - The charted time window.
+     * @returns An aggregated chart-series key for the metric and window.
+     */
+    chart: (metric: string, interval: string) => ['health', 'chart', metric, interval] as const,
     /** Broad prefix for every paginated weight-history query. */
     weightLists: () => ['health', 'weight'] as const,
     /**

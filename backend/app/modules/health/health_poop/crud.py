@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.health.computation as health_computation
+import modules.health.constants as health_constants
 import modules.health.health_poop.models as health_poop_models
 import modules.health.health_poop.schema as health_poop_schema
 import modules.health.health_poop.serializers as health_poop_serializers
+import modules.health.schema as health_schema
 
 
 def _get_model_by_id_and_user_id(health_poop_id: int, user_id: int, db: Session) -> health_poop_models.HealthPoop:
@@ -60,13 +62,16 @@ def health_poop_exists(health_poop_id: int, user_id: int, db: Session) -> bool:
     return bool(db.execute(stmt).scalar())
 
 
-def get_health_poop_number_by_user_id(user_id: int, db: Session, since: date_type | None = None) -> int:
+def get_health_poop_number_by_user_id(
+    user_id: int, db: Session, since: date_type | None = None, tz_name: str = "UTC"
+) -> int:
     """Count a user's poop records.
 
     Args:
         user_id: The records' owner.
         db: Database session.
-        since: Count only records on or after this date.
+        since: Count only records on or after this day in ``tz_name``.
+        tz_name: IANA timezone ``since`` is resolved in.
 
     Returns:
         The number of records.
@@ -77,7 +82,9 @@ def get_health_poop_number_by_user_id(user_id: int, db: Session, since: date_typ
         .where(health_poop_models.HealthPoop.user_id == user_id)
     )
     if since is not None:
-        stmt = stmt.where(health_poop_models.HealthPoop.date_time >= since)
+        stmt = stmt.where(
+            health_computation.local_date_expression(health_poop_models.HealthPoop.date_time, tz_name) >= since
+        )
 
     return db.execute(stmt).scalar_one()
 
@@ -110,6 +117,7 @@ def get_health_poop_by_user_id(
     page_number: int | None = None,
     num_records: int | None = None,
     since: date_type | None = None,
+    tz_name: str = "UTC",
 ) -> list[health_poop_schema.HealthPoopRead]:
     """Retrieve a user's poop records, optionally paginated and bounded.
 
@@ -118,7 +126,8 @@ def get_health_poop_by_user_id(
         db: Database session.
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
-        since: Return only records on or after this date.
+        since: Return only records on or after this day in ``tz_name``.
+        tz_name: IANA timezone ``since`` is resolved in.
 
     Returns:
         The records ordered by date and time descending.
@@ -126,7 +135,9 @@ def get_health_poop_by_user_id(
     stmt = select(health_poop_models.HealthPoop).where(health_poop_models.HealthPoop.user_id == user_id)
 
     if since is not None:
-        stmt = stmt.where(health_poop_models.HealthPoop.date_time >= since)
+        stmt = stmt.where(
+            health_computation.local_date_expression(health_poop_models.HealthPoop.date_time, tz_name) >= since
+        )
 
     stmt = stmt.order_by(desc(health_poop_models.HealthPoop.date_time))
 
@@ -262,3 +273,43 @@ def delete_health_poop(user_id: int, health_poop_id: int, db: Session) -> None:
     """
     db.delete(_get_model_by_id_and_user_id(health_poop_id, user_id, db))
     db.flush()
+
+
+def get_health_poop_chart(
+    user_id: int, since: date_type, bucket: health_constants.ChartBucket, tz_name: str, db: Session
+) -> list[health_schema.HealthChartPoint]:
+    """Count a user's bowel movements per chart bucket, each filed under the day it happened in the user's zone.
+
+    Args:
+        user_id: The records' owner.
+        since: First day of the charted window.
+        bucket: The span each point aggregates.
+        tz_name: IANA timezone the days are resolved in.
+        db: Database session.
+
+    Returns:
+        The buckets that hold a movement, oldest first; each value is the movement count.
+    """
+    model = health_poop_models.HealthPoop
+    local_day = health_computation.local_date_expression(model.date_time, tz_name)
+    day = health_computation.chart_bucket_expression(local_day, bucket, since)
+    stmt = select(day, func.count()).where(model.user_id == user_id, local_day >= since).group_by(day).order_by(day)
+    return [health_schema.HealthChartPoint(date=d, value=float(count)) for d, count in db.execute(stmt).all()]
+
+
+def get_health_poop_first_day(user_id: int, tz_name: str, db: Session) -> date_type | None:
+    """Return the day of a user's first bowel movement in their own timezone.
+
+    Args:
+        user_id: The records' owner.
+        tz_name: IANA timezone the day is resolved in.
+        db: Database session.
+
+    Returns:
+        The day, or ``None`` when the user has no movements.
+    """
+    model = health_poop_models.HealthPoop
+    stmt = select(func.min(health_computation.local_date_expression(model.date_time, tz_name))).where(
+        model.user_id == user_id
+    )
+    return db.execute(stmt).scalar_one()

@@ -12,6 +12,7 @@ import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
 import modules.health.health_sleep.schema as health_sleep_schema
 import modules.health.health_sleep.service as health_sleep_service
+import modules.health.schema as health_schema
 
 # Define the API router
 router = APIRouter()
@@ -48,6 +49,64 @@ def read_health_sleep_all_pagination(
     return health_sleep_service.list_health_sleep(
         token_user_id, db, page_number=page.page_number, num_records=page.num_records, interval=interval
     )
+
+
+@router.get(
+    "/chart",
+    response_model=health_schema.HealthChartSeries,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_sleep_chart(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    interval: Annotated[
+        health_constants.Interval,
+        Query(description="Interval to chart"),
+    ] = health_constants.Interval.LAST_7_DAYS,
+) -> health_schema.HealthChartSeries:
+    """Chart the authenticated user's total sleep seconds over an interval.
+
+    One aggregated point per day, week or month depending on the interval, so the response stays small
+    however long the history. Access is restricted to users with the 'health:read' scope.
+
+    Args:
+        token_user_id: The ID of the authenticated user extracted from the access token.
+        db: Database session for executing queries.
+        interval: The window to chart.
+
+    Returns:
+        The interval's bucket size and its points, oldest first.
+    """
+    return health_sleep_service.get_health_sleep_chart(token_user_id, interval, db)
+
+
+@router.get(
+    "/chart/resting-heart-rate",
+    response_model=health_schema.HealthChartSeries,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_sleep_resting_heart_rate_chart(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    interval: Annotated[
+        health_constants.Interval,
+        Query(description="Interval to chart"),
+    ] = health_constants.Interval.LAST_7_DAYS,
+) -> health_schema.HealthChartSeries:
+    """Chart the authenticated user's resting heart rate over an interval.
+
+    One aggregated point per day, week or month depending on the interval, so the response stays small
+    however long the history. Access is restricted to users with the 'health:read' scope.
+
+    Args:
+        token_user_id: The ID of the authenticated user extracted from the access token.
+        db: Database session for executing queries.
+        interval: The window to chart.
+
+    Returns:
+        The interval's bucket size and its points, oldest first.
+    """
+    return health_sleep_service.get_health_sleep_resting_heart_rate_chart(token_user_id, interval, db)
 
 
 @router.post(

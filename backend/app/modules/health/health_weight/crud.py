@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
+import modules.health.constants as health_constants
 import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.serializers as health_weight_serializers
+import modules.health.schema as health_schema
 
 
 def _get_model_by_id_and_user_id(health_weight_id: int, user_id: int, db: Session) -> health_weight_models.HealthWeight:
@@ -298,3 +301,28 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session) -> No
     """
     db.delete(_get_model_by_id_and_user_id(health_weight_id, user_id, db))
     db.flush()
+
+
+def get_health_weight_chart(
+    user_id: int, since: date_type, bucket: health_constants.ChartBucket, db: Session
+) -> list[health_schema.HealthChartPoint]:
+    """Average a user's weight per chart bucket.
+
+    Args:
+        user_id: The records' owner.
+        since: First day of the charted window.
+        bucket: The span each point aggregates.
+        db: Database session.
+
+    Returns:
+        The buckets that hold a value, oldest first.
+    """
+    model = health_weight_models.HealthWeight
+    day = health_computation.chart_bucket_expression(model.date, bucket, since)
+    stmt = (
+        select(day, func.avg(model.weight))
+        .where(model.user_id == user_id, model.weight.is_not(None), model.date >= since)
+        .group_by(day)
+        .order_by(day)
+    )
+    return [health_schema.HealthChartPoint(date=d, value=float(value)) for d, value in db.execute(stmt).all()]

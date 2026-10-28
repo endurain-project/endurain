@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
+import modules.health.constants as health_constants
 import modules.health.health_water.models as health_water_models
 import modules.health.health_water.schema as health_water_schema
 import modules.health.health_water.serializers as health_water_serializers
+import modules.health.schema as health_schema
 
 
 def _get_model_by_id_and_user_id(health_water_id: int, user_id: int, db: Session) -> health_water_models.HealthWater:
@@ -257,3 +260,28 @@ def delete_health_water(user_id: int, health_water_id: int, db: Session) -> None
     """
     db.delete(_get_model_by_id_and_user_id(health_water_id, user_id, db))
     db.flush()
+
+
+def get_health_water_chart(
+    user_id: int, since: date_type, bucket: health_constants.ChartBucket, db: Session
+) -> list[health_schema.HealthChartPoint]:
+    """Average a user's water intake per chart bucket.
+
+    Args:
+        user_id: The records' owner.
+        since: First day of the charted window.
+        bucket: The span each point aggregates.
+        db: Database session.
+
+    Returns:
+        The buckets that hold a value, oldest first.
+    """
+    model = health_water_models.HealthWater
+    day = health_computation.chart_bucket_expression(model.date, bucket, since)
+    stmt = (
+        select(day, func.avg(model.amount_ml))
+        .where(model.user_id == user_id, model.amount_ml.is_not(None), model.date >= since)
+        .group_by(day)
+        .order_by(day)
+    )
+    return [health_schema.HealthChartPoint(date=d, value=float(value)) for d, value in db.execute(stmt).all()]

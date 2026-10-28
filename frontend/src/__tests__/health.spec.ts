@@ -28,6 +28,7 @@ import {
   fetchActiveFasting,
   fetchFastingEntries,
   fetchFastingStats,
+  fetchHealthChart,
   fetchHealthDashboard,
   fetchPoopEntries,
   fetchRhrEntries,
@@ -720,6 +721,29 @@ describe('resting heart rate service requests', () => {
     expect(page.records).toHaveLength(1)
     expect(page.records[0]).toMatchObject({ id: 5, restingHeartRate: 52 })
     expect(page.total).toBe(3)
+  })
+})
+
+describe('health chart service', () => {
+  beforeEach(() => vi.mocked(apiFetch).mockReset())
+
+  it.each([
+    ['sleep', '/health/sleep/chart?interval=last_year'],
+    ['rhr', '/health/sleep/chart/resting-heart-rate?interval=last_year'],
+    ['steps', '/health/steps/chart?interval=last_year'],
+    ['weight', '/health/weight/chart?interval=last_year'],
+    ['water', '/health/water/chart?interval=last_year'],
+    ['poop', '/health/poop/chart?interval=last_year'],
+  ] as const)('fetches the %s series from its own endpoint', async (metric, path) => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      bucket: 'week',
+      points: [{ date: '2026-06-22', value: 7.5 }],
+    } satisfies Schemas['HealthChartSeries'])
+
+    const series = await fetchHealthChart(metric, 'last_year')
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith(path, { signal: undefined })
+    expect(series).toEqual({ bucket: 'week', points: [{ date: '2026-06-22', value: 7.5 }] })
   })
 })
 

@@ -9,6 +9,7 @@ import HealthPoopChart from '@/features/health/components/HealthPoopChart.vue'
 import HealthPoopFormDialog from '@/features/health/components/HealthPoopFormDialog.vue'
 import HealthPoopListItem from '@/features/health/components/HealthPoopListItem.vue'
 import HealthPoopTargetDialog from '@/features/health/components/HealthPoopTargetDialog.vue'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -23,6 +24,7 @@ import {
   useDeletePoopEntryMutation,
   useHealthTargetsQuery,
   usePoopEntriesQuery,
+  useHealthChartQuery,
 } from '@/features/health/composables/useHealth'
 
 const { t } = useI18n()
@@ -48,6 +50,7 @@ const targetsQuery = useHealthTargetsQuery()
 const targets = computed(() => targetsQuery.data.value ?? null)
 
 const listQuery = usePoopEntriesQuery(page, recordsPerPage, interval)
+const chartQuery = useHealthChartQuery('poop', interval)
 
 /** Poop entries on the current page (newest first). */
 const entries = computed(() => listQuery.data.value?.records ?? [])
@@ -62,14 +65,14 @@ const isPending = computed(() => listQuery.isPending.value)
 const isError = computed(() => listQuery.isError.value)
 const isEmpty = computed(() => !isPending.value && !isError.value && entries.value.length === 0)
 
-/** The chart is shown only when a provider is bundled and there is data to plot. */
-const showChart = computed(
-  () =>
-    chart.isAvailable &&
-    !isPending.value &&
-    !isError.value &&
-    entries.value.some((entry) => entry.dateTime !== null),
-)
+/**
+ * The whole interval's chart series, independent of the list's page. `null` when no chart
+ * provider is bundled or the interval holds nothing to plot.
+ */
+const chartSeries = computed(() => {
+  const series = chartQuery.data.value
+  return chart.isAvailable && series && series.points.length > 0 ? series : null
+})
 
 // Changing the interval changes the result set, so restart at the first page.
 watch(interval, resetPage)
@@ -157,10 +160,13 @@ function confirmDelete(): void {
     </div>
 
     <HealthPoopChart
-      v-if="showChart"
-      :entries="entries"
+      v-if="chartSeries"
+      :series="chartSeries"
       :target-count="targets?.poopCount ?? null"
     />
+    <Alert v-else-if="chartQuery.isError.value" kind="error">
+      {{ t('health.chartError') }}
+    </Alert>
 
     <ListPanel
       v-model:page="page"
