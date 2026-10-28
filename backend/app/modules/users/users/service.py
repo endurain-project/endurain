@@ -520,7 +520,8 @@ def edit_user(
 
     A change of email, access type or active flag signs the edited user out everywhere, so a
     demoted, deactivated or re-addressed account does not keep working sessions. An administrator
-    editing their own account stays signed in.
+    editing their own account stays signed in. A changed email that is left unverified queues a
+    verification email in the same transaction as the edit.
 
     Args:
         user_id: ID of the user to update.
@@ -546,7 +547,15 @@ def edit_user(
         except core_exceptions.ConflictError:
             db.rollback()
             raise
+        verification_queued = True
+        if existing.email != updated.email and not updated.email_verified:
+            verification_queued = sign_up_tokens_integration.request_email_reverification(user_id, db)
         db.commit()
+    if not verification_queued:
+        logger.warning(
+            "Email changed but cannot be verified: outgoing email is not configured",
+            extra=core_logger.context(user_id=user_id),
+        )
     logger.info("User edited by an administrator", extra=core_logger.context(user_id=user_id))
 
     if user_id != actor_id and _edit_ends_sessions(existing, updated):

@@ -494,10 +494,44 @@ class TestEdits:
         order.attach_mock(mock_db.commit, "commit")
         order.attach_mock(identity.delete_all_user_sessions, "revoke")
 
-        users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
+        with patch("modules.users.users.service.sign_up_tokens_integration.request_email_reverification"):
+            users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
 
         assert [call[0] for call in order.mock_calls] == ["commit", "revoke", "commit"]
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
+
+    def test_an_email_change_that_leaves_the_user_unverified_queues_a_verification_email_before_the_commit(
+        self, mock_crud, mock_weight, mock_db
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=False)
+        _identity()
+        order = MagicMock()
+        order.attach_mock(mock_db.commit, "commit")
+        with patch(
+            "modules.users.users.service.sign_up_tokens_integration.request_email_reverification", return_value=True
+        ) as verify:
+            order.attach_mock(verify, "verify")
+
+            users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+
+        verify.assert_called_once_with(1, mock_db)
+        assert [call[0] for call in order.mock_calls][:2] == ["verify", "commit"]
+
+    @pytest.mark.parametrize(
+        ("after", "verified"),
+        [({"name": "Renamed"}, False), ({"email": "other@example.com"}, True)],
+    )
+    def test_an_edit_that_keeps_the_user_verified_or_the_email_queues_no_verification_email(
+        self, mock_crud, mock_weight, mock_db, after, verified
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1, email_verified=verified)
+        mock_crud.update_user.return_value = _user(1, email_verified=verified, **after)
+        _identity()
+        with patch("modules.users.users.service.sign_up_tokens_integration.request_email_reverification") as verify:
+            users_service.edit_user(1, _edit(1, email_verified=verified, **after), 9, mock_db, if_match="*")
+
+        verify.assert_not_called()
 
     def test_an_edit_of_other_fields_keeps_the_sessions(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
@@ -511,7 +545,8 @@ class TestEdits:
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, email="other@example.com")
 
-        users_service.edit_user(1, _edit(1, email="other@example.com"), 1, mock_db, if_match="*")
+        with patch("modules.users.users.service.sign_up_tokens_integration.request_email_reverification"):
+            users_service.edit_user(1, _edit(1, email="other@example.com"), 1, mock_db, if_match="*")
 
         _delete_all_sessions_mock.assert_not_called()
 
