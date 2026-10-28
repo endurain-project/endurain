@@ -22,7 +22,7 @@ cannot drift. What an agent most often gets wrong:
 - Never import `jasil.backends` or `jasil._core`; request identity comes from `modules.auth.dependencies`, while behavior crosses auth package boundaries through the owning child's `integration_service.py`.
 - A new editable resource follows `docs/developer-guide/optimistic-concurrency.md` ("Adding a versioned resource"); `TestVersionedAndOwnedRoutes` fails a `PUT`/`PATCH` without `IfMatch`.
 - Never block a request or hold a database session across a provider or network call; hand the work to a job or `core.local_pool` and answer 202.
-- KISS, YAGNI, DRY: search the module and `core` for an existing helper first; add no parameter, wrapper, base class or `integration_service` operation without a current caller; extract on the third repetition.
+- KISS, YAGNI, DRY: search the module and `core` for an existing helper first; add no parameter, wrapper, base class or `integration_service` operation without a current caller; extract on the second repetition.
 - Comments and docstrings say what the code does now and why; history goes in the commit message.
 
 ## Read on demand

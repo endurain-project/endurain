@@ -61,7 +61,7 @@ npm run gen:api      # after backend API changes
 - Prefer existing patterns, utilities and files over new ones.
 - KISS: pick the simplest design that solves the underlying problem; no indirection, abstraction layer or option without a current need. Simple means few moving parts, not a small diff or a patch over the symptom.
 - YAGNI: build only what the task needs now; no speculative parameters, flags, hooks, config or extension points. What you do build must be complete and proper, not a stub or shortcut.
-- DRY: reuse an existing helper, schema, composable or primitive before writing another; extract shared code at the third repetition, not the second, and only when the copies change for the same reason.
+- DRY: reuse an existing helper, schema, composable or primitive before writing another; extract shared code at the second repetition, and only when the copies change for the same reason.
 - Do not change Dockerfiles, CI workflows, port numbers, environment variables or framework versions unless asked.
 - Never run `git commit` (or any commit-creating command) unless the user explicitly asks; staging for inspection is fine.
 - Commit messages and PR titles follow Conventional Commits (enforced in CI); see the `conventional-commits` skill.
