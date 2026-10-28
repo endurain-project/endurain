@@ -19,9 +19,6 @@ REFRESH_TOKEN_COOKIE_PATH = "/api/v1/" + "auth"
 LEGACY_REFRESH_TOKEN_COOKIE_PATHS = ("/",)
 REFRESH_TOKEN_COOKIE_CLEAR_PATHS = (*LEGACY_REFRESH_TOKEN_COOKIE_PATHS, REFRESH_TOKEN_COOKIE_PATH)
 
-header_client_type_scheme = APIKeyHeader(name="X-Client-Type", auto_error=False)
-header_csrf_token_scheme = APIKeyHeader(name="X-CSRF-Token", auto_error=False)
-
 
 class ClearRefreshTokenCookieError(core_exceptions.UnauthenticatedError):
     """Authentication error that clears refresh-token cookies."""

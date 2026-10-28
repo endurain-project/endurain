@@ -12,6 +12,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
+import core.sync_runner as core_sync_runner
 import modules.strava.constants as strava_constants
 import modules.strava.event_publishers as strava_event_publishers
 import modules.strava.events as strava_events
@@ -66,29 +67,23 @@ def run_sync(
     """
     if payload.kind == strava_constants.SyncKind.LINK:
         raise ValueError("A Strava link runs on the link pool, not as a sync job")
-    states.set_status(payload.user_id, payload.kind, strava_constants.SyncStatus.RUNNING)
-    try:
+
+    def work() -> bool:
         if payload.kind == strava_constants.SyncKind.GEAR:
-            synced = strava_gear_service.get_user_gear(payload.user_id, rate_limits)
-        else:
-            strava_service.unlink_account(payload.user_id)
-            synced = True
-    except core_exceptions.TooManyRequestsError:
-        logger.warning(
-            "Strava refused the sync: rate limit",
-            extra=core_logger.context(user_id=payload.user_id, kind=payload.kind),
-        )
-        states.set_status(payload.user_id, payload.kind, strava_constants.SyncStatus.FAILED)
+            return strava_gear_service.get_user_gear(payload.user_id, rate_limits)
+        strava_service.unlink_account(payload.user_id)
+        return True
+
+    synced = core_sync_runner.run_recorded(
+        states,
+        payload.user_id,
+        payload.kind,
+        work,
+        will_retry=will_retry,
+        refusals=(core_exceptions.TooManyRequestsError,),
+    )
+    if synced is None:
         return
-    except Exception:
-        states.set_status(
-            payload.user_id,
-            payload.kind,
-            strava_constants.SyncStatus.QUEUED if will_retry else strava_constants.SyncStatus.FAILED,
-        )
-        raise
-    outcome = strava_constants.SyncStatus.COMPLETED if synced else strava_constants.SyncStatus.FAILED
-    states.set_status(payload.user_id, payload.kind, outcome)
     if payload.kind == strava_constants.SyncKind.UNLINK:
         websocket_integration.push_job_changed(payload.user_id, strava_constants.UNLINK_JOB)
     if synced and payload.kind == strava_constants.SyncKind.GEAR:
@@ -109,10 +104,7 @@ def close_dead_lettered_sync(
         payload: What was to be synced.
         states: Shared store of the sync's state.
     """
-    if states.close_pending(payload.user_id, payload.kind):
-        logger.error(
-            "A Strava sync was dead-lettered", extra=core_logger.context(user_id=payload.user_id, kind=payload.kind)
-        )
+    core_sync_runner.close_dead_lettered(states, payload.user_id, payload.kind, "Strava")
 
 
 def _queue(
@@ -138,24 +130,23 @@ def _queue(
         ConflictError: When a sync of this kind is already pending for the user.
         PoolFullError: When the in-process pool is full.
     """
-    if not states.begin(user_id, kind):
-        raise core_exceptions.ConflictError(f"A Strava {kind.value} sync is already in progress")
-    try:
-        if core_config.settings.JOBS_ENABLED:
-            strava_event_publishers.publish_sync_requested(
-                user_id, kind, db, commit=db.commit, source=strava_constants.SYNC_SOURCE_API
-            )
-            logger.info("Strava sync queued for a worker", extra=core_logger.context(user_id=user_id, kind=kind))
-        else:
-            payload = strava_events.SyncRequestedPayload(user_id=user_id, kind=kind)
-            _sync_pool.submit(run_sync, payload, states, rate_limits)
-            logger.info(
-                "Strava sync queued on the in-process pool", extra=core_logger.context(user_id=user_id, kind=kind)
-            )
-    except BaseException:
-        # The sync never started, so nothing else would finish its claim.
-        states.set_status(user_id, kind, strava_constants.SyncStatus.FAILED)
-        raise
+    core_sync_runner.queue_sync(
+        states,
+        user_id,
+        kind,
+        "Strava",
+        durable=core_config.settings.JOBS_ENABLED,
+        publish=lambda: strava_event_publishers.publish_sync_requested(
+            user_id, kind, db, commit=db.commit, source=strava_constants.SYNC_SOURCE_API
+        ),
+        submit=lambda: _sync_pool.submit(
+            run_sync, strava_events.SyncRequestedPayload(user_id=user_id, kind=kind), states, rate_limits
+        ),
+    )
+    logger.info(
+        "Strava sync queued",
+        extra=core_logger.context(user_id=user_id, kind=kind, durable=core_config.settings.JOBS_ENABLED),
+    )
     return strava_schema.StravaSyncStatus(kind=kind, status=strava_constants.SyncStatus.QUEUED)
 
 
@@ -215,7 +206,5 @@ def get_sync_status(
     Raises:
         NotFoundError: When no sync is recorded or it has expired.
     """
-    state = states.get(user_id, kind)
-    if state is None:
-        raise core_exceptions.NotFoundError(f"No Strava {kind.value} sync recorded")
+    state = core_sync_runner.read_state(states, user_id, kind, "Strava")
     return strava_schema.StravaSyncStatus(kind=kind, status=state.status)

@@ -17,9 +17,13 @@ Create Date: 2026-10-28 00:00:00.000000
 
 """
 
+import logging
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
+
+logger = logging.getLogger("alembic.runtime.migration")
 
 # revision identifiers, used by Alembic.
 revision: str = "a6d2f8c41e75"
@@ -45,9 +49,13 @@ _KEEP_NEWEST = "DELETE FROM {table} WHERE id NOT IN (SELECT max(id) FROM {table}
 
 
 def upgrade() -> None:
-    op.execute(_SUM_WATER)
+    bind = op.get_bind()
+    bind.execute(sa.text(_SUM_WATER))
     for table in _TABLES:
-        op.execute(_KEEP_NEWEST.format(table=table))
+        removed = bind.execute(sa.text(_KEEP_NEWEST.format(table=table))).rowcount
+        if removed:
+            # The older rows of a day are not recoverable afterwards, so say how many went.
+            logger.warning("Removed %d duplicate %s rows, keeping the newest of each day", removed, table)
         op.create_unique_constraint(f"uq_{table}_user_date", table, ["user_id", "date"])
 
 

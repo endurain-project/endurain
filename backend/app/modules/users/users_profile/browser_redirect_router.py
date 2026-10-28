@@ -24,7 +24,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/idp/{idp_id}/link",
+    "/identity-providers/{idp_id}/link",
     status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     response_class=RedirectResponse,
 )

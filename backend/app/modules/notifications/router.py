@@ -90,7 +90,7 @@ def read_notifications_user_pagination(
     )
 
 
-@router.put(
+@router.post(
     "/{notification_id}/read",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
@@ -117,7 +117,7 @@ def mark_notification_as_read(
     notifications_service.mark_notification_as_read(notification_id, token_user_id, db)
 
 
-@router.put(
+@router.post(
     "/read",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,

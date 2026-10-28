@@ -33,9 +33,9 @@ def generate_api_key() -> str:
     return api_keys_utils.generate_api_key()
 
 
-def validate_api_key_scopes(scopes: list[str], access_type: str) -> None:
-    """Validate requested scopes for an account's access type."""
-    api_keys_utils.validate_api_key_scopes(scopes, access_type)
+def validate_api_key_scopes(scopes: list[str]) -> None:
+    """Validate requested scopes against the scopes an API key may hold."""
+    api_keys_utils.validate_api_key_scopes(scopes)
 
 
 def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersApiKeyRead]:

@@ -266,8 +266,8 @@ class TestAdminDeleteIdentityProviderLink:
                 return_value=existing_links,
             ),
             patch(
-                "modules.auth.account_security.identity_link_service.credentials_integration.get_credential",
-                return_value=None,  # no password, but more than one link remains
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=False,  # no password, but more than one link remains
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
@@ -326,8 +326,8 @@ class TestAdminDeleteIdentityProviderLink:
                 return_value=False,
             ),
             patch(
-                "modules.auth.account_security.identity_link_service.credentials_integration.get_credential",
-                return_value=None,  # SSO-only, no local password
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=False,  # SSO-only, no local password
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
@@ -356,8 +356,8 @@ class TestAdminDeleteIdentityProviderLink:
                 return_value=[MagicMock()],  # only 1 link → remaining_idp_count == 0
             ),
             patch(
-                "modules.auth.account_security.identity_link_service.credentials_integration.get_credential",
-                return_value=MagicMock(),  # has local password
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=True,  # has local password
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
@@ -383,8 +383,8 @@ class TestAdminDeleteIdentityProviderLink:
                 return_value=[MagicMock(), MagicMock()],
             ),
             patch(
-                "modules.auth.account_security.identity_link_service.credentials_integration.get_credential",
-                return_value=MagicMock(),
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=True,
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",

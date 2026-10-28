@@ -25,8 +25,8 @@ def create_user_api_key(
 ) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Verify step-up, stage a key, and commit it before returning its secret once."""
     step_up_service.verify_step_up_credentials(user_id, data.current_password, data.mfa_code, step_up_store, db)
-    user = users_integration.require_user(user_id, db)
-    api_keys_integration.validate_api_key_scopes(data.scopes, user.access_type)
+    users_integration.require_user(user_id, db)
+    api_keys_integration.validate_api_key_scopes(data.scopes)
     raw_key = api_keys_integration.generate_api_key()
     api_key = api_keys_integration.create_api_key(user_id, data, raw_key, db)
     db.commit()

@@ -29,7 +29,9 @@ class TestGetUserGoals:
         mock_goal1.goal_elevation = None
         mock_goal1.goal_duration = None
 
-        mock_get_goals.return_value = [mock_goal1]
+        mock_get_goals.return_value = user_goals_schema.UsersGoalPage.build(
+            [user_goals_schema.UsersGoalRead.model_validate(mock_goal1)], 1, 1, 25
+        )
 
         # Act
         response = fast_api_client.get(
@@ -40,14 +42,14 @@ class TestGetUserGoals:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
+        assert len(data["items"]) == 1
+        assert (data["total"], data["next"]) == (1, None)
 
     @patch("modules.users.users_goals.router.user_goals_service.list_goals")
     def test_get_user_goals_empty(self, mock_get_goals, fast_api_client, fast_api_app):
         """Test retrieval when user has no goals."""
         # Arrange
-        mock_get_goals.return_value = []
+        mock_get_goals.return_value = user_goals_schema.UsersGoalPage.build([], 0, 1, 25)
 
         # Act
         response = fast_api_client.get(
@@ -57,7 +59,7 @@ class TestGetUserGoals:
 
         # Assert
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []
 
 
 class TestGetUserGoalsResults:

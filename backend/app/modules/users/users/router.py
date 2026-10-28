@@ -84,23 +84,25 @@ def read_users_all_pagination(
 
 @router.get(
     "/username/contains/{username}",
-    response_model=list[users_schema.UserPublicRead],
+    response_model=users_schema.UserPublicPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read"])],
 )
 def read_users_contain_username(
     username: users_dependencies.Username,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     db: core_dependencies.DbSession,
-) -> list[users_schema.UserPublicRead]:
-    """Search active users by partial username match.
+) -> users_schema.UserPublicPage:
+    """Search active users by partial username match, one page at a time.
 
     Args:
         username: Partial username to search for.
+        page: The requested window of matches.
         db: Database session dependency.
 
     Returns:
-        The matching users' public projections.
+        The page of matching users' public projections.
     """
-    return users_service.search_public_users(username, db)
+    return users_service.search_public_users(username, page, db)
 
 
 @router.get(
@@ -302,7 +304,7 @@ def edit_user(
     return updated
 
 
-@router.put(
+@router.post(
     "/{user_id}/approve",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,

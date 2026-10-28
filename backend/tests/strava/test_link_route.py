@@ -69,7 +69,7 @@ def test_client_and_state_answer_with_their_bodies():
 
     assert client.detail == "Strava client edited successfully"
     assert state.state == "s" * 43
-    assert cleared.detail == "Strava state cleared successfully"
+    assert cleared is None
 
 
 def test_client_credentials_are_validated():
@@ -142,3 +142,7 @@ def test_setting_the_client_requires_the_version_that_was_read():
 
     assert response.status_code == 428
     set_client.assert_not_called()
+
+
+def test_clearing_the_state_answers_no_content():
+    assert _routes()[("/state", ("DELETE",))].status_code == 204

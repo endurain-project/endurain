@@ -180,18 +180,27 @@ def require_user_by_username(username: str, db: Session) -> users_schema.UsersRe
     return user
 
 
-def search_public_users(username: str, db: Session) -> list[users_schema.UserPublicRead]:
-    """Return the active users whose username contains the search term, as public projections.
+def search_public_users(username: str, page: core_pagination.PageParams, db: Session) -> users_schema.UserPublicPage:
+    """Return one page of the active users whose username contains the search term, as public projections.
 
     Args:
         username: The partial username to search for.
+        page: The window of matches to return.
         db: Database session.
 
     Returns:
-        The matching users, at most ``USER_SEARCH_LIMIT``.
+        The page of matching users.
     """
-    matches = users_crud.search_active_users_by_username(username, users_constants.USER_SEARCH_LIMIT, db)
-    return [users_schema.UserPublicRead.model_validate(user) for user in matches]
+    matches = users_crud.search_active_users_by_username(
+        username, page.num_records, (page.page_number - 1) * page.num_records, db
+    )
+    total = users_crud.get_users_number(db, show_inactive=False, username=username)
+    return users_schema.UserPublicPage.build(
+        [users_schema.UserPublicRead.model_validate(user) for user in matches],
+        total,
+        page.page_number,
+        page.num_records,
+    )
 
 
 def require_user_by_email(email: str, db: Session) -> users_schema.UsersRead:

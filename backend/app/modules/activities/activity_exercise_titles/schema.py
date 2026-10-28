@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
+import core.pagination as core_pagination
+
 
 class ActivityExerciseTitlesBase(BaseModel):
     """Fields that describe an exercise title.
@@ -27,3 +29,7 @@ class ActivityExerciseTitlesRead(ActivityExerciseTitlesBase):
     """
 
     id: StrictInt
+
+
+#: One page of the exercise-title catalogue.
+ActivityExerciseTitlesPage = core_pagination.Page[ActivityExerciseTitlesRead]

@@ -32,8 +32,6 @@ PROFILE_SELF_SERVICE_FIELDS: frozenset[str] = frozenset(
 #: Photo extensions accepted on upload.
 ALLOWED_USER_IMAGE_EXTENSIONS: frozenset[str] = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 
-#: Most users a username search returns to a non-admin caller.
-USER_SEARCH_LIMIT = 25
 
 #: Lifetime of a queued deletion's claim and state: longer than any deletion takes, shorter than a stuck claim
 #: should block an administrator from queueing it again.

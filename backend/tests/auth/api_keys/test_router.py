@@ -12,7 +12,7 @@ import modules.auth.api_keys.schema as api_keys_schema
 
 class TestGetUserApiKeys:
     """
-    Test suite for GET /api_keys endpoint.
+    Test suite for GET /api-keys endpoint.
     """
 
     @patch("modules.auth.account_security.api_keys_router.api_key_service.get_user_api_keys")
@@ -34,7 +34,7 @@ class TestGetUserApiKeys:
 
         # Act
         response = fast_api_client.get(
-            "/api_keys",
+            "/api-keys",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -52,7 +52,7 @@ class TestGetUserApiKeys:
 
         # Act
         response = fast_api_client.get(
-            "/api_keys",
+            "/api-keys",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -106,7 +106,7 @@ class TestCreateUserApiKey:
 
         # Act
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -133,7 +133,7 @@ class TestCreateUserApiKey:
 
         # Act
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -169,7 +169,7 @@ class TestCreateUserApiKey:
 
         # Act
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -187,7 +187,7 @@ class TestCreateUserApiKey:
 
         # Act
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -203,7 +203,7 @@ class TestCreateUserApiKey:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -218,7 +218,7 @@ class TestCreateUserApiKey:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -254,7 +254,7 @@ class TestCreateUserApiKey:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -292,7 +292,7 @@ class TestCreateUserApiKey:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -330,7 +330,7 @@ class TestCreateUserApiKey:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -369,7 +369,7 @@ class TestCreateUserApiKey:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -406,7 +406,7 @@ class TestCreateUserApiKey:
         }
 
         fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -446,7 +446,7 @@ class TestCreateUserApiKey:
         }
 
         fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -498,7 +498,7 @@ class TestApiKeyResponseSafety:
         mock_get_keys.return_value = [mock_key]
 
         response = fast_api_client.get(
-            "/api_keys",
+            "/api-keys",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -554,7 +554,7 @@ class TestApiKeyResponseSafety:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -610,7 +610,7 @@ class TestApiKeyResponseSafety:
         }
 
         response = fast_api_client.post(
-            "/api_keys",
+            "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -622,7 +622,7 @@ class TestApiKeyResponseSafety:
 
 class TestRevokeUserApiKey:
     """
-    Test suite for PATCH /api_keys/{api_key_id}/revoke endpoint.
+    Test suite for POST /api-keys/{api_key_id}/revoke endpoint.
     """
 
     @patch("modules.auth.account_security.api_keys_router.api_key_service.revoke_user_api_key")
@@ -632,8 +632,8 @@ class TestRevokeUserApiKey:
         mock_revoke.return_value = None
 
         # Act
-        response = fast_api_client.patch(
-            "/api_keys/some-uuid/revoke",
+        response = fast_api_client.post(
+            "/api-keys/some-uuid/revoke",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -650,8 +650,8 @@ class TestRevokeUserApiKey:
         )
 
         # Act
-        response = fast_api_client.patch(
-            "/api_keys/nonexistent-uuid/revoke",
+        response = fast_api_client.post(
+            "/api-keys/nonexistent-uuid/revoke",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -661,7 +661,7 @@ class TestRevokeUserApiKey:
 
 class TestDeleteUserApiKey:
     """
-    Test suite for DELETE /api_keys/{api_key_id} endpoint.
+    Test suite for DELETE /api-keys/{api_key_id} endpoint.
     """
 
     @patch("modules.auth.account_security.api_keys_router.api_key_service.delete_user_api_key")
@@ -672,7 +672,7 @@ class TestDeleteUserApiKey:
 
         # Act
         response = fast_api_client.delete(
-            "/api_keys/some-uuid",
+            "/api-keys/some-uuid",
             headers={"Authorization": "Bearer mock_token"},
         )
 
@@ -690,7 +690,7 @@ class TestDeleteUserApiKey:
 
         # Act
         response = fast_api_client.delete(
-            "/api_keys/nonexistent-uuid",
+            "/api-keys/nonexistent-uuid",
             headers={"Authorization": "Bearer mock_token"},
         )
 

@@ -297,9 +297,9 @@ MODULES: tuple[RuntimeModule, ...] = (
     ),
     RuntimeModule(
         name="notifications",
-        register_bus=notifications_subscriber_registry.register_all_notification_bus_subscribers,
-        register_durable=notifications_subscriber_registry.register_all_notification_durable_handlers,
-        nets=notifications_subscriber_registry.NOTIFICATION_DURABLE_SUBSCRIBER_NETS,
+        register_bus=notifications_subscriber_registry.register_bus_subscribers,
+        register_durable=notifications_subscriber_registry.register_durable_handlers,
+        nets=notifications_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=notifications_scheduled_jobs.recurring_jobs,
     ),
     RuntimeModule(

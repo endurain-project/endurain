@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Annotated
 
 from fastapi import Depends, Path, Query, Request
-from fastapi.security import APIKeyHeader, OAuth2PasswordBearer, SecurityScopes
+from fastapi.security import APIKeyHeader, SecurityScopes
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -17,17 +17,12 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
-import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 
 logger = core_logger.get_logger(__name__)
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
-    scopes=auth_constants.SCOPE_DICT,
-    auto_error=False,
-)
+oauth2_scheme = authentication_dependencies.oauth2_scheme
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 AuthContext = auth_contracts.AuthContext
 ApiKeyId = Annotated[str, Path(min_length=1)]

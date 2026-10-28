@@ -166,7 +166,7 @@ def admin_delete_identity_provider_link(
     )
     remaining_idp_count = len(all_idp_links) - 1
 
-    has_local_password = credentials_integration.get_credential(user_id, db) is not None
+    has_local_password = credentials_integration.has_local_password(user_id, db)
     if not has_local_password and remaining_idp_count == 0:
         raise core_exceptions.InvalidInputError("Cannot unlink last authentication method. User has no password set.")
 

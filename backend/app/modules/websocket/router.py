@@ -20,7 +20,7 @@ router = APIRouter()
 @router.post(
     "/ticket",
     response_model=websocket_schema.WsTicketRead,
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)

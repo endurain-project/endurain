@@ -27,7 +27,7 @@ def _client(user_id: int = 1):
     link_states = link_state_store.GarminLinkStateStore(state=state)
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)
-    app.include_router(router.router, prefix="/garminconnect")
+    app.include_router(router.router, prefix="/garmin")
     app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: user_id
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
     app.dependency_overrides[garmin_dependencies.get_garmin_link_state_store] = lambda: link_states
@@ -50,7 +50,7 @@ def users_today():
 def test_link_returns_pending_at_once_and_starts_the_login(mock_start):
     client, link_states = _client()
 
-    response = client.post("/garminconnect/link", json=_BODY)
+    response = client.post("/garmin/link", json=_BODY)
 
     assert response.status_code == 202
     assert response.json() == {"status": "pending", "reason": None}
@@ -61,9 +61,9 @@ def test_link_returns_pending_at_once_and_starts_the_login(mock_start):
 @patch("modules.garmin.link_service._link_pool")
 def test_a_second_link_while_one_runs_is_a_conflict(mock_start):
     client, _ = _client()
-    client.post("/garminconnect/link", json=_BODY)
+    client.post("/garmin/link", json=_BODY)
 
-    response = client.post("/garminconnect/link", json=_BODY)
+    response = client.post("/garmin/link", json=_BODY)
 
     assert response.status_code == 409
     mock_start.submit.assert_called_once()
@@ -72,16 +72,16 @@ def test_a_second_link_while_one_runs_is_a_conflict(mock_start):
 @patch("modules.garmin.link_service._link_pool")
 def test_a_failed_link_can_be_retried(mock_start):
     client, link_states = _client()
-    client.post("/garminconnect/link", json=_BODY)
+    client.post("/garmin/link", json=_BODY)
     link_states.set_status(1, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
 
-    assert client.post("/garminconnect/link", json=_BODY).status_code == 202
+    assert client.post("/garmin/link", json=_BODY).status_code == 202
 
 
 def test_status_without_an_attempt_is_not_found():
     client, _ = _client()
 
-    assert client.get("/garminconnect/link/status").status_code == 404
+    assert client.get("/garmin/link/status").status_code == 404
 
 
 def test_status_reports_the_prompt_and_the_outcome():
@@ -89,24 +89,24 @@ def test_status_reports_the_prompt_and_the_outcome():
     link_states.begin(1)
 
     link_states.set_status(1, garmin_constants.LinkStatus.MFA_REQUIRED)
-    assert client.get("/garminconnect/link/status").json()["status"] == "mfa_required"
+    assert client.get("/garmin/link/status").json()["status"] == "mfa_required"
 
     link_states.set_status(1, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS)
-    assert client.get("/garminconnect/link/status").json() == {"status": "failed", "reason": "invalid_credentials"}
+    assert client.get("/garmin/link/status").json() == {"status": "failed", "reason": "invalid_credentials"}
 
 
 def test_status_is_scoped_to_the_caller():
     client, link_states = _client(user_id=2)
     link_states.begin(1)
 
-    assert client.get("/garminconnect/link/status").status_code == 404
+    assert client.get("/garmin/link/status").status_code == 404
 
 
 def test_an_mfa_code_with_no_login_waiting_is_a_conflict():
     client, link_states = _client()
     link_states.begin(1)
 
-    assert client.post("/garminconnect/mfa", json={"mfa_code": "123456"}).status_code == 409
+    assert client.post("/garmin/mfa", json={"mfa_code": "123456"}).status_code == 409
 
 
 def test_an_mfa_code_is_accepted_while_the_login_waits():
@@ -114,14 +114,14 @@ def test_an_mfa_code_is_accepted_while_the_login_waits():
     link_states.begin(1)
     link_states.set_status(1, garmin_constants.LinkStatus.MFA_REQUIRED)
 
-    assert client.post("/garminconnect/mfa", json={"mfa_code": "123456"}).status_code == 204
+    assert client.post("/garmin/mfa", json={"mfa_code": "123456"}).status_code == 204
 
 
 def test_oversized_credentials_and_codes_are_rejected():
     client, _ = _client()
 
-    assert client.post("/garminconnect/link", json={**_BODY, "password": "x" * 1000}).status_code == 422
-    assert client.post("/garminconnect/mfa", json={"mfa_code": "1" * 100}).status_code == 422
+    assert client.post("/garmin/link", json={**_BODY, "password": "x" * 1000}).status_code == 422
+    assert client.post("/garmin/mfa", json={"mfa_code": "1" * 100}).status_code == 422
 
 
 def test_a_gear_sync_is_queued_not_run_on_the_request():
@@ -130,7 +130,7 @@ def test_a_gear_sync_is_queued_not_run_on_the_request():
         queue.return_value = garmin_schema.GarminSyncStatus(
             kind=garmin_constants.SyncKind.GEAR, status=garmin_constants.SyncStatus.QUEUED
         )
-        response = client.post("/garminconnect/gear")
+        response = client.post("/garmin/gear")
 
     assert response.status_code == 202
     assert response.json() == {"kind": "gear", "status": "queued"}
@@ -143,8 +143,8 @@ def test_a_second_gear_sync_while_one_is_pending_is_a_conflict():
         patch("modules.garmin.sync_service.core_config.settings", MagicMock(JOBS_ENABLED=False)),
         patch("modules.garmin.sync_service._sync_pool"),
     ):
-        first = client.post("/garminconnect/gear")
-        second = client.post("/garminconnect/gear")
+        first = client.post("/garmin/gear")
+        second = client.post("/garmin/gear")
 
     assert first.status_code == 202
     assert second.status_code == 409
@@ -152,28 +152,28 @@ def test_a_second_gear_sync_while_one_is_pending_is_a_conflict():
 
 def test_a_sync_status_is_reported_once_queued_and_not_found_before():
     client, _ = _client()
-    assert client.get("/garminconnect/sync/health").status_code == 404
+    assert client.get("/garmin/sync/health").status_code == 404
 
     with (
         patch("modules.garmin.sync_service.core_config.settings", MagicMock(JOBS_ENABLED=False)),
         patch("modules.garmin.sync_service._sync_pool"),
     ):
-        client.post("/garminconnect/health", params={"start_date": "2026-01-01", "end_date": "2026-01-01"})
+        client.post("/garmin/health", params={"start_date": "2026-01-01", "end_date": "2026-01-01"})
 
-    assert client.get("/garminconnect/sync/health").json() == {"kind": "health", "status": "queued"}
-    assert client.get("/garminconnect/sync/gear").status_code == 404
+    assert client.get("/garmin/sync/health").json() == {"kind": "health", "status": "queued"}
+    assert client.get("/garmin/sync/gear").status_code == 404
 
 
 def test_a_non_numeric_mfa_code_is_rejected():
     client, _ = _client()
 
-    assert client.post("/garminconnect/mfa", json={"mfa_code": "12 34!"}).status_code == 422
+    assert client.post("/garmin/mfa", json={"mfa_code": "12 34!"}).status_code == 422
 
 
 def test_unlinking_is_a_delete_on_the_link():
     client, _ = _client()
     with patch("modules.garmin.service.unlink_account") as unlink:
-        response = client.delete("/garminconnect/link")
+        response = client.delete("/garmin/link")
 
     assert response.status_code == 204
     assert response.content == b""
@@ -183,7 +183,7 @@ def test_unlinking_is_a_delete_on_the_link():
 def test_a_reversed_health_range_is_a_client_error():
     client, _ = _client()
 
-    response = client.post("/garminconnect/health", params={"start_date": "2026-01-02", "end_date": "2026-01-01"})
+    response = client.post("/garmin/health", params={"start_date": "2026-01-02", "end_date": "2026-01-01"})
 
     assert response.status_code == 400
 

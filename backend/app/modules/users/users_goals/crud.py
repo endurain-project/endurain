@@ -1,6 +1,6 @@
 """CRUD operations for user goals."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -56,6 +56,35 @@ def _select_goal(user_id: int, goal_id: int, db: Session) -> user_goals_models.U
     return db_goal
 
 
+def _filtered_goals(
+    stmt,
+    user_id: int,
+    interval: user_goals_schema.Interval | None,
+    activity_type: user_goals_schema.ActivityType | None,
+    goal_type: user_goals_schema.GoalType | None,
+):
+    """Restrict a goals statement to one user's goals and the optional filters.
+
+    Args:
+        stmt: The statement to restrict.
+        user_id: The ID of the user.
+        interval: Optional filter by goal interval.
+        activity_type: Optional filter by activity type.
+        goal_type: Optional filter by goal type.
+
+    Returns:
+        The restricted statement.
+    """
+    stmt = stmt.where(user_goals_models.UsersGoal.user_id == user_id)
+    if interval is not None:
+        stmt = stmt.where(user_goals_models.UsersGoal.interval == interval.value)
+    if activity_type is not None:
+        stmt = stmt.where(user_goals_models.UsersGoal.activity_type == activity_type.value)
+    if goal_type is not None:
+        stmt = stmt.where(user_goals_models.UsersGoal.goal_type == goal_type.value)
+    return stmt
+
+
 def get_user_goals_by_user_id(
     user_id: int,
     db: Session,
@@ -63,7 +92,10 @@ def get_user_goals_by_user_id(
     activity_type: user_goals_schema.ActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
 ) -> list[user_goals_schema.UsersGoalRead]:
-    """Retrieve goals for a specific user with optional filters.
+    """Retrieve every goal of a user with optional filters.
+
+    A user has at most one goal per interval, activity type and goal type, so the set is small; use
+    :func:`get_user_goals_page` for a response.
 
     Args:
         user_id: The ID of the user.
@@ -75,16 +107,66 @@ def get_user_goals_by_user_id(
     Returns:
         The goals matching the filters.
     """
-    stmt = select(user_goals_models.UsersGoal).where(user_goals_models.UsersGoal.user_id == user_id)
-
-    if interval is not None:
-        stmt = stmt.where(user_goals_models.UsersGoal.interval == interval.value)
-    if activity_type is not None:
-        stmt = stmt.where(user_goals_models.UsersGoal.activity_type == activity_type.value)
-    if goal_type is not None:
-        stmt = stmt.where(user_goals_models.UsersGoal.goal_type == goal_type.value)
-
+    stmt = _filtered_goals(select(user_goals_models.UsersGoal), user_id, interval, activity_type, goal_type)
     return [user_goals_serializers.to_read_schema(goal) for goal in db.execute(stmt).scalars().all()]
+
+
+def get_user_goals_page(
+    user_id: int,
+    db: Session,
+    interval: user_goals_schema.Interval | None = None,
+    activity_type: user_goals_schema.ActivityType | None = None,
+    goal_type: user_goals_schema.GoalType | None = None,
+    *,
+    limit: int,
+    offset: int,
+) -> list[user_goals_schema.UsersGoalRead]:
+    """Retrieve one window of a user's goals, in id order.
+
+    Args:
+        user_id: The ID of the user.
+        db: Database session.
+        interval: Optional filter by goal interval.
+        activity_type: Optional filter by activity type.
+        goal_type: Optional filter by goal type.
+        limit: The most goals to return.
+        offset: How many matching goals to skip.
+
+    Returns:
+        The goals in the window.
+    """
+    stmt = (
+        _filtered_goals(select(user_goals_models.UsersGoal), user_id, interval, activity_type, goal_type)
+        .order_by(user_goals_models.UsersGoal.id)
+        .limit(limit)
+        .offset(offset)
+    )
+    return [user_goals_serializers.to_read_schema(goal) for goal in db.execute(stmt).scalars().all()]
+
+
+def count_user_goals(
+    user_id: int,
+    db: Session,
+    interval: user_goals_schema.Interval | None = None,
+    activity_type: user_goals_schema.ActivityType | None = None,
+    goal_type: user_goals_schema.GoalType | None = None,
+) -> int:
+    """Count a user's goals matching the optional filters.
+
+    Args:
+        user_id: The ID of the user.
+        db: Database session.
+        interval: Optional filter by goal interval.
+        activity_type: Optional filter by activity type.
+        goal_type: Optional filter by goal type.
+
+    Returns:
+        The number of matching goals.
+    """
+    stmt = _filtered_goals(
+        select(func.count(user_goals_models.UsersGoal.id)), user_id, interval, activity_type, goal_type
+    )
+    return db.execute(stmt).scalar_one()
 
 
 def create_user_goal(

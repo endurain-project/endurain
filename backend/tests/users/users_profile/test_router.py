@@ -266,12 +266,12 @@ class TestReadSessionsMe:
 
 
 # ===================================================================
-# POST /profile/idp/{idp_id}/link/token
+# POST /profile/identity-providers/{idp_id}/link/token
 # ===================================================================
 
 
 class TestGenerateLinkToken:
-    """Tests for POST /profile/idp/{idp_id}/link/token — generate_link_token."""
+    """Tests for POST /profile/identity-providers/{idp_id}/link/token — generate_link_token."""
 
     def test_success(self, profile_client, mock_auth_services):
         """Happy path: generates a link token."""
@@ -281,7 +281,7 @@ class TestGenerateLinkToken:
         }
 
         response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
+            PREFIX + "/identity-providers/1/link/token",
             json={"current_password": "pass123"},
         )
 
@@ -296,7 +296,7 @@ class TestGenerateLinkToken:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
+            PREFIX + "/identity-providers/1/link/token",
             json={"current_password": "wrong"},
         )
 
@@ -310,7 +310,7 @@ class TestGenerateLinkToken:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
+            PREFIX + "/identity-providers/1/link/token",
             json={"current_password": "pass123"},
         )
 
@@ -325,7 +325,7 @@ class TestGenerateLinkToken:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
+            PREFIX + "/identity-providers/1/link/token",
             json={"current_password": "pass123"},
         )
 
@@ -340,7 +340,7 @@ class TestGenerateLinkToken:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
+            PREFIX + "/identity-providers/1/link/token",
             json={"current_password": "pass123"},
         )
 
@@ -355,7 +355,7 @@ class TestGenerateLinkToken:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
+            PREFIX + "/identity-providers/1/link/token",
             json={"current_password": "pass123"},
         )
 
@@ -842,7 +842,7 @@ class TestEnableMFA:
             "backup_codes": ["code1", "code2"],
         }
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
             json={"mfa_code": "123456", "current_password": "pass123"},
         )
@@ -856,7 +856,7 @@ class TestEnableMFA:
         """Step-up fails before enabling."""
         mock_auth_services.enable_mfa.side_effect = HTTPException(status_code=401, detail="Invalid")
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
             json={"mfa_code": "123456", "current_password": "wrong"},
         )
@@ -870,7 +870,7 @@ class TestEnableMFA:
             detail="No MFA setup in progress. Please run setup first.",
         )
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
             json={"mfa_code": "123456", "current_password": "pass123"},
         )
@@ -884,7 +884,7 @@ class TestEnableMFA:
 
         mock_auth_services.enable_mfa.side_effect = MFASecretStoreUnavailableError("MFA secret storage is unavailable")
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
             json={"mfa_code": "123456", "current_password": "pass123"},
         )
@@ -898,7 +898,7 @@ class TestEnableMFA:
             detail="Invalid MFA code",
         )
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
             json={"mfa_code": "000000", "current_password": "pass123"},
         )
@@ -912,7 +912,7 @@ class TestEnableMFA:
             detail="MFA already enabled",
         )
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
             json={"mfa_code": "123456", "current_password": "pass123"},
         )
@@ -932,7 +932,7 @@ class TestDisableMFA:
         """Happy path: disable MFA."""
         mock_auth_services.disable_mfa.return_value = {"message": "MFA disabled successfully"}
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/disable",
             json={"mfa_code": "123456", "current_password": "pass123"},
         )
@@ -944,7 +944,7 @@ class TestDisableMFA:
         """Step-up fails before disable."""
         mock_auth_services.disable_mfa.side_effect = HTTPException(status_code=401, detail="Invalid")
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/disable",
             json={"mfa_code": "000000", "current_password": "wrong"},
         )
@@ -1049,12 +1049,12 @@ class TestGenerateMFABackupCodes:
 
 
 # ===================================================================
-# GET /profile/idp
+# GET /profile/identity-providers
 # ===================================================================
 
 
 class TestGetMyIdentityProviders:
-    """Tests for GET /profile/idp — get_my_identity_providers."""
+    """Tests for GET /profile/identity-providers — get_my_identity_providers."""
 
     def test_success(
         self,
@@ -1079,7 +1079,7 @@ class TestGetMyIdentityProviders:
             }
         ]
 
-        response = profile_client.get(PREFIX + "/idp")
+        response = profile_client.get(PREFIX + "/identity-providers")
 
         assert response.status_code == 200
         data = response.json()
@@ -1094,24 +1094,24 @@ class TestGetMyIdentityProviders:
         """No IdP links → empty list."""
         mock_auth_services.get_user_identity_provider_links.return_value = []
 
-        response = profile_client.get(PREFIX + "/idp")
+        response = profile_client.get(PREFIX + "/identity-providers")
 
         assert response.status_code == 200
         assert response.json() == []
 
 
 # ===================================================================
-# POST /profile/idp/{idp_id}/unlink
+# POST /profile/identity-providers/{idp_id}/unlink
 # ===================================================================
 
 
 class TestDeleteMyIdentityProvider:
-    """Tests for POST /profile/idp/{idp_id}/unlink — delete_my_identity_provider."""
+    """Tests for POST /profile/identity-providers/{idp_id}/unlink — delete_my_identity_provider."""
 
     def test_success(self, profile_client, mock_auth_services):
         """Happy path: unlink IdP."""
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
+            PREFIX + "/identity-providers/1/unlink",
             json={"current_password": "pass123"},
         )
 
@@ -1123,7 +1123,7 @@ class TestDeleteMyIdentityProvider:
         mock_auth_services.delete_identity_provider_link.side_effect = HTTPException(status_code=401, detail="Invalid")
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
+            PREFIX + "/identity-providers/1/unlink",
             json={"current_password": "wrong"},
         )
 
@@ -1136,7 +1136,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
+            PREFIX + "/identity-providers/1/unlink",
             json={"current_password": "pass123"},
         )
 
@@ -1149,7 +1149,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
+            PREFIX + "/identity-providers/1/unlink",
             json={"current_password": "pass123"},
         )
 
@@ -1163,7 +1163,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
+            PREFIX + "/identity-providers/1/unlink",
             json={"current_password": "pass123"},
         )
 
@@ -1177,7 +1177,7 @@ class TestDeleteMyIdentityProvider:
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
+            PREFIX + "/identity-providers/1/unlink",
             json={"current_password": "pass123"},
         )
 

@@ -20,7 +20,7 @@ router = APIRouter()
 
 @router.post(
     "/link",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=garmin_schema.GarminLinkStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
@@ -74,7 +74,7 @@ def garminconnect_mfa_code(
 
 @router.post(
     "/activities",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
@@ -98,7 +98,7 @@ def garminconnect_retrieve_activities_days(
 
 @router.post(
     "/gear",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=garmin_schema.GarminSyncStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
@@ -120,7 +120,7 @@ def garminconnect_retrieve_gear(
 
 @router.post(
     "/health",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=garmin_schema.GarminSyncStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
 )

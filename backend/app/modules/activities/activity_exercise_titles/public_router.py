@@ -1,8 +1,11 @@
 """Public API router for activity exercise titles."""
 
-from fastapi import APIRouter, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request
 
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_exercise_titles.service as activity_exercise_titles_service
@@ -12,12 +15,22 @@ router = APIRouter()
 
 @router.get(
     "/all",
-    response_model=list[activity_exercise_titles_schema.ActivityExerciseTitlesRead],
+    response_model=activity_exercise_titles_schema.ActivityExerciseTitlesPage,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def list_public_activity_exercise_titles(
     request: Request,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
     db: core_dependencies.DbSession,
-) -> list[activity_exercise_titles_schema.ActivityExerciseTitlesRead]:
-    """Return all activity exercise titles via the public endpoint."""
-    return activity_exercise_titles_service.list_public_activity_exercise_titles(db)
+) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
+    """Return one page of the activity exercise titles via the public endpoint.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        page: The requested window; a page holds up to the maximum when no size is given.
+        db: Database session dependency.
+
+    Returns:
+        The page of exercise titles, empty when public shareable links are disabled.
+    """
+    return activity_exercise_titles_service.list_public_activity_exercise_titles(page, db)

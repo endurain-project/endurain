@@ -59,6 +59,29 @@ class TestGetUserGoalsByUserId:
         assert "interval" in compiled and "activity_type" in compiled and "goal_type" in compiled
 
 
+class TestGetUserGoalsPage:
+    def test_returns_one_ordered_window_and_the_total(self, mock_db):
+        goals = [MagicMock(spec=user_goals_models.UsersGoal)]
+        mock_db.execute.return_value.scalars.return_value.all.return_value = goals
+        mock_db.execute.return_value.scalar_one.return_value = 41
+
+        page = user_goals_crud.get_user_goals_page(1, mock_db, limit=25, offset=25)
+        total = user_goals_crud.count_user_goals(1, mock_db)
+
+        assert page == goals
+        assert total == 41
+        compiled = str(mock_db.execute.call_args_list[0].args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "ORDER BY users_goals.id" in compiled
+        assert "LIMIT 25" in compiled and "OFFSET 25" in compiled
+
+    def test_the_count_applies_the_same_filters(self, mock_db):
+        mock_db.execute.return_value.scalar_one.return_value = 3
+
+        user_goals_crud.count_user_goals(1, mock_db, interval=user_goals_schema.Interval.WEEKLY)
+
+        assert "interval" in str(mock_db.execute.call_args.args[0])
+
+
 class TestCreateUserGoal:
     def test_stages_without_committing(self, mock_db):
         _one(mock_db, None)

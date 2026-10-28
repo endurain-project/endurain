@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import NoReturn
 from uuid import uuid4
 
 from fastapi import (
@@ -42,6 +43,25 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
+def _refuse_credentials(username: str) -> NoReturn:
+    """Log a refused sign-in and answer with the one message every cause shares.
+
+    The account is named by a hashed identifier, so the log shows repeated guesses at one account without
+    holding the username.
+
+    Args:
+        username: The username presented.
+
+    Raises:
+        UnauthenticatedError: Always.
+    """
+    logger.warning(
+        "Sign-in refused for <username_log_id>",
+        extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(username)),
+    )
+    raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+
+
 def authenticate_user(
     username: str,
     password: str,
@@ -76,7 +96,7 @@ def authenticate_user(
         # is only recorded on 401, which the attacker does not care
         # about while probing existence).
         password_hasher.dummy_verify()
-        raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+        _refuse_credentials(username)
 
     # Load the user's local password hash from the auth-owned credential
     # table. A missing row means the account has no local password.
@@ -89,12 +109,12 @@ def authenticate_user(
     # the latency consistent with a normal Argon2 verify.
     if stored_hash is None:
         password_hasher.dummy_verify()
-        raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+        _refuse_credentials(username)
 
     # Verify password and get updated hash if applicable
     is_password_valid, updated_hash = password_hasher.verify_and_update(password, stored_hash)
     if not is_password_valid:
-        raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+        _refuse_credentials(username)
 
     # Update user hash if applicable
     if updated_hash:

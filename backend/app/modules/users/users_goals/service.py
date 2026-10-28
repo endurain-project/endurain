@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 import core.etag as core_etag
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.schema as user_goals_schema
 
@@ -17,24 +18,36 @@ logger = core_logger.get_logger(__name__)
 
 def list_goals(
     user_id: int,
+    page: core_pagination.PageParams,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
     activity_type: user_goals_schema.ActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
-) -> list[user_goals_schema.UsersGoalRead]:
-    """List a user's goals with optional filters.
+) -> user_goals_schema.UsersGoalPage:
+    """List one page of a user's goals with optional filters.
 
     Args:
         user_id: The user whose goals to list.
+        page: The requested window.
         db: Database session.
         interval: Optional filter by goal interval.
         activity_type: Optional filter by activity type.
         goal_type: Optional filter by goal type.
 
     Returns:
-        The goals matching the filters.
+        The page of goals matching the filters.
     """
-    return user_goals_crud.get_user_goals_by_user_id(user_id, db, interval, activity_type, goal_type)
+    goals = user_goals_crud.get_user_goals_page(
+        user_id,
+        db,
+        interval,
+        activity_type,
+        goal_type,
+        limit=page.num_records,
+        offset=(page.page_number - 1) * page.num_records,
+    )
+    total = user_goals_crud.count_user_goals(user_id, db, interval, activity_type, goal_type)
+    return user_goals_schema.UsersGoalPage.build(goals, total, page.page_number, page.num_records)
 
 
 def create_goal(

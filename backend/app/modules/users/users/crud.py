@@ -169,12 +169,15 @@ def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead |
     return users_serializers.to_read_schema(user) if user else None
 
 
-def search_active_users_by_username(username: str, limit: int, db: Session) -> list[users_schema.UsersRead]:
+def search_active_users_by_username(
+    username: str, limit: int, offset: int, db: Session
+) -> list[users_schema.UsersRead]:
     """Retrieve the active users whose username contains the search term.
 
     Args:
         username: The partial username to search for.
         limit: The most users to return.
+        offset: How many matching users to skip.
         db: Database session.
 
     Returns:
@@ -184,6 +187,7 @@ def search_active_users_by_username(username: str, limit: int, db: Session) -> l
         _filtered(select(users_models.Users), False, True, True, username)
         .order_by(users_models.Users.username)
         .limit(limit)
+        .offset(offset)
     )
     return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
 

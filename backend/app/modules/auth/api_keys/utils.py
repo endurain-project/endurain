@@ -39,10 +39,7 @@ def hash_api_key(raw_key: str) -> str:
     return token_hashing.sha256_hex(raw_key)
 
 
-def validate_api_key_scopes(
-    requested_scopes: list[str],
-    _user_access_type: str,
-) -> None:
+def validate_api_key_scopes(requested_scopes: list[str]) -> None:
     """Validate requested scopes against supported API-key scopes.
 
     API keys currently support only activity uploads. Keeping this
@@ -53,9 +50,6 @@ def validate_api_key_scopes(
     Args:
         requested_scopes: List of scopes the caller wants
             to assign to the new API key.
-        _user_access_type: The owner's access type. Accepted for
-            router compatibility but not used while API-key scopes
-            are restricted to activity uploads.
 
     Raises:
         InvalidInputError: If any requested scope is not supported.

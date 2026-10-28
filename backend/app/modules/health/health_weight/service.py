@@ -15,6 +15,7 @@ import modules.health.constants as health_constants
 import modules.health.health_weight.bmi as health_weight_bmi
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
+import modules.health.interval_service as health_interval_service
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
@@ -52,22 +53,6 @@ def _with_bmi[RecordT: health_weight_schema.HealthWeightCreate | health_weight_s
     return health_weight.model_copy(update={"bmi": bmi})
 
 
-def _since(user_id: int, interval: health_constants.Interval | None, db: Session):
-    """Return the first date of an interval in the user's own calendar, or ``None``.
-
-    Args:
-        user_id: The user whose "today" anchors the interval.
-        interval: The interval to resolve.
-        db: Database session.
-
-    Returns:
-        The interval's start date, or ``None`` when no interval is given.
-    """
-    if interval is None:
-        return None
-    return health_computation.get_start_date_for_interval(interval.value, users_integration.local_today(user_id, db))
-
-
 def list_health_weight(
     user_id: int,
     db: Session,
@@ -88,7 +73,7 @@ def list_health_weight(
     Returns:
         The page of records; ``total`` counts every record within the interval.
     """
-    since = _since(user_id, interval, db)
+    since = health_interval_service.interval_start(user_id, interval, db)
     total = health_weight_crud.get_health_weight_number_by_user_id(user_id, db, since)
     records = health_weight_crud.get_health_weight_by_user_id(user_id, db, page_number, num_records, since)
     return core_pagination.Page.build(records, total, page_number, num_records)

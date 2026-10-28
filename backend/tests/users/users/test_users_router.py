@@ -69,15 +69,22 @@ class TestReadUsers:
 
     @patch(f"{_SERVICE}.search_public_users")
     def test_contains_username(self, mock_search, client):
-        mock_search.return_value = [
-            users_schema.UserPublicRead(id=1, name="A", username="testuser1"),
-            users_schema.UserPublicRead(id=2, name="B", username="testuser2"),
-        ]
+        mock_search.return_value = users_schema.UserPublicPage.build(
+            [
+                users_schema.UserPublicRead(id=1, name="A", username="testuser1"),
+                users_schema.UserPublicRead(id=2, name="B", username="testuser2"),
+            ],
+            2,
+            1,
+            25,
+        )
 
-        response = client.get("/users/username/contains/test")
+        response = client.get("/users/username/contains/test?page_number=1&num_records=25")
 
         assert response.status_code == 200
-        assert [u["username"] for u in response.json()] == ["testuser1", "testuser2"]
+        body = response.json()
+        assert [u["username"] for u in body["items"]] == ["testuser1", "testuser2"]
+        assert (body["total"], body["next"]) == (2, None)
 
     @patch(f"{_SERVICE}.require_user_by_username")
     def test_exact_username_not_found_is_404(self, mock_get, client):
@@ -226,7 +233,7 @@ class TestEditUser:
 class TestApproveUser:
     @patch(f"{_SERVICE}.approve_user")
     def test_approves_with_the_notice_in_the_same_unit_of_work(self, mock_approve, client, mock_db):
-        response = client.put("/users/1/approve", headers={"If-Match": '"1"'})
+        response = client.post("/users/1/approve")
 
         assert response.status_code == 204
         assert response.content == b""
@@ -236,7 +243,7 @@ class TestApproveUser:
     def test_unverified_email_is_refused(self, mock_approve, client):
         mock_approve.side_effect = core_exceptions.InvalidInputError("User email is not verified")
 
-        response = client.put("/users/1/approve", headers={"If-Match": '"1"'})
+        response = client.post("/users/1/approve")
 
         assert response.status_code == 400
 

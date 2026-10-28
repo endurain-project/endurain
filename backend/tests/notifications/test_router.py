@@ -134,7 +134,7 @@ class TestMarkNotificationAsRead:
     def test_mark_read_success(self, mock_mark, mock_db):
         client = TestClient(_build_app(mock_db))
 
-        response = client.put("/notifications/1/read", headers={"Authorization": "Bearer x"})
+        response = client.post("/notifications/1/read", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204
 
     @patch("modules.notifications.router.notifications_service.mark_notification_as_read")
@@ -142,7 +142,7 @@ class TestMarkNotificationAsRead:
         client = TestClient(_build_app(mock_db))
         mock_mark.side_effect = core_exceptions.NotFoundError("Notification not found")
 
-        response = client.put("/notifications/9/read", headers={"Authorization": "Bearer x"})
+        response = client.post("/notifications/9/read", headers={"Authorization": "Bearer x"})
         assert response.status_code == 404
 
 
@@ -151,7 +151,7 @@ class TestMarkAllNotificationsAsRead:
     def test_mark_all_read_success(self, mock_mark, mock_db):
         client = TestClient(_build_app(mock_db))
 
-        response = client.put("/notifications/read", headers={"Authorization": "Bearer x"})
+        response = client.post("/notifications/read", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204
         mock_mark.assert_called_once()
 

@@ -88,7 +88,7 @@ def setup_mfa(
     return mfa_workflow_service.setup_mfa(token_user_id, mfa_secret_store, db)
 
 
-@router.put(
+@router.post(
     "/enable",
     response_model=mfa_schema.MFAEnableRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
@@ -141,7 +141,7 @@ def enable_mfa(
     return mfa_workflow_service.enable_mfa(mfa_request, token_user_id, step_up_store, mfa_secret_store, db)
 
 
-@router.put(
+@router.post(
     "/disable",
     response_model=mfa_schema.MFADisableRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],

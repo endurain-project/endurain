@@ -191,7 +191,7 @@ def resolve_from_api_key(
 
     authentication_event_publishers.publish_api_key_used(db_key.id, db)
 
-    logger.info(
+    logger.debug(
         "API key authenticated",
         extra=core_logger.context(
             key_prefix=db_key.key_prefix,

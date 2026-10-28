@@ -75,7 +75,7 @@ class TestReads:
     def test_search_escapes_like_wildcards(self, mock_db):
         _many(mock_db, [])
 
-        users_crud.search_active_users_by_username("50%_off", 10, mock_db)
+        users_crud.search_active_users_by_username("50%_off", 10, 0, mock_db)
 
         assert "ESCAPE" in _sql(mock_db)
         assert "50\\%\\_off" in _sql(mock_db)
@@ -83,11 +83,12 @@ class TestReads:
     def test_search_only_returns_active_users_up_to_the_limit(self, mock_db):
         _many(mock_db, [])
 
-        users_crud.search_active_users_by_username("ann", 7, mock_db)
+        users_crud.search_active_users_by_username("ann", 7, 14, mock_db)
 
         sql = _sql(mock_db)
         assert "active IS true" in sql
         assert "LIMIT 7" in sql
+        assert "OFFSET 14" in sql
 
     def test_get_users_admin_filters_on_access_type(self, mock_db):
         _many(mock_db, [])

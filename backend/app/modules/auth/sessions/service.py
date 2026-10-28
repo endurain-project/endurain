@@ -118,14 +118,14 @@ def edit_session(
         }
     )
     updated = sessions_crud.edit_session(session_data, db)
-    logger.info("Session refresh token rotated", extra=core_logger.context(session_id=session.id))
+    logger.debug("Session refresh token rotated", extra=core_logger.context(session_id=session.id))
     return updated
 
 
 def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session) -> None:
     """Stage the binding of a newly issued CSRF token to a session; the caller commits."""
     sessions_crud.update_session_csrf_hash(session_id, _hash_csrf_token(new_csrf_token), db)
-    logger.info("Session CSRF token updated", extra=core_logger.context(session_id=session_id))
+    logger.debug("Session CSRF token updated", extra=core_logger.context(session_id=session_id))
 
 
 def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
@@ -165,7 +165,7 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
     """Stage deletion of a token family from sessions and rotated-token persistence; the caller commits."""
     sessions_deleted = sessions_crud.delete_sessions_by_family(token_family_id, db)
     tokens_deleted = rotated_refresh_tokens_integration.delete_by_family(token_family_id, db)
-    logger.error(
+    logger.warning(
         "Invalidated refresh-token family after reuse detection",
         extra=core_logger.context(
             token_family_id=token_family_id,

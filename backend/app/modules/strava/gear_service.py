@@ -58,7 +58,7 @@ def _call_strava(call, description: str, client_id: str, user_id: int, user_inte
     except Exception as err:
         strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
-        logger.error(
+        logger.warning(
             "Error fetching from Strava", extra=core_logger.context(user_id=user_id, fetching=description), exc_info=err
         )
         raise core_exceptions.DependencyFailedError(f"Not able to fetch {description}") from err

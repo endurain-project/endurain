@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
@@ -29,19 +28,6 @@ def create_password_reset_token(
     db.add(row)
     db.flush()
     return password_reset_serializers.to_state(row)
-
-
-def get_password_reset_token_by_hash(
-    token_hash: str, db: Session
-) -> password_reset_contracts.PasswordResetTokenState | None:
-    """Return an unused, unexpired token state matching the hash."""
-    stmt = select(password_reset_models.PasswordResetToken).where(
-        password_reset_models.PasswordResetToken.token_hash == token_hash,
-        password_reset_models.PasswordResetToken.used.is_(False),
-        password_reset_models.PasswordResetToken.expires_at > datetime.now(UTC),
-    )
-    row = db.execute(stmt).scalar_one_or_none()
-    return password_reset_serializers.to_state(row) if row else None
 
 
 def claim_password_reset_token(token_hash: str, db: Session) -> int | None:
@@ -74,21 +60,6 @@ def mark_user_password_reset_tokens_used(user_id: int, db: Session) -> int:
     result = db.execute(stmt)
     db.flush()
     return result.rowcount or 0
-
-
-def mark_password_reset_token_used(
-    token_id: str, db: Session
-) -> password_reset_contracts.PasswordResetTokenState | None:
-    """Stage consumption of a token by its id and return its updated state."""
-    stmt = select(password_reset_models.PasswordResetToken).where(
-        password_reset_models.PasswordResetToken.id == token_id
-    )
-    row = db.execute(stmt).scalar_one_or_none()
-    if row is None:
-        return None
-    row.used = True
-    db.flush()
-    return password_reset_serializers.to_state(row)
 
 
 def delete_expired_password_reset_tokens(db: Session) -> int:

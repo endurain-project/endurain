@@ -179,7 +179,7 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
             elif dotted == "modules.users.users_goals.router":
                 app.include_router(router, prefix="/user_goals")
             elif dotted == "modules.auth.account_security.api_keys_router":
-                app.include_router(router, prefix="/api_keys")
+                app.include_router(router, prefix="/api-keys")
             elif dotted == "modules.server_settings.public_router":
                 app.include_router(router, prefix="/server_settings/public")
             else:

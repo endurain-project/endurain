@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, Response, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.users.users_goals.progress_service as user_goals_progress_service
@@ -18,11 +19,12 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=list[user_goals_schema.UsersGoalRead],
+    response_model=user_goals_schema.UsersGoalPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_user_goals(
     token_user_id: auth_dependencies.CurrentUserId,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     db: core_dependencies.DbSession,
     interval: Annotated[
         user_goals_schema.Interval | None,
@@ -36,22 +38,24 @@ def get_user_goals(
         user_goals_schema.GoalType | None,
         Query(description="Filter by goal type"),
     ] = None,
-) -> list[user_goals_schema.UsersGoalRead]:
-    """Retrieve goals for the authenticated user with optional filters.
+) -> user_goals_schema.UsersGoalPage:
+    """Retrieve one page of goals for the authenticated user with optional filters.
 
     Args:
         token_user_id: User ID from access token.
+        page: The requested window.
         db: Database session dependency.
         interval: Optional filter by goal interval.
         activity_type: Optional filter by activity type.
         goal_type: Optional filter by goal type.
 
     Returns:
-        List of user goal objects matching the filters.
+        The page of user goals matching the filters.
     """
     return user_goals_service.list_goals(
         user_id=token_user_id,
         db=db,
+        page=page,
         interval=interval,
         activity_type=activity_type,
         goal_type=goal_type,

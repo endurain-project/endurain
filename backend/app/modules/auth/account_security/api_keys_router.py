@@ -47,7 +47,7 @@ def create_user_api_key(
     return api_key_service.create_user_api_key(token_user_id, data, step_up_store, db)
 
 
-@router.patch(
+@router.post(
     "/{api_key_id}/revoke",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,

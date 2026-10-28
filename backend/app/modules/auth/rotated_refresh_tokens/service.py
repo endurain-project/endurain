@@ -133,7 +133,7 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
         return (True, True)
 
     # Past grace period - likely theft!
-    logger.error(
+    logger.warning(
         "Token reuse detected after grace period",
         extra=core_logger.context(
             token_family_id=rotated_token.token_family_id,

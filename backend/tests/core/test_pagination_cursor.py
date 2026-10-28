@@ -20,13 +20,6 @@ class TestCursorRoundTrip:
 
         assert core_pagination.decode_cursor(core_pagination.encode_cursor(moment, 42)) == (moment, 42)
 
-    def test_cursor_is_opaque(self):
-        """Clients must not be able to read or hand-craft positions."""
-        cursor = core_pagination.encode_cursor(datetime(2026, 7, 29, tzinfo=UTC), 42)
-
-        assert "2026" not in cursor
-        assert "42" not in cursor
-
     def test_cursor_does_not_reveal_the_position_to_someone_who_decodes_it(self):
         """A follower sees a hidden start time as a feed entry's cursor, so base64 alone must not expose it."""
         import base64

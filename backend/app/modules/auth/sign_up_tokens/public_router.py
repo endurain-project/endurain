@@ -1,6 +1,6 @@
 """Unauthenticated sign-up and email-verification endpoints."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, status
 
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post(
     "/sign-up/request",
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
     response_model=sign_up_schema.SignUpRead,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)

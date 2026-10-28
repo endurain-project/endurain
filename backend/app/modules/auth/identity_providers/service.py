@@ -29,6 +29,7 @@ import core.cryptography as core_cryptography
 import core.database as core_database
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
 import modules.auth.credentials.integration_service as credentials_integration
@@ -168,7 +169,9 @@ class IdentityProviderService:
         db.commit()
         logger.debug(
             "OAuth state created: <state_id> for IdP <idp_id> (client_type=<client_type>)",
-            extra=core_logger.context(state_id=state_id, idp_id=idp_id, client_type=client_type),
+            extra=core_logger.context(
+                state_id=core_hashing.log_fingerprint(state_id), idp_id=idp_id, client_type=client_type
+            ),
         )
         return state_id
 
@@ -200,7 +203,7 @@ class IdentityProviderService:
         db.commit()
         logger.debug(
             "OAuth state claim committed: <state_id> (claimed=<claimed>)",
-            extra=core_logger.context(state_id=state_id, claimed=claimed),
+            extra=core_logger.context(state_id=core_hashing.log_fingerprint(state_id), claimed=claimed),
         )
         return claimed
 
@@ -711,10 +714,8 @@ class IdentityProviderService:
                     raise core_exceptions.UnauthenticatedError("ID token missing nonce")
 
                 if token_nonce != expected_nonce:
-                    logger.warning(
-                        "ID token nonce mismatch: expected <expected_nonce>, got <token_nonce>",
-                        extra=core_logger.context(expected_nonce=expected_nonce, token_nonce=token_nonce),
-                    )
+                    # The nonce values are not logged: the expected one is the secret binding this login.
+                    logger.warning("ID token nonce does not match the one issued for this login")
                     raise core_exceptions.UnauthenticatedError("ID token nonce mismatch")
 
             # Return verified claims
@@ -1296,18 +1297,16 @@ class IdentityProviderService:
 
                 token_response = oauth_client.fetch_token(token_endpoint, grant_type="authorization_code", code=code)
             except httpx2.TimeoutException as err:
-                logger.error(
+                logger.warning(
                     "Timeout connecting to IdP <name> token endpoint: <err>",
-                    exc_info=err,
                     extra=core_logger.context(name=idp.name, err=err),
                 )
                 raise UpstreamTimeoutError(
                     f"Identity provider {idp.name} is not responding. Please try again later."
                 ) from err
             except httpx2.HTTPStatusError as err:
-                logger.error(
+                logger.warning(
                     "HTTP error from IdP <name> token endpoint: <status_code> - <text>",
-                    exc_info=err,
                     extra=core_logger.context(
                         name=idp.name, status_code=err.response.status_code, text=err.response.text
                     ),
@@ -1322,9 +1321,8 @@ class IdentityProviderService:
 
                 raise core_exceptions.UpstreamError(detail) from err
             except httpx2.RequestError as err:
-                logger.error(
+                logger.warning(
                     "Network error connecting to IdP <name>: <err>",
-                    exc_info=err,
                     extra=core_logger.context(name=idp.name, err=err),
                 )
                 raise core_exceptions.UpstreamError(
@@ -1973,15 +1971,13 @@ class IdentityProviderService:
             existing_user = users_integration.get_user_by_email(mapped_data["email"], db)
             if existing_user and existing_user.id != user.id:
                 logger.warning(
-                    "Cannot sync email from IdP <name>: <value_2> already in use by another user",
-                    extra=core_logger.context(name=idp.name, value_2=mapped_data["email"]),
+                    "Cannot sync email from IdP <name>: it is already in use by another user",
+                    extra=core_logger.context(name=idp.name),
                 )
             else:
                 logger.debug(
-                    "Syncing email for user <username> from IdP <name>: <email> -> <value_4>",
-                    extra=core_logger.context(
-                        username=user.username, name=idp.name, email=user.email, value_4=mapped_data["email"]
-                    ),
+                    "Syncing email for user <username> from IdP <name>",
+                    extra=core_logger.context(username=user.username, name=idp.name),
                 )
                 updates["email"] = mapped_data["email"].strip()
 

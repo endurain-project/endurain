@@ -15,6 +15,7 @@ from pydantic import (
     field_validator,
 )
 
+import core.pagination as core_pagination
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.constants as users_constants
 
@@ -381,6 +382,10 @@ class UserPublicRead(BaseModel):
     photo_path: StrictStr | None = Field(default=None, description="Servable URL of the user's photo")
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+#: One page of public user projections, as a search returns them.
+UserPublicPage = core_pagination.Page[UserPublicRead]
 
 
 class UsersEdit(Users):

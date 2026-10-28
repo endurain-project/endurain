@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Request, Response, Security, UploadFile
+from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.post(
     "/link",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
@@ -46,7 +46,7 @@ def strava_link(
 
 @router.post(
     "/activities",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
@@ -70,7 +70,7 @@ def strava_retrieve_activities_days(
 
 @router.post(
     "/gear",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
@@ -106,7 +106,7 @@ def strava_sync_status(
 
 @router.post(
     "/import/bikes",
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaGearImportResult,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
@@ -125,7 +125,7 @@ def import_bikes_from_strava_export(
 
 @router.post(
     "/import/shoes",
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaGearImportResult,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
@@ -176,7 +176,7 @@ def strava_set_user_client(
 
 @router.post(
     "/state",
-    status_code=201,
+    status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaState,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
@@ -195,7 +195,8 @@ def strava_begin_state(
 
 @router.delete(
     "/state",
-    response_model=strava_schema.StravaDetail,
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -203,15 +204,14 @@ def strava_clear_user_state(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
     oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
-) -> strava_schema.StravaDetail:
+) -> None:
     """Forget the user's pending OAuth state."""
     strava_service.clear_state(token_user_id, oauth_states)
-    return strava_schema.StravaDetail(detail="Strava state cleared successfully")
 
 
 @router.delete(
     "/link",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )

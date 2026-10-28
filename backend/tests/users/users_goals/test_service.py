@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+import core.pagination as core_pagination
 import modules.users.users_goals.schema as user_goals_schema
 import modules.users.users_goals.service as user_goals_service
 
@@ -17,6 +18,18 @@ class TestUserGoalsService:
 
         assert result == mock_crud.create_user_goal.return_value
         mock_db.commit.assert_called_once()
+
+    def test_list_returns_a_page_with_the_total(self, mock_crud, mock_db):
+        goal = user_goals_schema.UsersGoalRead(
+            id=1, user_id=1, interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
+        )
+        mock_crud.get_user_goals_page.return_value = [goal]
+        mock_crud.count_user_goals.return_value = 30
+
+        page = user_goals_service.list_goals(1, core_pagination.PageParams(2, 25), mock_db)
+
+        assert (page.items, page.total, page.page, page.next) == ([goal], 30, 2, None)
+        assert mock_crud.get_user_goals_page.call_args.kwargs == {"limit": 25, "offset": 25}
 
     def test_update_commits(self, mock_crud, mock_db):
         goal = user_goals_schema.UsersGoalUpdate(

@@ -111,7 +111,7 @@ def profile_app(
     app.include_router(profile_overview_router.router, prefix=core_config.ROOT_PATH + "/users")
     app.include_router(auth_sessions_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/sessions")
     app.include_router(auth_mfa_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/mfa")
-    app.include_router(auth_idp_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/idp")
+    app.include_router(auth_idp_profile_router.router, prefix=core_config.ROOT_PATH + "/profile/identity-providers")
 
     core_exceptions.register_exception_handlers(app)
 

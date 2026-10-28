@@ -14,7 +14,7 @@ import modules.users.users_profile.browser_redirect_router as profile_browser_re
 class TestLinkIdentityProvider:
     """Test suite for link_identity_provider endpoint."""
 
-    endpoint = "/api/v1/profile/idp/1/link?link_token=test-token"
+    endpoint = "/api/v1/profile/identity-providers/1/link?link_token=test-token"
 
     def _make_app(self):
         app = FastAPI()
@@ -59,6 +59,6 @@ class TestLinkIdentityProvider:
     def test_the_provider_id_must_be_positive(self):
         app = self._make_app()
 
-        response = TestClient(app).get("/api/v1/profile/idp/0/link?link_token=test-token")
+        response = TestClient(app).get("/api/v1/profile/identity-providers/0/link?link_token=test-token")
 
         assert response.status_code == 422

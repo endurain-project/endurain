@@ -72,7 +72,7 @@ def fetch_and_process_activities(
     except Exception as err:
         strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
-        logger.error("Error fetching Strava activities", extra=core_logger.context(user_id=user_id), exc_info=err)
+        logger.warning("Error fetching Strava activities", extra=core_logger.context(user_id=user_id), exc_info=err)
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activities") from err
 
     if not strava_activities:
@@ -137,7 +137,7 @@ def parse_activity(
     except Exception as err:
         strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
-        logger.error(
+        logger.warning(
             "Error fetching detailed Strava activity",
             extra=core_logger.context(user_id=user_id, strava_activity_id=activity.id),
             exc_info=err,
@@ -520,7 +520,7 @@ def fetch_and_process_activity_streams(
                 extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             )
             return ([], False, [], False, [], False, [], False, [], False, [], False, [])
-        logger.error(
+        logger.warning(
             "Error fetching Strava activity streams",
             extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             exc_info=err,
@@ -600,7 +600,7 @@ def fetch_and_process_activity_laps(
         laps = strava_client.get_activity_laps(strava_activity_id)
     except Exception as err:
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
-        logger.error(
+        logger.warning(
             "Error fetching Strava activity laps",
             extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             exc_info=err,

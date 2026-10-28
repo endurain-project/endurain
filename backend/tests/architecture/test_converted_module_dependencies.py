@@ -22,6 +22,7 @@ _MODULES_ROOT = pathlib.Path("app/modules")
 #: ``jasil`` when they are generic enough to be shared by other products.
 _ALLOWED_CORE: dict[str, str] = {
     "core.attempt_state": "The claim-and-poll state of an attempt that runs off the request.",
+    "core.sync_runner": "The shared claim, run and dead-letter bookkeeping of a queued provider sync.",
     "core.provider_rate_limit": "The shared, expiring record of a provider's rate limit, which Strava and Garmin both keep.",
     "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
     "core.calendar": "Period boundaries for activity summaries.",

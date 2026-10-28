@@ -113,9 +113,8 @@ class TokenManager:
             # Get the claim from the payload and return it
             return payload.claims[claim]
         except KeyError as err:
-            logger.error(
+            logger.warning(
                 "Requested token claim is missing",
-                exc_info=err,
                 extra=core_logger.context(credential="token", claim=claim),
             )
             raise core_exceptions.UnauthenticatedError(f"Claim '{claim}' is missing in the token.") from err
@@ -152,16 +151,14 @@ class TokenManager:
             # the unauthenticated token bypass the HMAC signature check.
             return jwt.decode(token, self._key, algorithms=[self.algorithm])
         except InvalidPayloadError as payload_err:
-            logger.error(
+            logger.warning(
                 "Invalid token payload",
-                exc_info=payload_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Invalid token payload") from payload_err
         except DecodeError as decode_err:
-            logger.error(
+            logger.warning(
                 "Error decoding token",
-                exc_info=decode_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Unable to decode token") from decode_err
@@ -225,32 +222,28 @@ class TokenManager:
             # Validate token claims (incl. expiration and typ)
             claims_requests.validate(payload.claims)
         except MissingClaimError as missing_err:
-            logger.error(
+            logger.warning(
                 "JWT is missing required claims",
-                exc_info=missing_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Token is missing required claims.") from missing_err
         except ExpiredTokenError as expired_err:
             raise core_exceptions.UnauthenticatedError("Token is expired.") from expired_err
         except InvalidTokenError as invalid_err:
-            logger.error(
+            logger.warning(
                 "JWT is not valid yet",
-                exc_info=invalid_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Token is not valid yet.") from invalid_err
         except InsecureClaimError as insecure_err:
-            logger.error(
+            logger.warning(
                 "JWT contains an insecure claim",
-                exc_info=insecure_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Token has insecure claims.") from insecure_err
         except InvalidClaimError as claims_err:
-            logger.error(
+            logger.warning(
                 "JWT claim validation failed",
-                exc_info=claims_err,
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Token has invalid claims.") from claims_err

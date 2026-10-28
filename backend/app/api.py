@@ -203,8 +203,8 @@ router.include_router(
 )
 router.include_router(
     garmin_router.router,
-    prefix=core_config.ROOT_PATH + "/garminconnect",
-    tags=["garminconnect"],
+    prefix=core_config.ROOT_PATH + "/garmin",
+    tags=["garmin"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
@@ -269,7 +269,7 @@ router.include_router(
 )
 router.include_router(
     identity_providers_router.router,
-    prefix=core_config.ROOT_PATH + "/idp",
+    prefix=core_config.ROOT_PATH + "/identity-providers",
     tags=["identity_providers"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
@@ -319,7 +319,7 @@ router.include_router(
 )
 router.include_router(
     auth_idp_profile_router.router,
-    prefix=core_config.ROOT_PATH + "/profile/idp",
+    prefix=core_config.ROOT_PATH + "/profile/identity-providers",
     tags=["profile"],
     dependencies=_PROFILE_DEPENDENCIES,
 )
@@ -354,7 +354,7 @@ router.include_router(
 )
 router.include_router(
     user_default_gear_router.router,
-    prefix=core_config.ROOT_PATH + "/profile/default_gear",
+    prefix=core_config.ROOT_PATH + "/profile/default-gear",
     tags=["profile"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
@@ -366,8 +366,8 @@ router.include_router(
 )
 router.include_router(
     auth_api_keys_router.router,
-    prefix=core_config.ROOT_PATH + "/profile/api_keys",
-    tags=["api_keys"],
+    prefix=core_config.ROOT_PATH + "/profile/api-keys",
+    tags=["api-keys"],
     dependencies=[
         Depends(auth_dependencies.validate_access_token),
         Security(auth_dependencies.check_scopes, scopes=["profile"]),
