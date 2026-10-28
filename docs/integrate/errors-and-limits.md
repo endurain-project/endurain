@@ -102,13 +102,14 @@ A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never ma
 | -------- | ---- |
 | Activities | `PATCH /activities/{id}` (the bulk edit of `PATCH /activities` has no single record and does not need it) |
 | Gears and gear components | `PATCH /gears/{id}`, `PATCH /gear-components/{id}` |
-| Health records | `PATCH /health/{weight,water,steps,sleep,poop,fasting}/{id}` |
+| Health records | `PATCH /health/{weight,water,steps,sleep,poop,fasting}/{id}`, and `POST /health/fasting/{id}/complete`, which changes the session it ends |
 | Health targets | `PATCH /health/targets` |
 | Your profile | `PATCH /profile`, using the profile's `ETag` or `version` |
 | Your privacy settings | `PATCH /profile/privacy`, using `privacy_settings_version` from `GET /profile` (the privacy settings have their own version) |
 | Your default gear | `PATCH /profile/default_gear` |
 | Your goals | `PUT /profile/goals/{id}` |
 | Users (administrators) | `PUT /users/{id}` |
+| Your Strava client credentials | `PUT /strava/client`, using `integrations_version` from `GET /profile` |
 | Identity providers (administrators) | `PUT /idp/{idp_id}` |
 | Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
 

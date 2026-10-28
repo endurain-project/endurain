@@ -20,6 +20,10 @@ Without this a `PATCH` is last-writer-wins: the app open on a phone and a laptop
 
 The version travels as an HTTP entity tag, the standard mechanism for this, so no bespoke field is needed in every payload. The tag is the version in quotes (`"3"`), a *strong* tag.
 
+The Strava client credentials are versioned with the rest of the user's integrations: `GET /profile` carries
+`integrations_version`, and `PUT /strava/client` requires it in `If-Match`. Ending a fast with
+`POST /health/fasting/{id}/complete` changes the session, so it requires the session's version too.
+
 The identity-provider administration form edits a stored provider with `PUT /idp/{idp_id}`. Its list items carry the
 version, the create and update responses return an `ETag`, and the update requires that tag in `If-Match`.
 
@@ -126,7 +130,7 @@ An upsert that loses the version race re-reads the row and applies again, up to 
 
 ## What is not versioned
 
-Creating, deleting and action endpoints (approve a user, change a password, link an account) take no `If-Match`: there is no earlier version for a create to be stale against, and an action does not replace a representation the client read. The bulk activity edit has no single record to name.
+Creating, deleting and action endpoints (approve a user, change a password, link an account) take no `If-Match`: there is no earlier version for a create to be stale against, and an action does not replace a representation the client read. The bulk activity edit (`PATCH /activities`) has no single record to name; it answers 202 and runs as a job.
 
 ## Adding a versioned resource
 
