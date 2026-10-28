@@ -30,6 +30,7 @@ import {
   presentCadence,
   speedToDisplay,
   speedUnitLabel,
+  type Translate,
   type Units,
 } from './format'
 import { activityDuration, distinctElapsedTime } from './metrics'
@@ -198,22 +199,25 @@ function valueFormatter(
   metric: StreamMetric,
   activityType: number,
   units: Units,
+  t: Translate,
 ): (value: number) => string {
   switch (metric) {
     case 'hr':
-      return (v) => `${Math.round(v)} bpm`
+      return (v) => `${Math.round(v)} ${t('activities.units.bpm')}`
     case 'power':
-      return (v) => `${Math.round(v)} W`
+      return (v) => `${Math.round(v)} ${t('activities.units.w')}`
     case 'cadence':
-      return (v) => `${Math.round(v)} ${cadenceUnitLabel(activityType)}`
+      return (v) => `${Math.round(v)} ${t(cadenceUnitLabel(activityType))}`
     case 'elevation':
-      return (v) => `${Math.round(v)} ${units === 'imperial' ? 'ft' : 'm'}`
+      return (v) =>
+        `${Math.round(v)} ${t(units === 'imperial' ? 'activities.units.ft' : 'activities.units.m')}`
     case 'velocity':
-      return (v) => `${v.toFixed(1)} ${speedUnitLabel(activityType, units)}`
+      return (v) => `${v.toFixed(1)} ${t(speedUnitLabel(activityType, units))}`
     case 'pace':
       return (v) => formatPaceClock(v)
     case 'temperature':
-      return (v) => `${v.toFixed(1)}°${units === 'imperial' ? 'F' : 'C'}`
+      return (v) =>
+        `${v.toFixed(1)}${t(units === 'imperial' ? 'activities.units.fahrenheit' : 'activities.units.celsius')}`
     default:
       return (v) => String(v)
   }
@@ -256,7 +260,7 @@ function buildTimeLabels(pointCount: number, totalSeconds: number): string[] {
  * @param pointCount - Number of samples in the series.
  * @param activity - The activity (distance / time basis).
  * @param units - The user's unit system.
- * @returns Labels of length `pointCount` and their unit suffix (`''` for
+ * @returns Labels of length `pointCount` and their unit's i18n key (`''` for
  *   self-describing axes such as time, or the index fallback).
  */
 function buildChartXAxis(
@@ -267,7 +271,7 @@ function buildChartXAxis(
   if (activity.distance > 0) {
     return {
       labels: buildDistanceLabels(pointCount, activity.distance, units),
-      unit: units === 'imperial' ? 'mi' : 'km',
+      unit: units === 'imperial' ? 'activities.units.mi' : 'activities.units.km',
     }
   }
   const seconds = activityDuration(activity)
@@ -287,7 +291,7 @@ export interface StreamStat {
   labelKey: string
   /** Formatted value. */
   value: string
-  /** Unit suffix (may be empty). */
+  /** i18n key of the unit suffix (empty when unitless). */
   unit: string
 }
 
@@ -313,7 +317,7 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
     stats.push({ labelKey, value: formatted.value, unit: formatted.unit })
   }
   const watts = (labelKey: string, value: number): void => {
-    stats.push({ labelKey, value: String(Math.round(value)), unit: 'W' })
+    stats.push({ labelKey, value: String(Math.round(value)), unit: 'activities.units.w' })
   }
   // The summary "Time" tile already shows the activity duration, so the speed
   // and pace rows add elapsed time only when stops make it longer.
@@ -334,14 +338,14 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
         stats.push({
           labelKey: 'activities.metrics.avgHr',
           value: String(Math.round(activity.averageHr)),
-          unit: 'bpm',
+          unit: 'activities.units.bpm',
         })
       }
       if (statPresent(activity.maxHr)) {
         stats.push({
           labelKey: 'activities.metrics.maxHr',
           value: String(Math.round(activity.maxHr)),
-          unit: 'bpm',
+          unit: 'activities.units.bpm',
         })
       }
       break
@@ -422,12 +426,14 @@ export interface StreamChart {
  * @param stream - The metric stream.
  * @param activity - The activity domain model (type, distance, aggregate stats).
  * @param units - The user's unit system.
+ * @param t - Translates unit keys in the axis and tick labels.
  * @returns The chart model, or `null`.
  */
 export function buildStreamChart(
   stream: ActivityStream,
   activity: Activity,
   units: Units,
+  t: Translate,
 ): StreamChart | null {
   const metric = METRIC_BY_TYPE[stream.streamType]
   if (!metric || stream.waypoints.length === 0) {
@@ -452,8 +458,8 @@ export function buildStreamChart(
       kind: 'line',
       series: [{ label: METRIC_TITLE_KEY[metric], data, color: METRIC_COLOR[metric] }],
       labels: xAxis.labels,
-      xUnit: xAxis.unit,
-      valueFormat: valueFormatter(metric, type, units),
+      xUnit: xAxis.unit && t(xAxis.unit),
+      valueFormat: valueFormatter(metric, type, units, t),
       zoom: true,
     },
     stats: buildStreamStats(metric, activity, units),
@@ -470,6 +476,7 @@ export function buildStreamChart(
  * @param units - The user's unit system.
  * @param isMetricVisible - Predicate deciding whether a metric is visible to
  *   the current viewer (owner vs. privacy flags).
+ * @param t - Translates unit keys in the axis and tick labels.
  * @returns The ordered, visible, type-relevant chart models.
  */
 export function buildStreamCharts(
@@ -477,6 +484,7 @@ export function buildStreamCharts(
   activity: Activity,
   units: Units,
   isMetricVisible: (metric: StreamMetric) => boolean,
+  t: Translate,
 ): StreamChart[] {
   const type = activity.activityType
   const byMetric = new Map<StreamMetric, StreamChart>()
@@ -490,7 +498,7 @@ export function buildStreamCharts(
     ) {
       continue
     }
-    const chart = buildStreamChart(stream, activity, units)
+    const chart = buildStreamChart(stream, activity, units, t)
     if (chart) {
       byMetric.set(metric, chart)
     }

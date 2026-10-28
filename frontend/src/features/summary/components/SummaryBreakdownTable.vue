@@ -74,16 +74,16 @@ function periodLabel(bucket: number): string {
           <tr v-for="row in rows" :key="row.bucket" class="border-b border-border last:border-0">
             <td class="py-2 pe-3">{{ periodLabel(row.bucket) }}</td>
             <td class="px-3 py-2 text-end tabular-nums">
-              {{ combineSummaryMetric(formatSummaryDistance(row.totalDistance, units)) }}
+              {{ combineSummaryMetric(formatSummaryDistance(row.totalDistance, units), t) }}
             </td>
             <td class="px-3 py-2 text-end tabular-nums">
-              {{ combineSummaryMetric(formatSummaryDuration(row.totalDuration)) }}
+              {{ combineSummaryMetric(formatSummaryDuration(row.totalDuration), t) }}
             </td>
             <td class="hidden px-3 py-2 text-end tabular-nums sm:table-cell">
-              {{ combineSummaryMetric(formatSummaryElevation(row.totalElevationGain, units)) }}
+              {{ combineSummaryMetric(formatSummaryElevation(row.totalElevationGain, units), t) }}
             </td>
             <td class="hidden px-3 py-2 text-end tabular-nums sm:table-cell">
-              {{ combineSummaryMetric(formatSummaryCalories(row.totalCalories)) }}
+              {{ combineSummaryMetric(formatSummaryCalories(row.totalCalories), t) }}
             </td>
             <td class="hidden py-2 ps-3 text-end tabular-nums md:table-cell">
               {{ row.activityCount }}

@@ -60,7 +60,7 @@ export interface StreamWaypoint {
   hr?: number | null
   /** Power in watts. */
   power?: number | null
-  /** Cadence (raw; running cadence is doubled for SPM at presentation time). */
+  /** Cadence (raw; running and walking cadence is doubled for SPM at presentation time). */
   cad?: number | null
   /** Elevation in metres. */
   ele?: number | null

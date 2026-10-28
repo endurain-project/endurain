@@ -59,7 +59,7 @@ const monthRows = computed(() => topSports(props.monthStats, metric.value))
 /** Formats a sport row's value for the currently selected metric. */
 function formatValue(row: SportStatRow): string {
   if (metric.value === 'distance') {
-    return combineMetric(formatDistance(row.stats.distance, row.activityType, props.units))
+    return combineMetric(formatDistance(row.stats.distance, row.activityType, props.units), t)
   }
   if (metric.value === 'time') {
     return formatHmsDuration(row.stats.time)

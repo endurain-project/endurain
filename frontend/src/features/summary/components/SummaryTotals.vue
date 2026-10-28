@@ -58,7 +58,7 @@ const tiles = computed(() => [
       <p class="text-caption">{{ tile.label }}</p>
       <p class="text-page-title tabular-nums">
         {{ tile.metric.value }}
-        <span v-if="tile.metric.unit" class="text-hint">{{ tile.metric.unit }}</span>
+        <span v-if="tile.metric.unit" class="text-hint">{{ t(tile.metric.unit) }}</span>
       </p>
     </Card>
   </div>
