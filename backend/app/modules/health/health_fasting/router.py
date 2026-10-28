@@ -209,6 +209,8 @@ def complete_health_fasting(
     complete_data: health_fasting_schema.HealthFastingComplete,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> health_fasting_schema.HealthFastingRead:
     """Complete or end a fasting session.
 
@@ -218,11 +220,17 @@ def complete_health_fasting(
         complete_data: Completion data with end time and status.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         Updated HealthFastingRead record.
     """
-    return health_fasting_service.complete_health_fasting(token_user_id, health_fasting_id, complete_data, db)
+    ended = health_fasting_service.complete_health_fasting(
+        token_user_id, health_fasting_id, complete_data, db, if_match=if_match
+    )
+    response.headers["ETag"] = core_etag.format_etag(ended.version)
+    return ended
 
 
 @router.delete(

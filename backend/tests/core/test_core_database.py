@@ -42,6 +42,16 @@ class TestEngineErrorRedaction:
         assert core_database.engine.hide_parameters is True
 
 
+class TestPoolProcesses:
+    """The durable-jobs worker is a process of its own, with a pool of its own."""
+
+    def test_the_api_processes_alone_without_durable_jobs(self):
+        assert core_database.pool_processes(web_workers=2, jobs_enabled=False) == 2
+
+    def test_a_worker_is_counted_when_durable_jobs_are_enabled(self):
+        assert core_database.pool_processes(web_workers=2, jobs_enabled=True) == 3
+
+
 class TestPoolOptions:
     """Pool size and overflow come from the environment, with the previous values as defaults."""
 

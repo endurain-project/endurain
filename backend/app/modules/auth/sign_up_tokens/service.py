@@ -143,11 +143,10 @@ def revoke_user_tokens(user_id: int, db: Session) -> None:
 
 def verify_sign_up_token(token: str, db: Session) -> int:
     """Stage consumption of a valid verification token and return its user id."""
-    token_state = sign_up_crud.get_sign_up_token_by_hash(token_hashing.sha256_hex(token), db)
-    if token_state is None:
+    user_id = sign_up_crud.claim_sign_up_token(token_hashing.sha256_hex(token), db)
+    if user_id is None:
         raise core_exceptions.InvalidInputError("Invalid or expired sign up token")
-    sign_up_crud.mark_sign_up_token_used(token_state.id, db)
-    return token_state.user_id
+    return user_id
 
 
 def signup(

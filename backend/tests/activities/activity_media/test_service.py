@@ -182,7 +182,8 @@ class TestStoreActivityMedia:
         mock_activities_service.owns_activity.return_value = True
         storage = MagicMock()
         db = MagicMock()
-        db.commit.side_effect = OperationalError("stmt", {}, Exception("connection lost"))
+        # The first commit ends the duplicate check's transaction; the second stores the row.
+        db.commit.side_effect = [None, OperationalError("stmt", {}, Exception("connection lost"))]
         mock_media_crud.get_activity_media_by_content_hash.return_value = None
 
         with pytest.raises(OperationalError):
@@ -236,7 +237,8 @@ class TestStoreActivityMedia:
 
         assert result.id == 4
         assert events == ["lookup", "rollback", "lookup"]
-        db.commit.assert_not_called()
+        # Only the commit that ended the duplicate check's transaction; the row was never stored.
+        db.commit.assert_called_once()
 
     @patch(f"{_SVC}.activity_media_crud")
     def test_a_successful_store_commits(self, mock_media_crud):
@@ -251,7 +253,8 @@ class TestStoreActivityMedia:
 
         store_activity_media_bytes(1, "photo.jpg", b"bytes", MagicMock(), db)
 
-        db.commit.assert_called_once()
+        # One commit ends the duplicate check before the blob is written, one stores the row.
+        assert db.commit.call_count == 2
 
 
 class TestStoreActivityMediaBytes:
@@ -372,3 +375,46 @@ class TestDeleteActivityMedia:
         # The row is still gone; only the blob cleanup failed.
         mock_media_crud.delete_activity_media.assert_called_once()
         mock_logger.warning.assert_called_once()
+
+
+class TestNoConnectionHeldWhileUsingStorage:
+    """A read leaves the session holding a pooled connection, so the blob is moved only after it has ended."""
+
+    def test_storing_media_commits_the_duplicate_check_before_the_blob_is_written(self):
+        from modules.activities.activity_media import service
+
+        db = MagicMock()
+        storage = MagicMock()
+        order = MagicMock()
+        order.attach_mock(db.commit, "commit")
+        order.attach_mock(storage.save, "save")
+        storage.save.side_effect = RuntimeError("stop here")
+
+        with (
+            patch(f"{_SVC}.activity_media_crud.get_activity_media_by_content_hash", return_value=None),
+            pytest.raises(RuntimeError, match="stop here"),
+        ):
+            service._persist_media_bytes(1, "a.jpg", b"data", storage, db)
+
+        assert [call[0] for call in order.mock_calls] == ["commit", "save"]
+
+    def test_serving_media_ends_the_read_before_the_blob_is_fetched(self):
+        from modules.activities.activity_media import service
+
+        db = MagicMock()
+        storage = MagicMock()
+        storage.get.return_value = b"image"
+        order = MagicMock()
+        order.attach_mock(db.commit, "commit")
+        order.attach_mock(storage.get, "get")
+
+        with (
+            patch(f"{_SVC}.activity_media_signing.verify_media_token", return_value=True),
+            patch(
+                f"{_SVC}.activity_media_crud.get_activity_media_by_id",
+                return_value=MagicMock(activity_id=1, media_path="1_x.jpg"),
+            ),
+        ):
+            service.read_activity_media_blob(1, 2, "token", storage, db)
+
+        assert [call[0] for call in order.mock_calls] == ["commit", "get"]

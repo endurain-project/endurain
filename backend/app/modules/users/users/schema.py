@@ -411,6 +411,7 @@ class UsersMe(UsersRead):
 
     Attributes:
         privacy_settings_version: Version of the privacy settings, for ``If-Match``.
+        integrations_version: Version of the integrations, for ``If-Match`` when the Strava client is set.
         is_strava_linked: Strava integration status.
         is_garminconnect_linked: Garmin Connect status.
         default_activity_visibility: Default visibility level.
@@ -433,6 +434,10 @@ class UsersMe(UsersRead):
 
     privacy_settings_version: StrictInt | None = Field(
         default=None, description="Version of the privacy settings, sent back in If-Match when they are edited"
+    )
+    integrations_version: StrictInt | None = Field(
+        default=None,
+        description="Version of the integrations, sent back in If-Match when the Strava client is set",
     )
     is_strava_linked: StrictInt | None = Field(default=None, description="Whether Strava is linked")
     is_garminconnect_linked: StrictInt | None = Field(default=None, description="Whether Garmin Connect is linked")

@@ -191,7 +191,7 @@ def unlink_strava_account(user_id: int, db: Session) -> None:
     user_integrations_crud.unlink_strava_account(user_id, db)
 
 
-def set_strava_client(user_id: int, client_id: str, client_secret: str, db: Session) -> None:
+def set_strava_client(user_id: int, client_id: str, client_secret: str, db: Session, *, if_match: str) -> None:
     """Store a user's Strava client credentials (encrypted).
 
     Args:
@@ -199,11 +199,13 @@ def set_strava_client(user_id: int, client_id: str, client_secret: str, db: Sess
         client_id: The Strava client id.
         client_secret: The Strava client secret.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no integrations.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    user_integrations_crud.set_user_strava_client(user_id, client_id, client_secret, db)
+    user_integrations_crud.set_user_strava_client(user_id, client_id, client_secret, db, if_match=if_match)
 
 
 def set_strava_sync_gear(user_id: int, sync_gear: bool, db: Session) -> None:

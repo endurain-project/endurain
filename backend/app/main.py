@@ -28,6 +28,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
+import core.middleware_body_limit as core_middleware_body_limit
 import core.middleware_request_id as core_middleware_request_id
 import core.migrations as core_migrations
 import core.network as core_network
@@ -37,6 +38,7 @@ import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
 import core.signing as core_signing
 import module_registry as runtime_module_registry
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.auth.authentication.dependencies as auth_dependencies
 import modules.garmin.integration_service as garmin_integration
@@ -253,7 +255,12 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # are queued per user by activity ingestion's startup task below, so startup
     # does not wait on every user's provider round trips.
     _safe_run(
-        "check_connection_budget", lambda: core_database.check_connection_budget(core_config.settings.WEB_WORKERS)
+        "check_connection_budget",
+        lambda: core_database.check_connection_budget(
+            core_database.pool_processes(
+                web_workers=core_config.settings.WEB_WORKERS, jobs_enabled=core_config.settings.JOBS_ENABLED
+            )
+        ),
     )
 
     for task in runtime_module_registry.startup_tasks():
@@ -296,6 +303,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     runtime_module_registry.shutdown_deferred_subscribers()
     users_profile_integration.shutdown_transfer_pool()
     users_integration.shutdown_deletion_pool()
+    activity_integration.shutdown_bulk_edit_pool()
 
     # Stop the SSRF hostname-resolution pool (no-op when no lookup ever ran).
     core_network.shutdown_ssrf_dns_executor()
@@ -378,6 +386,9 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=is_deployed,
     )
+
+    # Refuse an oversized body before anything reads it. Added before CORS, so the 413 still carries CORS headers.
+    fastapi_app.add_middleware(core_middleware_body_limit.BodySizeLimitMiddleware)
 
     # Add CORS middleware to allow requests from the frontend
     if is_development:

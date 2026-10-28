@@ -320,11 +320,7 @@ class TokenManager:
         Raises:
             ValueError: If required parameters are missing or invalid.
         """
-        # Check user access level and set scope accordingly
-        if user.access_type == users_schema.UserAccessType.REGULAR.value:
-            scope = auth_constants.REGULAR_ACCESS_SCOPE
-        else:
-            scope = auth_constants.ADMIN_ACCESS_SCOPE
+        scope = scopes_for_access_type(user.access_type)
 
         exp = datetime.now(UTC) + ttl
 
@@ -362,6 +358,20 @@ class TokenManager:
                 as a CSRF token.
         """
         return secrets.token_urlsafe(32)
+
+
+def scopes_for_access_type(access_type: str) -> tuple[str, ...]:
+    """Return the scopes a user of an access type holds.
+
+    Args:
+        access_type: The user's access type.
+
+    Returns:
+        The regular scopes for a regular user, the administrator scopes otherwise.
+    """
+    if access_type == users_schema.UserAccessType.REGULAR.value:
+        return auth_constants.REGULAR_ACCESS_SCOPE
+    return auth_constants.ADMIN_ACCESS_SCOPE
 
 
 def get_token_manager() -> TokenManager:

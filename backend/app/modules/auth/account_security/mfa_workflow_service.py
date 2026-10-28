@@ -164,14 +164,7 @@ def verify_mfa(
     db: Session,
 ) -> mfa_schema.MFAVerifyRead:
     """Verify an MFA code for the authenticated user; a TOTP step is accepted once."""
-    is_valid = mfa_integration.verify_user_mfa(
-        token_user_id,
-        request.mfa_code,
-        credentials_integration,
-        db,
-        replay_guard=step_up_store,
-    )
-    if not is_valid:
+    if not step_up_service.verify_mfa_code(token_user_id, request.mfa_code, step_up_store, db):
         raise core_exceptions.InvalidInputError("Invalid MFA code")
 
     db.commit()

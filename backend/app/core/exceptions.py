@@ -399,6 +399,33 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
     )
 
 
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Render an error nothing else handled as the same opaque problem document.
+
+    Without it Starlette answers a plain-text 500, so clients would see a second error shape. Only the
+    exception class is logged in the message; the traceback goes in ``exc_info``.
+
+    Args:
+        request: The incoming request (used for log context and ``instance``).
+        exc: The unhandled exception.
+
+    Returns:
+        The same problem document a :class:`ProcessingError` produces.
+    """
+    logger.error(
+        f"Unhandled error on {request.method} {request.url.path}: {type(exc).__name__}",
+        exc_info=exc,
+        extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
+    )
+    return build_problem_response(
+        request=request,
+        status_code=ProcessingError.status_code,
+        code=ProcessingError.code,
+        title=ProcessingError.title,
+        detail=ProcessingError.default_detail,
+    )
+
+
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Render a bare ``HTTPException`` as a problem document.
 
@@ -495,3 +522,4 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, unhandled_error_handler)

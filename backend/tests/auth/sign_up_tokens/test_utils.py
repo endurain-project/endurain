@@ -119,17 +119,12 @@ class TestEmailPreparation:
 
 
 class TestVerifySignUpToken:
-    @patch("modules.auth.sign_up_tokens.service.sign_up_crud.mark_sign_up_token_used")
-    @patch(
-        "modules.auth.sign_up_tokens.service.sign_up_crud.get_sign_up_token_by_hash",
-        return_value=MagicMock(id="row", user_id=42),
-    )
-    def test_consumes_token_and_returns_user_id(self, get_token, mark_used, mock_db):
+    @patch("modules.auth.sign_up_tokens.service.sign_up_crud.claim_sign_up_token", return_value=42)
+    def test_consumes_token_and_returns_user_id(self, claim, mock_db):
         assert sign_up_service.verify_sign_up_token("plain-token", mock_db) == 42
-        get_token.assert_called_once_with(hashlib.sha256(b"plain-token").hexdigest(), mock_db)
-        mark_used.assert_called_once_with("row", mock_db)
+        claim.assert_called_once_with(hashlib.sha256(b"plain-token").hexdigest(), mock_db)
 
-    @patch("modules.auth.sign_up_tokens.service.sign_up_crud.get_sign_up_token_by_hash", return_value=None)
-    def test_invalid_token_is_a_domain_error(self, _get_token, mock_db):
+    @patch("modules.auth.sign_up_tokens.service.sign_up_crud.claim_sign_up_token", return_value=None)
+    def test_invalid_token_is_a_domain_error(self, _claim, mock_db):
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired"):
             sign_up_service.verify_sign_up_token("invalid", mock_db)

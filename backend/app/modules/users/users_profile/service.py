@@ -78,6 +78,7 @@ def get_profile(
 
     return users_schema.UsersMe.model_validate(user).model_copy(
         update={
+            "integrations_version": user_integrations.version,
             "is_strava_linked": 1 if user_integrations.strava_token else 0,
             "is_garminconnect_linked": 1 if user_integrations.garminconnect_token else 0,
             "privacy_settings_version": privacy_settings.version,

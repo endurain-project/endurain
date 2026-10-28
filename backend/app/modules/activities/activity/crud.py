@@ -1568,22 +1568,39 @@ def _lock_user_activities(user_id: int, db: Session, activity_ids: Sequence[int]
     db.execute(stmt.order_by(activity_models.Activity.id).with_for_update())
 
 
-def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) -> list[int]:
-    """Stage a bulk visibility update for every activity of a user.
+def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: int, db: Session) -> list[int]:
+    """Stage a visibility update for up to ``limit`` of a user's activities that do not have it yet.
+
+    Only rows whose visibility differs are touched, so a repeated edit rewrites nothing and the batches of
+    a run shrink to none. The rows are locked in id order first, like every multi-row write here.
 
     Args:
         user_id: Owner user ID.
         visibility: New visibility value (0, 1, 2).
+        limit: The most activities to change.
         db: Database session.
 
     Returns:
-        The IDs of the updated activities, so the caller can publish one event
-        per row instead of re-deriving which activities the user owns.
+        The IDs of the updated activities, so the caller can publish one event per row. Empty once every
+        activity has the visibility.
     """
-    _lock_user_activities(user_id, db)
+    ids = list(
+        db.scalars(
+            select(activity_models.Activity.id)
+            .where(
+                activity_models.Activity.user_id == user_id,
+                activity_models.Activity.visibility != visibility,
+            )
+            .order_by(activity_models.Activity.id)
+            .limit(limit)
+            .with_for_update()
+        ).all()
+    )
+    if not ids:
+        return []
     stmt = (
         sa_update(activity_models.Activity)
-        .where(activity_models.Activity.user_id == user_id)
+        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.id.in_(ids))
         # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
         # change it should have invalidated.
         .values(visibility=visibility, version=activity_models.Activity.version + 1)

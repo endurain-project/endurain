@@ -45,3 +45,13 @@ def test_an_edit_without_if_match_is_428(router_module, name):
 
     assert response.status_code == 428
     getattr(service, f"edit_health_{name}").assert_not_called()
+
+
+def test_completing_a_fast_without_if_match_is_428():
+    with patch.object(fasting_router, "health_fasting_service") as service:
+        response = _client(fasting_router).post(
+            "/health/1/complete", json={"fast_end_time": "2024-01-16T08:00:00Z"}, headers=_HEADERS
+        )
+
+    assert response.status_code == 428
+    service.complete_health_fasting.assert_not_called()

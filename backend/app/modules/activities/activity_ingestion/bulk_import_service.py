@@ -177,6 +177,9 @@ def accept_archive(
     if filename is None or os.path.splitext(filename)[1].lower() != ".zip":
         raise core_exceptions.InvalidInputError("A bulk import takes a .zip archive")
     _ensure_none_running(user_id, db)
+    # The check read, which holds a pooled connection until the transaction ends; the archive can be
+    # 500 MiB, so staging it must not keep that connection.
+    db.commit()
 
     incoming_path = save_upload(
         kind=core_file_uploads.UploadKind.ZIP,

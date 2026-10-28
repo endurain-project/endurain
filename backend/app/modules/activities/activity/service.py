@@ -718,48 +718,6 @@ def edit_activity(
     return _with_thumbnail_urls([updated])[0]
 
 
-def bulk_edit_activities(
-    user_id: int,
-    body: activity_schema.ActivitiesBulkEdit,
-    db: Session,
-) -> int:
-    """Apply a bulk edit across all of the user's activities.
-
-    Publishes one ``activity.updated`` per changed row, atomically with the
-    update, so a consumer of the single-activity edit needs no separate handling
-    for the bulk one — the fact is identical either way.
-
-    Args:
-        user_id: The owner whose activities to edit.
-        body: The fields to apply; only those present are changed.
-        db: Database session.
-
-    Returns:
-        How many activities changed.
-
-    Raises:
-        InvalidInputError: When the body asks for no change at all. An empty
-            patch is a client bug, not a no-op worth reporting as success.
-    """
-    if body.visibility is None:
-        raise core_exceptions.InvalidInputError("No supported field to update was provided")
-
-    updated_ids = activity_crud.edit_user_activities_visibility(user_id, body.visibility, db)
-    activity_event_publishers.publish_activities_updated(
-        updated_ids,
-        user_id,
-        db,
-        changed_fields=["visibility"],
-        source="api:bulk_edit_activities",
-    )
-    db.commit()
-    logger.info(
-        "Bulk-edited activity visibility",
-        extra=core_logger.context(user_id=user_id, visibility=body.visibility, updated=len(updated_ids)),
-    )
-    return len(updated_ids)
-
-
 def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
     """Delete one of the user's activities and publish ``activity.deleted``.
 

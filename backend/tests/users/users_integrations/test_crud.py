@@ -215,12 +215,27 @@ class TestSetUserStravaClient:
             mock_db.refresh = MagicMock()
 
             # Act
-            user_integrations_crud.set_user_strava_client(1, "client_id", "client_secret", mock_db)
+            user_integrations_crud.set_user_strava_client(1, "client_id", "client_secret", mock_db, if_match="*")
 
         # Assert
         assert mock_integrations.strava_client_id == "encrypted_client_id"
         assert mock_integrations.strava_client_secret == "encrypted_client_secret"
         mock_db.flush.assert_called_once()
+
+    def test_a_stale_version_is_refused(self, mock_db):
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.version = 4
+
+        with (
+            patch(
+                "modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404",
+                return_value=mock_integrations,
+            ),
+            pytest.raises(core_exceptions.PreconditionFailedError),
+        ):
+            user_integrations_crud.set_user_strava_client(1, "id", "secret", mock_db, if_match='"3"')
+
+        mock_db.flush.assert_not_called()
 
     def test_set_user_strava_client_not_found(self, mock_db):
         """Test setting client when integrations not found."""
@@ -230,7 +245,7 @@ class TestSetUserStravaClient:
 
             # Act & Assert
             with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.set_user_strava_client(1, "id", "secret", mock_db)
+                user_integrations_crud.set_user_strava_client(1, "id", "secret", mock_db, if_match="*")
 
 
 class TestSetUserStravaSyncGear:

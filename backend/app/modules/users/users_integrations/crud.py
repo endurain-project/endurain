@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.users.users_integrations.models as user_integrations_models
 import modules.users.users_integrations.schema as user_integrations_schema
@@ -264,7 +265,7 @@ def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: 
     return True
 
 
-def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db: Session) -> None:
+def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db: Session, *, if_match: str) -> None:
     """Set Strava client credentials for a user (flushed, not committed).
 
     Args:
@@ -272,12 +273,15 @@ def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db:
         client_id: Strava client ID to encrypt and store.
         client_secret: Strava client secret to encrypt and store.
         db: SQLAlchemy database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no integrations.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    core_etag.require_if_match(if_match, db_user_integrations.version, "Strava client")
 
     # Encrypt and store Strava client credentials
     db_user_integrations.strava_client_id = core_cryptography.encrypt_token_fernet(client_id)

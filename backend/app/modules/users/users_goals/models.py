@@ -1,6 +1,6 @@
 """User fitness goals database models."""
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -24,6 +24,9 @@ class UsersGoal(Base):
     """
 
     __tablename__ = "users_goals"
+    __table_args__ = (
+        UniqueConstraint("user_id", "interval", "activity_type", "goal_type", name="uq_users_goals_user_scope"),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

@@ -467,3 +467,23 @@ class TestFromFolder:
             bulk.start_from_directory(_USER, "generic", storage, factory())
             with pytest.raises(core_exceptions.ConflictError):
                 bulk.start_from_directory(_USER, "generic", storage, factory())
+
+
+class TestNoConnectionHeldWhileStoring:
+    """A request's session holds a pooled connection once it has read, so storage writes must follow the commit."""
+
+    def test_the_archive_is_staged_after_the_running_check_has_ended_its_transaction(self):
+        db = MagicMock()
+        order = MagicMock()
+        order.attach_mock(db.commit, "commit")
+        save_upload = MagicMock(side_effect=RuntimeError("stop here"))
+        order.attach_mock(save_upload, "save_upload")
+
+        with (
+            patch.object(bulk.activity_ingestion_dispatch_service, "require_capacity"),
+            patch.object(bulk.activity_ingestion_crud, "get_active_bulk_import_job_id", return_value=None),
+            pytest.raises(RuntimeError, match="stop here"),
+        ):
+            bulk.accept_archive(_USER, "export.zip", save_upload, "generic", MagicMock(), db)
+
+        assert [call[0] for call in order.mock_calls] == ["commit", "save_upload"]

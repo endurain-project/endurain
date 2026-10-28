@@ -4,7 +4,7 @@ import base64
 import hashlib
 import json
 import secrets as secrets_module
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -439,11 +439,16 @@ class IdentityProviderService:
             logger.warning("OIDC cache write failed", exc_info=err)
 
     @contextmanager
-    def _http_client(self) -> Iterator[httpx2.Client]:
-        """Open a short-lived HTTP client for one outbound request."""
+    def _http_client(self, *, follow_redirects: bool = True) -> Generator[httpx2.Client]:
+        """Open a short-lived HTTP client for one outbound request.
+
+        Args:
+            follow_redirects: Whether to follow redirects. A call that carries secrets turns it off, because
+                a redirect would send them to a host the SSRF guard never checked.
+        """
         with httpx2.Client(
             timeout=10.0,
-            follow_redirects=True,
+            follow_redirects=follow_redirects,
             headers={"User-Agent": f"Endurain/{self._api_version} (OIDC Client)", "Accept": "application/json"},
         ) as client:
             yield client
@@ -2309,7 +2314,9 @@ class IdentityProviderService:
 
             # Call the revocation endpoint (RFC 7009)
             try:
-                with self._http_client() as client:
+                # The endpoint comes from the provider's discovery document and receives the client secret.
+                core_network.reject_private_url(revocation_endpoint, purpose="oidc_revocation")
+                with self._http_client(follow_redirects=False) as client:
                     response = client.post(
                         revocation_endpoint,
                         data={

@@ -226,6 +226,8 @@ def complete_health_fasting(
     health_fasting_id: int,
     complete_data: health_fasting_schema.HealthFastingComplete,
     db: Session,
+    *,
+    if_match: str,
 ) -> health_fasting_schema.HealthFastingRead:
     """End an in-progress fasting session, derive its duration, and commit.
 
@@ -234,6 +236,7 @@ def complete_health_fasting(
         health_fasting_id: The session to end.
         complete_data: End time, final status and optional notes.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         The ended session.
@@ -242,6 +245,7 @@ def complete_health_fasting(
         NotFoundError: If the user has no such session.
         ConflictError: If the session is not in progress.
         InvalidInputError: If the end time is before the start time.
+        PreconditionFailedError: If the session changed since the client read it.
     """
     session = get_health_fasting(user_id, health_fasting_id, db)
     if session.status != health_fasting_schema.FastingStatus.IN_PROGRESS.value:
@@ -252,16 +256,23 @@ def complete_health_fasting(
     if end_time < start_time:
         raise core_exceptions.InvalidInputError("Fasting session cannot end before it started")
 
-    ended = health_fasting_crud.end_health_fasting(
-        user_id,
-        health_fasting_id,
-        end_time,
-        complete_data.status,
-        int((end_time - start_time).total_seconds()),
-        complete_data.notes,
+    with core_etag.refuse_stale_write(
         db,
-    )
-    db.commit()
+        "fasting session record",
+        lambda: health_fasting_crud.health_fasting_exists(health_fasting_id, user_id, db),
+        "Fasting session record not found",
+    ):
+        ended = health_fasting_crud.end_health_fasting(
+            user_id,
+            health_fasting_id,
+            end_time,
+            complete_data.status,
+            int((end_time - start_time).total_seconds()),
+            complete_data.notes,
+            db,
+            if_match=if_match,
+        )
+        db.commit()
     logger.debug(
         "Completed a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
     )

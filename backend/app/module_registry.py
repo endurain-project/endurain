@@ -19,6 +19,7 @@ import core.logger as core_logger
 import core.mail as core_mail
 import core.scheduler as core_scheduler
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.subscriber_registry as activity_subscriber_registry
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
 import modules.activities.activity_file_storage.constants as activity_file_storage_constants
 import modules.activities.activity_file_storage.scheduled_jobs as activity_file_storage_scheduled_jobs
@@ -174,6 +175,11 @@ MODULES: tuple[RuntimeModule, ...] = (
     RuntimeModule(
         name="authentication",
         register_bus=authentication_subscriber_registry.register_bus_subscribers,
+    ),
+    RuntimeModule(
+        name="activity",
+        register_durable=activity_subscriber_registry.register_durable_handlers,
+        nets=activity_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
     ),
     RuntimeModule(
         name="activity_thumbnail",

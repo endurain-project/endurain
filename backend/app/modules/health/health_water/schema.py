@@ -13,6 +13,7 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
+    field_validator,
 )
 
 
@@ -66,6 +67,8 @@ class HealthWaterCreate(HealthWaterBase):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
+    amount_ml: StrictFloat = Field(..., ge=0, le=20000, description="Water consumed in milliliters")
+
 
 class HealthWaterRead(HealthWaterBase):
     """Schema for reading a water intake record.
@@ -92,3 +95,21 @@ class HealthWaterUpdate(HealthWaterBase):
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
+
+    @field_validator("amount_ml")
+    @classmethod
+    def _amount_ml_is_not_cleared(cls, value: object) -> object:
+        """Refuse to clear the amount, which every record has.
+
+        Args:
+            value: The amount in the edit.
+
+        Returns:
+            The amount.
+
+        Raises:
+            ValueError: When the edit sets the amount to null.
+        """
+        if value is None:
+            raise ValueError("amount_ml cannot be cleared")
+        return value

@@ -502,7 +502,7 @@ class TestEdits:
             ({"access_type": "admin"}, {"access_type": "regular"}),
         ],
     )
-    def test_a_security_relevant_edit_signs_the_user_out_after_the_commit_and_commits_that(
+    def test_a_security_relevant_edit_signs_the_user_out_in_the_same_commit(
         self, mock_crud, mock_weight, mock_db, before, after
     ):
         mock_crud.get_user_by_id.return_value = _user(1, **before)
@@ -516,7 +516,7 @@ class TestEdits:
         with patch("modules.users.users.service.sign_up_tokens_integration.request_email_reverification"):
             users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
 
-        assert [call[0] for call in order.mock_calls] == ["commit", "revoke", "commit"]
+        assert [call[0] for call in order.mock_calls] == ["revoke", "commit"]
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
 
     def test_an_email_change_that_leaves_the_user_unverified_queues_a_verification_email_before_the_commit(

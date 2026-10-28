@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
@@ -70,19 +71,35 @@ def request_activities_sync(
     return job
 
 
-def set_client(user_id: int, credentials: strava_schema.StravaClientCredentials, db: Session) -> None:
-    """Store the user's Strava API client id and secret.
+def set_client(user_id: int, credentials: strava_schema.StravaClientCredentials, db: Session, *, if_match: str) -> int:
+    """Store the user's Strava API client id and secret, and commit.
 
     Args:
         user_id: The authenticated user.
         credentials: The Strava application's client id and secret.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Returns:
+        The integrations' new version, which a later write echoes in ``If-Match``.
+
+    Raises:
+        NotFoundError: If the user has no integrations.
+        PreconditionFailedError: If the integrations changed since the client read them.
     """
-    user_integrations_integration.set_strava_client(
-        user_id, str(credentials.client_id), credentials.client_secret.get_secret_value(), db
-    )
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "Strava client",
+        lambda: user_integrations_integration.get_user_integrations(user_id, db) is not None,
+        "User integrations not found",
+    ):
+        user_integrations_integration.set_strava_client(
+            user_id, str(credentials.client_id), credentials.client_secret.get_secret_value(), db, if_match=if_match
+        )
+        db.commit()
     logger.info("Strava client stored", extra=core_logger.context(user_id=user_id))
+    integrations = user_integrations_integration.get_user_integrations(user_id, db)
+    return integrations.version if integrations is not None else 1
 
 
 def begin_state(user_id: int, oauth_states: strava_oauth_state_store.StravaOAuthStateStore) -> str:

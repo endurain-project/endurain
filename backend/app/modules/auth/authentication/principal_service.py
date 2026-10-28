@@ -115,17 +115,13 @@ def resolve_from_access_token(
 
     Raises:
         UnauthenticatedError: If the token is expired,
-            invalid, or the user is not found.
+            invalid, its session no longer exists, or the user is not found.
     """
     token_manager.validate_access_expiration_logged(access_token)
 
     sub = token_manager.get_token_claim(access_token, "sub")
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
         raise core_exceptions.UnauthenticatedError("Invalid token: 'sub' claim must be a decimal string")
-
-    scope = token_manager.get_token_claim(access_token, "scope")
-    if not isinstance(scope, list):
-        raise core_exceptions.UnauthenticatedError("Invalid token: 'scope' claim must be a list")
 
     sid = token_manager.get_token_claim(access_token, "sid")
     if not isinstance(sid, str):
@@ -134,9 +130,17 @@ def resolve_from_access_token(
     user = users_integration.require_user(int(sub), db)
     users_integration.require_active_user(user)
 
+    # The token outlives its session unless it is checked: logging out, revoking sessions or a detected
+    # refresh-token theft delete the session, and that must end the access token as well.
+    session = sessions_integration.get_session_by_id_not_expired(sid, db)
+    if session is None or session.user_id != user.id:
+        raise core_exceptions.UnauthenticatedError("Session is no longer valid", scheme="Bearer")
+
+    # Scopes follow the user's current access type, not the claim minted into the token, so a demotion
+    # takes effect on the next request.
     return _build_principal(
         user,
-        scope,
+        list(access_tokens_integration.scopes_for_access_type(user.access_type)),
         AccessTokenCred(session_id=sid),
     )
 

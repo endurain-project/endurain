@@ -65,13 +65,15 @@ class TestScopeConstants:
 
     def test_identity_providers_scope_defined(self):
         """Test that identity providers scopes are properly defined."""
-        assert auth_constants.IDENTITY_PROVIDERS_REGULAR_SCOPE is not None
-        assert isinstance(auth_constants.IDENTITY_PROVIDERS_REGULAR_SCOPE, tuple)
-        assert "identity_providers:read" in auth_constants.IDENTITY_PROVIDERS_REGULAR_SCOPE
-
         assert auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE is not None
         assert isinstance(auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE, tuple)
+        assert "identity_providers:read" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
         assert "identity_providers:write" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
+
+    def test_identity_provider_configuration_is_not_readable_by_regular_users(self):
+        """The full provider configuration (client ids, endpoints, mappings) is administrator-only."""
+        assert "identity_providers:read" not in auth_constants.REGULAR_ACCESS_SCOPE
+        assert "identity_providers:read" in auth_constants.ADMIN_ACCESS_SCOPE
 
     def test_server_settings_scope_defined(self):
         """Test that server settings scopes are properly defined."""

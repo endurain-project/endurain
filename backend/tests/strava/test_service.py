@@ -21,13 +21,38 @@ def oauth_states():
 class TestStoredCredentials:
     def test_the_client_is_stored_and_committed(self):
         db = MagicMock()
-        with patch.object(strava_service.user_integrations_integration, "set_strava_client") as store:
-            strava_service.set_client(
-                7, strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"), db
+        with (
+            patch.object(strava_service.user_integrations_integration, "set_strava_client") as store,
+            patch.object(
+                strava_service.user_integrations_integration,
+                "get_user_integrations",
+                return_value=MagicMock(version=3),
+            ),
+        ):
+            version = strava_service.set_client(
+                7, strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"), db, if_match='"2"'
             )
 
-        store.assert_called_once_with(7, "123", "secret", db)
+        store.assert_called_once_with(7, "123", "secret", db, if_match='"2"')
         db.commit.assert_called_once()
+        assert version == 3
+
+    def test_a_row_changed_by_another_request_is_a_stale_write_not_a_server_error(self):
+        from sqlalchemy.orm.exc import StaleDataError
+
+        db = MagicMock()
+        with (
+            patch.object(
+                strava_service.user_integrations_integration, "set_strava_client", side_effect=StaleDataError()
+            ),
+            patch.object(strava_service.user_integrations_integration, "get_user_integrations", return_value=object()),
+            pytest.raises(core_exceptions.PreconditionFailedError),
+        ):
+            strava_service.set_client(
+                7, strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"), db, if_match='"2"'
+            )
+
+        db.commit.assert_not_called()
 
 
 class TestOAuthState:

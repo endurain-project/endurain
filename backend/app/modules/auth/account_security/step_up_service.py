@@ -44,6 +44,29 @@ def _step_up_key(user_id: int) -> str:
     return f"user:{user_id}"
 
 
+def _raise_if_locked_out(step_up_store: account_security_step_up_store.StepUpStore, key: str, user_id: int) -> None:
+    """Refuse the attempt while the user is locked out.
+
+    Args:
+        step_up_store: Step-up lockout store.
+        key: Lockout key of the user.
+        user_id: Authenticated user ID, for the log.
+
+    Raises:
+        TooManyRequestsError: When the user is locked out, with ``Retry-After`` set when the end is known.
+    """
+    if step_up_store.is_locked_out(key):
+        lockout_until = step_up_store.get_lockout_time(key)
+        logger.warning("Step-up blocked for user <user_id>: locked out", extra=core_logger.context(user_id=user_id))
+        error = core_exceptions.TooManyRequestsError(
+            "Too many failed step-up attempts. Try again later.", retry_at=lockout_until
+        )
+        if lockout_until is not None:
+            retry_after = max(0, int((lockout_until - datetime.now(UTC)).total_seconds()))
+            error.headers = {"Retry-After": str(retry_after)}
+        raise error
+
+
 def verify_step_up_credentials(
     user_id: int,
     current_password: str | None,
@@ -96,16 +119,7 @@ def verify_step_up_credentials(
     """
     key = _step_up_key(user_id)
 
-    if step_up_store.is_locked_out(key):
-        lockout_until = step_up_store.get_lockout_time(key)
-        logger.warning("Step-up blocked for user <user_id>: locked out", extra=core_logger.context(user_id=user_id))
-        error = core_exceptions.TooManyRequestsError(
-            "Too many failed step-up attempts. Try again later.", retry_at=lockout_until
-        )
-        if lockout_until is not None:
-            retry_after = max(0, int((lockout_until - datetime.now(UTC)).total_seconds()))
-            error.headers = {"Retry-After": str(retry_after)}
-        raise error
+    _raise_if_locked_out(step_up_store, key, user_id)
 
     # Guard: ensure the user exists (raises 404 otherwise).
     users_integration.require_user(user_id, db)
@@ -133,3 +147,35 @@ def verify_step_up_credentials(
 
     # All factors passed — reset the failure counter.
     step_up_store.reset_attempts(key)
+
+
+def verify_mfa_code(
+    user_id: int,
+    mfa_code: str,
+    step_up_store: account_security_step_up_store.StepUpStore,
+    db: Session,
+) -> bool:
+    """Check an MFA code under the step-up lockout, so a stolen access token cannot guess it freely.
+
+    Failures share the user's step-up budget: a guess here and a guess at a sensitive operation draw from
+    the same lockout.
+
+    Args:
+        user_id: ID of the authenticated user.
+        mfa_code: TOTP or backup code to check.
+        step_up_store: Step-up lockout store, which also records the accepted TOTP step.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the code is valid.
+
+    Raises:
+        TooManyRequestsError: When the user is locked out.
+    """
+    key = _step_up_key(user_id)
+    _raise_if_locked_out(step_up_store, key, user_id)
+    if not mfa_integration.verify_user_mfa(user_id, mfa_code, credentials_integration, db, replay_guard=step_up_store):
+        _record_failure(step_up_store, key)
+        return False
+    step_up_store.reset_attempts(key)
+    return True

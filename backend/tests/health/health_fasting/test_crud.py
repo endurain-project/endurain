@@ -164,12 +164,24 @@ class TestEditHealthFasting:
 
 
 class TestEndHealthFasting:
+    def test_a_stale_version_is_refused(self, mock_db):
+        row = _row()
+        row.version = 4
+        _returns_one(mock_db, row)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            health_fasting_crud.end_health_fasting(
+                1, 1, datetime(2024, 1, 16, 8, 0, 0), "completed", 86400, None, mock_db, if_match='"3"'
+            )
+
+        mock_db.flush.assert_not_called()
+
     def test_stages_the_end_fields(self, mock_db):
         row = _row()
         _returns_one(mock_db, row)
         end = datetime(2024, 1, 16, 8, 0, 0)
 
-        health_fasting_crud.end_health_fasting(1, 1, end, "completed", 86400, "done", mock_db)
+        health_fasting_crud.end_health_fasting(1, 1, end, "completed", 86400, "done", mock_db, if_match="*")
 
         assert (row.fast_end_time, row.status, row.actual_duration_seconds, row.notes) == (
             end,
@@ -185,7 +197,7 @@ class TestEndHealthFasting:
         row.notes = "before"
         _returns_one(mock_db, row)
 
-        health_fasting_crud.end_health_fasting(1, 1, datetime(2024, 1, 16), "broken", 10, None, mock_db)
+        health_fasting_crud.end_health_fasting(1, 1, datetime(2024, 1, 16), "broken", 10, None, mock_db, if_match="*")
 
         assert row.notes == "before"
 
@@ -193,7 +205,9 @@ class TestEndHealthFasting:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_fasting_crud.end_health_fasting(1, 9, datetime(2024, 1, 16), "broken", 10, None, mock_db)
+            health_fasting_crud.end_health_fasting(
+                1, 9, datetime(2024, 1, 16), "broken", 10, None, mock_db, if_match="*"
+            )
 
 
 class TestDeleteHealthFasting:

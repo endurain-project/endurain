@@ -50,3 +50,26 @@ class TestTooManyRequestsRetryAt:
 
         assert error.retry_at is None
         assert error.detail == "Too Many Requests"
+
+
+class TestUnhandledErrorBoundary:
+    """An error nothing else handles still answers with the problem document."""
+
+    def test_an_unexpected_error_is_an_opaque_problem_document(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        import core.exceptions as core_exceptions
+
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/boom")
+        def boom():
+            raise RuntimeError("secret internals")
+
+        response = TestClient(app, raise_server_exceptions=False).get("/boom")
+
+        assert response.status_code == 500
+        assert response.headers["content-type"].startswith("application/problem+json")
+        assert "secret internals" not in response.text

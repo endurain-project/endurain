@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import modules.health.constants as health_constants
@@ -74,7 +75,7 @@ class TestCompleteHealthFasting:
     def test_derives_the_duration_and_commits(self, mock_get, mock_end, mock_db):
         mock_get.return_value = MagicMock(status="in_progress", fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
 
-        health_fasting_service.complete_health_fasting(1, 5, _complete(notes="done"), mock_db)
+        health_fasting_service.complete_health_fasting(1, 5, _complete(notes="done"), mock_db, if_match="*")
 
         args = mock_end.call_args.args
         assert args[:2] == (1, 5)
@@ -82,13 +83,26 @@ class TestCompleteHealthFasting:
         assert args[3:6] == ("completed", 86400, "done")
         mock_db.commit.assert_called_once()
 
+    @patch(f"{_CRUD}.health_fasting_exists", return_value=True)
+    @patch(f"{_CRUD}.end_health_fasting", side_effect=StaleDataError())
+    @patch(f"{_CRUD}.get_health_fasting_by_id_and_user_id")
+    def test_a_session_changed_by_another_request_is_a_stale_write_not_a_server_error(
+        self, mock_get, mock_end, _exists, mock_db
+    ):
+        mock_get.return_value = MagicMock(status="in_progress", fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            health_fasting_service.complete_health_fasting(1, 5, _complete(), mock_db, if_match='"1"')
+
+        mock_db.commit.assert_not_called()
+
     @patch(f"{_CRUD}.end_health_fasting")
     @patch(f"{_CRUD}.get_health_fasting_by_id_and_user_id")
     def test_refuses_a_session_that_is_not_in_progress(self, mock_get, mock_end, mock_db):
         mock_get.return_value = MagicMock(status="completed", fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
 
         with pytest.raises(core_exceptions.ConflictError, match="not in progress"):
-            health_fasting_service.complete_health_fasting(1, 5, _complete(), mock_db)
+            health_fasting_service.complete_health_fasting(1, 5, _complete(), mock_db, if_match="*")
 
         mock_end.assert_not_called()
         mock_db.commit.assert_not_called()
@@ -99,7 +113,7 @@ class TestCompleteHealthFasting:
         mock_get.return_value = MagicMock(status="in_progress", fast_start_time=datetime(2024, 1, 17, 8, 0, 0))
 
         with pytest.raises(core_exceptions.InvalidInputError, match="before it started"):
-            health_fasting_service.complete_health_fasting(1, 5, _complete(), mock_db)
+            health_fasting_service.complete_health_fasting(1, 5, _complete(), mock_db, if_match="*")
 
         mock_end.assert_not_called()
         mock_db.commit.assert_not_called()
@@ -107,7 +121,7 @@ class TestCompleteHealthFasting:
     @patch(f"{_CRUD}.get_health_fasting_by_id_and_user_id", return_value=None)
     def test_unknown_session_is_not_found(self, _get, mock_db):
         with pytest.raises(core_exceptions.NotFoundError):
-            health_fasting_service.complete_health_fasting(1, 5, _complete(), mock_db)
+            health_fasting_service.complete_health_fasting(1, 5, _complete(), mock_db, if_match="*")
 
     @patch(f"{_CRUD}.end_health_fasting")
     @patch(f"{_CRUD}.get_health_fasting_by_id_and_user_id")
@@ -115,7 +129,7 @@ class TestCompleteHealthFasting:
         mock_get.return_value = MagicMock(status="in_progress", fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
         complete = health_fasting_schema.HealthFastingComplete(fast_end_time=datetime(2024, 1, 16, 8, 0, 0, tzinfo=UTC))
 
-        health_fasting_service.complete_health_fasting(1, 5, complete, mock_db)
+        health_fasting_service.complete_health_fasting(1, 5, complete, mock_db, if_match="*")
 
         assert mock_end.call_args.args[3] == "completed"
 

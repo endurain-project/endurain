@@ -359,6 +359,8 @@ def end_health_fasting(
     actual_duration_seconds: int,
     notes: str | None,
     db: Session,
+    *,
+    if_match: str,
 ) -> health_fasting_schema.HealthFastingRead:
     """Stage the end of a user's fasting session.
 
@@ -370,14 +372,17 @@ def end_health_fasting(
         actual_duration_seconds: How long the fast lasted.
         notes: Notes to store; left as they are when empty.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         The ended session.
 
     Raises:
         NotFoundError: If the user has no such session.
+        PreconditionFailedError: When ``if_match`` does not name the session's version.
     """
     db_health_fasting = _get_model_by_id_and_user_id(health_fasting_id, user_id, db)
+    core_etag.require_if_match(if_match, db_health_fasting.version, "fasting session record")
 
     db_health_fasting.fast_end_time = fast_end_time
     db_health_fasting.status = status

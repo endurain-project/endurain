@@ -220,6 +220,19 @@ def connection_budget_warning(
     )
 
 
+def pool_processes(*, web_workers: int, jobs_enabled: bool) -> int:
+    """Count the processes known to hold a connection pool: the API workers and, with durable jobs, a job worker.
+
+    Args:
+        web_workers: How many API worker processes run.
+        jobs_enabled: Whether durable jobs run on a dedicated worker process.
+
+    Returns:
+        The number of processes, at least one worker being assumed when jobs are enabled.
+    """
+    return web_workers + (1 if jobs_enabled else 0)
+
+
 def check_connection_budget(processes: int) -> None:
     """Warn at startup when this process's pool settings can exhaust PostgreSQL's connections.
 

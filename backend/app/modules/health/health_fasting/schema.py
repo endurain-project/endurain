@@ -13,6 +13,7 @@ from pydantic import (
     Field,
     StrictInt,
     StrictStr,
+    field_validator,
     model_validator,
 )
 
@@ -205,6 +206,25 @@ class HealthFastingComplete(BaseModel):
         max_length=500,
         description="Optional notes about the fasting session",
     )
+
+    @field_validator("status")
+    @classmethod
+    def _status_ends_the_fast(cls, value: FastingStatus) -> FastingStatus:
+        """Refuse ``in_progress``: completing a fast ends it.
+
+        Args:
+            value: The final status in the request.
+
+        Returns:
+            The final status.
+
+        Raises:
+            ValueError: When the status is ``in_progress``.
+        """
+        # ``use_enum_values`` hands the validator the plain string.
+        if getattr(value, "value", value) == FastingStatus.IN_PROGRESS.value:
+            raise ValueError("A completed fast cannot still be in progress")
+        return value
 
     model_config = ConfigDict(
         extra="forbid",

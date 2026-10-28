@@ -52,7 +52,7 @@ def test_slow_work_is_accepted_not_done_inline(path, method):
 
 def test_client_and_state_answer_with_their_bodies():
     with (
-        patch.object(strava_router.strava_service, "set_client"),
+        patch.object(strava_router.strava_service, "set_client", return_value=4),
         patch.object(strava_router.strava_service, "begin_state", return_value="s" * 43),
         patch.object(strava_router.strava_service, "clear_state"),
     ):
@@ -61,6 +61,8 @@ def test_client_and_state_answer_with_their_bodies():
             client=strava_schema.StravaClientCredentials(client_id=1, client_secret="s"),
             token_user_id=7,
             db=MagicMock(),
+            response=MagicMock(headers={}),
+            if_match='"1"',
         )
         state = strava_router.strava_begin_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
         cleared = strava_router.strava_clear_user_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
@@ -115,3 +117,28 @@ def test_a_gear_import_declares_its_result_and_still_answers_201(path):
 
     assert route.status_code == 201
     assert route.response_model is strava_schema.StravaGearImportResult
+
+
+def test_setting_the_client_requires_the_version_that_was_read():
+    """The credentials are an editable resource, so a write must name the version it read (428 without it)."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import core.database as core_db
+    import core.exceptions as core_exceptions
+    import modules.auth.dependencies as auth_deps
+
+    app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
+    app.include_router(strava_router.router, prefix="/strava")
+    app.dependency_overrides[auth_deps.check_scopes] = lambda: None
+    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
+    app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
+
+    with patch.object(strava_router.strava_service, "set_client") as set_client:
+        response = TestClient(app).put(
+            "/strava/client", json={"client_id": 1, "client_secret": "s"}, headers={"Authorization": "Bearer x"}
+        )
+
+    assert response.status_code == 428
+    set_client.assert_not_called()

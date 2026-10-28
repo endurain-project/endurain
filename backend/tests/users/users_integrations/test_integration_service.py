@@ -40,13 +40,13 @@ def test_strava_operations_reach_the_crud():
     ):
         user_integrations_integration.link_strava_account(1, {"access_token": "a"}, db)
         user_integrations_integration.unlink_strava_account(1, db)
-        user_integrations_integration.set_strava_client(1, "id", "secret", db)
+        user_integrations_integration.set_strava_client(1, "id", "secret", db, if_match='"2"')
         user_integrations_integration.set_strava_sync_gear(1, True, db)
         ids = user_integrations_integration.list_user_ids_with_strava_linked(0, 10, db)
 
     link.assert_called_once_with(1, {"access_token": "a"}, db)
     unlink.assert_called_once_with(1, db)
-    client.assert_called_once_with(1, "id", "secret", db)
+    client.assert_called_once_with(1, "id", "secret", db, if_match='"2"')
     sync_gear.assert_called_once_with(1, True, db)
     linked.assert_called_once_with(0, 10, db)
     assert ids == [2]

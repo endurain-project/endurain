@@ -3,7 +3,7 @@
 from datetime import date as datetime_date
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 
 class Source(Enum):
@@ -52,6 +52,8 @@ class HealthStepsCreate(HealthStepsBase):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
+    steps: StrictInt = Field(..., ge=0, description="Number of steps taken")
+
 
 class HealthStepsRead(HealthStepsBase):
     """Schema for reading health steps records.
@@ -75,3 +77,21 @@ class HealthStepsUpdate(HealthStepsBase):
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
+
+    @field_validator("steps")
+    @classmethod
+    def _steps_is_not_cleared(cls, value: object) -> object:
+        """Refuse to clear the step count, which every record has.
+
+        Args:
+            value: The step count in the edit.
+
+        Returns:
+            The step count.
+
+        Raises:
+            ValueError: When the edit sets the step count to null.
+        """
+        if value is None:
+            raise ValueError("steps cannot be cleared")
+        return value

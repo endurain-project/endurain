@@ -202,6 +202,9 @@ def _persist_media_bytes(
         return existing
 
     storage_key = _build_storage_key(activity_id, original_filename)
+    # The check above read, which holds a pooled connection until the transaction ends; the write is slow
+    # on object storage, and the row is committed after it either way.
+    db.commit()
     storage.save(activity_media_constants.MEDIA_STORAGE_AREA, storage_key, data, _content_type_for(storage_key))
 
     try:
@@ -339,7 +342,11 @@ def read_activity_media_blob(
     if media is None or media.activity_id != activity_id:
         raise core_exceptions.NotFoundError("Activity media not found")
 
-    data = storage.get(activity_media_constants.MEDIA_STORAGE_AREA, media.media_path)
+    media_path = media.media_path
+    # The lookup read, which holds a pooled connection until the transaction ends; fetching the blob can be
+    # slow on object storage.
+    db.commit()
+    data = storage.get(activity_media_constants.MEDIA_STORAGE_AREA, media_path)
     if data is None:
         logger.warning(
             "Activity media row has no blob behind its storage key",
@@ -347,7 +354,7 @@ def read_activity_media_blob(
         )
         raise core_exceptions.NotFoundError("Activity media not found")
 
-    return data, _content_type_for(media.media_path)
+    return data, _content_type_for(media_path)
 
 
 def store_activity_media(

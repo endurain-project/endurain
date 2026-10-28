@@ -142,6 +142,7 @@ def accept_upload(
         filename, save_upload, fingerprint=idempotency_key is not None
     )
 
+    release_staged = False
     if idempotency_key:
         try:
             prior = activity_ingestion_crud.get_job_for_idempotency(
@@ -154,6 +155,7 @@ def accept_upload(
                     # Staged here and committed with the new job below, so the key
                     # is never left free without a job holding it.
                     activity_ingestion_crud.release_idempotency_key(prior[0].id, db)
+                    release_staged = True
                     logger.info(
                         "Released the idempotency key of an upload whose activities were deleted",
                         extra=core_logger.context(user_id=token_user_id, job_id=prior[0].id),
@@ -172,6 +174,10 @@ def accept_upload(
             )
             return replayed
 
+    if idempotency_key and not release_staged:
+        # The lookup read, which holds a pooled connection until the transaction ends, and the staged
+        # upload can be 200 MiB. A staged key release stays pending: it commits with the new job.
+        db.rollback()
     staged_key = activity_ingestion_upload_entry_service.store_received_upload(received, storage)
     job_id = str(uuid.uuid4())
 

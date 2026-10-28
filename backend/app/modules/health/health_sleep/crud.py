@@ -194,6 +194,7 @@ def edit_health_sleep(
 
     Raises:
         NotFoundError: If the user has no such record.
+        ConflictError: If the new date already has a record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     db_health_sleep = _get_model_by_id_and_user_id(health_sleep_id, user_id, db)
@@ -202,7 +203,10 @@ def edit_health_sleep(
     for key, value in health_sleep.model_dump(exclude_unset=True, mode="json").items():
         setattr(db_health_sleep, key, value)
 
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError("Another record already exists for that date") from err
     db.refresh(db_health_sleep)
 
     return health_sleep_serializers.to_read_schema(db_health_sleep)

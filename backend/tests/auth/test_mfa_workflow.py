@@ -347,34 +347,50 @@ class TestDisableMfa:
 
 
 class TestVerifyMfa:
-    """verify_mfa validates a code for the authenticated user."""
+    """verify_mfa validates a code for the authenticated user, under the step-up lockout."""
+
+    _VERIFY = "modules.auth.account_security.step_up_service.mfa_integration.verify_user_mfa"
 
     def _request(self) -> mfa_schema.MFARequest:
         return mfa_schema.MFARequest(mfa_code="123456")
 
-    def test_valid_code_returns_success(self, mock_db, step_up_store):
-        with patch(
-            "modules.auth.account_security.mfa_workflow_service.mfa_integration.verify_user_mfa",
-            return_value=True,
-        ) as mock_verify:
+    @pytest.fixture(autouse=True)
+    def _not_locked_out(self, step_up_store):
+        step_up_store.is_locked_out.return_value = False
+
+    def test_valid_code_returns_success_and_clears_the_failures(self, mock_db, step_up_store):
+        with patch(self._VERIFY, return_value=True) as mock_verify:
             result = mfa_workflow.verify_mfa(self._request(), 7, step_up_store, mock_db)
 
         mock_verify.assert_called_once_with(7, "123456", credentials_integration, mock_db, replay_guard=step_up_store)
+        step_up_store.reset_attempts.assert_called_once_with("user:7")
         assert isinstance(result, mfa_schema.MFAVerifyRead)
         assert result.model_dump() == {"message": "MFA code verified successfully"}
 
-    def test_invalid_code_raises_400(self, mock_db, step_up_store):
+    def test_invalid_code_raises_400_and_counts_the_failure(self, mock_db, step_up_store):
+        step_up_store.record_failed_attempt.return_value = 1
         with (
-            patch(
-                "modules.auth.account_security.mfa_workflow_service.mfa_integration.verify_user_mfa",
-                return_value=False,
-            ),
+            patch(self._VERIFY, return_value=False),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             mfa_workflow.verify_mfa(self._request(), 7, step_up_store, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert exc_info.value.detail == "Invalid MFA code"
+        step_up_store.record_failed_attempt.assert_called_once_with("user:7")
+
+    def test_a_locked_out_user_is_refused_without_a_guess(self, mock_db, step_up_store):
+        """A stolen access token must not allow unlimited guesses at the code."""
+        step_up_store.is_locked_out.return_value = True
+        step_up_store.get_lockout_time.return_value = None
+
+        with (
+            patch(self._VERIFY) as mock_verify,
+            pytest.raises(core_exceptions.TooManyRequestsError),
+        ):
+            mfa_workflow.verify_mfa(self._request(), 7, step_up_store, mock_db)
+
+        mock_verify.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

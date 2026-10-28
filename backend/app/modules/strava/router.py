@@ -2,9 +2,10 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Request, Security, UploadFile
+from fastapi import APIRouter, Request, Response, Security, UploadFile
 
 import core.dependencies as core_dependencies
+import core.etag as core_etag
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
@@ -152,9 +153,24 @@ def strava_set_user_client(
     client: strava_schema.StravaClientCredentials,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> strava_schema.StravaDetail:
-    """Store the user's Strava API client id and secret."""
-    strava_service.set_client(token_user_id, client, db)
+    """Store the user's Strava API client id and secret.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        client: The Strava application's client id and secret.
+        token_user_id: User ID from the access token.
+        db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition, the ``integrations_version`` the client read.
+
+    Returns:
+        A confirmation message.
+    """
+    version = strava_service.set_client(token_user_id, client, db, if_match=if_match)
+    response.headers["ETag"] = core_etag.format_etag(version)
     return strava_schema.StravaDetail(detail="Strava client edited successfully")
 
 

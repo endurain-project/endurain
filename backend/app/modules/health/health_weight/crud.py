@@ -247,6 +247,7 @@ def edit_health_weight(
 
     Raises:
         NotFoundError: If the user has no such record.
+        ConflictError: If the new date already has a record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     db_health_weight = _get_model_by_id_and_user_id(health_weight_id, user_id, db)
@@ -255,7 +256,10 @@ def edit_health_weight(
     for key, value in health_weight.model_dump(exclude_unset=True).items():
         setattr(db_health_weight, key, value)
 
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError("Another record already exists for that date") from err
     db.refresh(db_health_weight)
 
     return health_weight_serializers.to_read_schema(db_health_weight)

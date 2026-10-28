@@ -553,6 +553,9 @@ def edit_user(
         verification_queued = True
         if existing.email != updated.email and not updated.email_verified:
             verification_queued = sign_up_tokens_integration.request_email_reverification(user_id, db)
+        if user_id != actor_id and _edit_ends_sessions(existing, updated):
+            # Revoked in the edit's own transaction, so a user whose role or address changed cannot keep a session.
+            account_security_integration.delete_all_user_sessions(user_id, db)
         db.commit()
     if not verification_queued:
         logger.warning(
@@ -560,10 +563,6 @@ def edit_user(
             extra=core_logger.context(user_id=user_id),
         )
     logger.info("User edited by an administrator", extra=core_logger.context(user_id=user_id))
-
-    if user_id != actor_id and _edit_ends_sessions(existing, updated):
-        account_security_integration.delete_all_user_sessions(user_id, db)
-        db.commit()
 
     updated.external_auth_count = identity_provider_links_integration.get_identity_link_counts_for_users(
         [updated.id], db

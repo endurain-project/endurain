@@ -16,8 +16,9 @@ ACTIVITIES_SCOPE: Final[tuple[str, ...]] = (
     "activities:write",
     "activities:upload",
 )
-IDENTITY_PROVIDERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("identity_providers:read",)
-IDENTITY_PROVIDERS_ADMIN_SCOPE: Final[tuple[str, ...]] = ("identity_providers:write",)
+# The full provider configuration (client ids, endpoints, user mapping, disabled providers) is for administrators;
+# regular users see the public listing instead.
+IDENTITY_PROVIDERS_ADMIN_SCOPE: Final[tuple[str, ...]] = ("identity_providers:read", "identity_providers:write")
 # The social graph gets its own scopes rather than riding the broad ``profile``
 # scope: following/unfollowing is a distinct, externally visible action, and an
 # integration token issued to edit a profile should not silently be able to
@@ -77,7 +78,6 @@ REGULAR_ACCESS_SCOPE: Final[tuple[str, ...]] = (
     + ACTIVITIES_SCOPE
     + FOLLOWERS_SCOPE
     + GEARS_SCOPE
-    + IDENTITY_PROVIDERS_REGULAR_SCOPE
     + HEALTH_SCOPE
     + NOTIFICATIONS_REGULAR_SCOPE
     + SERVER_SETTINGS_REGULAR_SCOPE

@@ -9,6 +9,7 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
+    field_validator,
 )
 
 
@@ -74,6 +75,8 @@ class HealthWeightCreate(HealthWeightBase):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
+    weight: StrictFloat = Field(..., ge=0, le=500, description="Weight in kilograms")
+
 
 class HealthWeightRead(HealthWeightBase):
     """Schema for reading a health weight record.
@@ -97,3 +100,21 @@ class HealthWeightUpdate(HealthWeightBase):
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
+
+    @field_validator("weight")
+    @classmethod
+    def _weight_is_not_cleared(cls, value: object) -> object:
+        """Refuse to clear the weight, which every record has.
+
+        Args:
+            value: The weight in the edit.
+
+        Returns:
+            The weight.
+
+        Raises:
+            ValueError: When the edit sets the weight to null.
+        """
+        if value is None:
+            raise ValueError("weight cannot be cleared")
+        return value

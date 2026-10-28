@@ -474,15 +474,27 @@ class TestBulkUpdatesLockInIdOrder:
         assert "ORDER BY activities.id" in first
         assert first.rstrip().endswith("FOR UPDATE")
 
-    def test_visibility_update_locks_the_rows_in_id_order_first(self, mock_db):
+    def test_visibility_batch_locks_the_changing_rows_in_id_order_and_limits_them(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        mock_db.execute.return_value.all.return_value = [(1,)]
-        crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db)
+        mock_db.scalars.return_value.all.return_value = [1, 2]
+        mock_db.execute.return_value.all.return_value = [(1,), (2,)]
 
-        first = self._first_statement(mock_db)
-        assert "ORDER BY activities.id" in first
-        assert first.rstrip().endswith("FOR UPDATE")
+        assert crud.edit_user_activities_visibility_batch(user_id=1, visibility=0, limit=500, db=mock_db) == [1, 2]
+
+        select_sql = str(mock_db.scalars.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "ORDER BY activities.id" in select_sql
+        assert "activities.visibility !=" in select_sql
+        assert "LIMIT 500" in select_sql
+        assert select_sql.rstrip().endswith("FOR UPDATE")
+
+    def test_visibility_batch_with_nothing_left_changes_nothing(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.scalars.return_value.all.return_value = []
+
+        assert crud.edit_user_activities_visibility_batch(user_id=1, visibility=0, limit=500, db=mock_db) == []
+        mock_db.execute.assert_not_called()
 
 
 class TestActivityByStravaGarmin:
@@ -1339,21 +1351,13 @@ class TestEditUserActivitiesVisibility:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
 
+        mock_db.scalars.return_value.all.return_value = [1, 2, 3]
         r = MagicMock()
         r.all.return_value = [(1,), (2,), (3,)]
         mock_db.execute.return_value = r
-        result = crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db)
+        result = crud.edit_user_activities_visibility_batch(user_id=1, visibility=0, limit=500, db=mock_db)
         assert result == [1, 2, 3]
         mock_db.commit.assert_not_called()
-
-    def test_no_rows(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        r = MagicMock()
-        r.all.return_value = []
-        mock_db.execute.return_value = r
-        result = crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db)
-        assert result == []
 
 
 class TestDeleteAllStravaActivitiesForUser:

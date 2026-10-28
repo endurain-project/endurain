@@ -19,3 +19,8 @@ def hmac_sha256(value: str) -> str:
     if secret_key is None:
         raise ValueError("JWT_SECRET_KEY is not configured")
     return auth_computation.hmac_sha256(value, secret_key)
+
+
+def scopes_for_access_type(access_type: str) -> tuple[str, ...]:
+    """Return the scopes a user of an access type holds."""
+    return access_tokens_service.scopes_for_access_type(access_type)

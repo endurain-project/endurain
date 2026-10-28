@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
@@ -13,15 +12,32 @@ import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.serializers as sign_up_serializers
 
 
-def get_sign_up_token_by_hash(token_hash: str, db: Session) -> sign_up_contracts.SignUpTokenState | None:
-    """Return an unused, unexpired token state matching the hash."""
-    stmt = select(sign_up_models.SignUpToken).where(
-        sign_up_models.SignUpToken.token_hash == token_hash,
-        sign_up_models.SignUpToken.used.is_(False),
-        sign_up_models.SignUpToken.expires_at > datetime.now(UTC),
+def claim_sign_up_token(token_hash: str, db: Session) -> int | None:
+    """Stage an atomic claim of an unused, unexpired token and return its user id.
+
+    One conditional ``UPDATE`` flips ``used``, so of two requests presenting the same link only one
+    matches a row.
+
+    Args:
+        token_hash: SHA-256 hash of the presented token.
+        db: Database session.
+
+    Returns:
+        The user the token belongs to, or None when it is unknown, used or expired.
+    """
+    stmt = (
+        sa_update(sign_up_models.SignUpToken)
+        .where(
+            sign_up_models.SignUpToken.token_hash == token_hash,
+            sign_up_models.SignUpToken.used.is_(False),
+            sign_up_models.SignUpToken.expires_at > datetime.now(UTC),
+        )
+        .values(used=True)
+        .returning(sign_up_models.SignUpToken.user_id)
     )
-    row = db.execute(stmt).scalar_one_or_none()
-    return sign_up_serializers.to_state(row) if row else None
+    user_id = db.execute(stmt).scalar_one_or_none()
+    db.flush()
+    return user_id
 
 
 def create_sign_up_token(
@@ -52,17 +68,6 @@ def mark_user_sign_up_tokens_used(user_id: int, db: Session) -> int:
     result = db.execute(stmt)
     db.flush()
     return result.rowcount or 0
-
-
-def mark_sign_up_token_used(token_id: str, db: Session) -> sign_up_contracts.SignUpTokenState | None:
-    """Stage consumption of a token by its id and return its updated state."""
-    stmt = select(sign_up_models.SignUpToken).where(sign_up_models.SignUpToken.id == token_id)
-    row = db.execute(stmt).scalar_one_or_none()
-    if row is None:
-        return None
-    row.used = True
-    db.flush()
-    return sign_up_serializers.to_state(row)
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:

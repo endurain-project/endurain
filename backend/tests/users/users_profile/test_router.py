@@ -48,6 +48,7 @@ def _make_user_mock() -> MagicMock:
     user.external_auth_count = 0
     user.is_strava_linked = 0
     user.privacy_settings_version = None
+    user.integrations_version = None
     user.is_garminconnect_linked = 0
     user.default_activity_visibility = "public"
     user.hide_activity_start_time = False
@@ -71,6 +72,7 @@ def _make_user_mock() -> MagicMock:
 
 def _make_integration_mock() -> MagicMock:
     integ = MagicMock()
+    integ.version = 2
     integ.strava_token = None
     integ.garminconnect_token = None
     return integ
@@ -146,6 +148,7 @@ class TestReadUsersMe:
         response = profile_client.get(PREFIX)
 
         assert response.headers["ETag"] == '"8"'
+        assert response.json()["integrations_version"] == 2
 
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
     @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")

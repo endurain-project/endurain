@@ -22,6 +22,7 @@ from pydantic import (
 
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.users.users.schema as users_schema
 
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
@@ -295,14 +296,16 @@ class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
     )
 
 
-class ActivitiesBulkEditRead(BaseModel):
-    """Result of a bulk edit across a user's activities.
+class ActivitiesBulkEditStatus(BaseModel):
+    """Where a queued bulk edit across a user's activities is.
 
     Attributes:
-        updated: Number of activities the edit changed.
+        status: Lifecycle state of the edit.
     """
 
-    updated: int
+    status: bulk_edit_constants.BulkEditStatus = Field(..., description="Lifecycle state of the bulk edit")
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class ActivitiesBulkEdit(BaseModel):

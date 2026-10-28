@@ -827,7 +827,8 @@ class TestImportServiceHealth:
                 [{"weight": "bad", "steps": "wrong", "sleep": "nope"}],
             )
 
-        assert service.counts["health_weight"] == 1
+        # A weight that cannot be read leaves a record without its value, which cannot be stored.
+        assert service.counts["health_weight"] == 0
         assert service.counts["health_targets"] == 1
 
     async def test_collect_and_import_health_weight_no_targets(self) -> None:

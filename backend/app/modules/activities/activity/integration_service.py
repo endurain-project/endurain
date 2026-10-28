@@ -12,6 +12,7 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
+import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
 import modules.activities.activity.child_access_service as activity_child_access_service
 import modules.activities.activity.child_collection_service as activity_child_collection_service
 import modules.activities.activity.contracts as activity_contracts
@@ -568,3 +569,8 @@ def get_public_activity(activity_id: int, db: Session) -> activity_schema.Activi
         NotFoundError: When the activity does not exist or is not publicly shareable.
     """
     return activity_service.get_public_activity(activity_id, db)
+
+
+def shutdown_bulk_edit_pool() -> None:
+    """Stop the in-process pool bulk activity edits run on, without waiting for them."""
+    activity_bulk_edit_job_service.shutdown_pool()

@@ -1,6 +1,7 @@
 """CRUD operations for user goals."""
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -8,6 +9,26 @@ import core.exceptions as core_exceptions
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
 import modules.users.users_goals.serializers as user_goals_serializers
+
+
+def _flush_goal(db: Session) -> None:
+    """Flush a staged goal, turning a clash with another of the user's goals into a conflict.
+
+    The database enforces one goal per user, interval, activity type and goal type, so two concurrent
+    requests cannot both succeed.
+
+    Args:
+        db: Database session holding the staged goal.
+
+    Raises:
+        ConflictError: If the user already has a goal for this activity type, interval and goal type.
+    """
+    try:
+        db.flush()
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError(
+            "User already has a goal for this activity type, interval, and goal type."
+        ) from err
 
 
 def _select_goal(user_id: int, goal_id: int, db: Session) -> user_goals_models.UsersGoal:
@@ -84,15 +105,6 @@ def create_user_goal(
     Raises:
         ConflictError: If the user already has a goal for this activity type, interval and goal type.
     """
-    stmt = select(user_goals_models.UsersGoal.id).where(
-        user_goals_models.UsersGoal.user_id == user_id,
-        user_goals_models.UsersGoal.interval == user_goal.interval,
-        user_goals_models.UsersGoal.activity_type == user_goal.activity_type,
-        user_goals_models.UsersGoal.goal_type == user_goal.goal_type,
-    )
-    if db.execute(stmt).first() is not None:
-        raise core_exceptions.ConflictError("User already has a goal for this activity type, interval, and goal type.")
-
     db_goal = user_goals_models.UsersGoal(
         user_id=user_id,
         interval=user_goal.interval,
@@ -105,7 +117,7 @@ def create_user_goal(
         goal_duration=user_goal.goal_duration,
     )
     db.add(db_goal)
-    db.flush()
+    _flush_goal(db)
     db.refresh(db_goal)
 
     return user_goals_serializers.to_read_schema(db_goal)
@@ -133,16 +145,17 @@ def update_user_goal(
 
     Raises:
         NotFoundError: If the user has no such goal.
+        ConflictError: If the new values match another of the user's goals.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     db_goal = _select_goal(user_id, goal_id, db)
     core_etag.require_if_match(if_match, db_goal.version, "goal")
 
-    changes = user_goal.model_dump(exclude_unset=True)
-    for field, value in changes.items():
+    # The update is the whole goal: a target the body leaves out is cleared, not kept from the old goal.
+    for field, value in user_goal.model_dump().items():
         setattr(db_goal, field, value)
 
-    db.flush()
+    _flush_goal(db)
     db.refresh(db_goal)
 
     return user_goals_serializers.to_read_schema(db_goal)

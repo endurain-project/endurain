@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
+import modules.activities.activity.schema as activity_schema
 
 
 def _build_app(mock_db):
@@ -406,14 +407,24 @@ class TestEdit:
 
 
 class TestEditVisibility:
-    def test_success(self, mock_db):
-        with patch("modules.activities.activity.service.activity_crud.edit_user_activities_visibility") as m:
-            m.return_value = [1, 2, 3, 4, 5]
+    def test_success_queues_the_edit_and_answers_202(self, mock_db):
+        with patch("modules.activities.activity.router.activity_bulk_edit_job_service.request_visibility_edit") as m:
+            m.return_value = activity_schema.ActivitiesBulkEditStatus(status="queued")
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities", json={"visibility": 1}, headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 200 and resp.json()["updated"] == 5
+            assert resp.status_code == 202 and resp.json() == {"status": "queued"}
             assert m.call_args.args[1] == 1
+
+    def test_an_empty_patch_is_invalid_input(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).patch("/activities", json={}, headers={"Authorization": "Bearer x"})
+        assert resp.status_code == 400
+
+    def test_status_is_read_from_the_job_service(self, mock_db):
+        with patch("modules.activities.activity.router.activity_bulk_edit_job_service.get_visibility_edit_status") as m:
+            m.return_value = activity_schema.ActivitiesBulkEditStatus(status="running")
+            resp = TestClient(_build_app(mock_db)).get("/activities/bulk-edit", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200 and resp.json() == {"status": "running"}
 
     def test_rejects_an_out_of_range_visibility(self, mock_db):
         """Validation moved from a path dependency into the body schema."""

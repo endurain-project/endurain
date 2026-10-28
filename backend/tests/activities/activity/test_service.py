@@ -306,22 +306,6 @@ class TestEditPublishesUpdated:
 
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
-    def test_bulk_edit_publishes_one_event_per_changed_row(self, mock_crud, mock_publishers):
-        import modules.activities.activity.schema as activity_schema
-        from modules.activities.activity import service
-
-        db = MagicMock()
-        mock_crud.edit_user_activities_visibility.return_value = [4, 5, 6]
-
-        updated = service.bulk_edit_activities(1, activity_schema.ActivitiesBulkEdit(visibility=1), db)
-
-        assert updated == 3
-        mock_publishers.publish_activities_updated.assert_called_once_with(
-            [4, 5, 6], 1, db, changed_fields=["visibility"], source="api:bulk_edit_activities"
-        )
-
-    @patch("modules.activities.activity.service.activity_event_publishers")
-    @patch("modules.activities.activity.service.activity_crud")
     def test_a_stale_edit_rolls_back_and_publishes_nothing(self, mock_crud, mock_publishers):
         import modules.activities.activity.schema as activity_schema
         from modules.activities.activity import service
