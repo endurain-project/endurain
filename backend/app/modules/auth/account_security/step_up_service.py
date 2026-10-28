@@ -9,11 +9,24 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.account_security.step_up_store as account_security_step_up_store
-import modules.auth.credentials.integration_service as auth_credentials_crud
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.lockout.contracts as lockout_contracts
+import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
+
+
+def _record_failure(step_up_store: account_security_step_up_store.StepUpStore, key: str) -> None:
+    """Record a failed step-up attempt and report a lockout it applies.
+
+    Args:
+        step_up_store: Step-up lockout store.
+        key: Lockout key of the user.
+    """
+    failed_attempts = step_up_store.record_failed_attempt(key)
+    lockout_integration.report_lockout_applied("step_up", lockout_contracts.STEP_UP_LOCKOUT_TIERS, failed_attempts)
 
 
 def _step_up_key(user_id: int) -> str:
@@ -97,23 +110,23 @@ def verify_step_up_credentials(
     # Guard: ensure the user exists (raises 404 otherwise).
     users_integration.require_user(user_id, db)
 
-    password_hash = auth_credentials_crud.get_password_hash(user_id, db)
+    password_hash = credentials_integration.get_password_hash(user_id, db)
     if password_hash is not None:
         if not current_password:
-            step_up_store.record_failed_attempt(key)
+            _record_failure(step_up_store, key)
             raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
-        if not auth_credentials_crud.verify_password(current_password, password_hash):
-            step_up_store.record_failed_attempt(key)
+        if not credentials_integration.verify_password(current_password, password_hash):
+            _record_failure(step_up_store, key)
             raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
     # else: SSO-only account; no password to verify. See docstring
     # and docs/developer-guide/auth-boundary.md "Known Structural Debt".
 
     if mfa_integration.is_mfa_enabled_for_user(user_id, db):
         if not mfa_code:
-            step_up_store.record_failed_attempt(key)
+            _record_failure(step_up_store, key)
             raise core_exceptions.UnauthenticatedError("MFA code required for this operation", scheme="Bearer")
-        if not mfa_integration.verify_user_mfa(user_id, mfa_code, auth_credentials_crud, db):
-            step_up_store.record_failed_attempt(key)
+        if not mfa_integration.verify_user_mfa(user_id, mfa_code, credentials_integration, db):
+            _record_failure(step_up_store, key)
             raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
 
     # All factors passed — reset the failure counter.

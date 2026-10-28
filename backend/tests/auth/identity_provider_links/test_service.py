@@ -25,7 +25,7 @@ class TestGetUserIdentityProviderRefreshToken:
         mock_link.idp_refresh_token = "encrypted-token-abc"
 
         with patch(
-            "modules.auth.identity_provider_links.service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
             return_value=mock_link,
         ):
             result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
@@ -47,7 +47,7 @@ class TestGetUserIdentityProviderRefreshToken:
             - Returns None.
         """
         with patch(
-            "modules.auth.identity_provider_links.service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
             return_value=None,
         ):
             result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(

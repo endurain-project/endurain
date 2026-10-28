@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Protocol, runtime_checkable
-from urllib.parse import unquote
 
 from jasil.providers import StateProvider
 
@@ -36,11 +35,6 @@ class FailedLoginStore(Protocol):
         ...
 
 
-def normalize_username_key(username: str) -> str:
-    """Normalize a username for its lockout key."""
-    return unquote(username).replace("+", " ").strip().casefold()
-
-
 class FailedLoginAttempts:
     """Track failed logins using the shared platform state provider."""
 
@@ -49,10 +43,9 @@ class FailedLoginAttempts:
         self._lockout = lockout_integration.new_progressive_lockout(
             state,
             name="login",
-            display_name="Login",
             tiers=lockout_contracts.LOGIN_LOCKOUT_TIERS,
             attempts_ttl_seconds=24 * 60 * 60,
-            normalize_key=normalize_username_key,
+            normalize_key=lockout_integration.normalize_username_key,
         )
 
     def is_locked_out(self, username: str) -> bool:

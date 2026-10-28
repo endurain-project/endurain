@@ -15,13 +15,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 import core.dependencies as core_dependencies
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
-import modules.auth.access_tokens.integration_service as auth_token_manager
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
-import modules.auth.credentials.integration_service as auth_password_hasher
-import modules.auth.dependencies as auth_dependencies
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.dependencies as mfa_dependencies
 
 logger = core_logger.get_logger(__name__)
@@ -54,12 +53,12 @@ def login_for_access_token(
         Depends(mfa_dependencies.get_pending_mfa_store),
     ],
     password_hasher: Annotated[
-        auth_password_hasher.PasswordHasher,
-        Depends(auth_password_hasher.get_password_hasher),
+        credentials_integration.PasswordHasher,
+        Depends(credentials_integration.get_password_hasher),
     ],
     token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
     code_challenge: Annotated[str | None, Query()] = None,
@@ -141,12 +140,12 @@ def verify_mfa_and_login(
         Depends(mfa_dependencies.get_pending_mfa_store),
     ],
     password_hasher: Annotated[
-        auth_password_hasher.PasswordHasher,
-        Depends(auth_password_hasher.get_password_hasher),
+        credentials_integration.PasswordHasher,
+        Depends(credentials_integration.get_password_hasher),
     ],
     token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
     code_challenge: Annotated[str | None, Query()] = None,
@@ -219,12 +218,12 @@ def refresh_token(
         Depends(authentication_dependencies.get_and_return_refresh_token),
     ],
     password_hasher: Annotated[
-        auth_password_hasher.PasswordHasher,
-        Depends(auth_password_hasher.get_password_hasher),
+        credentials_integration.PasswordHasher,
+        Depends(credentials_integration.get_password_hasher),
     ],
     token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
     client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
@@ -273,7 +272,6 @@ def refresh_token(
         token_manager,
         client_type,
         db,
-        auth_dependencies.refresh_idp_tokens_if_needed,
         x_csrf_token,
     )
 
@@ -298,8 +296,8 @@ def logout(
         Depends(authentication_dependencies.get_sub_from_refresh_token),
     ],
     password_hasher: Annotated[
-        auth_password_hasher.PasswordHasher,
-        Depends(auth_password_hasher.get_password_hasher),
+        credentials_integration.PasswordHasher,
+        Depends(credentials_integration.get_password_hasher),
     ],
     db: core_dependencies.DbSession,
 ):
@@ -333,5 +331,4 @@ def logout(
         token_user_id,
         password_hasher,
         db,
-        auth_dependencies.clear_idp_tokens,
     )

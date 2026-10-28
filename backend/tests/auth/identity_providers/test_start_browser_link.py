@@ -28,7 +28,7 @@ def _start(*, redirect=None, provider=_UNSET, claim=None):
             "create_state_id_and_nonce",
             return_value=("state", "nonce"),
         ),
-        patch.object(idp_service.oauth_state_crud, "create_oauth_state") as create_state,
+        patch.object(idp_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
         url = integration_service.start_browser_link("token", 1, redirect, request, claim, db)
     return url, claim, service, create_state

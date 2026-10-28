@@ -2,11 +2,12 @@
 Tests for auth.schema module and auth router error responses.
 
 Store behaviour (login/MFA/step-up lockout) is covered in
-``tests/auth/test_security_stores.py``; this module keeps the Pydantic schema
+``tests/auth/lockout/test_lockout.py``; this module keeps the Pydantic schema
 tests and the router-level error-path tests.
 """
 
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -264,7 +265,7 @@ class TestAuthRouterErrors:
                 pending_mfa_store=PendingMFAStore(),
                 password_hasher=object(),
                 token_manager=object(),
-                db=object(),
+                db=MagicMock(),
             )
 
         assert exc_info.value.status_code == 400

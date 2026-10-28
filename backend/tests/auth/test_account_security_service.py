@@ -9,7 +9,7 @@ class TestChangeOwnPassword:
     """Tests for self-service password changes."""
 
     @patch("modules.auth.account_security.account_security_service.logger")
-    @patch("modules.auth.account_security.account_security_service.auth_mfa_integration.clear_pending_mfa_for_user")
+    @patch("modules.auth.account_security.account_security_service.mfa_integration.clear_pending_mfa_for_user")
     @patch("modules.auth.account_security.account_security_service.step_up_service.verify_step_up_credentials")
     def test_verifies_updates_and_clears_pending_mfa(
         self,
@@ -38,14 +38,14 @@ class TestChangeOwnPassword:
                 return_value=mock_user,
             ),
             patch(
-                "modules.auth.account_security.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
+                "modules.auth.account_security.account_security_service.credentials_integration.validate_and_hash_password_for_user",
                 return_value="hashed-new-pass",
             ) as mock_hash_password,
             patch(
-                "modules.auth.account_security.account_security_service.auth_password_policy.set_local_password_hash"
+                "modules.auth.account_security.account_security_service.credentials_integration.set_local_password_hash"
             ) as mock_set_password,
         ):
-            account_security_service.change_own_password(
+            account_security_service.stage_change_own_password(
                 user_id=7,
                 current_password="old-pass",
                 new_password="new-pass",
@@ -64,9 +64,10 @@ class TestChangeOwnPassword:
         mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass", mock_db)
         mock_set_password.assert_called_once_with(7, "hashed-new-pass", mock_db)
         mock_clear_pending_mfa.assert_called_once_with(7)
+        mock_db.commit.assert_not_called()
         assert len(mock_log.method_calls) == 1
 
-    @patch("modules.auth.account_security.account_security_service.auth_mfa_integration.clear_pending_mfa_for_user")
+    @patch("modules.auth.account_security.account_security_service.mfa_integration.clear_pending_mfa_for_user")
     @patch("modules.auth.account_security.account_security_service.step_up_service.verify_step_up_credentials")
     def test_admin_user_uses_admin_min_length(
         self,
@@ -96,11 +97,11 @@ class TestChangeOwnPassword:
                 return_value=mock_user,
             ),
             patch(
-                "modules.auth.account_security.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
+                "modules.auth.account_security.account_security_service.credentials_integration.validate_and_hash_password_for_user",
                 return_value="hashed-admin-pass",
             ) as mock_hash_password,
         ):
-            account_security_service.change_own_password(
+            account_security_service.stage_change_own_password(
                 user_id=1,
                 current_password="old-pass",
                 new_password="new-pass",
@@ -115,8 +116,8 @@ class TestChangeOwnPassword:
 class TestChangeManagedUserPassword:
     """Tests for managed user password changes."""
 
-    @patch("modules.auth.account_security.account_security_service.auth_mfa_integration.clear_pending_mfa_for_user")
-    @patch("modules.auth.account_security.account_security_service.auth_sessions_crud.delete_sessions_by_user")
+    @patch("modules.auth.account_security.account_security_service.mfa_integration.clear_pending_mfa_for_user")
+    @patch("modules.auth.account_security.account_security_service.sessions_integration.delete_sessions_by_user")
     def test_updates_password_revokes_sessions_and_clears_pending_mfa(
         self,
         mock_delete_sessions,
@@ -142,11 +143,11 @@ class TestChangeManagedUserPassword:
                 return_value=mock_user,
             ),
             patch(
-                "modules.auth.account_security.account_security_service.auth_password_policy.validate_and_hash_password_for_user",
+                "modules.auth.account_security.account_security_service.credentials_integration.validate_and_hash_password_for_user",
                 return_value="hashed-managed-pass",
             ) as mock_hash_password,
             patch(
-                "modules.auth.account_security.account_security_service.auth_password_policy.set_local_password_hash"
+                "modules.auth.account_security.account_security_service.credentials_integration.set_local_password_hash"
             ) as mock_set_password,
         ):
             account_security_service.change_managed_user_password(
@@ -166,7 +167,7 @@ class TestDeleteOtherUserSessions:
     """Tests for self-service 'revoke other sessions'."""
 
     @patch("modules.auth.account_security.account_security_service.logger")
-    @patch("modules.auth.account_security.account_security_service.auth_sessions_crud.delete_sessions_by_user")
+    @patch("modules.auth.account_security.account_security_service.sessions_integration.delete_sessions_by_user")
     def test_revokes_all_sessions_except_current(
         self,
         mock_delete_sessions,

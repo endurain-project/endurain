@@ -17,11 +17,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, Security, UploadFile, status
 from fastapi.responses import StreamingResponse
 
+import core.config as core_config
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.rate_limit as core_rate_limit
-import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -247,16 +248,7 @@ def edit_profile_password(
     Raises:
         HTTPException: 401 if step-up verification fails.
     """
-    account_security_integration.change_own_password(
-        token_user_id,
-        user_attributtes.current_password,
-        user_attributtes.password,
-        user_attributtes.mfa_code,
-        step_up_store,
-        db,
-        revoke_other_sessions=user_attributtes.revoke_other_sessions,
-        current_session_id=token_session_id,
-    )
+    profile_service.change_password(token_user_id, user_attributtes, token_session_id, step_up_store, db)
 
 
 @router.delete(
@@ -327,7 +319,7 @@ def delete_my_account(
         The deletion's initial status.
     """
     deletion = profile_service.delete_account(token_user_id, step_up, step_up_store, state, storage, db)
-    auth_dependencies.clear_refresh_token_cookies(response)
+    authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
     return deletion
 
 

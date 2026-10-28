@@ -10,6 +10,8 @@ import pathlib
 
 from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role, role_of
 
+import modules.auth.constants as auth_constants
+
 _ROOT = pathlib.Path("app/modules")
 _CONVERTED = tuple(_ROOT / name for name in CONVERTED_MODULES)
 
@@ -123,18 +125,7 @@ class TestRouteConventions:
         offenders = [
             path.relative_to(_ROOT).as_posix()
             for path in files_with_role(_CONVERTED, "dependencies")
-            if any(
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id == "HTTPException"
-                and any(
-                    keyword.arg == "status_code"
-                    and isinstance(keyword.value, ast.Attribute)
-                    and keyword.value.attr in {"HTTP_400_BAD_REQUEST", "HTTP_422_UNPROCESSABLE_ENTITY"}
-                    for keyword in node.keywords
-                )
-                for node in ast.walk(ast.parse(path.read_text()))
-            )
+            if "HTTPException" in path.read_text()
         ]
 
         assert offenders == [], "Declare the constraint with Path/Query/AfterValidator instead:\n  " + "\n  ".join(
@@ -307,9 +298,6 @@ _UNVERSIONED_WRITES = {
 #: Routes that take a ``{user_id}`` path parameter, hold only a regular-user scope and take no ``CurrentUserId``.
 _USER_PATH_WITHOUT_OWNER = {
     ("users/users/router.py", "read_users_id"): "returns the public projection, which any authenticated user may read",
-    ("auth/sessions/router.py", "read_sessions_user"): "sessions:read is an admin-only scope",
-    ("auth/sessions/router.py", "delete_session_user"): "sessions:write is an admin-only scope",
-    ("auth/sessions/router.py", "delete_sessions_user"): "sessions:write is an admin-only scope",
 }
 
 
@@ -356,9 +344,12 @@ class TestVersionedAndOwnedRoutes:
         """A route with a ``{user_id}`` path parameter takes ``CurrentUserId`` or requires an admin-class scope.
 
         ``users:read`` and ``profile`` belong to every regular user, so a route guarded only by them that
-        names another user is open to any account (an IDOR). Admin scopes end in ``_all`` or are ``users:write``.
+        names another user is open to any account (an IDOR). Admin scopes end in ``_all`` or are minted only in an
+        ``*_ADMIN_SCOPE`` tuple of ``modules.auth.constants``.
         """
-        admin_scopes = {"users:write"}
+        admin_scopes = {
+            scope for name, scopes in vars(auth_constants).items() if name.endswith("_ADMIN_SCOPE") for scope in scopes
+        }
         offenders = []
         for path, function in _router_functions():
             relative = path.relative_to(_ROOT).as_posix()

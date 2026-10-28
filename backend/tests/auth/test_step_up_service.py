@@ -100,7 +100,7 @@ class TestVerifyStepUpCredentials:
                 return_value=mock_user,
             ),
             patch(
-                "modules.auth.account_security.step_up_service.auth_credentials_crud.get_password_hash",
+                "modules.auth.account_security.step_up_service.credentials_integration.get_password_hash",
                 return_value=password_hash,
             ),
             patch(
@@ -112,7 +112,7 @@ class TestVerifyStepUpCredentials:
                 return_value=mfa_valid,
             ),
             patch(
-                "modules.auth.account_security.step_up_service.auth_credentials_crud.verify_password",
+                "modules.auth.account_security.step_up_service.credentials_integration.verify_password",
                 return_value=password_valid,
             ),
         ):

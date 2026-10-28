@@ -147,6 +147,9 @@ def enable_user_mfa(
     Raises:
         InvalidInputError: If MFA is already enabled or the code is invalid.
         ProcessingError: If the secret cannot be encrypted.
+
+    Notes:
+        Stages the change; the caller commits.
     """
     users_integration.require_user(user_id, db)
 
@@ -163,11 +166,7 @@ def enable_user_mfa(
 
     auth_mfa_crud.update_user_mfa(user_id, db, encrypted_secret=encrypted_secret)
 
-    backup_codes = mfa_backup_codes_integration.create_backup_codes(user_id, password_hasher, db)
-    db.commit()
-    logger.info("User enabled MFA", extra=core_logger.context(user_id=user_id))
-
-    return backup_codes
+    return mfa_backup_codes_integration.create_backup_codes(user_id, password_hasher, db)
 
 
 def disable_user_mfa(user_id: int, db: Session) -> None:
@@ -188,6 +187,9 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
     Raises:
         NotFoundError if the user is not found, InvalidInputError if MFA
             is not currently enabled.
+
+    Notes:
+        Stages the change; the caller commits.
     """
     users_integration.require_user(user_id, db)
 
@@ -196,8 +198,6 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
 
     auth_mfa_crud.update_user_mfa(user_id, db)
     mfa_backup_codes_integration.delete_user_backup_codes(user_id, db)
-    db.commit()
-    logger.info("User disabled MFA", extra=core_logger.context(user_id=user_id))
 
 
 def verify_user_mfa(
@@ -223,7 +223,7 @@ def verify_user_mfa(
     Notes:
         - First tries TOTP verification (6 digits)
         - If TOTP fails and code is 9 characters (XXXX-XXXX), tries backup code
-        - Backup codes are consumed on successful verification
+        - A backup code is consumed (staged) on successful verification; the caller commits
     """
     user = users_integration.require_user(user_id, db)
 
@@ -265,7 +265,6 @@ def verify_user_mfa(
             db,
         )
     ):
-        db.commit()
         return True
 
     # Invalid format or code didn't match

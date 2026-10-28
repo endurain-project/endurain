@@ -483,7 +483,7 @@ class TestEdits:
             ({"access_type": "admin"}, {"access_type": "regular"}),
         ],
     )
-    def test_a_security_relevant_edit_signs_the_user_out_after_the_commit(
+    def test_a_security_relevant_edit_signs_the_user_out_after_the_commit_and_commits_that(
         self, mock_crud, mock_weight, mock_db, before, after
     ):
         mock_crud.get_user_by_id.return_value = _user(1, **before)
@@ -496,7 +496,7 @@ class TestEdits:
 
         users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
 
-        assert [call[0] for call in order.mock_calls] == ["commit", "revoke"]
+        assert [call[0] for call in order.mock_calls] == ["commit", "revoke", "commit"]
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
 
     def test_an_edit_of_other_fields_keeps_the_sessions(self, mock_crud, mock_weight, mock_db):

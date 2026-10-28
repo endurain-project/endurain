@@ -65,7 +65,7 @@ class TestFindOrCreateUserEmailLinking:
 
         with (
             patch(
-                "modules.auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
+                "modules.auth.identity_providers.service.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
             patch(
@@ -73,7 +73,7 @@ class TestFindOrCreateUserEmailLinking:
                 return_value=existing_user,
             ),
             patch(
-                "modules.auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
+                "modules.auth.identity_providers.service.identity_provider_links_integration.create_user_identity_provider",
             ) as mock_link,
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
@@ -97,7 +97,7 @@ class TestFindOrCreateUserEmailLinking:
 
         with (
             patch(
-                "modules.auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
+                "modules.auth.identity_providers.service.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
             patch(
@@ -105,7 +105,7 @@ class TestFindOrCreateUserEmailLinking:
                 return_value=existing_user,
             ),
             patch(
-                "modules.auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
+                "modules.auth.identity_providers.service.identity_provider_links_integration.create_user_identity_provider",
             ) as mock_link,
         ):
             result = service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
@@ -125,7 +125,7 @@ class TestFindOrCreateUserEmailLinking:
 
         with (
             patch(
-                "modules.auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
+                "modules.auth.identity_providers.service.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
             patch(

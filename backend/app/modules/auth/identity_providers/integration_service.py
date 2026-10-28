@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.network as core_network
 import modules.auth.identity_provider_links.contracts as identity_links_contracts
-import modules.auth.identity_provider_links.integration_service as identity_links_integration
+import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_provider_links.schema as identity_links_schema
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.crud as identity_providers_crud
@@ -37,7 +37,7 @@ def enrich_user_identity_providers(
     if not idp_links:
         return []
     idps = identity_providers_crud.get_identity_providers_by_ids([link.idp_id for link in idp_links], db)
-    return identity_links_integration.enrich_user_identity_providers(idp_links, idps, user_id)
+    return identity_provider_links_integration.enrich_user_identity_providers(idp_links, idps, user_id)
 
 
 def start_browser_link(

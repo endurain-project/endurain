@@ -43,7 +43,7 @@ def create_session(
     oauth_state_id: str | None = None,
     csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Create a session."""
+    """Stage a session."""
     return sessions_service.create_session(
         session_id,
         user,
@@ -66,7 +66,7 @@ def edit_session(
     db: Session,
     new_csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Rotate a session's refresh token."""
+    """Stage a rotation of a session's refresh token."""
     return sessions_service.edit_session(
         session,
         request,
@@ -79,13 +79,13 @@ def edit_session(
 
 
 def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session) -> None:
-    """Update a session's CSRF token."""
+    """Stage a new CSRF token for a session."""
     sessions_service.update_session_csrf_token(session_id, new_csrf_token, db)
 
 
 def delete_session(session_id: str, user_id: int, db: Session) -> None:
-    """Delete a session owned by a user."""
-    sessions_service.delete_session(session_id, user_id, db)
+    """Stage deletion of a session owned by a user."""
+    sessions_service.stage_delete_session(session_id, user_id, db)
 
 
 def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
@@ -94,7 +94,7 @@ def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str |
 
 
 def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
-    """Atomically claim a session for mobile token exchange."""
+    """Atomically claim a session for its token exchange."""
     return sessions_service.claim_session_for_token_exchange(session_id, hashed_refresh_token, db)
 
 
@@ -112,5 +112,5 @@ def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
 
 
 def invalidate_token_family(token_family_id: str, db: Session) -> int:
-    """Invalidate sessions and rotated tokens in a token family."""
+    """Stage deletion of the sessions and rotated tokens of a token family."""
     return sessions_service.invalidate_token_family(token_family_id, db)

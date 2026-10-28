@@ -28,7 +28,7 @@ def _build_app() -> TestClient:
 class TestInitiateLogin:
     """Test suite for initiate_login endpoint behavior."""
 
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
+    @patch.object(_test_service, "create_login_oauth_state", return_value="state-id")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
@@ -65,7 +65,7 @@ class TestInitiateLogin:
         mock_create_state.assert_called_once()
         assert mock_create_state.call_args.kwargs["client_type"] == "mobile"
 
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
+    @patch.object(_test_service, "create_login_oauth_state", return_value="state-id")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")

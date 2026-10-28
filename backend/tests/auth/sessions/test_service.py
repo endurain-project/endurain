@@ -36,7 +36,7 @@ def _session(**updates):
     return sessions_contracts.SessionRead(**data)
 
 
-def test_create_session_hashes_secrets_and_commits(mock_db):
+def test_create_session_hashes_secrets_and_stages(mock_db):
     request = MagicMock()
     request.headers = {"user-agent": "Firefox"}
     user = SimpleNamespace(id=7)
@@ -52,10 +52,10 @@ def test_create_session_hashes_secrets_and_commits(mock_db):
     assert result.id == "session-id"
     hasher.hash_password.assert_called_once_with("plain-refresh")
     assert create.call_args.args[0].refresh_token == "hashed-refresh"
-    mock_db.commit.assert_called_once()
+    mock_db.commit.assert_not_called()
 
 
-def test_edit_session_stages_and_commits_rotation(mock_db):
+def test_edit_session_stages_rotation(mock_db):
     request = MagicMock()
     request.headers = {"user-agent": "Firefox"}
     session = _session()
@@ -73,7 +73,7 @@ def test_edit_session_stages_and_commits_rotation(mock_db):
     assert result.rotation_count == 1
     assert edit.call_args.args[0].refresh_token == "replacement-hash"
     assert edit.call_args.args[0].rotation_count == 1
-    mock_db.commit.assert_called_once()
+    mock_db.commit.assert_not_called()
 
 
 def test_session_with_oauth_state_uses_integration_surface(mock_db):
@@ -94,7 +94,7 @@ def test_session_with_oauth_state_uses_integration_surface(mock_db):
     get_state.assert_called_once_with("state-id", mock_db)
 
 
-def test_claim_token_exchange_cleans_up_oauth_and_commits(mock_db):
+def test_claim_token_exchange_cleans_up_oauth_and_stages(mock_db):
     with (
         patch(
             "modules.auth.sessions.service.sessions_crud.get_session_by_id",
@@ -107,7 +107,7 @@ def test_claim_token_exchange_cleans_up_oauth_and_commits(mock_db):
         assert sessions_service.claim_session_for_token_exchange("session-id", "hashed", mock_db) is True
     clear_reference.assert_called_once_with("session-id", mock_db)
     delete_state.assert_called_once_with("state-id", mock_db)
-    mock_db.commit.assert_called_once()
+    mock_db.commit.assert_not_called()
 
 
 def test_claim_lost_race_does_not_commit(mock_db):
@@ -124,7 +124,7 @@ def test_delete_session_cleans_linked_records_and_commits(mock_db):
     with (
         patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=session),
         patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
-        patch("modules.auth.sessions.service.rotated_tokens_integration.delete_by_family") as delete_family,
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family") as delete_family,
     ):
         sessions_service.delete_session("session-id", 7, mock_db)
     delete_state.assert_called_once_with("state-id", mock_db)
@@ -132,13 +132,26 @@ def test_delete_session_cleans_linked_records_and_commits(mock_db):
     mock_db.commit.assert_called_once()
 
 
-def test_family_invalidation_owns_session_and_token_transaction(mock_db):
+def test_family_invalidation_stages_session_and_token_deletion(mock_db):
     with (
         patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_family", return_value=2),
-        patch("modules.auth.sessions.service.rotated_tokens_integration.delete_by_family", return_value=4),
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family", return_value=4),
     ):
         assert sessions_service.invalidate_token_family("family-id", mock_db) == 2
-    mock_db.commit.assert_called_once()
+    mock_db.commit.assert_not_called()
+
+
+def test_stage_delete_session_cleans_linked_records_without_committing(mock_db):
+    session = _session(oauth_state_id="state-id")
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=session),
+        patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family") as delete_family,
+    ):
+        sessions_service.stage_delete_session("session-id", 7, mock_db)
+    delete_state.assert_called_once_with("state-id", mock_db)
+    delete_family.assert_called_once_with("family-id", mock_db)
+    mock_db.commit.assert_not_called()
 
 
 def test_delete_user_sessions_stages_without_committing(mock_db):

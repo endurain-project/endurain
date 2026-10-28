@@ -71,6 +71,9 @@ from modules.activities.activity_workout_steps import (
 from modules.activities.activity_workout_steps import (
     router as activity_workout_steps_router,
 )
+from modules.auth.authentication import (
+    sso_public_router as authentication_sso_public_router,
+)
 from modules.auth.identity_providers import (
     public_router as identity_providers_public_router,
 )
@@ -426,6 +429,11 @@ router.include_router(
 )
 router.include_router(
     identity_providers_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/idp",
+    tags=["identity_providers_public"],
+)
+router.include_router(
+    authentication_sso_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/idp",
     tags=["identity_providers_public"],
 )

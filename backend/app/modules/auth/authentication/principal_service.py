@@ -6,17 +6,17 @@ import hmac
 from datetime import UTC, datetime
 
 from fastapi import Request
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
-import modules.auth.access_tokens.integration_service as auth_token_manager
-import modules.auth.api_keys.integration_service as auth_api_keys_integration
+import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.api_keys.integration_service as api_keys_integration
+import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.service as authentication_service
-import modules.auth.credentials.integration_service as auth_password_hasher
-import modules.auth.sessions.integration_service as auth_sessions_crud
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -64,7 +64,7 @@ def _build_principal(
 def authenticate_password(
     username: str,
     password: str,
-    password_hasher: auth_password_hasher.PasswordHasher,
+    password_hasher: credentials_integration.PasswordHasher,
     db: Session,
 ) -> Principal:
     """Verify username/password and return a Principal.
@@ -72,16 +72,15 @@ def authenticate_password(
     Args:
         username: The username supplied by the caller.
         password: The plaintext password to verify.
-
-        db: Value used by this operation.
-        password_hasher: Value used by this operation.
+        db: Database session.
+        password_hasher: Password hasher for the stored token.
 
     Returns:
         Principal: Resolved principal with a
             :class:`~auth.contracts.PasswordCred`.
 
     Raises:
-        HTTPException: 401 if the credentials are
+        UnauthenticatedError: If the credentials are
             invalid or the account does not exist.
     """
     user = authentication_service.authenticate_user(
@@ -99,7 +98,7 @@ def authenticate_password(
 
 def resolve_from_access_token(
     access_token: str,
-    token_manager: auth_token_manager.TokenManager,
+    token_manager: access_tokens_integration.TokenManager,
     db: Session,
 ) -> Principal:
     """Validate a JWT access token and return a Principal.
@@ -107,16 +106,15 @@ def resolve_from_access_token(
     Args:
         access_token: The raw JWT string from the
             Authorization header.
-
-        db: Value used by this operation.
-        token_manager: Value used by this operation.
+        db: Database session.
+        token_manager: Token manager that signs and validates the tokens.
 
     Returns:
         Principal: Resolved principal with an
             :class:`~auth.contracts.AccessTokenCred`.
 
     Raises:
-        HTTPException: 401 if the token is expired,
+        UnauthenticatedError: If the token is expired,
             invalid, or the user is not found.
     """
     token_manager.validate_access_expiration_logged(access_token)
@@ -156,19 +154,18 @@ def resolve_from_api_key(
             query parameter.
         request: The current HTTP request (used for
             audit logging).
-
-        db: Value used by this operation.
+        db: Database session.
 
     Returns:
         Principal: Resolved principal with an
             :class:`~auth.contracts.ApiKeyCred`.
 
     Raises:
-        HTTPException: 401 if the key is not found,
+        UnauthenticatedError: If the key is not found,
             revoked, or expired.
     """
-    computed_hash = auth_api_keys_integration.hash_api_key(raw_key)
-    db_key = auth_api_keys_integration.get_api_key_by_hash(computed_hash, db)
+    computed_hash = api_keys_integration.hash_api_key(raw_key)
+    db_key = api_keys_integration.get_api_key_by_hash(computed_hash, db)
 
     # Constant-time comparison prevents timing attacks
     # even when the key is not found.
@@ -188,15 +185,7 @@ def resolve_from_api_key(
     if db_key.expires_at is not None and datetime.now(UTC) > db_key.expires_at:
         raise core_exceptions.UnauthenticatedError("API key has expired", scheme="ApiKey")
 
-    # Best-effort last_used_at update; never fails the request.
-    try:
-        auth_api_keys_integration.update_last_used(db_key.id, db)
-    except SQLAlchemyError as err:
-        logger.warning(
-            "Failed to update last_used_at for API key <id>: <err>",
-            exc_info=err,
-            extra=core_logger.context(id=db_key.id, err=err),
-        )
+    authentication_event_publishers.publish_api_key_used(db_key.id, db)
 
     logger.info(
         "API key authenticated",
@@ -208,7 +197,7 @@ def resolve_from_api_key(
         ),
     )
 
-    scopes = auth_api_keys_integration.json_to_scopes(db_key.scopes)
+    scopes = api_keys_integration.json_to_scopes(db_key.scopes)
     return _build_principal(
         user,
         scopes,
@@ -228,18 +217,17 @@ def resolve_from_session_cookie(
     Args:
         session_id: The session identifier from the
             cookie or token ``sid`` claim.
-
-        db: Value used by this operation.
+        db: Database session.
 
     Returns:
         Principal: Resolved principal with a
             :class:`~auth.contracts.SessionCookieCred`.
 
     Raises:
-        HTTPException: 401 if the session is not
+        UnauthenticatedError: If the session is not
             found or has expired.
     """
-    db_session = auth_sessions_crud.get_session_by_id_not_expired(session_id, db)
+    db_session = sessions_integration.get_session_by_id_not_expired(session_id, db)
     if db_session is None:
         raise core_exceptions.UnauthenticatedError("Session not found or expired", scheme="Bearer")
 
@@ -256,7 +244,7 @@ def resolve_from_session_cookie(
 def issue_token_pair(
     user: users_schema.UsersRead,
     policy: server_settings_contracts.SessionPolicy,
-    token_manager: auth_token_manager.TokenManager,
+    token_manager: access_tokens_integration.TokenManager,
     session_id: str | None = None,
 ) -> tuple[str, datetime, str, datetime, str, str]:
     """Issue an access/refresh token pair for a user.
@@ -267,8 +255,7 @@ def issue_token_pair(
         session_id: Optional existing session
             identifier; a new UUID is generated
             when ``None``.
-
-        token_manager: Value used by this operation.
+        token_manager: Token manager that signs and validates the tokens.
 
     Returns:
         tuple: ``(session_id, access_token_exp,
@@ -276,24 +263,3 @@ def issue_token_pair(
             refresh_token, csrf_token)``.
     """
     return authentication_service.create_tokens(user, token_manager, policy, session_id)
-
-
-def revoke_session(
-    session_id: str,
-    user_id: int,
-    db: Session,
-) -> None:
-    """Revoke and delete a session.
-
-    Args:
-        session_id: The session to revoke.
-        user_id: Owner of the session (used to
-            prevent cross-user revocations).
-
-        db: Value used by this operation.
-
-    Raises:
-        HTTPException: 404 if the session is not
-            found for this user.
-    """
-    auth_sessions_crud.delete_session(session_id, user_id, db)

@@ -2,22 +2,26 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi import Depends, Path, Query, Request
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer, SecurityScopes
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
+import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
-import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
+
+logger = core_logger.get_logger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login",
@@ -26,7 +30,6 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 AuthContext = auth_contracts.AuthContext
-ClientTypeHeader = authentication_dependencies.ClientTypeHeader
 ApiKeyId = Annotated[str, Path(min_length=1)]
 IdentityProviderSlug = Annotated[str, Path(min_length=1)]
 AuthSessionId = Annotated[str, Path(min_length=1)]
@@ -38,11 +41,7 @@ def get_access_token(
 ) -> str:
     """Require an access token from the Authorization header."""
     if access_token is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access token missing from Authorization header",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Access token missing from Authorization header")
     return access_token
 
 
@@ -55,6 +54,23 @@ def validate_access_token_expiration(
 ) -> None:
     """Validate access-token signature and expiration without loading its user."""
     token_manager.validate_access_expiration_logged(access_token)
+
+
+def _require_scopes(granted: Iterable[str], required: SecurityScopes) -> None:
+    """Refuse a caller that lacks any scope the route declares.
+
+    Args:
+        granted: Scopes the caller holds.
+        required: Scopes the route requires.
+
+    Raises:
+        PermissionDeniedError: When a required scope is missing.
+    """
+    missing = set(required.scopes) - set(granted)
+    if missing:
+        error = core_exceptions.PermissionDeniedError(f"Unauthorized Access - Missing permissions: {missing}")
+        error.headers = {"WWW-Authenticate": f'Bearer scope="{required.scopes}"'}
+        raise error
 
 
 def _resolve_and_cache_principal(access_token: str, request: Request, db: Session) -> auth_contracts.Principal:
@@ -83,13 +99,7 @@ def check_scopes(
 ) -> None:
     """Resolve an access token and require all declared scopes."""
     principal = _resolve_and_cache_principal(access_token, request, db)
-    missing = set(security_scopes.scopes) - set(principal.scopes)
-    if missing:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Unauthorized Access - Missing permissions: {missing}",
-            headers={"WWW-Authenticate": f'Bearer scope="{security_scopes.scopes}"'},
-        )
+    _require_scopes(principal.scopes, security_scopes)
 
 
 def get_sub_from_access_token(
@@ -109,7 +119,7 @@ def get_sid_from_access_token(
     """Return the session id carried by a validated access token."""
     principal = _resolve_and_cache_principal(access_token, request, db)
     if not isinstance(principal.credential, auth_contracts.AccessTokenCred):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credential type for session ID")
+        raise core_exceptions.UnauthenticatedError("Invalid credential type for session ID")
     return principal.credential.session_id
 
 
@@ -137,20 +147,14 @@ async def validate_access_token_or_api_key(
     else:
         raw_key = api_key_header
         if raw_key is None and api_key_query is not None and core_config.settings.ALLOW_API_KEY_QUERY_PARAM:
-            import core.logger as core_logger
-
-            core_logger.get_logger(__name__).warning(
+            logger.warning(
                 "API key supplied via query string (?api_key=). "
                 "This is a security risk: credentials appear in access logs and browser history. "
                 "Set X-API-Key header instead."
             )
             raw_key = api_key_query
         if raw_key is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated. Provide a Bearer token or an API key.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Not authenticated. Provide a Bearer token or an API key.")
         principal = authentication_integration.resolve_from_api_key(raw_key, request, db)
         auth_type = "api_key"
     request.state.principal = principal
@@ -169,31 +173,7 @@ def check_auth_scopes(
     security_scopes: SecurityScopes,
 ) -> None:
     """Require all declared scopes from a JWT or API-key context."""
-    missing = set(security_scopes.scopes) - set(auth.scopes)
-    if missing:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Unauthorized Access - Missing permissions: {missing}",
-            headers={"WWW-Authenticate": f'Bearer scope="{security_scopes.scopes}"'},
-        )
-
-
-def clear_refresh_token_cookies(response: Response) -> None:
-    """Clear refresh-token cookies using the configured environment."""
-    authentication_dependencies.clear_refresh_token_cookies(
-        response,
-        environment=core_config.settings.ENVIRONMENT,
-    )
-
-
-def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
-    """Refresh external identity-provider credentials during token rotation."""
-    identity_providers_integration.refresh_idp_tokens_if_needed(user_id, db)
-
-
-def clear_idp_tokens(user_id: int, db: Session) -> None:
-    """Clear external identity-provider credentials during logout."""
-    identity_providers_integration.clear_all_idp_tokens(user_id, db)
+    _require_scopes(auth.scopes, security_scopes)
 
 
 #: Authenticated user id extracted from a resolved access token.
@@ -203,41 +183,20 @@ get_step_up_attempts = account_security_integration.get_step_up_attempts
 MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend
 get_mfa_secret_store = auth_mfa_dependencies.get_mfa_secret_store
 
-# Keep refresh dependency symbols available on the established public surface.
-get_token = authentication_dependencies.get_token
-get_refresh_token = authentication_dependencies.get_refresh_token
-get_sid_from_refresh_token = authentication_dependencies.get_sid_from_refresh_token
-get_sub_from_refresh_token = authentication_dependencies.get_sub_from_refresh_token
-get_and_return_refresh_token = authentication_dependencies.get_and_return_refresh_token
-validate_refresh_token = authentication_dependencies.validate_refresh_token
-header_client_type_scheme = authentication_dependencies.header_client_type_scheme
-header_csrf_token_scheme = authentication_dependencies.header_csrf_token_scheme
-cookie_refresh_token_scheme = authentication_dependencies.cookie_refresh_token_scheme
-
 __all__ = [
     "AuthContext",
-    "ClientTypeHeader",
     "CurrentUserId",
     "MFASecretStoreBackend",
     "StepUpStore",
     "check_auth_scopes",
     "check_scopes",
-    "clear_refresh_token_cookies",
     "get_access_token",
-    "get_and_return_refresh_token",
     "get_mfa_secret_store",
-    "get_refresh_token",
     "get_sid_from_access_token",
-    "get_sid_from_refresh_token",
     "get_step_up_attempts",
     "get_sub_from_access_token",
-    "get_sub_from_refresh_token",
-    "get_token",
     "get_user_id_from_auth",
-    "header_client_type_scheme",
-    "header_csrf_token_scheme",
     "validate_access_token",
     "validate_access_token_expiration",
     "validate_access_token_or_api_key",
-    "validate_refresh_token",
 ]

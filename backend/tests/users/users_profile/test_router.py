@@ -1191,7 +1191,7 @@ class TestDeleteMyAccount:
     """Tests for POST /profile/delete-account — delete_my_account."""
 
     @patch("modules.users.users_profile.router.profile_service.delete_account")
-    @patch("modules.users.users_profile.router.auth_dependencies.clear_refresh_token_cookies")
+    @patch("modules.users.users_profile.router.authentication_dependencies.clear_refresh_token_cookies")
     def test_success(self, mock_clear_cookies, mock_delete, profile_client, mock_auth_services):
         mock_delete.return_value = users_schema.UserDeletionStatus(status="queued")
         response = profile_client.post(

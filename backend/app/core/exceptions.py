@@ -53,8 +53,10 @@ class DomainError(Exception):
         title: Short human-readable summary of the error *kind*. Constant per
             subclass; the per-occurrence message is ``detail``.
         detail: Caller-safe message returned in the response body.
+        headers: Response headers the error adds (``WWW-Authenticate``, ``Retry-After``); ``None`` when it adds none.
     """
 
+    headers: dict[str, str] | None = None
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "internal-error"
     title: str = "Internal Server Error"
@@ -359,7 +361,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         code=exc.code,
         title=exc.title,
         detail=exc.detail,
-        headers=getattr(exc, "headers", None),
+        headers=exc.headers,
     )
 
 

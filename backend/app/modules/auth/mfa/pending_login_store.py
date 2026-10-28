@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import NoReturn, Protocol, runtime_checkable
-from urllib.parse import unquote
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
@@ -75,14 +74,9 @@ def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
     raise AuthSecurityStoreUnavailableError("auth security storage is unavailable") from err
 
 
-def _username_key(username: str) -> str:
-    """Return the canonical username used by pending-login and lockout keys."""
-    return unquote(username).replace("+", " ").strip().casefold()
-
-
 def _username_digest(username: str) -> str:
     """Hash a canonical username for state key names."""
-    return core_hashing.sha256_hex(_username_key(username))
+    return core_hashing.sha256_hex(lockout_integration.normalize_username_key(username))
 
 
 class PendingMFALogin:
@@ -94,10 +88,9 @@ class PendingMFALogin:
         self._lockout = lockout_integration.new_progressive_lockout(
             state,
             name="mfa",
-            display_name="MFA",
             tiers=lockout_contracts.MFA_LOCKOUT_TIERS,
             attempts_ttl_seconds=2 * 60 * 60,
-            normalize_key=_username_key,
+            normalize_key=lockout_integration.normalize_username_key,
         )
 
     def _pending_key(self, username: str) -> str:

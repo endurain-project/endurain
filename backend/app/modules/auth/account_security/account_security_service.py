@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.auth.account_security.step_up_service as step_up_service
-import modules.auth.credentials.integration_service as auth_password_policy
-import modules.auth.mfa.integration_service as auth_mfa_integration
-import modules.auth.sessions.integration_service as auth_sessions_crud
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -27,7 +27,7 @@ def get_user_sessions(
     db: Session,
 ) -> list[auth_sessions_schema.UsersSessionsRead]:
     """Retrieve active sessions for the authenticated user."""
-    return auth_sessions_crud.get_user_sessions(token_user_id, db)
+    return sessions_integration.get_user_sessions(token_user_id, db)
 
 
 def delete_user_session(
@@ -36,25 +36,24 @@ def delete_user_session(
     db: Session,
 ) -> None:
     """Delete one authenticated user's session."""
-    auth_sessions_crud.delete_session(session_id, token_user_id, db)
+    sessions_integration.delete_session(session_id, token_user_id, db)
     db.commit()
     logger.info("Deleted a user's session", extra=core_logger.context(user_id=token_user_id, session_id=session_id))
 
 
 def delete_all_user_sessions(user_id: int, db: Session) -> int:
-    """Revoke every session belonging to a user."""
-    revoked = auth_sessions_crud.delete_sessions_by_user(user_id, db)
-    db.commit()
+    """Stage the revocation of every session belonging to a user; the caller commits."""
+    revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     logger.info("Revoked a user's sessions", extra=core_logger.context(user_id=user_id, revoked=revoked))
     return revoked
 
 
-def delete_other_user_sessions(
+def stage_delete_other_user_sessions(
     token_user_id: int,
     current_session_id: str,
     db: Session,
 ) -> int:
-    """Revoke all of the user's sessions except their current one.
+    """Stage the revocation of all of the user's sessions except their current one; the caller commits.
 
     Backs the self-service "sign out other devices" action: every
     session the user owns is deleted except ``current_session_id``
@@ -69,20 +68,38 @@ def delete_other_user_sessions(
     Returns:
         Number of sessions revoked.
     """
-    revoked = auth_sessions_crud.delete_sessions_by_user(
+    return sessions_integration.delete_sessions_by_user(
         token_user_id,
         db,
         exclude_session_id=current_session_id,
     )
+
+
+def delete_other_user_sessions(
+    token_user_id: int,
+    current_session_id: str,
+    db: Session,
+) -> int:
+    """Revoke all of the user's sessions except their current one and commit.
+
+    Args:
+        token_user_id: ID of the authenticated user.
+        current_session_id: The caller's current session, preserved.
+        db: SQLAlchemy session.
+
+    Returns:
+        Number of sessions revoked.
+    """
+    revoked = stage_delete_other_user_sessions(token_user_id, current_session_id, db)
     db.commit()
     logger.info(
-        "User <token_user_id> revoked <revoked> other session(s)",
+        "User <token_user_id> ended <revoked> other session(s)",
         extra=core_logger.context(token_user_id=token_user_id, revoked=revoked),
     )
     return revoked
 
 
-def change_own_password(
+def stage_change_own_password(
     user_id: int,
     current_password: str,
     new_password: str,
@@ -92,7 +109,7 @@ def change_own_password(
     revoke_other_sessions: bool = False,
     current_session_id: str | None = None,
 ) -> None:
-    """Change a user's own password after step-up verification.
+    """Stage a change of a user's own password after step-up verification; the caller commits.
 
     Args:
         user_id: ID of the authenticated user.
@@ -125,23 +142,21 @@ def change_own_password(
     server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_integration.require_user(user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
-    hashed_password = auth_password_policy.validate_and_hash_password_for_user(
+    hashed_password = credentials_integration.validate_and_hash_password_for_user(
         server_settings,
         access_type,
         new_password,
         db,
     )
-    auth_password_policy.set_local_password_hash(user_id, hashed_password, db)
-    db.commit()
-    auth_mfa_integration.clear_pending_mfa_for_user(user_id)
+    credentials_integration.set_local_password_hash(user_id, hashed_password, db)
+    mfa_integration.clear_pending_mfa_for_user(user_id)
 
     if revoke_other_sessions:
-        revoked = auth_sessions_crud.delete_sessions_by_user(
+        revoked = sessions_integration.delete_sessions_by_user(
             user_id,
             db,
             exclude_session_id=current_session_id,
         )
-        db.commit()
         logger.info(
             "User <user_id> revoked <revoked> other session(s) after password change",
             extra=core_logger.context(user_id=user_id, revoked=revoked),
@@ -155,7 +170,7 @@ def change_managed_user_password(
     new_password: str,
     db: Session,
 ) -> None:
-    """Change a managed user's password and revoke auth state.
+    """Stage a change of a managed user's password and the revocation of their auth state; the caller commits.
 
     Args:
         user_id: ID of the user whose password is changed.
@@ -171,17 +186,15 @@ def change_managed_user_password(
     server_settings = server_settings_integration.get_server_settings(db)
     db_user = users_integration.require_user(user_id, db)
     access_type = users_schema.normalize_access_type(db_user.access_type)
-    hashed_password = auth_password_policy.validate_and_hash_password_for_user(
+    hashed_password = credentials_integration.validate_and_hash_password_for_user(
         server_settings,
         access_type,
         new_password,
         db,
     )
-    auth_password_policy.set_local_password_hash(user_id, hashed_password, db)
-    db.commit()
-    revoked = auth_sessions_crud.delete_sessions_by_user(user_id, db)
-    db.commit()
-    auth_mfa_integration.clear_pending_mfa_for_user(user_id)
+    credentials_integration.set_local_password_hash(user_id, hashed_password, db)
+    revoked = sessions_integration.delete_sessions_by_user(user_id, db)
+    mfa_integration.clear_pending_mfa_for_user(user_id)
     logger.info(
         "Changed a managed user's password and revoked sessions",
         extra=core_logger.context(user_id=user_id, revoked=revoked),

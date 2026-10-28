@@ -9,9 +9,9 @@ from fastapi import Response
 
 import core.exceptions as core_exceptions
 import modules.auth.authentication.dependencies as auth_transport_dependencies
+import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_utils
-import modules.auth.dependencies as auth_dependencies
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +50,8 @@ class TestAuthenticateUser:
         with (
             patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
             patch(
-                "modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=mock_credential
+                "modules.auth.authentication.service.credentials_integration.get_credential",
+                return_value=mock_credential,
             ),
         ):
             # Act
@@ -82,7 +83,8 @@ class TestAuthenticateUser:
         with (
             patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
             patch(
-                "modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=mock_credential
+                "modules.auth.authentication.service.credentials_integration.get_credential",
+                return_value=mock_credential,
             ),
         ):
             with pytest.raises(core_exceptions.DomainError) as exc_info:
@@ -111,9 +113,10 @@ class TestAuthenticateUser:
         with (
             patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
             patch(
-                "modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=mock_credential
+                "modules.auth.authentication.service.credentials_integration.get_credential",
+                return_value=mock_credential,
             ),
-            patch("modules.auth.authentication.service.auth_credentials_crud.set_local_password_hash") as mock_edit,
+            patch("modules.auth.authentication.service.credentials_integration.set_local_password_hash") as mock_edit,
         ):
             # Act
             result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)
@@ -128,7 +131,7 @@ class TestAuthenticateUser:
         mock_user = MagicMock()
         with (
             patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
-            patch("modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=None),
+            patch("modules.auth.authentication.service.credentials_integration.get_credential", return_value=None),
         ):
             with pytest.raises(core_exceptions.DomainError) as exc_info:
                 auth_utils.authenticate_user("ssouser", "anypass", password_hasher, mock_db)
@@ -236,7 +239,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -269,7 +272,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "mobile"
 
-        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -297,7 +300,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session") as mock_create_session:
+        with patch("modules.auth.authentication.service.sessions_integration.create_session") as mock_create_session:
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -334,7 +337,7 @@ class TestCompleteLogin:
                 "modules.auth.authentication.service.server_settings_integration.get_session_policy",
                 return_value=policy,
             ),
-            patch("modules.auth.authentication.service.auth_sessions_utils.create_session") as mock_create_session,
+            patch("modules.auth.authentication.service.sessions_integration.create_session") as mock_create_session,
         ):
             result = auth_utils.complete_login(
                 response, mock_request, sample_user_read, "web", password_hasher, token_manager, mock_db
@@ -387,7 +390,7 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("modules.auth.authentication.service.auth_sessions_utils.create_session"),
+            patch("modules.auth.authentication.service.sessions_integration.create_session"),
             patch("modules.auth.authentication.service.core_config.settings.ENVIRONMENT", "production"),
         ):
             # Act
@@ -414,7 +417,7 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("modules.auth.authentication.service.auth_sessions_utils.create_session"),
+            patch("modules.auth.authentication.service.sessions_integration.create_session"),
             patch("modules.auth.authentication.service.core_config.settings.ENVIRONMENT", "development"),
         ):
             # Act
@@ -440,7 +443,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
             auth_utils.complete_login(
                 response,
@@ -507,7 +510,7 @@ class TestCompleteLogin:
         response2 = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.auth_sessions_utils.create_session"):
+        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
             result1 = auth_utils.complete_login(
                 response1,
@@ -565,7 +568,7 @@ class TestClearRefreshTokenCookies:
 
     def test_clears_cookies_on_all_paths(self):
         response = Response()
-        auth_dependencies.clear_refresh_token_cookies(response)
+        authentication_dependencies.clear_refresh_token_cookies(response, environment="development")
         expected_paths = auth_transport_dependencies.REFRESH_TOKEN_COOKIE_CLEAR_PATHS
         set_cookie_headers = [v.decode().lower() for k, v in response.raw_headers if k == b"set-cookie"]
         for path in expected_paths:
@@ -575,7 +578,7 @@ class TestClearRefreshTokenCookies:
 
     def test_uses_secure_httponly_samesite_attributes(self):
         response = Response()
-        auth_dependencies.clear_refresh_token_cookies(response)
+        authentication_dependencies.clear_refresh_token_cookies(response, environment="development")
         set_cookie_headers = [v.decode() for k, v in response.raw_headers if k == b"set-cookie"]
         for header in set_cookie_headers:
             lower = header.lower()
@@ -608,8 +611,8 @@ class TestCreateMobilePkceSessionResponse:
 
         with (
             patch("modules.auth.authentication.service.auth_computation.validate_pkce_challenge"),
-            patch("modules.auth.authentication.service.oauth_state_crud.create_oauth_state"),
-            patch("modules.auth.authentication.service.auth_sessions_utils.create_session"),
+            patch("modules.auth.authentication.service.oauth_state_integration.create_oauth_state"),
+            patch("modules.auth.authentication.service.sessions_integration.create_session"),
         ):
             result = auth_utils.create_mobile_pkce_session_response(
                 response=response,

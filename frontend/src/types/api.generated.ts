@@ -2171,8 +2171,7 @@ export interface paths {
          *
          *     Args:
          *         db: SQLAlchemy database session dependency.
-         *
-         *         service: Value used by this operation.
+         *         service: Identity provider service.
          *
          *     Returns:
          *         A list of all configured identity providers.
@@ -2186,9 +2185,8 @@ export interface paths {
          *     Args:
          *         idp_data: Data required to create the identity provider.
          *         db: SQLAlchemy database session dependency.
-         *
-         *         request: Value used by this operation.
-         *         service: Value used by this operation.
+         *         request: Incoming request.
+         *         service: Identity provider service.
          *
          *     Returns:
          *         The newly created identity provider.
@@ -2216,7 +2214,7 @@ export interface paths {
          * @description Get the list of pre-configured IdP templates (admin only).
          *
          *     Args:
-         *         service: Value used by this operation.
+         *         service: Identity provider service.
          *
          *     Returns:
          *         A list of identity provider templates.
@@ -2246,9 +2244,8 @@ export interface paths {
          *         idp_id: The unique identifier of the identity provider to update.
          *         idp_data: The data to update the identity provider with.
          *         db: SQLAlchemy database session dependency.
-         *
-         *         request: Value used by this operation.
-         *         service: Value used by this operation.
+         *         request: Incoming request.
+         *         service: Identity provider service.
          *
          *     Returns:
          *         The updated identity provider.
@@ -2266,9 +2263,8 @@ export interface paths {
          *     Args:
          *         idp_id: The unique identifier of the identity provider to delete.
          *         db: SQLAlchemy database session dependency.
-         *
-         *         request: Value used by this operation.
-         *         service: Value used by this operation.
+         *         request: Incoming request.
+         *         service: Identity provider service.
          *
          *     Raises:
          *         HTTPException: 404 if the provider is not found, 409 if users
@@ -2997,8 +2993,7 @@ export interface paths {
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): The authenticated user's ID extracted from the access token.
          *         step_up_store: Step-up lockout store.
-         *
-         *         db: Value used by this operation.
+         *         db: Database session.
          *
          *     Returns:
          *         IdpLinkTokenResponse: Contains the one-time token and expiration time.
@@ -3043,8 +3038,7 @@ export interface paths {
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): User ID extracted from the access token.
          *         step_up_store: Step-up lockout store.
-         *
-         *         db: Value used by this operation.
+         *         db: Database session.
          *
          *     Returns:
          *         None: Returns 204 No Content on successful deletion.
@@ -3172,8 +3166,7 @@ export interface paths {
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
          *         step_up_store: Step-up lockout store.
-         *
-         *         db: Value used by this operation.
+         *         db: Database session.
          *
          *     Returns:
          *         Response with generated backup codes and timestamp.
@@ -3243,8 +3236,7 @@ export interface paths {
          *             MFA code.
          *         token_user_id: User ID from access token.
          *         step_up_store: Step-up lockout store.
-         *
-         *         db: Value used by this operation.
+         *         db: Database session.
          *
          *     Returns:
          *         Success message.
@@ -3293,8 +3285,7 @@ export interface paths {
          *         token_user_id: User ID from access token.
          *         mfa_secret_store: Temporary secret storage.
          *         step_up_store: Step-up lockout store.
-         *
-         *         db: Value used by this operation.
+         *         db: Database session.
          *
          *     Returns:
          *         Success message and the freshly issued backup codes.
@@ -3384,8 +3375,7 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         mfa_request: MFA request with code to verify.
          *         token_user_id: User ID from access token.
-         *
-         *         db: Value used by this operation.
+         *         db: Database session.
          *
          *     Returns:
          *         Success message.
@@ -3759,8 +3749,7 @@ export interface paths {
          *
          *     Args:
          *         db (Session): SQLAlchemy database session dependency.
-         *
-         *         service: Value used by this operation.
+         *         service: Identity provider service.
          *
          *     Returns:
          *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
@@ -3790,15 +3779,14 @@ export interface paths {
          *
          *     Args:
          *         idp_slug (str): The slug identifier of the identity provider.
-         *         password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency for session management.
-         *         token_manager (auth_token_manager.TokenManager): Token manager dependency for creating session tokens.
+         *         password_hasher (credentials_integration.PasswordHasher): Password hasher dependency for session management.
+         *         token_manager (access_tokens_integration.TokenManager): Token manager dependency for creating session tokens.
          *         db (Session): Database session dependency.
          *         code (str): Authorization code received from the identity provider.
          *         state (str): State parameter used for CSRF protection (database state ID).
          *         request (Request): The incoming HTTP request.
-         *
-         *         response: Value used by this operation.
-         *         service: Value used by this operation.
+         *         response: Response that receives the cookies.
+         *         service: Identity provider service.
          *
          *     Returns:
          *         RedirectResponse: A redirect response to either:
@@ -3874,41 +3862,22 @@ export interface paths {
         put?: never;
         /**
          * Exchange Tokens For Session
-         * @description Exchange a PKCE code verifier for JWT tokens.
+         * @description Exchange a PKCE code verifier for the JWT tokens of an SSO session.
          *
-         *     After OAuth callback or password PKCE login creates a session, clients
-         *     call this endpoint to prove they possess the code_verifier (PKCE) and
-         *     receive the actual JWT tokens. This prevents token leakage through
-         *     browser redirects and ensures only the legitimate client can access the
-         *     tokens.
-         *
-         *     Security Features:
-         *     - PKCE verification (SHA256 hash of verifier must match challenge)
-         *     - One-time exchange (tokens_exchanged flag prevents replay)
-         *     - Rate limited (10 requests/minute)
-         *     - Session must be linked to OAuth state with PKCE data
-         *
-         *     Rate Limit: 10 requests per minute per IP
+         *     After the identity-provider callback creates a session, the client proves it holds the PKCE code verifier and
+         *     receives the tokens. The exchange succeeds once per session.
          *
          *     Args:
-         *         session_id (str): Session ID from OAuth callback redirect.
-         *         request (Request): FastAPI request object (for rate limiting).
-         *         response (Response): FastAPI response object.
-         *         token_exchange (TokenExchangeRequest): Request body with code_verifier.
-         *         token_manager (TokenManager): Token manager dependency.
-         *         db (Session): Database session dependency.
-         *
-         *         password_hasher: Value used by this operation.
-         *         service: Value used by this operation.
+         *         session_id: Session created by the identity-provider callback.
+         *         request: Incoming request, read for the ``X-Client-Type`` header.
+         *         response: Response that receives the refresh cookie for web clients.
+         *         token_exchange: Body carrying the PKCE code verifier.
+         *         password_hasher: Hasher for the stored refresh token.
+         *         token_manager: Token manager that signs the tokens.
+         *         db: Database session.
          *
          *     Returns:
-         *         TokenExchangeResponse: JWT tokens (access, refresh, csrf) and metadata.
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 404 NOT_FOUND: Session not found or not linked to OAuth state
-         *             - 400 BAD_REQUEST: Invalid code_verifier or tokens already exchanged
-         *             - 409 CONFLICT: Tokens already exchanged for this session
+         *         The access token and, per client type, the CSRF token or the refresh token.
          */
         post: operations["exchange_tokens_for_session_api_v1_public_idp_session__session_id__tokens_post"];
         delete?: never;
@@ -4366,10 +4335,8 @@ export interface paths {
          *
          *     Args:
          *         user_id: The ID of the user whose sessions to retrieve.
-         *         _check_scope: Scope validation dependency.
          *         db: Database session dependency.
-         *
-         *         request: Value used by this operation.
+         *         request: Incoming request.
          *
          *     Returns:
          *         List of session objects for the specified user.
@@ -4388,11 +4355,9 @@ export interface paths {
          *
          *     Args:
          *         user_id: The ID of the user whose sessions to revoke.
-         *         _check_scope: Scope validation dependency.
          *         db: Database session dependency.
          *         exclude_session_id: Optional session to leave intact.
-         *
-         *         request: Value used by this operation.
+         *         request: Incoming request.
          *
          *     Returns:
          *         None.
@@ -4420,10 +4385,8 @@ export interface paths {
          *     Args:
          *         session_id: The ID of the session to delete.
          *         user_id: The ID of the user who owns the session.
-         *         _check_scope: Scope validation dependency.
          *         db: Database session dependency.
-         *
-         *         request: Value used by this operation.
+         *         request: Incoming request.
          *
          *     Returns:
          *         None.

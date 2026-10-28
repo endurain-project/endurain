@@ -101,22 +101,6 @@ def set_session_refresh_token_hash(
         raise core_exceptions.ProcessingError("Database error occurred") from err
 
 
-def mark_tokens_exchanged(session_id: str, db: Session) -> bool:
-    """Atomically mark an unexchanged session as exchanged."""
-    try:
-        result: CursorResult[object] = db.execute(
-            update(sessions_models.UsersSessions)
-            .where(
-                sessions_models.UsersSessions.id == session_id,
-                sessions_models.UsersSessions.tokens_exchanged.is_(False),
-            )
-            .values(tokens_exchanged=True)
-        )
-        return result.rowcount == 1
-    except SQLAlchemyError as err:
-        raise core_exceptions.ProcessingError("Database error occurred") from err
-
-
 def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
     """Atomically claim a session for one-shot token exchange."""
     try:

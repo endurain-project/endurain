@@ -10,65 +10,68 @@ from jasil.providers import StateBackendUnavailableError
 
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.authentication.failed_login_store as failed_login_store
-import modules.auth.authentication.security_stores as security_stores
+import modules.auth.lockout.contracts as lockout_contracts
+import modules.auth.lockout.integration_service as lockout_integration
 
 
 class TestNormalizeUsernameKey:
     """Tests for the normalize_username_key helper function."""
 
     def test_lowercases_ascii(self):
-        assert security_stores.normalize_username_key("TestUser") == "testuser"
+        assert lockout_integration.normalize_username_key("TestUser") == "testuser"
 
     def test_strips_leading_trailing_whitespace(self):
-        assert security_stores.normalize_username_key("  testuser  ") == "testuser"
+        assert lockout_integration.normalize_username_key("  testuser  ") == "testuser"
 
     def test_url_decodes_percent_at(self):
-        assert security_stores.normalize_username_key("test%40example.com") == "test@example.com"
+        assert lockout_integration.normalize_username_key("test%40example.com") == "test@example.com"
 
     def test_url_decodes_percent_20_space(self):
-        assert security_stores.normalize_username_key("test%20user") == "test user"
+        assert lockout_integration.normalize_username_key("test%20user") == "test user"
 
     def test_plus_sign_converted_to_space(self):
-        assert security_stores.normalize_username_key("test+user") == "test user"
+        assert lockout_integration.normalize_username_key("test+user") == "test user"
 
     def test_percent_2b_url_decoded_then_converted_to_space(self):
-        assert security_stores.normalize_username_key("test%2Buser") == "test user"
+        assert lockout_integration.normalize_username_key("test%2Buser") == "test user"
 
     def test_combined_casing_whitespace_and_url_encoding(self):
-        assert security_stores.normalize_username_key("  Test%40Example.COM  ") == "test@example.com"
+        assert lockout_integration.normalize_username_key("  Test%40Example.COM  ") == "test@example.com"
 
     def test_empty_string_returns_empty_string(self):
-        assert security_stores.normalize_username_key("") == ""
+        assert lockout_integration.normalize_username_key("") == ""
 
     def test_unicode_casefold(self):
-        assert security_stores.normalize_username_key("StraBe") == "strabe"
+        assert lockout_integration.normalize_username_key("StraBe") == "strabe"
 
     def test_whitespace_only_returns_empty_string(self):
-        assert security_stores.normalize_username_key("   ") == ""
+        assert lockout_integration.normalize_username_key("   ") == ""
 
 
 class TestUsernameLogIdentifier:
     """Tests for the username_log_identifier helper function."""
 
     def test_returns_hash_prefix_format(self):
-        assert security_stores.username_log_identifier("alice").startswith("username_hash=")
+        assert lockout_integration.username_log_identifier("alice").startswith("username_hash=")
 
     def test_does_not_contain_raw_username(self):
-        identifier = security_stores.username_log_identifier("supersensitive@example.com")
+        identifier = lockout_integration.username_log_identifier("supersensitive@example.com")
         assert "supersensitive" not in identifier
         assert "example.com" not in identifier
 
     def test_hash_matches_sha256_of_normalized_username(self):
         expected = hashlib.sha256(b"alice@example.com").hexdigest()
-        assert security_stores.username_log_identifier(" Alice%40Example.COM ") == f"username_hash={expected}"
+        assert lockout_integration.username_log_identifier(" Alice%40Example.COM ") == f"username_hash={expected}"
 
     def test_same_canonical_form_same_identifier(self):
-        assert security_stores.username_log_identifier(
+        assert lockout_integration.username_log_identifier(
             "Alice%40Example.COM"
-        ) == security_stores.username_log_identifier("alice@example.com")
+        ) == lockout_integration.username_log_identifier("alice@example.com")
 
     def test_different_usernames_different_identifiers(self):
-        assert security_stores.username_log_identifier("alice") != security_stores.username_log_identifier("bob")
+        assert lockout_integration.username_log_identifier("alice") != lockout_integration.username_log_identifier(
+            "bob"
+        )
 
 
 class TestFailedLoginAttempts:
@@ -173,22 +176,22 @@ class TestUnavailable:
 
     def test_record_failed_attempt_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
+        with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
             store.record_failed_attempt("alice")
 
     def test_is_locked_out_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
+        with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
             store.is_locked_out("alice")
 
     def test_reset_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
+        with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
             store.reset_attempts("alice")
 
     def test_clear_all_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
-        with pytest.raises(security_stores.AuthSecurityStoreUnavailableError):
+        with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
             store.clear_all()
 
 
@@ -203,3 +206,30 @@ class TestDependencyFunctions:
     def test_get_step_up_attempts_uses_injected_provider(self):
         state = MemoryState()
         assert isinstance(step_up_store_module.get_step_up_attempts(state), step_up_store_module.StepUpAttempts)
+
+
+class TestReportLockoutApplied:
+    """The services report a lockout; the stores stay silent."""
+
+    def test_below_the_first_tier_logs_nothing(self, caplog):
+        with caplog.at_level("WARNING"):
+            lockout_integration.report_lockout_applied("login", lockout_contracts.LOGIN_LOCKOUT_TIERS, 4, username="a")
+        assert caplog.records == []
+
+    def test_at_the_first_tier_logs_without_the_raw_username(self, caplog):
+        with caplog.at_level("WARNING"):
+            lockout_integration.report_lockout_applied(
+                "login", lockout_contracts.LOGIN_LOCKOUT_TIERS, 5, username="alice@example.com"
+            )
+        assert [r.getMessage() for r in caplog.records] == ["Progressive authentication lockout applied"]
+        assert "alice@example.com" not in repr(caplog.records[0].__dict__)
+
+    def test_a_store_does_not_log_when_it_locks(self, caplog):
+        store = failed_login_store.FailedLoginAttempts(state=MemoryState())
+        with caplog.at_level("DEBUG"):
+            for _ in range(5):
+                store.record_failed_attempt("alice")
+        assert caplog.records == []
+
+    def test_the_outage_error_is_a_503_domain_error(self):
+        assert lockout_contracts.AuthSecurityStoreUnavailableError.status_code == 503

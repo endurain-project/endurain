@@ -68,7 +68,7 @@ def _encrypt_secret(secret: str) -> str:
 
     Raises:
         ValueError: When encryption returns no value.
-        HTTPException: When Fernet encryption fails.
+        ProcessingError: When Fernet encryption fails.
     """
     encrypted_secret = core_cryptography.encrypt_token_fernet(secret)
     if not encrypted_secret:
@@ -126,7 +126,7 @@ class MFASecretStore:
         Raises:
             MFASecretStoreUnavailableError: When storage is unavailable.
             ValueError: If encryption fails.
-            HTTPException: If Fernet encryption fails.
+            ProcessingError: If Fernet encryption fails.
         """
         encrypted_secret = _encrypt_secret(secret)
         try:

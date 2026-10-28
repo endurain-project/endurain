@@ -18,7 +18,7 @@ import core.pagination as core_pagination
 import core.timezone as core_timezone
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
-import modules.auth.identity_provider_links.integration_service as identity_links_integration
+import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.health.health_targets.integration_service as health_targets_integration
@@ -250,7 +250,7 @@ def list_users(
     )
 
     user_ids = [user.id for user in users]
-    idp_counts = identity_links_integration.get_identity_link_counts_for_users(user_ids, db)
+    idp_counts = identity_provider_links_integration.get_identity_link_counts_for_users(user_ids, db)
     mfa_enabled_map = mfa_integration.get_mfa_enabled_for_users(user_ids, db)
 
     records: list[users_schema.UsersRead] = []
@@ -298,7 +298,7 @@ def create_user(
 
     Raises:
         ConflictError: If the username or email is already taken.
-        HTTPException: If the password fails the configured policy.
+        InvalidInputError: If the password fails the configured policy.
     """
     server_settings = server_settings_integration.get_server_settings(db)
     access_type = users_schema.normalize_access_type(user.access_type)
@@ -344,7 +344,7 @@ def _stage_signup_user(
 
     Raises:
         ConflictError: If the username or email is already taken.
-        HTTPException: If the password fails the configured policy.
+        InvalidInputError: If the password fails the configured policy.
     """
     needs_verification = server_settings.signup_require_email_verification
     needs_approval = server_settings.signup_require_admin_approval
@@ -551,10 +551,11 @@ def edit_user(
 
     if user_id != actor_id and _edit_ends_sessions(existing, updated):
         account_security_integration.delete_all_user_sessions(user_id, db)
+        db.commit()
 
-    updated.external_auth_count = identity_links_integration.get_identity_link_counts_for_users([updated.id], db).get(
-        updated.id, 0
-    )
+    updated.external_auth_count = identity_provider_links_integration.get_identity_link_counts_for_users(
+        [updated.id], db
+    ).get(updated.id, 0)
     updated.mfa_enabled = mfa_integration.get_mfa_enabled_for_users([updated.id], db).get(updated.id, False)
     return updated
 
@@ -723,3 +724,40 @@ def user_local_today(user_id: int, db: Session) -> datetime_date:
         The user's current calendar date.
     """
     return core_timezone.today_in(resolve_user_timezone(user_id, db))
+
+
+def change_user_password(user_id: int, new_password: str, db: Session) -> None:
+    """Change a user's password as an administrator, ending their sessions.
+
+    Args:
+        user_id: ID of the user whose password changes.
+        new_password: New plaintext password; it must satisfy the configured policy.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        InvalidInputError: If the password fails the configured policy.
+    """
+    account_security_integration.change_managed_user_password(user_id, new_password, db)
+    db.commit()
+    logger.info("Password changed by an administrator", extra=core_logger.context(user_id=user_id))
+
+
+def unlink_identity_provider(user_id: int, idp_id: int, db: Session) -> None:
+    """Unlink an identity provider from a user as an administrator.
+
+    Args:
+        user_id: ID of the user to unlink the provider from.
+        idp_id: ID of the identity provider.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the provider or the link does not exist.
+        InvalidInputError: If unlinking would remove the user's last way to sign in.
+    """
+    account_security_integration.admin_delete_identity_provider_link(user_id, idp_id, db)
+    db.commit()
+    logger.info(
+        "Identity provider unlinked by an administrator",
+        extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+    )

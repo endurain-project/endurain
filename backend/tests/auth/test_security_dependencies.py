@@ -4,9 +4,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from fastapi.security import SecurityScopes
 
+import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import AccessTokenCred, Principal
 
@@ -45,7 +45,7 @@ def test_sid_dependency_requires_an_access_token_credential():
 def test_scope_dependency_rejects_missing_scope():
     request = MagicMock()
     request.state = SimpleNamespace(principal=_principal())
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
         auth_dependencies.check_scopes(request, "token", MagicMock(), SecurityScopes(scopes=["users:write"]))
     assert exc_info.value.status_code == 403
 

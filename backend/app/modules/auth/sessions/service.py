@@ -12,7 +12,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
-import modules.auth.rotated_refresh_tokens.integration_service as rotated_tokens_integration
+import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
 import modules.auth.sessions.schema as sessions_schema
@@ -59,7 +59,7 @@ def create_session(
     oauth_state_id: str | None = None,
     csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Create a session with hashed tokens and request metadata."""
+    """Stage a session with hashed tokens and request metadata; the caller commits."""
     device = sessions_utils.parse_user_agent(sessions_utils.get_user_agent(request.headers))
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
     now = datetime.now(UTC)
@@ -84,7 +84,6 @@ def create_session(
         csrf_token_hash=csrf_hash,
     )
     session = sessions_crud.create_session(session_data, db)
-    db.commit()
     logger.info("Session created", extra=core_logger.context(user_id=user.id, session_id=session_id))
     return session
 
@@ -98,7 +97,7 @@ def edit_session(
     db: Session,
     new_csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Rotate a session refresh token and update request metadata."""
+    """Stage a refresh-token rotation and request metadata update; the caller commits."""
     device = sessions_utils.parse_user_agent(sessions_utils.get_user_agent(request.headers))
     csrf_hash = _hash_csrf_token(new_csrf_token) if new_csrf_token else None
     session_data = sessions_schema.UsersSessionsInternal.model_validate(session)
@@ -119,48 +118,39 @@ def edit_session(
         }
     )
     updated = sessions_crud.edit_session(session_data, db)
-    db.commit()
     logger.info("Session refresh token rotated", extra=core_logger.context(session_id=session.id))
     return updated
 
 
 def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session) -> None:
-    """Bind a newly issued CSRF token to an existing session."""
+    """Stage the binding of a newly issued CSRF token to a session; the caller commits."""
     sessions_crud.update_session_csrf_hash(session_id, _hash_csrf_token(new_csrf_token), db)
-    db.commit()
     logger.info("Session CSRF token updated", extra=core_logger.context(session_id=session_id))
 
 
-def delete_session(session_id: str, user_id: int, db: Session) -> None:
-    """Delete a session and its associated token and OAuth state records."""
+def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
+    """Stage deletion of a session with its token and OAuth state records; the caller commits."""
     session = sessions_crud.delete_session(session_id, user_id, db)
     if session.oauth_state_id:
         oauth_state_integration.delete_oauth_state(session.oauth_state_id, db)
-    rotated_tokens_integration.delete_by_family(session.token_family_id, db)
+    rotated_refresh_tokens_integration.delete_by_family(session.token_family_id, db)
+
+
+def delete_session(session_id: str, user_id: int, db: Session) -> None:
+    """Delete a session with its token and OAuth state records and commit."""
+    stage_delete_session(session_id, user_id, db)
     db.commit()
     logger.info("Session deleted", extra=core_logger.context(user_id=user_id, session_id=session_id))
 
 
 def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
-    """Atomically claim a session and commit its one-shot token exchange."""
+    """Atomically claim a session for its one-shot token exchange; the caller commits."""
     session = sessions_crud.get_session_by_id(session_id, db)
     if not sessions_crud.claim_session_for_token_exchange(session_id, hashed_refresh_token, db):
         logger.warning("Session token exchange claim lost", extra=core_logger.context(session_id=session_id))
         return False
     _clear_oauth_state(session, db)
-    db.commit()
     logger.info("Session token exchange claimed", extra=core_logger.context(session_id=session_id))
-    return True
-
-
-def mark_tokens_exchanged(session_id: str, db: Session) -> bool:
-    """Mark a session's token exchange complete and commit the change."""
-    session = sessions_crud.get_session_by_id(session_id, db)
-    if not sessions_crud.mark_tokens_exchanged(session_id, db):
-        return False
-    _clear_oauth_state(session, db)
-    db.commit()
-    logger.info("Session token exchange marked complete", extra=core_logger.context(session_id=session_id))
     return True
 
 
@@ -172,10 +162,9 @@ def _clear_oauth_state(session: sessions_contracts.SessionRead | None, db: Sessi
 
 
 def invalidate_token_family(token_family_id: str, db: Session) -> int:
-    """Delete a token family from sessions and rotated-token persistence."""
+    """Stage deletion of a token family from sessions and rotated-token persistence; the caller commits."""
     sessions_deleted = sessions_crud.delete_sessions_by_family(token_family_id, db)
-    tokens_deleted = rotated_tokens_integration.delete_by_family(token_family_id, db)
-    db.commit()
+    tokens_deleted = rotated_refresh_tokens_integration.delete_by_family(token_family_id, db)
     logger.error(
         "Invalidated refresh-token family after reuse detection",
         extra=core_logger.context(

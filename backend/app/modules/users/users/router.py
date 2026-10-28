@@ -345,7 +345,7 @@ def edit_user_password(
         user_attributes: New password data.
         db: Database session dependency.
     """
-    account_security_integration.change_managed_user_password(user_id, user_attributes.password, db)
+    users_service.change_user_password(user_id, user_attributes.password, db)
 
 
 @router.delete(
@@ -480,4 +480,4 @@ def delete_user_identity_provider(
     Returns:
         None
     """
-    account_security_integration.admin_delete_identity_provider_link(user_id, idp_id, db)
+    users_service.unlink_identity_provider(user_id, idp_id, db)

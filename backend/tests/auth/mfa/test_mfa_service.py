@@ -168,7 +168,7 @@ class TestEnableUserMFA:
         assert result == ["CODE1", "CODE2"]
         mock_update_mfa.assert_called_once()
         mock_create_backup.assert_called_once_with(1, mock_password_verifier, mock_create_backup.call_args[0][2])
-        mock_db.commit.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_user_not_found(self, mock_get_user):

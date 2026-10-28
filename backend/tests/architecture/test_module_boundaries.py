@@ -295,11 +295,17 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
     (
         "modules.health.health_fasting.crud",
         "modules.health.computation",
-    ): "The shared local-day SQL expression keeps fasting and health-event day buckets consistent.",
+    ): (
+        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
     (
         "modules.health.health_poop.crud",
         "modules.health.computation",
-    ): "The shared local-day SQL expression keeps poop and health-event day buckets consistent.",
+    ): (
+        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
+        "is written once. It owns no table or session and asks no module."
+    ),
 }
 
 #: Top-level modules that sit below another, as ``{module: modules it may not import}``.
@@ -426,22 +432,6 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
         "locks the settings rows, writes only what differs and commits once, so replicas booting together "
         "serialise on the lock; there is no caller transaction to join."
     ),
-    "account_security.integration_service.admin_delete_identity_provider_link": "Deletes a user's auth link and applies its credential cleanup as one operation.",
-    "account_security.integration_service.change_managed_user_password": "Changes an admin-managed credential as a complete account-security operation.",
-    "account_security.integration_service.change_own_password": "Changes the caller's password and revokes affected sessions in one operation.",
-    "account_security.integration_service.delete_all_user_sessions": "Revokes all sessions and token families as one security operation.",
-    "account_security.integration_service.delete_other_user_sessions": "Revokes the user's other sessions as one security operation.",
-    "account_security.integration_service.start_browser_idp_link": "Creates the browser link state and commits its one-time credential atomically.",
-    "account_security.integration_service.verify_step_up": "Consumes the one-time step-up challenge and records its verification atomically.",
-    "mfa.integration_service.disable_user_mfa": "Disables MFA and commits the credential change atomically.",
-    "mfa.integration_service.enable_user_mfa": "Enables MFA and commits the credential change atomically.",
-    "mfa.integration_service.verify_user_mfa": "Consumes an MFA challenge and updates replay state atomically.",
-    "sessions.integration_service.claim_session_for_token_exchange": "Claims the one-time PKCE session token exchange atomically.",
-    "sessions.integration_service.create_session": "Creates a complete authentication session and commits it before issuing tokens.",
-    "sessions.integration_service.delete_session": "Deletes a session and commits revocation before reporting success.",
-    "sessions.integration_service.edit_session": "Rotates session credentials and commits them as one operation.",
-    "sessions.integration_service.invalidate_token_family": "Revokes a refresh-token family as one security operation.",
-    "sessions.integration_service.update_session_csrf_token": "Binds the newly issued CSRF token to the session before returning it.",
 }
 
 #: Modules whose functions a transaction walk does not enter: they stage or describe, and a

@@ -7,8 +7,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
+import core.exceptions as core_exceptions
+import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import ApiKeyCred, PasswordCred, Principal
 from modules.auth.dependencies import (
@@ -31,7 +32,7 @@ class TestGetAccessToken:
         assert result == "my-token"
 
     def test_none_token_raises_401(self):
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
             get_access_token(None, "web")
         assert exc_info.value.status_code == 401
         assert "Access token missing" in exc_info.value.detail
@@ -162,7 +163,7 @@ class TestValidateAccessTokenOrApiKey:
         with (
             patch("modules.auth.dependencies.core_config.settings", mock_settings),
             patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key") as mock_resolve,
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.UnauthenticatedError) as exc_info,
         ):
             await validate_access_token_or_api_key(
                 request, db, access_token=None, api_key_header=None, api_key_query="qk-456"
@@ -201,7 +202,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
         with (
             patch("modules.auth.dependencies.core_config.settings", mock_settings),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.UnauthenticatedError) as exc_info,
         ):
             await validate_access_token_or_api_key(
                 request,
@@ -235,7 +236,7 @@ class TestCheckAuthScopes:
         auth = AuthContext(user_id=1, scopes=["profile"], auth_type="jwt")
         security_scopes = MagicMock()
         security_scopes.scopes = ["profile", "admin"]
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
             check_auth_scopes(auth, security_scopes)
         assert exc_info.value.status_code == 403
 
@@ -283,16 +284,14 @@ class TestClientTypeHeader:
     @pytest.mark.asyncio
     async def test_missing_header_is_a_400_naming_the_header(self):
         import core.exceptions as core_exceptions
-        import modules.auth.dependencies as auth_security
 
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            await auth_security.header_client_type_scheme(self._request({}))
+            await authentication_dependencies.header_client_type_scheme(self._request({}))
         assert exc_info.value.status_code == 400
         assert "X-Client-Type" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_present_header_is_returned(self):
-        import modules.auth.dependencies as auth_security
 
-        result = await auth_security.header_client_type_scheme(self._request({"X-Client-Type": "web"}))
+        result = await authentication_dependencies.header_client_type_scheme(self._request({"X-Client-Type": "web"}))
         assert result == "web"

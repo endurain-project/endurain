@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.auth.identity_provider_links.contracts as auth_identity_links_contracts
-import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
+import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 
 logger = core_logger.get_logger(__name__)
@@ -29,9 +29,9 @@ def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
         The encrypted refresh token if found, None otherwise.
 
     Raises:
-        HTTPException: 500 error if database query fails.
+        ProcessingError: If the database query fails.
     """
-    db_link = auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(
+    db_link = identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(
         user_id,
         idp_id,
         db,
@@ -55,8 +55,7 @@ def enrich_user_identity_providers(
         idp_links: List of user identity provider ORM objects.
         user_id: User ID for logging purposes.
         db: SQLAlchemy database session.
-
-        idps: Value used by this operation.
+        idps: Identity providers to enrich.
 
     Returns:
         List of enriched IdentityProviderLinkRead objects.

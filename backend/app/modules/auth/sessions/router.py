@@ -31,10 +31,8 @@ def read_sessions_user(
 
     Args:
         user_id: The ID of the user whose sessions to retrieve.
-        _check_scope: Scope validation dependency.
         db: Database session dependency.
-
-        request: Value used by this operation.
+        request: Incoming request.
 
     Returns:
         List of session objects for the specified user.
@@ -60,10 +58,8 @@ def delete_session_user(
     Args:
         session_id: The ID of the session to delete.
         user_id: The ID of the user who owns the session.
-        _check_scope: Scope validation dependency.
         db: Database session dependency.
-
-        request: Value used by this operation.
+        request: Incoming request.
 
     Returns:
         None.
@@ -100,11 +96,9 @@ def delete_sessions_user(
 
     Args:
         user_id: The ID of the user whose sessions to revoke.
-        _check_scope: Scope validation dependency.
         db: Database session dependency.
         exclude_session_id: Optional session to leave intact.
-
-        request: Value used by this operation.
+        request: Incoming request.
 
     Returns:
         None.

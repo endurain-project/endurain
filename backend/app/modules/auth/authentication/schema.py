@@ -1,5 +1,6 @@
 """Pydantic schemas for the authentication module."""
 
+import re
 from typing import Literal
 
 from pydantic import (
@@ -9,6 +10,7 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
+    field_validator,
 )
 
 
@@ -129,3 +131,68 @@ class LogoutRead(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     message: StrictStr
+
+
+class TokenExchangeRequest(BaseModel):
+    """Request schema for mobile PKCE token exchange.
+
+    After OAuth callback completes, mobile clients exchange the session_id
+    for actual JWT tokens by proving they possess the code_verifier that
+    matches the code_challenge sent during login initiation.
+
+    Attributes:
+        code_verifier (str): PKCE code verifier (43-128 chars, base64url).
+            Must hash to the code_challenge stored in OAuth state.
+    """
+
+    code_verifier: StrictStr = Field(
+        ...,
+        min_length=43,
+        max_length=128,
+        description="PKCE code verifier (base64url, 43-128 chars)",
+    )
+
+    @field_validator("code_verifier")
+    @classmethod
+    def validate_code_verifier(cls, v: str) -> str:
+        """Validate PKCE code_verifier format according to RFC 7636.
+
+        Args:
+            v (str): The code verifier string.
+
+        Returns:
+            str: The validated code verifier.
+
+        Raises:
+            ValueError: If format is invalid (wrong length or characters).
+        """
+        if not re.match(r"^[A-Za-z0-9_-]+$", v):
+            raise ValueError("code_verifier must be valid base64url")
+        return v
+
+
+class TokenExchangeRead(BaseModel):
+    """Response schema for successful PKCE token exchange.
+
+    Returns the actual JWT tokens that clients need for API access.
+    Response format varies by client type:
+    - Web clients: access_token, csrf_token (refresh_token in httpOnly cookie)
+    - Mobile clients: access_token, refresh_token (no CSRF token)
+
+    Attributes:
+        session_id (str): Session identifier.
+        access_token (str): JWT access token (15-minute expiry).
+        refresh_token (str | None): JWT refresh token (7-day expiry). Only for mobile clients.
+        csrf_token (str | None): CSRF protection token. Only for web clients.
+        expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
+        refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
+        token_type (str): Token type, always "Bearer".
+    """
+
+    session_id: StrictStr = Field(..., description="Session identifier")
+    access_token: StrictStr = Field(..., description="JWT access token")
+    refresh_token: StrictStr | None = Field(default=None, description="JWT refresh token (mobile only)")
+    csrf_token: StrictStr | None = Field(default=None, description="CSRF protection token (web only)")
+    expires_in: StrictInt = Field(default=900, description="Access token lifetime in seconds")
+    refresh_token_expires_in: StrictInt = Field(default=604800, description="Refresh token lifetime in seconds")
+    token_type: StrictStr = Field(default="Bearer", description="Token type")

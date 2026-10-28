@@ -25,8 +25,7 @@ def list_identity_providers(
 
     Args:
         db: SQLAlchemy database session dependency.
-
-        service: Value used by this operation.
+        service: Identity provider service.
 
     Returns:
         A list of all configured identity providers.
@@ -45,7 +44,7 @@ def list_idp_templates(
     """Get the list of pre-configured IdP templates (admin only).
 
     Args:
-        service: Value used by this operation.
+        service: Identity provider service.
 
     Returns:
         A list of identity provider templates.
@@ -61,9 +60,9 @@ def list_idp_templates(
         "Create a new identity provider.\n\n"
         "Args:\n"
         "    idp_data: Data required to create the identity provider.\n"
-        "    db: SQLAlchemy database session dependency.\n\n"
-        "    request: Value used by this operation.\n"
-        "    service: Value used by this operation.\n\n"
+        "    db: SQLAlchemy database session dependency.\n"
+        "    request: Incoming request.\n"
+        "    service: Identity provider service.\n\n"
         "Returns:\n"
         "    The newly created identity provider.\n\n"
         "Raises:\n"
@@ -95,10 +94,9 @@ def create_identity_provider(
     Args:
         idp_data: Data required to create the identity provider.
         db: SQLAlchemy database session dependency.
-
-        request: Value used by this operation.
+        request: Incoming request.
         response: The response, which carries the new ETag.
-        service: Value used by this operation.
+        service: Identity provider service.
 
     Returns:
         The newly created identity provider.
@@ -120,9 +118,9 @@ def create_identity_provider(
         "Args:\n"
         "    idp_id: The unique identifier of the identity provider to update.\n"
         "    idp_data: The data to update the identity provider with.\n"
-        "    db: SQLAlchemy database session dependency.\n\n"
-        "    request: Value used by this operation.\n"
-        "    service: Value used by this operation.\n\n"
+        "    db: SQLAlchemy database session dependency.\n"
+        "    request: Incoming request.\n"
+        "    service: Identity provider service.\n\n"
         "Returns:\n"
         "    The updated identity provider.\n\n"
         "Raises:\n"
@@ -159,11 +157,10 @@ def update_identity_provider(
         idp_id: The unique identifier of the identity provider to update.
         idp_data: The data to update the identity provider with.
         db: SQLAlchemy database session dependency.
-
-        request: Value used by this operation.
+        request: Incoming request.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition the client read.
-        service: Value used by this operation.
+        service: Identity provider service.
 
     Returns:
         The updated identity provider.
@@ -195,9 +192,8 @@ def delete_identity_provider(
     Args:
         idp_id: The unique identifier of the identity provider to delete.
         db: SQLAlchemy database session dependency.
-
-        request: Value used by this operation.
-        service: Value used by this operation.
+        request: Incoming request.
+        service: Identity provider service.
 
     Raises:
         HTTPException: 404 if the provider is not found, 409 if users

@@ -188,7 +188,7 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_provider_links.service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_link = MagicMock()
             mock_link.idp_refresh_token = "encrypted_token_xyz"
@@ -213,7 +213,7 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_provider_links.service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
 
@@ -236,7 +236,7 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
         """
         # Arrange
         with patch(
-            "modules.auth.identity_provider_links.service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id"
+            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_link = MagicMock()
             mock_link.idp_refresh_token = None

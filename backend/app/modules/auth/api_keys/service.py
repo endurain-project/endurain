@@ -62,4 +62,3 @@ def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UsersApiK
 def update_last_used(api_key_id: str, db: Session) -> None:
     """Stage the API key's last-used timestamp."""
     api_keys_crud.update_last_used(api_key_id, db)
-    logger.info("API key last-used timestamp updated", extra=core_logger.context(api_key_id=api_key_id))

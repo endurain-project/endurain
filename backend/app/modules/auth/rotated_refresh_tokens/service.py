@@ -71,7 +71,7 @@ def store_rotated_token(
             refresh token.
 
     Raises:
-        HTTPException: If storage fails.
+        ProcessingError: If storage fails.
     """
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=TOKEN_REUSE_GRACE_PERIOD_SECONDS)
@@ -109,7 +109,7 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
             - (True, False): Reused after grace period - THEFT!
 
     Raises:
-        HTTPException: If lookup fails.
+        ProcessingError: If lookup fails.
     """
     # Use HMAC-SHA256 for deterministic lookup
     hashed_token = hmac_hash_token(raw_token)
@@ -161,7 +161,7 @@ def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] 
         in-grace record with a stored replacement exists, else None.
 
     Raises:
-        HTTPException: If lookup or decryption fails.
+        ProcessingError: If lookup or decryption fails.
     """
     hashed_token = hmac_hash_token(raw_token)
     rotated_token = rotated_token_crud.get_rotated_token_by_hash(hashed_token, db)

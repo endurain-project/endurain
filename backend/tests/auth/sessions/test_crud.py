@@ -96,14 +96,8 @@ def test_edit_missing_session_raises_not_found(mock_db):
         sessions_crud.edit_session(sessions_schema.UsersSessionsInternal(**vars(_row())), mock_db)
 
 
-@pytest.mark.parametrize(
-    "operation",
-    [
-        sessions_crud.mark_tokens_exchanged,
-        lambda sid, db: sessions_crud.claim_session_for_token_exchange(sid, "hashed", db),
-    ],
-)
-def test_token_exchange_updates_are_conditional_and_staged(operation, mock_db):
+def test_token_exchange_claim_is_conditional_and_staged(mock_db):
+    operation = lambda sid, db: sessions_crud.claim_session_for_token_exchange(sid, "hashed", db)  # noqa: E731
     mock_db.execute.return_value = _result(rowcount=1)
     assert operation("session-id", mock_db) is True
     mock_db.execute.return_value = _result(rowcount=0)

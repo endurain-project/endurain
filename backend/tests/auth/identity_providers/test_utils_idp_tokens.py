@@ -28,12 +28,12 @@ def test_service_refreshes_only_links_with_refresh_action(mock_db):
     service.refresh_idp_session = MagicMock()
     with (
         patch.object(
-            idp_service_module.auth_identity_links_crud,
+            idp_service_module.identity_provider_links_integration,
             "get_user_identity_providers_by_user_id",
             return_value=links,
         ),
         patch.object(
-            idp_service_module.auth_identity_links_crud,
+            idp_service_module.identity_provider_links_integration,
             "clear_user_identity_provider_refresh_token_by_user_id_and_idp_id",
         ) as clear,
     ):
@@ -47,12 +47,12 @@ def test_service_clears_tokens_after_failed_remote_revocation(mock_db):
     service.revoke_idp_token = MagicMock(side_effect=RuntimeError("offline"))
     with (
         patch.object(
-            idp_service_module.auth_identity_links_crud,
+            idp_service_module.identity_provider_links_integration,
             "get_user_identity_providers_by_user_id",
             return_value=[MagicMock(idp_id=3)],
         ),
         patch.object(
-            idp_service_module.auth_identity_links_crud,
+            idp_service_module.identity_provider_links_integration,
             "clear_user_identity_provider_refresh_token_by_user_id_and_idp_id",
         ) as clear,
     ):

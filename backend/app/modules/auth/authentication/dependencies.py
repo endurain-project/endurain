@@ -11,7 +11,7 @@ from joserfc.errors import MissingClaimError
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.auth.access_tokens.integration_service as auth_token_manager
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.constants as auth_constants
 
 REFRESH_TOKEN_COOKIE_NAME = "endurain" + "_refresh_token"
@@ -114,14 +114,14 @@ def get_token(
     non_cookie_token: str | None,
     cookie_token: str | None,
     client_type: str,
-    token_type: auth_token_manager.TokenType,
+    token_type: access_tokens_integration.TokenType,
 ) -> str | None:
     """Select a credential source according to client and token type."""
-    if token_type == auth_token_manager.TokenType.ACCESS:
+    if token_type == access_tokens_integration.TokenType.ACCESS:
         if non_cookie_token is None:
             raise core_exceptions.UnauthenticatedError("Access token missing from Authorization header")
         return non_cookie_token
-    if token_type == auth_token_manager.TokenType.REFRESH:
+    if token_type == access_tokens_integration.TokenType.REFRESH:
         if client_type == "web":
             if cookie_token is None:
                 raise core_exceptions.UnauthenticatedError("Refresh token missing from cookie")
@@ -143,20 +143,20 @@ def get_refresh_token(
         non_cookie_refresh_token,
         cookie_refresh_token,
         client_type,
-        auth_token_manager.TokenType.REFRESH,
+        access_tokens_integration.TokenType.REFRESH,
     )
 
 
 def validate_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
     ],
 ) -> None:
     """Validate refresh-token expiry and clear stale pre-upgrade cookies."""
     try:
-        token_manager.validate_token_expiration(refresh_token, auth_token_manager.TokenType.REFRESH)
+        token_manager.validate_token_expiration(refresh_token, access_tokens_integration.TokenType.REFRESH)
     except core_exceptions.DomainError as http_err:
         log_level = logging.DEBUG if "expired" in http_err.detail.lower() else logging.ERROR
         logger.log(
@@ -184,8 +184,8 @@ def validate_refresh_token(
 def get_sub_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
     ],
 ) -> int:
     """Return the decimal subject claim from a refresh token."""
@@ -198,8 +198,8 @@ def get_sub_from_refresh_token(
 def get_sid_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
     ],
 ) -> str:
     """Return the session identifier claim from a refresh token."""

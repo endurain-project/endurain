@@ -41,6 +41,7 @@ import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnai
 import modules.activities.activity_thumbnail.subscriber_registry as activity_thumbnail_subscriber_registry
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.auth.authentication.subscriber_registry as authentication_subscriber_registry
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_provider_link_tokens_scheduled_jobs
 import modules.auth.mfa.scheduled_jobs as auth_mfa_scheduled_jobs
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
@@ -169,6 +170,10 @@ class RuntimeModule:
 
 
 MODULES: tuple[RuntimeModule, ...] = (
+    RuntimeModule(
+        name="authentication",
+        register_bus=authentication_subscriber_registry.register_bus_subscribers,
+    ),
     RuntimeModule(
         name="activity_thumbnail",
         register_bus=activity_thumbnail_subscriber_registry.register_bus_subscribers,

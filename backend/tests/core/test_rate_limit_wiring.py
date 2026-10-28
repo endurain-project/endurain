@@ -50,6 +50,7 @@ import modules.auth.account_security.identity_links_router as auth_idp_profile_r
 import modules.auth.account_security.mfa_router as auth_mfa_profile_router
 import modules.auth.account_security.sessions_router as auth_sessions_profile_router
 import modules.auth.authentication.public_router as auth_router
+import modules.auth.authentication.sso_public_router as sso_public_router
 import modules.auth.identity_providers.public_router as idp_public_router
 import modules.auth.identity_providers.router as identity_providers_router
 import modules.auth.password_reset_tokens.public_router as password_reset_router
@@ -129,7 +130,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(idp_public_router.initiate_login, core_rate_limit.SENSITIVE, id="oidc-initiate"),
     pytest.param(idp_public_router.handle_callback, core_rate_limit.SENSITIVE, id="oidc-callback"),
     pytest.param(
-        idp_public_router.exchange_tokens_for_session,
+        sso_public_router.exchange_tokens_for_session,
         core_rate_limit.SENSITIVE,
         id="oidc-token-exchange",
     ),

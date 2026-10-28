@@ -43,7 +43,6 @@ class StepUpAttempts:
         self._lockout = lockout_integration.new_progressive_lockout(
             state,
             name="step_up",
-            display_name="Step-up",
             tiers=lockout_contracts.STEP_UP_LOCKOUT_TIERS,
             attempts_ttl_seconds=2 * 60 * 60,
         )

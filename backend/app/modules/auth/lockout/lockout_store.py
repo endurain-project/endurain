@@ -8,10 +8,8 @@ from urllib.parse import unquote
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.hashing as core_hashing
-import core.logger as core_logger
 import modules.auth.lockout.contracts as lockout_contracts
 
-logger = core_logger.get_logger(__name__)
 _AUTH_KEY_PREFIX = "endurain:auth"
 
 
@@ -29,8 +27,7 @@ def username_log_identifier(username: str) -> str:
     return f"username_hash={_username_digest(username)}"
 
 
-def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
-    logger.error("Authentication lockout storage failed", exc_info=err, extra=core_logger.context(operation=operation))
+def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
     raise lockout_contracts.AuthSecurityStoreUnavailableError("auth security storage is unavailable") from err
 
 
@@ -42,7 +39,6 @@ class ProgressiveLockout:
         state: StateProvider,
         *,
         name: str,
-        display_name: str,
         tiers: tuple[lockout_contracts.LockoutTier, ...],
         attempts_ttl_seconds: int,
         normalize_key: Callable[[str], str] | None = None,
@@ -50,7 +46,6 @@ class ProgressiveLockout:
         """Bind progressive lockout tracking to the shared platform state provider."""
         self._state = state
         self._name = name
-        self._display_name = display_name
         self._tiers = tiers
         self._attempts_ttl_seconds = attempts_ttl_seconds
         self._normalize = normalize_key or (lambda key: key)
@@ -64,11 +59,11 @@ class ProgressiveLockout:
     def _gate_key(self, key: str) -> str:
         return f"{_AUTH_KEY_PREFIX}:{self._name}:lockout:{self._digest(key)}"
 
-    def _delete(self, key: str, operation: str) -> None:
+    def _delete(self, key: str) -> None:
         try:
             self._state.delete(key)
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable(operation, err)
+            _raise_store_unavailable(err)
 
     def is_locked_out(self, key: str) -> bool:
         """Return whether the supplied key is locked out."""
@@ -80,16 +75,16 @@ class ProgressiveLockout:
         try:
             raw_gate = self._state.get(gate_key)
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("get lockout time", err)
+            _raise_store_unavailable(err)
         if raw_gate is None:
             return None
         try:
             gate_until = int(raw_gate.decode())
         except (TypeError, ValueError):
-            self._delete(gate_key, "delete invalid lockout")
+            self._delete(gate_key)
             return None
         if gate_until <= int(datetime.now(UTC).timestamp()):
-            self._delete(gate_key, "delete expired lockout")
+            self._delete(gate_key)
             return None
         return datetime.fromtimestamp(gate_until, tz=UTC)
 
@@ -101,16 +96,7 @@ class ProgressiveLockout:
                 self._counter_key(key), self._gate_key(key), tiers, self._attempts_ttl_seconds
             )
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("record failed attempt", err)
-        if outcome.newly_locked:
-            logger.warning(
-                "Progressive authentication lockout applied",
-                extra=core_logger.context(
-                    store=self._display_name,
-                    username_hash=_username_digest(key) if self._normalize is normalize_username_key else None,
-                    failed_attempts=outcome.count,
-                ),
-            )
+            _raise_store_unavailable(err)
         return outcome.count
 
     def reset_attempts(self, key: str) -> None:
@@ -119,11 +105,11 @@ class ProgressiveLockout:
             self._state.delete(self._counter_key(key))
             self._state.delete(self._gate_key(key))
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("reset attempts", err)
+            _raise_store_unavailable(err)
 
     def clear_all(self) -> None:
         """Clear all tracked lockout attempts."""
         try:
             self._state.delete_prefix(f"{_AUTH_KEY_PREFIX}:{self._name}:")
         except StateBackendUnavailableError as err:
-            _raise_store_unavailable("clear lockout store", err)
+            _raise_store_unavailable(err)

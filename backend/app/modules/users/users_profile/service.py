@@ -9,6 +9,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import jasil.providers as platform_providers
+from fastapi import Request
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -186,7 +187,7 @@ def change_email(
         db: Database session.
 
     Raises:
-        HTTPException: If step-up verification fails.
+        UnauthenticatedError: If step-up verification fails.
         NotFoundError: If the user does not exist.
         ConflictError: If the email is already taken.
     """
@@ -280,7 +281,7 @@ def delete_account(
         The deletion's initial status.
 
     Raises:
-        HTTPException: If step-up verification fails.
+        UnauthenticatedError: If step-up verification fails.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
     account_security_integration.verify_step_up(step_up, user_id, step_up_store, db)
@@ -328,3 +329,62 @@ def stage_export(user_id: int, storage: platform_providers.StorageProvider, db: 
         )
     logger.info("Profile data exported", extra=core_logger.context(user_id=user_id, size_bytes=size))
     return size
+
+
+def change_password(
+    user_id: int,
+    change: users_schema.UsersEditPassword,
+    session_id: str,
+    step_up_store: account_security_integration.StepUpStore,
+    db: Session,
+) -> None:
+    """Change a user's own password after step-up verification.
+
+    Args:
+        user_id: ID of the authenticated user.
+        change: Current and new password, optional MFA code and whether to end the other sessions.
+        session_id: Session of the caller, kept when the other sessions end.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Raises:
+        UnauthenticatedError: If step-up verification fails.
+        InvalidInputError: If the new password fails the configured policy.
+    """
+    account_security_integration.change_own_password(
+        user_id,
+        change.current_password,
+        change.password,
+        change.mfa_code,
+        step_up_store,
+        db,
+        revoke_other_sessions=change.revoke_other_sessions,
+        current_session_id=session_id,
+    )
+    db.commit()
+    logger.info("Password changed", extra=core_logger.context(user_id=user_id))
+
+
+def start_identity_provider_link(
+    link_token: str,
+    idp_id: int,
+    redirect: str | None,
+    request: Request,
+    db: Session,
+) -> str:
+    """Claim a one-time link token and return the identity provider's authorization URL.
+
+    Args:
+        link_token: One-time token minted for the link.
+        idp_id: ID of the identity provider to link.
+        redirect: Frontend return path after linking.
+        request: Incoming request, read for the client address.
+        db: Database session.
+
+    Returns:
+        The provider's authorization URL.
+    """
+    authorization_url = account_security_integration.start_browser_idp_link(link_token, idp_id, redirect, request, db)
+    db.commit()
+    logger.debug("Identity provider link started", extra=core_logger.context(idp_id=idp_id))
+    return authorization_url

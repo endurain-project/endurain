@@ -1,6 +1,5 @@
 """Public (unauthenticated) HTTP routes for identity provider SSO flows."""
 
-from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
@@ -13,19 +12,13 @@ import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
 import core.rate_limit as core_rate_limit
-import modules.auth.access_tokens.integration_service as auth_token_manager
-import modules.auth.authentication.dependencies as authentication_dependencies
-import modules.auth.authentication.integration_service as authentication_integration
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.computation as auth_computation
-import modules.auth.credentials.integration_service as auth_password_hasher
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.utils as idp_utils
-import modules.auth.oauth_state.integration_service as oauth_state_crud
-import modules.auth.sessions.integration_service as auth_sessions_crud
-import modules.server_settings.integration_service as server_settings_integration
-import modules.users.users.integration_service as users_integration
 
 # Define the API router
 router = APIRouter()
@@ -77,8 +70,7 @@ def get_enabled_identity_providers(
 
     Args:
         db (Session): SQLAlchemy database session dependency.
-
-        service: Value used by this operation.
+        service: Identity provider service.
 
     Returns:
         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
@@ -171,23 +163,15 @@ def initiate_login(
             if client_type not in ["web", "mobile"]:
                 client_type = "web"  # Default to web if invalid
 
-        # Generate OAuth state and nonce
-        state_id, nonce = oauth_state_crud.create_state_id_and_nonce()
-
-        # Get client IP address
-        client_ip = core_network.get_ip_address(request)
-
         # Create and store OAuth state in database (replaces cookie-based state)
-        oauth_state_crud.create_oauth_state(
-            db=db,
-            state_id=state_id,
-            idp_id=idp.id,
-            nonce=nonce,
+        state_id = service.create_login_oauth_state(
+            idp.id,
             client_type=client_type,
-            ip_address=client_ip,
+            ip_address=core_network.get_ip_address(request),
             redirect_path=redirect,
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
+            db=db,
         )
 
         service.log_public_flow_event(
@@ -219,12 +203,12 @@ def handle_callback(
     response: Response,
     idp_slug: auth_dependencies.IdentityProviderSlug,
     password_hasher: Annotated[
-        auth_password_hasher.PasswordHasher,
-        Depends(auth_password_hasher.get_password_hasher),
+        credentials_integration.PasswordHasher,
+        Depends(credentials_integration.get_password_hasher),
     ],
     token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
@@ -238,15 +222,14 @@ def handle_callback(
 
     Args:
         idp_slug (str): The slug identifier of the identity provider.
-        password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency for session management.
-        token_manager (auth_token_manager.TokenManager): Token manager dependency for creating session tokens.
+        password_hasher (credentials_integration.PasswordHasher): Password hasher dependency for session management.
+        token_manager (access_tokens_integration.TokenManager): Token manager dependency for creating session tokens.
         db (Session): Database session dependency.
         code (str): Authorization code received from the identity provider.
         state (str): State parameter used for CSRF protection (database state ID).
         request (Request): The incoming HTTP request.
-
-        response: Value used by this operation.
-        service: Value used by this operation.
+        response: Response that receives the cookies.
+        service: Identity provider service.
 
     Returns:
         RedirectResponse: A redirect response to either:
@@ -275,7 +258,7 @@ def handle_callback(
             )
 
         # Lookup OAuth state from database (mandatory for all clients)
-        oauth_state = oauth_state_crud.get_oauth_state_by_id_and_not_used(state, db)
+        oauth_state = service.get_unused_oauth_state(state, db)
 
         if not oauth_state:
             service.log_public_flow_event(
@@ -316,7 +299,7 @@ def handle_callback(
         # actually flips `used=False -> True` is allowed to continue. Losing
         # races (replays, double-submits) abort here with a generic 400 so we
         # do not leak whether the state existed but was already consumed.
-        if not oauth_state_crud.mark_oauth_state_used(state, db):
+        if not service.claim_oauth_state(state, db):
             service.log_public_flow_event(
                 "warning",
                 "OAuth state replay/race rejected: <value_1>",
@@ -405,294 +388,3 @@ def handle_callback(
             error_url = f"{core_config.settings.ENDURAIN_HOST}/login?error=sso_failed"
 
         return RedirectResponse(url=error_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-
-
-@router.post(
-    "/session/{session_id}/tokens",
-    response_model=idp_schema.TokenExchangeRead,
-)
-@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-def exchange_tokens_for_session(
-    session_id: auth_dependencies.AuthSessionId,
-    request: Request,
-    response: Response,
-    token_exchange: idp_schema.TokenExchangeRequest,
-    password_hasher: Annotated[
-        auth_password_hasher.PasswordHasher,
-        Depends(auth_password_hasher.get_password_hasher),
-    ],
-    token_manager: Annotated[
-        auth_token_manager.TokenManager,
-        Depends(auth_token_manager.get_token_manager),
-    ],
-    service: idp_dependencies.IdentityProviderService,
-    db: core_dependencies.DbSession,
-):
-    """Exchange a PKCE code verifier for JWT tokens.
-
-    After OAuth callback or password PKCE login creates a session, clients
-    call this endpoint to prove they possess the code_verifier (PKCE) and
-    receive the actual JWT tokens. This prevents token leakage through
-    browser redirects and ensures only the legitimate client can access the
-    tokens.
-
-    Security Features:
-    - PKCE verification (SHA256 hash of verifier must match challenge)
-    - One-time exchange (tokens_exchanged flag prevents replay)
-    - Rate limited (10 requests/minute)
-    - Session must be linked to OAuth state with PKCE data
-
-    Rate Limit: 10 requests per minute per IP
-
-    Args:
-        session_id (str): Session ID from OAuth callback redirect.
-        request (Request): FastAPI request object (for rate limiting).
-        response (Response): FastAPI response object.
-        token_exchange (TokenExchangeRequest): Request body with code_verifier.
-        token_manager (TokenManager): Token manager dependency.
-        db (Session): Database session dependency.
-
-        password_hasher: Value used by this operation.
-        service: Value used by this operation.
-
-    Returns:
-        TokenExchangeResponse: JWT tokens (access, refresh, csrf) and metadata.
-
-    Raises:
-        HTTPException:
-            - 404 NOT_FOUND: Session not found or not linked to OAuth state
-            - 400 BAD_REQUEST: Invalid code_verifier or tokens already exchanged
-            - 409 CONFLICT: Tokens already exchanged for this session
-    """
-    try:
-        # Retrieve session with OAuth state relationship
-        session_with_state = auth_sessions_crud.get_session_with_oauth_state(session_id, db)
-
-        if not session_with_state:
-            service.log_public_flow_event(
-                "warning",
-                "Token exchange failed: session <value_1> not found",
-                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found or not eligible for token exchange",
-            )
-
-        session_obj, oauth_state = session_with_state
-
-        # Verify session is linked to an OAuth state (mobile flow)
-        if not oauth_state:
-            service.log_public_flow_event(
-                "warning",
-                "Token exchange failed: session <value_1> has no OAuth state",
-                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not eligible for PKCE token exchange",
-            )
-
-        # Check if tokens have already been exchanged (prevent replay).
-        # This is a fast-path informational check; the authoritative
-        # protection is the atomic conditional UPDATE below, which
-        # closes a TOCTOU race that two concurrent exchanges with the
-        # same code_verifier would otherwise win.
-        if session_obj.tokens_exchanged:
-            service.log_public_flow_event(
-                "warning",
-                "Token exchange replay attempt for session <value_1>",
-                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Tokens already exchanged for this session",
-            )
-
-        # Verify PKCE code_verifier matches code_challenge
-        if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
-            service.log_public_flow_event(
-                "error",
-                "Token exchange failed: OAuth state <value_1> missing PKCE data",
-                extra=core_logger.context(value_1=core_hashing.log_fingerprint(oauth_state.id)),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="OAuth state missing PKCE data",
-            )
-
-        # Validate code_verifier and verify it matches the challenge
-        idp_utils.validate_pkce_verifier(
-            code_verifier=token_exchange.code_verifier,
-            code_challenge=oauth_state.code_challenge,
-            code_challenge_method=oauth_state.code_challenge_method,
-        )
-
-        # Determine client_type for this token exchange before minting
-        # tokens or claiming the one-shot session. A mismatched
-        # X-Client-Type must not be able to burn an otherwise valid
-        # PKCE session by flipping tokens_exchanged first.
-        #
-        # Authority order:
-        #   1. ``oauth_state.client_type`` — set when the IdP flow was
-        #      initiated by an authenticated client that DID send
-        #      ``X-Client-Type``. When this is non-None it represents
-        #      the original, server-recorded intent and the exchange
-        #      caller MUST NOT override it.
-        #   2. ``X-Client-Type`` header on the exchange request —
-        #      only consulted when ``oauth_state.client_type`` is None,
-        #      which is the genuine system-browser case (the OS
-        #      browser carries no custom headers when opening
-        #      ``/initiate_login``, so the original intent could not
-        #      be recorded).
-        #
-        # Previously the header was preferred unconditionally
-        # (`request.headers.get("X-Client-Type", stored or "web")`),
-        # which let the exchange caller switch between the
-        # cookie-set ``web`` shape and the body-only ``mobile`` shape
-        # at will — bypassing the cookie-set decision and the
-        # response shape that should follow from how the flow was
-        # actually initiated.
-        stored_client_type = oauth_state.client_type
-        header_client_type = request.headers.get("X-Client-Type")
-        if header_client_type not in ("web", "mobile"):
-            header_client_type = None
-
-        if stored_client_type in ("web", "mobile"):
-            # Recorded intent wins. If the caller declared a
-            # different value, reject the exchange — this is either
-            # a misbehaving client or an attacker trying to flip the
-            # response shape. We do NOT silently downgrade.
-            if header_client_type is not None and header_client_type != stored_client_type:
-                service.log_public_flow_event(
-                    "warning",
-                    "Token exchange client_type mismatch for session <value_1>: stored=<stored_client_type>, header=<header_client_type>",
-                    extra=core_logger.context(
-                        value_1=core_hashing.log_fingerprint(session_id),
-                        stored_client_type=stored_client_type,
-                        header_client_type=header_client_type,
-                    ),
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="client_type does not match the OAuth state",
-                )
-            client_type = stored_client_type
-        else:
-            # Genuine system-browser flow — fall back to the header,
-            # defaulting to ``web`` when the header is absent.
-            client_type = header_client_type or "web"
-
-        # PKCE verification successful - retrieve user and create tokens
-        user = users_integration.require_user(session_obj.user_id, db)
-        # Validate that the user is still active before minting tokens
-        users_integration.require_active_user(user)
-
-        # Create JWT tokens (now that PKCE is verified)
-        (
-            _,
-            access_token_exp,
-            access_token,
-            refresh_token_exp,
-            refresh_token,
-            csrf_token,
-        ) = authentication_integration.create_tokens(
-            user, token_manager, server_settings_integration.get_session_policy(db), session_id
-        )
-
-        # Calculate expires_in from access token expiration
-        expires_in = int((access_token_exp - datetime.now(UTC)).total_seconds())
-
-        # Calculate refresh_token_expires_in from refresh token expiration
-        refresh_token_expires_in = int((refresh_token_exp - datetime.now(UTC)).total_seconds())
-
-        # Update session with the actual hashed refresh token AND
-        # mark tokens as exchanged in a single atomic conditional
-        # UPDATE. This closes the check-then-act race where two
-        # concurrent exchanges with the correct verifier could both
-        # pass the ``tokens_exchanged`` guard, both mint refresh
-        # tokens, and the second overwrite the first — handing the
-        # second caller a working refresh token while invalidating
-        # the first.
-        # Note: csrf_token_hash is NOT stored here (OAuth 2.1
-        # bootstrap pattern). The first /refresh call after page
-        # reload establishes the CSRF binding.
-        claimed = auth_sessions_crud.claim_session_for_token_exchange(
-            session_id,
-            password_hasher.hash_password(refresh_token),
-            db,
-        )
-        if not claimed:
-            service.log_public_flow_event(
-                "warning",
-                "Token exchange lost race for session <value_1>",
-                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
-            )
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Tokens already exchanged for this session",
-            )
-
-        # Set refresh token cookie for web clients (enables logout).
-        # Cookie attributes (Secure, SameSite, Path, expiry) are
-        # centralised in authentication_dependencies.set_refresh_token_cookie so this
-        # SSO flow stays in lockstep with password login and /refresh
-        # — previously this site used FRONTEND_PROTOCOL and could
-        # issue a non-Secure refresh cookie when that env var was
-        # missing or mis-set in production.
-        if client_type == "web":
-            authentication_dependencies.set_refresh_token_cookie(
-                response,
-                refresh_token,
-                refresh_token_exp,
-                environment=core_config.settings.ENVIRONMENT,
-            )
-
-        # Note: tokens_exchanged was flipped atomically together
-        # with the refresh-token hash above, so no second write is
-        # needed here. The atomic claim also detached the OAuth
-        # state row for cleanup.
-
-        service.log_public_flow_event(
-            "info",
-            "Token exchange successful for session <value_1> (user=<username>, client_type=<client_type>)",
-            extra=core_logger.context(
-                value_1=core_hashing.log_fingerprint(session_id), username=user.username, client_type=client_type
-            ),
-        )
-
-        # Return response based on client type (matches complete_login behavior)
-        if client_type == "web":
-            # Web: access_token and csrf_token in body, refresh_token in cookie only
-            return idp_schema.TokenExchangeRead(
-                session_id=session_id,
-                access_token=access_token,
-                csrf_token=csrf_token,
-                expires_in=expires_in,
-                refresh_token_expires_in=refresh_token_expires_in,
-                token_type="Bearer",
-            )
-        else:
-            # Mobile: all tokens in body (no cookies)
-            return idp_schema.TokenExchangeRead(
-                session_id=session_id,
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_in=expires_in,
-                refresh_token_expires_in=refresh_token_expires_in,
-                token_type="Bearer",
-            )
-
-    except HTTPException:
-        raise
-    except Exception as err:
-        service.log_public_flow_event(
-            "error",
-            "Error in token exchange for session <value_1>: <err>",
-            exc_info=err,
-            extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id), err=err),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to exchange tokens",
-        ) from err

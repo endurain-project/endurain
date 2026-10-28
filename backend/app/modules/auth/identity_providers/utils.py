@@ -1,16 +1,9 @@
 """Utility helpers and pre-configured templates for identity providers."""
 
-import base64
-import hashlib
-import hmac
-import re
 from typing import Any
 
 import core.exceptions as core_exceptions
-import core.logger as core_logger
 import modules.auth.identity_providers.schema as idp_schema
-
-logger = core_logger.get_logger(__name__)
 
 
 def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:
@@ -22,11 +15,10 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
 
     Args:
         redirect: The redirect URL string to validate, or None.
-
-        allowed_schemes: Value used by this operation.
+        allowed_schemes: Custom URI schemes a redirect may use.
 
     Raises:
-        HTTPException: 400 Bad Request if the redirect URL is
+        InvalidInputError: If the redirect URL is
             invalid, uses a disallowed scheme, is an external
             HTTP/HTTPS URL, or contains control characters or path
             traversal sequences.
@@ -86,62 +78,6 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
         return False
 
     return "://" in value
-
-
-def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challenge_method: str) -> None:
-    """Validate PKCE code_verifier and verify it matches the code_challenge.
-
-    This function implements RFC 7636 PKCE verification by computing the
-    SHA256 hash of the verifier and comparing it to the stored challenge.
-    This proves the client possesses the secret used during login initiation.
-
-    Args:
-        code_verifier (str): Base64url-encoded verifier from mobile client.
-        code_challenge (str): Base64url-encoded SHA256 hash stored in DB.
-        code_challenge_method (str): PKCE method (must be "S256").
-
-    Raises:
-        HTTPException: 400 Bad Request if verifier format is invalid,
-            method is not S256, or verifier doesn't match challenge.
-    """
-    # Validate verifier format
-    if not (43 <= len(code_verifier) <= 128):
-        raise core_exceptions.InvalidInputError("code_verifier must be 43-128 characters")
-
-    if not re.match(r"^[A-Za-z0-9_-]+$", code_verifier):
-        raise core_exceptions.InvalidInputError("code_verifier must be valid base64url")
-
-    # Verify method is S256
-    if code_challenge_method != "S256":
-        raise core_exceptions.InvalidInputError("Only S256 PKCE method is supported")
-
-    # Compute SHA256 hash of verifier
-    verifier_hash = hashlib.sha256(code_verifier.encode("ascii")).digest()
-    computed_challenge = base64.urlsafe_b64encode(verifier_hash).decode("ascii").rstrip("=")
-
-    # Constant-time comparison to prevent timing attacks
-    if not _secure_compare(computed_challenge, code_challenge):
-        logger.warning(
-            "PKCE verification failed: computed=<value_1>..., expected=<value_2>...",
-            extra=core_logger.context(value_1=computed_challenge[:10], value_2=code_challenge[:10]),
-        )
-        raise core_exceptions.InvalidInputError("Invalid code_verifier")
-
-
-def _secure_compare(a: str, b: str) -> bool:
-    """Constant-time string comparison to prevent timing attacks.
-
-    Uses ``hmac.compare_digest`` to avoid both character-by-
-    character and length timing leaks.
-
-    Args:
-        a: First string.
-        b: Second string.
-
-    Returns:
-        True if strings are equal, False otherwise.
-    """
-    return hmac.compare_digest(a.encode(), b.encode())
 
 
 # Pre-configured templates for common IdPs

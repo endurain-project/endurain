@@ -8,18 +8,26 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.authentication.dependencies as authentication_dependencies
-import modules.auth.dependencies as auth_dependencies
 
 
 def test_get_token_selects_access_header_and_client_refresh_source():
-    assert auth_dependencies.get_token("access", "cookie", "web", access_tokens_service.TokenType.ACCESS) == "access"
-    assert auth_dependencies.get_token(None, "cookie", "web", access_tokens_service.TokenType.REFRESH) == "cookie"
-    assert auth_dependencies.get_token("refresh", None, "mobile", access_tokens_service.TokenType.REFRESH) == "refresh"
+    assert (
+        authentication_dependencies.get_token("access", "cookie", "web", access_tokens_service.TokenType.ACCESS)
+        == "access"
+    )
+    assert (
+        authentication_dependencies.get_token(None, "cookie", "web", access_tokens_service.TokenType.REFRESH)
+        == "cookie"
+    )
+    assert (
+        authentication_dependencies.get_token("refresh", None, "mobile", access_tokens_service.TokenType.REFRESH)
+        == "refresh"
+    )
 
 
 def test_get_token_rejects_missing_access_token():
     with pytest.raises(core_exceptions.DomainError) as exc_info:
-        auth_dependencies.get_token(None, None, "web", access_tokens_service.TokenType.ACCESS)
+        authentication_dependencies.get_token(None, None, "web", access_tokens_service.TokenType.ACCESS)
     assert exc_info.value.status_code == 401
 
 

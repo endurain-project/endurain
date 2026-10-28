@@ -57,8 +57,7 @@ def generate_link_token(
         request (Request): The FastAPI request object.
         token_user_id (int): The authenticated user's ID extracted from the access token.
         step_up_store: Step-up lockout store.
-
-        db: Value used by this operation.
+        db: Database session.
 
     Returns:
         IdpLinkTokenResponse: Contains the one-time token and expiration time.
@@ -148,8 +147,7 @@ def delete_my_identity_provider(
         request (Request): The FastAPI request object.
         token_user_id (int): User ID extracted from the access token.
         step_up_store: Step-up lockout store.
-
-        db: Value used by this operation.
+        db: Database session.
 
     Returns:
         None: Returns 204 No Content on successful deletion.

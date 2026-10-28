@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -34,16 +33,6 @@ def _create_callback_session(user, request, password_hasher, db, oauth_state_id)
 
 
 _test_service.create_callback_session.side_effect = _create_callback_session
-
-
-@pytest.fixture(autouse=True)
-def _session_policy(session_policy):
-    """Serve the default session policy instead of reading it from the database."""
-    with patch(
-        "modules.auth.identity_providers.public_router.server_settings_integration.get_session_policy",
-        return_value=session_policy,
-    ):
-        yield
 
 
 def _build_app(mock_db) -> TestClient:
@@ -141,7 +130,7 @@ class TestInitiateLoginErrors:
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     @patch("modules.auth.identity_providers.public_router.idp_utils.is_custom_scheme_redirect")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
+    @patch.object(_test_service, "create_login_oauth_state", return_value="state-id")
     def test_invalid_client_type_defaults_to_web(
         self,
         mock_create_state,
@@ -187,7 +176,7 @@ class TestHandleCallback:
         assert response.status_code == 404
 
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "get_unused_oauth_state")
     def test_oauth_state_not_found(self, mock_get_state, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         idp = MagicMock()
@@ -203,8 +192,8 @@ class TestHandleCallback:
         assert response.status_code == 400
 
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch.object(_test_service, "get_unused_oauth_state")
+    @patch.object(_test_service, "claim_oauth_state")
     def test_state_replay(self, mock_mark_used, mock_get_state, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         idp = MagicMock()
@@ -222,105 +211,6 @@ class TestHandleCallback:
             follow_redirects=False,
         )
         assert response.status_code == 400
-
-
-class TestTokenExchange:
-    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
-    def test_session_not_found(self, mock_get_session, mock_db):
-        client = _build_app(mock_db)
-        mock_get_session.return_value = None
-
-        response = client.post(
-            "/api/v1/public/idp/session/unknown/tokens",
-            json={"code_verifier": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
-        )
-        assert response.status_code == 404
-
-    @patch("modules.auth.identity_providers.service.users_integration.require_user")
-    @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
-    @patch("modules.auth.identity_providers.public_router.authentication_integration.create_tokens")
-    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
-    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
-    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
-    def test_success_retrieves_user_from_session(
-        self,
-        mock_get_session,
-        mock_validate_pkce,
-        mock_claim_session,
-        mock_create_tokens,
-        mock_check_active,
-        mock_get_user_or_404,
-        mock_db,
-    ):
-        client = _build_app(mock_db)
-        session = MagicMock()
-        session.user_id = 42
-        session.tokens_exchanged = False
-        oauth_state = MagicMock()
-        oauth_state.id = "oauth-state-id"
-        oauth_state.code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-        oauth_state.code_challenge_method = "S256"
-        oauth_state.client_type = "mobile"
-        mock_get_session.return_value = (session, oauth_state)
-        user = MagicMock()
-        mock_get_user_or_404.return_value = user
-        mock_create_tokens.return_value = (
-            None,
-            MagicMock(),
-            "access-token",
-            MagicMock(),
-            "refresh-token",
-            "csrf-token",
-        )
-        mock_claim_session.return_value = True
-
-        response = client.post(
-            "/api/v1/public/idp/session/session-id/tokens",
-            json={"code_verifier": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
-            headers={"X-Client-Type": "mobile"},
-        )
-
-        assert response.status_code == 200
-        mock_validate_pkce.assert_called_once()
-        mock_get_user_or_404.assert_called_once_with(42, mock_db)
-        mock_check_active.assert_called_once_with(user)
-        mock_create_tokens.assert_called_once_with(
-            user, mock_create_tokens.call_args.args[1], mock_create_tokens.call_args.args[2], "session-id"
-        )
-
-    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
-    @patch("modules.auth.identity_providers.public_router.authentication_integration.create_tokens")
-    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
-    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
-    def test_client_type_mismatch_does_not_mint_tokens_or_claim_session(
-        self,
-        mock_get_session,
-        mock_validate_pkce,
-        mock_create_tokens,
-        mock_claim_session,
-        mock_db,
-    ):
-        client = _build_app(mock_db)
-        session = MagicMock()
-        session.tokens_exchanged = False
-        oauth_state = MagicMock()
-        oauth_state.id = "oauth-state-id"
-        oauth_state.code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-        oauth_state.code_challenge_method = "S256"
-        oauth_state.client_type = "mobile"
-        mock_get_session.return_value = (session, oauth_state)
-        mock_validate_pkce.return_value = None
-
-        response = client.post(
-            "/api/v1/public/idp/session/session-id/tokens",
-            json={"code_verifier": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
-            headers={"X-Client-Type": "web"},
-        )
-
-        assert response.status_code == 400
-        assert response.json()["detail"] == "client_type does not match the OAuth state"
-        mock_create_tokens.assert_not_called()
-        mock_claim_session.assert_not_called()
 
 
 class TestAppendQueryParams:
@@ -390,8 +280,8 @@ class TestHandleCallbackRedirects:
         return oauth_state
 
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "claim_oauth_state")
+    @patch.object(_test_service, "get_unused_oauth_state")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_link_mode_success_redirects_to_link_result_url(
         self,
@@ -424,8 +314,8 @@ class TestHandleCallbackRedirects:
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
     @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "claim_oauth_state")
+    @patch.object(_test_service, "get_unused_oauth_state")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_mode_success_redirects_with_session_id(
         self,
@@ -463,8 +353,8 @@ class TestHandleCallbackRedirects:
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
     @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "claim_oauth_state")
+    @patch.object(_test_service, "get_unused_oauth_state")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_mode_appends_relative_redirect_path(
         self,
@@ -506,8 +396,8 @@ class TestHandleCallbackRedirects:
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
     @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "claim_oauth_state")
+    @patch.object(_test_service, "get_unused_oauth_state")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_mode_encodes_the_redirect_and_does_not_log_the_session_id(
         self,
@@ -557,8 +447,8 @@ class TestHandleCallbackRedirects:
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
     @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "claim_oauth_state")
+    @patch.object(_test_service, "get_unused_oauth_state")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_mode_custom_scheme_sets_external_redirect_flag(
         self,
@@ -594,8 +484,8 @@ class TestHandleCallbackRedirects:
         assert "external_redirect=true" in response.headers["location"]
 
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "claim_oauth_state")
+    @patch.object(_test_service, "get_unused_oauth_state")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_failure_redirects_to_login_error(
         self,
@@ -623,8 +513,8 @@ class TestHandleCallbackRedirects:
         assert "error=sso_failed" in response.headers["location"]
 
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch.object(_test_service, "claim_oauth_state")
+    @patch.object(_test_service, "get_unused_oauth_state")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_link_failure_redirects_to_link_error(
         self,

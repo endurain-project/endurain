@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import Protocol
 
+import core.exceptions as core_exceptions
+
 type LockoutTier = tuple[int, int, str]
 
 LOGIN_LOCKOUT_TIERS: tuple[LockoutTier, ...] = ((5, 300, "5 min"), (10, 1800, "30 min"), (20, 86400, "24 hours"))
@@ -14,7 +16,7 @@ STEP_UP_LOCKOUT_TIERS: tuple[LockoutTier, ...] = (
 )
 
 
-class AuthSecurityStoreUnavailableError(RuntimeError):
+class AuthSecurityStoreUnavailableError(core_exceptions.ServiceUnavailableError, RuntimeError):
     """Raised when shared authentication security storage is unavailable."""
 
 

@@ -43,7 +43,7 @@ User profile fields, profile routes, privacy settings, and non-auth account data
 
 ## Transaction ownership
 
-CRUD functions stage database changes with `flush()` and raise domain errors from `core.exceptions`. A service owns the complete workflow and commits after all related writes are staged. Integration surfaces that expose a complete account-security action delegate to that service; staging operations leave the commit to their caller. Application migrations use each package's migration service and commit through application-level migration orchestration.
+CRUD functions stage database changes with `flush()` and raise domain errors from `core.exceptions`. A service owns the complete workflow and commits after all related writes are staged. An integration surface never ends a transaction: it stages through its package's service or crud and the caller, which holds the unit of work (the `users` services for the account-security actions, the `authentication` service for login, refresh, logout and the SSO exchange), commits. Where a write is advisory and must not sit on the request path, such as an API key's last-used time, the package publishes a best-effort event and a subscriber commits in its own session. Application migrations use each package's migration service and commit through application-level migration orchestration.
 
 ## Step-up verification gap for SSO-only accounts
 
