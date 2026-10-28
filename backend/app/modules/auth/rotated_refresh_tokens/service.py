@@ -16,14 +16,6 @@ logger = core_logger.get_logger(__name__)
 # Allows for network retries/delays without false positives
 TOKEN_REUSE_GRACE_PERIOD_SECONDS: int = 60
 
-# Extra seconds a rotated record is retained beyond its grace window before the
-# cleanup job removes it. Keeping the row a little longer than
-# TOKEN_REUSE_GRACE_PERIOD_SECONDS guarantees that an in-grace retry landing near
-# the boundary always finds its record (so it can be replayed) and that reuse
-# just past the window is still detected as theft instead of silently becoming a
-# plain "invalid token" because cleanup raced the boundary.
-ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS: int = 10
-
 
 def hmac_hash_token(token: str) -> str:
     """Compute HMAC-SHA256 hash of a token for secure lookup.
@@ -191,5 +183,5 @@ def delete_by_family(token_family_id: str, db: Session) -> int:
 
 
 def delete_expired_tokens(cutoff_time: datetime, db: Session) -> int:
-    """Stage deletion of expired rotated-token records."""
+    """Stage deletion of rotated-token records rotated before ``cutoff_time``."""
     return rotated_token_crud.delete_expired_tokens(cutoff_time, db)

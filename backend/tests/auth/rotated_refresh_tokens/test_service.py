@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import core.config as core_config
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_token_jobs
 import modules.auth.rotated_refresh_tokens.service as rotated_token_utils
@@ -260,6 +261,17 @@ class TestCleanupExpiredRotatedTokens:
         mock_delete.assert_called_once()
         db.commit.assert_called_once()
 
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
+    @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")
+    def test_cleanup_keeps_records_for_the_refresh_token_lifetime(self, mock_delete, mock_session_local):
+        mock_session_local.return_value.__enter__.return_value = MagicMock()
+        mock_delete.return_value = 0
+        before = datetime.now(UTC)
+        rotated_token_jobs.cleanup_expired_rotated_tokens()
+        cutoff = mock_delete.call_args.args[0]
+        lifetime = timedelta(days=core_config.settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        assert before - lifetime <= cutoff <= datetime.now(UTC) - lifetime
+
     def test_recurring_job_runs_every_minute(self):
         assert rotated_token_jobs.recurring_jobs()[0].minutes == 1
 
@@ -275,16 +287,3 @@ class TestTokenReuseGracePeriod:
         """
         # Assert
         assert rotated_token_utils.TOKEN_REUSE_GRACE_PERIOD_SECONDS == 60
-
-
-class TestRotatedTokenCleanupBuffer:
-    """
-    Test suite for ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS constant.
-    """
-
-    def test_cleanup_buffer_value(self):
-        """
-        Test cleanup buffer is 10 seconds.
-        """
-        # Assert
-        assert rotated_token_jobs.ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS == 10

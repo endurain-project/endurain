@@ -17,7 +17,7 @@ class RotatedRefreshToken(Base):
         hashed_token: Hashed old refresh token.
         rotation_count: Which rotation this token belonged to.
         rotated_at: When this token was rotated.
-        expires_at: Cleanup marker (rotated_at + 60 seconds).
+        expires_at: End of the replay grace window (rotated_at + 60 seconds).
         replacement_refresh_token: Fernet-encrypted replacement
             refresh token replayed for in-grace retries.
         replacement_refresh_token_exp: Expiry of the

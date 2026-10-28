@@ -1956,7 +1956,8 @@ class IdentityProviderService:
         1. Find a user by their identity provider (IdP) link using the subject identifier.
         2. If not found, find a user by email and link their account to the IdP,
            but only when the IdP asserts the email is verified (account-takeover
-           prevention via the OIDC ``email_verified`` claim).
+           prevention via the OIDC ``email_verified`` claim) and the local account's
+           email is verified too.
         3. If still not found and auto-creation is enabled, create a new user from the IdP information.
 
         Args:
@@ -1971,7 +1972,7 @@ class IdentityProviderService:
 
         Raises:
             domain error: If an existing account matches the email but the IdP
-                did not assert a verified email (403), or if user creation is
+                did not assert a verified email or the account's email is not verified (403), or if user creation is
                 disabled for the identity provider and no existing user is found.
         """
         # Try to find existing user by IdP link
@@ -2017,6 +2018,19 @@ class IdentityProviderService:
                         "Cannot link this identity provider to an existing "
                         "account because the provider did not verify the "
                         "email address."
+                    )
+
+                # An unverified local address can be claimed by anyone who set it on their own account, so
+                # the IdP's assertion proves nothing about who owns this account.
+                if not user.email_verified:
+                    logger.warning(
+                        "Refusing to link IdP <name> to account <username>: the account email is not verified",
+                        extra=core_logger.context(name=idp.name, username=user.username),
+                    )
+                    raise core_exceptions.PermissionDeniedError(
+                        "Cannot link this identity provider to an existing "
+                        "account because the account email is not verified. "
+                        "Verify the email address and try again."
                     )
 
                 # Link existing account to IdP
@@ -2126,8 +2140,8 @@ class IdentityProviderService:
         This method syncs user profile information from the IdP to the local user account when
         IdP sync is enabled. It performs the following steps:
         1. Maps claims from IdP userinfo to standard user fields (email, name)
-        2. Validates email changes - checks if new email is already in use by another user
-        3. Skips email updates if conflict detected and logs the issue
+        2. Validates email changes - skips an email the IdP did not verify, and one already in use by another user
+        3. Logs the conflict when the new email is already in use
         4. Builds an updated copy of the user schema with the changed fields
         5. Delegates persistence to the CRUD layer (edit_user)
 
@@ -2145,8 +2159,9 @@ class IdentityProviderService:
         # Build updates
         updates = {}
 
-        # Check email - verify not already in use
-        if "email" in mapped_data and mapped_data["email"] != user.email:
+        # Check email - verify not already in use. An email the IdP did not verify is never copied onto
+        # the account, since it carries the account's own verified flag with it.
+        if "email" in mapped_data and mapped_data["email"] != user.email and self._is_email_verified(userinfo):
             existing_user = users_integration.get_user_by_email(mapped_data["email"], db)
             if existing_user and existing_user.id != user.id:
                 logger.warning(

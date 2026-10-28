@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
+import core.config as core_config
 import core.database as core_database
 import core.logger as core_logger
 import core.scheduler as core_scheduler
@@ -9,13 +10,15 @@ import modules.auth.rotated_refresh_tokens.service as rotated_token_service
 
 logger = core_logger.get_logger(__name__)
 
-ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS = 10
-
 
 def cleanup_expired_rotated_tokens() -> None:
-    """Delete expired rotated-token rows in a short-lived transaction."""
+    """Delete rotated-token rows older than the refresh-token lifetime in a short-lived transaction.
+
+    A rotated token stays recorded until it could no longer be presented, so a replay after the grace
+    window is still recognised as reuse.
+    """
     with core_database.SessionLocal() as db:
-        cutoff = datetime.now(UTC) - timedelta(seconds=ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS)
+        cutoff = datetime.now(UTC) - timedelta(days=core_config.settings.REFRESH_TOKEN_EXPIRE_DAYS)
         deleted_count = rotated_token_service.delete_expired_tokens(cutoff, db)
         db.commit()
     if deleted_count:
