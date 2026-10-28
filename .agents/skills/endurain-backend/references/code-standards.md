@@ -24,7 +24,7 @@ Enforced by ruff `D` with `convention = "google"` on the converted modules (`act
 ## SQLAlchemy 2
 - `Mapped[...]` with `mapped_column()`; every column typed.
 - `crud` stages with `db.flush()`; only `service` commits. `db.refresh(obj)` after the flush when you need server defaults.
-- Persistence raises `core.exceptions`; the app handler maps them to responses. Converted modules do not use `@handle_db_errors`: a `SQLAlchemyError` propagates to `core.exceptions.database_error_handler`.
+- Persistence raises `core.exceptions`; the app handler maps them to responses. A `SQLAlchemyError` propagates to `core.exceptions.database_error_handler`.
 
 ## Pydantic v2
 - `ConfigDict`, `field_validator`; no class `Config`, no `@validator`.

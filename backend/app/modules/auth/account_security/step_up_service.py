@@ -85,7 +85,7 @@ def verify_step_up_credentials(
 
     if step_up_store.is_locked_out(key):
         lockout_until = step_up_store.get_lockout_time(key)
-        logger.warning(f"Step-up blocked for user {user_id}: locked out")
+        logger.warning("Step-up blocked for user <user_id>: locked out", extra=core_logger.context(user_id=user_id))
         error = core_exceptions.TooManyRequestsError(
             "Too many failed step-up attempts. Try again later.", retry_at=lockout_until
         )

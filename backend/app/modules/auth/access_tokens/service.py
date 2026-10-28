@@ -47,7 +47,8 @@ if not JWT_SECRET_KEY:
 
 
 class TokenManager:
-    """TokenManager is a utility class for managing JSON Web Tokens (JWT) in user
+    """TokenManager is a utility class for managing JSON Web Tokens (JWT) in user.
+
     sessions.
 
     This class provides methods for creating, decoding, validating, and
@@ -300,7 +301,8 @@ class TokenManager:
         token_type: TokenType,
         ttl: timedelta,
     ) -> tuple[datetime, str]:
-        """Creates a JWT token for a user session with appropriate access scope
+        """Creates a JWT token for a user session with appropriate access scope.
+
         and expiration.
 
         Args:

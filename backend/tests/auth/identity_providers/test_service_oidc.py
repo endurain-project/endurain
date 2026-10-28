@@ -426,7 +426,7 @@ class TestGetOidcConfigurationGuardFailures:
             patch("modules.auth.identity_providers.service.logger") as mock_logger,
         ):
             result = service.get_oidc_configuration(idp)
-        return result, mock_logger.warning.call_args[0][0]
+        return result, str(mock_logger.warning.call_args)
 
     def test_blocked_url_points_the_operator_at_ssrf_allowed_hosts(self, service):
         result, message = self._discover_with_guard_failure(

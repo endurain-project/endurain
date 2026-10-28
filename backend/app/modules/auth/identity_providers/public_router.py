@@ -27,8 +27,6 @@ import modules.auth.sessions.integration_service as auth_sessions_crud
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 
-logger = core_logger.get_logger(__name__)
-
 # Define the API router
 router = APIRouter()
 
@@ -79,6 +77,8 @@ def get_enabled_identity_providers(
 
     Args:
         db (Session): SQLAlchemy database session dependency.
+
+        service: Value used by this operation.
 
     Returns:
         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
@@ -190,7 +190,11 @@ def initiate_login(
             code_challenge_method=code_challenge_method,
         )
 
-        logger.debug(f"OAuth state created: {state_id} for IdP {idp.slug} (client_type={client_type})")
+        service.log_public_flow_event(
+            "debug",
+            "OAuth state created: <state_id> for IdP <slug> (client_type=<client_type>)",
+            extra=core_logger.context(state_id=state_id, slug=idp.slug, client_type=client_type),
+        )
 
         # Initiate the OAuth flow with database state ID (no cookies)
         authorization_url = service.initiate_login(idp, db, redirect, oauth_state_id=state_id)
@@ -199,7 +203,9 @@ def initiate_login(
     except HTTPException:
         raise
     except Exception as err:
-        logger.error(f"Error in initiate_login: {err}", exc_info=err)
+        service.log_public_flow_event(
+            "error", "Error in initiate_login: <err>", exc_info=err, extra=core_logger.context(err=err)
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to initiate login",
@@ -239,6 +245,9 @@ def handle_callback(
         state (str): State parameter used for CSRF protection (database state ID).
         request (Request): The incoming HTTP request.
 
+        response: Value used by this operation.
+        service: Value used by this operation.
+
     Returns:
         RedirectResponse: A redirect response to either:
             - Settings page (link mode): /settings with success parameters
@@ -269,7 +278,11 @@ def handle_callback(
         oauth_state = oauth_state_crud.get_oauth_state_by_id_and_not_used(state, db)
 
         if not oauth_state:
-            logger.warning(f"OAuth state not found in database: {core_hashing.log_fingerprint(state)}")
+            service.log_public_flow_event(
+                "warning",
+                "OAuth state not found in database: <value_1>",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OAuth state",
@@ -285,9 +298,12 @@ def handle_callback(
         # IdP's JWKS), but asserting the binding here fails fast and protects
         # deployments where two IdP entries share an authorization server.
         if oauth_state.idp_id is not None and oauth_state.idp_id != idp.id:
-            logger.warning(
-                f"OAuth state IdP mismatch for state {core_hashing.log_fingerprint(state)}: "
-                f"state.idp_id={oauth_state.idp_id}, callback idp.id={idp.id}"
+            service.log_public_flow_event(
+                "warning",
+                "OAuth state IdP mismatch for state <value_1>: state.idp_id=<idp_id>, callback idp.id=<id>",
+                extra=core_logger.context(
+                    value_1=core_hashing.log_fingerprint(state), idp_id=oauth_state.idp_id, id=idp.id
+                ),
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -301,14 +317,20 @@ def handle_callback(
         # races (replays, double-submits) abort here with a generic 400 so we
         # do not leak whether the state existed but was already consumed.
         if not oauth_state_crud.mark_oauth_state_used(state, db):
-            logger.warning(f"OAuth state replay/race rejected: {core_hashing.log_fingerprint(state)}")
+            service.log_public_flow_event(
+                "warning",
+                "OAuth state replay/race rejected: <value_1>",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OAuth state",
             )
 
-        logger.debug(
-            f"OAuth callback received for state {core_hashing.log_fingerprint(state)} (client_type={oauth_state.client_type})"
+        service.log_public_flow_event(
+            "debug",
+            "OAuth callback received for state <value_1> (client_type=<client_type>)",
+            extra=core_logger.context(value_1=core_hashing.log_fingerprint(state), client_type=oauth_state.client_type),
         )
 
         # Process the OAuth callback (service will handle both DB and cookie state)
@@ -322,7 +344,11 @@ def handle_callback(
         if is_link_mode:
             redirect_url = _build_link_result_url(oauth_state.redirect_path, idp.name, success=True)
 
-            logger.info(f"IdP link successful for user {user.username}, IdP {idp.name}")
+            service.log_public_flow_event(
+                "info",
+                "IdP link successful for user <username>, IdP <name>",
+                extra=core_logger.context(username=user.username, name=idp.name),
+            )
 
             return RedirectResponse(
                 url=redirect_url,
@@ -350,9 +376,12 @@ def handle_callback(
 
         # The session ID is the handle exchanged for tokens, so only a one-way
         # fingerprint is logged: enough to correlate with other entries, useless to replay.
-        logger.info(
-            f"SSO login successful for user {user.username} via {idp.name} "
-            f"(session={core_hashing.log_fingerprint(session_id)})"
+        service.log_public_flow_event(
+            "info",
+            "SSO login successful for user <username> via <name> (session=<value_3>)",
+            extra=core_logger.context(
+                username=user.username, name=idp.name, value_3=core_hashing.log_fingerprint(session_id)
+            ),
         )
 
         return RedirectResponse(
@@ -363,7 +392,9 @@ def handle_callback(
     except HTTPException:
         raise
     except Exception as err:
-        logger.error(f"Error in SSO callback: {err}", exc_info=err)
+        service.log_public_flow_event(
+            "error", "Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err)
+        )
 
         # A failed LINK returns the browser to its originating page with an error
         # flag; a failed LOGIN falls back to the login page. Link attempts are
@@ -394,6 +425,7 @@ def exchange_tokens_for_session(
         auth_token_manager.TokenManager,
         Depends(auth_token_manager.get_token_manager),
     ],
+    service: idp_dependencies.IdentityProviderService,
     db: core_dependencies.DbSession,
 ):
     """Exchange a PKCE code verifier for JWT tokens.
@@ -420,6 +452,9 @@ def exchange_tokens_for_session(
         token_manager (TokenManager): Token manager dependency.
         db (Session): Database session dependency.
 
+        password_hasher: Value used by this operation.
+        service: Value used by this operation.
+
     Returns:
         TokenExchangeResponse: JWT tokens (access, refresh, csrf) and metadata.
 
@@ -434,7 +469,11 @@ def exchange_tokens_for_session(
         session_with_state = auth_sessions_crud.get_session_with_oauth_state(session_id, db)
 
         if not session_with_state:
-            logger.warning(f"Token exchange failed: session {core_hashing.log_fingerprint(session_id)} not found")
+            service.log_public_flow_event(
+                "warning",
+                "Token exchange failed: session <value_1> not found",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
+            )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not found or not eligible for token exchange",
@@ -444,8 +483,10 @@ def exchange_tokens_for_session(
 
         # Verify session is linked to an OAuth state (mobile flow)
         if not oauth_state:
-            logger.warning(
-                f"Token exchange failed: session {core_hashing.log_fingerprint(session_id)} has no OAuth state"
+            service.log_public_flow_event(
+                "warning",
+                "Token exchange failed: session <value_1> has no OAuth state",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
             )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -458,7 +499,11 @@ def exchange_tokens_for_session(
         # closes a TOCTOU race that two concurrent exchanges with the
         # same code_verifier would otherwise win.
         if session_obj.tokens_exchanged:
-            logger.warning(f"Token exchange replay attempt for session {core_hashing.log_fingerprint(session_id)}")
+            service.log_public_flow_event(
+                "warning",
+                "Token exchange replay attempt for session <value_1>",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
+            )
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Tokens already exchanged for this session",
@@ -466,8 +511,10 @@ def exchange_tokens_for_session(
 
         # Verify PKCE code_verifier matches code_challenge
         if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
-            logger.error(
-                f"Token exchange failed: OAuth state {core_hashing.log_fingerprint(oauth_state.id)} missing PKCE data"
+            service.log_public_flow_event(
+                "error",
+                "Token exchange failed: OAuth state <value_1> missing PKCE data",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(oauth_state.id)),
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -517,10 +564,14 @@ def exchange_tokens_for_session(
             # a misbehaving client or an attacker trying to flip the
             # response shape. We do NOT silently downgrade.
             if header_client_type is not None and header_client_type != stored_client_type:
-                logger.warning(
-                    "Token exchange client_type mismatch for session "
-                    f"{core_hashing.log_fingerprint(session_id)}: stored={stored_client_type}, "
-                    f"header={header_client_type}"
+                service.log_public_flow_event(
+                    "warning",
+                    "Token exchange client_type mismatch for session <value_1>: stored=<stored_client_type>, header=<header_client_type>",
+                    extra=core_logger.context(
+                        value_1=core_hashing.log_fingerprint(session_id),
+                        stored_client_type=stored_client_type,
+                        header_client_type=header_client_type,
+                    ),
                 )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -572,7 +623,11 @@ def exchange_tokens_for_session(
             db,
         )
         if not claimed:
-            logger.warning(f"Token exchange lost race for session {core_hashing.log_fingerprint(session_id)}")
+            service.log_public_flow_event(
+                "warning",
+                "Token exchange lost race for session <value_1>",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id)),
+            )
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Tokens already exchanged for this session",
@@ -598,8 +653,12 @@ def exchange_tokens_for_session(
         # needed here. The atomic claim also detached the OAuth
         # state row for cleanup.
 
-        logger.info(
-            f"Token exchange successful for session {core_hashing.log_fingerprint(session_id)} (user={user.username}, client_type={client_type})"
+        service.log_public_flow_event(
+            "info",
+            "Token exchange successful for session <value_1> (user=<username>, client_type=<client_type>)",
+            extra=core_logger.context(
+                value_1=core_hashing.log_fingerprint(session_id), username=user.username, client_type=client_type
+            ),
         )
 
         # Return response based on client type (matches complete_login behavior)
@@ -627,8 +686,11 @@ def exchange_tokens_for_session(
     except HTTPException:
         raise
     except Exception as err:
-        logger.error(
-            f"Error in token exchange for session {core_hashing.log_fingerprint(session_id)}: {err}", exc_info=err
+        service.log_public_flow_event(
+            "error",
+            "Error in token exchange for session <value_1>: <err>",
+            exc_info=err,
+            extra=core_logger.context(value_1=core_hashing.log_fingerprint(session_id), err=err),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

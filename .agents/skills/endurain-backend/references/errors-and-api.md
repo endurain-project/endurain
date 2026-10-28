@@ -24,7 +24,7 @@
 
 - New kind: subclass `DomainError` with `status_code`, `code`, `title`, `default_detail`.
 - `code` becomes the response `type` URN (`urn:endurain:error:<code>`); clients match on it, so a released `code` never changes.
-- A bare `HTTPException` is still tolerated in unconverted modules and is rendered as a problem document too.
+- Auth and converted modules raise domain exceptions from services and persistence; the application exception handler renders them as problem documents.
 - Persistence modules may not import `fastapi` (enforced by `TestLayerRules.test_persistence_raises_domain_errors_not_http_ones`).
 
 ## Problem document shape

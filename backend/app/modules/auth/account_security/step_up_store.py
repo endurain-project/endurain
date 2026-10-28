@@ -14,15 +14,25 @@ import modules.auth.lockout.integration_service as lockout_integration
 class StepUpStore(Protocol):
     """Contract for user-keyed step-up attempt state."""
 
-    def is_locked_out(self, key: str) -> bool: ...
+    def is_locked_out(self, key: str) -> bool:
+        """Return whether the supplied key is currently locked out."""
+        ...
 
-    def get_lockout_time(self, key: str) -> datetime | None: ...
+    def get_lockout_time(self, key: str) -> datetime | None:
+        """Return the active lockout expiry, if one exists."""
+        ...
 
-    def record_failed_attempt(self, key: str) -> int: ...
+    def record_failed_attempt(self, key: str) -> int:
+        """Record a failed attempt and return the updated count."""
+        ...
 
-    def reset_attempts(self, key: str) -> None: ...
+    def reset_attempts(self, key: str) -> None:
+        """Clear the failed-attempt count for the supplied key."""
+        ...
 
-    def clear_all(self) -> None: ...
+    def clear_all(self) -> None:
+        """Clear all tracked lockout attempts."""
+        ...
 
 
 class StepUpAttempts:
@@ -39,18 +49,23 @@ class StepUpAttempts:
         )
 
     def is_locked_out(self, key: str) -> bool:
+        """Return whether the supplied key is locked out."""
         return self._lockout.is_locked_out(key)
 
     def get_lockout_time(self, key: str) -> datetime | None:
+        """Return the active lockout expiry, if one exists."""
         return self._lockout.get_lockout_time(key)
 
     def record_failed_attempt(self, key: str) -> int:
+        """Record a failed attempt and return the updated count."""
         return self._lockout.record_failed_attempt(key)
 
     def reset_attempts(self, key: str) -> None:
+        """Clear the failed-attempt count for the supplied key."""
         self._lockout.reset_attempts(key)
 
     def clear_all(self) -> None:
+        """Clear all tracked lockout attempts."""
         self._lockout.clear_all()
 
 

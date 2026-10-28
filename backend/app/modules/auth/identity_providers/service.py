@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 import httpx2
@@ -130,6 +130,8 @@ class TokenAction(Enum):
 
 
 class IdentityProviderService:
+    """Own identity-provider configuration, OAuth and token lifecycle workflows."""
+
     CACHE_TTL_SECONDS = 3600
 
     def __init__(self, state: StateProvider, frontend_host: str, api_version: str) -> None:
@@ -137,6 +139,17 @@ class IdentityProviderService:
         self._state = state
         self._frontend_host = frontend_host
         self._api_version = api_version
+
+    def log_public_flow_event(
+        self,
+        level: Literal["debug", "info", "warning", "error"],
+        message: str,
+        *,
+        exc_info: BaseException | None = None,
+        extra: dict[str, object] | None = None,
+    ) -> None:
+        """Record an OAuth flow outcome detected by its transport adapter."""
+        getattr(logger, level)(message, exc_info=exc_info, extra=extra)
 
     def list_identity_providers(self, db: Session) -> list[identity_provider_schema.IdentityProviderRead]:
         """List configured providers for the admin interface."""
@@ -373,7 +386,7 @@ class IdentityProviderService:
             # Self-hosted IdPs on private networks can
             # be opted in via SSRF_ALLOWED_HOSTS.
             core_network.reject_private_url(jwks_uri, purpose="oidc_jwks")
-            logger.debug(f"Fetching JWKS from {jwks_uri}")
+            logger.debug("Fetching JWKS from <jwks_uri>", extra=core_logger.context(jwks_uri=jwks_uri))
             with self._http_client() as client:
                 response = client.get(jwks_uri)
             response.raise_for_status()
@@ -382,7 +395,10 @@ class IdentityProviderService:
 
             # Validate JWKS structure
             if not isinstance(jwks, dict) or "keys" not in jwks:
-                logger.error(f"Invalid JWKS format from {jwks_uri}: missing 'keys' array")
+                logger.error(
+                    "Invalid JWKS format from <jwks_uri>: missing 'keys' array",
+                    extra=core_logger.context(jwks_uri=jwks_uri),
+                )
                 raise _identity_provider_error(
                     status_code=502,
                     detail="Identity provider returned invalid JWKS format",
@@ -390,24 +406,39 @@ class IdentityProviderService:
 
             self._write_cache(self._jwks_key(jwks_uri), jwks)
 
-            logger.debug(f"Successfully fetched and cached JWKS from {jwks_uri} ({len(jwks.get('keys', []))} keys)")
+            logger.debug(
+                "Successfully fetched and cached JWKS from <jwks_uri> (<value_2> keys)",
+                extra=core_logger.context(jwks_uri=jwks_uri, value_2=len(jwks.get("keys", []))),
+            )
 
             return jwks
 
         except httpx2.TimeoutException as err:
-            logger.error(f"Timeout fetching JWKS from {jwks_uri}: {err}", exc_info=err)
+            logger.error(
+                "Timeout fetching JWKS from <jwks_uri>: <err>",
+                exc_info=err,
+                extra=core_logger.context(jwks_uri=jwks_uri, err=err),
+            )
             raise _identity_provider_error(
                 status_code=504,
                 detail="Timeout retrieving signing keys from identity provider",
             ) from err
         except httpx2.HTTPStatusError as err:
-            logger.error(f"HTTP error fetching JWKS from {jwks_uri}: {err.response.status_code}", exc_info=err)
+            logger.error(
+                "HTTP error fetching JWKS from <jwks_uri>: <status_code>",
+                exc_info=err,
+                extra=core_logger.context(jwks_uri=jwks_uri, status_code=err.response.status_code),
+            )
             raise _identity_provider_error(
                 status_code=502,
                 detail=f"Identity provider JWKS endpoint returned error: {err.response.status_code}",
             ) from err
         except json.JSONDecodeError as err:
-            logger.error(f"Invalid JSON in JWKS response from {jwks_uri}: {err}", exc_info=err)
+            logger.error(
+                "Invalid JSON in JWKS response from <jwks_uri>: <err>",
+                exc_info=err,
+                extra=core_logger.context(jwks_uri=jwks_uri, err=err),
+            )
             raise _identity_provider_error(
                 status_code=502,
                 detail="Identity provider returned invalid JWKS JSON",
@@ -415,7 +446,11 @@ class IdentityProviderService:
         except core_exceptions.DomainError:
             raise
         except Exception as err:
-            logger.error(f"Unexpected error fetching JWKS from {jwks_uri}: {err}", exc_info=err)
+            logger.error(
+                "Unexpected error fetching JWKS from <jwks_uri>: <err>",
+                exc_info=err,
+                extra=core_logger.context(jwks_uri=jwks_uri, err=err),
+            )
             raise _network_domain_error(err, 500, "Failed to retrieve signing keys from identity provider") from err
 
     def _verify_id_token(
@@ -463,7 +498,9 @@ class IdentityProviderService:
             # The ID token has format: header.payload.signature
             parts = id_token.split(".")
             if len(parts) != 3:
-                logger.warning(f"Invalid JWT format: expected 3 parts, got {len(parts)}")
+                logger.warning(
+                    "Invalid JWT format: expected 3 parts, got <value_1>", extra=core_logger.context(value_1=len(parts))
+                )
                 raise _identity_provider_error(
                     status_code=401,
                     detail="Invalid ID token format",
@@ -501,13 +538,13 @@ class IdentityProviderService:
             # which would otherwise enable signature-bypass and RS256→HS256
             # key-confusion attacks against the public JWKS keys.
             if alg not in ID_TOKEN_ALLOWED_ALGORITHMS:
-                logger.warning(f"ID token uses disallowed algorithm: {alg}")
+                logger.warning("ID token uses disallowed algorithm: <alg>", extra=core_logger.context(alg=alg))
                 raise _identity_provider_error(
                     status_code=401,
                     detail="ID token uses an unsupported signature algorithm",
                 )
 
-            logger.debug(f"ID token header: kid={kid}, alg={alg}")
+            logger.debug("ID token header: kid=<kid>, alg=<alg>", extra=core_logger.context(kid=kid, alg=alg))
 
             # Step 2: Fetch JWKS from IdP
             jwks = self._fetch_jwks(jwks_uri)
@@ -520,13 +557,16 @@ class IdentityProviderService:
                     break
 
             if not matching_key:
-                logger.warning(f"No matching key found in JWKS for kid={kid}")
+                logger.warning("No matching key found in JWKS for kid=<kid>", extra=core_logger.context(kid=kid))
                 raise _identity_provider_error(
                     status_code=401,
                     detail="ID token signed with unknown key",
                 )
 
-            logger.debug(f"Found matching key in JWKS: kid={kid}, kty={matching_key.get('kty')}")
+            logger.debug(
+                "Found matching key in JWKS: kid=<kid>, kty=<value_2>",
+                extra=core_logger.context(kid=kid, value_2=matching_key.get("kty")),
+            )
 
             # Step 4: Import the key based on type
             key_type = matching_key.get("kty")
@@ -538,7 +578,7 @@ class IdentityProviderService:
             elif key_type == "oct":
                 key = OctKey.import_key(matching_key)
             else:
-                logger.warning(f"Unsupported key type in JWKS: {key_type}")
+                logger.warning("Unsupported key type in JWKS: <key_type>", extra=core_logger.context(key_type=key_type))
                 raise _identity_provider_error(
                     status_code=401,
                     detail=f"Unsupported key type: {key_type}",
@@ -569,7 +609,10 @@ class IdentityProviderService:
             # Validate all claims
             claims_request.validate(claims)
 
-            logger.debug(f"Successfully verified ID token signature for sub={claims.get('sub')}")
+            logger.debug(
+                "Successfully verified ID token signature for sub=<value_1>",
+                extra=core_logger.context(value_1=claims.get("sub")),
+            )
 
             # Step 6: Validate nonce if provided
             # The nonce is used to prevent replay attacks in OAuth2/OIDC flows
@@ -583,7 +626,10 @@ class IdentityProviderService:
                     )
 
                 if token_nonce != expected_nonce:
-                    logger.warning(f"ID token nonce mismatch: expected {expected_nonce}, got {token_nonce}")
+                    logger.warning(
+                        "ID token nonce mismatch: expected <expected_nonce>, got <token_nonce>",
+                        extra=core_logger.context(expected_nonce=expected_nonce, token_nonce=token_nonce),
+                    )
                     raise _identity_provider_error(
                         status_code=401,
                         detail="ID token nonce mismatch",
@@ -593,28 +639,30 @@ class IdentityProviderService:
             return claims
 
         except BadSignatureError as err:
-            logger.warning(f"ID token signature verification failed: {err}", exc_info=err)
+            logger.warning(
+                "ID token signature verification failed: <err>", exc_info=err, extra=core_logger.context(err=err)
+            )
             raise _identity_provider_error(
                 status_code=401,
                 detail="ID token signature is invalid",
             ) from err
         except ExpiredTokenError as err:
-            logger.warning(f"ID token has expired: {err}", exc_info=err)
+            logger.warning("ID token has expired: <err>", exc_info=err, extra=core_logger.context(err=err))
             raise _identity_provider_error(status_code=401, detail="ID token has expired") from err
         except InvalidClaimError as err:
-            logger.warning(f"ID token claim validation failed: {err}", exc_info=err)
+            logger.warning("ID token claim validation failed: <err>", exc_info=err, extra=core_logger.context(err=err))
             raise _identity_provider_error(
                 status_code=401,
                 detail=f"ID token claim validation failed: {err}",
             ) from err
         except MissingClaimError as err:
-            logger.warning(f"ID token missing required claim: {err}", exc_info=err)
+            logger.warning("ID token missing required claim: <err>", exc_info=err, extra=core_logger.context(err=err))
             raise _identity_provider_error(
                 status_code=401,
                 detail=f"ID token missing required claim: {err}",
             ) from err
         except InvalidPayloadError as err:
-            logger.warning(f"ID token payload is invalid: {err}", exc_info=err)
+            logger.warning("ID token payload is invalid: <err>", exc_info=err, extra=core_logger.context(err=err))
             raise _identity_provider_error(
                 status_code=401,
                 detail="ID token payload is invalid",
@@ -623,7 +671,7 @@ class IdentityProviderService:
             # Re-raise domain errors from _fetch_jwks or our own validations
             raise
         except Exception as err:
-            logger.error(f"Unexpected error verifying ID token: {err}", exc_info=err)
+            logger.error("Unexpected error verifying ID token: <err>", exc_info=err, extra=core_logger.context(err=err))
             raise _identity_provider_error(
                 status_code=500,
                 detail="Failed to verify ID token",
@@ -631,6 +679,7 @@ class IdentityProviderService:
 
     def get_oidc_configuration(self, idp: identity_provider_contracts.IdentityProviderState) -> dict[str, Any] | None:
         """Retrieves the OpenID Connect (OIDC) discovery configuration for a given identity provider.
+
         This method attempts to fetch the OIDC configuration from the provider's well-known discovery endpoint.
         It uses an in-memory cache to avoid redundant network requests and respects a cache TTL (time-to-live).
         If the configuration is cached and not expired, it is returned directly from the cache.
@@ -673,18 +722,21 @@ class IdentityProviderService:
             return config
         except httpx2.HTTPStatusError as err:
             logger.warning(
-                f"HTTP error fetching OIDC discovery for {idp.name}: {err.response.status_code} - {err.response.text}"
+                "HTTP error fetching OIDC discovery for <name>: <status_code> - <text>",
+                extra=core_logger.context(name=idp.name, status_code=err.response.status_code, text=err.response.text),
             )
             return None
         except httpx2.ConnectError as err:
             logger.error(
-                f"Connection error fetching OIDC discovery for {idp.name}. "
-                f"URL: {discovery_url}. Error: {err}. "
-                f"Check if the service is reachable and not using 'localhost' in Docker."
+                "Connection error fetching OIDC discovery for <name>. URL: <discovery_url>. Error: <err>. Check if the service is reachable and not using 'localhost' in Docker.",
+                extra=core_logger.context(name=idp.name, discovery_url=discovery_url, err=err),
             )
             return None
         except httpx2.RequestError as err:
-            logger.warning(f"Request error fetching OIDC discovery for {idp.name}. URL: {discovery_url}. Error: {err}")
+            logger.warning(
+                "Request error fetching OIDC discovery for <name>. URL: <discovery_url>. Error: <err>",
+                extra=core_logger.context(name=idp.name, discovery_url=discovery_url, err=err),
+            )
             return None
         except core_exceptions.DomainError as err:
             if err.status_code == 400:
@@ -692,31 +744,33 @@ class IdentityProviderService:
                 # hint for the operator so they know about the
                 # SSRF_ALLOWED_HOSTS escape hatch for self-hosted IdPs.
                 logger.warning(
-                    f"OIDC discovery for {idp.name} was rejected: "
-                    f"{err.detail}. URL: {discovery_url}. If this is a "
-                    f"self-hosted IdP on a private network, add its host "
-                    f"or CIDR to SSRF_ALLOWED_HOSTS."
+                    "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS.",
+                    extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
                 )
             else:
                 # The hostname could not be checked (resolution timed out or the
                 # lookup pool is busy). The URL was not judged, so no hint.
                 logger.warning(
-                    f"OIDC discovery for {idp.name} could not be checked: {err.detail}. URL: {discovery_url}."
+                    "OIDC discovery for <name> could not be checked: <detail>. URL: <discovery_url>.",
+                    extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
                 )
             return None
         except Exception as err:
             if hasattr(err, "status_code") and hasattr(err, "detail"):
                 if err.status_code == 400:
                     logger.warning(
-                        f"OIDC discovery for {idp.name} was rejected: {err.detail}. URL: {discovery_url}. "
-                        "If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS."
+                        "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS.",
+                        extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
                     )
                 else:
                     logger.warning(
-                        f"OIDC discovery for {idp.name} could not be checked: {err.detail}. URL: {discovery_url}."
+                        "OIDC discovery for <name> could not be checked: <detail>. URL: <discovery_url>.",
+                        extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
                     )
                 return None
-            logger.warning(f"Failed to fetch OIDC discovery for {idp.name}: {err}")
+            logger.warning(
+                "Failed to fetch OIDC discovery for <name>: <err>", extra=core_logger.context(name=idp.name, err=err)
+            )
             return None
 
     def _get_redirect_uri(self, idp_slug: str) -> str:
@@ -753,7 +807,11 @@ class IdentityProviderService:
                 raise ValueError("Decryption returned empty value")
             return client_id
         except Exception as err:
-            logger.error(f"Failed to decrypt client ID for IdP {idp.name}: {err}", exc_info=err)
+            logger.error(
+                "Failed to decrypt client ID for IdP <name>: <err>",
+                exc_info=err,
+                extra=core_logger.context(name=idp.name, err=err),
+            )
             raise _identity_provider_error(
                 status_code=500,
                 detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
@@ -784,7 +842,11 @@ class IdentityProviderService:
                 raise ValueError("Decryption returned empty value")
             return client_secret
         except Exception as err:
-            logger.error(f"Failed to decrypt client secret for IdP {idp.name}: {err}", exc_info=err)
+            logger.error(
+                "Failed to decrypt client secret for IdP <name>: <err>",
+                exc_info=err,
+                extra=core_logger.context(name=idp.name, err=err),
+            )
             raise _identity_provider_error(
                 status_code=500,
                 detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
@@ -819,7 +881,11 @@ class IdentityProviderService:
                 if config:
                     token_endpoint = config.get("token_endpoint")
             except Exception as err:
-                logger.warning(f"OIDC discovery failed for IdP {idp.name} at {idp.issuer_url}: {err}", exc_info=err)
+                logger.warning(
+                    "OIDC discovery failed for IdP <name> at <issuer_url>: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(name=idp.name, issuer_url=idp.issuer_url, err=err),
+                )
                 # Continue - will raise below if still no endpoint
 
         if not token_endpoint:
@@ -953,7 +1019,11 @@ class IdentityProviderService:
         except core_exceptions.DomainError:
             raise
         except Exception as err:
-            logger.error(f"Error initiating OAuth login for IdP {idp.name}: {err}", exc_info=err)
+            logger.error(
+                "Error initiating OAuth login for IdP <name>: <err>",
+                exc_info=err,
+                extra=core_logger.context(name=idp.name, err=err),
+            )
             raise _identity_provider_error(
                 status_code=500,
                 detail="Failed to initiate SSO login",
@@ -967,6 +1037,7 @@ class IdentityProviderService:
         oauth_state_id: str | None = None,
     ) -> str:
         """Initiates the OAuth/OIDC authorization flow for linking an identity provider to an existing user account.
+
         This method generates the authorization URL that redirects the user to the identity provider's
         login page. Uses database-backed OAuth state for security and replay protection.
 
@@ -1054,7 +1125,11 @@ class IdentityProviderService:
         except core_exceptions.DomainError:
             raise
         except Exception as err:
-            logger.error(f"Error initiating OAuth link for IdP {idp.name}, user {user_id}: {err}", exc_info=err)
+            logger.error(
+                "Error initiating OAuth link for IdP <name>, user <user_id>: <err>",
+                exc_info=err,
+                extra=core_logger.context(name=idp.name, user_id=user_id, err=err),
+            )
             raise _identity_provider_error(
                 status_code=500,
                 detail="Failed to initiate identity provider linking",
@@ -1070,6 +1145,7 @@ class IdentityProviderService:
         db: Session,
     ) -> dict[str, Any]:
         """Handle the OAuth2/OIDC callback from an identity provider.
+
         This method processes the authorization code received from an identity provider,
         validates the state parameter, exchanges the code for tokens, retrieves user
         information, and either creates/updates a user session (login mode) or links
@@ -1115,7 +1191,10 @@ class IdentityProviderService:
             redirect_path = oauth_state.redirect_path
             client_type = oauth_state.client_type
 
-            logger.debug(f"Using database OAuth state for IdP {idp.name} (client_type={client_type})")
+            logger.debug(
+                "Using database OAuth state for IdP <name> (client_type=<client_type>)",
+                extra=core_logger.context(name=idp.name, client_type=client_type),
+            )
 
             # Detect link mode from OAuth state (user_id indicates authenticated user linking)
             is_link_mode = oauth_state.user_id is not None
@@ -1124,7 +1203,10 @@ class IdentityProviderService:
             if is_link_mode:
                 # Link mode: OAuth state was created during authenticated linking request
                 # The user_id in oauth_state proves the user initiated this link
-                logger.debug(f"Link mode detected for IdP {idp.name}, user_id={link_user_id}")
+                logger.debug(
+                    "Link mode detected for IdP <name>, user_id=<link_user_id>",
+                    extra=core_logger.context(name=idp.name, link_user_id=link_user_id),
+                )
 
             # Decrypt credentials and resolve endpoints using helper methods
             client_id = self._decrypt_client_id(idp)
@@ -1149,13 +1231,20 @@ class IdentityProviderService:
                         expected_issuer = config.get("issuer")
 
                         logger.debug(
-                            f"OIDC discovery complete for {idp.name}: "
-                            f"userinfo={bool(userinfo_endpoint)}, "
-                            f"jwks_uri={bool(jwks_uri)}, "
-                            f"issuer={bool(expected_issuer)}"
+                            "OIDC discovery complete for <name>: userinfo=<value_2>, jwks_uri=<value_3>, issuer=<value_4>",
+                            extra=core_logger.context(
+                                name=idp.name,
+                                value_2=bool(userinfo_endpoint),
+                                value_3=bool(jwks_uri),
+                                value_4=bool(expected_issuer),
+                            ),
                         )
                 except Exception as err:
-                    logger.warning(f"OIDC discovery failed for IdP {idp.name}: {err}", exc_info=err)
+                    logger.warning(
+                        "OIDC discovery failed for IdP <name>: <err>",
+                        exc_info=err,
+                        extra=core_logger.context(name=idp.name, err=err),
+                    )
 
             # Retrieve nonce from database state
             expected_nonce = oauth_state.nonce
@@ -1172,15 +1261,22 @@ class IdentityProviderService:
 
                 token_response = oauth_client.fetch_token(token_endpoint, grant_type="authorization_code", code=code)
             except httpx2.TimeoutException as err:
-                logger.error(f"Timeout connecting to IdP {idp.name} token endpoint: {err}", exc_info=err)
+                logger.error(
+                    "Timeout connecting to IdP <name> token endpoint: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(name=idp.name, err=err),
+                )
                 raise _identity_provider_error(
                     status_code=504,
                     detail=f"Identity provider {idp.name} is not responding. Please try again later.",
                 ) from err
             except httpx2.HTTPStatusError as err:
                 logger.error(
-                    f"HTTP error from IdP {idp.name} token endpoint: {err.response.status_code} - {err.response.text}",
+                    "HTTP error from IdP <name> token endpoint: <status_code> - <text>",
                     exc_info=err,
+                    extra=core_logger.context(
+                        name=idp.name, status_code=err.response.status_code, text=err.response.text
+                    ),
                 )
                 # Check for common OAuth2 error responses
                 if err.response.status_code == 400:
@@ -1195,13 +1291,21 @@ class IdentityProviderService:
                     detail=detail,
                 ) from err
             except httpx2.RequestError as err:
-                logger.error(f"Network error connecting to IdP {idp.name}: {err}", exc_info=err)
+                logger.error(
+                    "Network error connecting to IdP <name>: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(name=idp.name, err=err),
+                )
                 raise _identity_provider_error(
                     status_code=502,
                     detail=f"Unable to connect to identity provider {idp.name}. Please check your network connection.",
                 ) from err
             except Exception as err:
-                logger.error(f"Unexpected error during token exchange with IdP {idp.name}: {err}", exc_info=err)
+                logger.error(
+                    "Unexpected error during token exchange with IdP <name>: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(name=idp.name, err=err),
+                )
                 raise _identity_provider_error(
                     status_code=500,
                     detail="Failed to complete authentication. Please try again.",
@@ -1221,7 +1325,10 @@ class IdentityProviderService:
             # Extract subject (unique user identifier)
             subject = userinfo.get("sub") or userinfo.get("id")
             if not subject:
-                logger.error(f"IdP {idp.name} did not provide 'sub' or 'id' claim in userinfo: {list(userinfo.keys())}")
+                logger.error(
+                    "IdP <name> did not provide 'sub' or 'id' claim in userinfo: <value_2>",
+                    extra=core_logger.context(name=idp.name, value_2=list(userinfo.keys())),
+                )
                 raise _identity_provider_error(
                     status_code=502,
                     detail=f"Identity provider {idp.name} did not provide required user identifier. Please contact administrator.",
@@ -1269,7 +1376,12 @@ class IdentityProviderService:
                 # Store IdP tokens for future use
                 self._store_idp_tokens(link_user_id, idp.id, token_response, db)
 
-                logger.info(f"User {user.username} (id={link_user_id}) linked IdP {idp.name} (subject={subject})")
+                logger.info(
+                    "User <username> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",
+                    extra=core_logger.context(
+                        username=user.username, link_user_id=link_user_id, name=idp.name, subject=subject
+                    ),
+                )
 
                 # Return special structure for link mode (no new session created)
                 return {
@@ -1285,7 +1397,10 @@ class IdentityProviderService:
                 # Store IdP tokens for future session renewal
                 self._store_idp_tokens(user.id, idp.id, token_response, db)
 
-                logger.info(f"User {user.username} authenticated via IdP {idp.name}")
+                logger.info(
+                    "User <username> authenticated via IdP <name>",
+                    extra=core_logger.context(username=user.username, name=idp.name),
+                )
 
                 return {
                     "user": user,
@@ -1300,7 +1415,11 @@ class IdentityProviderService:
             raise
         except Exception as err:
             # Catch-all for unexpected errors
-            logger.error(f"Unexpected error handling OAuth callback for IdP {idp.name}: {err}", exc_info=err)
+            logger.error(
+                "Unexpected error handling OAuth callback for IdP <name>: <err>",
+                exc_info=err,
+                extra=core_logger.context(name=idp.name, err=err),
+            )
             raise _identity_provider_error(
                 status_code=500,
                 detail=f"An unexpected error occurred during authentication with {idp.name}. Please try again or contact administrator.",
@@ -1398,15 +1517,25 @@ class IdentityProviderService:
                 else:
                     logger.warning("No access token available for userinfo request")
             except httpx2.TimeoutException as err:
-                logger.warning(f"Timeout fetching userinfo from endpoint: {err}", exc_info=err)
+                logger.warning(
+                    "Timeout fetching userinfo from endpoint: <err>", exc_info=err, extra=core_logger.context(err=err)
+                )
             except httpx2.HTTPStatusError as err:
                 logger.warning(
-                    f"HTTP error {err.response.status_code} fetching userinfo: {err.response.text}", exc_info=err
+                    "HTTP error <status_code> fetching userinfo: <text>",
+                    exc_info=err,
+                    extra=core_logger.context(status_code=err.response.status_code, text=err.response.text),
                 )
             except httpx2.RequestError as err:
-                logger.warning(f"Network error fetching userinfo: {err}", exc_info=err)
+                logger.warning(
+                    "Network error fetching userinfo: <err>", exc_info=err, extra=core_logger.context(err=err)
+                )
             except Exception as err:
-                logger.warning(f"Unexpected error fetching userinfo from endpoint: {err}", exc_info=err)
+                logger.warning(
+                    "Unexpected error fetching userinfo from endpoint: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(err=err),
+                )
 
         # Verify ID token if present (always do this for security, even if userinfo endpoint succeeded)
         id_token = token_response.get("id_token")
@@ -1422,7 +1551,10 @@ class IdentityProviderService:
                     expected_nonce=expected_nonce,
                 )
 
-                logger.debug(f"Successfully verified ID token for sub={id_token_claims.get('sub')}")
+                logger.debug(
+                    "Successfully verified ID token for sub=<value_1>",
+                    extra=core_logger.context(value_1=id_token_claims.get("sub")),
+                )
 
                 # If we got userinfo from endpoint, merge with ID token claims
                 # ID token claims take precedence for standard claims (sub, iss, aud)
@@ -1441,7 +1573,9 @@ class IdentityProviderService:
                 # These are security-critical and should not be ignored
                 raise
             except Exception as err:
-                logger.error(f"Unexpected error verifying ID token: {err}", exc_info=err)
+                logger.error(
+                    "Unexpected error verifying ID token: <err>", exc_info=err, extra=core_logger.context(err=err)
+                )
                 raise _identity_provider_error(
                     status_code=500,
                     detail="Failed to verify ID token",
@@ -1506,8 +1640,8 @@ class IdentityProviderService:
 
         if not refresh_token:
             logger.debug(
-                f"No refresh token provided by IdP (user_id={user_id}, idp_id={idp_id}). "
-                "User will need to re-authenticate when session expires."
+                "No refresh token provided by IdP (user_id=<user_id>, idp_id=<idp_id>). User will need to re-authenticate when session expires.",
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id),
             )
             return
 
@@ -1517,7 +1651,8 @@ class IdentityProviderService:
 
             if not encrypted_refresh:
                 logger.warning(
-                    f"Failed to encrypt refresh token for user {user_id}, idp {idp_id}. Token will not be stored."
+                    "Failed to encrypt refresh token for user <user_id>, idp <idp_id>. Token will not be stored.",
+                    extra=core_logger.context(user_id=user_id, idp_id=idp_id),
                 )
                 return
 
@@ -1535,13 +1670,17 @@ class IdentityProviderService:
             )
 
             logger.debug(
-                f"Stored IdP refresh token for user {user_id}, idp {idp_id} "
-                f"(expires at {access_token_expires_at.isoformat()})"
+                "Stored IdP refresh token for user <user_id>, idp <idp_id> (expires at <value_3>)",
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, value_3=access_token_expires_at.isoformat()),
             )
 
         except Exception as err:
             # Log the error but don't fail the authentication flow
-            logger.error(f"Error storing IdP refresh token for user {user_id}: {err}", exc_info=err)
+            logger.error(
+                "Error storing IdP refresh token for user <user_id>: <err>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, err=err),
+            )
             # Authentication succeeds even if token storage fails
             # User will need to re-auth when session expires, but that's acceptable
 
@@ -1676,8 +1815,8 @@ class IdentityProviderService:
             if user:
                 if not self._is_email_verified(userinfo):
                     logger.warning(
-                        f"Refusing to link IdP {idp.name} to existing account "
-                        f"{user.username}: provider did not assert a verified email"
+                        "Refusing to link IdP <name> to existing account <username>: provider did not assert a verified email",
+                        extra=core_logger.context(name=idp.name, username=user.username),
                     )
                     raise _identity_provider_error(
                         status_code=403,
@@ -1691,7 +1830,10 @@ class IdentityProviderService:
                 # Link existing account to IdP
                 auth_identity_links_crud.create_user_identity_provider(user.id, idp.id, subject, db)
 
-                logger.info(f"Linked existing user {user.username} to IdP {idp.name}")
+                logger.info(
+                    "Linked existing user <username> to IdP <name>",
+                    extra=core_logger.context(username=user.username, name=idp.name),
+                )
 
                 # Update user info if sync is enabled
                 if idp.sync_user_info:
@@ -1776,7 +1918,10 @@ class IdentityProviderService:
         # Create the IdP link
         auth_identity_links_crud.create_user_identity_provider(created_user.id, idp.id, subject, db)
 
-        logger.info(f"Created new user {created_user.username} from IdP {idp.name}")
+        logger.info(
+            "Created new user <username> from IdP <name>",
+            extra=core_logger.context(username=created_user.username, name=idp.name),
+        )
 
         return created_user
 
@@ -1816,25 +1961,39 @@ class IdentityProviderService:
             existing_user = users_integration.get_user_by_email(mapped_data["email"], db)
             if existing_user and existing_user.id != user.id:
                 logger.warning(
-                    f"Cannot sync email from IdP {idp.name}: {mapped_data['email']} already in use by another user"
+                    "Cannot sync email from IdP <name>: <value_2> already in use by another user",
+                    extra=core_logger.context(name=idp.name, value_2=mapped_data["email"]),
                 )
             else:
                 logger.debug(
-                    f"Syncing email for user {user.username} from IdP {idp.name}: "
-                    f"{user.email} -> {mapped_data['email']}"
+                    "Syncing email for user <username> from IdP <name>: <email> -> <value_4>",
+                    extra=core_logger.context(
+                        username=user.username, name=idp.name, email=user.email, value_4=mapped_data["email"]
+                    ),
                 )
                 updates["email"] = mapped_data["email"].strip()
 
         # Check name
         if "name" in mapped_data and mapped_data["name"] != user.name:
             logger.debug(
-                f"Syncing name for user {user.username} from IdP {idp.name}: {user.name} -> {mapped_data['name']}"
+                "Syncing name for user <username> from IdP <name>: <name_2> -> <value_4>",
+                extra=core_logger.context(
+                    username=user.username, name=idp.name, name_2=user.name, value_4=mapped_data["name"]
+                ),
             )
             updates["name"] = mapped_data["name"].strip()
 
         # Only call CRUD if there are updates
         if updates:
-            logger.info(f"Applying updates to user {user.username}: {updates}", extra=core_logger.context(console=True))
+            logger.info(
+                "Applying updates to user <username>: <updates>",
+                extra=dict(
+                    {
+                        **core_logger.context(),
+                        **core_logger.context(username=user.username, updates=updates),
+                    }
+                ),
+            )
             updated_user = user.model_copy(update=updates)
             user = users_integration.edit_user(
                 user.id, users_schema.UsersEdit.from_read(updated_user), db, if_match="*"
@@ -1897,7 +2056,10 @@ class IdentityProviderService:
         )
 
         if not encrypted_refresh_token:
-            logger.debug(f"No refresh token stored for user {user_id}, idp {idp_id}. Cannot refresh session.")
+            logger.debug(
+                "No refresh token stored for user <user_id>, idp <idp_id>. Cannot refresh session.",
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+            )
             return None
 
         # Decrypt the refresh token
@@ -1906,7 +2068,11 @@ class IdentityProviderService:
             if not refresh_token:
                 raise ValueError("Decryption returned empty value")
         except Exception as err:
-            logger.error(f"Failed to decrypt refresh token for user {user_id}, idp {idp_id}: {err}", exc_info=err)
+            logger.error(
+                "Failed to decrypt refresh token for user <user_id>, idp <idp_id>: <err>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
+            )
             # Clear corrupted token
             auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
                 user_id, idp_id, db
@@ -1934,7 +2100,10 @@ class IdentityProviderService:
                 refresh_token=refresh_token,
             )
 
-            logger.debug(f"Successfully refreshed IdP session for user {user_id}, idp {idp_id}")
+            logger.debug(
+                "Successfully refreshed IdP session for user <user_id>, idp <idp_id>",
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+            )
 
             # Store the new tokens (they may include a new refresh token)
             self._store_idp_tokens(user_id, idp_id, token_response, db)
@@ -1942,7 +2111,11 @@ class IdentityProviderService:
             return token_response
 
         except httpx2.TimeoutException as err:
-            logger.warning(f"Timeout refreshing IdP session for user {user_id}, idp {idp_id}: {err}", exc_info=err)
+            logger.warning(
+                "Timeout refreshing IdP session for user <user_id>, idp <idp_id>: <err>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
+            )
             # Don't clear token - IdP may be temporarily down
             return None
 
@@ -1950,9 +2123,11 @@ class IdentityProviderService:
             # Check if this is a token revocation (400) or auth failure (401)
             if err.response.status_code in (400, 401):
                 logger.warning(
-                    f"IdP refresh token invalid/revoked for user {user_id}, idp {idp_id}: "
-                    f"{err.response.status_code} - {err.response.text}",
+                    "IdP refresh token invalid/revoked for user <user_id>, idp <idp_id>: <status_code> - <text>",
                     exc_info=err,
+                    extra=core_logger.context(
+                        user_id=user_id, idp_id=idp_id, status_code=err.response.status_code, text=err.response.text
+                    ),
                 )
                 # Clear invalid token from database
                 auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
@@ -1962,22 +2137,28 @@ class IdentityProviderService:
             else:
                 # Other HTTP errors (5xx) - don't clear token
                 logger.warning(
-                    f"HTTP error refreshing IdP session for user {user_id}, idp {idp_id}: "
-                    f"{err.response.status_code} - {err.response.text}",
+                    "HTTP error refreshing IdP session for user <user_id>, idp <idp_id>: <status_code> - <text>",
                     exc_info=err,
+                    extra=core_logger.context(
+                        user_id=user_id, idp_id=idp_id, status_code=err.response.status_code, text=err.response.text
+                    ),
                 )
                 return None
 
         except httpx2.RequestError as err:
             logger.warning(
-                f"Network error refreshing IdP session for user {user_id}, idp {idp_id}: {err}", exc_info=err
+                "Network error refreshing IdP session for user <user_id>, idp <idp_id>: <err>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
             )
             # Don't clear token - network issue, not token issue
             return None
 
         except Exception as err:
             logger.error(
-                f"Unexpected error refreshing IdP session for user {user_id}, idp {idp_id}: {err}", exc_info=err
+                "Unexpected error refreshing IdP session for user <user_id>, idp <idp_id>: <err>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
             )
             return None
         finally:
@@ -2032,7 +2213,10 @@ class IdentityProviderService:
             # Get the IdP configuration
             idp = idp_crud.get_identity_provider(idp_id, db)
             if not idp or not idp.enabled:
-                logger.debug(f"IdP (ID: {idp_id}) not found or disabled. Skipping token revocation.")
+                logger.debug(
+                    "IdP (ID: <idp_id>) not found or disabled. Skipping token revocation.",
+                    extra=core_logger.context(idp_id=idp_id),
+                )
                 return False
 
             # Get the encrypted refresh token from database
@@ -2044,17 +2228,27 @@ class IdentityProviderService:
 
             if not encrypted_refresh_token:
                 # No token to revoke - consider this success
-                logger.debug(f"No refresh token to revoke for user {user_id}, idp {idp_id}")
+                logger.debug(
+                    "No refresh token to revoke for user <user_id>, idp <idp_id>",
+                    extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+                )
                 return True
 
             # Decrypt the refresh token
             try:
                 refresh_token = core_cryptography.decrypt_token_fernet(encrypted_refresh_token)
                 if not refresh_token:
-                    logger.warning(f"Failed to decrypt refresh token for revocation (user {user_id}, idp {idp_id})")
+                    logger.warning(
+                        "Failed to decrypt refresh token for revocation (user <user_id>, idp <idp_id>)",
+                        extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+                    )
                     return False
             except Exception as err:
-                logger.warning(f"Error decrypting refresh token for revocation: {err}", exc_info=err)
+                logger.warning(
+                    "Error decrypting refresh token for revocation: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(err=err),
+                )
                 return False
 
             # Try to get revocation endpoint from OIDC discovery
@@ -2065,13 +2259,17 @@ class IdentityProviderService:
                     if config:
                         revocation_endpoint = config.get("revocation_endpoint")
                 except Exception as err:
-                    logger.debug(f"OIDC discovery failed for revocation endpoint (IdP {idp.name}): {err}", exc_info=err)
+                    logger.debug(
+                        "OIDC discovery failed for revocation endpoint (IdP <name>): <err>",
+                        exc_info=err,
+                        extra=core_logger.context(name=idp.name, err=err),
+                    )
 
             if not revocation_endpoint:
                 # IdP doesn't advertise a revocation endpoint
                 logger.debug(
-                    f"IdP {idp.name} does not support token revocation (no revocation_endpoint). "
-                    "Token will be cleared locally only."
+                    "IdP <name> does not support token revocation (no revocation_endpoint). Token will be cleared locally only.",
+                    extra=core_logger.context(name=idp.name),
                 )
                 return False
 
@@ -2080,7 +2278,11 @@ class IdentityProviderService:
                 client_id = self._decrypt_client_id(idp)
                 client_secret = self._decrypt_client_secret(idp)
             except Exception as err:
-                logger.warning(f"Failed to decrypt client secret or id for revocation: {err}", exc_info=err)
+                logger.warning(
+                    "Failed to decrypt client secret or id for revocation: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(err=err),
+                )
                 return False
 
             # Call the revocation endpoint (RFC 7009)
@@ -2100,33 +2302,49 @@ class IdentityProviderService:
                 # RFC 7009: The revocation endpoint responds with HTTP 200
                 # for both successful revocations and invalid tokens
                 if response.status_code == 200:
-                    logger.info(f"Successfully revoked IdP token for user {user_id}, idp {idp_id}")
+                    logger.info(
+                        "Successfully revoked IdP token for user <user_id>, idp <idp_id>",
+                        extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+                    )
                     return True
                 else:
                     logger.warning(
-                        f"IdP revocation endpoint returned {response.status_code} for user {user_id}, idp {idp_id}"
+                        "IdP revocation endpoint returned <status_code> for user <user_id>, idp <idp_id>",
+                        extra=core_logger.context(status_code=response.status_code, user_id=user_id, idp_id=idp_id),
                     )
                     return False
 
             except httpx2.TimeoutException as err:
-                logger.warning(f"Timeout revoking token at IdP {idp.name} for user {user_id}: {err}", exc_info=err)
+                logger.warning(
+                    "Timeout revoking token at IdP <name> for user <user_id>: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(name=idp.name, user_id=user_id, err=err),
+                )
                 return False
 
             except httpx2.RequestError as err:
                 logger.warning(
-                    f"Network error revoking token at IdP {idp.name} for user {user_id}: {err}", exc_info=err
+                    "Network error revoking token at IdP <name> for user <user_id>: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(name=idp.name, user_id=user_id, err=err),
                 )
                 return False
 
             except Exception as err:
                 logger.warning(
-                    f"Unexpected error revoking token at IdP {idp.name} for user {user_id}: {err}", exc_info=err
+                    "Unexpected error revoking token at IdP <name> for user <user_id>: <err>",
+                    exc_info=err,
+                    extra=core_logger.context(name=idp.name, user_id=user_id, err=err),
                 )
                 return False
 
         except Exception as err:
             # Catch-all for unexpected errors
-            logger.error(f"Error in revoke_idp_token for user {user_id}, idp {idp_id}: {err}", exc_info=err)
+            logger.error(
+                "Error in revoke_idp_token for user <user_id>, idp <idp_id>: <err>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
+            )
             return False
 
     def _is_token_expired_by_age(self, link: auth_identity_links_contracts.IdentityLinkRead) -> bool:
@@ -2166,7 +2384,8 @@ class IdentityProviderService:
         if not token_timestamp:
             # No timestamp available - cannot determine age (should not happen)
             logger.warning(
-                f"Warning: IdP link user_id={link.user_id}, idp_id={link.idp_id} has no timestamp for age calculation"
+                "Warning: IdP link user_id=<user_id>, idp_id=<idp_id> has no timestamp for age calculation",
+                extra=core_logger.context(user_id=link.user_id, idp_id=link.idp_id),
             )
             return False
 
@@ -2215,8 +2434,10 @@ class IdentityProviderService:
         # Check if token has exceeded maximum age (security policy)
         if self._is_token_expired_by_age(link):
             logger.info(
-                f"IdP refresh token for user_id={link.user_id}, idp_id={link.idp_id} "
-                f"has exceeded maximum age ({MAX_IDP_TOKEN_AGE_DAYS} days). Will be cleared."
+                "IdP refresh token for user_id=<user_id>, idp_id=<idp_id> has exceeded maximum age (<MAX_IDP_TOKEN_AGE_DAYS> days). Will be cleared.",
+                extra=core_logger.context(
+                    user_id=link.user_id, idp_id=link.idp_id, MAX_IDP_TOKEN_AGE_DAYS=MAX_IDP_TOKEN_AGE_DAYS
+                ),
             )
             return TokenAction.CLEAR
 

@@ -1,4 +1,4 @@
-"""Tests for auth._internal.security_stores (provider-backed)."""
+"""Tests for provider-backed authentication security stores."""
 
 import hashlib
 from datetime import UTC, datetime

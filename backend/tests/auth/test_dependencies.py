@@ -282,9 +282,10 @@ class TestClientTypeHeader:
 
     @pytest.mark.asyncio
     async def test_missing_header_is_a_400_naming_the_header(self):
+        import core.exceptions as core_exceptions
         import modules.auth.dependencies as auth_security
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             await auth_security.header_client_type_scheme(self._request({}))
         assert exc_info.value.status_code == 400
         assert "X-Client-Type" in exc_info.value.detail

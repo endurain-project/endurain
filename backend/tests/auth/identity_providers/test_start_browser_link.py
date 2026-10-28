@@ -3,8 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
+import core.exceptions as core_exceptions
 from modules.auth.identity_providers import integration_service
 from modules.auth.identity_providers import service as idp_service
 
@@ -23,7 +23,11 @@ def _start(*, redirect=None, provider=_UNSET, claim=None):
         patch.object(integration_service.core_network, "get_ip_address", return_value="10.0.0.1"),
         patch.object(idp_service.idp_crud, "get_identity_provider", return_value=provider),
         patch.object(integration_service, "_service", return_value=service),
-        patch.object(idp_service.oauth_state_utils, "create_state_id_and_nonce", return_value=("state", "nonce")),
+        patch.object(
+            idp_service.oauth_state_integration,
+            "create_state_id_and_nonce",
+            return_value=("state", "nonce"),
+        ),
         patch.object(idp_service.oauth_state_crud, "create_oauth_state") as create_state,
     ):
         url = integration_service.start_browser_link("token", 1, redirect, request, claim, db)
@@ -46,7 +50,7 @@ def test_start_browser_link_preserves_redirect_and_client_type():
 
 def test_bad_redirect_is_rejected_before_token_claim():
     claim = MagicMock()
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         _start(redirect="https://evil.example.com", claim=claim)
     assert exc.value.status_code == 400
     claim.assert_not_called()
@@ -54,6 +58,6 @@ def test_bad_redirect_is_rejected_before_token_claim():
 
 def test_missing_or_disabled_provider_is_not_found():
     for provider in (None, MagicMock(enabled=False)):
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             _start(provider=provider)
         assert getattr(exc.value, "status_code", None) == 404

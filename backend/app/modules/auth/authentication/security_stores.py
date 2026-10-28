@@ -32,7 +32,9 @@ def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) 
     Raises:
         AuthSecurityStoreUnavailableError: Always raised.
     """
-    logger.error(f"Auth security storage failed: {operation}", exc_info=err)
+    logger.error(
+        "Auth security storage failed: <operation>", exc_info=err, extra=core_logger.context(operation=operation)
+    )
     raise AuthSecurityStoreUnavailableError("auth security storage is unavailable") from err
 
 

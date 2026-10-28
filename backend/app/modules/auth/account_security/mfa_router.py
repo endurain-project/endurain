@@ -126,6 +126,8 @@ def enable_mfa(
         mfa_secret_store: Temporary secret storage.
         step_up_store: Step-up lockout store.
 
+        db: Value used by this operation.
+
     Returns:
         Success message and the freshly issued backup codes.
 
@@ -168,6 +170,8 @@ def disable_mfa(
         token_user_id: User ID from access token.
         step_up_store: Step-up lockout store.
 
+        db: Value used by this operation.
+
     Returns:
         Success message.
 
@@ -195,6 +199,8 @@ def verify_mfa(
         request: The incoming request, read by the rate limiter.
         mfa_request: MFA request with code to verify.
         token_user_id: User ID from access token.
+
+        db: Value used by this operation.
 
     Returns:
         Success message.
@@ -237,6 +243,8 @@ def generate_mfa_backup_codes(
         step_up: Step-up verification payload.
         token_user_id: User ID from access token.
         step_up_store: Step-up lockout store.
+
+        db: Value used by this operation.
 
     Returns:
         Response with generated backup codes and timestamp.

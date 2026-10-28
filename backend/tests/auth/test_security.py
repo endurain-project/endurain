@@ -4,8 +4,8 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import HTTPException
 
+import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
@@ -18,7 +18,7 @@ def test_get_token_selects_access_header_and_client_refresh_source():
 
 
 def test_get_token_rejects_missing_access_token():
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(core_exceptions.DomainError) as exc_info:
         auth_dependencies.get_token(None, None, "web", access_tokens_service.TokenType.ACCESS)
     assert exc_info.value.status_code == 401
 

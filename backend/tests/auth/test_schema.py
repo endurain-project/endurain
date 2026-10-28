@@ -9,9 +9,9 @@ tests and the router-level error-path tests.
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
 from pydantic import ValidationError
 
+import core.exceptions as core_exceptions
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
@@ -107,7 +107,7 @@ class TestAuthRouterErrors:
             auth_router.login_for_access_token,
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
             await endpoint(
                 response=None,
                 request=None,
@@ -137,7 +137,7 @@ class TestAuthRouterErrors:
             auth_router.verify_mfa_and_login,
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
             await endpoint(
                 response=None,
                 request=None,
@@ -188,7 +188,7 @@ class TestAuthRouterErrors:
 
         def capture_log(message, *args, **kwargs):
             """Capture warning log messages for assertions."""
-            log_messages.append(message)
+            log_messages.append(f"{message} {kwargs.get('extra', {})}")
 
         monkeypatch.setattr(
             auth_service.mfa_integration,
@@ -201,7 +201,7 @@ class TestAuthRouterErrors:
             capture_log,
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_service.verify_mfa_and_login(
                 response=None,
                 request=None,
@@ -221,7 +221,7 @@ class TestAuthRouterErrors:
         assert exc_info.value.detail == ("Invalid MFA code, backup code or backup code already used.")
         assert "Failed attempts" not in exc_info.value.detail
         assert raw_username not in " ".join(log_messages)
-        assert "username_hash=" in " ".join(log_messages)
+        assert "username_log_id" in " ".join(log_messages)
 
     @pytest.mark.asyncio
     async def test_valid_mfa_rejects_already_claimed_pending_login(
@@ -251,7 +251,7 @@ class TestAuthRouterErrors:
             lambda *args: True,
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_service.verify_mfa_and_login(
                 response=None,
                 request=None,

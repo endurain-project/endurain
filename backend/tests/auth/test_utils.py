@@ -482,11 +482,7 @@ class TestCompleteLogin:
     @pytest.mark.asyncio
     async def test_clear_refresh_token_cookie_exception_handler(self):
         """Test missing-claim errors clear all refresh cookie paths."""
-        exc = auth_transport_dependencies.ClearRefreshTokenCookieHTTPException(
-            status_code=401,
-            detail="Token is missing required claims.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        exc = auth_transport_dependencies.ClearRefreshTokenCookieError("Token is missing required claims.")
 
         request = MagicMock()
         request.url.path = "/api/v1/auth/refresh"

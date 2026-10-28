@@ -47,6 +47,7 @@ class ProgressiveLockout:
         attempts_ttl_seconds: int,
         normalize_key: Callable[[str], str] | None = None,
     ) -> None:
+        """Bind progressive lockout tracking to the shared platform state provider."""
         self._state = state
         self._name = name
         self._display_name = display_name
@@ -70,9 +71,11 @@ class ProgressiveLockout:
             _raise_store_unavailable(operation, err)
 
     def is_locked_out(self, key: str) -> bool:
+        """Return whether the supplied key is locked out."""
         return self.get_lockout_time(key) is not None
 
     def get_lockout_time(self, key: str) -> datetime | None:
+        """Return the active lockout expiry, if one exists."""
         gate_key = self._gate_key(key)
         try:
             raw_gate = self._state.get(gate_key)
@@ -91,6 +94,7 @@ class ProgressiveLockout:
         return datetime.fromtimestamp(gate_until, tz=UTC)
 
     def record_failed_attempt(self, key: str) -> int:
+        """Record a failed attempt and return the updated count."""
         tiers = tuple((count, seconds) for count, seconds, _label in self._tiers)
         try:
             outcome = self._state.record_tiered_failure(
@@ -110,6 +114,7 @@ class ProgressiveLockout:
         return outcome.count
 
     def reset_attempts(self, key: str) -> None:
+        """Clear the failed-attempt count for the supplied key."""
         try:
             self._state.delete(self._counter_key(key))
             self._state.delete(self._gate_key(key))
@@ -117,6 +122,7 @@ class ProgressiveLockout:
             _raise_store_unavailable("reset attempts", err)
 
     def clear_all(self) -> None:
+        """Clear all tracked lockout attempts."""
         try:
             self._state.delete_prefix(f"{_AUTH_KEY_PREFIX}:{self._name}:")
         except StateBackendUnavailableError as err:

@@ -43,7 +43,7 @@ class TestHandler:
 
     @patch(
         "modules.auth.password_reset_tokens.subscribers.core_mail.send_email",
-        side_effect=platform_providers.MailError(),
+        side_effect=platform_providers.MailError("Mail delivery failed"),
     )
     @patch("modules.auth.password_reset_tokens.subscribers.password_reset_service.prepare_password_reset_email")
     @patch("modules.auth.password_reset_tokens.subscribers.platform_runtime.get_active_platform")

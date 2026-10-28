@@ -15,15 +15,25 @@ import modules.auth.lockout.integration_service as lockout_integration
 class FailedLoginStore(Protocol):
     """Operations supported by the failed-login lockout store."""
 
-    def is_locked_out(self, username: str) -> bool: ...
+    def is_locked_out(self, username: str) -> bool:
+        """Return whether the supplied key is currently locked out."""
+        ...
 
-    def get_lockout_time(self, username: str) -> datetime | None: ...
+    def get_lockout_time(self, username: str) -> datetime | None:
+        """Return the active lockout expiry, if one exists."""
+        ...
 
-    def record_failed_attempt(self, username: str) -> int: ...
+    def record_failed_attempt(self, username: str) -> int:
+        """Record a failed attempt and return the updated count."""
+        ...
 
-    def reset_attempts(self, username: str) -> None: ...
+    def reset_attempts(self, username: str) -> None:
+        """Clear the failed-attempt count for the supplied key."""
+        ...
 
-    def clear_all(self) -> None: ...
+    def clear_all(self) -> None:
+        """Clear all tracked lockout attempts."""
+        ...
 
 
 def normalize_username_key(username: str) -> str:
@@ -35,6 +45,7 @@ class FailedLoginAttempts:
     """Track failed logins using the shared platform state provider."""
 
     def __init__(self, state: StateProvider) -> None:
+        """Bind failed-login tracking to the shared platform state provider."""
         self._lockout = lockout_integration.new_progressive_lockout(
             state,
             name="login",

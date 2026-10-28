@@ -8,11 +8,17 @@ from pydantic import BaseModel, ConfigDict
 class MFASecretStoreBackend(Protocol):
     """Temporary MFA setup-secret storage available to setup workflows."""
 
-    def add_secret(self, user_id: int, secret: str) -> None: ...
+    def add_secret(self, user_id: int, secret: str) -> None:
+        """Store a pending MFA setup secret for a user."""
+        ...
 
-    def get_secret(self, user_id: int) -> str | None: ...
+    def get_secret(self, user_id: int) -> str | None:
+        """Return the pending MFA setup secret for a user."""
+        ...
 
-    def delete_secret(self, user_id: int) -> None: ...
+    def delete_secret(self, user_id: int) -> None:
+        """Delete the pending MFA setup secret for a user."""
+        ...
 
 
 class MFAStateRead(BaseModel):

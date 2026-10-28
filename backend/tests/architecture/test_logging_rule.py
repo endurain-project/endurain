@@ -62,6 +62,8 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "garmin/mfa_code_store.py": "Reports a storage outage and a code it could not delete, which have no caller to tell.",
     "garmin/token_utils.py": "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None.",
     "auth/lockout/lockout_store.py": "Reports shared lockout storage outages and newly applied lockouts at the point they occur.",
+    "auth/authentication/security_stores.py": "Reports shared authentication security-state storage failures where they occur.",
+    "auth/identity_providers/utils.py": "Reports PKCE verifier mismatches at the pure validation boundary.",
     "users/users_profile/utils.py": (
         "Reports a memory probe or an auto-config it cannot complete and falls back to defaults; the caller only sees the defaults."
     ),

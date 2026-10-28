@@ -124,7 +124,10 @@ def enable_mfa(
         )
         db.commit()
         mfa_secret_store.delete_secret(token_user_id)
-        logger.info(f"User {token_user_id} enabled MFA (step-up verified)")
+        logger.info(
+            "User <token_user_id> enabled MFA (step-up verified)",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
         return {
             "message": "MFA enabled successfully",
             "backup_codes": backup_codes,
@@ -151,7 +154,9 @@ def disable_mfa(
     )
     mfa_integration.disable_user_mfa(token_user_id, db)
     db.commit()
-    logger.info(f"User {token_user_id} disabled MFA (step-up verified)")
+    logger.info(
+        "User <token_user_id> disabled MFA (step-up verified)", extra=core_logger.context(token_user_id=token_user_id)
+    )
     return {"message": "MFA disabled successfully"}
 
 
@@ -205,7 +210,7 @@ def generate_backup_codes(
     )
     db.commit()
 
-    logger.info(f"User {user.id} generated MFA backup codes (step-up verified)")
+    logger.info("User <id> generated MFA backup codes (step-up verified)", extra=core_logger.context(id=user.id))
 
     return mfa_backup_codes_schema.MFABackupCodesResponse(
         codes=codes,

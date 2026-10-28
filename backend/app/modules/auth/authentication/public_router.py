@@ -1,3 +1,5 @@
+"""Public login, refresh, MFA-login and logout routes."""
+
 from collections.abc import Callable
 from typing import Annotated
 
@@ -18,8 +20,8 @@ import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
-import modules.auth.identity_providers.integration_service as idp_integration
 import modules.auth.credentials.integration_service as auth_password_hasher
+import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.dependencies as mfa_dependencies
 
 logger = core_logger.get_logger(__name__)
@@ -271,7 +273,7 @@ def refresh_token(
         token_manager,
         client_type,
         db,
-        idp_integration.refresh_idp_tokens_if_needed,
+        auth_dependencies.refresh_idp_tokens_if_needed,
         x_csrf_token,
     )
 
@@ -331,5 +333,5 @@ def logout(
         token_user_id,
         password_hasher,
         db,
-        idp_integration.clear_all_idp_tokens,
+        auth_dependencies.clear_idp_tokens,
     )

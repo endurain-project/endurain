@@ -197,29 +197,3 @@ class TestBoundaryFacades:
             result = idp_integration.get_identity_provider(7, db)
         get.assert_called_once_with(7, db)
         assert result is provider
-
-    def test_create_link_oauth_state_delegates_to_crud(self):
-        import modules.auth.identity_providers.integration_service as idp_integration
-
-        db = MagicMock()
-        with patch.object(idp_integration.oauth_state_integration, "create_oauth_state") as create:
-            idp_integration.create_link_oauth_state(
-                db,
-                state_id="state-id",
-                idp_id=3,
-                nonce="nonce",
-                client_type="web",
-                ip_address="203.0.113.1",
-                user_id=42,
-                redirect_path="/settings/security",
-            )
-        create.assert_called_once_with(
-            db=db,
-            state_id="state-id",
-            idp_id=3,
-            nonce="nonce",
-            client_type="web",
-            ip_address="203.0.113.1",
-            user_id=42,
-            redirect_path="/settings/security",
-        )

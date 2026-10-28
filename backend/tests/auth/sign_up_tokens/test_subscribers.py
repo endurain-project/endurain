@@ -35,7 +35,10 @@ class TestHandlers:
         session_local.return_value.__exit__.assert_called_once()
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
-    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", side_effect=platform_providers.MailError())
+    @patch(
+        "modules.auth.sign_up_tokens.subscribers.core_mail.send_email",
+        side_effect=platform_providers.MailError("Mail delivery failed"),
+    )
     @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_sign_up_approved_email")
     @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
     @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")

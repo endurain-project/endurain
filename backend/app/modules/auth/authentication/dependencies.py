@@ -161,18 +161,22 @@ def validate_refresh_token(
         log_level = logging.DEBUG if "expired" in http_err.detail.lower() else logging.ERROR
         logger.log(
             log_level,
-            f"Refresh token validation failed: {http_err.detail}",
+            "Refresh token validation failed: <detail>",
             exc_info=http_err,
-            extra=core_logger.context(credential="refresh_token"),
+            extra=dict(
+                {**core_logger.context(credential="refresh_token"), **core_logger.context(detail=http_err.detail)}
+            ),
         )
         if isinstance(http_err.__cause__, MissingClaimError):
             raise ClearRefreshTokenCookieError(http_err.detail) from http_err
         raise
     except Exception as err:
         logger.error(
-            f"Unexpected error during refresh token validation: {type(err).__name__}",
+            "Unexpected error during refresh token validation: <__name__>",
             exc_info=err,
-            extra=core_logger.context(credential="refresh_token"),
+            extra=dict(
+                {**core_logger.context(credential="refresh_token"), **core_logger.context(__name__=type(err).__name__)}
+            ),
         )
         raise core_exceptions.ProcessingError("Internal server error during token validation") from err
 

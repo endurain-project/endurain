@@ -32,7 +32,7 @@ class TestInitiateLogin:
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
-    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.auth_computation.validate_pkce_challenge")
     def test_custom_scheme_redirect_forces_mobile_client_type(
         self,
         mock_validate_pkce,
@@ -69,7 +69,7 @@ class TestInitiateLogin:
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
-    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.auth_computation.validate_pkce_challenge")
     def test_relative_redirect_uses_request_client_type(
         self,
         mock_validate_pkce,

@@ -24,8 +24,7 @@ from tests._helpers.module_roles import role_of as _role
 
 #: Modules converted to the structure guide, shared with ``test_logging_rule.py`` (also in ``tests/architecture/``)
 #: through ``tests/_helpers/module_roles.py``. Opt-in, and ratcheted by
-#: ``TestModuleInventory`` so an unconverted module is visibly outstanding
-#: rather than silently exempt.
+#: ``TestModuleInventory`` so a newly added module cannot escape the rules.
 _CONVERTED = CONVERTED_MODULES
 
 _MODULES_ROOT = pathlib.Path("app/modules")
@@ -981,9 +980,9 @@ class TestLayerRules:
     def test_outbound_reach_uses_a_published_surface(self):
         """A converted module reaches another top-level module only through its surface.
 
-        Stated as an allowlist, so a file added to an unconverted module (a new
-        ``utils.py``) is not importable until someone publishes it, instead of
-        being importable until someone remembers to deny it.
+        Stated as an allowlist, so a new ``utils.py`` is not importable until
+        someone publishes its package surface, instead of being importable until
+        someone remembers to deny it.
         """
         offenders: list[str] = []
         for _path, importer, imported, _importer_role in _layer_imports():
@@ -1053,9 +1052,7 @@ class TestDocstringScope:
         config = tomllib.loads((_BACKEND_ROOT / "pyproject.toml").read_text())
         ignores = config["tool"]["ruff"]["lint"]["per-file-ignores"]
         exempt = sorted(
-            pattern
-            for pattern, rules in ignores.items()
-            if pattern.startswith("app/modules/") and "D" in rules
+            pattern for pattern, rules in ignores.items() if pattern.startswith("app/modules/") and "D" in rules
         )
         assert not exempt, f"Remove module docstring exemptions from pyproject.toml: {exempt}"
 

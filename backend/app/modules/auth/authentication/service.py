@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import (
-    HTTPException,
     Request,
     Response,
     status,
@@ -253,7 +252,8 @@ def complete_login(
     token_manager: auth_token_manager.TokenManager,
     db: Session,
 ) -> dict:
-    """Handles the completion of the login process by generating session and authentication tokens,
+    """Handles the completion of the login process by generating session and authentication tokens,.
+
     storing the session in the database, and returning tokens in response body.
 
     OAuth 2.1 compliant: Returns tokens in response body for all clients.
@@ -278,6 +278,7 @@ def complete_login(
         HTTPException: If the client type is invalid, raises a 403 Forbidden error.
     """
     if client_type not in ["web", "mobile"]:
+        logger.warning("Login refused for an unsupported client type")
         raise core_exceptions.PermissionDeniedError("Invalid client type")
 
     # Create the tokens
@@ -664,7 +665,10 @@ def verify_mfa_and_login(
         # an Argon2 verify). Without this, an attacker could enumerate
         # which usernames are mid-login by measuring response time.
         password_hasher.dummy_verify()
-        logger.warning(f"No pending MFA login found for {username_log_id}")
+        logger.warning(
+            "No pending MFA login found for <username_log_id>",
+            extra=core_logger.context(username_log_id=username_log_id),
+        )
         raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
 
     # Verify the MFA code (TOTP or backup code)
@@ -674,7 +678,10 @@ def verify_mfa_and_login(
             failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
         except auth_security_stores.AuthSecurityStoreUnavailableError as err:
             _raise_auth_security_store_unavailable(err)
-        logger.warning(f"Invalid MFA code for {username_log_id}. Failed attempts: {failed_count}")
+        logger.warning(
+            "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
+            extra=core_logger.context(username_log_id=username_log_id, failed_count=failed_count),
+        )
         raise core_exceptions.InvalidInputError("Invalid MFA code, backup code or backup code already used.")
 
     try:
@@ -682,13 +689,18 @@ def verify_mfa_and_login(
     except auth_security_stores.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
     if claimed_user_id != user_id:
-        logger.warning(f"Pending MFA login for {username_log_id} was missing or already claimed")
+        logger.warning(
+            "Pending MFA login for <username_log_id> was missing or already claimed",
+            extra=core_logger.context(username_log_id=username_log_id),
+        )
         raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
 
     # Get the user and complete login
     user = users_integration.get_user(user_id, db)
     if not user:
-        logger.warning(f"User ID {user_id} not found during MFA verification")
+        logger.warning(
+            "User ID <user_id> not found during MFA verification", extra=core_logger.context(user_id=user_id)
+        )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
     # Check if the user is still active
@@ -758,6 +770,8 @@ def refresh_token(
         client_type: Client type (\"web\" or \"mobile\").
         x_csrf_token: CSRF token header (web clients only, optional on page reload).
 
+        refresh_idp_tokens_if_needed: Value used by this operation.
+
     Returns:
         dict: Contains session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in.
 
@@ -781,7 +795,8 @@ def refresh_token(
     # decoupled from the persisted session.
     if session.user_id != token_user_id:
         logger.warning(
-            f"Refresh token session owner mismatch: token sub={token_user_id}, session user_id={session.user_id}"
+            "Refresh token session owner mismatch: token sub=<token_user_id>, session user_id=<user_id>",
+            extra=core_logger.context(token_user_id=token_user_id, user_id=session.user_id),
         )
         raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
@@ -849,7 +864,10 @@ def refresh_token(
         replay_user = users_integration.get_user(token_user_id, db)
 
         if replay_user is None:
-            logger.warning(f"User ID {token_user_id} not found during token refresh replay")
+            logger.warning(
+                "User ID <token_user_id> not found during token refresh replay",
+                extra=core_logger.context(token_user_id=token_user_id),
+            )
             raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
         users_integration.require_active_user(replay_user)
@@ -885,7 +903,10 @@ def refresh_token(
     user = users_integration.get_user(token_user_id, db)
 
     if user is None:
-        logger.warning(f"User ID {token_user_id} not found during token refresh")
+        logger.warning(
+            "User ID <token_user_id> not found during token refresh",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
     # Check if the user is active
@@ -972,6 +993,8 @@ def logout(
         password_hasher: Utility for verifying the refresh token.
         db: Database session for CRUD operations.
 
+        clear_idp_tokens: Value used by this operation.
+
     Returns:
         dict: A message indicating successful logout.
 
@@ -1009,4 +1032,5 @@ def logout(
         return {"message": "Logout successful"}
     if client_type == "mobile":
         return {"message": "Logout successful"}
+    logger.warning("Logout refused for an unsupported client type")
     raise core_exceptions.PermissionDeniedError("Invalid client type")

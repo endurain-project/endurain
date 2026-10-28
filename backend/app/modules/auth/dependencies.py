@@ -16,6 +16,7 @@ import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
+import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -183,6 +184,16 @@ def clear_refresh_token_cookies(response: Response) -> None:
         response,
         environment=core_config.settings.ENVIRONMENT,
     )
+
+
+def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
+    """Refresh external identity-provider credentials during token rotation."""
+    identity_providers_integration.refresh_idp_tokens_if_needed(user_id, db)
+
+
+def clear_idp_tokens(user_id: int, db: Session) -> None:
+    """Clear external identity-provider credentials during logout."""
+    identity_providers_integration.clear_all_idp_tokens(user_id, db)
 
 
 #: Authenticated user id extracted from a resolved access token.

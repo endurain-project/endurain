@@ -75,7 +75,10 @@ def delete_other_user_sessions(
         exclude_session_id=current_session_id,
     )
     db.commit()
-    logger.info(f"User {token_user_id} revoked {revoked} other session(s)")
+    logger.info(
+        "User <token_user_id> revoked <revoked> other session(s)",
+        extra=core_logger.context(token_user_id=token_user_id, revoked=revoked),
+    )
     return revoked
 
 
@@ -139,9 +142,12 @@ def change_own_password(
             exclude_session_id=current_session_id,
         )
         db.commit()
-        logger.info(f"User {user_id} revoked {revoked} other session(s) after password change")
+        logger.info(
+            "User <user_id> revoked <revoked> other session(s) after password change",
+            extra=core_logger.context(user_id=user_id, revoked=revoked),
+        )
 
-    logger.info(f"User {user_id} changed password (step-up verified)")
+    logger.info("User <user_id> changed password (step-up verified)", extra=core_logger.context(user_id=user_id))
 
 
 def change_managed_user_password(

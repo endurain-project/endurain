@@ -23,6 +23,8 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
     Args:
         redirect: The redirect URL string to validate, or None.
 
+        allowed_schemes: Value used by this operation.
+
     Raises:
         HTTPException: 400 Bad Request if the redirect URL is
             invalid, uses a disallowed scheme, is an external
@@ -120,7 +122,8 @@ def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challen
     # Constant-time comparison to prevent timing attacks
     if not _secure_compare(computed_challenge, code_challenge):
         logger.warning(
-            f"PKCE verification failed: computed={computed_challenge[:10]}..., expected={code_challenge[:10]}..."
+            "PKCE verification failed: computed=<value_1>..., expected=<value_2>...",
+            extra=core_logger.context(value_1=computed_challenge[:10], value_2=code_challenge[:10]),
         )
         raise core_exceptions.InvalidInputError("Invalid code_verifier")
 

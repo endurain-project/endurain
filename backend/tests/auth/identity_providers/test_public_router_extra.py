@@ -115,7 +115,7 @@ class TestInitiateLoginErrors:
         assert response.status_code == 404
 
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.auth_computation.validate_pkce_challenge")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     def test_generic_exception(self, mock_login, mock_val_url, mock_val_pkce, mock_get_idp, mock_db):
@@ -137,7 +137,7 @@ class TestInitiateLoginErrors:
         assert response.status_code == 500
 
     @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.auth_computation.validate_pkce_challenge")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
     @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     @patch("modules.auth.identity_providers.public_router.idp_utils.is_custom_scheme_redirect")
@@ -238,7 +238,7 @@ class TestTokenExchange:
 
     @patch("modules.auth.identity_providers.service.users_integration.require_user")
     @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
-    @patch("modules.auth.identity_providers.public_router.authentication_service.create_tokens")
+    @patch("modules.auth.identity_providers.public_router.authentication_integration.create_tokens")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
@@ -289,7 +289,7 @@ class TestTokenExchange:
         )
 
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
-    @patch("modules.auth.identity_providers.public_router.authentication_service.create_tokens")
+    @patch("modules.auth.identity_providers.public_router.authentication_integration.create_tokens")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
     def test_client_type_mismatch_does_not_mint_tokens_or_claim_session(
@@ -501,7 +501,7 @@ class TestHandleCallbackRedirects:
         assert "redirect=/dashboard" in location
         assert "external_redirect=true" not in location
 
-    @patch("modules.auth.identity_providers.public_router.logger")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.log_public_flow_event")
     @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
     @patch("modules.auth.identity_providers.service.users_integration.require_active_user")
@@ -549,7 +549,7 @@ class TestHandleCallbackRedirects:
         assert len(query["session_id"]) == 1
         session_id = query["session_id"][0]
         assert session_id != "attacker"
-        logged = " ".join(str(call) for call in mock_logger.info.call_args_list)
+        logged = " ".join(str(call) for call in mock_logger.call_args_list)
         assert "SSO login successful" in logged
         assert session_id not in logged
 

@@ -20,11 +20,12 @@ def list_identity_providers(
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> list[idp_schema.IdentityProviderRead]:
-    """
-    Retrieve a list of all identity providers.
+    """Retrieve a list of all identity providers.
 
     Args:
         db: SQLAlchemy database session dependency.
+
+        service: Value used by this operation.
 
     Returns:
         A list of all configured identity providers.
@@ -38,10 +39,10 @@ def list_identity_providers(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
 def list_idp_templates(service: idp_dependencies.IdentityProviderService) -> list[idp_schema.IdentityProviderTemplate]:
-    """
-    Get the list of pre-configured IdP templates (admin only).
+    """Get the list of pre-configured IdP templates (admin only).
 
     Args:
+        service: Value used by this operation.
 
     Returns:
         A list of identity provider templates.
@@ -62,12 +63,14 @@ def create_identity_provider(
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> idp_schema.IdentityProviderRead:
-    """
-    Create a new identity provider.
+    """Create a new identity provider.
 
     Args:
         idp_data: Data required to create the identity provider.
         db: SQLAlchemy database session dependency.
+
+        request: Value used by this operation.
+        service: Value used by this operation.
 
     Returns:
         The newly created identity provider.
@@ -92,13 +95,15 @@ def update_identity_provider(
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> idp_schema.IdentityProviderRead:
-    """
-    Update an existing identity provider.
+    """Update an existing identity provider.
 
     Args:
         idp_id: The unique identifier of the identity provider to update.
         idp_data: The data to update the identity provider with.
         db: SQLAlchemy database session dependency.
+
+        request: Value used by this operation.
+        service: Value used by this operation.
 
     Returns:
         The updated identity provider.
@@ -123,12 +128,14 @@ def delete_identity_provider(
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> None:
-    """
-    Delete an identity provider by ID.
+    """Delete an identity provider by ID.
 
     Args:
         idp_id: The unique identifier of the identity provider to delete.
         db: SQLAlchemy database session dependency.
+
+        request: Value used by this operation.
+        service: Value used by this operation.
 
     Raises:
         HTTPException: 404 if the provider is not found, 409 if users

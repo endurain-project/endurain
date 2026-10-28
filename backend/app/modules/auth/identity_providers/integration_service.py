@@ -14,7 +14,6 @@ import modules.auth.identity_provider_links.schema as identity_links_schema
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.crud as identity_providers_crud
 import modules.auth.identity_providers.service as identity_providers_service
-import modules.auth.oauth_state.integration_service as oauth_state_integration
 
 
 def _service() -> identity_providers_service.IdentityProviderService:

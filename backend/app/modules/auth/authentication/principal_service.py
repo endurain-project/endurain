@@ -73,6 +73,9 @@ def authenticate_password(
         username: The username supplied by the caller.
         password: The plaintext password to verify.
 
+        db: Value used by this operation.
+        password_hasher: Value used by this operation.
+
     Returns:
         Principal: Resolved principal with a
             :class:`~auth.contracts.PasswordCred`.
@@ -104,6 +107,9 @@ def resolve_from_access_token(
     Args:
         access_token: The raw JWT string from the
             Authorization header.
+
+        db: Value used by this operation.
+        token_manager: Value used by this operation.
 
     Returns:
         Principal: Resolved principal with an
@@ -151,6 +157,8 @@ def resolve_from_api_key(
         request: The current HTTP request (used for
             audit logging).
 
+        db: Value used by this operation.
+
     Returns:
         Principal: Resolved principal with an
             :class:`~auth.contracts.ApiKeyCred`.
@@ -184,7 +192,11 @@ def resolve_from_api_key(
     try:
         auth_api_keys_integration.update_last_used(db_key.id, db)
     except SQLAlchemyError as err:
-        logger.warning(f"Failed to update last_used_at for API key {db_key.id}: {err}", exc_info=err)
+        logger.warning(
+            "Failed to update last_used_at for API key <id>: <err>",
+            exc_info=err,
+            extra=core_logger.context(id=db_key.id, err=err),
+        )
 
     logger.info(
         "API key authenticated",
@@ -216,6 +228,8 @@ def resolve_from_session_cookie(
     Args:
         session_id: The session identifier from the
             cookie or token ``sid`` claim.
+
+        db: Value used by this operation.
 
     Returns:
         Principal: Resolved principal with a
@@ -254,6 +268,8 @@ def issue_token_pair(
             identifier; a new UUID is generated
             when ``None``.
 
+        token_manager: Value used by this operation.
+
     Returns:
         tuple: ``(session_id, access_token_exp,
             access_token, refresh_token_exp,
@@ -273,6 +289,8 @@ def revoke_session(
         session_id: The session to revoke.
         user_id: Owner of the session (used to
             prevent cross-user revocations).
+
+        db: Value used by this operation.
 
     Raises:
         HTTPException: 404 if the session is not

@@ -168,6 +168,7 @@ explicitly. `core.database` never discovers or imports domain models.
 
 `app/migrations` is application-level orchestration that consumes each module's
 `migration_service`; it is not itself a module.
+Its tracking CRUD stages changes, while the migration service owns the commit.
 
 ### 3. Migration-only surface — imported only by `app/migrations`
 
@@ -265,14 +266,9 @@ Two choices in that table are deliberate:
   (`core.database.get_db` on a request, the job or subscriber that opened the
   session elsewhere) rolls back.
 
-  One accepted exception: `@handle_db_errors`, which wraps `crud` functions,
-  rolls the whole session back on a database error and on an escaping
-  `IntegrityError`. That is the same decision made implicitly, and it is kept
-  only because unconverted modules still rely on it. A `crud` that translates
-  `IntegrityError` into a `ConflictError` itself is not rolled back by it. Do not
-  add new reliance on the decorator's rollback; the transaction owner is
-  responsible, and the decorator's rollback is removed when the last unconverted
-  module is converted.
+  A `crud` that translates `IntegrityError` into a `ConflictError` does so at
+  the persistence boundary. Other database errors propagate to the transaction
+  owner, which rolls back the session.
 
 ### Surface writes stage, the caller commits
 
@@ -505,8 +501,8 @@ Two mechanisms, deliberately:
 
 **`backend/.importlinter`** — what import-linter is good at: external packages
 (`redis`, `requests`, `fastapi` in the parsers), the platform direction
-(`core` never imports `modules`), the auth boundary, the migration surface and a
-few named design seams. Run in CI by `.github/workflows/test-backend.yml`:
+(`core` never imports `modules`), the migration surface and a few named design
+seams. Run in CI by `.github/workflows/test-backend.yml`:
 
 ```bash
 cd backend && PYTHONPATH=app uv run lint-imports
@@ -787,17 +783,11 @@ These constraints remain visible until a coordinated design change resolves them
   `users.integration_service`, and `users` creates default targets, recalculates BMI and exports and
   imports health records through the `health_targets` and `health_weight` surfaces. Only the
   contributor pattern described under *Top-level cycles* removes the second half.
-- **`auth` naming.** `identity_service.py` and `_internal/` instead of
-  `integration_service.py` and the filename vocabulary, as described above.
-  The generic boundary rule needs a special case until it is aligned.
-
 - **Persistence layers calling other modules.** Converted modules ask nothing of
-  another bounded context below `service` (`TestLayerRules`). The unconverted ones still do.
+  another bounded context below `service` (`TestLayerRules`).
 - **Persistence ending transactions.** Converted modules stage with `flush()` and
   let `service` (or the job, importer or `migration_service` that owns the unit of
-  work) commit. The unconverted module (`auth`) is outside
-  `test_crud_does_not_end_transactions`; `_CRUD_TRANSACTION_DEBT` is empty and is
-  where a module being converted lists its files.
+  work) commit.
 - **Subscribers reaching past a surface.** Followers holds no subscribers; its
   notification handlers live in `modules/notifications` and subscribe to
   `followers.events` (`TestLayerRules`).
@@ -806,9 +796,10 @@ These constraints remain visible until a coordinated design change resolves them
   media file and user image (storage writes already run through `asyncio.to_thread`). The importer shares no
   loop-bound resource, so this is safe, but the importer should become synchronous once `core.file_uploads`
   has a synchronous form of `validate_bytes`; the other validators already have one.
-- **Legacy model scan.** Modules declare their ORM model modules in
-  `model_registry.py` and use scalar foreign keys with database `ON DELETE`
-  behaviour. Model registration is explicit.
+- **Legacy model scan.** Phase 11 removed the filesystem scan for unconverted
+  modules. `app/model_registry.py` now imports exactly the explicit model
+  contributions declared by each module; ORM relationships remain replaced by
+  scalar foreign keys with database `ON DELETE` behaviour.
 
 - **Auth collections are not paginated.** `GET /sessions/user/{user_id}`,
   `GET /profile/sessions`, `GET /profile/api_keys`, `GET /idp` and

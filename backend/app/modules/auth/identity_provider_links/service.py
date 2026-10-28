@@ -56,6 +56,8 @@ def enrich_user_identity_providers(
         user_id: User ID for logging purposes.
         db: SQLAlchemy database session.
 
+        idps: Value used by this operation.
+
     Returns:
         List of enriched UsersIdentityProviderResponse objects.
     """
