@@ -16,9 +16,9 @@ import modules.auth.identity_provider_link_tokens.integration_service as idp_lin
 import modules.auth.identity_provider_link_tokens.integration_service as idp_link_token_utils
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.integration_service as auth_identity_links_crud
-import modules.auth.identity_provider_links.integration_service as auth_identity_links_utils
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.integration_service as auth_identity_providers
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
@@ -213,7 +213,7 @@ def get_user_identity_provider_links(
 ) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
     """Return enriched identity provider links for the authenticated user."""
     idp_links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
-    return auth_identity_links_utils.enrich_user_identity_providers(idp_links, user_id, db)
+    return auth_identity_providers.enrich_user_identity_providers(idp_links, user_id, db)
 
 
 def validate_and_claim_browser_link_token(

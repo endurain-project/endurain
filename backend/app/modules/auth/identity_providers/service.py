@@ -34,7 +34,7 @@ import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.oauth_state.integration_service as oauth_state_crud
-import modules.auth.oauth_state.models as oauth_state_models
+import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
@@ -904,7 +904,7 @@ class IdentityProviderService:
         request: Request,
         password_hasher: auth_password_hasher.PasswordHasher,
         db: Session,
-        oauth_state: oauth_state_models.OAuthState,
+        oauth_state: oauth_state_schema.OAuthStateRead,
     ) -> dict[str, Any]:
         """
         Handle the OAuth2/OIDC callback from an identity provider.
@@ -920,7 +920,7 @@ class IdentityProviderService:
             password_hasher (auth_password_hasher.PasswordHasher): Password hasher instance
                 for user authentication operations.
             db (Session): SQLAlchemy database session.
-            oauth_state (oauth_state_models.OAuthState): Database OAuth state object.
+            oauth_state (oauth_state_schema.OAuthStateRead): OAuth-state data.
 
         Returns:
             dict[str, Any]: A dictionary containing:

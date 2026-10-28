@@ -8,6 +8,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 
 
@@ -18,7 +19,7 @@ class TestUsePasswordResetToken:
 
     @patch("modules.auth.password_reset_tokens.utils.auth_sessions_crud.delete_sessions_by_user")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.mark_user_password_reset_tokens_used")
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.upsert_password_hash")
+    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
     @patch("modules.auth.password_reset_tokens.utils.auth_security_stores.clear_pending_mfa_for_user")
     def test_revokes_sessions_after_successful_reset(
@@ -59,6 +60,10 @@ class TestUsePasswordResetToken:
                 "modules.auth.password_reset_tokens.utils.users_integration.require_user",
                 return_value=mock_user,
             ),
+            patch(
+                "modules.auth.password_reset_tokens.utils.auth_password_policy.validate_and_hash_password_for_user",
+                return_value="hashed-password",
+            ),
         ):
             password_reset_tokens_utils.use_password_reset_token(
                 token,
@@ -69,23 +74,17 @@ class TestUsePasswordResetToken:
 
         # Assert
         mock_claim_token.assert_called_once_with(token_hash, mock_db)
-        identity_service.validate_and_hash_password.assert_called_once_with(
-            "new-password",
-            8,
-            "strict",
-        )
         mock_edit_password.assert_called_once_with(
             user_id,
             "hashed-password",
             mock_db,
-            commit=False,
         )
         mock_mark_user_tokens_used.assert_called_once_with(user_id, mock_db)
         mock_delete_sessions.assert_called_once_with(user_id, mock_db, commit=False)
         mock_db.commit.assert_called_once_with()
         mock_clear_pending_mfa.assert_called_once_with(user_id)
 
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.upsert_password_hash")
+    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
     def test_invalid_token_raises_bad_request(
         self,
@@ -112,7 +111,7 @@ class TestUsePasswordResetToken:
         mock_edit_password.assert_not_called()
         mock_db.commit.assert_not_called()
 
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.upsert_password_hash")
+    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
     def test_weak_password_raises_422_distinct_from_invalid_token(
         self,
@@ -128,9 +127,8 @@ class TestUsePasswordResetToken:
         mock_claim_token.return_value = 42
 
         identity_service = MagicMock()
-        identity_service.validate_and_hash_password.side_effect = HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password is too short (got 4, need \u2265 8).",
+        identity_service.validate_and_hash_password.side_effect = core_exceptions.InvalidInputError(
+            "Password is too short (got 4, need \u2265 8)."
         )
 
         mock_user = MagicMock()
@@ -150,6 +148,10 @@ class TestUsePasswordResetToken:
                 "modules.auth.password_reset_tokens.utils.users_integration.require_user",
                 return_value=mock_user,
             ),
+            patch(
+                "modules.auth.password_reset_tokens.utils.auth_password_policy.validate_and_hash_password_for_user",
+                side_effect=core_exceptions.InvalidInputError("Password is too short (got 4, need ≥ 8)."),
+            ),
             pytest.raises(HTTPException) as exc_info,
         ):
             password_reset_tokens_utils.use_password_reset_token(
@@ -167,7 +169,7 @@ class TestUsePasswordResetToken:
     @patch("modules.auth.password_reset_tokens.utils.auth_security_stores.clear_pending_mfa_for_user")
     @patch("modules.auth.password_reset_tokens.utils.auth_sessions_crud.delete_sessions_by_user")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.mark_user_password_reset_tokens_used")
-    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.upsert_password_hash")
+    @patch("modules.auth.password_reset_tokens.utils.auth_credentials_crud.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.claim_password_reset_token")
     def test_rolls_back_when_commit_fails(
         self,
@@ -203,6 +205,10 @@ class TestUsePasswordResetToken:
             patch(
                 "modules.auth.password_reset_tokens.utils.users_integration.require_user",
                 return_value=mock_user,
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.utils.auth_password_policy.validate_and_hash_password_for_user",
+                return_value="hashed-password",
             ),
             pytest.raises(HTTPException) as exc_info,
         ):

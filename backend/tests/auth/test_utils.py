@@ -101,7 +101,7 @@ class TestAuthenticateUser:
         with (
             patch("modules.auth.utils.users_integration.get_user_by_username", return_value=mock_user),
             patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
-            patch("modules.auth.utils.auth_credentials_crud.upsert_password_hash") as mock_edit,
+            patch("modules.auth.utils.auth_credentials_crud.set_local_password_hash") as mock_edit,
         ):
             # Act
             result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)

@@ -26,13 +26,7 @@ logger = core_logger.get_logger(__name__)
 _AUTH_KEY_PREFIX = "endurain:auth"
 
 
-class AuthSecurityStoreUnavailableError(RuntimeError):
-    """
-    Raised when auth security storage cannot be reached.
-
-    Attributes:
-        None.
-    """
+AuthSecurityStoreUnavailableError = auth_lockout_contracts.AuthSecurityStoreUnavailableError
 
 
 def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:

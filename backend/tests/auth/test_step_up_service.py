@@ -91,10 +91,9 @@ class TestVerifyStepUpCredentials:
 
         # Derive the credential lookup result from the mock user: a local
         # password means a credential row exists carrying that hash.
-        credential = None
+        password_hash = None
         if getattr(mock_user, "has_local_password", False):
-            credential = MagicMock()
-            credential.password_hash = mock_user.password
+            password_hash = mock_user.password
 
         with (
             patch(
@@ -102,8 +101,8 @@ class TestVerifyStepUpCredentials:
                 return_value=mock_user,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.auth_credentials_crud.get_credential",
-                return_value=credential,
+                "modules.auth._internal.services.step_up_service.auth_credentials_crud.get_password_hash",
+                return_value=password_hash,
             ),
             patch(
                 "modules.auth._internal.services.step_up_service.mfa_service.is_mfa_enabled_for_user",

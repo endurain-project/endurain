@@ -21,7 +21,7 @@ class TestGetUserIdentityProviderLinks:
                 return_value=[mock_link],
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_utils.enrich_user_identity_providers",
+                "modules.auth._internal.services.identity_link_service.auth_identity_providers.enrich_user_identity_providers",
                 return_value=enriched,
             ),
         ):
@@ -36,7 +36,7 @@ class TestGetUserIdentityProviderLinks:
                 return_value=[],
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_utils.enrich_user_identity_providers",
+                "modules.auth._internal.services.identity_link_service.auth_identity_providers.enrich_user_identity_providers",
                 return_value=[],
             ),
         ):

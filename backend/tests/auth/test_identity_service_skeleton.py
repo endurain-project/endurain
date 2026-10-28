@@ -731,21 +731,27 @@ class TestValidateAndHashPassword:
     """Tests for DefaultIdentityService.validate_and_hash_password."""
 
     def test_happy_path_validates_and_hashes(self, service, mock_password_hasher):
-        mock_password_hasher.validate_password.return_value = None
-        mock_password_hasher.hash_password.return_value = "$argon2id$hash"
-        result = service.validate_and_hash_password("validPass1!", 8, "standard")
-        mock_password_hasher.validate_password.assert_called_once_with("validPass1!", 8, "standard")
-        mock_password_hasher.hash_password.assert_called_once_with("validPass1!")
+        with patch(
+            "modules.auth.identity_service.auth_password_hasher.validate_and_hash_password",
+            return_value="$argon2id$hash",
+        ) as validate:
+            result = service.validate_and_hash_password("validPass1!", 8, "strict")
+        validate.assert_called_once_with("validPass1!", 8, "strict")
         assert result == "$argon2id$hash"
 
     def test_password_policy_error_raises_400(self, service, mock_password_hasher):
-        from modules.auth.credentials.password_hasher import PasswordPolicyError
+        import core.exceptions as core_exceptions
 
-        mock_password_hasher.validate_password.side_effect = PasswordPolicyError("Too short")
-        with pytest.raises(HTTPException) as exc_info:
-            service.validate_and_hash_password("short", 12, "standard")
+        with (
+            patch(
+                "modules.auth.identity_service.auth_password_hasher.validate_and_hash_password",
+                side_effect=core_exceptions.InvalidInputError("Too short"),
+            ),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            service.validate_and_hash_password("short", 12, "strict")
         assert exc_info.value.status_code == 400
-        assert "Too short" in str(exc_info.value.detail)
+        assert "too short" in str(exc_info.value.detail).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -757,9 +763,11 @@ class TestHashPassword:
     """Tests for DefaultIdentityService.hash_password."""
 
     def test_delegates_to_password_hasher(self, service, mock_password_hasher):
-        mock_password_hasher.hash_password.return_value = "$argon2id$abc"
-        result = service.hash_password("secret123")
-        mock_password_hasher.hash_password.assert_called_once_with("secret123")
+        with patch(
+            "modules.auth.identity_service.auth_password_hasher.hash_password", return_value="$argon2id$abc"
+        ) as hash_password:
+            result = service.hash_password("secret123")
+        hash_password.assert_called_once_with("secret123")
         assert result == "$argon2id$abc"
 
 
@@ -772,9 +780,11 @@ class TestVerifyPassword:
     """Tests for DefaultIdentityService.verify_password."""
 
     def test_delegates_to_password_hasher(self, service, mock_password_hasher):
-        mock_password_hasher.verify_password.return_value = True
-        result = service.verify_password("pass", "$argon2id$hash")
-        mock_password_hasher.verify_password.assert_called_once_with("pass", "$argon2id$hash")
+        with patch(
+            "modules.auth.identity_service.auth_password_hasher.verify_password", return_value=True
+        ) as verify_password:
+            result = service.verify_password("pass", "$argon2id$hash")
+        verify_password.assert_called_once_with("pass", "$argon2id$hash")
         assert result is True
 
 
@@ -790,8 +800,8 @@ class TestGetPasswordHash:
         credential = MagicMock()
         credential.password_hash = "$argon2id$abc"
         with patch(
-            "modules.auth.identity_service.auth_credentials_crud.get_credential",
-            return_value=credential,
+            "modules.auth.identity_service.auth_credentials_crud.get_password_hash",
+            return_value=credential.password_hash,
         ) as get_credential:
             result = service.get_password_hash(42)
         get_credential.assert_called_once_with(42, mock_db)
@@ -799,7 +809,7 @@ class TestGetPasswordHash:
 
     def test_returns_none_when_no_credential(self, service, mock_db):
         with patch(
-            "modules.auth.identity_service.auth_credentials_crud.get_credential",
+            "modules.auth.identity_service.auth_credentials_crud.get_password_hash",
             return_value=None,
         ) as get_credential:
             result = service.get_password_hash(42)
@@ -812,10 +822,10 @@ class TestSetLocalPasswordHash:
 
     def test_delegates_to_crud(self, service, mock_db):
         with patch(
-            "modules.auth.identity_service.auth_credentials_crud.upsert_password_hash",
+            "modules.auth.identity_service.auth_credentials_crud.set_local_password_hash",
         ) as upsert:
             service.set_local_password_hash(42, "$argon2id$abc")
-        upsert.assert_called_once_with(42, "$argon2id$abc", mock_db, commit=False)
+        upsert.assert_called_once_with(42, "$argon2id$abc", mock_db)
 
 
 class TestVerifyStepUp:
@@ -834,7 +844,7 @@ class TestClearLocalPassword:
 
     def test_delegates_to_crud(self, service, mock_db):
         with patch(
-            "modules.auth.identity_service.auth_credentials_crud.delete_credential",
+            "modules.auth.identity_service.auth_credentials_crud.clear_local_password",
         ) as delete_credential:
             service.clear_local_password(42)
         delete_credential.assert_called_once_with(42, mock_db)

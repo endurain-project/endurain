@@ -38,7 +38,7 @@ import core.scheduler as core_scheduler
 import core.signing as core_signing
 import module_registry as runtime_module_registry
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
-import modules.auth.identity_provider_link_tokens.service as idp_link_token_utils
+import modules.auth.identity_provider_link_tokens.scheduled_jobs as idp_link_token_jobs
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
@@ -98,7 +98,7 @@ def _purge_expired_tokens() -> None:
     password_reset_tokens_utils.delete_invalid_tokens_from_db()
     sign_up_tokens_utils.delete_invalid_tokens_from_db()
     oauth_state_scheduled_jobs.delete_expired_oauth_states_from_db()
-    idp_link_token_utils.delete_idp_link_expired_tokens_from_db()
+    idp_link_token_jobs.delete_expired_tokens_from_db()
 
 
 def _read_allowed_tile_domains() -> list[str]:

@@ -83,8 +83,8 @@ def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
 
 def enrich_user_identity_providers(
     idp_links: list[identity_link_contracts.IdentityLinkRead],
+    idps: list[identity_link_contracts.IdentityProviderDetails],
     user_id: int,
-    db: Session,
 ) -> list[identity_link_schema.UsersIdentityProviderResponse]:
-    """Add identity-provider display fields to the user's links."""
-    return identity_link_service.enrich_user_identity_providers(idp_links, user_id, db)
+    """Add resolved provider display fields to the user's links."""
+    return identity_link_service.enrich_user_identity_providers(idp_links, idps, user_id)

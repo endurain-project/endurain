@@ -35,6 +35,7 @@ from fastapi.security import (
 from joserfc.errors import MissingClaimError
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.constants as auth_constants
@@ -241,6 +242,8 @@ def _validate_access_token_impl(
         token_manager.validate_access_expiration_logged(access_token)
     except HTTPException:
         raise
+    except core_exceptions.DomainError as err:
+        raise HTTPException(status_code=err.status_code, detail=err.detail) from err
     except Exception as err:
         logger.error(
             f"Unexpected error during access token validation: {type(err).__name__}",
@@ -418,6 +421,8 @@ def validate_refresh_token(
                 headers=http_err.headers,
             ) from http_err
         raise
+    except core_exceptions.DomainError as err:
+        raise HTTPException(status_code=err.status_code, detail=err.detail) from err
     except Exception as err:
         logger.error(
             f"Unexpected error during refresh token validation: {type(err).__name__}",

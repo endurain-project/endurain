@@ -3,7 +3,8 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from modules.auth.identity_provider_links import service as user_idp_utils
+import modules.auth.identity_provider_links.integration_service as identity_links_integration
+import modules.auth.identity_providers.integration_service as user_idp_utils
 
 
 class TestEnrichUserIdentityProviders:
@@ -76,7 +77,7 @@ class TestEnrichUserIdentityProviders:
         mock_idp2.provider_type = "oauth2"
 
         with patch(
-            "modules.auth.identity_provider_links.service.idp_integration.get_identity_providers_by_ids"
+            "modules.auth.identity_providers.integration_service.get_identity_providers_by_ids"
         ) as mock_get_idps:
             mock_get_idps.return_value = [mock_idp1, mock_idp2]
 
@@ -129,9 +130,7 @@ class TestEnrichUserIdentityProviders:
         mock_idp1.provider_type = "oauth2"
 
         with (
-            patch(
-                "modules.auth.identity_provider_links.service.idp_integration.get_identity_providers_by_ids"
-            ) as mock_get_idps,
+            patch("modules.auth.identity_providers.integration_service.get_identity_providers_by_ids") as mock_get_idps,
             patch("modules.auth.identity_provider_links.service.logger") as mock_logger,
         ):
             mock_get_idps.return_value = [mock_idp1]
@@ -163,9 +162,7 @@ class TestEnrichUserIdentityProviders:
         mock_link.linked_at = now
 
         with (
-            patch(
-                "modules.auth.identity_provider_links.service.idp_integration.get_identity_providers_by_ids"
-            ) as mock_get_idps,
+            patch("modules.auth.identity_providers.integration_service.get_identity_providers_by_ids") as mock_get_idps,
             patch("modules.auth.identity_provider_links.service.logger") as mock_logger,
         ):
             mock_get_idps.return_value = []
@@ -200,7 +197,9 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
             mock_get.return_value = mock_link
 
             # Act
-            result = user_idp_utils.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(1, 1, mock_db)
+            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                1, 1, mock_db
+            )
 
         # Assert
         assert result == "encrypted_token_xyz"
@@ -221,7 +220,9 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
             mock_get.return_value = None
 
             # Act
-            result = user_idp_utils.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(1, 1, mock_db)
+            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                1, 1, mock_db
+            )
 
         # Assert
         assert result is None
@@ -244,7 +245,9 @@ class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
             mock_get.return_value = mock_link
 
             # Act
-            result = user_idp_utils.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(1, 1, mock_db)
+            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                1, 1, mock_db
+            )
 
         # Assert
         assert result is None

@@ -1,8 +1,19 @@
 """Internal identity-provider link data contracts."""
 
 from datetime import datetime
+from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
+
+
+class IdentityProviderDetails(Protocol):
+    """Display data required to enrich a linked identity provider."""
+
+    id: int
+    name: str
+    slug: str
+    icon: str | None
+    provider_type: str
 
 
 class IdentityLinkRead(BaseModel):
