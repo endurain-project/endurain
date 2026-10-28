@@ -38,6 +38,7 @@ jobs:
             runner: ubuntu-24.04-arm
     env:
       IMAGE_NAME: ghcr.io/${{ github.repository }}
+      SOURCE_URL: https://github.com/${{ github.repository }}
 
     steps:
       - name: Checkout code
@@ -62,6 +63,8 @@ jobs:
             --platform "${{ matrix.platform }}" \
             --file docker/Dockerfile \
             --tag "${IMAGE_NAME}:${{ github.ref_name }}-${{ matrix.arch }}" \
+            --label "org.opencontainers.image.source=${SOURCE_URL}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
             --push \
             .
 
@@ -76,6 +79,8 @@ jobs:
             --file docker/Dockerfile \
             --build-arg "PYTHON_EXTRAS=${PYTHON_EXTRAS}" \
             --tag "${IMAGE_NAME}:dev-${{ github.sha }}-${{ matrix.arch }}" \
+            --label "org.opencontainers.image.source=${SOURCE_URL}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
             --push \
             .
 
