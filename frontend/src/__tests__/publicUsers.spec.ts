@@ -96,7 +96,7 @@ describe('fetchPublicUser', () => {
 
 describe('searchPublicUsers', () => {
   it('encodes the term and maps the public projection', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([userDto])
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [userDto] })
 
     const users = await searchPublicUsers('a da')
 

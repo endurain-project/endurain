@@ -69,7 +69,7 @@ export function toDefaultGearWire(gear: DefaultGear): DefaultGearUpdateDto {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchDefaultGear(signal?: AbortSignal): Promise<DefaultGear | null> {
-  const dto = await apiFetch<DefaultGearDto | null>('/profile/default_gear', { signal })
+  const dto = await apiFetch<DefaultGearDto | null>('/profile/default-gear', { signal })
   return dto ? mapDefaultGear(dto) : null
 }
 
@@ -81,7 +81,7 @@ export async function fetchDefaultGear(signal?: AbortSignal): Promise<DefaultGea
  * @throws {HttpError} When the request fails.
  */
 export async function updateDefaultGear(gear: DefaultGear): Promise<DefaultGear> {
-  const dto = await apiFetch<DefaultGearDto>('/profile/default_gear', {
+  const dto = await apiFetch<DefaultGearDto>('/profile/default-gear', {
     method: 'PATCH',
     headers: ifMatchHeaders(gear.version),
     body: JSON.stringify(toDefaultGearWire(gear)),

@@ -111,24 +111,24 @@ describe('notification service requests', () => {
     await expect(fetchNotifications({ page: 1, numRecords: 25 })).resolves.toEqual([])
   })
 
-  it('marks a notification read via a void PUT', async () => {
+  it('marks a notification read via a void POST', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await markNotificationRead(7)
 
     expect(apiFetch).toHaveBeenCalledWith('/notifications/7/read', {
-      method: 'PUT',
+      method: 'POST',
       responseType: 'void',
     })
   })
 
-  it('marks all notifications read via a void PUT', async () => {
+  it('marks all notifications read via a void POST', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await markAllNotificationsRead()
 
     expect(apiFetch).toHaveBeenCalledWith('/notifications/read', {
-      method: 'PUT',
+      method: 'POST',
       responseType: 'void',
     })
   })

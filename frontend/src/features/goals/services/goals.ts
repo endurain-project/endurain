@@ -4,6 +4,7 @@ import type {
   GoalDto,
   GoalFilters,
   GoalInput,
+  GoalPageDto,
   GoalProgress,
   GoalProgressDto,
   GoalUpdateDto,
@@ -126,12 +127,18 @@ export async function fetchGoals(
   if (filters.goalType) {
     params.set('goal_type', filters.goalType)
   }
-  const query = params.toString()
-  const dtos = await apiFetch<GoalDto[] | null>(
-    query ? `/profile/goals?${query}` : '/profile/goals',
-    { signal },
-  )
-  return (dtos ?? []).map(mapGoal)
+  const dtos: GoalDto[] = []
+  let page: number | null = 1
+  while (page !== null) {
+    params.set('page_number', String(page))
+    const result: GoalPageDto | null = await apiFetch<GoalPageDto | null>(
+      `/profile/goals?${params.toString()}`,
+      { signal },
+    )
+    dtos.push(...(result?.items ?? []))
+    page = result?.next ?? null
+  }
+  return dtos.map(mapGoal)
 }
 
 /**

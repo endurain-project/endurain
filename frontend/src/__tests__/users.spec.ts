@@ -282,13 +282,13 @@ describe('users service requests', () => {
     })
   })
 
-  it('approveUser issues a PUT to the approve endpoint', async () => {
+  it('approveUser issues a POST to the approve endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await approveUser(7)
 
     expect(apiFetch).toHaveBeenCalledWith('/users/7/approve', {
-      method: 'PUT',
+      method: 'POST',
       responseType: 'void',
     })
   })

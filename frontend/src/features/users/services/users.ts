@@ -263,5 +263,5 @@ export async function deleteUser(id: number): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function approveUser(id: number): Promise<void> {
-  await apiFetch<void>(`/users/${id}/approve`, { method: 'PUT', responseType: 'void' })
+  await apiFetch<void>(`/users/${id}/approve`, { method: 'POST', responseType: 'void' })
 }

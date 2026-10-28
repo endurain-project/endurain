@@ -3,6 +3,9 @@ import type { Schemas } from '@/types'
 /** Raw goal payload (snake_case wire shape). */
 export type GoalDto = Schemas['UsersGoalRead']
 
+/** One page of goals as the list endpoint returns it. */
+export type GoalPageDto = Schemas['Page_UsersGoalRead_']
+
 /** Create body for a new goal (the matching goal value is required). */
 export type GoalCreateDto = Schemas['UsersGoalCreate']
 

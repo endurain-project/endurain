@@ -77,7 +77,7 @@ export async function fetchUnreadNotificationsCount(signal?: AbortSignal): Promi
  */
 export async function markNotificationRead(id: number): Promise<void> {
   await apiFetch<void>(`/notifications/${id}/read`, {
-    method: 'PUT',
+    method: 'POST',
     responseType: 'void',
   })
 }
@@ -90,7 +90,7 @@ export async function markNotificationRead(id: number): Promise<void> {
  */
 export async function markAllNotificationsRead(): Promise<void> {
   await apiFetch<void>(`/notifications/read`, {
-    method: 'PUT',
+    method: 'POST',
     responseType: 'void',
   })
 }

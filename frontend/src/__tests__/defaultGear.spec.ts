@@ -71,7 +71,7 @@ describe('default gear service requests', () => {
   it('fetchDefaultGear reads the endpoint and maps the response', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(makeDefaultGearDto())
     const gear = await fetchDefaultGear()
-    expect(apiFetch).toHaveBeenCalledWith('/profile/default_gear', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/profile/default-gear', { signal: undefined })
     expect(gear?.runGearId).toBe(10)
   })
 
@@ -90,7 +90,7 @@ describe('default gear service requests', () => {
     await updateDefaultGear(mapDefaultGear(makeDefaultGearDto({ hike_gear_id: 30 })))
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/default_gear',
+      '/profile/default-gear',
       expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"3"' } }),
     )
     const parsed = JSON.parse(body as string) as Record<string, unknown>

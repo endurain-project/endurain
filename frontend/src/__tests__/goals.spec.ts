@@ -108,35 +108,35 @@ describe('goal service requests', () => {
   })
 
   it('requests the goals path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([goalDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [goalDto], next: null })
 
     const result = await fetchGoals()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/goals',
+      '/profile/goals?page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedGoal])
   })
 
   it('encodes active filters as query params', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([goalDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [goalDto], next: null })
 
     await fetchGoals({ interval: 'weekly', activityType: 'run', goalType: 'distance' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/goals?interval=weekly&activity_type=run&goal_type=distance',
+      '/profile/goals?interval=weekly&activity_type=run&goal_type=distance&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
   })
 
   it('omits unset filters from the query string', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([goalDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [goalDto], next: null })
 
     await fetchGoals({ interval: null, activityType: 'bike', goalType: null })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/goals?activity_type=bike',
+      '/profile/goals?activity_type=bike&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
   })
@@ -144,6 +144,17 @@ describe('goal service requests', () => {
   it('maps a null payload to an empty array', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
     await expect(fetchGoals()).resolves.toEqual([])
+  })
+
+  it('follows the pages until the last one', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [goalDto], next: 2 })
+      .mockResolvedValueOnce({ items: [goalDto], next: null })
+
+    const result = await fetchGoals()
+
+    expect(apiFetch).toHaveBeenNthCalledWith(2, '/profile/goals?page_number=2', expect.anything())
+    expect(result).toHaveLength(2)
   })
 
   it('creates a goal via a POST with the snake-cased payload', async () => {

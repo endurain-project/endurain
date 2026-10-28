@@ -172,7 +172,14 @@ export interface paths {
         };
         /**
          * List Activity Exercise Titles
-         * @description Return all activity exercise titles.
+         * @description Return one page of the activity exercise titles.
+         *
+         *     Args:
+         *         page: The requested window; a page holds up to the maximum when no size is given.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The page of exercise titles.
          */
         get: operations["list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get"];
         put?: never;
@@ -1029,7 +1036,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/activities": {
+    "/api/v1/garmin/activities": {
         parameters: {
             query?: never;
             header?: never;
@@ -1046,14 +1053,14 @@ export interface paths {
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
-        post: operations["garminconnect_retrieve_activities_days_api_v1_garminconnect_activities_post"];
+        post: operations["garminconnect_retrieve_activities_days_api_v1_garmin_activities_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/gear": {
+    "/api/v1/garmin/gear": {
         parameters: {
             query?: never;
             header?: never;
@@ -1069,14 +1076,14 @@ export interface paths {
          *     Poll ``GET /garminconnect/sync/gear`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
-        post: operations["garminconnect_retrieve_gear_api_v1_garminconnect_gear_post"];
+        post: operations["garminconnect_retrieve_gear_api_v1_garmin_gear_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/health": {
+    "/api/v1/garmin/health": {
         parameters: {
             query?: never;
             header?: never;
@@ -1093,14 +1100,14 @@ export interface paths {
          *     ``GET /garminconnect/sync/health`` for the outcome. A second request while one is pending is
          *     answered 409.
          */
-        post: operations["garminconnect_retrieve_health_days_api_v1_garminconnect_health_post"];
+        post: operations["garminconnect_retrieve_health_days_api_v1_garmin_health_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/link": {
+    "/api/v1/garmin/link": {
         parameters: {
             query?: never;
             header?: never;
@@ -1117,18 +1124,18 @@ export interface paths {
          *     ``mfa_required``, submit the code to ``POST /garminconnect/mfa`` and keep polling until it
          *     reports ``completed`` or ``failed``. A second request while one is running is answered 409.
          */
-        post: operations["garminconnect_link_api_v1_garminconnect_link_post"];
+        post: operations["garminconnect_link_api_v1_garmin_link_post"];
         /**
          * Garminconnect Unlink
          * @description Unlink the user's Garmin Connect account.
          */
-        delete: operations["garminconnect_unlink_api_v1_garminconnect_link_delete"];
+        delete: operations["garminconnect_unlink_api_v1_garmin_link_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/link/status": {
+    "/api/v1/garmin/link/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -1139,7 +1146,7 @@ export interface paths {
          * Garminconnect Link Status
          * @description Report where the authenticated user's Garmin Connect link attempt is.
          */
-        get: operations["garminconnect_link_status_api_v1_garminconnect_link_status_get"];
+        get: operations["garminconnect_link_status_api_v1_garmin_link_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1148,7 +1155,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/mfa": {
+    "/api/v1/garmin/mfa": {
         parameters: {
             query?: never;
             header?: never;
@@ -1161,14 +1168,14 @@ export interface paths {
          * Garminconnect Mfa Code
          * @description Hand the MFA code to the Garmin Connect login waiting for it.
          */
-        post: operations["garminconnect_mfa_code_api_v1_garminconnect_mfa_post"];
+        post: operations["garminconnect_mfa_code_api_v1_garmin_mfa_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/sync/{kind}": {
+    "/api/v1/garmin/sync/{kind}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1179,7 +1186,7 @@ export interface paths {
          * Garminconnect Sync Status
          * @description Report where the authenticated user's queued gear or health sync is.
          */
-        get: operations["garminconnect_sync_status_api_v1_garminconnect_sync__kind__get"];
+        get: operations["garminconnect_sync_status_api_v1_garmin_sync__kind__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2393,7 +2400,7 @@ export interface paths {
         patch: operations["edit_health_weight_api_v1_health_weight__health_weight_id__patch"];
         trace?: never;
     };
-    "/api/v1/idp": {
+    "/api/v1/identity-providers": {
         parameters: {
             query?: never;
             header?: never;
@@ -2411,7 +2418,7 @@ export interface paths {
          *     Returns:
          *         A list of all configured identity providers.
          */
-        get: operations["list_identity_providers_api_v1_idp_get"];
+        get: operations["list_identity_providers_api_v1_identity_providers_get"];
         put?: never;
         /**
          * Create Identity Provider
@@ -2430,14 +2437,14 @@ export interface paths {
          *         HTTPException: 409 if the slug already exists, 500 on
          *             database errors.
          */
-        post: operations["create_identity_provider_api_v1_idp_post"];
+        post: operations["create_identity_provider_api_v1_identity_providers_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/idp/templates": {
+    "/api/v1/identity-providers/templates": {
         parameters: {
             query?: never;
             header?: never;
@@ -2454,7 +2461,7 @@ export interface paths {
          *     Returns:
          *         A list of identity provider templates.
          */
-        get: operations["list_idp_templates_api_v1_idp_templates_get"];
+        get: operations["list_idp_templates_api_v1_identity_providers_templates_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2463,7 +2470,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/idp/{idp_id}": {
+    "/api/v1/identity-providers/{idp_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2489,7 +2496,7 @@ export interface paths {
          *         HTTPException: 404 if the provider is not found, 409 on slug
          *             conflict, 500 on database errors.
          */
-        put: operations["update_identity_provider_api_v1_idp__idp_id__put"];
+        put: operations["update_identity_provider_api_v1_identity_providers__idp_id__put"];
         post?: never;
         /**
          * Delete Identity Provider
@@ -2505,7 +2512,7 @@ export interface paths {
          *         HTTPException: 404 if the provider is not found, 409 if users
          *             are still linked to the provider.
          */
-        delete: operations["delete_identity_provider_api_v1_idp__idp_id__delete"];
+        delete: operations["delete_identity_provider_api_v1_identity_providers__idp_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2576,6 +2583,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Mark All Notifications As Read
          * @description Mark all of the user's notifications as read.
@@ -2588,8 +2596,7 @@ export interface paths {
          *     Returns:
          *         None.
          */
-        put: operations["mark_all_notifications_as_read_api_v1_notifications_read_put"];
-        post?: never;
+        post: operations["mark_all_notifications_as_read_api_v1_notifications_read_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2632,6 +2639,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Mark Notification As Read
          * @description Mark a specific notification as read.
@@ -2645,8 +2653,7 @@ export interface paths {
          *     Returns:
          *         None.
          */
-        put: operations["mark_notification_as_read_api_v1_notifications__notification_id__read_put"];
-        post?: never;
+        post: operations["mark_notification_as_read_api_v1_notifications__notification_id__read_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2742,7 +2749,7 @@ export interface paths {
         patch: operations["edit_user_api_v1_profile_patch"];
         trace?: never;
     };
-    "/api/v1/profile/api_keys": {
+    "/api/v1/profile/api-keys": {
         parameters: {
             query?: never;
             header?: never;
@@ -2766,7 +2773,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/api_keys/{api_key_id}": {
+    "/api/v1/profile/api-keys/{api_key_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2786,7 +2793,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/api_keys/{api_key_id}/revoke": {
+    "/api/v1/profile/api-keys/{api_key_id}/revoke": {
         parameters: {
             query?: never;
             header?: never;
@@ -2795,18 +2802,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
         /**
          * Revoke User Api Key
          * @description Revoke an API key owned by the authenticated user.
          */
-        patch: operations["revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_patch"];
+        post: operations["revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/default_gear": {
+    "/api/v1/profile/default-gear": {
         parameters: {
             query?: never;
             header?: never;
@@ -3002,17 +3009,18 @@ export interface paths {
         };
         /**
          * Get User Goals
-         * @description Retrieve goals for the authenticated user with optional filters.
+         * @description Retrieve one page of goals for the authenticated user with optional filters.
          *
          *     Args:
          *         token_user_id: User ID from access token.
+         *         page: The requested window.
          *         db: Database session dependency.
          *         interval: Optional filter by goal interval.
          *         activity_type: Optional filter by activity type.
          *         goal_type: Optional filter by goal type.
          *
          *     Returns:
-         *         List of user goal objects matching the filters.
+         *         The page of user goals matching the filters.
          */
         get: operations["get_user_goals_api_v1_profile_goals_get"];
         put?: never;
@@ -3106,7 +3114,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp": {
+    "/api/v1/profile/identity-providers": {
         parameters: {
             query?: never;
             header?: never;
@@ -3144,7 +3152,7 @@ export interface paths {
          *     Raises:
          *         DomainError: May raise authentication/authorization errors via the dependency injection.
          */
-        get: operations["get_my_identity_providers_api_v1_profile_idp_get"];
+        get: operations["get_my_identity_providers_api_v1_profile_identity_providers_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3153,7 +3161,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp/{idp_id}/link": {
+    "/api/v1/profile/identity-providers/{idp_id}/link": {
         parameters: {
             query?: never;
             header?: never;
@@ -3184,7 +3192,7 @@ export interface paths {
          *         RedirectResponse: A redirect to the identity provider's authorization URL
          *             with HTTP 307 status code.
          */
-        get: operations["link_identity_provider_api_v1_profile_idp__idp_id__link_get"];
+        get: operations["link_identity_provider_api_v1_profile_identity_providers__idp_id__link_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3193,7 +3201,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp/{idp_id}/link/token": {
+    "/api/v1/profile/identity-providers/{idp_id}/link/token": {
         parameters: {
             query?: never;
             header?: never;
@@ -3240,14 +3248,14 @@ export interface paths {
          *             - 409 CONFLICT: If the identity provider is already linked.
          *             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
          */
-        post: operations["generate_link_token_api_v1_profile_idp__idp_id__link_token_post"];
+        post: operations["generate_link_token_api_v1_profile_identity_providers__idp_id__link_token_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp/{idp_id}/unlink": {
+    "/api/v1/profile/identity-providers/{idp_id}/unlink": {
         parameters: {
             query?: never;
             header?: never;
@@ -3294,7 +3302,7 @@ export interface paths {
          *         - Uses token-based authentication to ensure users can only
          *           unlink their own IdPs.
          */
-        post: operations["delete_my_identity_provider_api_v1_profile_idp__idp_id__unlink_post"];
+        post: operations["delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3452,6 +3460,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Disable Mfa
          * @description Disable MFA for authenticated user after step-up verification.
@@ -3481,8 +3490,7 @@ export interface paths {
          *             the MFA code is invalid; 400 if MFA is not currently
          *             enabled.
          */
-        put: operations["disable_mfa_api_v1_profile_mfa_disable_put"];
-        post?: never;
+        post: operations["disable_mfa_api_v1_profile_mfa_disable_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3497,6 +3505,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Enable Mfa
          * @description Enable MFA for authenticated user after step-up verification.
@@ -3529,8 +3538,7 @@ export interface paths {
          *         DomainError: 400 if no setup is in progress or the TOTP
          *             code is invalid; 401 if step-up verification fails.
          */
-        put: operations["enable_mfa_api_v1_profile_mfa_enable_put"];
-        post?: never;
+        post: operations["enable_mfa_api_v1_profile_mfa_enable_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3810,7 +3818,15 @@ export interface paths {
         };
         /**
          * List Public Activity Exercise Titles
-         * @description Return all activity exercise titles via the public endpoint.
+         * @description Return one page of the activity exercise titles via the public endpoint.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         page: The requested window; a page holds up to the maximum when no size is given.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The page of exercise titles, empty when public shareable links are disabled.
          */
         get: operations["list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get"];
         put?: never;
@@ -5005,14 +5021,15 @@ export interface paths {
         };
         /**
          * Read Users Contain Username
-         * @description Search active users by partial username match.
+         * @description Search active users by partial username match, one page at a time.
          *
          *     Args:
          *         username: Partial username to search for.
+         *         page: The requested window of matches.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         The matching users' public projections.
+         *         The page of matching users' public projections.
          */
         get: operations["read_users_contain_username_api_v1_users_username_contains__username__get"];
         put?: never;
@@ -5132,6 +5149,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Approve User
          * @description Approve pending user account.
@@ -5141,8 +5159,7 @@ export interface paths {
          *         user_id: ID of user to approve.
          *         db: Database session dependency.
          */
-        put: operations["approve_user_api_v1_users__user_id__approve_put"];
-        post?: never;
+        post: operations["approve_user_api_v1_users__user_id__approve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9784,6 +9801,19 @@ export interface components {
              */
             user_id: number;
         };
+        /** Page[ActivityExerciseTitlesRead] */
+        Page_ActivityExerciseTitlesRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityExerciseTitlesRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /** Page[ActivityLapsRead] */
         Page_ActivityLapsRead_: {
             /** Items */
@@ -9970,6 +10000,32 @@ export interface components {
         Page_NotificationRead_: {
             /** Items */
             items: components["schemas"]["NotificationRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UserPublicRead] */
+        Page_UserPublicRead_: {
+            /** Items */
+            items: components["schemas"]["UserPublicRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UsersGoalRead] */
+        Page_UsersGoalRead_: {
+            /** Items */
+            items: components["schemas"]["UsersGoalRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -13219,7 +13275,10 @@ export interface operations {
     };
     list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13232,7 +13291,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitlesRead"][];
+                    "application/json": components["schemas"]["Page_ActivityExerciseTitlesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -14688,7 +14756,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_activities_days_api_v1_garminconnect_activities_post: {
+    garminconnect_retrieve_activities_days_api_v1_garmin_activities_post: {
         parameters: {
             query: {
                 start_date: string;
@@ -14729,7 +14797,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_gear_api_v1_garminconnect_gear_post: {
+    garminconnect_retrieve_gear_api_v1_garmin_gear_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -14758,7 +14826,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_health_days_api_v1_garminconnect_health_post: {
+    garminconnect_retrieve_health_days_api_v1_garmin_health_post: {
         parameters: {
             query: {
                 start_date: string;
@@ -14799,7 +14867,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_link_api_v1_garminconnect_link_post: {
+    garminconnect_link_api_v1_garmin_link_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -14841,7 +14909,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_unlink_api_v1_garminconnect_link_delete: {
+    garminconnect_unlink_api_v1_garmin_link_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -14868,7 +14936,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_link_status_api_v1_garminconnect_link_status_get: {
+    garminconnect_link_status_api_v1_garmin_link_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -14897,7 +14965,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_mfa_code_api_v1_garminconnect_mfa_post: {
+    garminconnect_mfa_code_api_v1_garmin_mfa_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -14937,7 +15005,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_sync_status_api_v1_garminconnect_sync__kind__get: {
+    garminconnect_sync_status_api_v1_garmin_sync__kind__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -17005,7 +17073,7 @@ export interface operations {
             };
         };
     };
-    list_identity_providers_api_v1_idp_get: {
+    list_identity_providers_api_v1_identity_providers_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -17034,7 +17102,7 @@ export interface operations {
             };
         };
     };
-    create_identity_provider_api_v1_idp_post: {
+    create_identity_provider_api_v1_identity_providers_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -17078,7 +17146,7 @@ export interface operations {
             };
         };
     };
-    list_idp_templates_api_v1_idp_templates_get: {
+    list_idp_templates_api_v1_identity_providers_templates_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -17107,7 +17175,7 @@ export interface operations {
             };
         };
     };
-    update_identity_provider_api_v1_idp__idp_id__put: {
+    update_identity_provider_api_v1_identity_providers__idp_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -17173,7 +17241,7 @@ export interface operations {
             };
         };
     };
-    delete_identity_provider_api_v1_idp__idp_id__delete: {
+    delete_identity_provider_api_v1_identity_providers__idp_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -17282,7 +17350,7 @@ export interface operations {
             };
         };
     };
-    mark_all_notifications_as_read_api_v1_notifications_read_put: {
+    mark_all_notifications_as_read_api_v1_notifications_read_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -17349,7 +17417,7 @@ export interface operations {
             };
         };
     };
-    mark_notification_as_read_api_v1_notifications__notification_id__read_put: {
+    mark_notification_as_read_api_v1_notifications__notification_id__read_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -17651,7 +17719,7 @@ export interface operations {
             };
         };
     };
-    revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_patch: {
+    revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -17938,6 +18006,8 @@ export interface operations {
                 activity_type?: components["schemas"]["ActivityType"] | null;
                 /** @description Filter by goal type */
                 goal_type?: components["schemas"]["GoalType"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -17951,7 +18021,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersGoalRead"][];
+                    "application/json": components["schemas"]["Page_UsersGoalRead_"];
                 };
             };
             /** @description Validation Error */
@@ -18129,7 +18199,7 @@ export interface operations {
             };
         };
     };
-    get_my_identity_providers_api_v1_profile_idp_get: {
+    get_my_identity_providers_api_v1_profile_identity_providers_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -18158,7 +18228,7 @@ export interface operations {
             };
         };
     };
-    link_identity_provider_api_v1_profile_idp__idp_id__link_get: {
+    link_identity_provider_api_v1_profile_identity_providers__idp_id__link_get: {
         parameters: {
             query: {
                 link_token: string;
@@ -18200,7 +18270,7 @@ export interface operations {
             };
         };
     };
-    generate_link_token_api_v1_profile_idp__idp_id__link_token_post: {
+    generate_link_token_api_v1_profile_identity_providers__idp_id__link_token_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -18244,7 +18314,7 @@ export interface operations {
             };
         };
     };
-    delete_my_identity_provider_api_v1_profile_idp__idp_id__unlink_post: {
+    delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -18470,7 +18540,7 @@ export interface operations {
             };
         };
     };
-    disable_mfa_api_v1_profile_mfa_disable_put: {
+    disable_mfa_api_v1_profile_mfa_disable_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -18512,7 +18582,7 @@ export interface operations {
             };
         };
     };
-    enable_mfa_api_v1_profile_mfa_enable_put: {
+    enable_mfa_api_v1_profile_mfa_enable_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -18859,7 +18929,10 @@ export interface operations {
     };
     list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -18872,7 +18945,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitlesRead"][];
+                    "application/json": components["schemas"]["Page_ActivityExerciseTitlesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -20388,13 +20470,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["StravaDetail"];
-                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {
@@ -20667,7 +20747,10 @@ export interface operations {
     };
     read_users_contain_username_api_v1_users_username_contains__username__get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 username: string;
@@ -20682,7 +20765,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserPublicRead"][];
+                    "application/json": components["schemas"]["Page_UserPublicRead_"];
                 };
             };
             /** @description Validation Error */
@@ -20871,7 +20954,7 @@ export interface operations {
             };
         };
     };
-    approve_user_api_v1_users__user_id__approve_put: {
+    approve_user_api_v1_users__user_id__approve_post: {
         parameters: {
             query?: never;
             header?: never;

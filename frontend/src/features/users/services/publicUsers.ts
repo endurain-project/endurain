@@ -87,9 +87,9 @@ export async function searchPublicUsers(
   username: string,
   signal?: AbortSignal,
 ): Promise<PublicUser[]> {
-  const dtos = await apiFetch<PublicUserDto[]>(
+  const page = await apiFetch<{ items: PublicUserDto[] }>(
     `/users/username/contains/${encodeURIComponent(username)}`,
     { signal },
   )
-  return dtos.map(mapPublicUser)
+  return page.items.map(mapPublicUser)
 }

@@ -114,7 +114,7 @@ function toWireBase(input: IdentityProviderInput) {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchIdentityProviders(signal?: AbortSignal): Promise<IdentityProvider[]> {
-  const dtos = await apiFetch<IdentityProviderDto[] | null>('/idp', { signal })
+  const dtos = await apiFetch<IdentityProviderDto[] | null>('/identity-providers', { signal })
   return (dtos ?? []).map(mapIdentityProvider)
 }
 
@@ -129,7 +129,10 @@ export async function fetchIdentityProviders(signal?: AbortSignal): Promise<Iden
 export async function fetchIdentityProviderTemplates(
   signal?: AbortSignal,
 ): Promise<IdentityProviderTemplate[]> {
-  const dtos = await apiFetch<IdentityProviderTemplateDto[] | null>('/idp/templates', { signal })
+  const dtos = await apiFetch<IdentityProviderTemplateDto[] | null>(
+    '/identity-providers/templates',
+    { signal },
+  )
   return (dtos ?? []).map(mapIdentityProviderTemplate)
 }
 
@@ -148,7 +151,7 @@ export async function createIdentityProvider(
     ...toWireBase(input),
     client_secret: input.clientSecret ?? '',
   }
-  const dto = await apiFetch<IdentityProviderDto>('/idp', {
+  const dto = await apiFetch<IdentityProviderDto>('/identity-providers', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -175,7 +178,7 @@ export async function updateIdentityProvider(
   if (input.clientSecret) {
     payload.client_secret = input.clientSecret
   }
-  const dto = await apiFetch<IdentityProviderDto>(`/idp/${id}`, {
+  const dto = await apiFetch<IdentityProviderDto>(`/identity-providers/${id}`, {
     method: 'PUT',
     headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
@@ -191,5 +194,5 @@ export async function updateIdentityProvider(
  * @throws {HttpError} When the request fails (e.g. users still linked).
  */
 export async function deleteIdentityProvider(id: number): Promise<void> {
-  await apiFetch(`/idp/${id}`, { method: 'DELETE', responseType: 'void' })
+  await apiFetch(`/identity-providers/${id}`, { method: 'DELETE', responseType: 'void' })
 }

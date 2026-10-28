@@ -804,11 +804,8 @@ export async function fetchActivityExerciseTitles(
     `/activities/exercise-titles/all`,
     `/public/activities/exercise-titles/all`,
   )
-  const dtos = await apiFetch<ActivityExerciseTitleDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityExerciseTitle)
+  const dtos = await fetchAllChildPages<ActivityExerciseTitleDto>(path, context)
+  return dtos.map(mapActivityExerciseTitle)
 }
 
 /**

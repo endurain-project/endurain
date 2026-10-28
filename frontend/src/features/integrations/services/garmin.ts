@@ -25,7 +25,7 @@ export async function linkGarmin(input: GarminLoginInput): Promise<GarminLinkSta
     // region; the dialog's toggle drives this flag.
     is_cn: input.isCn,
   }
-  return apiFetch<GarminLinkStatus>('/garminconnect/link', {
+  return apiFetch<GarminLinkStatus>('/garmin/link', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -40,7 +40,7 @@ export async function linkGarmin(input: GarminLoginInput): Promise<GarminLinkSta
  * @throws {HttpError} When the request fails, including 404 once no attempt is recorded.
  */
 export async function fetchGarminLinkStatus(signal?: AbortSignal): Promise<GarminLinkStatus> {
-  return apiFetch<GarminLinkStatus>('/garminconnect/link/status', { signal })
+  return apiFetch<GarminLinkStatus>('/garmin/link/status', { signal })
 }
 
 /**
@@ -51,7 +51,7 @@ export async function fetchGarminLinkStatus(signal?: AbortSignal): Promise<Garmi
  */
 export async function submitGarminMfa(code: string): Promise<void> {
   const payload: GarminMfaDto = { mfa_code: code }
-  await apiFetch('/garminconnect/mfa', {
+  await apiFetch('/garmin/mfa', {
     method: 'POST',
     body: JSON.stringify(payload),
     responseType: 'void',
@@ -66,7 +66,7 @@ export async function submitGarminMfa(code: string): Promise<void> {
  */
 export async function retrieveGarminActivities(range: DateRange): Promise<void> {
   await apiFetch(
-    `/garminconnect/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
+    `/garmin/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
     { method: 'POST', responseType: 'void' },
   )
 }
@@ -77,7 +77,7 @@ export async function retrieveGarminActivities(range: DateRange): Promise<void> 
  * @throws {HttpError} When the request fails.
  */
 export async function retrieveGarminGear(): Promise<void> {
-  await apiFetch('/garminconnect/gear', { method: 'POST', responseType: 'void' })
+  await apiFetch('/garmin/gear', { method: 'POST', responseType: 'void' })
 }
 
 /**
@@ -88,7 +88,7 @@ export async function retrieveGarminGear(): Promise<void> {
  */
 export async function retrieveGarminHealth(range: DateRange): Promise<void> {
   await apiFetch(
-    `/garminconnect/health?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
+    `/garmin/health?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
     { method: 'POST', responseType: 'void' },
   )
 }
@@ -99,5 +99,5 @@ export async function retrieveGarminHealth(range: DateRange): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function unlinkGarmin(): Promise<void> {
-  await apiFetch('/garminconnect/link', { method: 'DELETE', responseType: 'void' })
+  await apiFetch('/garmin/link', { method: 'DELETE', responseType: 'void' })
 }
