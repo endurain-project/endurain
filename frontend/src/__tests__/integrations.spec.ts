@@ -69,10 +69,11 @@ describe('strava service', () => {
     })
   })
 
-  it('setStravaClient PUTs the client credentials', async () => {
-    await setStravaClient({ clientId: 123456, clientSecret: 'sekret' })
+  it('setStravaClient PUTs the client credentials with the version it read', async () => {
+    await setStravaClient({ clientId: 123456, clientSecret: 'sekret' }, 4)
     expect(apiFetch).toHaveBeenCalledWith('/strava/client', {
       method: 'PUT',
+      headers: { 'If-Match': '"4"' },
       body: JSON.stringify({ client_id: 123456, client_secret: 'sekret' }),
       responseType: 'void',
     })

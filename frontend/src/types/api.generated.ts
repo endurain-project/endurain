@@ -46,7 +46,7 @@ export interface paths {
         head?: never;
         /**
          * Edit Activities
-         * @description Apply a bulk edit across all of the authenticated user's activities.
+         * @description Queue a bulk edit across all of the authenticated user's activities.
          *
          *     A PATCH on the collection with the change in the body, rather than the
          *     previous ``PUT /visibility/{visibility}``: the value being set is data, not
@@ -54,9 +54,55 @@ export interface paths {
          *     not exist at that path. The body shape also leaves room for a second
          *     bulk-editable field without another endpoint.
          *
-         *     Rejected as invalid input when the body asks for no change at all.
+         *     The edit can touch a whole library, so it runs as a background job: poll
+         *     ``GET /activities/bulk-edit`` for the outcome.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         body: The fields to apply; only those present are changed.
+         *         token_user_id: User ID from the access token.
+         *         states: Shared store of the edit's state.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The edit's initial status.
+         *
+         *     Raises:
+         *         InvalidInputError: When the body asks for no change at all. An empty
+         *             patch is a client bug, not a no-op worth reporting as success.
+         *         ConflictError: When a bulk edit is already pending.
          */
         patch: operations["edit_activities_api_v1_activities_patch"];
+        trace?: never;
+    };
+    "/api/v1/activities/bulk-edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Bulk Edit Status
+         * @description Report where the authenticated user's bulk edit is.
+         *
+         *     Args:
+         *         token_user_id: User ID from the access token.
+         *         states: Shared store of the edit's state.
+         *
+         *     Returns:
+         *         The edit's status.
+         *
+         *     Raises:
+         *         NotFoundError: If no bulk edit is recorded or it has expired.
+         */
+        get: operations["read_bulk_edit_status_api_v1_activities_bulk_edit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/activities/bulk-import": {
@@ -1519,6 +1565,8 @@ export interface paths {
          *         complete_data: Completion data with end time and status.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
          *
          *     Returns:
          *         Updated HealthFastingRead record.
@@ -3562,6 +3610,7 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         mfa_request: MFA request with code to verify.
          *         token_user_id: User ID from access token.
+         *         step_up_store: Shared state, which records the TOTP step so the code works once.
          *         db: Database session.
          *
          *     Returns:
@@ -4662,6 +4711,17 @@ export interface paths {
         /**
          * Strava Set User Client
          * @description Store the user's Strava API client id and secret.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         client: The Strava application's client id and secret.
+         *         token_user_id: User ID from the access token.
+         *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition, the ``integrations_version`` the client read.
+         *
+         *     Returns:
+         *         A confirmation message.
          */
         put: operations["strava_set_user_client_api_v1_strava_client_put"];
         post?: never;
@@ -5346,15 +5406,15 @@ export interface components {
             visibility?: number | null;
         };
         /**
-         * ActivitiesBulkEditRead
-         * @description Result of a bulk edit across a user's activities.
+         * ActivitiesBulkEditStatus
+         * @description Where a queued bulk edit across a user's activities is.
          *
          *     Attributes:
-         *         updated: Number of activities the edit changed.
+         *         status: Lifecycle state of the edit.
          */
-        ActivitiesBulkEditRead: {
-            /** Updated */
-            updated: number;
+        ActivitiesBulkEditStatus: {
+            /** @description Lifecycle state of the bulk edit */
+            status: components["schemas"]["SyncStatus"];
         };
         /**
          * ActivityDetailRead
@@ -7990,7 +8050,7 @@ export interface components {
              * Steps
              * @description Number of steps taken
              */
-            steps?: number | null;
+            steps: number;
         };
         /**
          * HealthStepsDashboard
@@ -8175,7 +8235,7 @@ export interface components {
              * Amount Ml
              * @description Water consumed in milliliters
              */
-            amount_ml?: number | null;
+            amount_ml: number;
             /**
              * Date
              * @description Calendar date of the water intake
@@ -8315,7 +8375,7 @@ export interface components {
              * Weight
              * @description Weight in kilograms
              */
-            weight?: number | null;
+            weight: number;
         };
         /**
          * HealthWeightDashboard
@@ -12004,6 +12064,7 @@ export interface components {
          *
          *     Attributes:
          *         privacy_settings_version: Version of the privacy settings, for ``If-Match``.
+         *         integrations_version: Version of the integrations, for ``If-Match`` when the Strava client is set.
          *         is_strava_linked: Strava integration status.
          *         is_garminconnect_linked: Garmin Connect status.
          *         default_activity_visibility: Default visibility level.
@@ -12154,6 +12215,11 @@ export interface components {
              * @description User ID
              */
             id: number;
+            /**
+             * Integrations Version
+             * @description Version of the integrations, sent back in If-Match when the Strava client is set
+             */
+            integrations_version?: number | null;
             /**
              * Is Garminconnect Linked
              * @description Whether Garmin Connect is linked
@@ -13008,12 +13074,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitiesBulkEditRead"];
+                    "application/json": components["schemas"]["ActivitiesBulkEditStatus"];
                 };
             };
             /** @description Validation Error */
@@ -13023,6 +13089,35 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_bulk_edit_status_api_v1_activities_bulk_edit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivitiesBulkEditStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -15634,7 +15729,9 @@ export interface operations {
     complete_health_fasting_api_v1_health_fasting__health_fasting_id__complete_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_fasting_id: number;
             };
@@ -20027,7 +20124,9 @@ export interface operations {
     strava_set_user_client_api_v1_strava_client_put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

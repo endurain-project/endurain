@@ -136,8 +136,8 @@ export interface WeightEntry {
 export interface WeightEntryInput {
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
-  /** Body weight in kilograms, or `null`. */
-  weightKg: number | null
+  /** Body weight in kilograms. */
+  weightKg: number
   /** Body Mass Index, or `null`. */
   bmi: number | null
   /** Body fat as a percentage, or `null`. */
@@ -178,8 +178,8 @@ export interface StepsEntry {
 export interface StepsEntryInput {
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
-  /** Step count for the day, or `null`. */
-  steps: number | null
+  /** Step count for the day. */
+  steps: number
 }
 
 /** One page of the paginated steps history. */
@@ -210,8 +210,8 @@ export interface WaterEntry {
 export interface WaterEntryInput {
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
-  /** Water consumed for the day in millilitres, or `null`. */
-  amountMl: number | null
+  /** Water consumed for the day in millilitres. */
+  amountMl: number
 }
 
 /** One page of the paginated water history. */

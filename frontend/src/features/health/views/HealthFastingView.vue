@@ -83,7 +83,7 @@ function onComplete(status: FastingStatus): void {
     return
   }
   completeMutation.mutate(
-    { id: active.id, fastEndTime: new Date().toISOString(), status },
+    { id: active.id, fastEndTime: new Date().toISOString(), status, version: active.version },
     {
       onSuccess: () => toasts.success(t('health.fasting.complete.success')),
       onError: () => toasts.error(t('health.fasting.complete.error')),

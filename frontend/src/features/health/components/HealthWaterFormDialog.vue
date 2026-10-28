@@ -75,12 +75,9 @@ function displayAmountFromMl(ml: number | null): string {
   return String(value)
 }
 
-/** Converts a display-unit amount string back to whole millilitres for the wire. */
-function amountToMl(raw: string): number | null {
-  const value = toNumberOrNull(raw)
-  if (value === null) {
-    return null
-  }
+/** Converts a validated display-unit amount string back to whole millilitres for the wire. */
+function amountToMl(raw: string): number {
+  const value = Number(raw.trim())
   return Math.round(isImperial.value ? flOzToMl(value) : value)
 }
 

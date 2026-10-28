@@ -645,17 +645,20 @@ export async function updateFastingEntry(
  * @param id - The fasting record id.
  * @param fastEndTime - ISO end timestamp of the fast.
  * @param status - The final status to record.
+ * @param version - The row version the session was read at, for `If-Match`.
  * @returns The persisted fasting session.
- * @throws {HttpError} When the request fails.
+ * @throws {HttpError} When the request fails, including 412 when the session changed meanwhile.
  */
 export async function completeFastingEntry(
   id: number,
   fastEndTime: string,
   status: FastingStatus,
+  version: number,
 ): Promise<FastingEntry> {
   const payload: Schemas['HealthFastingComplete'] = { fast_end_time: fastEndTime, status }
   const dto = await apiFetch<HealthFastingReadDto>(`/health/fasting/${id}/complete`, {
     method: 'POST',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })
   return mapFastingEntry(dto)

@@ -614,10 +614,11 @@ export function useUpdateFastingEntryMutation() {
 export function useCompleteFastingEntryMutation() {
   return useInvalidatingMutation<
     FastingEntry,
-    { id: number; fastEndTime: string; status: FastingStatus }
+    { id: number; fastEndTime: string; status: FastingStatus; version: number }
   >({
     mutationKey: queryKeys.health.fastingLists(),
-    mutationFn: ({ id, fastEndTime, status }) => completeFastingEntry(id, fastEndTime, status),
+    mutationFn: ({ id, fastEndTime, status, version }) =>
+      completeFastingEntry(id, fastEndTime, status, version),
     invalidateKey: queryKeys.health.all(),
   })
 }

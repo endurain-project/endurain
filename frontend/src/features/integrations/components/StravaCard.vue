@@ -35,6 +35,8 @@ import {
 const props = defineProps<{
   /** Whether a Strava account is currently connected. */
   linked: boolean
+  /** The integrations row version the profile was read at, sent as `If-Match` with the client. */
+  integrationsVersion: number
 }>()
 
 const { t } = useI18n()
@@ -58,7 +60,7 @@ async function connectStrava(input: StravaClientInput): Promise<void> {
   isConnecting.value = true
   try {
     const state = await beginStravaState()
-    await setStravaClient(input)
+    await setStravaClient(input, props.integrationsVersion)
     window.location.assign(buildStravaAuthUrl(state, input.clientId))
   } catch {
     isConnecting.value = false

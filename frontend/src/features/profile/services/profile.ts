@@ -66,6 +66,7 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     timezone: dto.timezone ?? null,
     accessType: dto.access_type,
     hasLocalPassword: dto.has_local_password ?? true,
+    integrationsVersion: rowVersion(dto.integrations_version),
     stravaLinked: dto.is_strava_linked === 1,
     garminLinked: dto.is_garminconnect_linked === 1,
     photoPath: dto.photo_path ?? null,

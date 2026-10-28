@@ -427,7 +427,7 @@ describe('deleteActivity', () => {
 
 describe('updateUserActivitiesVisibility', () => {
   it('patches the collection with the wire value for the requested visibility', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'completed' })
 
     await updateUserActivitiesVisibility('followers')
 
@@ -436,7 +436,6 @@ describe('updateUserActivitiesVisibility', () => {
     expect(apiFetch).toHaveBeenCalledWith('/activities', {
       method: 'PATCH',
       body: JSON.stringify({ visibility: 1 }),
-      responseType: 'void',
     })
   })
 
@@ -446,12 +445,38 @@ describe('updateUserActivitiesVisibility', () => {
       ['followers', 1],
       ['private', 2],
     ] as const) {
-      vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+      vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'completed' })
       await updateUserActivitiesVisibility(name)
       expect(vi.mocked(apiFetch).mock.lastCall?.[1]).toMatchObject({
         body: JSON.stringify({ visibility: wire }),
       })
     }
+  })
+
+  it('follows the queued edit until it completes', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce({ status: 'queued' })
+        .mockResolvedValueOnce({ status: 'running' })
+        .mockResolvedValueOnce({ status: 'completed' })
+
+      const done = updateUserActivitiesVisibility('private')
+      await vi.advanceTimersByTimeAsync(2_000)
+      await vi.advanceTimersByTimeAsync(2_000)
+      await done
+
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/activities/bulk-edit')
+      expect(apiFetch).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports an edit that failed on the server', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'failed' })
+
+    await expect(updateUserActivitiesVisibility('private')).rejects.toThrow(/failed/)
   })
 })
 

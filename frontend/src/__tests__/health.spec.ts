@@ -904,10 +904,11 @@ describe('fasting service requests', () => {
   it('completeFastingEntry POSTs the end time and status to the complete path', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeFastingDto())
 
-    await completeFastingEntry(5, '2026-06-25T22:00:00.000Z', 'broken')
+    await completeFastingEntry(5, '2026-06-25T22:00:00.000Z', 'broken', 3)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/fasting/5/complete', {
       method: 'POST',
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify({ fast_end_time: '2026-06-25T22:00:00.000Z', status: 'broken' }),
     })
   })

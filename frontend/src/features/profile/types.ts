@@ -103,6 +103,7 @@ export interface PrivacySettings {
  * @property timezone - IANA timezone the athlete lives in, or `null` when unset.
  * @property accessType - Authorization tier (read-only here).
  * @property hasLocalPassword - Whether the account has a local password (false for SSO-only).
+ * @property integrationsVersion - The integrations row version, sent back in `If-Match` when the Strava client is set.
  * @property stravaLinked - Whether a Strava account is connected.
  * @property garminLinked - Whether a Garmin Connect account is connected.
  * @property photoPath - Backend-issued photo URL, or `null` when unset.
@@ -128,6 +129,7 @@ export interface ProfileDetails {
   timezone: string | null
   accessType: Schemas['UserAccessType']
   hasLocalPassword: boolean
+  integrationsVersion: number
   stravaLinked: boolean
   garminLinked: boolean
   photoPath: string | null

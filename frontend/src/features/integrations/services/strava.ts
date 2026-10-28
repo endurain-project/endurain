@@ -8,6 +8,7 @@ import type {
 } from '@/features/integrations/types'
 
 import { watchJob } from '@/composables/useRealtime'
+import { ifMatchHeaders } from '@/services/ifMatch'
 import { apiFetch } from '@/services/http'
 import { getRuntimeBackendHost } from '@/services/runtime'
 
@@ -81,15 +82,17 @@ export async function clearStravaState(): Promise<void> {
  * Stores the user's Strava API client id + secret ahead of the OAuth round-trip.
  *
  * @param input - The Strava application's client id and secret.
- * @throws {HttpError} When the request fails.
+ * @param version - The integrations version the profile was read at, for `If-Match`.
+ * @throws {HttpError} When the request fails, including 412 when the integrations changed meanwhile.
  */
-export async function setStravaClient(input: StravaClientInput): Promise<void> {
+export async function setStravaClient(input: StravaClientInput, version: number): Promise<void> {
   const payload: StravaClientDto = {
     client_id: input.clientId,
     client_secret: input.clientSecret,
   }
   await apiFetch('/strava/client', {
     method: 'PUT',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
     responseType: 'void',
   })
