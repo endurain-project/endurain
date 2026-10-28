@@ -37,6 +37,6 @@ def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] 
     return rotated_token_service.get_grace_replay_token(raw_token, db)
 
 
-def invalidate_token_family(token_family_id: str, db: Session) -> int:
-    """Stage invalidation of sessions and rotated tokens in a family."""
-    return rotated_token_service.invalidate_token_family(token_family_id, db)
+def delete_by_family(token_family_id: str, db: Session) -> int:
+    """Stage deletion of rotated-token records in a family."""
+    return rotated_token_service.delete_by_family(token_family_id, db)

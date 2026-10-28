@@ -80,7 +80,7 @@ class TestUsePasswordResetToken:
             mock_db,
         )
         mock_mark_user_tokens_used.assert_called_once_with(user_id, mock_db)
-        mock_delete_sessions.assert_called_once_with(user_id, mock_db, commit=False)
+        mock_delete_sessions.assert_called_once_with(user_id, mock_db)
         mock_db.commit.assert_called_once_with()
         mock_clear_pending_mfa.assert_called_once_with(user_id)
 

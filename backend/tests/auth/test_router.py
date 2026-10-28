@@ -871,15 +871,15 @@ class TestRefreshEndpoint:
     """Tests for POST /auth/refresh endpoint."""
 
     @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_web_success(
         self,
         mock_get_session,
@@ -943,7 +943,7 @@ class TestRefreshEndpoint:
         assert data["csrf_token"] == "new-csrf"
         assert data["token_type"] == "bearer"
 
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_session_not_found_returns_404(self, mock_get_session, auth_client, auth_app):
         """Missing session returns 404."""
         mock_get_session.return_value = None
@@ -960,8 +960,8 @@ class TestRefreshEndpoint:
         assert response.status_code == 404
         assert "Session not found" in response.json()["detail"]
 
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_session_owner_mismatch_returns_401(
         self,
         mock_get_session,
@@ -990,10 +990,10 @@ class TestRefreshEndpoint:
         # The owner check must short-circuit before session-timeout validation.
         mock_validate_timeout.assert_not_called()
 
-    @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.invalidate_token_family")
+    @patch("modules.auth.router.auth_sessions_integration.invalidate_token_family")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_token_reuse_returns_401(
         self,
         mock_get_session,
@@ -1028,16 +1028,16 @@ class TestRefreshEndpoint:
         mock_invalidate.assert_called_once()
 
     @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_utils.verify_csrf_token")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.verify_csrf_token")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_web_valid_csrf_token_succeeds(
         self,
         mock_get_session,
@@ -1120,10 +1120,10 @@ class TestRefreshEndpoint:
         mock_verify_csrf.assert_called_once_with("valid-csrf", "stored-hmac")
 
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_utils.verify_csrf_token")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.verify_csrf_token")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_web_invalid_csrf_returns_403_no_side_effects(
         self,
         mock_get_session,
@@ -1176,15 +1176,15 @@ class TestRefreshEndpoint:
         mock_edit_session.assert_not_called()
 
     @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_missing_csrf_with_stored_hash_succeeds(
         self,
         mock_get_session,
@@ -1264,17 +1264,17 @@ class TestRefreshEndpoint:
         assert response.status_code == 200
         assert response.json()["access_token"] == "new-at"
 
-    @patch("modules.auth.router.auth_sessions_utils.verify_csrf_token")
+    @patch("modules.auth.router.auth_sessions_integration.verify_csrf_token")
     @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_mobile_bypasses_csrf_with_stored_hash(
         self,
         mock_get_session,
@@ -1358,8 +1358,8 @@ class TestRefreshEndpoint:
         mock_set_cookie.assert_not_called()
         assert "refresh_token" in response.json()
 
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_pending_pkce_no_refresh_token_returns_401(
         self,
         mock_get_session,
@@ -1403,10 +1403,10 @@ class TestRefreshEndpoint:
         assert "PKCE" in response.json()["detail"]
 
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_wrong_hash_returns_401_no_side_effects(
         self,
         mock_get_session,
@@ -1463,12 +1463,12 @@ class TestRefreshEndpoint:
         mock_edit_session.assert_not_called()
 
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_missing_user_returns_401(
         self,
         mock_get_session,
@@ -1528,15 +1528,15 @@ class TestRefreshEndpoint:
         assert "authenticate" in response.json()["detail"].lower()
 
     @patch("modules.auth.router.idp_utils.refresh_idp_tokens_if_needed")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_utils.create_tokens")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_mobile_success_includes_refresh_token_no_cookie(
         self,
         mock_get_session,
@@ -1622,13 +1622,13 @@ class TestRefreshEndpoint:
     @patch("modules.auth.router.auth_utils.mint_access_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.get_grace_replay_token")
     @patch("modules.auth.router.auth_utils.create_tokens")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_in_grace_replay_mobile_returns_replayed_token(
         self,
         mock_get_session,
@@ -1685,18 +1685,18 @@ class TestRefreshEndpoint:
         mock_create_tokens.assert_not_called()
         mock_mint_access.assert_called_once()
 
-    @patch("modules.auth.router.auth_sessions_utils.update_session_csrf_token")
+    @patch("modules.auth.router.auth_sessions_integration.update_session_csrf_token")
     @patch("modules.auth.router.auth_utils.set_refresh_token_cookie")
     @patch("modules.auth.router.auth_utils.mint_access_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.get_grace_replay_token")
     @patch("modules.auth.router.auth_utils.create_tokens")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
     @patch("modules.auth.router.users_integration.require_active_user")
     @patch("modules.auth.router.users_integration.get_user")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_in_grace_replay_web_mints_fresh_csrf(
         self,
         mock_get_session,
@@ -1760,11 +1760,11 @@ class TestRefreshEndpoint:
         mock_create_tokens.assert_not_called()
 
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.get_grace_replay_token")
-    @patch("modules.auth.router.auth_sessions_utils.edit_session")
+    @patch("modules.auth.router.auth_sessions_integration.edit_session")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.store_rotated_token")
     @patch("modules.auth.router.auth_sessions_rotated_tokens_utils.check_token_reuse")
-    @patch("modules.auth.router.auth_sessions_utils.validate_session_timeout")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.validate_session_timeout")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_refresh_in_grace_replay_missing_replacement_returns_401(
         self,
         mock_get_session,
@@ -1814,8 +1814,8 @@ class TestLogoutEndpoint:
     """Tests for POST /auth/logout endpoint."""
 
     @patch("modules.auth.router.idp_utils.clear_all_idp_tokens")
-    @patch("modules.auth.router.auth_sessions_crud.delete_session")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.delete_session")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_success(
         self,
         mock_get_session,
@@ -1846,7 +1846,7 @@ class TestLogoutEndpoint:
         assert "message" in data
         mock_delete_session.assert_called_once()
 
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_invalid_refresh_token_returns_401(
         self,
         mock_get_session,
@@ -1872,8 +1872,8 @@ class TestLogoutEndpoint:
         assert "Invalid refresh token" in response.json()["detail"]
 
     @patch("modules.auth.router.auth_utils.clear_refresh_token_cookies")
-    @patch("modules.auth.router.auth_sessions_crud.delete_session")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.delete_session")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_missing_session_is_idempotent_success(
         self,
         mock_get_session,
@@ -1911,7 +1911,7 @@ class TestLogoutEndpoint:
         assert response.status_code == 200
         mock_delete_session.assert_not_called()
 
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_pending_pkce_no_refresh_token_returns_401(
         self,
         mock_get_session,
@@ -1950,8 +1950,8 @@ class TestLogoutEndpoint:
 
     @patch("modules.auth.router.auth_utils.clear_refresh_token_cookies")
     @patch("modules.auth.router.idp_utils.clear_all_idp_tokens")
-    @patch("modules.auth.router.auth_sessions_crud.delete_session")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.delete_session")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_web_clears_refresh_cookies(
         self,
         mock_get_session,
@@ -2000,8 +2000,8 @@ class TestLogoutEndpoint:
 
     @patch("modules.auth.router.auth_utils.clear_refresh_token_cookies")
     @patch("modules.auth.router.idp_utils.clear_all_idp_tokens")
-    @patch("modules.auth.router.auth_sessions_crud.delete_session")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.delete_session")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_mobile_succeeds_without_cookie_clearing(
         self,
         mock_get_session,
@@ -2049,7 +2049,7 @@ class TestLogoutEndpoint:
         assert response.status_code == 200
         mock_clear_cookies.assert_not_called()
 
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_invalid_client_type_returns_403(
         self,
         mock_get_session,
@@ -2085,8 +2085,8 @@ class TestLogoutEndpoint:
         assert "client type" in response.json()["detail"].lower()
 
     @patch("modules.auth.router.auth_utils.clear_refresh_token_cookies")
-    @patch("modules.auth.router.auth_sessions_crud.delete_session")
-    @patch("modules.auth.router.auth_sessions_crud.get_session_by_id_not_expired")
+    @patch("modules.auth.router.auth_sessions_integration.delete_session")
+    @patch("modules.auth.router.auth_sessions_integration.get_session_by_id_not_expired")
     def test_logout_missing_session_is_idempotent_success_mobile(
         self,
         mock_get_session,

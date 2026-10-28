@@ -51,6 +51,7 @@ import modules.auth.mfa.profile_router as auth_mfa_profile_router
 import modules.auth.password_reset_tokens.router as password_reset_router
 import modules.auth.router as auth_router
 import modules.auth.sessions.profile_router as auth_sessions_profile_router
+import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
 import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
@@ -169,6 +170,9 @@ _TIERED_ENDPOINTS = [
     pytest.param(
         auth_sessions_profile_router.delete_profile_session, core_rate_limit.WRITE, id="profile-session-delete"
     ),
+    pytest.param(auth_sessions_router.read_sessions_user, core_rate_limit.EXPENSIVE_READ, id="admin-sessions-read"),
+    pytest.param(auth_sessions_router.delete_session_user, core_rate_limit.WRITE, id="admin-session-delete"),
+    pytest.param(auth_sessions_router.delete_sessions_user, core_rate_limit.WRITE, id="admin-sessions-delete"),
     pytest.param(users_profile_router.import_profile_data, core_rate_limit.UPLOAD, id="profile-import"),
     pytest.param(users_profile_router.delete_my_account, core_rate_limit.SENSITIVE, id="profile-account-delete"),
     pytest.param(auth_mfa_profile_router.setup_mfa, core_rate_limit.SENSITIVE, id="mfa-setup"),

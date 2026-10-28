@@ -9,7 +9,6 @@ import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
-import modules.auth.sessions.crud as auth_sessions_crud
 
 logger = core_logger.get_logger(__name__)
 
@@ -189,34 +188,9 @@ def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] 
     return (replacement, rotated_token.replacement_refresh_token_exp)
 
 
-def invalidate_token_family(token_family_id: str, db: Session) -> int:
-    """
-    Invalidate all sessions in a token family due to reuse detection.
-
-    Args:
-        token_family_id: The family ID to invalidate.
-        db: SQLAlchemy database session.
-
-    Returns:
-        Number of sessions invalidated.
-
-    Raises:
-        HTTPException: If invalidation fails.
-    """
-    # Delete all sessions in the family
-    num_sessions_deleted = auth_sessions_crud.delete_sessions_by_family(token_family_id, db)
-
-    # Delete all rotated tokens for this family
-    num_tokens_deleted = rotated_token_crud.delete_by_family(token_family_id, db)
-
-    logger.error(
-        "Invalidated refresh-token family after reuse detection",
-        extra=core_logger.context(
-            token_family_id=token_family_id, sessions_deleted=num_sessions_deleted, tokens_deleted=num_tokens_deleted
-        ),
-    )
-
-    return num_sessions_deleted
+def delete_by_family(token_family_id: str, db: Session) -> int:
+    """Stage deletion of rotated-token records in a family."""
+    return rotated_token_crud.delete_by_family(token_family_id, db)
 
 
 def delete_expired_tokens(cutoff_time: datetime, db: Session) -> int:

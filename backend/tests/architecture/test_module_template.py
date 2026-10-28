@@ -15,6 +15,7 @@ import model_registry as app_model_registry
 import module_registry as runtime_module_registry
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.model_registry as activities_model_registry
+import modules.auth.sessions.model_registry as auth_sessions_model_registry
 import modules.followers.model_registry as followers_model_registry
 import modules.gears.model_registry as gears_model_registry
 import modules.health.model_registry as health_model_registry
@@ -125,6 +126,7 @@ def test_model_registries_collect_every_converted_model() -> None:
         if package.parent.name == "activities" and (package / "models.py").is_file()
     }
     assert set(activities_model_registry.MODEL_MODULES) == expected_activities
+    assert set(auth_sessions_model_registry.MODEL_MODULES) == {"modules.auth.sessions.models"}
     assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
     expected_gears = {
         f"modules.gears.{package.name}.models"
@@ -148,6 +150,7 @@ def test_model_registries_collect_every_converted_model() -> None:
     assert set(users_model_registry.MODEL_MODULES) == expected_users
     assert (
         expected_activities
+        | set(auth_sessions_model_registry.MODEL_MODULES)
         | set(followers_model_registry.MODEL_MODULES)
         | expected_gears
         | expected_health

@@ -1,42 +1,33 @@
-"""User session API endpoints."""
+"""Admin API endpoints for auth sessions."""
 
 from typing import Annotated
 
-from fastapi import (
-    APIRouter,
-    Query,
-    Security,
-    status,
-)
+from fastapi import APIRouter, Path, Query, Request, Security, status
+from starlette.responses import Response
 
-import core.config as core_config
 import core.dependencies as core_dependencies
-import core.logger as core_logger
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.sessions.schema as auth_sessions_schema
+import modules.auth.sessions.schema as sessions_schema
+import modules.auth.sessions.service as sessions_service
 
-logger = core_logger.get_logger(__name__)
-
-# Define the API router
 router = APIRouter()
+UserId = Annotated[int, Path()]
+SessionId = Annotated[str, Path()]
 
 
 @router.get(
     "/user/{user_id}",
-    response_model=list[auth_sessions_schema.UsersSessionsRead],
-    status_code=status.HTTP_200_OK,
+    response_model=list[sessions_schema.UsersSessionsRead],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:read"])],
 )
-async def read_sessions_user(
-    user_id: int,
-    _check_scope: Annotated[
-        None,
-        Security(auth_dependencies.check_scopes, scopes=["sessions:read"]),
-    ],
+@core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
+def read_sessions_user(
+    request: Request,
+    user_id: UserId,
     db: core_dependencies.DbSession,
-) -> list[auth_sessions_schema.UsersSessionsRead]:
-    """
-    Retrieve all sessions associated with a specific user.
+) -> list[sessions_schema.UsersSessionsRead]:
+    """Retrieve all sessions associated with a specific user.
 
     Args:
         user_id: The ID of the user whose sessions to retrieve.
@@ -46,28 +37,23 @@ async def read_sessions_user(
     Returns:
         List of session objects for the specified user.
     """
-    if core_config.settings.ENVIRONMENT != "demo":
-        return auth_sessions_crud.get_user_sessions(user_id, db)
-    else:
-        logger.info("Session retrieval in demo environment - returning empty")
-        return []
+    return sessions_service.get_user_sessions(user_id, db)
 
 
 @router.delete(
     "/{session_id}/user/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:write"])],
 )
-async def delete_session_user(
-    session_id: str,
-    user_id: int,
-    _check_scope: Annotated[
-        None,
-        Security(auth_dependencies.check_scopes, scopes=["sessions:write"]),
-    ],
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_session_user(
+    request: Request,
+    session_id: SessionId,
+    user_id: UserId,
     db: core_dependencies.DbSession,
-) -> None:
-    """
-    Delete a user session.
+) -> Response:
+    """Delete a user session.
 
     Args:
         session_id: The ID of the session to delete.
@@ -81,27 +67,27 @@ async def delete_session_user(
     Raises:
         HTTPException: If session not found or unauthorized.
     """
-    auth_sessions_crud.delete_session(session_id, user_id, db)
+    sessions_service.delete_session(session_id, user_id, db)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete(
     "/user/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:write"])],
 )
-async def delete_sessions_user(
-    user_id: int,
-    _check_scope: Annotated[
-        None,
-        Security(auth_dependencies.check_scopes, scopes=["sessions:write"]),
-    ],
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_sessions_user(
+    request: Request,
+    user_id: UserId,
     db: core_dependencies.DbSession,
     exclude_session_id: Annotated[
         str | None,
         Query(description="Session to keep intact (e.g. the caller's current session)"),
     ] = None,
-) -> None:
-    """
-    Delete every session for a user, optionally keeping one intact.
+) -> Response:
+    """Delete every session for a user, optionally keeping one intact.
 
     Backs the "revoke other sessions" action: pass the caller's current
     ``exclude_session_id`` to sign out every other device while staying
@@ -117,8 +103,5 @@ async def delete_sessions_user(
     Returns:
         None.
     """
-    auth_sessions_crud.delete_sessions_by_user(
-        user_id,
-        db,
-        exclude_session_id=exclude_session_id,
-    )
+    sessions_service.delete_sessions_by_user_and_commit(user_id, db, exclude_session_id=exclude_session_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

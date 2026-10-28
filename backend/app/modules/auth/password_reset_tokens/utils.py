@@ -23,7 +23,7 @@ import modules.auth.credentials.integration_service as auth_password_policy
 import modules.auth.password_reset_tokens.crud as password_reset_tokens_crud
 import modules.auth.password_reset_tokens.event_publishers as password_reset_tokens_event_publishers
 import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
-import modules.auth.sessions.crud as auth_sessions_crud
+import modules.auth.sessions.integration_service as auth_sessions_crud
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -196,7 +196,7 @@ def use_password_reset_token(
             db,
         )
         password_reset_tokens_crud.mark_user_password_reset_tokens_used(token_user_id, db)
-        auth_sessions_crud.delete_sessions_by_user(token_user_id, db, commit=False)
+        auth_sessions_crud.delete_sessions_by_user(token_user_id, db)
         db.commit()
     except HTTPException:
         db.rollback()

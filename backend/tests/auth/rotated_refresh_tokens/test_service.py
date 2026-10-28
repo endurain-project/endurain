@@ -238,29 +238,13 @@ class TestGetGraceReplayToken:
         assert result is None
 
 
-class TestInvalidateTokenFamily:
-    """
-    Test suite for invalidate_token_family function.
-    """
+class TestDeleteTokenFamily:
+    """Tests for staging deletion of rotated records in a family."""
 
-    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
-    @patch("modules.auth.rotated_refresh_tokens.service.auth_sessions_crud")
-    def test_invalidate_token_family_success(self, mock_session_crud, mock_token_crud):
-        """
-        Test successful family invalidation.
-        """
-        # Arrange
-        mock_session_crud.delete_sessions_by_family.return_value = 2
-        mock_token_crud.delete_by_family.return_value = 5
-        mock_db = MagicMock()
-
-        # Act
-        result = rotated_token_utils.invalidate_token_family("family-id", mock_db)
-
-        # Assert
-        assert result == 2
-        mock_session_crud.delete_sessions_by_family.assert_called_once_with("family-id", mock_db)
-        mock_token_crud.delete_by_family.assert_called_once_with("family-id", mock_db)
+    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud.delete_by_family", return_value=5)
+    def test_delete_by_family_stages_records(self, mock_delete, mock_db):
+        assert rotated_token_utils.delete_by_family("family-id", mock_db) == 5
+        mock_delete.assert_called_once_with("family-id", mock_db)
 
 
 class TestCleanupExpiredRotatedTokens:

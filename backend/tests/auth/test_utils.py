@@ -327,7 +327,7 @@ class TestCompleteLogin:
 
         assert result["expires_in"] == pytest.approx(300, abs=2)
         assert result["refresh_token_expires_in"] == pytest.approx(3 * 86400, abs=2)
-        session_expiry = mock_create_session.call_args.args[6]
+        session_expiry = mock_create_session.call_args.args[5]
         assert session_expiry - datetime.now(UTC) == pytest.approx(timedelta(days=3), abs=timedelta(seconds=2))
         cookie = _set_cookie_headers(response)[-1].lower()
         assert f"{session_expiry:%d %b %Y}".lower() in cookie

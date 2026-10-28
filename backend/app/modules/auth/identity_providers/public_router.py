@@ -21,8 +21,8 @@ import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.service as idp_service
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
-import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.sessions.utils as auth_sessions_utils
+import modules.auth.sessions.integration_service as auth_sessions_crud
+import modules.auth.sessions.integration_service as auth_sessions_utils
 import modules.auth.utils as auth_utils
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -365,8 +365,8 @@ async def handle_callback(
             request,
             None,
             password_hasher,
-            db,
             datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
+            db,
             oauth_state_id=oauth_state.id,
         )
 

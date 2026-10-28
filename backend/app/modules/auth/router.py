@@ -26,8 +26,7 @@ import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.service as mfa_service
 import modules.auth.rotated_refresh_tokens.integration_service as auth_sessions_rotated_tokens_utils
 import modules.auth.schema as auth_schema
-import modules.auth.sessions.crud as auth_sessions_crud
-import modules.auth.sessions.utils as auth_sessions_utils
+import modules.auth.sessions.integration_service as auth_sessions_integration
 import modules.auth.utils as auth_utils
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -491,7 +490,7 @@ async def refresh_token(
                        user is inactive, or CSRF token is invalid (when provided).
     """
     # Get the session from the database
-    session = auth_sessions_crud.get_session_by_id_not_expired(token_session_id, db)
+    session = auth_sessions_integration.get_session_by_id_not_expired(token_session_id, db)
 
     # Check if the session was found
     if session is None:
@@ -520,7 +519,7 @@ async def refresh_token(
 
     # Validate session hasn't exceeded idle or absolute timeout
     policy = server_settings_integration.get_session_policy(db)
-    auth_sessions_utils.validate_session_timeout(session, policy)
+    auth_sessions_integration.validate_session_timeout(session, policy)
 
     # Verify CSRF token for web clients only
     # Mobile clients don't use CSRF tokens
@@ -540,7 +539,7 @@ async def refresh_token(
         client_type == "web"
         and x_csrf_token
         and session.csrf_token_hash is not None
-        and not auth_sessions_utils.verify_csrf_token(x_csrf_token, session.csrf_token_hash)
+        and not auth_sessions_integration.verify_csrf_token(x_csrf_token, session.csrf_token_hash)
     ):
         # CSRF token was provided: validate it
         raise HTTPException(
@@ -563,7 +562,7 @@ async def refresh_token(
 
     if is_reused and not in_grace:
         # Token theft detected - invalidate entire family
-        auth_sessions_rotated_tokens_utils.invalidate_token_family(session.token_family_id, db)
+        auth_sessions_integration.invalidate_token_family(session.token_family_id, db)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token reuse detected. All sessions invalidated.",
@@ -616,7 +615,7 @@ async def refresh_token(
         replay_csrf_token: str | None = None
         if client_type == "web":
             replay_csrf_token = token_manager.create_csrf_token()
-            auth_sessions_utils.update_session_csrf_token(session.id, replay_csrf_token, db)
+            auth_sessions_integration.update_session_csrf_token(session.id, replay_csrf_token, db)
 
         return auth_utils.build_token_response(
             response,
@@ -679,13 +678,13 @@ async def refresh_token(
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
     # and updates last_rotation_at
-    auth_sessions_utils.edit_session(
+    auth_sessions_integration.edit_session(
         session,
         request,
         new_refresh_token,
         password_hasher,
-        db,
         new_refresh_token_exp,
+        db,
         new_csrf_token=new_csrf_token,
     )
 
@@ -754,7 +753,7 @@ async def logout(
         HTTPException: If client type is invalid (403 Forbidden).
     """
     # Get the session from the database
-    session = auth_sessions_crud.get_session_by_id_not_expired(token_session_id, db)
+    session = auth_sessions_integration.get_session_by_id_not_expired(token_session_id, db)
 
     # Check if the session was found
     if session is not None:
@@ -778,7 +777,7 @@ async def logout(
             )
 
         # Delete the session from the database
-        auth_sessions_crud.delete_session(session.id, token_user_id, db)
+        auth_sessions_integration.delete_session(session.id, token_user_id, db)
 
         # Clear all IdP refresh tokens for security
         await idp_utils.clear_all_idp_tokens(token_user_id, db)

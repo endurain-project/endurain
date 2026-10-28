@@ -296,6 +296,9 @@ _UNVERSIONED_WRITES = {
 #: Routes that take a ``{user_id}`` path parameter, hold only a regular-user scope and take no ``CurrentUserId``.
 _USER_PATH_WITHOUT_OWNER = {
     ("users/users/router.py", "read_users_id"): "returns the public projection, which any authenticated user may read",
+    ("auth/sessions/router.py", "read_sessions_user"): "sessions:read is an admin-only scope",
+    ("auth/sessions/router.py", "delete_session_user"): "sessions:write is an admin-only scope",
+    ("auth/sessions/router.py", "delete_sessions_user"): "sessions:write is an admin-only scope",
 }
 
 

@@ -26,7 +26,7 @@ import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
 import modules.auth.schema as auth_schema
-import modules.auth.sessions.utils as auth_sessions_utils
+import modules.auth.sessions.integration_service as auth_sessions_utils
 import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -413,8 +413,8 @@ def complete_login(
         request,
         refresh_token,
         password_hasher,
-        db,
         refresh_token_exp,
+        db,
     )
 
     # Token delivery based on client type (web cookie vs mobile body) is
@@ -507,8 +507,8 @@ def create_mobile_pkce_session_response(
         request,
         None,  # No refresh token yet
         password_hasher,
-        db,
         datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
+        db,
         oauth_state_id=state_id,
     )
 

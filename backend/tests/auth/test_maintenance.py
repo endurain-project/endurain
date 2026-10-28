@@ -58,7 +58,7 @@ class TestMaintenanceContract:
             delete_invalid_tokens_from_db as src_delete_password_reset,
         )
         from modules.auth.rotated_refresh_tokens.scheduled_jobs import cleanup_expired_rotated_tokens
-        from modules.auth.sessions.utils import cleanup_idle_sessions
+        from modules.auth.sessions.scheduled_jobs import cleanup_idle_sessions
         from modules.auth.sign_up_tokens.utils import (
             delete_invalid_tokens_from_db as src_delete_sign_up,
         )

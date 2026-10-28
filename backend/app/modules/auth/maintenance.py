@@ -20,7 +20,7 @@ from modules.auth.password_reset_tokens.utils import (
     delete_invalid_tokens_from_db as delete_invalid_password_reset_tokens_from_db,
 )
 from modules.auth.rotated_refresh_tokens.scheduled_jobs import cleanup_expired_rotated_tokens
-from modules.auth.sessions.utils import cleanup_idle_sessions
+from modules.auth.sessions.scheduled_jobs import cleanup_idle_sessions
 from modules.auth.sign_up_tokens.utils import (
     delete_invalid_tokens_from_db as delete_invalid_sign_up_tokens_from_db,
 )

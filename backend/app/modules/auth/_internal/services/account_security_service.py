@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.logger as core_logger
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
 import modules.auth.credentials.integration_service as auth_password_policy
-import modules.auth.sessions.crud as auth_sessions_crud
+import modules.auth.sessions.integration_service as auth_sessions_crud
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -28,10 +27,6 @@ def get_user_sessions(
     db: Session,
 ) -> list[auth_sessions_schema.UsersSessionsRead]:
     """Retrieve active sessions for the authenticated user."""
-    if core_config.settings.ENVIRONMENT == "demo":
-        logger.info("Session retrieval attempted in demo environment - returning empty list")
-        return []
-
     return auth_sessions_crud.get_user_sessions(token_user_id, db)
 
 
@@ -69,6 +64,7 @@ def delete_other_user_sessions(
         db,
         exclude_session_id=current_session_id,
     )
+    db.commit()
     logger.info(f"User {token_user_id} revoked {revoked} other session(s)")
     return revoked
 
@@ -135,6 +131,7 @@ def change_own_password(
             db,
             exclude_session_id=current_session_id,
         )
+        db.commit()
         logger.info(f"User {user_id} revoked {revoked} other session(s) after password change")
 
     logger.info(f"User {user_id} changed password (step-up verified)")
@@ -172,4 +169,5 @@ def change_managed_user_password(
     identity_service.set_local_password_hash(user_id, hashed_password)
     db.commit()
     auth_sessions_crud.delete_sessions_by_user(user_id, db)
+    db.commit()
     auth_security_stores.clear_pending_mfa_for_user(user_id)

@@ -52,7 +52,7 @@ import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.credentials.integration_service as auth_password_policy
 import modules.auth.mfa.crud as auth_mfa_crud
-import modules.auth.sessions.crud as auth_sessions_crud
+import modules.auth.sessions.integration_service as auth_sessions_crud
 import modules.auth.sign_up_tokens.utils as auth_sign_up_tokens_utils
 import modules.auth.utils as auth_utils
 import modules.server_settings.contracts as server_settings_contracts
@@ -1327,6 +1327,7 @@ class DefaultIdentityService:
     def delete_all_user_sessions(self, user_id: int) -> None:
         """Delete every session of a user, signing all their devices out."""
         revoked = auth_sessions_crud.delete_sessions_by_user(user_id, self._db)
+        self._db.commit()
         logger.info("Revoked a user's sessions", extra=core_logger.context(user_id=user_id, revoked=revoked))
 
     def change_own_password(
