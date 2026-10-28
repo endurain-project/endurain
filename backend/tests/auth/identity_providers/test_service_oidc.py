@@ -605,3 +605,37 @@ class TestGetUserinfo:
                 expected_audience=AUD,
             )
         assert result == verified
+
+
+# ---------------------------------------------------------------------------
+# handle_callback
+# ---------------------------------------------------------------------------
+
+
+class TestHandleCallback:
+    """The callback fetches userinfo after a successful token exchange."""
+
+    def test_login_mode_returns_userinfo_from_token_exchange(self, service):
+        idp = MagicMock(issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp")
+        idp.name = "Pocket ID"
+        oauth_state = MagicMock(user_id=None, nonce="nonce", redirect_path="/", client_type="web")
+        token_response = {"access_token": "at"}
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = token_response
+        user = MagicMock(id=1)
+        userinfo = {"sub": "user-1", "email": "a@example.com"}
+
+        with (
+            patch.object(service, "_decrypt_client_id", return_value=AUD),
+            patch.object(service, "_decrypt_client_secret", return_value="secret"),
+            patch.object(service, "_resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service, "_create_oauth_client", return_value=oauth_client),
+            patch.object(service, "_get_userinfo", return_value=userinfo) as get_userinfo,
+            patch.object(service, "_find_or_create_user", return_value=user),
+            patch.object(service, "_store_idp_tokens"),
+        ):
+            result = service.handle_callback(idp, "code", "state", MagicMock(), oauth_state, MagicMock())
+
+        get_userinfo.assert_called_once()
+        assert result["userinfo"] == userinfo
+        assert result["user"] is user

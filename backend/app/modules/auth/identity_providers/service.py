@@ -1299,16 +1299,16 @@ class IdentityProviderService:
                 )
                 raise core_exceptions.ProcessingError("Failed to complete authentication. Please try again.") from err
 
-                # Get user information with ID token verification
-                userinfo = self._get_userinfo(
-                    token_response=token_response,
-                    userinfo_endpoint=userinfo_endpoint,
-                    client=oauth_client,
-                    jwks_uri=jwks_uri,
-                    expected_issuer=expected_issuer,
-                    expected_audience=client_id,
-                    expected_nonce=expected_nonce,
-                )
+            # Get user information with ID token verification
+            userinfo = self._get_userinfo(
+                token_response=token_response,
+                userinfo_endpoint=userinfo_endpoint,
+                client=oauth_client,
+                jwks_uri=jwks_uri,
+                expected_issuer=expected_issuer,
+                expected_audience=client_id,
+                expected_nonce=expected_nonce,
+            )
 
             # Extract subject (unique user identifier)
             subject = userinfo.get("sub") or userinfo.get("id")
