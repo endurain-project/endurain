@@ -1,14 +1,14 @@
 """Tests for identity_providers.utils module."""
 
 import pytest
-from fastapi import HTTPException
 
+import core.exceptions as core_exceptions
+from modules.auth.computation import validate_pkce_challenge
 from modules.auth.identity_providers.schema import IdentityProviderTemplate
 from modules.auth.identity_providers.utils import (
     _secure_compare,
     get_idp_template,
     get_idp_templates,
-    validate_pkce_challenge,
     validate_pkce_verifier,
 )
 from modules.auth.identity_providers.utils import (
@@ -50,7 +50,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "plain"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -67,7 +67,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -84,7 +84,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -101,7 +101,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -152,7 +152,7 @@ class TestValidatePkceVerifier:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -170,7 +170,7 @@ class TestValidatePkceVerifier:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -188,7 +188,7 @@ class TestValidatePkceVerifier:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -206,7 +206,7 @@ class TestValidatePkceVerifier:
         code_challenge_method = "plain"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -224,7 +224,7 @@ class TestValidatePkceVerifier:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -595,7 +595,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for http://evil.com
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("http://evil.com")
         assert exc_info.value.status_code == 400
 
@@ -605,7 +605,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for https://evil.com
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("https://evil.com")
         assert exc_info.value.status_code == 400
 
@@ -615,7 +615,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for https://localhost:8080
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("https://localhost:8080")
         assert exc_info.value.status_code == 400
 
@@ -625,7 +625,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 when scheme not configured
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("endurain://callback", set())
         assert exc_info.value.status_code == 400
         assert "not allowed" in exc_info.value.detail.lower()
@@ -636,7 +636,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 when only a different scheme is configured
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("myapp://callback", {"endurain"})
         assert exc_info.value.status_code == 400
 
@@ -646,7 +646,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for /../etc/passwd
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("/../etc/passwd")
         assert exc_info.value.status_code == 400
 
@@ -656,7 +656,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for /valid/../etc/passwd
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("/valid/../etc/passwd")
         assert exc_info.value.status_code == 400
 
@@ -666,7 +666,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for /path\\to\\file
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("/path\\to\\file")
         assert exc_info.value.status_code == 400
 
@@ -681,7 +681,7 @@ class TestValidateRedirectUrl:
             - HTTPException 400 for control characters anywhere in the value, including
               leading and trailing ones that ``strip()`` would otherwise hide
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url(redirect)
         assert exc_info.value.status_code == 400
 
@@ -691,7 +691,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for //evil.com
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("//evil.com")
         assert exc_info.value.status_code == 400
 
@@ -701,7 +701,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for 'dashboard' (no leading slash)
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("dashboard")
         assert exc_info.value.status_code == 400
 
@@ -711,6 +711,6 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for javascript:alert(1)
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("javascript:alert(1)")
         assert exc_info.value.status_code == 400

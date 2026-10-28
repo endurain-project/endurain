@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Request, Response, status
+from fastapi import Depends, HTTPException, Path, Query, Request, Response, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer, SecurityScopes
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.dependencies as core_dependencies
 import modules.auth.access_tokens.integration_service as access_tokens_integration
-import modules.auth.account_security.step_up_store as account_security_step_up_store
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.constants as auth_constants
@@ -26,6 +26,9 @@ oauth2_scheme = OAuth2PasswordBearer(
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
 AuthContext = auth_contracts.AuthContext
 ClientTypeHeader = authentication_dependencies.ClientTypeHeader
+ApiKeyId = Annotated[str, Path(min_length=1)]
+IdentityProviderSlug = Annotated[str, Path(min_length=1)]
+AuthSessionId = Annotated[str, Path(min_length=1)]
 
 
 def get_access_token(
@@ -184,8 +187,8 @@ def clear_refresh_token_cookies(response: Response) -> None:
 
 #: Authenticated user id extracted from a resolved access token.
 CurrentUserId = Annotated[int, Depends(get_sub_from_access_token)]
-StepUpStore = account_security_step_up_store.StepUpStore
-get_step_up_attempts = account_security_step_up_store.get_step_up_attempts
+StepUpStore = account_security_integration.StepUpStore
+get_step_up_attempts = account_security_integration.get_step_up_attempts
 MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend
 get_mfa_secret_store = auth_mfa_dependencies.get_mfa_secret_store
 

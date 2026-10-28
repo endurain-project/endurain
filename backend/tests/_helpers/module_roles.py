@@ -24,6 +24,7 @@ import pathlib
 #: ``UNCONVERTED_MODULES`` to here, in this one file.
 CONVERTED_MODULES: tuple[str, ...] = (
     "activities",
+    "auth",
     "followers",
     "garmin",
     "gears",
@@ -35,11 +36,8 @@ CONVERTED_MODULES: tuple[str, ...] = (
     "websocket",
 )
 
-#: Top-level modules still on the legacy layout. Listed explicitly, rather than
-#: left implicit as "everything not converted", so that
-#: ``TestModuleInventory`` can fail on a module that is in neither list — a new
-#: module cannot start life silently outside the rules.
-UNCONVERTED_MODULES: tuple[str, ...] = ("auth",)
+#: Every top-level module follows the structure guide.
+UNCONVERTED_MODULES: tuple[str, ...] = ()
 
 #: Every role, longest first so ``integration_service`` is not read as
 #: ``service`` and ``public_router`` is not read as ``router``.

@@ -212,7 +212,7 @@ class TestBuildProblemResponse:
 
 
 class TestDatabaseErrorBoundary:
-    """A commit that fails in a service has no ``handle_db_errors`` around it."""
+    """A commit failure reaches the database error handler unchanged."""
 
     def test_an_unwrapped_database_error_is_the_same_opaque_500(self):
         resp = _client().get("/commit-failed")

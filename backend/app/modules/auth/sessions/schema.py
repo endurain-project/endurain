@@ -13,8 +13,7 @@ from pydantic import (
 
 
 class UsersSessionsBase(BaseModel):
-    """
-    Base user session schema with safe fields.
+    """Base user session schema with safe fields.
 
     Attributes:
         id: Unique session identifier.
@@ -44,8 +43,7 @@ class UsersSessionsBase(BaseModel):
 
 
 class UsersSessionsRead(UsersSessionsBase):
-    """
-    User session read schema for API responses.
+    """User session read schema for API responses.
 
     Extends base with user_id. Excludes sensitive fields
     like refresh_token and csrf_token_hash.
@@ -55,8 +53,7 @@ class UsersSessionsRead(UsersSessionsBase):
 
 
 class UsersSessionsInternal(UsersSessionsBase):
-    """
-    Internal user session schema with all fields.
+    """Internal user session schema with all fields.
 
     Used for CRUD operations. Includes sensitive fields like
     refresh_token and csrf_token_hash that should never be

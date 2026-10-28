@@ -12,8 +12,7 @@ from pydantic import (
 
 
 class UsersIdentityProviderBase(BaseModel):
-    """
-    Base schema for users identity provider association.
+    """Base schema for users identity provider association.
 
     Attributes:
         user_id: User ID reference.
@@ -38,8 +37,7 @@ class UsersIdentityProviderBase(BaseModel):
 
 
 class UsersIdentityProviderCreate(UsersIdentityProviderBase):
-    """
-    Schema for creating user identity provider links.
+    """Schema for creating user identity provider links.
 
     Inherits all attributes from UsersIdentityProviderBase.
     Links are created during SSO authentication flow.
@@ -47,8 +45,7 @@ class UsersIdentityProviderCreate(UsersIdentityProviderBase):
 
 
 class UsersIdentityProviderRead(UsersIdentityProviderBase):
-    """
-    Schema for reading user identity provider links.
+    """Schema for reading user identity provider links.
 
     Extends base with identifier and timestamp fields.
     Refresh token is excluded for security.
@@ -78,8 +75,7 @@ class UsersIdentityProviderRead(UsersIdentityProviderBase):
 
 
 class UsersIdentityProviderResponse(UsersIdentityProviderRead):
-    """
-    Response schema with enriched identity provider details.
+    """Response schema with enriched identity provider details.
 
     Extends Read schema with display fields added by API layer
     for frontend convenience.
@@ -110,8 +106,7 @@ class UsersIdentityProviderResponse(UsersIdentityProviderRead):
 
 
 class UsersIdentityProviderTokenUpdate(BaseModel):
-    """
-    Internal schema for updating IdP token data.
+    """Internal schema for updating IdP token data.
 
     Used only by service layer, never exposed via API.
     Refresh token must be encrypted before storage.

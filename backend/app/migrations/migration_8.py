@@ -19,7 +19,7 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity.migration_service as activities_crud
 import modules.activities.activity_thumbnail.migration_service as activity_thumbnail_render
 import modules.activities.activity_thumbnail.migration_service as activity_thumbnail_signing
@@ -122,7 +122,7 @@ def process_migration_8(db: Session) -> None:
 
     if processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(8, db)
+            migrations_service.mark_executed(8, db)
         except Exception as err:
             logger.error(
                 f"Migration 8 - Failed to set migration as executed: {err}",

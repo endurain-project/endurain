@@ -3,7 +3,7 @@
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity_media.migration_service as activity_media_crud
 import modules.users.users.migration_service as users_migration
 
@@ -63,7 +63,7 @@ async def process_migration_5(db: Session) -> None:
     # Mark migration as executed
     if users_processed_with_no_errors and activity_media_processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(5, db)
+            migrations_service.mark_executed(5, db)
         except Exception as err:
             logger.error(
                 f"Migration 5 - Failed to set migration as executed: {err}",

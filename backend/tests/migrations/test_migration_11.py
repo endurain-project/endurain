@@ -18,7 +18,7 @@ def _run(tmp_path: Path, storage: LocalStorage, *, storage_uri: str = "local://"
     with (
         patch(f"{_MODULE}.core_config") as config,
         patch(f"{_MODULE}.platform_runtime") as runtime,
-        patch(f"{_MODULE}.migrations_crud") as migrations_crud,
+        patch(f"{_MODULE}.migrations_service") as migrations_service,
         patch(f"{_MODULE}.activity_thumbnail_scheduled_jobs.schedule_full_thumbnail_regeneration") as schedule,
     ):
         config.settings.DATA_DIR = str(tmp_path)
@@ -27,7 +27,7 @@ def _run(tmp_path: Path, storage: LocalStorage, *, storage_uri: str = "local://"
 
         migration_11.process_migration_11(db)
 
-    return db, migrations_crud, schedule
+    return db, migrations_service, schedule
 
 
 class TestProcessMigration11:
@@ -46,13 +46,13 @@ class TestProcessMigration11:
 
         plain_storage = LocalStorage(str(tmp_path), plain_areas=areas)
 
-        db, migrations_crud, schedule = _run(tmp_path, plain_storage)
+        db, migrations_service, schedule = _run(tmp_path, plain_storage)
 
         for (area, key), data in expected.items():
             assert (tmp_path / area / key).read_bytes() == data
             assert plain_storage.get(area, key) == data
         assert list((tmp_path / ".jasil-objects").rglob("object")) == []
-        migrations_crud.set_migration_as_executed.assert_called_once_with(11, db)
+        migrations_service.mark_executed.assert_called_once_with(11, db)
         schedule.assert_called_once_with()
 
     def test_schedules_full_thumbnail_regeneration_after_local_migration(self, tmp_path: Path):
@@ -66,13 +66,13 @@ class TestProcessMigration11:
         with (
             patch(f"{_MODULE}.core_config") as config,
             patch(f"{_MODULE}.platform_runtime") as runtime,
-            patch(f"{_MODULE}.migrations_crud") as migrations_crud,
+            patch(f"{_MODULE}.migrations_service") as migrations_service,
             patch(f"{_MODULE}.activity_thumbnail_scheduled_jobs.schedule_full_thumbnail_regeneration") as schedule,
         ):
             config.settings.DATA_DIR = str(tmp_path)
             config.settings.resolved_storage_uri = "local://"
             runtime.get_active_platform.return_value.storage = storage
-            migrations_crud.set_migration_as_executed.side_effect = lambda *_: steps.append("marked")
+            migrations_service.mark_executed.side_effect = lambda *_: steps.append("marked")
             schedule.side_effect = lambda: steps.append("scheduled")
 
             migration_11.process_migration_11(db)
@@ -98,10 +98,10 @@ class TestProcessMigration11:
     def test_skips_non_local_storage_and_marks_migration_executed(self, tmp_path: Path):
         storage = MagicMock()
 
-        _, migrations_crud, schedule = _run(tmp_path, storage, storage_uri="s3://bucket")
+        _, migrations_service, schedule = _run(tmp_path, storage, storage_uri="s3://bucket")
 
         storage.iter_objects.assert_not_called()
-        migrations_crud.set_migration_as_executed.assert_called_once()
+        migrations_service.mark_executed.assert_called_once()
         schedule.assert_not_called()
 
     def test_partial_failure_retries_without_losing_or_rewriting_objects(self, tmp_path: Path):
@@ -122,7 +122,7 @@ class TestProcessMigration11:
         with (
             patch(f"{_MODULE}.core_config") as config,
             patch(f"{_MODULE}.platform_runtime") as runtime,
-            patch(f"{_MODULE}.migrations_crud") as migrations_crud,
+            patch(f"{_MODULE}.migrations_service") as migrations_service,
             patch(f"{_MODULE}.activity_thumbnail_scheduled_jobs.schedule_full_thumbnail_regeneration") as schedule,
             patch.object(storage, "save_stream", side_effect=fail_second),
         ):
@@ -132,15 +132,15 @@ class TestProcessMigration11:
 
             migration_11.process_migration_11(db)
 
-        migrations_crud.set_migration_as_executed.assert_not_called()
+        migrations_service.mark_executed.assert_not_called()
         schedule.assert_not_called()
         assert (tmp_path / area / "first.bin").read_bytes() == b"first"
         assert not (tmp_path / area / "second.bin").exists()
         assert storage.get(area, "second.bin") == b"second"
 
-        _, migrations_crud, schedule = _run(tmp_path, storage)
+        _, migrations_service, schedule = _run(tmp_path, storage)
 
         assert (tmp_path / area / "first.bin").read_bytes() == b"first"
         assert (tmp_path / area / "second.bin").read_bytes() == b"second"
-        migrations_crud.set_migration_as_executed.assert_called_once()
+        migrations_service.mark_executed.assert_called_once()
         schedule.assert_called_once_with()

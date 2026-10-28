@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class RotatedRefreshToken(Base):
-    """
-    Rotated refresh token for token reuse detection.
+    """Rotated refresh token for token reuse detection.
 
     Attributes:
         id: Primary key.

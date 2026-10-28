@@ -15,8 +15,7 @@ from pwdlib.hashers.bcrypt import BcryptHasher
 
 
 class PasswordPolicyError(ValueError):
-    """
-    Exception raised when a password does not comply with the defined password policy.
+    """Exception raised when a password does not comply with the defined password policy.
 
     This error should be raised to indicate that a password fails to meet one or more
     requirements such as length, complexity, or character composition.
@@ -27,8 +26,7 @@ class PasswordPolicyError(ValueError):
 
 
 class PasswordHasher:
-    """
-    PasswordHasher provides secure password hashing, verification, and password policy enforcement.
+    """PasswordHasher provides secure password hashing, verification, and password policy enforcement.
 
     This class encapsulates password hashing logic, verification, and secure password generation
     according to strong password policies. It supports pluggable hashers and ensures that generated
@@ -81,8 +79,8 @@ class PasswordHasher:
         self,
         hasher: (Argon2Hasher | BcryptHasher | Iterable[object] | PasswordHash | None) = None,
     ):
-        """
-        Initialize the password hasher configuration.
+        """Initialize the password hasher configuration.
+
         Args:
             hasher (Argon2Hasher | BcryptHasher | Iterable[object] | PasswordHash | None, optional):
                 The hasher(s) to use for password hashing. Can be:
@@ -90,10 +88,10 @@ class PasswordHasher:
                 - PasswordHash: Uses the provided PasswordHash instance.
                 - Argon2Hasher or BcryptHasher: Uses the single hasher instance.
                 - Iterable: Uses a list of hasher instances.
+
         Raises:
             TypeError: If the provided hasher is not of a supported type.
         """
-
         if hasher is None:
             # Default: strongest recommended config
             self._password_hash = PasswordHash.recommended()
@@ -112,8 +110,7 @@ class PasswordHasher:
             )
 
     def hash_password(self, password: str) -> str:
-        """
-        Hashes the provided password using the configured password hashing algorithm.
+        """Hashes the provided password using the configured password hashing algorithm.
 
         Args:
             password (str): The plain text password to be hashed.
@@ -124,8 +121,7 @@ class PasswordHasher:
         return self._password_hash.hash(password)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """
-        Verifies whether the provided plain text password matches the given hashed password.
+        """Verifies whether the provided plain text password matches the given hashed password.
 
         Args:
             plain_password (str): The plain text password to verify.
@@ -137,8 +133,7 @@ class PasswordHasher:
         return self._password_hash.verify(plain_password, hashed_password)
 
     def verify_and_update(self, plain_password: str, hashed_password: str) -> tuple[bool, str | None]:
-        """
-        Verifies a plain password against a hashed password and updates the hash if necessary.
+        """Verifies a plain password against a hashed password and updates the hash if necessary.
 
         Args:
             plain_password (str): The plain text password to verify.
@@ -182,8 +177,7 @@ class PasswordHasher:
 
     @staticmethod
     def generate_password(length: int = 8) -> str:
-        """
-        Generate a secure random password of specified length.
+        """Generate a secure random password of specified length.
 
         The generated password will contain at least one uppercase letter, one lowercase letter,
         one digit, and one punctuation character to ensure complexity. The remaining characters
@@ -219,8 +213,7 @@ class PasswordHasher:
         min_length: int = 8,
         policy_type: str = "strict",
     ) -> None:
-        """
-        Validates whether the given password meets the required security policy.
+        """Validates whether the given password meets the required security policy.
 
         Args:
             password (str): The password string to validate.
@@ -266,8 +259,7 @@ class PasswordHasher:
         min_length: int = 8,
         policy_type: str = "strict",
     ) -> bool:
-        """
-        Checks if the provided password meets the specified minimum length and password policy requirements.
+        """Checks if the provided password meets the specified minimum length and password policy requirements.
 
         Args:
             password (str): The password string to validate.
@@ -285,8 +277,7 @@ class PasswordHasher:
 
 
 def get_password_hasher():
-    """
-    Returns the password hasher instance.
+    """Returns the password hasher instance.
 
     This function provides access to the application's password hasher, which is used for securely hashing and verifying passwords.
 

@@ -12,13 +12,14 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.users.users.schema as users_schema
 
-router = APIRouter(dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
+router = APIRouter()
 
 
 # MFA logic
 @router.get(
     "/status",
     response_model=mfa_schema.MFAStatusResponse,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_mfa_status(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -39,6 +40,7 @@ def get_mfa_status(
 @router.get(
     "/backup-codes/status",
     response_model=mfa_backup_codes_schema.MFABackupCodeStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_backup_code_status(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -60,6 +62,7 @@ def get_backup_code_status(
     "/setup",
     status_code=status.HTTP_201_CREATED,
     response_model=mfa_schema.MFASetupResponse,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def setup_mfa(
@@ -85,7 +88,7 @@ def setup_mfa(
     return mfa_workflow_service.setup_mfa(token_user_id, mfa_secret_store, db)
 
 
-@router.put("/enable", response_model=dict)
+@router.put("/enable", response_model=dict, dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def enable_mfa(
     request: Request,
@@ -133,7 +136,9 @@ def enable_mfa(
     return mfa_workflow_service.enable_mfa(mfa_request, token_user_id, step_up_store, mfa_secret_store, db)
 
 
-@router.put("/disable", response_model=dict)
+@router.put(
+    "/disable", response_model=dict, dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])]
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def disable_mfa(
     request: Request,
@@ -174,7 +179,9 @@ def disable_mfa(
     return mfa_workflow_service.disable_mfa(mfa_request, token_user_id, step_up_store, db)
 
 
-@router.post("/verify", response_model=dict)
+@router.post(
+    "/verify", response_model=dict, dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])]
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def verify_mfa(
     request: Request,
@@ -202,6 +209,7 @@ def verify_mfa(
     "/backup-codes",
     status_code=status.HTTP_201_CREATED,
     response_model=mfa_backup_codes_schema.MFABackupCodesResponse,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def generate_mfa_backup_codes(

@@ -28,6 +28,16 @@ def json_to_scopes(scopes_json: str) -> list[str]:
     return api_keys_utils.json_to_scopes(scopes_json)
 
 
+def generate_api_key() -> str:
+    """Generate a raw API key for account-security workflows."""
+    return api_keys_utils.generate_api_key()
+
+
+def validate_api_key_scopes(scopes: list[str], access_type: str) -> None:
+    """Validate requested scopes for an account's access type."""
+    api_keys_utils.validate_api_key_scopes(scopes, access_type)
+
+
 def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersApiKeyRead]:
     """List API keys owned by a user."""
     return api_keys_crud.get_api_keys_by_user_id(user_id, db)

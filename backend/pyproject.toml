@@ -240,10 +240,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-# Docstring rules ("D") apply to the converted modules (activities, followers, garmin, gears, health, notifications, server_settings, users, websocket). Everything
-# below is outside them until converted: removing a module from this list is part of
-# converting it. ``tests/architecture/test_module_boundaries.py`` keeps the module entries
-# in step with UNCONVERTED_MODULES.
+# Docstring rules apply to every module; only application composition, runtime data, and tests are exempt.
 "app/api.py" = ["D"]
 "app/model_registry.py" = ["D"]
 "app/module_registry.py" = ["D"]
@@ -252,15 +249,14 @@ convention = "google"
 "app/data/**/*.py" = ["D"]  # runtime data directories, not code
 "app/logs/**/*.py" = ["D"]
 "app/migrations/**/*.py" = ["D"]
-"app/modules/auth/**/*.py" = ["D"]
 "scripts/**/*.py" = ["D"]
 "tests/**/*.py" = ["D", "S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["D", "E402", "I001"]  # alembic migrations have specific import order; docstrings not required
 "app/alembic/versions/v0_3_0_migration.py" = ["S105", "S106"]  # legitimate password hashes in seed migration
 "app/modules/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
 "app/modules/auth/authentication/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
-"app/modules/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
-"app/modules/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
+"app/modules/auth/authentication/service.py" = ["S105", "S106"]  # false positive on token_type string comparisons
+"app/modules/auth/authentication/dependencies.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/main.py" = ["D", "S105"]  # false positive on env var value
 
 [tool.ruff.format]

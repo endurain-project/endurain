@@ -10,8 +10,7 @@ SUPPORTED_API_KEY_SCOPES = frozenset({"activities:upload"})
 
 
 def generate_api_key() -> str:
-    """
-    Generate a new raw API key.
+    """Generate a new raw API key.
 
     Keys have the format ``endurain_<token>`` where
     ``<token>`` is 32 cryptographically random bytes
@@ -25,8 +24,7 @@ def generate_api_key() -> str:
 
 
 def hash_api_key(raw_key: str) -> str:
-    """
-    Compute the SHA-256 hex digest of a raw API key.
+    """Compute the SHA-256 hex digest of a raw API key.
 
     High-entropy secrets do not require a slow KDF
     (Argon2/bcrypt). SHA-256 is the industry standard
@@ -45,8 +43,7 @@ def validate_api_key_scopes(
     requested_scopes: list[str],
     _user_access_type: str,
 ) -> None:
-    """
-    Validate requested scopes against supported API-key scopes.
+    """Validate requested scopes against supported API-key scopes.
 
     API keys currently support only activity uploads. Keeping this
     allow-list separate from the full JWT scope set prevents API keys
@@ -71,8 +68,7 @@ def validate_api_key_scopes(
 
 
 def scopes_to_json(scopes: list[str]) -> str:
-    """
-    Serialize a list of scope strings to a JSON string.
+    """Serialize a list of scope strings to a JSON string.
 
     Args:
         scopes: List of scope strings.
@@ -84,8 +80,7 @@ def scopes_to_json(scopes: list[str]) -> str:
 
 
 def json_to_scopes(scopes_json: str) -> list[str]:
-    """
-    Deserialize a JSON string to a list of scope strings.
+    """Deserialize a JSON string to a list of scope strings.
 
     Args:
         scopes_json: JSON-encoded scope list.

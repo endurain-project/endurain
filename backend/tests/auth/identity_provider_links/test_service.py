@@ -109,7 +109,7 @@ class TestEnrichUserIdentityProviders:
         mock_idp.provider_type = "oidc"
 
         with patch(
-            "modules.auth.identity_providers.integration_service.get_identity_providers_by_ids",
+            "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
             return_value=[mock_idp],
         ) as mock_get_idps:
             result = identity_links_utils.enrich_user_identity_providers([mock_link], 1, mock_db)
@@ -145,7 +145,7 @@ class TestEnrichUserIdentityProviders:
         mock_link.idp_refresh_token_updated_at = None
 
         with patch(
-            "modules.auth.identity_providers.integration_service.get_identity_providers_by_ids",
+            "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
             return_value=[],
         ):
             result = identity_links_utils.enrich_user_identity_providers([mock_link], 1, mock_db)
@@ -188,7 +188,7 @@ class TestEnrichUserIdentityProviders:
             mock_idps.append(idp)
 
         with patch(
-            "modules.auth.identity_providers.integration_service.get_identity_providers_by_ids",
+            "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
             return_value=mock_idps,
         ) as mock_get_idps:
             result = identity_links_utils.enrich_user_identity_providers(mock_links, 1, mock_db)

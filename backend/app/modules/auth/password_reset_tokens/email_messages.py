@@ -13,8 +13,7 @@ def get_password_reset_email(
     frontend_host: str,
     locale: str | None = None,
 ) -> tuple[str, str, str]:
-    """
-    Build a localized password reset email.
+    """Build a localized password reset email.
 
     Args:
         user_name: The recipient's display name.

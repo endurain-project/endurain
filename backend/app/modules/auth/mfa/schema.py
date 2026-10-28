@@ -11,8 +11,7 @@ from pydantic import (
 
 
 class MFARequest(BaseModel):
-    """
-    Request model for MFA verification.
+    """Request model for MFA verification.
 
     Attributes:
         mfa_code: The MFA code to verify (6-digit TOTP or
@@ -34,8 +33,7 @@ class MFARequest(BaseModel):
     @field_validator("mfa_code")
     @classmethod
     def validate_mfa_code_format(cls, v: str) -> str:
-        """
-        Validate MFA code format.
+        """Validate MFA code format.
 
         Args:
             v: MFA code to validate.
@@ -57,8 +55,7 @@ class MFARequest(BaseModel):
 
 
 class MFADisableRequest(MFARequest):
-    """
-    Request model for MFA disable verification.
+    """Request model for MFA disable verification.
 
     Disabling MFA is a sensitive, security-reducing operation
     and must be gated by step-up verification: the caller has to
@@ -89,8 +86,7 @@ class MFADisableRequest(MFARequest):
 
 
 class MFASetupRequest(BaseModel):
-    """
-    Request model for MFA setup verification.
+    """Request model for MFA setup verification.
 
     Enabling MFA binds a TOTP secret — just handed to the caller
     by ``POST /profile/mfa/setup`` — to the account, and issues
@@ -137,8 +133,7 @@ class MFASetupRequest(BaseModel):
 
 
 class MFASetupResponse(BaseModel):
-    """
-    Response model for MFA setup initialization.
+    """Response model for MFA setup initialization.
 
     Attributes:
         secret: The MFA secret key.
@@ -165,8 +160,7 @@ class MFASetupResponse(BaseModel):
 
 
 class MFAStatusResponse(BaseModel):
-    """
-    Response model for MFA status.
+    """Response model for MFA status.
 
     Attributes:
         mfa_enabled: Whether MFA is enabled for the user.

@@ -23,8 +23,7 @@ AuthSecurityStoreUnavailableError = auth_lockout_contracts.AuthSecurityStoreUnav
 
 
 def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
-    """
-    Log a storage outage and re-raise it as an auth-security-store error.
+    """Log a storage outage and re-raise it as an auth-security-store error.
 
     Args:
         operation: Storage operation that failed.

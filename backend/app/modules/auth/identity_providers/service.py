@@ -39,8 +39,8 @@ import modules.auth.identity_providers.schema as identity_provider_schema
 import modules.auth.identity_providers.serializers as identity_provider_serializers
 import modules.auth.identity_providers.utils as identity_provider_utils
 import modules.auth.oauth_state.integration_service as oauth_state_crud
+import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
-import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.sessions.integration_service as auth_sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
@@ -116,8 +116,7 @@ ID_TOKEN_ALLOWED_ALGORITHMS: frozenset[str] = frozenset(
 
 
 class TokenAction(Enum):
-    """
-    Actions to take for an IdP token based on policy evaluation.
+    """Actions to take for an IdP token based on policy evaluation.
 
     Attributes:
         SKIP: Token is valid, no action needed
@@ -216,8 +215,8 @@ class IdentityProviderService:
         redirect: str | None,
         client_ip: str | None,
         claim_link_token: Callable[..., int],
-        db: Session,
         allowed_schemes: set[str],
+        db: Session,
     ) -> str:
         """Claim a browser link token, stage OAuth state, and return the provider URL."""
         identity_provider_utils.validate_redirect_url(redirect, allowed_schemes)
@@ -225,7 +224,7 @@ class IdentityProviderService:
         idp = idp_crud.get_identity_provider(idp_id, db)
         if idp is None or not idp.enabled:
             raise core_exceptions.NotFoundError("Identity provider not found or disabled")
-        state_id, nonce = oauth_state_utils.create_state_id_and_nonce()
+        state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
         client_type = "mobile" if identity_provider_utils.is_custom_scheme_redirect(redirect) else "web"
         oauth_state_crud.create_oauth_state(
             db=db,
@@ -326,8 +325,7 @@ class IdentityProviderService:
             yield client
 
     def _fetch_jwks(self, jwks_uri: str) -> dict[str, Any]:
-        """
-        Fetches the JSON Web Key Set (JWKS) from the identity provider.
+        """Fetches the JSON Web Key Set (JWKS) from the identity provider.
 
         This method retrieves the public keys used to verify JWT signatures from the IdP's
         JWKS endpoint. Results are cached for 1 hour to minimize network requests and
@@ -428,8 +426,7 @@ class IdentityProviderService:
         expected_audience: str,
         expected_nonce: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Verifies the ID token's signature and claims using JWKS from the identity provider.
+        """Verifies the ID token's signature and claims using JWKS from the identity provider.
 
         This method performs comprehensive JWT verification following OIDC Core 1.0 spec:
         1. Fetches the JWKS (public keys) from the IdP
@@ -633,17 +630,19 @@ class IdentityProviderService:
             ) from err
 
     def get_oidc_configuration(self, idp: identity_provider_contracts.IdentityProviderState) -> dict[str, Any] | None:
-        """
-        Retrieves the OpenID Connect (OIDC) discovery configuration for a given identity provider.
+        """Retrieves the OpenID Connect (OIDC) discovery configuration for a given identity provider.
         This method attempts to fetch the OIDC configuration from the provider's well-known discovery endpoint.
         It uses an in-memory cache to avoid redundant network requests and respects a cache TTL (time-to-live).
         If the configuration is cached and not expired, it is returned directly from the cache.
         Otherwise, it fetches the configuration over HTTP, caches it, and returns the result.
+
         Args:
             idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the issuer URL and unique ID.
+
         Returns:
             dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if fetching fails
             or the issuer URL is not provided.
+
         Raises:
             Does not raise exceptions directly; logs errors and returns None on failure.
         """
@@ -721,8 +720,7 @@ class IdentityProviderService:
             return None
 
     def _get_redirect_uri(self, idp_slug: str) -> str:
-        """
-        Generates the redirect URI for a given identity provider slug.
+        """Generates the redirect URI for a given identity provider slug.
 
         Args:
             idp_slug (str): The slug identifier for the identity provider.
@@ -734,8 +732,7 @@ class IdentityProviderService:
         return f"{base_url}/api/v1/public/idp/callback/{idp_slug}"
 
     def _decrypt_client_id(self, idp: identity_provider_contracts.IdentityProviderState) -> str:
-        """
-        Decrypts the client ID of the given identity provider.
+        """Decrypts the client ID of the given identity provider.
 
         Attempts to decrypt the `client_id` attribute of the provided `IdentityProvider` instance
         using Fernet symmetric encryption. If decryption fails or returns an empty value, logs the error
@@ -763,8 +760,7 @@ class IdentityProviderService:
             ) from err
 
     def _decrypt_client_secret(self, idp: identity_provider_contracts.IdentityProviderState) -> str:
-        """
-        Decrypt the IdP client secret using Fernet encryption.
+        """Decrypt the IdP client secret using Fernet encryption.
 
         This helper method centralizes client secret decryption logic to avoid code duplication
         and ensure consistent error handling across all OAuth flows.
@@ -795,8 +791,7 @@ class IdentityProviderService:
             ) from err
 
     def _resolve_token_endpoint(self, idp: identity_provider_contracts.IdentityProviderState) -> str:
-        """
-        Resolve the token endpoint URL for an IdP, using OIDC discovery if needed.
+        """Resolve the token endpoint URL for an IdP, using OIDC discovery if needed.
 
         This helper method centralizes token endpoint resolution logic, trying manual
         configuration first and falling back to OIDC discovery if available.
@@ -853,8 +848,7 @@ class IdentityProviderService:
         client_secret: str,
         redirect_uri: str | None = None,
     ) -> OAuth2Client:
-        """
-        Create an OAuth2 client for communicating with IdP token endpoints.
+        """Create an OAuth2 client for communicating with IdP token endpoints.
 
         This helper method centralizes OAuth client creation to ensure consistent
         configuration across all OAuth flows.
@@ -887,8 +881,7 @@ class IdentityProviderService:
         redirect_path: str | None = None,
         oauth_state_id: str | None = None,
     ) -> str:
-        """
-        Initiates the OAuth2/OIDC login process for the given identity provider.
+        """Initiates the OAuth2/OIDC login process for the given identity provider.
 
         This method prepares the authorization URL for the user to authenticate with the specified
         identity provider (IdP). It handles endpoint discovery and authorization URL construction.
@@ -973,8 +966,7 @@ class IdentityProviderService:
         db: Session,
         oauth_state_id: str | None = None,
     ) -> str:
-        """
-        Initiates the OAuth/OIDC authorization flow for linking an identity provider to an existing user account.
+        """Initiates the OAuth/OIDC authorization flow for linking an identity provider to an existing user account.
         This method generates the authorization URL that redirects the user to the identity provider's
         login page. Uses database-backed OAuth state for security and replay protection.
 
@@ -1074,15 +1066,15 @@ class IdentityProviderService:
         code: str,
         state: str,
         password_hasher: auth_password_hasher.PasswordHasher,
-        db: Session,
         oauth_state: oauth_state_schema.OAuthStateRead,
+        db: Session,
     ) -> dict[str, Any]:
-        """
-        Handle the OAuth2/OIDC callback from an identity provider.
+        """Handle the OAuth2/OIDC callback from an identity provider.
         This method processes the authorization code received from an identity provider,
         validates the state parameter, exchanges the code for tokens, retrieves user
         information, and either creates/updates a user session (login mode) or links
         the identity provider to an existing user account (link mode).
+
         Args:
             idp (identity_provider_contracts.IdentityProviderState): The identity provider configuration object.
             code (str): The authorization code returned by the identity provider.
@@ -1322,8 +1314,8 @@ class IdentityProviderService:
         user: Any,
         request: Any,
         password_hasher: auth_password_hasher.PasswordHasher,
-        db: Session,
         oauth_state_id: str,
+        db: Session,
     ) -> str:
         """Create the token-exchange session for a successful SSO login."""
         users_integration.require_active_user(user)
@@ -1352,8 +1344,7 @@ class IdentityProviderService:
         expected_audience: str,
         expected_nonce: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Retrieve user information from an identity provider using the provided token response.
+        """Retrieve user information from an identity provider using the provided token response.
 
         This method first attempts to fetch user information from the given `userinfo_endpoint` using the provided OAuth2 client.
         If the endpoint is unavailable or the request fails, it falls back to extracting claims from the `id_token` in the token response,
@@ -1481,8 +1472,7 @@ class IdentityProviderService:
         token_response: dict[str, Any],
         db: Session,
     ) -> None:
-        """
-        Store IdP tokens after successful authentication.
+        """Store IdP tokens after successful authentication.
 
         This method extracts the refresh token from the OAuth token response, encrypts it,
         and stores it along with metadata for future session renewal. If no refresh token
@@ -1558,8 +1548,7 @@ class IdentityProviderService:
     def _map_user_claims(
         self, idp: identity_provider_contracts.IdentityProviderState, claims: dict[str, Any]
     ) -> dict[str, Any]:
-        """
-        Maps user claims from an identity provider to a standardized user dictionary.
+        """Maps user claims from an identity provider to a standardized user dictionary.
 
         This method takes an identity provider configuration and a dictionary of claims,
         then maps the claims to standard user fields (such as 'username', 'email', and 'name')
@@ -1624,8 +1613,7 @@ class IdentityProviderService:
         password_hasher: auth_password_hasher.PasswordHasher,
         db: Session,
     ) -> users_schema.UsersRead:
-        """
-        Finds an existing user linked to the given identity provider and subject, or creates a new user if allowed.
+        """Finds an existing user linked to the given identity provider and subject, or creates a new user if allowed.
 
         This method attempts to:
         1. Find a user by their identity provider (IdP) link using the subject identifier.
@@ -1729,8 +1717,7 @@ class IdentityProviderService:
         password_hasher: auth_password_hasher.PasswordHasher,
         db: Session,
     ) -> users_schema.UsersRead:
-        """
-        Creates a new user in the database based on identity provider (IdP) information.
+        """Creates a new user in the database based on identity provider (IdP) information.
 
         This method generates a unique username, creates a user with mapped data from the IdP
         using the existing CRUD layer, and links the user to the IdP subject. SSO accounts get
@@ -1800,8 +1787,7 @@ class IdentityProviderService:
         userinfo: dict[str, Any],
         db: Session,
     ) -> users_schema.UsersRead:
-        """
-        Updates the user's information based on claims received from an identity provider (IdP).
+        """Updates the user's information based on claims received from an identity provider (IdP).
 
         This method syncs user profile information from the IdP to the local user account when
         IdP sync is enabled. It performs the following steps:
@@ -1863,8 +1849,7 @@ class IdentityProviderService:
         idp_id: int,
         db: Session,
     ) -> dict[str, Any] | None:
-        """
-        Attempt to refresh a user's IdP session using stored refresh token.
+        """Attempt to refresh a user's IdP session using stored refresh token.
 
         This method enables silent session renewal without re-prompting the user to login.
         It retrieves the stored encrypted refresh token, decrypts it, and exchanges it
@@ -2005,8 +1990,7 @@ class IdentityProviderService:
         idp_id: int,
         db: Session,
     ) -> bool:
-        """
-        Attempt to revoke a refresh token at the IdP (RFC 7009).
+        """Attempt to revoke a refresh token at the IdP (RFC 7009).
 
         This method implements the OAuth2 Token Revocation specification (RFC 7009)
         to notify the IdP that a token is no longer needed. This is a best-effort
@@ -2146,8 +2130,7 @@ class IdentityProviderService:
             return False
 
     def _is_token_expired_by_age(self, link: auth_identity_links_contracts.IdentityLinkRead) -> bool:
-        """
-        Check if an IdP refresh token has exceeded the maximum age policy.
+        """Check if an IdP refresh token has exceeded the maximum age policy.
 
         According to security best practices, refresh tokens should have a maximum lifetime
         to limit the window of exposure. This method checks if a token is older than the
@@ -2195,8 +2178,7 @@ class IdentityProviderService:
         return token_age > max_age
 
     def _should_refresh_idp_token(self, link: auth_identity_links_contracts.IdentityLinkRead) -> TokenAction:
-        """
-        Determine what action to take for an IdP token based on expiry and age policies.
+        """Determine what action to take for an IdP token based on expiry and age policies.
 
         This method checks multiple conditions to decide the appropriate action:
         1. Token age - if token exceeds maximum age, it must be cleared

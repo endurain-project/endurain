@@ -15,8 +15,7 @@ import modules.auth.api_keys.utils as api_keys_utils
 
 
 class UsersApiKeyCreate(BaseModel):
-    """
-    Schema for creating a new API key.
+    """Schema for creating a new API key.
 
     API-key creation is a sensitive, persistent grant of
     account access — it must be gated by step-up
@@ -72,8 +71,7 @@ class UsersApiKeyCreate(BaseModel):
     @field_validator("scopes")
     @classmethod
     def scopes_must_be_valid(cls, v: list[str]) -> list[str]:
-        """
-        Validate API keys only grant activity upload access.
+        """Validate API keys only grant activity upload access.
 
         Args:
             v: List of scope strings to validate.
@@ -95,8 +93,7 @@ class UsersApiKeyCreate(BaseModel):
 
 
 class UsersApiKeyRead(BaseModel):
-    """
-    API key read schema for list/detail responses.
+    """API key read schema for list/detail responses.
 
     Never exposes the raw key or its hash. Safe to
     return in all authenticated GET responses.
@@ -127,8 +124,7 @@ class UsersApiKeyRead(BaseModel):
 
 
 class UsersApiKeyCreated(UsersApiKeyRead):
-    """
-    API key creation response schema.
+    """API key creation response schema.
 
     Extends UsersApiKeyRead with the raw key, returned
     only once at creation time. The raw key is never

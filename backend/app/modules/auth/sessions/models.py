@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class UsersSessions(Base):
-    """
-    User authentication session for tracking active logins.
+    """User authentication session for tracking active logins.
 
     Attributes:
         id: Unique session identifier (UUID).

@@ -19,7 +19,7 @@ import fnmatch
 import pathlib
 import tomllib
 
-from tests._helpers.module_roles import CONVERTED_MODULES, UNCONVERTED_MODULES
+from tests._helpers.module_roles import CONVERTED_MODULES
 from tests._helpers.module_roles import role_of as _role
 
 #: Modules converted to the structure guide, shared with ``test_logging_rule.py`` (also in ``tests/architecture/``)
@@ -78,14 +78,6 @@ _SESSION_EXECUTION = frozenset({"execute", "scalars", "scalar", "query", "add", 
 #: staging a write so constraint errors and row counts surface is persistence's
 #: job; deciding when it becomes durable is not.
 _TRANSACTION_CONTROL = frozenset({"commit", "rollback"})
-
-#: ``crud`` files that still end transactions themselves, as
-#: ``{path relative to modules/: reason}``. This is the debt register for
-#: ``test_crud_does_not_end_transactions``. It is empty: every converted module
-#: stages and lets ``service`` commit. A module being converted lists its files
-#: here until its writers are stage-only; the test fails on an entry that no
-#: longer offends so the list cannot outlive the debt.
-_CRUD_TRANSACTION_DEBT: dict[str, str] = {}
 
 #: Cross-sub-package reaches that are part of the design, as
 #: ``(importer glob, imported glob): reason``. Globs are module paths relative
@@ -275,8 +267,6 @@ _DATA_ROLES = frozenset({"schema", "contracts", "constants"})
 #: Roles of another top-level module that a converted module may import: its
 #: published surface; no service implementation is an outbound surface.
 _OUTBOUND_ROLES = frozenset({"integration_service", "schema", "contracts", "constants", "events", "dependencies"})
-_OUTBOUND_SURFACE_STEMS = frozenset()
-
 #: Layer-rule exceptions as ``{(importer, imported): reason}``, in dotted paths
 #: rooted at ``app``. Every entry is a deliberate seam; anything else fails.
 _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
@@ -306,17 +296,11 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
     (
         "modules.health.health_fasting.crud",
         "modules.health.computation",
-    ): (
-        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
-        "is written once. It owns no table or session and asks no module."
-    ),
+    ): "The shared local-day SQL expression keeps fasting and health-event day buckets consistent.",
     (
         "modules.health.health_poop.crud",
         "modules.health.computation",
-    ): (
-        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
-        "is written once. It owns no table or session and asks no module."
-    ),
+    ): "The shared local-day SQL expression keeps poop and health-event day buckets consistent.",
 }
 
 #: Top-level modules that sit below another, as ``{module: modules it may not import}``.
@@ -443,6 +427,22 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
         "locks the settings rows, writes only what differs and commits once, so replicas booting together "
         "serialise on the lock; there is no caller transaction to join."
     ),
+    "account_security.integration_service.admin_delete_identity_provider_link": "Deletes a user's auth link and applies its credential cleanup as one operation.",
+    "account_security.integration_service.change_managed_user_password": "Changes an admin-managed credential as a complete account-security operation.",
+    "account_security.integration_service.change_own_password": "Changes the caller's password and revokes affected sessions in one operation.",
+    "account_security.integration_service.delete_all_user_sessions": "Revokes all sessions and token families as one security operation.",
+    "account_security.integration_service.delete_other_user_sessions": "Revokes the user's other sessions as one security operation.",
+    "account_security.integration_service.start_browser_idp_link": "Creates the browser link state and commits its one-time credential atomically.",
+    "account_security.integration_service.verify_step_up": "Consumes the one-time step-up challenge and records its verification atomically.",
+    "mfa.integration_service.disable_user_mfa": "Disables MFA and commits the credential change atomically.",
+    "mfa.integration_service.enable_user_mfa": "Enables MFA and commits the credential change atomically.",
+    "mfa.integration_service.verify_user_mfa": "Consumes an MFA challenge and updates replay state atomically.",
+    "sessions.integration_service.claim_session_for_token_exchange": "Claims the one-time PKCE session token exchange atomically.",
+    "sessions.integration_service.create_session": "Creates a complete authentication session and commits it before issuing tokens.",
+    "sessions.integration_service.delete_session": "Deletes a session and commits revocation before reporting success.",
+    "sessions.integration_service.edit_session": "Rotates session credentials and commits them as one operation.",
+    "sessions.integration_service.invalidate_token_family": "Revokes a refresh-token family as one security operation.",
+    "sessions.integration_service.update_session_csrf_token": "Binds the newly issued CSRF token to the session before returning it.",
 }
 
 #: Modules whose functions a transaction walk does not enter: they stage or describe, and a
@@ -793,11 +793,8 @@ class TestSubPackagePrivacy:
         counts); ``commit`` and ``rollback`` are not. Rolling back belongs to the
         transaction owner, which is the service or ``core.database.get_db``.
 
-        ``_CRUD_TRANSACTION_DEBT`` records the files that still do. It shrinks;
-        a stale entry fails, so it cannot outlive the debt.
         """
         offenders: list[str] = []
-        stale: list[str] = []
         for module_name in _CONVERTED:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) != "crud":
@@ -813,17 +810,11 @@ class TestSubPackagePrivacy:
                     }
                 )
                 relative = path.relative_to(_MODULES_ROOT).as_posix()
-                if ended and relative not in _CRUD_TRANSACTION_DEBT:
+                if ended:
                     offenders.append(f"{relative}: .{', .'.join(ended)}()")
-                if not ended and relative in _CRUD_TRANSACTION_DEBT:
-                    stale.append(relative)
         assert not offenders, (
             "A crud-role file may flush but not commit or roll back. Stage the "
             "write and let the service own the transaction:\n  " + "\n  ".join(sorted(offenders))
-        )
-        assert not stale, (
-            "These files no longer end transactions; remove them from "
-            "_CRUD_TRANSACTION_DEBT:\n  " + "\n  ".join(sorted(stale))
         )
 
     def test_a_file_plays_the_role_its_content_declares(self):
@@ -897,34 +888,17 @@ class TestStoreRole:
 
 
 class TestModuleInventory:
-    """Every top-level module is either converted or explicitly outstanding."""
+    """Every top-level module is covered by the converted-module rules."""
 
     def test_every_top_level_module_is_classified(self):
-        """A module in neither list would start life outside every rule.
-
-        The conformance tests are opt-in (``CONVERTED_MODULES``), which is the
-        right default while modules convert one PR at a time, and the wrong one
-        for a module nobody has thought about yet: it is exempt from all of them
-        without a single line saying so. Naming the outstanding modules makes
-        "convert it" and "consciously leave it" the only two options for a new
-        one. Converting a module is moving its name between the two lists in
-        ``tests/_helpers/module_roles.py``.
-        """
+        """A new module cannot sit outside the structural checks."""
         on_disk = {
             path.name for path in _MODULES_ROOT.iterdir() if path.is_dir() and not path.name.startswith(("_", "."))
         }
-        declared = set(CONVERTED_MODULES) | set(UNCONVERTED_MODULES)
-        unclassified = sorted(on_disk - declared)
-        stale = sorted(declared - on_disk)
-        assert not unclassified, (
-            "Top-level module in neither CONVERTED_MODULES nor UNCONVERTED_MODULES "
-            "(tests/_helpers/module_roles.py). Convert it to the structure guide, "
-            "or list it as outstanding:\n  " + "\n  ".join(unclassified)
-        )
-        assert not stale, "Listed in module_roles.py but not on disk:\n  " + "\n  ".join(stale)
-        assert not set(CONVERTED_MODULES) & set(UNCONVERTED_MODULES), (
-            "A module cannot be both converted and outstanding"
-        )
+        missing = sorted(on_disk - set(CONVERTED_MODULES))
+        stale = sorted(set(CONVERTED_MODULES) - on_disk)
+        assert not missing, "Modules missing from CONVERTED_MODULES:\n  " + "\n  ".join(missing)
+        assert not stale, "Listed in CONVERTED_MODULES but not on disk:\n  " + "\n  ".join(stale)
 
 
 class TestLayerRules:
@@ -1016,7 +990,7 @@ class TestLayerRules:
             if imported.split(".")[1] == importer.split(".")[1]:
                 continue
             stem = imported.rsplit(".", 1)[-1]
-            if _role(stem) in _OUTBOUND_ROLES or stem in _OUTBOUND_SURFACE_STEMS:
+            if _role(stem) in _OUTBOUND_ROLES:
                 continue
             if not _excepted(importer, imported):
                 offenders.append(f"{importer} -> {imported}")
@@ -1074,25 +1048,16 @@ class TestSurfaceTransactions:
 class TestDocstringScope:
     """The docstring lint applies exactly to the converted modules."""
 
-    def test_unconverted_modules_are_the_ones_exempt_from_the_docstring_lint(self):
-        """Converting a module is removing it from the ruff ``D`` ignore list.
-
-        ``pyproject.toml`` exempts a module from the pydocstyle rules by name, so
-        the exemption list and ``UNCONVERTED_MODULES`` are one fact stated twice.
-        This test is what keeps them one: a module cannot be converted and stay
-        exempt, nor be unconverted and silently linted.
-        """
+    def test_no_module_is_exempt_from_the_docstring_lint(self):
+        """Every module follows the documented public API convention."""
         config = tomllib.loads((_BACKEND_ROOT / "pyproject.toml").read_text())
         ignores = config["tool"]["ruff"]["lint"]["per-file-ignores"]
-        exempt = {
-            pattern.split("/")[2]
+        exempt = sorted(
+            pattern
             for pattern, rules in ignores.items()
             if pattern.startswith("app/modules/") and "D" in rules
-        }
-        assert exempt == set(UNCONVERTED_MODULES), (
-            "pyproject.toml per-file-ignores for rule D must list exactly the unconverted "
-            f"modules; exempt={sorted(exempt)}, unconverted={sorted(UNCONVERTED_MODULES)}"
         )
+        assert not exempt, f"Remove module docstring exemptions from pyproject.toml: {exempt}"
 
 
 class TestProviderResolution:

@@ -129,15 +129,10 @@ paragraph rules out.
 "registered in the API but not the worker" is a diff in one file, and the file
 that holds the handlers can be split without touching the entrypoints.
 
-`modules.auth` is the one module whose behavioural surface is not called
-`integration_service.py`. It publishes `identity_service.py` (plus
-`dependencies.py`), because its boundary is not "what may you call?" but "what
-may you learn about the caller?" — a distinction the
-[auth boundary guide](auth-boundary.md) states and a dedicated `auth-boundary`
-contract enforces structurally. The inconsistency is real and is the cost of
-that: `auth` answers "what may I depend on?" with a different filename than
-every other module. It is recorded here rather than smoothed over, and no other
-module may follow it.
+Auth publishes authentication and account-security operations through
+`modules.auth.dependencies` and the relevant child's `integration_service.py`.
+See the [auth boundary guide](auth-boundary.md) for identity ownership and the
+published package surfaces.
 
 `subscriber_registry.py` is also where a module declares its **reconciliation
 nets**. A durable subscriber derives state from an event, and delivery is
@@ -168,10 +163,11 @@ Alembic, or the namespace-level activities registries. Business modules do not
 call them. `scheduled_jobs.py` also holds the job runners.
 
 Every persistence-owning package declares its model module in
-`model_registry.py`. `app/model_registry.py` collects converted modules
-explicitly. Its filesystem scan exists only for unconverted legacy modules and
-shrinks as those modules adopt this structure. `core.database` never discovers
-or imports domain models.
+`model_registry.py`. `app/model_registry.py` collects those declarations
+explicitly. `core.database` never discovers or imports domain models.
+
+`app/migrations` is application-level orchestration that consumes each module's
+`migration_service`; it is not itself a module.
 
 ### 3. Migration-only surface — imported only by `app/migrations`
 
@@ -767,35 +763,22 @@ the conformance test's allowlist.
   grows with the follow count. A peer-published, read-only query fragment (a followee subquery)
   would avoid the list but needs its own allowed-import entry and test, so it is undecided.
 
-### Pilot status and what the next conversion owns
+### Accepted limitations
 
-`activities`, `followers`, `garmin`, `gears`, `health`, `notifications`, `server_settings`, `strava`, `users` and `websocket` are the only modules converted so far. The
-remaining modules are listed in `UNCONVERTED_MODULES` so that
-`TestModuleInventory` keeps them visible rather than silently exempt, and are
-converted one at a time with the `convert-module` skill. The items below need
-changes outside the converted modules, so they are recorded here as accepted
-limitations rather than half-done:
+These constraints remain visible until a coordinated design change resolves them:
 
-- **Top-level cycles.** `users` ⇄ `activities`: goal progress reads activities, and profile export/import
-  consumes them (the contributor registry is listed in `_LAYER_EXCEPTIONS`), while activities consumes
-  `users.integration_service`. Account deletion no longer closes it: `users` asks for the activities'
-  erasure through `users/contributors.py`, and `module_registry.configure_user_contributors` installs the
-  answer, so the erasure runs in the deletion's own transaction. `gears` no longer closes a cycle either:
-  it sits below activities (`_MUST_NOT_IMPORT`), states the required usage questions in
-  `gears/contributors.py`, and `module_registry.configure_gear_contributors` installs the activities
-  answers. A `layers` contract (core, identity, followers/gears/health, activities, providers) can then
-  state the module-level direction once. The remaining edges that close a cycle live in `users`.
-- **Layer rules for unconverted modules.** `TestLayerRules` covers converted
-  modules only. An unconverted module is outside it until converted, and the
-  `auth-boundary` contract is the one generic rule over every module:
-  `TestAuthBoundaryCoverage` fails when its source list differs from the set of
-  top-level modules, so a new module cannot start unconstrained.
-- **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the
-  per-module manifest for subscribers, durable handlers, nets, recurring jobs and
-  startup tasks. Routers (`api.py`) and models (`model_registry.py`) stay
-  separate composition surfaces on purpose: they have different consumers
-  (the HTTP app and Alembic), and the legacy model scan keeps the model seam
-  distinct until the unconverted modules are gone.
+- **Top-level cycles.** `users` ⇄ `auth`: users account workflows call auth integration surfaces, while auth
+  credential, session and identity-provider flows read or update users through `users.integration_service`.
+  `users` ⇄ `activities`: goal progress reads activities, and profile export/import consumes them (the contributor
+  registry is listed in `_LAYER_EXCEPTIONS`), while activities consumes `users.integration_service`. Account
+  deletion no longer closes the latter cycle: `users` asks for activity erasure through `users/contributors.py`,
+  and `module_registry.configure_user_contributors` installs the answer, so erasure runs in the deletion's own
+  transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and declares its usage questions in
+  `gears/contributors.py`; `module_registry.configure_gear_contributors` installs the activities answers.
+- **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the per-module manifest for subscribers,
+  durable handlers, nets, recurring jobs and startup tasks. Routers (`api.py`) and models (`model_registry.py`)
+  remain separate composition surfaces for the HTTP app and Alembic.
+
 - **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`) and
   `computation.py` (pure date and SQL helpers and `upsert_for_day`, the same-day upsert the weight, steps and sleep services share), and nothing else. `health_fasting.crud` and `health_poop.crud` import
   `computation.local_date_expression` through `_LAYER_EXCEPTIONS`, because day bucketing must be
@@ -823,7 +806,13 @@ limitations rather than half-done:
   media file and user image (storage writes already run through `asyncio.to_thread`). The importer shares no
   loop-bound resource, so this is safe, but the importer should become synchronous once `core.file_uploads`
   has a synchronous form of `validate_bytes`; the other validators already have one.
-- **Legacy model scan.** Converted modules declare their ORM module in
+- **Legacy model scan.** Modules declare their ORM model modules in
   `model_registry.py` and use scalar foreign keys with database `ON DELETE`
-  behaviour. `app/model_registry.py` keeps a filesystem scan only for modules not
-  converted yet.
+  behaviour. Model registration is explicit.
+
+- **Auth collections are not paginated.** `GET /sessions/user/{user_id}`,
+  `GET /profile/sessions`, `GET /profile/api_keys`, `GET /idp` and
+  `GET /profile/idp` return bare arrays, against the convention that a list a
+  client receives is a `core.pagination.Page`. Changing these shapes breaks
+  existing API clients, including the mobile app, so it waits for a coordinated
+  client release.

@@ -26,8 +26,7 @@ ROTATED_TOKEN_CLEANUP_BUFFER_SECONDS: int = 10
 
 
 def hmac_hash_token(token: str) -> str:
-    """
-    Compute HMAC-SHA256 hash of a token for secure lookup.
+    """Compute HMAC-SHA256 hash of a token for secure lookup.
 
     Uses the server's SECRET_KEY as the HMAC key, providing
     defense-in-depth: even if the database is compromised,
@@ -54,8 +53,7 @@ def store_rotated_token(
     replacement_refresh_token: str,
     replacement_refresh_token_exp: datetime,
 ) -> None:
-    """
-    Store an old refresh token after rotation for reuse detection.
+    """Store an old refresh token after rotation for reuse detection.
 
     Uses HMAC-SHA256 with the server secret to hash the rotated
     token for deterministic lookups, and stores the replacement
@@ -95,8 +93,7 @@ def store_rotated_token(
 
 
 def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
-    """
-    Check if a refresh token has been reused (already rotated).
+    """Check if a refresh token has been reused (already rotated).
 
     Uses HMAC-SHA256 with the server secret to hash the token
     for lookup, ensuring deterministic matching.
@@ -147,8 +144,7 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
 
 
 def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] | None:
-    """
-    Return the replacement refresh token for an in-grace retry.
+    """Return the replacement refresh token for an in-grace retry.
 
     When a refresh token is presented again while still inside the
     grace window (a lost rotation response or a racing retry), the

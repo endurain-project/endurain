@@ -10,8 +10,7 @@ from core.database import Base
 
 
 class OAuthState(Base):
-    """
-    Server-side storage for OAuth/SSO flow state.
+    """Server-side storage for OAuth/SSO flow state.
 
     This replaces cookie-based state with database persistence
     for enhanced security and mobile support. Stores PKCE

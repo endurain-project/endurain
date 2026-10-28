@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import module_registry as runtime_module_registry
 import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnail_scheduled_jobs
 
@@ -111,7 +111,7 @@ def process_migration_11(db: Session) -> None:
 def _mark_executed(db: Session) -> None:
     """Mark migration 11 complete, logging database failures."""
     try:
-        migrations_crud.set_migration_as_executed(11, db)
+        migrations_service.mark_executed(11, db)
     except Exception as err:
         logger.error(
             f"Migration 11 - failed to set migration as executed: {err}",

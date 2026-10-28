@@ -6,8 +6,7 @@ import hmac
 import re
 from typing import Any
 
-from fastapi import HTTPException, status
-
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.identity_providers.schema as idp_schema
 
@@ -15,8 +14,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:
-    """
-    Validate the redirect URL to prevent open redirect vulnerabilities.
+    """Validate the redirect URL to prevent open redirect vulnerabilities.
 
     Allows only relative paths (starting with '/') and custom URI
     schemes explicitly configured via ALLOWED_REDIRECT_SCHEMES.
@@ -38,18 +36,14 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
     # in, and a browser's URL parser drops tab, CR and LF anywhere in a URL, so
     # "/<tab>/host" would be read as the protocol-relative "//host".
     if any(ord(char) < 0x20 or ord(char) == 0x7F for char in redirect):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Redirect contains control characters.",
-        )
+        raise core_exceptions.InvalidInputError("Redirect contains control characters.")
 
     value = redirect.strip()
 
     # Reject external HTTP/HTTPS URLs (open redirect prevention)
     if value.startswith("http://") or value.startswith("https://"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=("External HTTP redirects are not allowed. Use a relative path or a configured custom scheme."),
+        raise core_exceptions.InvalidInputError(
+            "External HTTP redirects are not allowed. Use a relative path or a configured custom scheme."
         )
 
     # Handle custom URI schemes (e.g., gadgetbridge://callback)
@@ -57,30 +51,21 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
         scheme = value.split("://", 1)[0].lower()
         allowed = allowed_schemes
         if scheme not in allowed:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Redirect scheme '{scheme}' is not allowed. "
-                    "Configure ALLOWED_REDIRECT_SCHEMES to permit "
-                    "custom URI schemes."
-                ),
+            raise core_exceptions.InvalidInputError(
+                f"Redirect scheme '{scheme}' is not allowed. Configure ALLOWED_REDIRECT_SCHEMES to permit custom URI schemes."
             )
         # Custom scheme is allowed — no further checks needed
         return
 
     # Relative paths must start with '/'
     if not value.startswith("/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=("Redirect must be a relative path starting with '/' or a configured custom URI scheme."),
+        raise core_exceptions.InvalidInputError(
+            "Redirect must be a relative path starting with '/' or a configured custom URI scheme."
         )
 
     # Reject path traversal sequences
     if ".." in value or "\\" in value or value.startswith("//"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Redirect path contains disallowed sequences.",
-        )
+        raise core_exceptions.InvalidInputError("Redirect path contains disallowed sequences.")
 
 
 def is_custom_scheme_redirect(redirect: str | None) -> bool:
@@ -101,46 +86,8 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
     return "://" in value
 
 
-def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> None:
-    """
-    Validate PKCE code_challenge format according to RFC 7636.
-
-    This function enforces RFC 7636 compliance for PKCE code challenges,
-    ensuring that mobile clients provide properly formatted S256 challenges.
-
-    Args:
-        code_challenge (str): Base64url-encoded SHA256 hash of code verifier.
-        code_challenge_method (str): PKCE method identifier (must be "S256").
-
-    Raises:
-        HTTPException: 400 Bad Request if validation fails (method not S256,
-            length out of range, or invalid base64url characters).
-    """
-    # Only S256 is supported (SHA256)
-    if code_challenge_method != "S256":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only S256 PKCE method is supported",
-        )
-
-    # RFC 7636: code_challenge length must be 43-128 characters (base64url)
-    if not (43 <= len(code_challenge) <= 128):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_challenge must be 43-128 characters",
-        )
-
-    # Validate base64url format (alphanumeric, dash, underscore only)
-    if not re.match(r"^[A-Za-z0-9_-]+$", code_challenge):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_challenge must be valid base64url",
-        )
-
-
 def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challenge_method: str) -> None:
-    """
-    Validate PKCE code_verifier and verify it matches the code_challenge.
+    """Validate PKCE code_verifier and verify it matches the code_challenge.
 
     This function implements RFC 7636 PKCE verification by computing the
     SHA256 hash of the verifier and comparing it to the stored challenge.
@@ -157,23 +104,14 @@ def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challen
     """
     # Validate verifier format
     if not (43 <= len(code_verifier) <= 128):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_verifier must be 43-128 characters",
-        )
+        raise core_exceptions.InvalidInputError("code_verifier must be 43-128 characters")
 
     if not re.match(r"^[A-Za-z0-9_-]+$", code_verifier):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_verifier must be valid base64url",
-        )
+        raise core_exceptions.InvalidInputError("code_verifier must be valid base64url")
 
     # Verify method is S256
     if code_challenge_method != "S256":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only S256 PKCE method is supported",
-        )
+        raise core_exceptions.InvalidInputError("Only S256 PKCE method is supported")
 
     # Compute SHA256 hash of verifier
     verifier_hash = hashlib.sha256(code_verifier.encode("ascii")).digest()
@@ -184,15 +122,11 @@ def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challen
         logger.warning(
             f"PKCE verification failed: computed={computed_challenge[:10]}..., expected={code_challenge[:10]}..."
         )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid code_verifier",
-        )
+        raise core_exceptions.InvalidInputError("Invalid code_verifier")
 
 
 def _secure_compare(a: str, b: str) -> bool:
-    """
-    Constant-time string comparison to prevent timing attacks.
+    """Constant-time string comparison to prevent timing attacks.
 
     Uses ``hmac.compare_digest`` to avoid both character-by-
     character and length timing leaks.
@@ -283,8 +217,7 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
 
 
 def get_idp_templates() -> list[idp_schema.IdentityProviderTemplate]:
-    """
-    Retrieve a list of identity provider templates, excluding specific providers.
+    """Retrieve a list of identity provider templates, excluding specific providers.
 
     Returns:
         list[idp_schema.IdentityProviderTemplate]:
@@ -297,8 +230,7 @@ def get_idp_templates() -> list[idp_schema.IdentityProviderTemplate]:
 
 
 def get_idp_template(template_id: str) -> dict[str, Any] | None:
-    """
-    Retrieve an identity provider template by its template ID.
+    """Retrieve an identity provider template by its template ID.
 
     Args:
         template_id (str): The unique identifier of the identity provider template.

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
+import core.logger as core_logger
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
@@ -18,6 +19,8 @@ import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
+
+logger = core_logger.get_logger(__name__)
 
 
 class PasswordPolicyError(core_exceptions.DomainError):
@@ -44,6 +47,7 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
     password_reset_crud.mark_user_password_reset_tokens_used(user_id, db)
     password_reset_crud.create_password_reset_token(reset_token, db)
     db.commit()
+    logger.info("Password-reset token created", extra=core_logger.context(user_id=user_id))
     return token
 
 
@@ -55,6 +59,7 @@ def request_password_reset_email(email: str, db: Session) -> None:
     if user and user.active:
         password_reset_event_publishers.publish_password_reset_requested(user.id, db)
         db.commit()
+        logger.info("Password-reset email requested", extra=core_logger.context(user_id=user.id))
 
 
 def prepare_password_reset_email(
@@ -102,6 +107,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     sessions_integration.delete_sessions_by_user(token_user_id, db)
     db.commit()
     mfa_integration.clear_pending_mfa_for_user(token_user_id)
+    logger.info("Password reset completed", extra=core_logger.context(user_id=token_user_id))
 
 
 def delete_expired_password_reset_tokens(db: Session) -> int:

@@ -13,27 +13,6 @@ root_packages =
 # its own copy. What stays below is what import-linter is good at: external
 # packages, the platform direction, and named design seams.
 
-[importlinter:contract:auth-boundary]
-name = Auth boundary: non-auth must not import auth internals directly
-type = forbidden
-allow_indirect_imports = True
-source_modules =
-    modules.users
-    modules.activities
-    core
-    modules.followers
-    modules.garmin
-    modules.gears
-    modules.health
-    modules.notifications
-    modules.server_settings
-    modules.strava
-    modules.websocket
-forbidden_modules =
-    modules.auth._internal
-    modules.auth.*.crud
-    modules.auth.*.*.crud
-
 # The substrate is the external ``jasil`` package, which enforces its own
 # ports-and-adapters direction and its own no-domain rule upstream. Which part of
 # it application code may touch is still this repository's rule, but it cannot be

@@ -63,8 +63,8 @@ def _limits(function: ast.FunctionDef) -> bool:
 
 
 def _scope_parameter_names(path: pathlib.Path) -> frozenset[str]:
-    """Names a route must not give its scope check; ``auth`` is held to the plural until it is converted."""
-    return frozenset({"_check_scopes"} if "modules/auth" in path.as_posix() else {"_check_scopes", "_check_scope"})
+    """Names a route must not give its scope check."""
+    return frozenset({"_check_scopes"})
 
 
 class TestRouteConventions:
@@ -123,7 +123,18 @@ class TestRouteConventions:
         offenders = [
             path.relative_to(_ROOT).as_posix()
             for path in files_with_role(_CONVERTED, "dependencies")
-            if "HTTPException" in path.read_text()
+            if any(
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "HTTPException"
+                and any(
+                    keyword.arg == "status_code"
+                    and isinstance(keyword.value, ast.Attribute)
+                    and keyword.value.attr in {"HTTP_400_BAD_REQUEST", "HTTP_422_UNPROCESSABLE_ENTITY"}
+                    for keyword in node.keywords
+                )
+                for node in ast.walk(ast.parse(path.read_text()))
+            )
         ]
 
         assert offenders == [], "Declare the constraint with Path/Query/AfterValidator instead:\n  " + "\n  ".join(

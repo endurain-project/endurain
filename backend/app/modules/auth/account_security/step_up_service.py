@@ -17,8 +17,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def _step_up_key(user_id: int) -> str:
-    """
-    Build the lockout key for a user's step-up attempts.
+    """Build the lockout key for a user's step-up attempts.
 
     Args:
         user_id: Authenticated user ID.
@@ -39,8 +38,7 @@ def verify_step_up_credentials(
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> None:
-    """
-    Enforce step-up verification for sensitive account operations.
+    """Enforce step-up verification for sensitive account operations.
 
     A valid access token alone is not sufficient authorisation for
     operations that grant persistent account access (password

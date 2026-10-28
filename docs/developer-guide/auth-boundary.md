@@ -1,153 +1,52 @@
 # Auth Boundary Guide
 
-This guide defines the supported authentication boundary for non-auth modules.
+This guide describes the supported identity and authentication boundary for the rest of the application.
 
-## Public Boundary
+## Public surfaces
 
-Non-auth modules must consume auth **only** through these public entry points:
+Other modules use:
 
-- `modules.auth.dependencies`
-- `modules.auth.identity_service.IdentityService`
+- `modules.auth.dependencies` for authenticated request dependencies, `Principal` resolution, scope checks, auth context, and shared auth stores.
+- The owning auth child's `integration_service.py` for authentication operations. A caller chooses the child that owns the capability; auth CRUD and services remain private to their package.
 
-`IdentityService` exposes both credential resolution (e.g. `resolve_from_access_token`,
-`resolve_from_api_key`) and the higher-level account-security workflows (sessions,
-password change, MFA lifecycle, IdP linking). Non-auth modules call these methods on
-the injected `IdentityService`; they do **not** import the implementations.
+Auth consumes users data through `modules.users.users.integration_service`. Users consumes credentials, MFA, identity links, account security, and sign-up email operations through their auth integration surfaces. Do not import another module's CRUD, service, models, or private helpers.
 
-The workflow implementations live in `modules.auth._internal.services.*` (see *Auth Service Modules*
-below), but those modules are **auth-internal**: `IdentityService` delegates to them,
-and import-linter forbids non-auth modules from importing them directly. Do not import
-the private `modules.auth._internal` package, any auth `*.crud` module, or `modules.auth._internal.services.*`
-from non-auth modules — the single `auth-boundary` contract in `backend/.importlinter`
-enforces this structurally.
+## Principal and credentials
 
-## Principal Model
+`modules.auth.contracts.Principal` is the authenticated identity and authorization context. It carries the user id, username, email, active/superuser state, scopes, and a typed credential.
 
-`IdentityService` resolves identity into a `Principal` object that carries auth-relevant identity and authorization data for the current request.
+The credential is a discriminated union of `PasswordCred`, `AccessTokenCred`, `ApiKeyCred`, `SessionCookieCred`, and `OAuthCred`. Each variant contains only fields relevant to that method. Prefer `Principal` helpers such as `is_api_key()` and `credential_id()` over matching on credential internals.
 
-Core fields include:
+`modules.auth.authentication.principal_service` resolves access tokens, API keys, and session cookies. Request dependencies call the published `authentication.integration_service` and cache the resolved principal for the request.
 
-- `user_id`
-- `username`
-- `email`
-- `is_active`
-- `is_superuser`
-- `scopes`
-- `credential`
+## Ownership map
 
-Callers should prefer helper methods on `Principal` (for example `is_api_key()` and credential ID helpers) instead of matching against internal credential-shape details in non-auth modules.
+| Package | Owns |
+| --- | --- |
+| `access_tokens` | JWT access-token validation and signing |
+| `api_keys` | API-key persistence, scopes, hashing and serialization |
+| `authentication` | Login, MFA login, refresh/logout, principal resolution and failed-login state |
+| `account_security` | Password changes, session management, step-up, MFA workflows, API-key routes and IdP link management |
+| `credentials` | Local password hashes and password policy |
+| `identity_provider_link_tokens` | One-time browser IdP-link tokens |
+| `identity_provider_links` | User-to-provider link persistence |
+| `identity_providers` | Provider configuration, OIDC flows, callbacks and provider tokens |
+| `lockout` | Shared lockout-state operations |
+| `mfa` and `mfa_backup_codes` | MFA factors, setup state and recovery codes |
+| `oauth_state` | OAuth state and nonce persistence |
+| `password_reset_tokens` | Password-reset tokens and email workflow |
+| `rotated_refresh_tokens` | Refresh-token reuse detection |
+| `sessions` | Auth session lifecycle and refresh-cookie sessions |
+| `sign_up_tokens` | Sign-up verification and approval email workflow |
 
-## Credential Discriminated Union
+User profile fields, profile routes, privacy settings, and non-auth account data belong to `modules.users`.
 
-`Principal.credential` is a discriminated union, not a set of parallel optionals. Variants include:
+## Transaction ownership
 
-- `PasswordCred`
-- `AccessTokenCred`
-- `ApiKeyCred`
-- `SessionCookieCred`
-- `OAuthCred`
+CRUD functions stage database changes with `flush()` and raise domain errors from `core.exceptions`. A service owns the complete workflow and commits after all related writes are staged. Integration surfaces that expose a complete account-security action delegate to that service; staging operations leave the commit to their caller. Application migrations use each package's migration service and commit through application-level migration orchestration.
 
-Each variant contains only the fields meaningful for that authentication method (for example, access-token metadata for `AccessTokenCred`, API-key identifiers for `ApiKeyCred`, and session IDs for `SessionCookieCred`).
+## Step-up verification gap for SSO-only accounts
 
-## Ownership Map
+SSO-only accounts with no local password skip the password factor in `modules.auth.account_security.step_up_service.verify_step_up_credentials`. MFA still gates when enabled, but an account without a local password or MFA receives no step-up challenge.
 
-Auth-owned modules include:
-
-- Credentials and token lifecycle (`modules.auth._internal.token_manager`, `modules.auth._internal.password_hasher`)
-- Sessions and rotated refresh tokens (`modules.auth.sessions`)
-- API keys (`modules.auth.api_keys`)
-- MFA setup state, TOTP logic, and backup-code lifecycle (`modules.auth.mfa`, `modules.auth.mfa.backup_codes`)
-- OAuth state and IdP link tokens (`modules.auth.oauth_state`, `modules.auth.identity_providers.link_tokens`)
-- Identity-provider config, links, and link tokens (`modules.auth.identity_providers`, `modules.auth.identity_providers.links`, `modules.auth.identity_providers.link_tokens`)
-- Password reset tokens (`modules.auth.password_reset_tokens`)
-- Sign-up verification tokens (`modules.auth.sign_up_tokens`)
-- Step-up credential verification with lockout (`modules.auth._internal.services.step_up_service`)
-- Password change workflows (`modules.auth._internal.services.account_security_service`)
-- MFA management workflows (`modules.auth._internal.services.mfa_workflow`)
-- Identity-link management workflows (`modules.auth._internal.services.identity_link_service`)
-
-Users/profile-owned modules include:
-
-- Profile fields
-- Privacy settings
-- User-facing profile routes and orchestration
-- Business-level user data unrelated to auth credential/state ownership
-
-## Auth Service Modules
-
-The following facade modules implement the account-security workflows that
-`IdentityService` delegates to. They are **auth-internal**: non-auth modules reach
-this behaviour through the matching `IdentityService` methods, never by importing
-these modules directly. Each encapsulates a cluster of related auth workflows so the
-delegators stay thin and low-level auth persistence modules are not imported across
-the boundary.
-
-| Module (internal) | Responsibility | Reached via `IdentityService` |
-| ----------------- | -------------- | ----------------------------- |
-| `modules.auth._internal.services.account_security_service` | `change_own_password`, `change_managed_user_password`, session listing/revocation | `get_user_sessions`, `delete_user_session`, `change_own_password`, `change_managed_user_password` |
-| `modules.auth._internal.services.mfa_workflow` | MFA status, setup, enable, disable, backup-code status and regeneration | `get_mfa_status`, `setup_mfa`, `enable_mfa`, `disable_mfa`, `verify_mfa`, `get_backup_code_status`, `generate_backup_codes` |
-| `modules.auth._internal.services.identity_link_service` | IdP link listing, token generation, link removal, browser-redirect claiming, link counts | `get_user_identity_provider_links`, `generate_link_token`, `delete_identity_provider_link`, `validate_and_claim_browser_link_token`, `get_identity_link_counts_for_users` |
-| `modules.auth._internal.services.step_up_service` | `verify_step_up_credentials` with progressive lockout (5/5 min, 10/30 min, 15/2 hr) | used internally by the workflow modules above |
-
-## Service Placement Rule
-
-- `modules.auth._internal.services.*` owns high-level workflows, reached by non-auth callers through
-  `IdentityService` (not imported directly).
-- `modules.auth.<domain>.crud` owns persistence for one auth domain.
-- `modules.auth.<domain>.schema` owns request/response models for that domain.
-- Pure helpers may live in `modules.auth.<domain>.*` when they do not orchestrate step-up,
-  route behavior, or multi-module workflows.
-- New non-auth callers must use `modules.auth.dependencies` or `IdentityService`, not
-  `modules.auth._internal.services.*` or low-level CRUD modules.
-
-## Import-Linter Contracts
-
-The single `auth-boundary` contract in `backend/.importlinter` forbids every non-auth
-module (all other domains plus `core`) from importing:
-
-1. The private `modules.auth._internal` package — credential/token/lockout plumbing
-   (`internal_dependencies`, `password_hasher`, `token_manager`, `security_stores`) and
-   the `modules.auth._internal.services` workflow layer.
-2. Any auth CRUD module, matched structurally by the `modules.auth.*.crud` and
-   `modules.auth.*.*.crud` wildcards — for example:
-   - `modules.auth.password_reset_tokens.crud`
-   - `modules.auth.sign_up_tokens.crud`
-   - `modules.auth.sessions.crud`
-   - `modules.auth.mfa.crud`
-   - `modules.auth.mfa.backup_codes.crud`
-   - `modules.auth.identity_providers.links.crud`
-   - `modules.auth.identity_providers.link_tokens.crud`
-   - `modules.auth.credentials.crud`
-
-These workflows and persistence helpers are reached through `IdentityService`
-instead. The boundary is fully structural: there are no per-module `ignore_imports`
-exceptions.
-
-## Transaction Contract
-
-`IdentityService` does not own transaction policy. It delegates DB operations to auth CRUD helpers, and those helpers own commit/refresh behavior. When callers need multi-step atomic workflows, use dedicated CRUD/service helpers designed for that workflow.
-
-## Identity-Link Database Constraints
-
-The `modules.auth.identity_providers.links` table enforces uniqueness at the database level via two named constraints:
-
-| Constraint | Columns | Purpose |
-| ---------- | ------- | ------- |
-| `uq_identity_links_user_idp` | `(user_id, idp_id)` | Prevents a user from linking the same provider more than once |
-| `uq_identity_links_idp_subject` | `(idp_id, idp_subject)` | Prevents the same external identity from being linked to more than one Endurain account |
-
-Duplicate link attempts return HTTP 409. These constraints were added in migration `v0_18_1` (revision `a1b2c3d4e5f6`).
-
-## Known Structural Debt
-
-These items are intentionally deferred and tracked here for contributor awareness.
-
-### Step-up verification gap for SSO-only accounts
-
-SSO-only accounts (no local password) skip the password factor in
-`modules.auth._internal.services.step_up_service.verify_step_up_credentials`. MFA still gates if
-enabled, but an SSO-only user with no MFA configured receives no step-up challenge.
-
-The correct fix is to require a fresh IdP re-authentication for SSO-only accounts
-on the same sensitive-endpoint set. This is not yet implemented.
-Tracked in [issue 657](https://github.com/endurain-project/endurain/issues/657).
+The complete fix is to require fresh IdP re-authentication for SSO-only accounts on the same sensitive-endpoint set. This is not implemented. Tracked in [issue 657](https://github.com/endurain-project/endurain/issues/657).

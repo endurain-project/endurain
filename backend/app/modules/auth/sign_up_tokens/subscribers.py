@@ -39,7 +39,7 @@ def _deliver_email(
         logger.error("Sign-up email delivery failed", exc_info=err, extra=core_logger.context(kind=event_name))
         raise
     if sent:
-        logger.info("Sign-up email delivered", extra=core_logger.context(kind=event_name))
+        logger.debug("Sign-up email delivered", extra=core_logger.context(kind=event_name))
     else:
         logger.debug("Sign-up email was not delivered", extra=core_logger.context(kind=event_name))
 
@@ -55,6 +55,7 @@ def send_verification_email_for_event(event: Event) -> None:
             db,
         )
     _deliver_email(mail, message, "verification")
+    logger.debug("Sign-up verification event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
 def send_approval_request_email_for_event(event: Event) -> None:
@@ -69,6 +70,7 @@ def send_approval_request_email_for_event(event: Event) -> None:
             db,
         )
     _deliver_email(mail, message, "approval-request")
+    logger.debug("Sign-up approval-request event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
 def send_approved_email_for_event(event: Event) -> None:
@@ -82,6 +84,7 @@ def send_approved_email_for_event(event: Event) -> None:
             db,
         )
     _deliver_email(mail, message, "approved")
+    logger.debug("Sign-up approved event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
 on_sign_up_verification_requested = best_effort(send_verification_email_for_event)

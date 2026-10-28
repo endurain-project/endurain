@@ -90,6 +90,7 @@ def setup_mfa(
     response = mfa_integration.setup_user_mfa(token_user_id, db)
     db.commit()
     mfa_secret_store.add_secret(token_user_id, response.secret)
+    logger.info("MFA setup initialized", extra=core_logger.context(user_id=token_user_id))
     return response
 
 
@@ -170,6 +171,7 @@ def verify_mfa(
         raise core_exceptions.InvalidInputError("Invalid MFA code")
 
     db.commit()
+    logger.info("MFA code verified", extra=core_logger.context(user_id=token_user_id))
     return {"message": "MFA code verified successfully"}
 
 

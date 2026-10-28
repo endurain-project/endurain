@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
+import core.logger as core_logger
 import modules.auth.computation as token_hashing
 import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.email_messages as sign_up_email_messages
@@ -16,6 +17,8 @@ import modules.notifications.integration_service as notifications_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
+
+logger = core_logger.get_logger(__name__)
 
 
 def create_sign_up_token(user_id: int, db: Session) -> str:
@@ -33,6 +36,7 @@ def create_sign_up_token(user_id: int, db: Session) -> str:
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
     sign_up_crud.create_sign_up_token(sign_up_token, db)
     db.commit()
+    logger.info("Sign-up verification token created", extra=core_logger.context(user_id=user_id))
     return token
 
 
@@ -148,6 +152,7 @@ def signup(
     """Create a user and stage the configured verification event."""
     server_settings = server_settings_integration.get_server_settings(db)
     if not server_settings.signup_enabled:
+        logger.warning("Sign-up refused because registration is disabled")
         raise core_exceptions.PermissionDeniedError("User sign-up is not enabled on this server")
 
     created_user = users_integration.create_signup_user(user, server_settings, db)
@@ -185,6 +190,7 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpResponse:
     users_integration.stage_email_verification(user_id, server_settings, db)
     if user.active:
         db.commit()
+        logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
         return sign_up_schema.SignUpResponse(message="Email verified successfully.")
 
     if server_settings_integration.is_mail_configured(db):
@@ -195,6 +201,8 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpResponse:
             notifications_integration.push_notification(notification.user_id, notification, ws_message)
     else:
         db.commit()
+
+    logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
 
     message = "Email verified successfully."
     admin_approval_required: bool | None = None

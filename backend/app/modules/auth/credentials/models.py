@@ -16,8 +16,7 @@ from core.database import Base
 
 
 class LocalCredential(Base):
-    """
-    Auth-owned local password credential for a user (1:1 with ``users``).
+    """Auth-owned local password credential for a user (1:1 with ``users``).
 
     A row exists only for accounts that have a local password. SSO-only
     accounts have no row, which makes "has a local password" a simple row

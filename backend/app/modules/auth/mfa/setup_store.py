@@ -19,8 +19,7 @@ _DEFAULT_TTL_SECONDS: int = 300
 
 
 class MFASecretStoreUnavailableError(core_exceptions.ServiceUnavailableError, RuntimeError):
-    """
-    Raised when MFA secret storage cannot be reached.
+    """Raised when MFA secret storage cannot be reached.
 
     Answered as a 503 by the API boundary, so a route needs no handler of its own.
 
@@ -32,8 +31,7 @@ class MFASecretStoreUnavailableError(core_exceptions.ServiceUnavailableError, Ru
 
 
 def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
-    """
-    Log a storage outage and re-raise it as an MFA-store error.
+    """Log a storage outage and re-raise it as an MFA-store error.
 
     Args:
         err: The provider outage error.
@@ -45,8 +43,7 @@ def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
 
 
 def _user_id_digest(user_id: int) -> str:
-    """
-    Hash a user ID for storage key names.
+    """Hash a user ID for storage key names.
 
     Args:
         user_id: User ID to hash.
@@ -61,8 +58,7 @@ def _user_id_digest(user_id: int) -> str:
 
 
 def _encrypt_secret(secret: str) -> str:
-    """
-    Encrypt a plaintext MFA secret.
+    """Encrypt a plaintext MFA secret.
 
     Args:
         secret: Plaintext MFA setup secret.
@@ -81,8 +77,7 @@ def _encrypt_secret(secret: str) -> str:
 
 
 def _decrypt_secret(encrypted_secret: str) -> str | None:
-    """
-    Decrypt an encrypted MFA secret.
+    """Decrypt an encrypted MFA secret.
 
     Args:
         encrypted_secret: Fernet-encrypted MFA setup secret.
@@ -100,8 +95,7 @@ def _decrypt_secret(encrypted_secret: str) -> str | None:
 
 
 class MFASecretStore:
-    """
-    Temporary encrypted MFA setup-secret storage backed by the platform state.
+    """Temporary encrypted MFA setup-secret storage backed by the platform state.
 
     Attributes:
         DEFAULT_TTL_SECONDS: Default secret lifetime in seconds.
@@ -111,8 +105,7 @@ class MFASecretStore:
     DEFAULT_TTL_SECONDS: int = _DEFAULT_TTL_SECONDS
 
     def __init__(self, state: StateProvider) -> None:
-        """
-        Initialize the MFA secret store.
+        """Initialize the MFA secret store.
 
         Args:
             state: Platform state provider.
@@ -124,8 +117,7 @@ class MFASecretStore:
         return f"{_MFA_SECRET_KEY_PREFIX}:{_user_id_digest(user_id)}"
 
     def add_secret(self, user_id: int, secret: str) -> None:
-        """
-        Encrypt and store an MFA setup secret with TTL.
+        """Encrypt and store an MFA setup secret with TTL.
 
         Args:
             user_id: User ID to associate with the secret.
@@ -143,8 +135,7 @@ class MFASecretStore:
             _raise_store_unavailable(err)
 
     def get_secret(self, user_id: int) -> str | None:
-        """
-        Retrieve and decrypt an MFA secret if present.
+        """Retrieve and decrypt an MFA secret if present.
 
         Args:
             user_id: User ID to retrieve the secret for.
@@ -164,8 +155,7 @@ class MFASecretStore:
         return _decrypt_secret(encrypted_secret.decode())
 
     def delete_secret(self, user_id: int) -> None:
-        """
-        Remove an MFA secret from storage.
+        """Remove an MFA secret from storage.
 
         Failures are swallowed because the entry expires via TTL anyway.
 
@@ -181,8 +171,7 @@ class MFASecretStore:
             return
 
     def has_secret(self, user_id: int) -> bool:
-        """
-        Check if a non-expired secret exists for a user.
+        """Check if a non-expired secret exists for a user.
 
         Args:
             user_id: User ID to check.
@@ -199,8 +188,7 @@ class MFASecretStore:
             _raise_store_unavailable(err)
 
     def clear_all(self) -> None:
-        """
-        Remove all MFA setup secrets from storage.
+        """Remove all MFA setup secrets from storage.
 
         Returns:
             None.

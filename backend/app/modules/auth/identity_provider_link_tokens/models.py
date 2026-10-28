@@ -10,8 +10,7 @@ from core.database import Base
 
 
 class IdpLinkToken(Base):
-    """
-    One-time token for securely linking identity providers to user accounts.
+    """One-time token for securely linking identity providers to user accounts.
 
     This provides enhanced security over passing access tokens in query parameters
     by using short-lived (60 seconds), single-use tokens specifically scoped for

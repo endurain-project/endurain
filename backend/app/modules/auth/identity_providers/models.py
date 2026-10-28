@@ -11,8 +11,7 @@ from core.database import Base
 
 
 class IdentityProvider(Base):
-    """
-    Represents an external Identity Provider (IdP) configuration for authentication.
+    """Represents an external Identity Provider (IdP) configuration for authentication.
 
     Attributes:
         id (int): Primary key.

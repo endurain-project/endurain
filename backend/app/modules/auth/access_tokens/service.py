@@ -47,8 +47,7 @@ if not JWT_SECRET_KEY:
 
 
 class TokenManager:
-    """
-    TokenManager is a utility class for managing JSON Web Tokens (JWT) in user
+    """TokenManager is a utility class for managing JSON Web Tokens (JWT) in user
     sessions.
 
     This class provides methods for creating, decoding, validating, and
@@ -73,8 +72,7 @@ class TokenManager:
     """
 
     def __init__(self, secret_key: str, algorithm: str = "HS256"):
-        """
-        Initializes the TokenManager with the provided secret key and algorithm.
+        """Initializes the TokenManager with the provided secret key and algorithm.
 
         Args:
             secret_key (str): The secret key used for token encryption and
@@ -93,8 +91,7 @@ class TokenManager:
         self._key = OctKey.import_key(secret_key)
 
     def get_token_claim(self, token: str, claim: str) -> str | list[str] | int:
-        """
-        Retrieves a specific claim from a decoded JWT token.
+        """Retrieves a specific claim from a decoded JWT token.
 
         Args:
             token (str): The JWT token string to decode.
@@ -133,8 +130,7 @@ class TokenManager:
             raise core_exceptions.UnauthenticatedError("Unable to retrieve claim") from err
 
     def decode_token(self, token: str) -> Token:
-        """
-        Decodes a JWT token and returns the parsed Token object.
+        """Decodes a JWT token and returns the parsed Token object.
 
         Args:
             token (str): The JWT token to decode.
@@ -181,8 +177,7 @@ class TokenManager:
         token: str,
         expected_type: TokenType,
     ) -> None:
-        """
-        Validates expiration, required claims, and type of a JWT.
+        """Validates expiration, required claims, and type of a JWT.
 
         Checks that the token contains all essential claims, is not expired or
         used before its valid time, and that the ``typ`` claim matches the
@@ -270,8 +265,7 @@ class TokenManager:
             raise core_exceptions.UnauthenticatedError("Token expired or invalid.") from err
 
     def validate_access_expiration_logged(self, access_token: str) -> None:
-        """
-        Validate an access token's expiration and log failures consistently.
+        """Validate an access token's expiration and log failures consistently.
 
         Wraps :meth:`validate_token_expiration` for ``TokenType.ACCESS`` and
         applies the shared logging policy used by the access-token validation
@@ -306,8 +300,7 @@ class TokenManager:
         token_type: TokenType,
         ttl: timedelta,
     ) -> tuple[datetime, str]:
-        """
-        Creates a JWT token for a user session with appropriate access scope
+        """Creates a JWT token for a user session with appropriate access scope
         and expiration.
 
         Args:
@@ -360,8 +353,7 @@ class TokenManager:
 
     @staticmethod
     def create_csrf_token() -> str:
-        """
-        Generate a secure random CSRF (Cross-Site Request Forgery) token.
+        """Generate a secure random CSRF (Cross-Site Request Forgery) token.
 
         Returns:
             str: A URL-safe, securely generated random string suitable for use
@@ -371,8 +363,7 @@ class TokenManager:
 
 
 def get_token_manager() -> TokenManager:
-    """
-    Returns the singleton instance of TokenManager.
+    """Returns the singleton instance of TokenManager.
 
     This function provides access to the global token_manager instance,
     which is responsible for managing authentication tokens within the

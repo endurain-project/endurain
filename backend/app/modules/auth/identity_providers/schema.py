@@ -19,8 +19,7 @@ import core.cryptography as core_cryptography
 
 
 class IdentityProviderBase(BaseModel):
-    """
-    Base schema for an Identity Provider (IdP) configuration.
+    """Base schema for an Identity Provider (IdP) configuration.
 
     Attributes:
         name (str): Display name of the IdP (1-100 characters).
@@ -69,8 +68,7 @@ class IdentityProviderBase(BaseModel):
     @field_validator("slug")
     @classmethod
     def validate_slug(cls, v: str) -> str:
-        """
-        Validates that the provided slug contains only lowercase letters, numbers, and hyphens.
+        """Validates that the provided slug contains only lowercase letters, numbers, and hyphens.
 
         Args:
             v (str): The slug string to validate.
@@ -88,8 +86,7 @@ class IdentityProviderBase(BaseModel):
     @field_validator("provider_type")
     @classmethod
     def validate_provider_type(cls, v: str) -> str:
-        """
-        Validates that the given provider type is one of the allowed values.
+        """Validates that the given provider type is one of the allowed values.
 
         Args:
             v (str): The provider type to validate.
@@ -107,8 +104,7 @@ class IdentityProviderBase(BaseModel):
 
 
 class IdentityProviderCreate(IdentityProviderBase):
-    """
-    Schema for creating a new Identity Provider.
+    """Schema for creating a new Identity Provider.
 
     Inherits from:
         IdentityProviderBase
@@ -121,8 +117,7 @@ class IdentityProviderCreate(IdentityProviderBase):
 
 
 class IdentityProviderUpdate(IdentityProviderBase):
-    """
-    Schema for updating an existing Identity Provider.
+    """Schema for updating an existing Identity Provider.
 
     Inherits from:
         IdentityProviderBase
@@ -135,8 +130,7 @@ class IdentityProviderUpdate(IdentityProviderBase):
 
 
 class IdentityProviderRead(IdentityProviderBase):
-    """
-    Represents an identity provider with decrypted client credentials.
+    """Represents an identity provider with decrypted client credentials.
 
     Inherits from:
         IdentityProviderBase
@@ -172,8 +166,7 @@ class IdentityProviderRead(IdentityProviderBase):
 
 
 class IdentityProviderPublic(BaseModel):
-    """
-    Represents the public-facing information of an identity provider.
+    """Represents the public-facing information of an identity provider.
 
     Attributes:
         id (int): Unique identifier of the identity provider.
@@ -194,8 +187,7 @@ class IdentityProviderPublic(BaseModel):
 
 
 class IdentityProviderTemplate(BaseModel):
-    """
-    Represents a template for an identity provider configuration.
+    """Represents a template for an identity provider configuration.
 
     Attributes:
         template_id (str): Template identifier (e.g., 'keycloak', 'authentik').
@@ -221,8 +213,7 @@ class IdentityProviderTemplate(BaseModel):
 
 
 class TokenExchangeRequest(BaseModel):
-    """
-    Request schema for mobile PKCE token exchange.
+    """Request schema for mobile PKCE token exchange.
 
     After OAuth callback completes, mobile clients exchange the session_id
     for actual JWT tokens by proving they possess the code_verifier that
@@ -243,8 +234,7 @@ class TokenExchangeRequest(BaseModel):
     @field_validator("code_verifier")
     @classmethod
     def validate_code_verifier(cls, v: str) -> str:
-        """
-        Validate PKCE code_verifier format according to RFC 7636.
+        """Validate PKCE code_verifier format according to RFC 7636.
 
         Args:
             v (str): The code verifier string.
@@ -261,8 +251,7 @@ class TokenExchangeRequest(BaseModel):
 
 
 class TokenExchangeResponse(BaseModel):
-    """
-    Response schema for successful PKCE token exchange.
+    """Response schema for successful PKCE token exchange.
 
     Returns the actual JWT tokens that clients need for API access.
     Response format varies by client type:

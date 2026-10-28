@@ -3,6 +3,7 @@
 from fastapi import Request
 from sqlalchemy.orm import Session
 
+import core.dependencies as core_dependencies
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow_service
@@ -11,6 +12,13 @@ import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.identity_provider_links.schema as identity_links_schema
 import modules.auth.mfa.schema as mfa_schema
 import modules.users.users.schema as users_schema
+
+StepUpStore = step_up_store_module.StepUpStore
+
+
+def get_step_up_attempts(state: core_dependencies.PlatformState) -> StepUpStore:
+    """Resolve the shared account-security step-up attempt store."""
+    return step_up_store_module.get_step_up_attempts(state)
 
 
 def verify_step_up(

@@ -74,4 +74,4 @@ Run the full suite before opening the PR.
 | Module | Watch for |
 | --- | --- |
 | `strava` | Providers register with ingestion through `register_activity_provider`; keep them leaf modules. Follow `garmin`: stores take the `StateProvider` from a dependency, the registration lives in `integration_service`, and peers without a surface get a forwarding one first. |
-| `auth` | Surface is `identity_service.py` and `_internal/`; align naming only after the generic boundary rule exists. |
+| `auth` | Identity comes from `modules.auth.dependencies`; behavior crosses package boundaries through the owning child package's `integration_service.py`. |

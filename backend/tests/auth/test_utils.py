@@ -5,8 +5,9 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, Response
+from fastapi import Response
 
+import core.exceptions as core_exceptions
 import modules.auth.authentication.dependencies as auth_transport_dependencies
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_utils
@@ -61,7 +62,7 @@ class TestAuthenticateUser:
     def test_authenticate_user_invalid_username(self, password_hasher, mock_db):
         """Test authentication with invalid username raises 401."""
         with patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.DomainError) as exc_info:
                 auth_utils.authenticate_user("nonexistent", "password", password_hasher, mock_db)
             assert exc_info.value.status_code == 401
             assert "Unable to authenticate" in exc_info.value.detail
@@ -84,7 +85,7 @@ class TestAuthenticateUser:
                 "modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=mock_credential
             ),
         ):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.DomainError) as exc_info:
                 auth_utils.authenticate_user(username, wrong_password, password_hasher, mock_db)
             assert exc_info.value.status_code == 401
             assert "Unable to authenticate" in exc_info.value.detail
@@ -129,7 +130,7 @@ class TestAuthenticateUser:
             patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
             patch("modules.auth.authentication.service.auth_credentials_crud.get_credential", return_value=None),
         ):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.DomainError) as exc_info:
                 auth_utils.authenticate_user("ssouser", "anypass", password_hasher, mock_db)
             assert exc_info.value.status_code == 401
             assert "Unable to authenticate" in exc_info.value.detail
@@ -364,7 +365,7 @@ class TestCompleteLogin:
         invalid_client_type = "invalid"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_utils.complete_login(
                 response,
                 mock_request,
@@ -590,7 +591,7 @@ class TestCreateMobilePkceSessionResponse:
     """Tests for create_mobile_pkce_session_response."""
 
     def test_invalid_code_challenge_method_raises_400(self, password_hasher, mock_db):
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_utils.create_mobile_pkce_session_response(
                 response=Response(),
                 request=MagicMock(),
@@ -610,7 +611,7 @@ class TestCreateMobilePkceSessionResponse:
         mock_user.id = 1
 
         with (
-            patch("modules.auth.authentication.service.idp_utils.validate_pkce_challenge"),
+            patch("modules.auth.authentication.service.auth_computation.validate_pkce_challenge"),
             patch("modules.auth.authentication.service.oauth_state_crud.create_oauth_state"),
             patch("modules.auth.authentication.service.auth_sessions_utils.create_session"),
         ):

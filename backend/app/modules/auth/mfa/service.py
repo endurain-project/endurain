@@ -41,8 +41,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def generate_totp_secret() -> str:
-    """
-    Generate random TOTP secret for MFA.
+    """Generate random TOTP secret for MFA.
 
     Returns:
         Base32-encoded secret string.
@@ -51,8 +50,7 @@ def generate_totp_secret() -> str:
 
 
 def verify_totp(secret: str, token: str) -> bool:
-    """
-    Verify TOTP token against secret.
+    """Verify TOTP token against secret.
 
     Args:
         secret: Base32-encoded TOTP secret.
@@ -66,8 +64,7 @@ def verify_totp(secret: str, token: str) -> bool:
 
 
 def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> str:
-    """
-    Generate QR code for MFA setup.
+    """Generate QR code for MFA setup.
 
     Args:
         secret: TOTP secret.
@@ -105,8 +102,7 @@ def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> 
 
 
 def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupResponse:
-    """
-    Setup MFA for user.
+    """Setup MFA for user.
 
     Args:
         user_id: User ID to setup MFA for.
@@ -136,8 +132,7 @@ def enable_user_mfa(
     password_hasher: credentials_contracts.SupportsHashPassword,
     db: Session,
 ) -> list[str]:
-    """
-    Enable MFA for user after verification.
+    """Enable MFA for user after verification.
 
     Args:
         user_id: User ID to enable MFA for.
@@ -176,8 +171,7 @@ def enable_user_mfa(
 
 
 def disable_user_mfa(user_id: int, db: Session) -> None:
-    """
-    Clear MFA state for user.
+    """Clear MFA state for user.
 
     This helper does NOT verify any MFA code itself — callers
     are responsible for proving identity (e.g. via
@@ -212,8 +206,7 @@ def verify_user_mfa(
     password_verifier: credentials_contracts.SupportsVerifyPassword,
     db: Session,
 ) -> bool:
-    """
-    Verify MFA code for user (TOTP or backup code).
+    """Verify MFA code for user (TOTP or backup code).
 
     Args:
         user_id: User ID to verify MFA for.
@@ -280,8 +273,7 @@ def verify_user_mfa(
 
 
 def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
-    """
-    Check if MFA is enabled for user.
+    """Check if MFA is enabled for user.
 
     Args:
         user_id: User ID to check.

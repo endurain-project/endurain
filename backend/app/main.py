@@ -415,7 +415,7 @@ def create_app() -> FastAPI:
         core_rate_limit.rate_limit_exceeded_handler,  # type: ignore[arg-type]
     )
     fastapi_app.add_exception_handler(
-        auth_dependencies.ClearRefreshTokenCookieHTTPException,
+        auth_dependencies.ClearRefreshTokenCookieError,
         auth_dependencies.clear_refresh_token_cookie_exception_handler,  # type: ignore[arg-type]
     )
     # Single API boundary for the transport-agnostic domain errors raised by the

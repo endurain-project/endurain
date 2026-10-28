@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class SignUpToken(Base):
-    """
-    Sign-up token database model.
+    """Sign-up token database model.
 
     Attributes:
         id: Unique token identifier (string, 64 chars).

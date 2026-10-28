@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.migration_service as activities_crud
 import modules.activities.activity_exercise_titles.migration_service as activity_exercise_titles_crud
@@ -121,7 +121,7 @@ def process_migration_3(db: Session) -> None:
     # Mark migration as executed
     if activities_processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(3, db)
+            migrations_service.mark_executed(3, db)
         except Exception as err:
             logger.error(
                 f"Migration 3 - Failed to set migration as executed: {err}",

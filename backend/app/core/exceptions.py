@@ -367,9 +367,9 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
     """Render a database error that reached the boundary as an opaque 500.
 
     The one place a database failure raised outside ``crud`` is translated. A
-    ``service`` owns the commit, so a failed commit is raised there rather than
-    inside a ``handle_db_errors``-wrapped persistence function; wrapping every
-    ``db.commit()`` in its own ``try`` would repeat this in each service.
+    ``service`` owns the commit, so a failed commit reaches this boundary;
+    wrapping every ``db.commit()`` in its own ``try`` would repeat this in each
+    service.
     The session has already been rolled back by ``core.database.get_db``.
 
     Only the exception class goes in the log message: SQLAlchemy error strings

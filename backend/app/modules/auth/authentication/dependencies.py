@@ -3,7 +3,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyCookie, APIKeyHeader, OAuth2PasswordBearer
 from joserfc.errors import MissingClaimError
@@ -23,8 +23,8 @@ header_client_type_scheme = APIKeyHeader(name="X-Client-Type", auto_error=False)
 header_csrf_token_scheme = APIKeyHeader(name="X-CSRF-Token", auto_error=False)
 
 
-class ClearRefreshTokenCookieHTTPException(HTTPException):
-    """HTTP exception that clears refresh-token cookies."""
+class ClearRefreshTokenCookieError(core_exceptions.UnauthenticatedError):
+    """Authentication error that clears refresh-token cookies."""
 
 
 def _secure_cookie(environment: str) -> bool:
@@ -74,7 +74,7 @@ def clear_refresh_token_cookies(
 
 async def clear_refresh_token_cookie_exception_handler(
     request: Request,
-    exc: ClearRefreshTokenCookieHTTPException,
+    exc: ClearRefreshTokenCookieError,
 ) -> JSONResponse:
     """Render an authentication failure and clear refresh-token cookies."""
     response = core_exceptions.build_problem_response(
@@ -100,12 +100,9 @@ oauth2_scheme = OAuth2PasswordBearer(
 class ClientTypeHeader(APIKeyHeader):
     """Required X-Client-Type header that reports missing input as a 400."""
 
-    def make_not_authenticated_error(self) -> HTTPException:
+    def make_not_authenticated_error(self) -> core_exceptions.InvalidInputError:
         """Return the client-facing error for a missing client type."""
-        return HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing required X-Client-Type header (web or mobile)",
-        )
+        return core_exceptions.InvalidInputError("Missing required X-Client-Type header (web or mobile)")
 
 
 header_client_type_scheme = ClientTypeHeader(name="X-Client-Type")
@@ -122,34 +119,18 @@ def get_token(
     """Select a credential source according to client and token type."""
     if token_type == auth_token_manager.TokenType.ACCESS:
         if non_cookie_token is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Access token missing from Authorization header",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Access token missing from Authorization header")
         return non_cookie_token
     if token_type == auth_token_manager.TokenType.REFRESH:
         if client_type == "web":
             if cookie_token is None:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Refresh token missing from cookie",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
+                raise core_exceptions.UnauthenticatedError("Refresh token missing from cookie")
             return cookie_token
         if client_type == "mobile":
             if non_cookie_token is None:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Refresh token missing from Authorization header",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
+                raise core_exceptions.UnauthenticatedError("Refresh token missing from Authorization header")
             return non_cookie_token
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid client type or token type",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    raise core_exceptions.PermissionDeniedError("Invalid client type or token type")
 
 
 def get_refresh_token(
@@ -176,7 +157,7 @@ def validate_refresh_token(
     """Validate refresh-token expiry and clear stale pre-upgrade cookies."""
     try:
         token_manager.validate_token_expiration(refresh_token, auth_token_manager.TokenType.REFRESH)
-    except HTTPException as http_err:
+    except core_exceptions.DomainError as http_err:
         log_level = logging.DEBUG if "expired" in http_err.detail.lower() else logging.ERROR
         logger.log(
             log_level,
@@ -185,24 +166,15 @@ def validate_refresh_token(
             extra=core_logger.context(credential="refresh_token"),
         )
         if isinstance(http_err.__cause__, MissingClaimError):
-            raise ClearRefreshTokenCookieHTTPException(
-                status_code=http_err.status_code,
-                detail=http_err.detail,
-                headers=http_err.headers,
-            ) from http_err
+            raise ClearRefreshTokenCookieError(http_err.detail) from http_err
         raise
-    except core_exceptions.DomainError as err:
-        raise HTTPException(status_code=err.status_code, detail=err.detail) from err
     except Exception as err:
         logger.error(
             f"Unexpected error during refresh token validation: {type(err).__name__}",
             exc_info=err,
             extra=core_logger.context(credential="refresh_token"),
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during token validation",
-        ) from err
+        raise core_exceptions.ProcessingError("Internal server error during token validation") from err
 
 
 def get_sub_from_refresh_token(
@@ -215,10 +187,7 @@ def get_sub_from_refresh_token(
     """Return the decimal subject claim from a refresh token."""
     sub = token_manager.get_token_claim(refresh_token, "sub")
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sub' claim must be a decimal string",
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid token: 'sub' claim must be a decimal string")
     return int(sub)
 
 
@@ -232,10 +201,7 @@ def get_sid_from_refresh_token(
     """Return the session identifier claim from a refresh token."""
     sid = token_manager.get_token_claim(refresh_token, "sid")
     if not isinstance(sid, str):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sid' claim must be a string",
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid token: 'sid' claim must be a string")
     return sid
 
 

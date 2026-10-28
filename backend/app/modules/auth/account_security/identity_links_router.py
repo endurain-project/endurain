@@ -12,13 +12,14 @@ import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schem
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.users.users.schema as users_schema
 
-router = APIRouter(dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
+router = APIRouter()
 
 
 @router.post(
     "/{idp_id}/link/token",
     status_code=status.HTTP_201_CREATED,
     response_model=idp_link_token_schema.IdpLinkTokenResponse,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def generate_link_token(
@@ -74,6 +75,7 @@ def generate_link_token(
 @router.get(
     "",
     response_model=list[auth_identity_links_schema.UsersIdentityProviderResponse],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_my_identity_providers(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -115,6 +117,7 @@ def get_my_identity_providers(
     "/{idp_id}/unlink",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_my_identity_provider(

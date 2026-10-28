@@ -16,6 +16,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
 import modules.auth.access_tokens.integration_service as auth_token_manager
@@ -23,10 +24,9 @@ import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.security_stores as auth_security_stores
+import modules.auth.computation as auth_computation
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.integration_service as auth_password_hasher
-import modules.auth.identity_providers.integration_service as idp_integration
-import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.integration_service as oauth_state_crud
@@ -47,8 +47,7 @@ def authenticate_user(
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ) -> users_schema.UsersRead:
-    """
-    Authenticates a user by verifying the provided username and password.
+    """Authenticates a user by verifying the provided username and password.
 
     Args:
         username (str): The username of the user attempting to authenticate.
@@ -76,11 +75,7 @@ def authenticate_user(
         # is only recorded on 401, which the attacker does not care
         # about while probing existence).
         password_hasher.dummy_verify()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to authenticate with provided credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
 
     # Load the user's local password hash from the auth-owned credential
     # table. A missing row means the account has no local password.
@@ -93,20 +88,12 @@ def authenticate_user(
     # the latency consistent with a normal Argon2 verify.
     if stored_hash is None:
         password_hasher.dummy_verify()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to authenticate with provided credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
 
     # Verify password and get updated hash if applicable
     is_password_valid, updated_hash = password_hasher.verify_and_update(password, stored_hash)
     if not is_password_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to authenticate with provided credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
 
     # Update user hash if applicable
     if updated_hash:
@@ -122,8 +109,7 @@ def create_tokens(
     policy: server_settings_contracts.SessionPolicy,
     session_id: str | None = None,
 ) -> tuple[str, datetime, str, datetime, str, str]:
-    """
-    Generates session tokens for a user, including access token, refresh token, and CSRF token.
+    """Generates session tokens for a user, including access token, refresh token, and CSRF token.
 
     Args:
         user (users_schema.UsersRead): The user object for whom the tokens are being created.
@@ -172,8 +158,7 @@ def mint_access_token(
     session_id: str,
     policy: server_settings_contracts.SessionPolicy,
 ) -> tuple[datetime, str]:
-    """
-    Mint a single fresh access token for an existing session.
+    """Mint a single fresh access token for an existing session.
 
     Used by the in-grace refresh replay path, which keeps the
     existing (replayed) refresh token but still needs to hand the
@@ -268,8 +253,7 @@ def complete_login(
     token_manager: auth_token_manager.TokenManager,
     db: Session,
 ) -> dict:
-    """
-    Handles the completion of the login process by generating session and authentication tokens,
+    """Handles the completion of the login process by generating session and authentication tokens,
     storing the session in the database, and returning tokens in response body.
 
     OAuth 2.1 compliant: Returns tokens in response body for all clients.
@@ -294,11 +278,7 @@ def complete_login(
         HTTPException: If the client type is invalid, raises a 403 Forbidden error.
     """
     if client_type not in ["web", "mobile"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid client type",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.PermissionDeniedError("Invalid client type")
 
     # Create the tokens
     (
@@ -349,8 +329,7 @@ def create_mobile_pkce_session_response(
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ) -> auth_schema.MobileSessionResponse:
-    """
-    Create a session for mobile password login with PKCE exchange flow.
+    """Create a session for mobile password login with PKCE exchange flow.
 
     This function is exclusively for mobile clients. Web clients should use
     complete_login() which provides secure token delivery via httpOnly cookies.
@@ -383,12 +362,9 @@ def create_mobile_pkce_session_response(
     """
     # Validate PKCE challenge format
     if code_challenge_method != "S256":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only S256 PKCE method is supported",
-        )
+        raise core_exceptions.InvalidInputError("Only S256 PKCE method is supported")
 
-    idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
+    auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
 
     # Generate session ID
     session_id = str(uuid4())
@@ -433,8 +409,7 @@ def _validate_pkce_query_params(
     code_challenge: str | None,
     code_challenge_method: str | None,
 ) -> None:
-    """
-    Reject malformed PKCE query-parameter combinations.
+    """Reject malformed PKCE query-parameter combinations.
 
     Args:
         client_type: Client type supplied by the caller.
@@ -454,17 +429,13 @@ def _validate_pkce_query_params(
     has_complete_pkce_params = bool(code_challenge and code_challenge_method)
 
     if has_any_pkce_param and not has_complete_pkce_params:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=("code_challenge and code_challenge_method must be provided together"),
-        )
+        raise core_exceptions.InvalidInputError("code_challenge and code_challenge_method must be provided together")
 
 
 def _raise_auth_security_store_unavailable(
     err: auth_security_stores.AuthSecurityStoreUnavailableError,
 ) -> None:
-    """
-    Return a controlled response when auth security storage is down.
+    """Return a controlled response when auth security storage is down.
 
     Args:
         err: Auth security storage outage.
@@ -476,10 +447,7 @@ def _raise_auth_security_store_unavailable(
         HTTPException: Always raised with a 503 status.
     """
     logger.error("Auth security storage unavailable during authentication", exc_info=err)
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="Authentication temporarily unavailable",
-    ) from err
+    raise core_exceptions.ServiceUnavailableError("Authentication temporarily unavailable")
 
 
 def login_for_access_token(
@@ -495,8 +463,7 @@ def login_for_access_token(
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
 ):
-    """
-    Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
+    """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
     Protection Mechanisms:
     - Rate limiting: 10 requests per minute per IP (SENSITIVE tier, prevents DoS attacks)
@@ -550,9 +517,8 @@ def login_for_access_token(
             lockout_until = failed_attempts.get_lockout_time(form_data.username)
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds.",
+                raise core_exceptions.TooManyRequestsError(
+                    f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds."
                 )
     except auth_security_stores.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
@@ -560,7 +526,7 @@ def login_for_access_token(
     # Authenticate user
     try:
         user = authenticate_user(form_data.username, form_data.password, password_hasher, db)
-    except HTTPException as err:
+    except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:
             try:
@@ -636,8 +602,7 @@ def verify_mfa_and_login(
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
 ):
-    """
-    Verify MFA code and complete login process.
+    """Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
     the authentication process if the code is valid.
@@ -681,9 +646,8 @@ def verify_mfa_and_login(
             lockout_until = pending_mfa_store.get_lockout_time(mfa_request.username)
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds.",
+                raise core_exceptions.TooManyRequestsError(
+                    f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds."
                 )
     except auth_security_stores.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
@@ -701,10 +665,7 @@ def verify_mfa_and_login(
         # which usernames are mid-login by measuring response time.
         password_hasher.dummy_verify()
         logger.warning(f"No pending MFA login found for {username_log_id}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No pending MFA login found for this username",
-        )
+        raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
 
     # Verify the MFA code (TOTP or backup code)
     if not mfa_integration.verify_user_mfa(user_id, mfa_request.mfa_code, auth_credentials_crud, db):
@@ -714,10 +675,7 @@ def verify_mfa_and_login(
         except auth_security_stores.AuthSecurityStoreUnavailableError as err:
             _raise_auth_security_store_unavailable(err)
         logger.warning(f"Invalid MFA code for {username_log_id}. Failed attempts: {failed_count}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid MFA code, backup code or backup code already used.",
-        )
+        raise core_exceptions.InvalidInputError("Invalid MFA code, backup code or backup code already used.")
 
     try:
         claimed_user_id = pending_mfa_store.claim_pending_login(mfa_request.username)
@@ -725,20 +683,13 @@ def verify_mfa_and_login(
         _raise_auth_security_store_unavailable(err)
     if claimed_user_id != user_id:
         logger.warning(f"Pending MFA login for {username_log_id} was missing or already claimed")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No pending MFA login found for this username",
-        )
+        raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
 
     # Get the user and complete login
     user = users_integration.get_user(user_id, db)
     if not user:
         logger.warning(f"User ID {user_id} not found during MFA verification")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to authenticate",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
     # Check if the user is still active
     users_integration.require_active_user(user)
@@ -777,12 +728,12 @@ def refresh_token(
     refresh_token_value: str,
     password_hasher: auth_password_hasher.PasswordHasher,
     token_manager: auth_token_manager.TokenManager,
-    db: Session,
     client_type: str,
+    db: Session,
+    refresh_idp_tokens_if_needed: Callable[[int, Session], None] | None = None,
     x_csrf_token: str | None = None,
 ):
-    """
-    Handles the refresh token process for user sessions.
+    r"""Handles the refresh token process for user sessions.
 
     This endpoint validates the provided refresh token, checks session status,
     validates the CSRF token (web clients only), and issues new tokens.
@@ -819,11 +770,7 @@ def refresh_token(
 
     # Check if the session was found
     if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.NotFoundError("Session not found")
 
     # Defense-in-depth: ensure the session belongs to the user named in
     # the refresh token's `sub` claim. The refresh-token hash stored on
@@ -836,11 +783,7 @@ def refresh_token(
         logger.warning(
             f"Refresh token session owner mismatch: token sub={token_user_id}, session user_id={session.user_id}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
     # Validate session hasn't exceeded idle or absolute timeout
     policy = server_settings_integration.get_session_policy(db)
@@ -867,18 +810,12 @@ def refresh_token(
         and not auth_sessions_integration.verify_csrf_token(x_csrf_token, session.csrf_token_hash)
     ):
         # CSRF token was provided: validate it
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid CSRF token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.PermissionDeniedError("Invalid CSRF token")
 
     # Verify session has a refresh token (not pending PKCE exchange)
     if not session.refresh_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.",
-            headers={"WWW-Authenticate": "Bearer"},
+        raise core_exceptions.UnauthenticatedError(
+            "Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.", scheme="Bearer"
         )
 
     # Check for token reuse BEFORE validating token
@@ -888,11 +825,7 @@ def refresh_token(
     if is_reused and not in_grace:
         # Token theft detected - invalidate entire family
         auth_sessions_integration.invalidate_token_family(session.token_family_id, db)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token reuse detected. All sessions invalidated.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Token reuse detected. All sessions invalidated.", scheme="Bearer")
 
     if is_reused and in_grace:
         # Idempotent in-grace replay. The presented refresh token was already
@@ -908,11 +841,7 @@ def refresh_token(
         if replay is None:
             # Replacement was cleaned up (or never stored); fall back to the
             # standard invalid-token response.
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
         replay_refresh_token, replay_refresh_token_exp = replay
 
@@ -921,11 +850,7 @@ def refresh_token(
 
         if replay_user is None:
             logger.warning(f"User ID {token_user_id} not found during token refresh replay")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unable to authenticate",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
         users_integration.require_active_user(replay_user)
 
@@ -954,22 +879,14 @@ def refresh_token(
     is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
 
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
     # get user
     user = users_integration.get_user(token_user_id, db)
 
     if user is None:
         logger.warning(f"User ID {token_user_id} not found during token refresh")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to authenticate",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
     # Check if the user is active
     users_integration.require_active_user(user)
@@ -1012,7 +929,8 @@ def refresh_token(
     )
 
     # Opportunistically refresh IdP tokens for all linked identity providers
-    idp_integration.refresh_idp_tokens_if_needed(user.id, db)
+    if refresh_idp_tokens_if_needed is not None:
+        refresh_idp_tokens_if_needed(user.id, db)
 
     # Token delivery based on client type (web cookie vs mobile body) is
     # centralised in build_token_response so login, /refresh, and
@@ -1039,9 +957,9 @@ def logout(
     token_user_id: int,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
+    clear_idp_tokens: Callable[[int, Session], None] | None = None,
 ):
-    """
-    Log out a user by validating and deleting their session.
+    """Log out a user by validating and deleting their session.
 
     Args:
         response: The HTTP response object to modify cookies.
@@ -1068,10 +986,8 @@ def logout(
     if session is not None:
         # Verify session has a refresh token (not pending PKCE exchange)
         if not session.refresh_token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Tokens not yet exchanged via PKCE. Cannot logout incomplete session.",
-                headers={"WWW-Authenticate": "Bearer"},
+            raise core_exceptions.UnauthenticatedError(
+                "Tokens not yet exchanged via PKCE. Cannot logout incomplete session.", scheme="Bearer"
             )
 
         # Verify the refresh token
@@ -1079,25 +995,18 @@ def logout(
 
         # If the refresh token is not valid, raise an exception
         if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
         # Delete the session from the database
         auth_sessions_integration.delete_session(session.id, token_user_id, db)
 
         # Clear all IdP refresh tokens for security
-        idp_integration.clear_all_idp_tokens(token_user_id, db)
+        if clear_idp_tokens is not None:
+            clear_idp_tokens(token_user_id, db)
 
     if client_type == "web":
         authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
         return {"message": "Logout successful"}
     if client_type == "mobile":
         return {"message": "Logout successful"}
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid client type",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    raise core_exceptions.PermissionDeniedError("Invalid client type")

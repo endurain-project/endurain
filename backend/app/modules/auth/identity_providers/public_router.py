@@ -15,8 +15,10 @@ import core.network as core_network
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as auth_token_manager
 import modules.auth.authentication.dependencies as authentication_dependencies
-import modules.auth.authentication.service as authentication_service
+import modules.auth.authentication.integration_service as authentication_integration
+import modules.auth.computation as auth_computation
 import modules.auth.credentials.integration_service as auth_password_hasher
+import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.utils as idp_utils
@@ -40,8 +42,7 @@ def _append_query_params(url: str, params: dict[str, str]) -> str:
 
 
 def _build_link_result_url(redirect_path: str | None, idp_name: str | None, *, success: bool) -> str:
-    """
-    Build the post-link redirect that carries the result to the originating client.
+    """Build the post-link redirect that carries the result to the originating client.
 
     Honors a caller-supplied return path captured at link initiation (validated
     there against open redirects): a relative path is resolved against the
@@ -69,14 +70,12 @@ def _build_link_result_url(redirect_path: str | None, idp_name: str | None, *, s
 @router.get(
     "",
     response_model=list[idp_schema.IdentityProviderPublic],
-    status_code=status.HTTP_200_OK,
 )
 def get_enabled_identity_providers(
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> list[idp_schema.IdentityProviderPublic]:
-    """
-    Retrieve a list of enabled identity providers from the database.
+    """Retrieve a list of enabled identity providers from the database.
 
     Args:
         db (Session): SQLAlchemy database session dependency.
@@ -87,10 +86,10 @@ def get_enabled_identity_providers(
     return service.get_enabled_identity_providers(db)
 
 
-@router.get("/login/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+@router.get("/login/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT, response_class=RedirectResponse)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def initiate_login(
-    idp_slug: str,
+    idp_slug: auth_dependencies.IdentityProviderSlug,
     request: Request,
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
@@ -114,8 +113,7 @@ def initiate_login(
         ),
     ] = None,
 ):
-    """
-    Initiates the login process for a given identity provider using OAuth.
+    """Initiates the login process for a given identity provider using OAuth.
 
     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
     Both code_challenge and code_challenge_method=S256 must be provided.
@@ -157,7 +155,7 @@ def initiate_login(
             )
 
         # Validate PKCE challenge format
-        idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
+        auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
 
         # Validate redirect URL to prevent open redirect vulnerability
         idp_utils.validate_redirect_url(redirect, core_config.settings.ALLOWED_REDIRECT_SCHEMES)
@@ -208,12 +206,12 @@ def initiate_login(
         ) from err
 
 
-@router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+@router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT, response_class=RedirectResponse)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def handle_callback(
     request: Request,
     response: Response,
-    idp_slug: str,
+    idp_slug: auth_dependencies.IdentityProviderSlug,
     password_hasher: Annotated[
         auth_password_hasher.PasswordHasher,
         Depends(auth_password_hasher.get_password_hasher),
@@ -227,11 +225,11 @@ def handle_callback(
     code: str = Query(..., description="Authorization code from IdP"),
     state: str = Query(..., description="State parameter for CSRF protection"),
 ):
-    """
-    Handle OAuth callback from an identity provider.
+    """Handle OAuth callback from an identity provider.
 
     This endpoint processes the OAuth authorization callback from external identity providers.
     It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
+
     Args:
         idp_slug (str): The slug identifier of the identity provider.
         password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency for session management.
@@ -314,7 +312,7 @@ def handle_callback(
         )
 
         # Process the OAuth callback (service will handle both DB and cookie state)
-        result = service.handle_callback(idp, code, state, password_hasher, db, oauth_state)
+        result = service.handle_callback(idp, code, state, password_hasher, oauth_state, db)
 
         user = result["user"]
         is_link_mode = result.get("mode") == "link"
@@ -332,7 +330,7 @@ def handle_callback(
             )
 
         # LOGIN MODE: Create a session without tokens; token exchange supplies them after PKCE.
-        session_id = service.create_callback_session(user, request, password_hasher, db, oauth_state.id)
+        session_id = service.create_callback_session(user, request, password_hasher, oauth_state.id, db)
 
         # Redirect to frontend with session_id for token exchange
         frontend_url = core_config.settings.ENDURAIN_HOST
@@ -381,11 +379,10 @@ def handle_callback(
 @router.post(
     "/session/{session_id}/tokens",
     response_model=idp_schema.TokenExchangeResponse,
-    status_code=status.HTTP_200_OK,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def exchange_tokens_for_session(
-    session_id: str,
+    session_id: auth_dependencies.AuthSessionId,
     request: Request,
     response: Response,
     token_exchange: idp_schema.TokenExchangeRequest,
@@ -399,8 +396,7 @@ def exchange_tokens_for_session(
     ],
     db: core_dependencies.DbSession,
 ):
-    """
-    Exchange a PKCE code verifier for JWT tokens.
+    """Exchange a PKCE code verifier for JWT tokens.
 
     After OAuth callback or password PKCE login creates a session, clients
     call this endpoint to prove they possess the code_verifier (PKCE) and
@@ -549,7 +545,7 @@ def exchange_tokens_for_session(
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = authentication_service.create_tokens(
+        ) = authentication_integration.create_tokens(
             user, token_manager, server_settings_integration.get_session_policy(db), session_id
         )
 

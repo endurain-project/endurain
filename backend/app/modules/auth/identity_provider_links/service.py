@@ -15,8 +15,7 @@ def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
     idp_id: int,
     db: Session,
 ) -> str | None:
-    """
-    Get encrypted refresh token for a user-IdP link.
+    """Get encrypted refresh token for a user-IdP link.
 
     Convenience wrapper that retrieves the link and extracts
     the refresh token field. Caller must decrypt using Fernet.
@@ -47,8 +46,7 @@ def enrich_user_identity_providers(
     idps: list[auth_identity_links_contracts.IdentityProviderDetails],
     user_id: int,
 ) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
-    """
-    Enrich identity provider links with IDP details.
+    """Enrich identity provider links with IDP details.
 
     Batch fetches all IDPs in a single query to avoid N+1
     query performance issues.

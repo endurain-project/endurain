@@ -6,8 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, Strict
 
 
 class SignUpToken(BaseModel):
-    """
-    Schema representing a sign-up token record.
+    """Schema representing a sign-up token record.
 
     Attributes:
         id: Unique identifier for the token.
@@ -53,8 +52,7 @@ class SignUpToken(BaseModel):
 
 
 class SignUpConfirm(BaseModel):
-    """
-    Request schema for confirming a sign-up.
+    """Request schema for confirming a sign-up.
 
     Attributes:
         token: The sign-up token received by user.
@@ -71,8 +69,7 @@ class SignUpConfirm(BaseModel):
 
 
 class SignUpResponse(BaseModel):
-    """
-    Response schema for sign-up operations.
+    """Response schema for sign-up operations.
 
     Attributes:
         message: Human-readable result message.

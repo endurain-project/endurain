@@ -10,7 +10,7 @@ import modules.auth.account_security.account_security_service as account_securit
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.sessions.schema as auth_sessions_schema
 
-router = APIRouter(dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
+router = APIRouter()
 
 #: The identifier of one of the caller's sessions, as the auth boundary issued it.
 SessionId = Annotated[str, Path(min_length=1)]
@@ -19,6 +19,7 @@ SessionId = Annotated[str, Path(min_length=1)]
 @router.get(
     "",
     response_model=list[auth_sessions_schema.UsersSessionsRead],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -40,6 +41,7 @@ def read_sessions_me(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_other_sessions(
@@ -75,6 +77,7 @@ def delete_profile_other_sessions(
     "/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_session(

@@ -38,6 +38,7 @@ def delete_user_session(
     """Delete one authenticated user's session."""
     auth_sessions_crud.delete_session(session_id, token_user_id, db)
     db.commit()
+    logger.info("Deleted a user's session", extra=core_logger.context(user_id=token_user_id, session_id=session_id))
 
 
 def delete_all_user_sessions(user_id: int, db: Session) -> int:
@@ -88,8 +89,7 @@ def change_own_password(
     revoke_other_sessions: bool = False,
     current_session_id: str | None = None,
 ) -> None:
-    """
-    Change a user's own password after step-up verification.
+    """Change a user's own password after step-up verification.
 
     Args:
         user_id: ID of the authenticated user.
@@ -149,8 +149,7 @@ def change_managed_user_password(
     new_password: str,
     db: Session,
 ) -> None:
-    """
-    Change a managed user's password and revoke auth state.
+    """Change a managed user's password and revoke auth state.
 
     Args:
         user_id: ID of the user whose password is changed.

@@ -35,9 +35,10 @@ def send_password_reset_email_for_event(event: Event) -> None:
         logger.error("Password-reset email delivery failed", exc_info=err)
         raise
     if sent:
-        logger.info("Password-reset email delivered")
+        logger.debug("Password-reset email delivered")
     else:
         logger.debug("Password-reset email was not delivered")
+    logger.debug("Password-reset email event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
 on_password_reset_requested = best_effort(send_password_reset_email_for_event)

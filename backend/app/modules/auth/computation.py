@@ -19,8 +19,10 @@ equality lookups.
 
 import hashlib
 import hmac
+import re
 import secrets
 
+import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 
 
@@ -67,3 +69,13 @@ def hmac_sha256(value: str, secret_key: str) -> str:
         value.encode(),
         hashlib.sha256,
     ).hexdigest()
+
+
+def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> None:
+    """Validate a PKCE challenge according to RFC 7636."""
+    if code_challenge_method != "S256":
+        raise core_exceptions.InvalidInputError("Only S256 PKCE method is supported")
+    if not 43 <= len(code_challenge) <= 128:
+        raise core_exceptions.InvalidInputError("code_challenge must be 43-128 characters")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", code_challenge):
+        raise core_exceptions.InvalidInputError("code_challenge must be valid base64url")

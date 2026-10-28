@@ -13,8 +13,7 @@ from pydantic import (
 
 
 class LoginRequest(BaseModel):
-    """
-    Schema for login requests containing username and password.
+    """Schema for login requests containing username and password.
 
     Attributes:
         username: Username of the user.
@@ -28,8 +27,7 @@ class LoginRequest(BaseModel):
 
 
 class MFALoginRequest(BaseModel):
-    """
-    Schema for MFA login requests.
+    """Schema for MFA login requests.
 
     Attributes:
         username: Username of the user attempting to log in.
@@ -46,8 +44,7 @@ class MFALoginRequest(BaseModel):
 
 
 class MFARequiredResponse(BaseModel):
-    """
-    Response indicating MFA verification is required.
+    """Response indicating MFA verification is required.
 
     Attributes:
         mfa_required: Indicates whether MFA is required.
@@ -63,8 +60,7 @@ class MFARequiredResponse(BaseModel):
 
 
 class MobileSessionResponse(BaseModel):
-    """
-    Response for mobile password login with PKCE exchange flow.
+    """Response for mobile password login with PKCE exchange flow.
 
     Attributes:
         session_id: Session identifier for token exchange.
@@ -80,8 +76,7 @@ class MobileSessionResponse(BaseModel):
 
 
 class TokenResponseWeb(BaseModel):
-    """
-    Token response payload for web clients.
+    """Token response payload for web clients.
 
     Attributes:
         session_id: Session identifier.
@@ -103,8 +98,7 @@ class TokenResponseWeb(BaseModel):
 
 
 class TokenResponseMobile(BaseModel):
-    """
-    Token response payload for mobile clients.
+    """Token response payload for mobile clients.
 
     Attributes:
         session_id: Session identifier.
@@ -126,8 +120,7 @@ class TokenResponseMobile(BaseModel):
 
 
 class LogoutResponse(BaseModel):
-    """
-    Response payload returned by the logout endpoint.
+    """Response payload returned by the logout endpoint.
 
     Attributes:
         message: Human-readable confirmation message.

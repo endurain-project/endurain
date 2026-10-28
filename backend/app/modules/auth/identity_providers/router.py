@@ -1,8 +1,9 @@
 """Admin routes for identity-provider configuration."""
 
-from fastapi import APIRouter, Security, status
+from fastapi import APIRouter, Request, Security, status
 
 import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.schema as idp_schema
@@ -13,7 +14,6 @@ router = APIRouter()
 @router.get(
     "",
     response_model=list[idp_schema.IdentityProviderRead],
-    status_code=status.HTTP_200_OK,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
 def list_identity_providers(
@@ -35,7 +35,6 @@ def list_identity_providers(
 @router.get(
     "/templates",
     response_model=list[idp_schema.IdentityProviderTemplate],
-    status_code=status.HTTP_200_OK,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
 def list_idp_templates(service: idp_dependencies.IdentityProviderService) -> list[idp_schema.IdentityProviderTemplate]:
@@ -56,8 +55,10 @@ def list_idp_templates(service: idp_dependencies.IdentityProviderService) -> lis
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_identity_provider(
     idp_data: idp_schema.IdentityProviderCreate,
+    request: Request,
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> idp_schema.IdentityProviderRead:
@@ -81,12 +82,13 @@ def create_identity_provider(
 @router.put(
     "/{idp_id}",
     response_model=idp_schema.IdentityProviderRead,
-    status_code=status.HTTP_200_OK,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_identity_provider(
     idp_id: core_dependencies.PositiveId,
     idp_data: idp_schema.IdentityProviderUpdate,
+    request: Request,
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> idp_schema.IdentityProviderRead:
@@ -111,10 +113,13 @@ def update_identity_provider(
 @router.delete(
     "/{idp_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_identity_provider(
     idp_id: core_dependencies.PositiveId,
+    request: Request,
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
 ) -> None:

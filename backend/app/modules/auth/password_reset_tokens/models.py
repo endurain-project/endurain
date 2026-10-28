@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class PasswordResetToken(Base):
-    """
-    Password reset token database model.
+    """Password reset token database model.
 
     Attributes:
         id: Unique token identifier (string, 64 chars).

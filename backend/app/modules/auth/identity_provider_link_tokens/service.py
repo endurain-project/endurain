@@ -18,8 +18,7 @@ TOKEN_EXPIRY_SECONDS = 60
 
 
 def hash_idp_link_token(token: str) -> str:
-    """
-    Hash an IdP link token for storage or lookup.
+    """Hash an IdP link token for storage or lookup.
 
     Args:
         token: Plaintext link token.
@@ -33,8 +32,7 @@ def hash_idp_link_token(token: str) -> str:
 def generate_idp_link_token(
     user_id: int, idp_id: int, ip_address: str | None, db: Session
 ) -> idp_link_token_schema.IdpLinkTokenResponse:
-    """
-    Generate a one-time, short-lived token for IdP linking.
+    """Generate a one-time, short-lived token for IdP linking.
 
     Args:
         user_id: The user ID linking the identity provider.

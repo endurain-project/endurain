@@ -5,10 +5,11 @@ from __future__ import annotations
 import hmac
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
 import modules.auth.access_tokens.integration_service as auth_token_manager
@@ -116,24 +117,15 @@ def resolve_from_access_token(
 
     sub = token_manager.get_token_claim(access_token, "sub")
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sub' claim must be a decimal string",
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid token: 'sub' claim must be a decimal string")
 
     scope = token_manager.get_token_claim(access_token, "scope")
     if not isinstance(scope, list):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'scope' claim must be a list",
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid token: 'scope' claim must be a list")
 
     sid = token_manager.get_token_claim(access_token, "sid")
     if not isinstance(sid, str):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=("Invalid token: 'sid' claim must be a string"),
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid token: 'sid' claim must be a string")
 
     user = users_integration.require_user(int(sub), db)
     users_integration.require_active_user(user)
@@ -177,28 +169,16 @@ def resolve_from_api_key(
         db_key = None
 
     if db_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
+        raise core_exceptions.UnauthenticatedError("Invalid API key", scheme="ApiKey")
 
     user = users_integration.require_user(db_key.user_id, db)
     users_integration.require_active_user(user)
 
     if not db_key.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key has been revoked",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
+        raise core_exceptions.UnauthenticatedError("API key has been revoked", scheme="ApiKey")
 
     if db_key.expires_at is not None and datetime.now(UTC) > db_key.expires_at:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key has expired",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
+        raise core_exceptions.UnauthenticatedError("API key has expired", scheme="ApiKey")
 
     # Best-effort last_used_at update; never fails the request.
     try:
@@ -247,11 +227,7 @@ def resolve_from_session_cookie(
     """
     db_session = auth_sessions_crud.get_session_by_id_not_expired(session_id, db)
     if db_session is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session not found or expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise core_exceptions.UnauthenticatedError("Session not found or expired", scheme="Bearer")
 
     user = users_integration.require_user(db_session.user_id, db)
     users_integration.require_active_user(user)

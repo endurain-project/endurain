@@ -13,8 +13,7 @@ from pydantic import (
 
 
 class OAuthStateCreate(BaseModel):
-    """
-    Request to create OAuth state.
+    """Request to create OAuth state.
 
     Used internally when initiating OAuth flow. Contains all
     data needed to create a new OAuth state in database.
@@ -45,8 +44,7 @@ class OAuthStateCreate(BaseModel):
 
 
 class OAuthStateRead(BaseModel):
-    """
-    Response with OAuth state details.
+    """Response with OAuth state details.
 
     Returned when querying OAuth state from database.
     """

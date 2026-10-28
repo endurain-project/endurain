@@ -1,4 +1,4 @@
-"""What a converted module may take from ``core``, and which modules a hand-listed contract covers.
+"""What a converted module may take from ``core``.
 
 Two rules from ``docs/developer-guide/module-structure.md`` that import-linter
 states badly:
@@ -7,20 +7,14 @@ states badly:
   between a module and this application. The allowlist below names every
   ``core`` module a converted module reaches today and why, so a new reach into
   application-wide state is a reviewed diff instead of an unnoticed import.
-* ``auth-boundary`` names its source modules by hand, so a module is
-  unconstrained until someone remembers to add it. The test fails on the
-  difference.
 """
 
 import ast
-import configparser
 import pathlib
 
-from tests._helpers.module_roles import CONVERTED_MODULES, UNCONVERTED_MODULES
+from tests._helpers.module_roles import CONVERTED_MODULES
 
 _MODULES_ROOT = pathlib.Path("app/modules")
-
-_IMPORTLINTER = pathlib.Path(".importlinter")
 
 #: ``core`` modules a converted module may import, as ``{core module: reason}``.
 #: Generic primitives sit first; the entries below the divider read
@@ -114,22 +108,3 @@ class TestCoreAllowlist:
         used = {name for path in _converted_files() for name in _core_imports(path)}
         stale = sorted(set(_ALLOWED_CORE) - used)
         assert not stale, f"Remove allowlist entries that no converted module imports any more: {stale}"
-
-
-class TestAuthBoundaryCoverage:
-    """The hand-listed ``auth-boundary`` sources cover every top-level module."""
-
-    def test_auth_boundary_lists_every_module(self):
-        parser = configparser.ConfigParser(allow_no_value=True, delimiters=("=",))
-        parser.read(_IMPORTLINTER, encoding="utf-8")
-        sources = {
-            line.strip()
-            for line in parser["importlinter:contract:auth-boundary"]["source_modules"].splitlines()
-            if line.strip()
-        }
-        expected = {f"modules.{name}" for name in (*CONVERTED_MODULES, *UNCONVERTED_MODULES) if name != "auth"}
-        expected.add("core")
-        assert sources == expected, (
-            "auth-boundary source_modules must list core and every top-level module except auth; "
-            f"missing={sorted(expected - sources)} unexpected={sorted(sources - expected)}"
-        )

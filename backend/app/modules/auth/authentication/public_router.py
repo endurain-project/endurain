@@ -18,6 +18,7 @@ import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
+import modules.auth.identity_providers.integration_service as idp_integration
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.mfa.dependencies as mfa_dependencies
 
@@ -62,8 +63,7 @@ def login_for_access_token(
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
 ):
-    """
-    Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
+    """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
     Protection Mechanisms:
     - Rate limiting: 10 requests per minute per IP (SENSITIVE tier, prevents DoS attacks)
@@ -150,8 +150,7 @@ def verify_mfa_and_login(
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
 ):
-    """
-    Verify MFA code and complete login process.
+    """Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
     the authentication process if the code is valid.
@@ -229,8 +228,7 @@ def refresh_token(
     client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
     x_csrf_token: Annotated[str | None, Depends(authentication_dependencies.header_csrf_token_scheme)] = None,
 ):
-    """
-    Handles the refresh token process for user sessions.
+    r"""Handles the refresh token process for user sessions.
 
     This endpoint validates the provided refresh token, checks session status,
     validates the CSRF token (web clients only), and issues new tokens.
@@ -271,8 +269,9 @@ def refresh_token(
         refresh_token_value,
         password_hasher,
         token_manager,
-        db,
         client_type,
+        db,
+        idp_integration.refresh_idp_tokens_if_needed,
         x_csrf_token,
     )
 
@@ -302,8 +301,7 @@ def logout(
     ],
     db: core_dependencies.DbSession,
 ):
-    """
-    Log out a user by validating and deleting their session.
+    """Log out a user by validating and deleting their session.
 
     Args:
         response: The HTTP response object to modify cookies.
@@ -333,4 +331,5 @@ def logout(
         token_user_id,
         password_hasher,
         db,
+        idp_integration.clear_all_idp_tokens,
     )

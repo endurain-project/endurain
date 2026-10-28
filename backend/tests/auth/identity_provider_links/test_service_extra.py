@@ -77,7 +77,7 @@ class TestEnrichUserIdentityProviders:
         mock_idp2.provider_type = "oauth2"
 
         with patch(
-            "modules.auth.identity_providers.integration_service.get_identity_providers_by_ids"
+            "modules.auth.identity_providers.crud.get_identity_providers_by_ids"
         ) as mock_get_idps:
             mock_get_idps.return_value = [mock_idp1, mock_idp2]
 
@@ -130,7 +130,7 @@ class TestEnrichUserIdentityProviders:
         mock_idp1.provider_type = "oauth2"
 
         with (
-            patch("modules.auth.identity_providers.integration_service.get_identity_providers_by_ids") as mock_get_idps,
+            patch("modules.auth.identity_providers.crud.get_identity_providers_by_ids") as mock_get_idps,
             patch("modules.auth.identity_provider_links.service.logger") as mock_logger,
         ):
             mock_get_idps.return_value = [mock_idp1]
@@ -162,7 +162,7 @@ class TestEnrichUserIdentityProviders:
         mock_link.linked_at = now
 
         with (
-            patch("modules.auth.identity_providers.integration_service.get_identity_providers_by_ids") as mock_get_idps,
+            patch("modules.auth.identity_providers.crud.get_identity_providers_by_ids") as mock_get_idps,
             patch("modules.auth.identity_provider_links.service.logger") as mock_logger,
         ):
             mock_get_idps.return_value = []

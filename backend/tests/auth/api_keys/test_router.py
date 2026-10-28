@@ -141,7 +141,7 @@ class TestCreateUserApiKey:
         # Assert
         assert response.status_code == 404
 
-    @patch("modules.auth.account_security.api_key_service.api_keys_utils.validate_api_key_scopes")
+    @patch("modules.auth.account_security.api_key_service.api_keys_integration.validate_api_key_scopes")
     @patch("modules.auth.account_security.api_key_service.step_up_service.verify_step_up_credentials")
     @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
     def test_create_user_api_key_scope_exceeds_permission_returns_400(

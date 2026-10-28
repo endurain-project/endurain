@@ -6,8 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 
 class RotatedRefreshTokenCreate(BaseModel):
-    """
-    Schema for creating a rotated refresh token record.
+    """Schema for creating a rotated refresh token record.
 
     Attributes:
         token_family_id: UUID of the token family.
@@ -62,8 +61,7 @@ class RotatedRefreshTokenCreate(BaseModel):
 
 
 class RotatedRefreshTokenRead(RotatedRefreshTokenCreate):
-    """
-    Schema for reading a rotated refresh token record.
+    """Schema for reading a rotated refresh token record.
 
     Attributes:
         id: Unique identifier for the rotated token record.

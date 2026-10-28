@@ -10,8 +10,7 @@ from core.database import Base
 
 
 class IdentityLink(Base):
-    """
-    User-to-identity-provider association for SSO/OAuth linking.
+    """User-to-identity-provider association for SSO/OAuth linking.
 
     Attributes:
         id: Primary key.
