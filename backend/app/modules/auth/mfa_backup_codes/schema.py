@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 
 
-class MFABackupCodesResponse(BaseModel):
+class MFABackupCodesRead(BaseModel):
     """Response payload returned after generating MFA backup codes.
 
     Attributes:
@@ -19,7 +19,7 @@ class MFABackupCodesResponse(BaseModel):
     created_at: datetime
 
 
-class MFABackupCodeStatus(BaseModel):
+class MFABackupCodeStatusRead(BaseModel):
     """Aggregate status of a user's MFA backup codes.
 
     Attributes:

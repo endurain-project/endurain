@@ -52,7 +52,7 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
   }
 }
 
-/** Builds a full `IdentityProviderTemplate` wire payload, overridable per case. */
+/** Builds a full `IdentityProviderTemplateRead` wire payload, overridable per case. */
 function makeTemplateDto(
   overrides: Partial<IdentityProviderTemplateDto> = {},
 ): IdentityProviderTemplateDto {

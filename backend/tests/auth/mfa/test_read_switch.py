@@ -96,7 +96,7 @@ class TestSetupUserMFAReadSwitch:
 
     def test_proceeds_when_auth_mfa_disabled(self, mock_db):
         """
-        Returns MFASetupResponse when auth_mfa.mfa_enabled is False.
+        Returns MFASetupRead when auth_mfa.mfa_enabled is False.
         """
         user = _make_user(mfa_enabled=False)
         user.auth_mfa = MagicMock(spec=auth_mfa_models.UsersMFA)
@@ -109,7 +109,7 @@ class TestSetupUserMFAReadSwitch:
 
     def test_proceeds_when_auth_mfa_row_missing(self, mock_db):
         """
-        Returns MFASetupResponse when auth_mfa is None
+        Returns MFASetupRead when auth_mfa is None
         (pre-migration edge case).
         """
         user = _make_user()

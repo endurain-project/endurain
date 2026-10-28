@@ -18,13 +18,13 @@ router = APIRouter()
 # MFA logic
 @router.get(
     "/status",
-    response_model=mfa_schema.MFAStatusResponse,
+    response_model=mfa_schema.MFAStatusRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_mfa_status(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-) -> mfa_schema.MFAStatusResponse:
+) -> mfa_schema.MFAStatusRead:
     """Return MFA enabled status for authenticated user.
 
     Args:
@@ -39,13 +39,13 @@ def get_mfa_status(
 
 @router.get(
     "/backup-codes/status",
-    response_model=mfa_backup_codes_schema.MFABackupCodeStatus,
+    response_model=mfa_backup_codes_schema.MFABackupCodeStatusRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_backup_code_status(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-) -> mfa_backup_codes_schema.MFABackupCodeStatus:
+) -> mfa_backup_codes_schema.MFABackupCodeStatusRead:
     """Retrieve MFA backup code status for authenticated user.
 
     Args:
@@ -61,7 +61,7 @@ def get_backup_code_status(
 @router.post(
     "/setup",
     status_code=status.HTTP_201_CREATED,
-    response_model=mfa_schema.MFASetupResponse,
+    response_model=mfa_schema.MFASetupRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -73,7 +73,7 @@ def setup_mfa(
         Depends(auth_dependencies.get_mfa_secret_store),
     ],
     db: core_dependencies.DbSession,
-) -> mfa_schema.MFASetupResponse:
+) -> mfa_schema.MFASetupRead:
     """Initiate MFA setup for authenticated user.
 
     Args:
@@ -88,7 +88,11 @@ def setup_mfa(
     return mfa_workflow_service.setup_mfa(token_user_id, mfa_secret_store, db)
 
 
-@router.put("/enable", response_model=dict, dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])])
+@router.put(
+    "/enable",
+    response_model=mfa_schema.MFAEnableRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def enable_mfa(
     request: Request,
@@ -103,7 +107,7 @@ def enable_mfa(
         Depends(auth_dependencies.get_mfa_secret_store),
     ],
     db: core_dependencies.DbSession,
-) -> dict:
+) -> mfa_schema.MFAEnableRead:
     """Enable MFA for authenticated user after step-up verification.
 
     A stolen access token alone must not be sufficient to enrol a
@@ -139,7 +143,9 @@ def enable_mfa(
 
 
 @router.put(
-    "/disable", response_model=dict, dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])]
+    "/disable",
+    response_model=mfa_schema.MFADisableRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def disable_mfa(
@@ -151,7 +157,7 @@ def disable_mfa(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> dict:
+) -> mfa_schema.MFADisableRead:
     """Disable MFA for authenticated user after step-up verification.
 
     Disabling MFA materially weakens the account's security
@@ -184,7 +190,9 @@ def disable_mfa(
 
 
 @router.post(
-    "/verify", response_model=dict, dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])]
+    "/verify",
+    response_model=mfa_schema.MFAVerifyRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def verify_mfa(
@@ -192,7 +200,7 @@ def verify_mfa(
     mfa_request: mfa_schema.MFARequest,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-) -> dict:
+) -> mfa_schema.MFAVerifyRead:
     """Verify MFA code for authenticated user.
 
     Args:
@@ -214,7 +222,7 @@ def verify_mfa(
 @router.post(
     "/backup-codes",
     status_code=status.HTTP_201_CREATED,
-    response_model=mfa_backup_codes_schema.MFABackupCodesResponse,
+    response_model=mfa_backup_codes_schema.MFABackupCodesRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -228,7 +236,7 @@ def generate_mfa_backup_codes(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> mfa_backup_codes_schema.MFABackupCodesResponse:
+) -> mfa_backup_codes_schema.MFABackupCodesRead:
     """Generate new MFA backup codes for authenticated user.
 
     Requires step-up verification (current password + MFA code,

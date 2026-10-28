@@ -171,7 +171,7 @@ class IdentityProviderRead(IdentityProviderBase):
         return value
 
 
-class IdentityProviderPublic(BaseModel):
+class IdentityProviderPublicRead(BaseModel):
     """Represents the public-facing information of an identity provider.
 
     Attributes:
@@ -192,7 +192,7 @@ class IdentityProviderPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid", validate_assignment=True)
 
 
-class IdentityProviderTemplate(BaseModel):
+class IdentityProviderTemplateRead(BaseModel):
     """Represents a template for an identity provider configuration.
 
     Attributes:
@@ -256,7 +256,7 @@ class TokenExchangeRequest(BaseModel):
         return v
 
 
-class TokenExchangeResponse(BaseModel):
+class TokenExchangeRead(BaseModel):
     """Response schema for successful PKCE token exchange.
 
     Returns the actual JWT tokens that clients need for API access.

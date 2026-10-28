@@ -101,7 +101,7 @@ def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> 
 # ---------------------------------------------------------------------------
 
 
-def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupResponse:
+def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupRead:
     """Setup MFA for user.
 
     Args:
@@ -122,7 +122,7 @@ def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupResponse:
     secret = generate_totp_secret()
     qr_code = generate_qr_code(secret, user.username)
 
-    return mfa_schema.MFASetupResponse(secret=secret, qr_code=qr_code, app_name="Endurain")
+    return mfa_schema.MFASetupRead(secret=secret, qr_code=qr_code, app_name="Endurain")
 
 
 def enable_user_mfa(

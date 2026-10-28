@@ -8,12 +8,12 @@ from pydantic import ValidationError
 from modules.auth.identity_providers.schema import (
     IdentityProviderBase,
     IdentityProviderCreate,
-    IdentityProviderPublic,
+    IdentityProviderPublicRead,
     IdentityProviderRead,
-    IdentityProviderTemplate,
+    IdentityProviderTemplateRead,
     IdentityProviderUpdate,
+    TokenExchangeRead,
     TokenExchangeRequest,
-    TokenExchangeResponse,
 )
 
 
@@ -514,17 +514,17 @@ class TestIdentityProvider:
 
 
 class TestIdentityProviderPublic:
-    """Test suite for IdentityProviderPublic schema."""
+    """Test suite for IdentityProviderPublicRead schema."""
 
     def test_valid_identity_provider_public(self):
-        """Test creating a valid IdentityProviderPublic instance.
+        """Test creating a valid IdentityProviderPublicRead instance.
 
         Asserts:
             - Instance is created successfully
             - Only public fields are present
         """
         # Arrange & Act
-        idp = IdentityProviderPublic(id=1, name="Test Provider", slug="test-provider", icon="test-icon")
+        idp = IdentityProviderPublicRead(id=1, name="Test Provider", slug="test-provider", icon="test-icon")
 
         # Assert
         assert idp.id == 1
@@ -533,26 +533,26 @@ class TestIdentityProviderPublic:
         assert idp.icon == "test-icon"
 
     def test_identity_provider_public_icon_optional(self):
-        """Test icon field is optional for IdentityProviderPublic.
+        """Test icon field is optional for IdentityProviderPublicRead.
 
         Asserts:
             - Instance can be created without icon
             - icon defaults to None
         """
         # Arrange & Act
-        idp = IdentityProviderPublic(id=1, name="Test", slug="test")
+        idp = IdentityProviderPublicRead(id=1, name="Test", slug="test")
 
         # Assert
         assert idp.icon is None
 
     def test_identity_provider_public_no_sensitive_fields(self):
-        """Test IdentityProviderPublic doesn't have sensitive fields.
+        """Test IdentityProviderPublicRead doesn't have sensitive fields.
 
         Asserts:
             - client_id, client_secret are not present
         """
         # Arrange & Act
-        idp = IdentityProviderPublic(id=1, name="Test", slug="test")
+        idp = IdentityProviderPublicRead(id=1, name="Test", slug="test")
 
         # Assert
         assert not hasattr(idp, "client_id")
@@ -560,17 +560,17 @@ class TestIdentityProviderPublic:
 
 
 class TestIdentityProviderTemplate:
-    """Test suite for IdentityProviderTemplate schema."""
+    """Test suite for IdentityProviderTemplateRead schema."""
 
     def test_valid_identity_provider_template(self):
-        """Test creating a valid IdentityProviderTemplate instance.
+        """Test creating a valid IdentityProviderTemplateRead instance.
 
         Asserts:
             - Instance is created successfully
             - All fields are set correctly
         """
         # Arrange & Act
-        template = IdentityProviderTemplate(
+        template = IdentityProviderTemplateRead(
             template_id="keycloak",
             name="Keycloak",
             provider_type="oidc",
@@ -597,27 +597,27 @@ class TestIdentityProviderTemplate:
         assert template.configuration_notes == "Setup instructions here"
 
     def test_template_required_fields(self):
-        """Test required fields for IdentityProviderTemplate.
+        """Test required fields for IdentityProviderTemplateRead.
 
         Asserts:
             - ValidationError is raised when required fields are missing
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            IdentityProviderTemplate()
+            IdentityProviderTemplateRead()
 
         error_str = str(exc_info.value)
         assert "template_id" in error_str or "Field required" in error_str
 
     def test_template_optional_fields(self):
-        """Test optional fields for IdentityProviderTemplate.
+        """Test optional fields for IdentityProviderTemplateRead.
 
         Asserts:
             - Template can be created with only required fields
             - Optional fields default to None
         """
         # Arrange & Act
-        template = IdentityProviderTemplate(
+        template = IdentityProviderTemplateRead(
             template_id="custom",
             name="Custom Provider",
             provider_type="oidc",
@@ -716,17 +716,17 @@ class TestTokenExchangeRequest:
 
 
 class TestTokenExchangeResponse:
-    """Test suite for TokenExchangeResponse schema."""
+    """Test suite for TokenExchangeRead schema."""
 
     def test_valid_token_exchange_response(self):
-        """Test creating a valid TokenExchangeResponse instance.
+        """Test creating a valid TokenExchangeRead instance.
 
         Asserts:
             - Instance is created successfully with all required fields
             - Default values are applied
         """
         # Arrange & Act
-        response = TokenExchangeResponse(
+        response = TokenExchangeRead(
             session_id="session-123",
             access_token="access-token-xyz",
             refresh_token="refresh-token-abc",
@@ -742,26 +742,26 @@ class TestTokenExchangeResponse:
         assert response.token_type == "Bearer"  # Default value
 
     def test_token_exchange_response_required_fields(self):
-        """Test required fields for TokenExchangeResponse.
+        """Test required fields for TokenExchangeRead.
 
         Asserts:
             - ValidationError is raised when required fields are missing
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            TokenExchangeResponse()
+            TokenExchangeRead()
 
         error_str = str(exc_info.value)
         assert "session_id" in error_str or "access_token" in error_str
 
     def test_token_exchange_response_custom_expires_in(self):
-        """Test custom expires_in value for TokenExchangeResponse.
+        """Test custom expires_in value for TokenExchangeRead.
 
         Asserts:
             - Custom expires_in value can be set
         """
         # Arrange & Act
-        response = TokenExchangeResponse(
+        response = TokenExchangeRead(
             session_id="session-123",
             access_token="access-token-xyz",
             refresh_token="refresh-token-abc",
@@ -773,13 +773,13 @@ class TestTokenExchangeResponse:
         assert response.expires_in == 1800
 
     def test_token_exchange_response_custom_token_type(self):
-        """Test custom token_type value for TokenExchangeResponse.
+        """Test custom token_type value for TokenExchangeRead.
 
         Asserts:
             - Custom token_type value can be set
         """
         # Arrange & Act
-        response = TokenExchangeResponse(
+        response = TokenExchangeRead(
             session_id="session-123",
             access_token="access-token-xyz",
             refresh_token="refresh-token-abc",

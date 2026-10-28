@@ -74,7 +74,7 @@ def delete_other_user_sessions(user_id: int, current_session_id: str, db: Sessio
     return account_security_service.delete_other_user_sessions(user_id, current_session_id, db)
 
 
-def get_mfa_status(user_id: int, db: Session) -> mfa_schema.MFAStatusResponse:
+def get_mfa_status(user_id: int, db: Session) -> mfa_schema.MFAStatusRead:
     """Return whether MFA is enabled for a user."""
     return mfa_workflow_service.get_mfa_status(user_id, db)
 
@@ -82,7 +82,7 @@ def get_mfa_status(user_id: int, db: Session) -> mfa_schema.MFAStatusResponse:
 def get_user_identity_provider_links(
     user_id: int,
     db: Session,
-) -> list[identity_links_schema.UsersIdentityProviderResponse]:
+) -> list[identity_links_schema.IdentityProviderLinkRead]:
     """Return enriched identity-provider links for a user."""
     return identity_link_service.get_user_identity_provider_links(user_id, db)
 

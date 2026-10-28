@@ -22,7 +22,7 @@ def create_user_api_key(
     data: api_keys_schema.UsersApiKeyCreate,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
-) -> api_keys_schema.UsersApiKeyCreated:
+) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Verify step-up, stage a key, and commit it before returning its secret once."""
     step_up_service.verify_step_up_credentials(user_id, data.current_password, data.mfa_code, step_up_store, db)
     user = users_integration.require_user(user_id, db)
@@ -31,7 +31,7 @@ def create_user_api_key(
     api_key = api_keys_integration.create_api_key(user_id, data, raw_key, db)
     db.commit()
     logger.info("API key created", extra=core_logger.context(user_id=user_id, api_key_id=api_key.id, name=data.name))
-    return api_keys_schema.UsersApiKeyCreated(**api_key.model_dump(), key=raw_key)
+    return api_keys_schema.UsersApiKeyCreatedRead(**api_key.model_dump(), key=raw_key)
 
 
 def revoke_user_api_key(api_key_id: str, user_id: int, db: Session) -> None:

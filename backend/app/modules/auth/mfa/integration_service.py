@@ -26,7 +26,7 @@ def verify_user_mfa(
     return mfa_service.verify_user_mfa(user_id, mfa_code, password_verifier, db)
 
 
-def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupResponse:
+def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupRead:
     """Create setup material for a user's TOTP secret."""
     return mfa_service.setup_user_mfa(user_id, db)
 

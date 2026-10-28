@@ -141,7 +141,7 @@ class TestReadUsersMe:
         mock_get_integrations.return_value = _make_integration_mock()
         mock_get_privacy.return_value = _make_privacy_mock()
         mock_auth_services.has_local_password.return_value = True
-        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusResponse(mfa_enabled=False)
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
 
         response = profile_client.get(PREFIX)
 
@@ -163,7 +163,7 @@ class TestReadUsersMe:
         mock_get_integrations.return_value = _make_integration_mock()
         mock_get_privacy.return_value = _make_privacy_mock()
         mock_auth_services.has_local_password.return_value = True
-        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusResponse(mfa_enabled=True)
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=True)
 
         response = profile_client.get(PREFIX)
 
@@ -799,7 +799,7 @@ class TestSetupMFA:
 
     def test_success(self, profile_client, fake_mfa_secret_store, mock_auth_services):
         """Happy path: create MFA setup."""
-        mock_auth_services.setup_mfa.return_value = mfa_schema.MFASetupResponse(
+        mock_auth_services.setup_mfa.return_value = mfa_schema.MFASetupRead(
             secret="SECRETKEY",
             qr_code="base64qr",
             app_name="Endurain",

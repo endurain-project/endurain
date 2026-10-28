@@ -32,7 +32,7 @@ def enrich_user_identity_providers(
     idp_links: list[identity_links_contracts.IdentityLinkRead],
     user_id: int,
     db: Session,
-) -> list[identity_links_schema.UsersIdentityProviderResponse]:
+) -> list[identity_links_schema.IdentityProviderLinkRead]:
     """Add identity-provider display fields to a user's links."""
     if not idp_links:
         return []

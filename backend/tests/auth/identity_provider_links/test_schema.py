@@ -6,10 +6,10 @@ import pytest
 from pydantic import ValidationError
 
 from modules.auth.identity_provider_links.schema import (
+    IdentityProviderLinkRead,
     UsersIdentityProviderBase,
     UsersIdentityProviderCreate,
     UsersIdentityProviderRead,
-    UsersIdentityProviderResponse,
     UsersIdentityProviderTokenUpdate,
 )
 
@@ -258,10 +258,10 @@ class TestUserIdentityProviderRead:
 
 
 class TestUserIdentityProviderResponse:
-    """Test suite for UsersIdentityProviderResponse schema."""
+    """Test suite for IdentityProviderLinkRead schema."""
 
     def test_user_identity_provider_response_valid_minimal(self):
-        """Test creating UsersIdentityProviderResponse with required fields.
+        """Test creating IdentityProviderLinkRead with required fields.
 
         Asserts:
             - Required fields are present
@@ -278,7 +278,7 @@ class TestUserIdentityProviderResponse:
         }
 
         # Act
-        obj = UsersIdentityProviderResponse(**data)
+        obj = IdentityProviderLinkRead(**data)
 
         # Assert
         assert obj.id == 1
@@ -286,7 +286,7 @@ class TestUserIdentityProviderResponse:
         assert obj.idp_slug is None
 
     def test_user_identity_provider_response_valid_enriched(self):
-        """Test creating UsersIdentityProviderResponse with enriched fields.
+        """Test creating IdentityProviderLinkRead with enriched fields.
 
         Asserts:
             - Enriched fields are properly stored
@@ -307,7 +307,7 @@ class TestUserIdentityProviderResponse:
         }
 
         # Act
-        obj = UsersIdentityProviderResponse(**data)
+        obj = IdentityProviderLinkRead(**data)
 
         # Assert
         assert obj.idp_name == "Strava"
@@ -334,7 +334,7 @@ class TestUserIdentityProviderResponse:
             idp_refresh_token_updated_at = None
 
         # Act
-        obj = UsersIdentityProviderResponse.model_validate(MockORM())
+        obj = IdentityProviderLinkRead.model_validate(MockORM())
 
         # Assert
         assert obj.id == 1

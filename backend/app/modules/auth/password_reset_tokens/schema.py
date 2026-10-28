@@ -90,7 +90,7 @@ class PasswordResetConfirm(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class PasswordResetResponse(BaseModel):
+class PasswordResetRead(BaseModel):
     """Response schema for password reset operations.
 
     Attributes:

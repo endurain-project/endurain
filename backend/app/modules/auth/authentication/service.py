@@ -329,7 +329,7 @@ def create_mobile_pkce_session_response(
     code_challenge_method: str,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
-) -> auth_schema.MobileSessionResponse:
+) -> auth_schema.MobileSessionRead:
     """Create a session for mobile password login with PKCE exchange flow.
 
     This function is exclusively for mobile clients. Web clients should use
@@ -349,7 +349,7 @@ def create_mobile_pkce_session_response(
         db: Database session
 
     Returns:
-        auth_schema.MobileSessionResponse: Contains session_id and mfa_required flag
+        auth_schema.MobileSessionRead: Contains session_id and mfa_required flag
 
     Raises:
         HTTPException: If PKCE parameters are invalid
@@ -398,7 +398,7 @@ def create_mobile_pkce_session_response(
     )
 
     # Return session_id for token exchange (no tokens yet)
-    return auth_schema.MobileSessionResponse(
+    return auth_schema.MobileSessionRead(
         session_id=session_id,
         mfa_required=False,
         message=("Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"),
@@ -498,7 +498,7 @@ def login_for_access_token(
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Union[auth_schema.MFARequiredResponse, dict, str]:
+        Union[auth_schema.MFARequiredRead, dict, str]:
             - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
             - If MFA is not required and mobile client with PKCE, returns session_id for token exchange
             - If MFA is not required and no PKCE, proceeds with normal login via complete_login()
@@ -553,7 +553,7 @@ def login_for_access_token(
         # Return MFA required response
         if client_type == "web":
             response.status_code = status.HTTP_202_ACCEPTED
-            return auth_schema.MFARequiredResponse(
+            return auth_schema.MFARequiredRead(
                 mfa_required=True,
                 username=form_data.username,
                 message="MFA verification required",

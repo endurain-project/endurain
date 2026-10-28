@@ -10,7 +10,7 @@ export type IdentityProviderCreateDto = Schemas['IdentityProviderCreate']
 export type IdentityProviderUpdateDto = Schemas['IdentityProviderUpdate']
 
 /** Raw identity-provider preset payload (snake_case wire shape). */
-export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplate']
+export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplateRead']
 
 /**
  * The clean, camel-cased identity-provider model used across the admin zone.

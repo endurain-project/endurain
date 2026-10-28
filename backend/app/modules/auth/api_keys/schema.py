@@ -123,7 +123,7 @@ class UsersApiKeyRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UsersApiKeyCreated(UsersApiKeyRead):
+class UsersApiKeyCreatedRead(UsersApiKeyRead):
     """API key creation response schema.
 
     Extends UsersApiKeyRead with the raw key, returned

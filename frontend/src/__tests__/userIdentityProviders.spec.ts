@@ -13,7 +13,7 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
-/** Builds a full `UsersIdentityProviderResponse` wire payload, overridable per case. */
+/** Builds a full `IdentityProviderLinkRead` wire payload, overridable per case. */
 function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdentityProviderDto {
   return {
     id: 3,

@@ -219,16 +219,16 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
 }
 
 
-def get_idp_templates() -> list[idp_schema.IdentityProviderTemplate]:
+def get_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
     """Retrieve a list of identity provider templates, excluding specific providers.
 
     Returns:
-        list[idp_schema.IdentityProviderTemplate]:
-            A list of IdentityProviderTemplate objects for all identity providers.
+        list[idp_schema.IdentityProviderTemplateRead]:
+            A list of IdentityProviderTemplateRead objects for all identity providers.
     """
     templates = []
     for template_id, template_data in IDP_TEMPLATES.items():
-        templates.append(idp_schema.IdentityProviderTemplate(template_id=template_id, **template_data))
+        templates.append(idp_schema.IdentityProviderTemplateRead(template_id=template_id, **template_data))
     return templates
 
 

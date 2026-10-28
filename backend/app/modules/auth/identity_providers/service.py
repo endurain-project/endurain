@@ -168,16 +168,16 @@ class IdentityProviderService:
         """Return an identity-provider state by slug."""
         return idp_crud.get_identity_provider_by_slug(slug, db)
 
-    def get_enabled_identity_providers(self, db: Session) -> list[identity_provider_schema.IdentityProviderPublic]:
+    def get_enabled_identity_providers(self, db: Session) -> list[identity_provider_schema.IdentityProviderPublicRead]:
         """Return public fields for enabled identity providers."""
         return [
-            identity_provider_schema.IdentityProviderPublic(
+            identity_provider_schema.IdentityProviderPublicRead(
                 id=state.id, name=state.name, slug=state.slug, icon=state.icon
             )
             for state in idp_crud.get_enabled_identity_providers(db)
         ]
 
-    def get_idp_templates(self) -> list[identity_provider_schema.IdentityProviderTemplate]:
+    def get_idp_templates(self) -> list[identity_provider_schema.IdentityProviderTemplateRead]:
         """Return the configured provider templates."""
         return identity_provider_utils.get_idp_templates()
 

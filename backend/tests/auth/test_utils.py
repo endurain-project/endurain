@@ -621,6 +621,6 @@ class TestCreateMobilePkceSessionResponse:
                 db=mock_db,
             )
 
-        assert isinstance(result, auth_schema.MobileSessionResponse)
+        assert isinstance(result, auth_schema.MobileSessionRead)
         assert result.session_id is not None
         assert result.mfa_required is False

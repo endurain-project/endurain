@@ -67,11 +67,11 @@ export type UserProfileDto = Pick<
 
 /**
  * Backend response indicating that MFA is required before login completes.
- * Derived from the generated `MFARequiredResponse` schema, with
+ * Derived from the generated `MFARequiredRead` schema, with
  * `mfa_required` narrowed to the literal `true` so it acts as the discriminant
  * of the {@link LoginResponse} union.
  */
-export type MfaRequiredResponse = Omit<Schemas['MFARequiredResponse'], 'mfa_required'> & {
+export type MfaRequiredResponse = Omit<Schemas['MFARequiredRead'], 'mfa_required'> & {
   mfa_required: true
 }
 
@@ -85,11 +85,11 @@ export type LoginResponse = AuthTokenResponse | MfaRequiredResponse
 export type MfaLoginRequest = Schemas['MFALoginRequest']
 
 /**
- * Logout response from the backend. Derived from the generated `LogoutResponse`
+ * Logout response from the backend. Derived from the generated `LogoutRead`
  * schema so a contract change surfaces as a TypeScript error here instead of a
  * silent runtime mismatch.
  */
-export type LogoutResponse = Schemas['LogoutResponse']
+export type LogoutResponse = Schemas['LogoutRead']
 
 /**
  * Sign-up request payload sent to `POST /sign-up/request`. Derived from the
@@ -102,4 +102,4 @@ export type SignUpRequest = Schemas['UsersSignup']
  * Sign-up response returned by `POST /sign-up/request`, indicating whether the
  * account still needs email verification and/or admin approval before login.
  */
-export type SignUpResponse = Schemas['SignUpResponse']
+export type SignUpResponse = Schemas['SignUpRead']

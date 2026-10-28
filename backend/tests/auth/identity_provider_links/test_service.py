@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.identity_providers.integration_service as identity_links_utils
-from modules.auth.identity_provider_links.schema import UsersIdentityProviderResponse
+from modules.auth.identity_provider_links.schema import IdentityProviderLinkRead
 
 
 class TestGetUserIdentityProviderRefreshToken:
@@ -86,7 +86,7 @@ class TestEnrichUserIdentityProviders:
             mock_db: Mocked database session.
 
         Asserts:
-            - Returns enriched UsersIdentityProviderResponse list.
+            - Returns enriched IdentityProviderLinkRead list.
             - idp_crud called once for batch fetch.
         """
         now = datetime.now(UTC)
@@ -115,7 +115,7 @@ class TestEnrichUserIdentityProviders:
             result = identity_links_utils.enrich_user_identity_providers([mock_link], 1, mock_db)
 
         assert len(result) == 1
-        assert isinstance(result[0], UsersIdentityProviderResponse)
+        assert isinstance(result[0], IdentityProviderLinkRead)
         assert result[0].idp_name == "TestIdP"
         assert result[0].idp_slug == "test-idp"
         assert result[0].idp_icon == "https://example.com/icon.svg"

@@ -36,10 +36,12 @@ def list_identity_providers(
 
 @router.get(
     "/templates",
-    response_model=list[idp_schema.IdentityProviderTemplate],
+    response_model=list[idp_schema.IdentityProviderTemplateRead],
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
-def list_idp_templates(service: idp_dependencies.IdentityProviderService) -> list[idp_schema.IdentityProviderTemplate]:
+def list_idp_templates(
+    service: idp_dependencies.IdentityProviderService,
+) -> list[idp_schema.IdentityProviderTemplateRead]:
     """Get the list of pre-configured IdP templates (admin only).
 
     Args:

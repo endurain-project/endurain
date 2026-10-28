@@ -8385,7 +8385,100 @@ export interface components {
             userinfo_endpoint?: string | null;
         };
         /**
-         * IdentityProviderPublic
+         * IdentityProviderLinkRead
+         * @description Response schema with enriched identity provider details.
+         *
+         *     Extends Read schema with display fields added by API layer
+         *     for frontend convenience.
+         *
+         *     Attributes:
+         *         idp_name: Identity provider name (enriched).
+         *         idp_slug: Identity provider slug (enriched).
+         *         idp_icon: Identity provider icon (enriched).
+         *         idp_provider_type: Provider type (enriched).
+         */
+        IdentityProviderLinkRead: {
+            /**
+             * Id
+             * @description Link ID
+             */
+            id: number;
+            /**
+             * Idp Access Token Expires At
+             * @description Access token expiry
+             */
+            idp_access_token_expires_at?: string | null;
+            /**
+             * Idp Icon
+             * @description Identity provider icon
+             */
+            idp_icon?: string | null;
+            /**
+             * Idp Id
+             * @description Identity Provider ID
+             */
+            idp_id: number;
+            /**
+             * Idp Name
+             * @description Identity provider name
+             */
+            idp_name?: string | null;
+            /**
+             * Idp Provider Type
+             * @description Provider type
+             */
+            idp_provider_type?: string | null;
+            /**
+             * Idp Refresh Token Updated At
+             * @description Last refresh token update
+             */
+            idp_refresh_token_updated_at?: string | null;
+            /**
+             * Idp Slug
+             * @description Identity provider slug
+             */
+            idp_slug?: string | null;
+            /**
+             * Idp Subject
+             * @description Subject/ID from the identity provider
+             */
+            idp_subject: string;
+            /**
+             * Last Login
+             * @description Last login using this IdP
+             */
+            last_login?: string | null;
+            /**
+             * Linked At
+             * Format: date-time
+             * @description When linked
+             */
+            linked_at: string;
+            /**
+             * User Id
+             * @description User ID
+             */
+            user_id: number;
+        };
+        /**
+         * IdentityProviderLinkTokenRead
+         * @description Schema for IdP link token response.
+         */
+        IdentityProviderLinkTokenRead: {
+            /**
+             * Expires At
+             * Format: date-time
+             * @description Token expiration timestamp
+             */
+            expires_at: string;
+            /**
+             * Token
+             * @description One-time link token
+             */
+            token: string;
+        };
+        /**
+         * IdentityProviderPublicRead
          * @description Represents the public-facing information of an identity provider.
          *
          *     Attributes:
@@ -8397,7 +8490,7 @@ export interface components {
          *     Config:
          *         model_config (dict): Pydantic model configuration to allow population from ORM attributes.
          */
-        IdentityProviderPublic: {
+        IdentityProviderPublicRead: {
             /** Icon */
             icon?: string | null;
             /** Id */
@@ -8530,7 +8623,7 @@ export interface components {
             version: number;
         };
         /**
-         * IdentityProviderTemplate
+         * IdentityProviderTemplateRead
          * @description Represents a template for an identity provider configuration.
          *
          *     Attributes:
@@ -8544,7 +8637,7 @@ export interface components {
          *         description (str): Description of this template.
          *         configuration_notes (str | None): Setup instructions for this identity provider.
          */
-        IdentityProviderTemplate: {
+        IdentityProviderTemplateRead: {
             /**
              * Configuration Notes
              * @description Setup instructions for this IdP
@@ -8698,23 +8791,6 @@ export interface components {
              * @description TOTP or backup code, required when MFA is enabled
              */
             mfa_code?: string | null;
-        };
-        /**
-         * IdpLinkTokenResponse
-         * @description Schema for IdP link token response.
-         */
-        IdpLinkTokenResponse: {
-            /**
-             * Expires At
-             * Format: date-time
-             * @description Token expiration timestamp
-             */
-            expires_at: string;
-            /**
-             * Token
-             * @description One-time link token
-             */
-            token: string;
         };
         /**
          * ImportFailure
@@ -8941,13 +9017,13 @@ export interface components {
             entries: components["schemas"]["LogEntry"][];
         };
         /**
-         * LogoutResponse
+         * LogoutRead
          * @description Response payload returned by the logout endpoint.
          *
          *     Attributes:
          *         message: Human-readable confirmation message.
          */
-        LogoutResponse: {
+        LogoutRead: {
             /** Message */
             message: string;
         };
@@ -8963,7 +9039,7 @@ export interface components {
             enabled: boolean;
         };
         /**
-         * MFABackupCodeStatus
+         * MFABackupCodeStatusRead
          * @description Aggregate status of a user's MFA backup codes.
          *
          *     Attributes:
@@ -8973,7 +9049,7 @@ export interface components {
          *         used: Number of backup codes already consumed.
          *         created_at: Timestamp when the current set of codes was generated.
          */
-        MFABackupCodeStatus: {
+        MFABackupCodeStatusRead: {
             /** Created At */
             created_at?: string | null;
             /** Has Codes */
@@ -8986,14 +9062,14 @@ export interface components {
             used: number;
         };
         /**
-         * MFABackupCodesResponse
+         * MFABackupCodesRead
          * @description Response payload returned after generating MFA backup codes.
          *
          *     Attributes:
          *         codes: One-time backup codes shown to the user exactly once.
          *         created_at: Timestamp when the codes were generated.
          */
-        MFABackupCodesResponse: {
+        MFABackupCodesRead: {
             /**
              * Codes
              * @description One-time backup codes
@@ -9004,6 +9080,17 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * MFADisableRead
+         * @description Response returned after MFA is disabled.
+         *
+         *     Attributes:
+         *         message: Confirmation message.
+         */
+        MFADisableRead: {
+            /** Message */
+            message: string;
         };
         /**
          * MFADisableRequest
@@ -9041,6 +9128,20 @@ export interface components {
             mfa_code: string;
         };
         /**
+         * MFAEnableRead
+         * @description Response returned after MFA is enabled.
+         *
+         *     Attributes:
+         *         message: Confirmation message.
+         *         backup_codes: Newly generated one-time backup codes.
+         */
+        MFAEnableRead: {
+            /** Backup Codes */
+            backup_codes: string[];
+            /** Message */
+            message: string;
+        };
+        /**
          * MFALoginRequest
          * @description Schema for MFA login requests.
          *
@@ -9055,7 +9156,7 @@ export interface components {
             username: string;
         };
         /**
-         * MFARequiredResponse
+         * MFARequiredRead
          * @description Response indicating MFA verification is required.
          *
          *     Attributes:
@@ -9063,7 +9164,7 @@ export interface components {
          *         username: Username for which MFA is required.
          *         message: Message describing the requirement.
          */
-        MFARequiredResponse: {
+        MFARequiredRead: {
             /**
              * Message
              * @default MFA verification required
@@ -9076,6 +9177,33 @@ export interface components {
             mfa_required: boolean;
             /** Username */
             username: string;
+        };
+        /**
+         * MFASetupRead
+         * @description Response model for MFA setup initialization.
+         *
+         *     Attributes:
+         *         secret: The MFA secret key.
+         *         qr_code: Base64-encoded QR code image for setup.
+         *         app_name: Application name for MFA setup.
+         */
+        MFASetupRead: {
+            /**
+             * App Name
+             * @description Application name for MFA
+             * @default Endurain
+             */
+            app_name: string;
+            /**
+             * Qr Code
+             * @description Base64-encoded QR code image
+             */
+            qr_code: string;
+            /**
+             * Secret
+             * @description TOTP secret key
+             */
+            secret: string;
         };
         /**
          * MFASetupRequest
@@ -9117,45 +9245,29 @@ export interface components {
             mfa_code: string;
         };
         /**
-         * MFASetupResponse
-         * @description Response model for MFA setup initialization.
-         *
-         *     Attributes:
-         *         secret: The MFA secret key.
-         *         qr_code: Base64-encoded QR code image for setup.
-         *         app_name: Application name for MFA setup.
-         */
-        MFASetupResponse: {
-            /**
-             * App Name
-             * @description Application name for MFA
-             * @default Endurain
-             */
-            app_name: string;
-            /**
-             * Qr Code
-             * @description Base64-encoded QR code image
-             */
-            qr_code: string;
-            /**
-             * Secret
-             * @description TOTP secret key
-             */
-            secret: string;
-        };
-        /**
-         * MFAStatusResponse
+         * MFAStatusRead
          * @description Response model for MFA status.
          *
          *     Attributes:
          *         mfa_enabled: Whether MFA is enabled for the user.
          */
-        MFAStatusResponse: {
+        MFAStatusRead: {
             /**
              * Mfa Enabled
              * @description Whether MFA is enabled
              */
             mfa_enabled: boolean;
+        };
+        /**
+         * MFAVerifyRead
+         * @description Response returned after an MFA code is verified.
+         *
+         *     Attributes:
+         *         message: Confirmation message.
+         */
+        MFAVerifyRead: {
+            /** Message */
+            message: string;
         };
         /**
          * MailSecurity
@@ -9259,7 +9371,7 @@ export interface components {
             username: string | null;
         };
         /**
-         * MobileSessionResponse
+         * MobileSessionRead
          * @description Response for mobile password login with PKCE exchange flow.
          *
          *     Attributes:
@@ -9267,7 +9379,7 @@ export interface components {
          *         mfa_required: Whether MFA is required.
          *         message: Instructions for the client on next steps.
          */
-        MobileSessionResponse: {
+        MobileSessionRead: {
             /**
              * Message
              * @default Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens
@@ -9650,6 +9762,20 @@ export interface components {
             token: string;
         };
         /**
+         * PasswordResetRead
+         * @description Response schema for password reset operations.
+         *
+         *     Attributes:
+         *         message: Informational message for the client.
+         */
+        PasswordResetRead: {
+            /**
+             * Message
+             * @description Informational message for the client
+             */
+            message: string;
+        };
+        /**
          * PasswordResetRequest
          * @description Request schema for initiating a password reset.
          *
@@ -9663,20 +9789,6 @@ export interface components {
              * @description Email address for the reset
              */
             email: string;
-        };
-        /**
-         * PasswordResetResponse
-         * @description Response schema for password reset operations.
-         *
-         *     Attributes:
-         *         message: Informational message for the client.
-         */
-        PasswordResetResponse: {
-            /**
-             * Message
-             * @description Informational message for the client
-             */
-            message: string;
         };
         /**
          * PasswordType
@@ -10304,7 +10416,7 @@ export interface components {
             token: string;
         };
         /**
-         * SignUpResponse
+         * SignUpRead
          * @description Response schema for sign-up operations.
          *
          *     Attributes:
@@ -10312,7 +10424,7 @@ export interface components {
          *         email_verification_required: Whether email verification is required.
          *         admin_approval_required: Whether admin approval is required.
          */
-        SignUpResponse: {
+        SignUpRead: {
             /**
              * Admin Approval Required
              * @description Whether admin approval is required
@@ -10516,26 +10628,7 @@ export interface components {
             url_template: string;
         };
         /**
-         * TokenExchangeRequest
-         * @description Request schema for mobile PKCE token exchange.
-         *
-         *     After OAuth callback completes, mobile clients exchange the session_id
-         *     for actual JWT tokens by proving they possess the code_verifier that
-         *     matches the code_challenge sent during login initiation.
-         *
-         *     Attributes:
-         *         code_verifier (str): PKCE code verifier (43-128 chars, base64url).
-         *             Must hash to the code_challenge stored in OAuth state.
-         */
-        TokenExchangeRequest: {
-            /**
-             * Code Verifier
-             * @description PKCE code verifier (base64url, 43-128 chars)
-             */
-            code_verifier: string;
-        };
-        /**
-         * TokenExchangeResponse
+         * TokenExchangeRead
          * @description Response schema for successful PKCE token exchange.
          *
          *     Returns the actual JWT tokens that clients need for API access.
@@ -10552,7 +10645,7 @@ export interface components {
          *         refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
          *         token_type (str): Token type, always "Bearer".
          */
-        TokenExchangeResponse: {
+        TokenExchangeRead: {
             /**
              * Access Token
              * @description JWT access token
@@ -10593,7 +10686,26 @@ export interface components {
             token_type: string;
         };
         /**
-         * TokenResponseMobile
+         * TokenExchangeRequest
+         * @description Request schema for mobile PKCE token exchange.
+         *
+         *     After OAuth callback completes, mobile clients exchange the session_id
+         *     for actual JWT tokens by proving they possess the code_verifier that
+         *     matches the code_challenge sent during login initiation.
+         *
+         *     Attributes:
+         *         code_verifier (str): PKCE code verifier (43-128 chars, base64url).
+         *             Must hash to the code_challenge stored in OAuth state.
+         */
+        TokenExchangeRequest: {
+            /**
+             * Code Verifier
+             * @description PKCE code verifier (base64url, 43-128 chars)
+             */
+            code_verifier: string;
+        };
+        /**
+         * TokenMobileRead
          * @description Token response payload for mobile clients.
          *
          *     Attributes:
@@ -10604,7 +10716,7 @@ export interface components {
          *         expires_in: Seconds until the access token expires.
          *         refresh_token_expires_in: Seconds until the refresh token expires.
          */
-        TokenResponseMobile: {
+        TokenMobileRead: {
             /** Access Token */
             access_token: string;
             /** Expires In */
@@ -10623,7 +10735,7 @@ export interface components {
             token_type: "bearer";
         };
         /**
-         * TokenResponseWeb
+         * TokenWebRead
          * @description Token response payload for web clients.
          *
          *     Attributes:
@@ -10634,7 +10746,7 @@ export interface components {
          *         expires_in: Seconds until the access token expires.
          *         refresh_token_expires_in: Seconds until the refresh token expires.
          */
-        TokenResponseWeb: {
+        TokenWebRead: {
             /** Access Token */
             access_token: string;
             /** Csrf Token */
@@ -10885,7 +10997,7 @@ export interface components {
             scopes: string[];
         };
         /**
-         * UsersApiKeyCreated
+         * UsersApiKeyCreatedRead
          * @description API key creation response schema.
          *
          *     Extends UsersApiKeyRead with the raw key, returned
@@ -10896,7 +11008,7 @@ export interface components {
          *         key: The full raw API key. Show to the user
          *             once and discard.
          */
-        UsersApiKeyCreated: {
+        UsersApiKeyCreatedRead: {
             /**
              * Created At
              * Format: date-time
@@ -11692,82 +11804,6 @@ export interface components {
             goal_type: components["schemas"]["GoalType"];
             /** @description Goal time interval */
             interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
-        };
-        /**
-         * UsersIdentityProviderResponse
-         * @description Response schema with enriched identity provider details.
-         *
-         *     Extends Read schema with display fields added by API layer
-         *     for frontend convenience.
-         *
-         *     Attributes:
-         *         idp_name: Identity provider name (enriched).
-         *         idp_slug: Identity provider slug (enriched).
-         *         idp_icon: Identity provider icon (enriched).
-         *         idp_provider_type: Provider type (enriched).
-         */
-        UsersIdentityProviderResponse: {
-            /**
-             * Id
-             * @description Link ID
-             */
-            id: number;
-            /**
-             * Idp Access Token Expires At
-             * @description Access token expiry
-             */
-            idp_access_token_expires_at?: string | null;
-            /**
-             * Idp Icon
-             * @description Identity provider icon
-             */
-            idp_icon?: string | null;
-            /**
-             * Idp Id
-             * @description Identity Provider ID
-             */
-            idp_id: number;
-            /**
-             * Idp Name
-             * @description Identity provider name
-             */
-            idp_name?: string | null;
-            /**
-             * Idp Provider Type
-             * @description Provider type
-             */
-            idp_provider_type?: string | null;
-            /**
-             * Idp Refresh Token Updated At
-             * @description Last refresh token update
-             */
-            idp_refresh_token_updated_at?: string | null;
-            /**
-             * Idp Slug
-             * @description Identity provider slug
-             */
-            idp_slug?: string | null;
-            /**
-             * Idp Subject
-             * @description Subject/ID from the identity provider
-             */
-            idp_subject: string;
-            /**
-             * Last Login
-             * @description Last login using this IdP
-             */
-            last_login?: string | null;
-            /**
-             * Linked At
-             * Format: date-time
-             * @description When linked
-             */
-            linked_at: string;
-            /**
-             * User Id
-             * @description User ID
-             */
-            user_id: number;
         };
         /**
          * UsersMe
@@ -13910,7 +13946,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFARequiredResponse"] | components["schemas"]["MobileSessionResponse"] | components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
+                    "application/json": components["schemas"]["MFARequiredRead"] | components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
             /** @description Validation Error */
@@ -13948,7 +13984,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LogoutResponse"];
+                    "application/json": components["schemas"]["LogoutRead"];
                 };
             };
             /** @description Unexpected error */
@@ -13984,7 +14020,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MobileSessionResponse"] | components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
+                    "application/json": components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
             /** @description Validation Error */
@@ -14022,7 +14058,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
+                    "application/json": components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
             /** @description Unexpected error */
@@ -16523,7 +16559,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderTemplate"][];
+                    "application/json": components["schemas"]["IdentityProviderTemplateRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -16836,7 +16872,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PasswordResetResponse"];
+                    "application/json": components["schemas"]["PasswordResetRead"];
                 };
             };
             /** @description Validation Error */
@@ -16878,7 +16914,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PasswordResetResponse"];
+                    "application/json": components["schemas"]["PasswordResetRead"];
                 };
             };
             /** @description Validation Error */
@@ -17020,7 +17056,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersApiKeyCreated"];
+                    "application/json": components["schemas"]["UsersApiKeyCreatedRead"];
                 };
             };
             /** @description Validation Error */
@@ -17574,7 +17610,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersIdentityProviderResponse"][];
+                    "application/json": components["schemas"]["IdentityProviderLinkRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -17651,7 +17687,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdpLinkTokenResponse"];
+                    "application/json": components["schemas"]["IdentityProviderLinkTokenRead"];
                 };
             };
             /** @description Validation Error */
@@ -17848,7 +17884,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFABackupCodesResponse"];
+                    "application/json": components["schemas"]["MFABackupCodesRead"];
                 };
             };
             /** @description Validation Error */
@@ -17886,7 +17922,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFABackupCodeStatus"];
+                    "application/json": components["schemas"]["MFABackupCodeStatusRead"];
                 };
             };
             /** @description Unexpected error */
@@ -17919,9 +17955,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MFADisableRead"];
                 };
             };
             /** @description Validation Error */
@@ -17963,9 +17997,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MFAEnableRead"];
                 };
             };
             /** @description Validation Error */
@@ -18003,7 +18035,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFASetupResponse"];
+                    "application/json": components["schemas"]["MFASetupRead"];
                 };
             };
             /** @description Unexpected error */
@@ -18032,7 +18064,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFAStatusResponse"];
+                    "application/json": components["schemas"]["MFAStatusRead"];
                 };
             };
             /** @description Unexpected error */
@@ -18065,9 +18097,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MFAVerifyRead"];
                 };
             };
             /** @description Validation Error */
@@ -18630,7 +18660,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderPublic"][];
+                    "application/json": components["schemas"]["IdentityProviderPublicRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -18753,7 +18783,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenExchangeResponse"];
+                    "application/json": components["schemas"]["TokenExchangeRead"];
                 };
             };
             /** @description Validation Error */
@@ -19451,7 +19481,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignUpResponse"];
+                    "application/json": components["schemas"]["SignUpRead"];
                 };
             };
             /** @description Validation Error */
@@ -19493,7 +19523,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignUpResponse"];
+                    "application/json": components["schemas"]["SignUpRead"];
                 };
             };
             /** @description Validation Error */
@@ -20400,7 +20430,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersIdentityProviderResponse"][];
+                    "application/json": components["schemas"]["IdentityProviderLinkRead"][];
                 };
             };
             /** @description Validation Error */

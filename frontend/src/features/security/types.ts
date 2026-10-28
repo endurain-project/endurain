@@ -4,10 +4,10 @@ import type { Schemas } from '@/types'
 export type PasswordChangeDto = Schemas['UsersEditPassword']
 
 /** Raw MFA status payload. */
-export type MfaStatusDto = Schemas['MFAStatusResponse']
+export type MfaStatusDto = Schemas['MFAStatusRead']
 
 /** Raw MFA setup payload (TOTP secret + QR image). */
-export type MfaSetupDto = Schemas['MFASetupResponse']
+export type MfaSetupDto = Schemas['MFASetupRead']
 
 /** Enable-MFA request body. */
 export type MfaEnableDto = Schemas['MFASetupRequest']
@@ -16,10 +16,10 @@ export type MfaEnableDto = Schemas['MFASetupRequest']
 export type MfaDisableDto = Schemas['MFADisableRequest']
 
 /** Raw backup-code status payload. */
-export type BackupCodeStatusDto = Schemas['MFABackupCodeStatus']
+export type BackupCodeStatusDto = Schemas['MFABackupCodeStatusRead']
 
 /** Raw regenerated backup-codes payload. */
-export type BackupCodesDto = Schemas['MFABackupCodesResponse']
+export type BackupCodesDto = Schemas['MFABackupCodesRead']
 
 /** Step-up verification body shared by sensitive self-service actions. */
 export type StepUpDto = Schemas['StepUpVerification']
@@ -112,13 +112,13 @@ export interface SecuritySession {
 }
 
 /** Raw linked identity-provider payload (snake_case wire shape). */
-export type LinkedProviderDto = Schemas['UsersIdentityProviderResponse']
+export type LinkedProviderDto = Schemas['IdentityProviderLinkRead']
 
 /** Raw link-token payload from the generate-link-token step. */
-export type LinkTokenDto = Schemas['IdpLinkTokenResponse']
+export type LinkTokenDto = Schemas['IdentityProviderLinkTokenRead']
 
 /** A provider a user can link to (an enabled public provider). */
-export type AvailableProvider = Schemas['IdentityProviderPublic']
+export type AvailableProvider = Schemas['IdentityProviderPublicRead']
 
 /**
  * A clean linked identity-provider model for the security zone. Mapped from
@@ -150,7 +150,7 @@ export interface LinkedProvider {
 export type ApiKeyDto = Schemas['UsersApiKeyRead']
 
 /** Raw create-API-key response, including the one-time raw `key`. */
-export type ApiKeyCreatedDto = Schemas['UsersApiKeyCreated']
+export type ApiKeyCreatedDto = Schemas['UsersApiKeyCreatedRead']
 
 /** Create-API-key request body. */
 export type ApiKeyCreateDto = Schemas['UsersApiKeyCreate']

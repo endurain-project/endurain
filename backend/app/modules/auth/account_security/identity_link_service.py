@@ -43,7 +43,7 @@ def generate_link_token(
     token_user_id: int,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
-) -> idp_link_token_schema.IdpLinkTokenResponse:
+) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
     """Generate a one-time IdP link token after step-up verification."""
     step_up_service.verify_step_up_credentials(
         token_user_id,
@@ -227,7 +227,7 @@ def admin_delete_identity_provider_link(
 def get_user_identity_provider_links(
     user_id: int,
     db: Session,
-) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
+) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
     """Return enriched identity provider links for the authenticated user."""
     idp_links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
     return auth_identity_providers.enrich_user_identity_providers(idp_links, user_id, db)

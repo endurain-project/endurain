@@ -4,7 +4,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 from modules.auth.computation import validate_pkce_challenge
-from modules.auth.identity_providers.schema import IdentityProviderTemplate
+from modules.auth.identity_providers.schema import IdentityProviderTemplateRead
 from modules.auth.identity_providers.utils import (
     _secure_compare,
     get_idp_template,
@@ -427,7 +427,7 @@ class TestGetIdpTemplates:
         """Test get_idp_templates returns a list.
 
         Asserts:
-            - Returns a list of IdentityProviderTemplate objects
+            - Returns a list of IdentityProviderTemplateRead objects
         """
         # Act
         templates = get_idp_templates()
@@ -435,7 +435,7 @@ class TestGetIdpTemplates:
         # Assert
         assert isinstance(templates, list)
         assert len(templates) > 0
-        assert all(isinstance(t, IdentityProviderTemplate) for t in templates)
+        assert all(isinstance(t, IdentityProviderTemplateRead) for t in templates)
 
     def test_get_idp_templates_contains_expected_providers(self):
         """Test get_idp_templates contains expected providers.

@@ -223,8 +223,8 @@ export interface UserSession {
   expiresAt: string
 }
 
-/** Raw `UsersIdentityProviderResponse` payload as returned by the backend. */
-export type UserIdentityProviderDto = Schemas['UsersIdentityProviderResponse']
+/** Raw `IdentityProviderLinkRead` payload as returned by the backend. */
+export type UserIdentityProviderDto = Schemas['IdentityProviderLinkRead']
 
 /**
  * A user's linked identity provider in the admin view, camel-cased from

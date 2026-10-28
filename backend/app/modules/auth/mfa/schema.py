@@ -132,7 +132,7 @@ class MFASetupRequest(BaseModel):
     )
 
 
-class MFASetupResponse(BaseModel):
+class MFASetupRead(BaseModel):
     """Response model for MFA setup initialization.
 
     Attributes:
@@ -159,7 +159,7 @@ class MFASetupResponse(BaseModel):
     )
 
 
-class MFAStatusResponse(BaseModel):
+class MFAStatusRead(BaseModel):
     """Response model for MFA status.
 
     Attributes:
@@ -174,3 +174,41 @@ class MFAStatusResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+
+
+class MFAEnableRead(BaseModel):
+    """Response returned after MFA is enabled.
+
+    Attributes:
+        message: Confirmation message.
+        backup_codes: Newly generated one-time backup codes.
+    """
+
+    message: StrictStr
+    backup_codes: list[StrictStr]
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class MFADisableRead(BaseModel):
+    """Response returned after MFA is disabled.
+
+    Attributes:
+        message: Confirmation message.
+    """
+
+    message: StrictStr
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class MFAVerifyRead(BaseModel):
+    """Response returned after an MFA code is verified.
+
+    Attributes:
+        message: Confirmation message.
+    """
+
+    message: StrictStr
+
+    model_config = ConfigDict(extra="forbid")

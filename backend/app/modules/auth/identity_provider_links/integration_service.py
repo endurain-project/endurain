@@ -85,6 +85,6 @@ def enrich_user_identity_providers(
     idp_links: list[identity_link_contracts.IdentityLinkRead],
     idps: list[identity_link_contracts.IdentityProviderDetails],
     user_id: int,
-) -> list[identity_link_schema.UsersIdentityProviderResponse]:
+) -> list[identity_link_schema.IdentityProviderLinkRead]:
     """Add resolved provider display fields to the user's links."""
     return identity_link_service.enrich_user_identity_providers(idp_links, idps, user_id)

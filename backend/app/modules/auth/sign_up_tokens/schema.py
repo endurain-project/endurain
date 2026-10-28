@@ -68,7 +68,7 @@ class SignUpConfirm(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class SignUpResponse(BaseModel):
+class SignUpRead(BaseModel):
     """Response schema for sign-up operations.
 
     Attributes:

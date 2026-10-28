@@ -86,7 +86,7 @@ class TestCreateUserApiKey:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = api_keys_schema.UsersApiKeyCreated(
+        mock_create.return_value = api_keys_schema.UsersApiKeyCreatedRead(
             id=mock_orm_key.id,
             user_id=1,
             name=mock_orm_key.name,
@@ -535,7 +535,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = api_keys_schema.UsersApiKeyCreated(
+        mock_create.return_value = api_keys_schema.UsersApiKeyCreatedRead(
             id=mock_orm_key.id,
             user_id=1,
             name=mock_orm_key.name,
@@ -591,7 +591,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = api_keys_schema.UsersApiKeyCreated(
+        mock_create.return_value = api_keys_schema.UsersApiKeyCreatedRead(
             id=mock_orm_key.id,
             user_id=1,
             name=mock_orm_key.name,

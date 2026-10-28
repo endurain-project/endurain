@@ -67,12 +67,12 @@ def _build_link_result_url(redirect_path: str | None, idp_name: str | None, *, s
 
 @router.get(
     "",
-    response_model=list[idp_schema.IdentityProviderPublic],
+    response_model=list[idp_schema.IdentityProviderPublicRead],
 )
 def get_enabled_identity_providers(
     db: core_dependencies.DbSession,
     service: idp_dependencies.IdentityProviderService,
-) -> list[idp_schema.IdentityProviderPublic]:
+) -> list[idp_schema.IdentityProviderPublicRead]:
     """Retrieve a list of enabled identity providers from the database.
 
     Args:
@@ -409,7 +409,7 @@ def handle_callback(
 
 @router.post(
     "/session/{session_id}/tokens",
-    response_model=idp_schema.TokenExchangeResponse,
+    response_model=idp_schema.TokenExchangeRead,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def exchange_tokens_for_session(
@@ -664,7 +664,7 @@ def exchange_tokens_for_session(
         # Return response based on client type (matches complete_login behavior)
         if client_type == "web":
             # Web: access_token and csrf_token in body, refresh_token in cookie only
-            return idp_schema.TokenExchangeResponse(
+            return idp_schema.TokenExchangeRead(
                 session_id=session_id,
                 access_token=access_token,
                 csrf_token=csrf_token,
@@ -674,7 +674,7 @@ def exchange_tokens_for_session(
             )
         else:
             # Mobile: all tokens in body (no cookies)
-            return idp_schema.TokenExchangeResponse(
+            return idp_schema.TokenExchangeRead(
                 session_id=session_id,
                 access_token=access_token,
                 refresh_token=refresh_token,

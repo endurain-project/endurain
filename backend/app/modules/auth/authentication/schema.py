@@ -43,7 +43,7 @@ class MFALoginRequest(BaseModel):
     )
 
 
-class MFARequiredResponse(BaseModel):
+class MFARequiredRead(BaseModel):
     """Response indicating MFA verification is required.
 
     Attributes:
@@ -59,7 +59,7 @@ class MFARequiredResponse(BaseModel):
     message: StrictStr = "MFA verification required"
 
 
-class MobileSessionResponse(BaseModel):
+class MobileSessionRead(BaseModel):
     """Response for mobile password login with PKCE exchange flow.
 
     Attributes:
@@ -75,7 +75,7 @@ class MobileSessionResponse(BaseModel):
     message: StrictStr = "Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"
 
 
-class TokenResponseWeb(BaseModel):
+class TokenWebRead(BaseModel):
     """Token response payload for web clients.
 
     Attributes:
@@ -97,7 +97,7 @@ class TokenResponseWeb(BaseModel):
     refresh_token_expires_in: StrictInt
 
 
-class TokenResponseMobile(BaseModel):
+class TokenMobileRead(BaseModel):
     """Token response payload for mobile clients.
 
     Attributes:
@@ -119,7 +119,7 @@ class TokenResponseMobile(BaseModel):
     refresh_token_expires_in: StrictInt
 
 
-class LogoutResponse(BaseModel):
+class LogoutRead(BaseModel):
     """Response payload returned by the logout endpoint.
 
     Attributes:

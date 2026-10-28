@@ -74,24 +74,24 @@ class TestMFALoginRequest:
 
 
 class TestMFARequiredResponse:
-    """Tests for MFARequiredResponse Pydantic model."""
+    """Tests for MFARequiredRead Pydantic model."""
 
     def test_mfa_required_response_defaults(self):
         """Test MFA required response with default values."""
-        response = auth_schema.MFARequiredResponse(username="testuser")
+        response = auth_schema.MFARequiredRead(username="testuser")
         assert response.mfa_required is True
         assert response.username == "testuser"
         assert response.message == "MFA verification required"
 
     def test_mfa_required_response_custom_message(self):
         """Test MFA required response with custom message."""
-        response = auth_schema.MFARequiredResponse(username="testuser", message="Custom MFA message")
+        response = auth_schema.MFARequiredRead(username="testuser", message="Custom MFA message")
         assert response.mfa_required is True
         assert response.message == "Custom MFA message"
 
     def test_mfa_required_response_explicit_false(self):
         """Test MFA required response with explicit False."""
-        response = auth_schema.MFARequiredResponse(mfa_required=False, username="testuser")
+        response = auth_schema.MFARequiredRead(mfa_required=False, username="testuser")
         assert response.mfa_required is False
 
 

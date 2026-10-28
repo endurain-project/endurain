@@ -45,7 +45,7 @@ def enrich_user_identity_providers(
     idp_links: list[auth_identity_links_contracts.IdentityLinkRead],
     idps: list[auth_identity_links_contracts.IdentityProviderDetails],
     user_id: int,
-) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
+) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
     """Enrich identity provider links with IDP details.
 
     Batch fetches all IDPs in a single query to avoid N+1
@@ -59,14 +59,14 @@ def enrich_user_identity_providers(
         idps: Value used by this operation.
 
     Returns:
-        List of enriched UsersIdentityProviderResponse objects.
+        List of enriched IdentityProviderLinkRead objects.
     """
     if not idp_links:
         return []
 
     idp_map = {idp.id: idp for idp in idps}
 
-    enriched_links: list[auth_identity_links_schema.UsersIdentityProviderResponse] = []
+    enriched_links: list[auth_identity_links_schema.IdentityProviderLinkRead] = []
 
     for link in idp_links:
         idp = idp_map.get(link.idp_id)
@@ -77,7 +77,7 @@ def enrich_user_identity_providers(
             )
             continue
 
-        link_data = auth_identity_links_schema.UsersIdentityProviderResponse(
+        link_data = auth_identity_links_schema.IdentityProviderLinkRead(
             id=link.id,
             user_id=link.user_id,
             idp_id=link.idp_id,

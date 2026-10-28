@@ -52,7 +52,7 @@ class TestGetMfaStatus:
             result = mfa_workflow.get_mfa_status(7, mock_db)
 
         mock_is_enabled.assert_called_once_with(7, mock_db)
-        assert isinstance(result, mfa_schema.MFAStatusResponse)
+        assert isinstance(result, mfa_schema.MFAStatusRead)
         assert result.mfa_enabled is True
 
     def test_returns_enabled_false(self, mock_db):
@@ -170,7 +170,8 @@ class TestEnableMfa:
         mock_enable.assert_called_once_with(7, "pending-secret", "123456", credentials_integration, mock_db)
         mfa_secret_store.delete_secret.assert_called_once_with(7)
         assert len(mock_log.method_calls) == 1
-        assert result == {"message": "MFA enabled successfully", "backup_codes": ["code-1", "code-2"]}
+        assert isinstance(result, mfa_schema.MFAEnableRead)
+        assert result.model_dump() == {"message": "MFA enabled successfully", "backup_codes": ["code-1", "code-2"]}
 
     def test_step_up_failure_propagates_before_secret_lookup(self, mock_db, step_up_store, mfa_secret_store):
         with (
@@ -315,7 +316,8 @@ class TestDisableMfa:
         )
         mock_disable.assert_called_once_with(7, mock_db)
         assert len(mock_log.method_calls) == 1
-        assert result == {"message": "MFA disabled successfully"}
+        assert isinstance(result, mfa_schema.MFADisableRead)
+        assert result.model_dump() == {"message": "MFA disabled successfully"}
 
     def test_step_up_failure_does_not_disable(self, mock_db, step_up_store):
         with (
@@ -358,7 +360,8 @@ class TestVerifyMfa:
             result = mfa_workflow.verify_mfa(self._request(), 7, mock_db)
 
         mock_verify.assert_called_once_with(7, "123456", credentials_integration, mock_db)
-        assert result == {"message": "MFA code verified successfully"}
+        assert isinstance(result, mfa_schema.MFAVerifyRead)
+        assert result.model_dump() == {"message": "MFA code verified successfully"}
 
     def test_invalid_code_raises_400(self, mock_db):
         with (

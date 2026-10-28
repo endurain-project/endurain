@@ -87,7 +87,7 @@ class IdpLinkTokenRequest(BaseModel):
     model_config = ConfigDict(strict=True)
 
 
-class IdpLinkTokenResponse(BaseModel):
+class IdentityProviderLinkTokenRead(BaseModel):
     """Schema for IdP link token response."""
 
     token: StrictStr = Field(..., description="One-time link token")

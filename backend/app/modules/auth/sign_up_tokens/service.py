@@ -148,7 +148,7 @@ def verify_sign_up_token(token: str, db: Session) -> int:
 def signup(
     user: users_schema.UsersSignup,
     db: Session,
-) -> sign_up_schema.SignUpResponse:
+) -> sign_up_schema.SignUpRead:
     """Create a user and stage the configured verification event."""
     server_settings = server_settings_integration.get_server_settings(db)
     if not server_settings.signup_enabled:
@@ -169,14 +169,14 @@ def signup(
         admin_approval_required = True
     if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
         message += " You can now log in."
-    return sign_up_schema.SignUpResponse(
+    return sign_up_schema.SignUpRead(
         message=message,
         email_verification_required=email_verification_required,
         admin_approval_required=admin_approval_required,
     )
 
 
-def verify_email(token: str, db: Session) -> sign_up_schema.SignUpResponse:
+def verify_email(token: str, db: Session) -> sign_up_schema.SignUpRead:
     """Consume a verification token and apply the server's email-verification policy."""
     server_settings = server_settings_integration.get_server_settings(db)
     user_id = verify_sign_up_token(token, db)
@@ -191,7 +191,7 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpResponse:
     if user.active:
         db.commit()
         logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
-        return sign_up_schema.SignUpResponse(message="Email verified successfully.")
+        return sign_up_schema.SignUpRead(message="Email verified successfully.")
 
     if server_settings_integration.is_mail_configured(db):
         request_sign_up_admin_approval_emails(user.id, db)
@@ -211,7 +211,7 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpResponse:
         admin_approval_required = True
     else:
         message += " You can now log in."
-    return sign_up_schema.SignUpResponse(message=message, admin_approval_required=admin_approval_required)
+    return sign_up_schema.SignUpRead(message=message, admin_approval_required=admin_approval_required)
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:

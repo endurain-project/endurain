@@ -18,7 +18,7 @@ router = APIRouter()
 @router.post(
     "/{idp_id}/link/token",
     status_code=status.HTTP_201_CREATED,
-    response_model=idp_link_token_schema.IdpLinkTokenResponse,
+    response_model=idp_link_token_schema.IdentityProviderLinkTokenRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -32,7 +32,7 @@ def generate_link_token(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> idp_link_token_schema.IdpLinkTokenResponse:
+) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
     """Generate a one-time token for linking an identity provider.
 
     This endpoint creates a short-lived (60 seconds), single-use token
@@ -76,13 +76,13 @@ def generate_link_token(
 # Identity Provider Management Endpoints
 @router.get(
     "",
-    response_model=list[auth_identity_links_schema.UsersIdentityProviderResponse],
+    response_model=list[auth_identity_links_schema.IdentityProviderLinkRead],
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_my_identity_providers(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
+) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
     """Retrieve all identity provider links for the authenticated user.
 
     This endpoint fetches all external identity provider (IdP) connections associated

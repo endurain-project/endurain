@@ -33,10 +33,10 @@ router = APIRouter()
 @router.post(
     "/login",
     response_model=(
-        auth_schema.MFARequiredResponse
-        | auth_schema.MobileSessionResponse
-        | auth_schema.TokenResponseWeb
-        | auth_schema.TokenResponseMobile
+        auth_schema.MFARequiredRead
+        | auth_schema.MobileSessionRead
+        | auth_schema.TokenWebRead
+        | auth_schema.TokenMobileRead
     ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -124,7 +124,7 @@ def login_for_access_token(
 
 @router.post(
     "/mfa/verify",
-    response_model=(auth_schema.MobileSessionResponse | auth_schema.TokenResponseWeb | auth_schema.TokenResponseMobile),
+    response_model=(auth_schema.MobileSessionRead | auth_schema.TokenWebRead | auth_schema.TokenMobileRead),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def verify_mfa_and_login(
@@ -199,7 +199,7 @@ def verify_mfa_and_login(
 
 @router.post(
     "/refresh",
-    response_model=(auth_schema.TokenResponseWeb | auth_schema.TokenResponseMobile),
+    response_model=(auth_schema.TokenWebRead | auth_schema.TokenMobileRead),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def refresh_token(
@@ -278,7 +278,7 @@ def refresh_token(
     )
 
 
-@router.post("/logout", response_model=auth_schema.LogoutResponse)
+@router.post("/logout", response_model=auth_schema.LogoutRead)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def logout(
     response: Response,

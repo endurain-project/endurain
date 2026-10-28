@@ -19,7 +19,7 @@ def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersAp
 
 def create_user_api_key(
     user_id: int, data: api_keys_schema.UsersApiKeyCreate, db: Session
-) -> api_keys_schema.UsersApiKeyCreated:
+) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Create a user API key and return its raw secret once."""
     user = users_integration.get_user(user_id, db)
     if user is None:
@@ -37,7 +37,7 @@ def create_user_api_key(
     )
     db.commit()
     logger.info("API key created", extra=core_logger.context(user_id=user_id, api_key_id=api_key.id, name=data.name))
-    return api_keys_schema.UsersApiKeyCreated(**api_key.model_dump(), key=raw_key)
+    return api_keys_schema.UsersApiKeyCreatedRead(**api_key.model_dump(), key=raw_key)
 
 
 def revoke_user_api_key(api_key_id: str, user_id: int, db: Session) -> None:

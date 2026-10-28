@@ -28,7 +28,7 @@ def get_user_api_keys(
 
 @router.post(
     "",
-    response_model=api_keys_schema.UsersApiKeyCreated,
+    response_model=api_keys_schema.UsersApiKeyCreatedRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
@@ -42,7 +42,7 @@ def create_user_api_key(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> api_keys_schema.UsersApiKeyCreated:
+) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Create an API key after step-up verification."""
     return api_key_service.create_user_api_key(token_user_id, data, step_up_store, db)
 

@@ -74,7 +74,7 @@ class UsersIdentityProviderRead(UsersIdentityProviderBase):
     )
 
 
-class UsersIdentityProviderResponse(UsersIdentityProviderRead):
+class IdentityProviderLinkRead(UsersIdentityProviderRead):
     """Response schema with enriched identity provider details.
 
     Extends Read schema with display fields added by API layer

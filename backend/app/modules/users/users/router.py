@@ -437,13 +437,13 @@ def read_user_deletion_status(
 
 @router.get(
     "/{user_id}/identity-providers",
-    response_model=list[auth_identity_links_schema.UsersIdentityProviderResponse],
+    response_model=list[auth_identity_links_schema.IdentityProviderLinkRead],
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
 def get_user_identity_providers(
     user_id: core_dependencies.PositiveId,
     db: core_dependencies.DbSession,
-) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
+) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
     """List the identity provider links of a specific user (admin).
 
     Args:

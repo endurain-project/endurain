@@ -38,10 +38,10 @@ logger = core_logger.get_logger(__name__)
 def get_mfa_status(
     token_user_id: int,
     db: Session,
-) -> mfa_schema.MFAStatusResponse:
+) -> mfa_schema.MFAStatusRead:
     """Return whether MFA is enabled for the user."""
     is_enabled = mfa_integration.is_mfa_enabled_for_user(token_user_id, db)
-    return mfa_schema.MFAStatusResponse(mfa_enabled=is_enabled)
+    return mfa_schema.MFAStatusRead(mfa_enabled=is_enabled)
 
 
 def get_mfa_enabled_for_users(
@@ -55,12 +55,12 @@ def get_mfa_enabled_for_users(
 def get_backup_code_status(
     token_user_id: int,
     db: Session,
-) -> mfa_backup_codes_schema.MFABackupCodeStatus:
+) -> mfa_backup_codes_schema.MFABackupCodeStatusRead:
     """Retrieve MFA backup code status for the authenticated user."""
     codes = mfa_backup_codes_integration.get_user_backup_codes(token_user_id, db)
 
     if not codes:
-        return mfa_backup_codes_schema.MFABackupCodeStatus(
+        return mfa_backup_codes_schema.MFABackupCodeStatusRead(
             has_codes=False,
             total=0,
             unused=0,
@@ -72,7 +72,7 @@ def get_backup_code_status(
     used = sum(1 for code in codes if code.used)
     created_at = codes[0].created_at if codes else None
 
-    return mfa_backup_codes_schema.MFABackupCodeStatus(
+    return mfa_backup_codes_schema.MFABackupCodeStatusRead(
         has_codes=True,
         total=len(codes),
         unused=unused,
@@ -85,7 +85,7 @@ def setup_mfa(
     token_user_id: int,
     mfa_secret_store: MFASecretStoreBackend,
     db: Session,
-) -> mfa_schema.MFASetupResponse:
+) -> mfa_schema.MFASetupRead:
     """Create MFA setup material and store pending setup secret."""
     response = mfa_integration.setup_user_mfa(token_user_id, db)
     db.commit()
@@ -100,7 +100,7 @@ def enable_mfa(
     step_up_store: account_security_step_up_store.StepUpStore,
     mfa_secret_store: MFASecretStoreBackend,
     db: Session,
-) -> dict:
+) -> mfa_schema.MFAEnableRead:
     """Enable MFA using pending secret and verification code."""
     step_up_service.verify_step_up_credentials(
         token_user_id,
@@ -128,10 +128,7 @@ def enable_mfa(
             "User <token_user_id> enabled MFA (step-up verified)",
             extra=core_logger.context(token_user_id=token_user_id),
         )
-        return {
-            "message": "MFA enabled successfully",
-            "backup_codes": backup_codes,
-        }
+        return mfa_schema.MFAEnableRead(message="MFA enabled successfully", backup_codes=backup_codes)
     except core_exceptions.DomainError as exc:
         if not (exc.status_code == status.HTTP_400_BAD_REQUEST and exc.detail == "Invalid MFA code"):
             mfa_secret_store.delete_secret(token_user_id)
@@ -143,7 +140,7 @@ def disable_mfa(
     token_user_id: int,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
-) -> dict:
+) -> mfa_schema.MFADisableRead:
     """Disable MFA after step-up verification."""
     step_up_service.verify_step_up_credentials(
         token_user_id,
@@ -157,14 +154,14 @@ def disable_mfa(
     logger.info(
         "User <token_user_id> disabled MFA (step-up verified)", extra=core_logger.context(token_user_id=token_user_id)
     )
-    return {"message": "MFA disabled successfully"}
+    return mfa_schema.MFADisableRead(message="MFA disabled successfully")
 
 
 def verify_mfa(
     request: mfa_schema.MFARequest,
     token_user_id: int,
     db: Session,
-) -> dict:
+) -> mfa_schema.MFAVerifyRead:
     """Verify an MFA code for the authenticated user."""
     is_valid = mfa_integration.verify_user_mfa(
         token_user_id,
@@ -177,7 +174,7 @@ def verify_mfa(
 
     db.commit()
     logger.info("MFA code verified", extra=core_logger.context(user_id=token_user_id))
-    return {"message": "MFA code verified successfully"}
+    return mfa_schema.MFAVerifyRead(message="MFA code verified successfully")
 
 
 def generate_backup_codes(
@@ -185,7 +182,7 @@ def generate_backup_codes(
     token_user_id: int,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
-) -> mfa_backup_codes_schema.MFABackupCodesResponse:
+) -> mfa_backup_codes_schema.MFABackupCodesRead:
     """Generate new backup codes for an MFA-enabled account."""
     user = users_integration.get_user(token_user_id, db)
 
@@ -212,7 +209,7 @@ def generate_backup_codes(
 
     logger.info("User <id> generated MFA backup codes (step-up verified)", extra=core_logger.context(id=user.id))
 
-    return mfa_backup_codes_schema.MFABackupCodesResponse(
+    return mfa_backup_codes_schema.MFABackupCodesRead(
         codes=codes,
         created_at=datetime.now(UTC),
     )

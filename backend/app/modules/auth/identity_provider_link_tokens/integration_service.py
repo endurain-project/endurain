@@ -17,7 +17,7 @@ def generate_idp_link_token(
     idp_id: int,
     ip_address: str | None,
     db: Session,
-) -> idp_link_token_schema.IdpLinkTokenResponse:
+) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
     """Generate and stage a one-time link token."""
     return idp_link_token_service.generate_idp_link_token(user_id, idp_id, ip_address, db)
 

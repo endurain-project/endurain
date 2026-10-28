@@ -31,7 +31,7 @@ def hash_idp_link_token(token: str) -> str:
 
 def generate_idp_link_token(
     user_id: int, idp_id: int, ip_address: str | None, db: Session
-) -> idp_link_token_schema.IdpLinkTokenResponse:
+) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
     """Generate a one-time, short-lived token for IdP linking.
 
     Args:
@@ -41,7 +41,7 @@ def generate_idp_link_token(
         db: Database session.
 
     Returns:
-        IdpLinkTokenResponse containing the token and expiration.
+        IdentityProviderLinkTokenRead containing the token and expiration.
     """
     # Generate random token and store only its hash.
     token = secrets.token_urlsafe(32)
@@ -68,7 +68,7 @@ def generate_idp_link_token(
 
     logger.debug("Generated identity-provider link token", extra=core_logger.context(user_id=user_id, idp_id=idp_id))
 
-    return idp_link_token_schema.IdpLinkTokenResponse(token=token, expires_at=db_token.expires_at)
+    return idp_link_token_schema.IdentityProviderLinkTokenRead(token=token, expires_at=db_token.expires_at)
 
 
 def delete_expired_tokens(db: Session) -> int:
