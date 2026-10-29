@@ -41,6 +41,9 @@ class OAuthStateCreate(BaseModel):
     ip_address: StrictStr | None = Field(None, max_length=45, description="Client IP address")
     expires_at: datetime = Field(..., description="Expiry timestamp")
     user_id: StrictInt | None = Field(None, description="User ID (for link mode)")
+    browser_binding_hash: StrictStr | None = Field(
+        None, min_length=64, max_length=64, description="SHA-256 of the link's browser binding (link mode)"
+    )
 
 
 class OAuthStateRead(BaseModel):
@@ -63,3 +66,4 @@ class OAuthStateRead(BaseModel):
     expires_at: datetime = Field(..., description="Expiry timestamp")
     used: StrictBool = Field(..., description="Whether state has been used")
     user_id: StrictInt | None = Field(None, description="User ID if link mode")
+    browser_binding_hash: StrictStr | None = Field(None, description="SHA-256 of the link's browser binding")

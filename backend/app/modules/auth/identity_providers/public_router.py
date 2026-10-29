@@ -117,6 +117,7 @@ def handle_callback(
     ],
     db: core_dependencies.DbSession,
     service: idp_dependencies.CallbackService,
+    link_binding: idp_dependencies.LinkBinding = None,
     code: str = Query(..., description="Authorization code from IdP"),
     state: str = Query(..., description="State parameter for CSRF protection"),
 ):
@@ -131,6 +132,7 @@ def handle_callback(
         password_hasher: Password hasher dependency for session management.
         db: Database session dependency.
         service: Identity provider service.
+        link_binding: The cookie that binds a link to the browser that started it.
         code: Authorization code received from the identity provider.
         state: State parameter used for CSRF protection (database state ID).
 
@@ -152,7 +154,7 @@ def handle_callback(
         - On error: Redirects to login page with error parameter
         - All redirects use HTTP 307 (Temporary Redirect) status code
     """
-    idp, oauth_state = service.prepare_callback(idp_slug, state, db)
+    idp, oauth_state = service.prepare_callback(idp_slug, state, link_binding, db)
     redirect_url = service.complete_callback(
         idp,
         code,
@@ -163,4 +165,6 @@ def handle_callback(
         password_hasher,
         db,
     )
-    return RedirectResponse(url=redirect_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    response = RedirectResponse(url=redirect_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    idp_dependencies.clear_link_binding_cookie(response)
+    return response

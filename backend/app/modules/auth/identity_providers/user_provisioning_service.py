@@ -20,6 +20,24 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
+class SsoSignInRefusedError(core_exceptions.PermissionDeniedError):
+    """An SSO sign-in refused for a reason the login page names to the user.
+
+    Attributes:
+        login_error: The ``error`` code the login page shows a specific message for.
+    """
+
+    def __init__(self, detail: str, *, login_error: str) -> None:
+        """Initialise the refusal with its message and login-page code.
+
+        Args:
+            detail: Why the sign-in was refused.
+            login_error: The ``error`` code the login page shows a specific message for.
+        """
+        super().__init__(detail)
+        self.login_error = login_error
+
+
 def find_or_create_user(
     idp: identity_provider_contracts.IdentityProviderState,
     subject: str,
@@ -137,7 +155,9 @@ def find_or_create_user(
         )
         raise core_exceptions.PermissionDeniedError("User account creation is disabled for this identity provider")
 
-    user = create_user_from_idp(idp, subject, mapped_data, password_hasher, db)
+    user = create_user_from_idp(
+        idp, subject, mapped_data, password_hasher, db, email_verified=claim_mapping.is_email_verified(userinfo)
+    )
 
     return user
 
@@ -148,6 +168,8 @@ def create_user_from_idp(
     mapped_data: dict[str, Any],
     password_hasher: credentials_integration.PasswordHasher,
     db: Session,
+    *,
+    email_verified: bool,
 ) -> users_schema.UsersRead:
     """Creates a new user in the database based on identity provider (IdP) information.
 
@@ -155,8 +177,8 @@ def create_user_from_idp(
     using the existing CRUD layer, and links the user to the IdP subject. SSO accounts get
     no local password credential — ``create_signup_user`` is called with
     ``persist_credential=False`` so no row is written to ``users_local_credentials`` and
-    ``has_local_password`` correctly reports ``False``. The user's email is marked as
-    verified since we trust the IdP's verification.
+    ``has_local_password`` correctly reports ``False``. The user's email is verified only when the
+    IdP asserted it as verified.
 
     Args:
         idp (identity_provider_contracts.IdentityProviderState): The identity provider instance.
@@ -164,13 +186,22 @@ def create_user_from_idp(
         mapped_data (Dict[str, Any]): User data mapped from the IdP (e.g., username, email, name).
         password_hasher (credentials_integration.PasswordHasher): The password hasher instance.
         db (Session): The database session.
+        email_verified (bool): Whether the IdP asserted the email as verified.
 
     Returns:
         users_schema.UsersRead: The newly created user instance.
 
     Raises:
+        SsoSignInRefusedError: If the IdP did not share an email address; every account needs a real one.
         domain error: If user creation fails (e.g., duplicate username/email).
     """
+    email = mapped_data.get("email")
+    if not email:
+        raise SsoSignInRefusedError(
+            f"{idp.name} did not share an email address, so no account can be created",
+            login_error="sso_email_missing",
+        )
+
     # Generate a random password solely to satisfy the required
     # UsersSignup.password field. It is never validated, hashed, or
     # stored because the user is created with persist_credential=False
@@ -187,7 +218,7 @@ def create_user_from_idp(
     # Create user signup schema
     user_signup = users_schema.UsersSignup(
         username=username,
-        email=mapped_data.get("email", f"{username}@sso.local"),
+        email=email,
         city=mapped_data.get("city"),
         birthdate=mapped_data.get("birthdate"),
         name=mapped_data.get("name", username),
@@ -203,7 +234,7 @@ def create_user_from_idp(
 
     server_settings = server_settings_integration.get_server_settings(db)
 
-    created_user = users_integration.create_sso_user(user_signup, server_settings, db)
+    created_user = users_integration.create_sso_user(user_signup, server_settings, db, email_verified=email_verified)
 
     # Create the IdP link
     identity_provider_links_integration.create_user_identity_provider(created_user.id, idp.id, subject, db)

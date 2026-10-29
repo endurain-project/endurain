@@ -12,6 +12,7 @@ import modules.auth.authentication.dependencies as auth_transport_dependencies
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_utils
+import modules.auth.computation as auth_computation
 
 
 @pytest.fixture(autouse=True)
@@ -550,28 +551,19 @@ class TestCompleteLogin:
 
 
 class TestIsSecureCookieEnvironment:
-    """Tests for _is_secure_cookie_environment."""
+    """Tests for secure_cookie."""
 
     def test_returns_true_when_production(self):
         with patch.object(auth_transport_dependencies.core_config.settings, "ENVIRONMENT", "production"):
-            assert (
-                auth_transport_dependencies._secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT)
-                is True
-            )
+            assert auth_computation.secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT) is True
 
     def test_returns_true_when_demo(self):
         with patch.object(auth_transport_dependencies.core_config.settings, "ENVIRONMENT", "demo"):
-            assert (
-                auth_transport_dependencies._secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT)
-                is True
-            )
+            assert auth_computation.secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT) is True
 
     def test_returns_false_when_development(self):
         with patch.object(auth_transport_dependencies.core_config.settings, "ENVIRONMENT", "development"):
-            assert (
-                auth_transport_dependencies._secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT)
-                is False
-            )
+            assert auth_computation.secure_cookie(auth_transport_dependencies.core_config.settings.ENVIRONMENT) is False
 
 
 class TestClearRefreshTokenCookies:

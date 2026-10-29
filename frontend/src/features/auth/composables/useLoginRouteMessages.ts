@@ -29,6 +29,7 @@ const SSO_ERROR_KEYS: Record<string, string> = {
   sso_account_not_found: 'login.ssoAccountNotFound',
   sso_account_disabled: 'login.ssoAccountDisabled',
   sso_auto_create_disabled: 'login.ssoAutoCreateDisabled',
+  sso_email_missing: 'login.ssoEmailMissing',
 }
 
 /**

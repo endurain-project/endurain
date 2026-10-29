@@ -9,6 +9,7 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow_servic
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.identity_provider_links.schema as identity_links_schema
+import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.schema as mfa_schema
 import modules.users.users.schema as users_schema
@@ -92,8 +93,10 @@ def admin_delete_identity_provider_link(user_id: int, idp_id: int, db: Session) 
     identity_link_service.admin_delete_identity_provider_link(user_id, idp_id, db)
 
 
-def start_browser_idp_link(link_token: str, idp_id: int, redirect: str | None, client_ip: str, db: Session) -> str:
-    """Stage the claim of a one-time IdP link token and build the provider authorization URL."""
+def start_browser_idp_link(
+    link_token: str, idp_id: int, redirect: str | None, client_ip: str, db: Session
+) -> identity_providers_contracts.BrowserLinkStart:
+    """Stage the claim of a one-time IdP link token and build the provider redirect and browser binding."""
     return identity_providers_integration.start_browser_link(
         link_token,
         idp_id,

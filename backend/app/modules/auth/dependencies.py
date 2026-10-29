@@ -18,6 +18,7 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.contracts as auth_contracts
+import modules.auth.identity_providers.dependencies as identity_providers_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 
 logger = core_logger.get_logger(__name__)
@@ -28,6 +29,7 @@ AuthContext = auth_contracts.AuthContext
 ApiKeyId = Annotated[str, Path(min_length=1)]
 IdentityProviderSlug = Annotated[str, Path(min_length=1)]
 AuthSessionId = Annotated[str, Path(min_length=1)]
+set_idp_link_binding_cookie = identity_providers_dependencies.set_link_binding_cookie
 
 
 def get_access_token(

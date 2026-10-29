@@ -175,9 +175,11 @@ def create_sso_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
+    *,
+    email_verified: bool,
 ) -> users_schema.UsersRead:
-    """Create an SSO-only user through the users module."""
-    return users_service.create_sso_user(user, server_settings, db)
+    """Create an SSO-only user through the users module, its email verified only as the provider asserted."""
+    return users_service.create_sso_user(user, server_settings, db, email_verified=email_verified)
 
 
 def stage_email_verification(

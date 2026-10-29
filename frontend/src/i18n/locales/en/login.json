@@ -46,6 +46,7 @@
   "ssoAccountNotFound": "No account is linked to this identity provider",
   "ssoAccountDisabled": "This account is disabled",
   "ssoAutoCreateDisabled": "Automatic account creation is disabled",
+  "ssoEmailMissing": "The identity provider did not share an email address, so no account could be created. Ask your administrator to check the provider's email settings.",
   "ssoErrorUndefined": "Single sign-on failed",
   "noLoginMethods": "No login methods are enabled on this server",
   "imageAlt": "Endurain login illustration",

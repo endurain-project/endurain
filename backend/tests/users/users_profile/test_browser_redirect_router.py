@@ -8,7 +8,12 @@ from fastapi.testclient import TestClient
 import core.config as core_config
 import core.database as core_database
 import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
+
+_START = identity_provider_contracts.BrowserLinkStart(
+    authorization_url="https://idp.example.com/auth", browser_binding="binding-secret"
+)
 
 
 class TestLinkIdentityProvider:
@@ -27,9 +32,7 @@ class TestLinkIdentityProvider:
 
     def test_redirects_to_the_authorization_url(self):
         app = self._make_app()
-        with patch.object(
-            account_security_integration, "start_browser_idp_link", return_value="https://idp.example.com/auth"
-        ) as start_link:
+        with patch.object(account_security_integration, "start_browser_idp_link", return_value=_START) as start_link:
             response = TestClient(app).get(self.endpoint, follow_redirects=False)
         start_link.assert_called_once()
 
@@ -37,11 +40,20 @@ class TestLinkIdentityProvider:
         assert response.headers["location"] == "https://idp.example.com/auth"
         assert "no-store" in response.headers["cache-control"]
 
+    def test_binds_the_link_to_this_browser_with_a_callback_scoped_cookie(self):
+        app = self._make_app()
+        with patch.object(account_security_integration, "start_browser_idp_link", return_value=_START):
+            response = TestClient(app).get(self.endpoint, follow_redirects=False)
+
+        cookie = response.headers["set-cookie"]
+        assert cookie.startswith("endurain_idp_link=binding-secret;")
+        # Lax, not Strict: the callback is a top-level navigation back from the provider's site.
+        for attribute in ("HttpOnly", "Max-Age=600", "Path=/api/v1/public/idp/callback", "SameSite=lax"):
+            assert attribute in cookie
+
     def test_passes_the_token_provider_and_return_path_through(self):
         app = self._make_app()
-        with patch.object(
-            account_security_integration, "start_browser_idp_link", return_value="https://idp.example.com/auth"
-        ) as start_link:
+        with patch.object(account_security_integration, "start_browser_idp_link", return_value=_START) as start_link:
             TestClient(app).get(self.endpoint + "&redirect=/settings/security", follow_redirects=False)
 
         args = start_link.call_args.args

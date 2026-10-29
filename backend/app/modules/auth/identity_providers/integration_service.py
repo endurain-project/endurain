@@ -45,8 +45,8 @@ def start_browser_link(
     client_ip: str | None,
     claim_link_token: Callable[..., int],
     db: Session,
-) -> str:
-    """Claim a browser link token and prepare its identity-provider redirect."""
+) -> identity_providers_contracts.BrowserLinkStart:
+    """Claim a browser link token and prepare its identity-provider redirect and browser binding."""
     service = identity_providers_authorization.AuthorizationService(_oidc_client(), core_config.settings.ENDURAIN_HOST)
     return service.start_browser_link(
         link_token,

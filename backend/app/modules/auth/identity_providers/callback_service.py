@@ -1,5 +1,6 @@
 """The end of an SSO login or link flow: the provider's callback, user matching and session creation."""
 
+import hmac
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
@@ -78,19 +79,22 @@ class CallbackService:
         return claimed
 
     def prepare_callback(
-        self, idp_slug: str, state: str, db: Session
+        self, idp_slug: str, state: str, link_binding: str | None, db: Session
     ) -> tuple[identity_provider_contracts.IdentityProviderState, oauth_state_schema.OAuthStateRead]:
         """Accept a provider callback: find its provider and claim its one-time state.
 
         The state is looked up by its opaque id and checked against the provider named in the URL, because
-        without that a state minted for one provider could be replayed against another's callback. It is then
-        claimed atomically, so of two concurrent callbacks with the same state only one continues. A state
-        that is unknown, bound elsewhere or already used gets the same answer, so a caller learns nothing
-        about which of those it was.
+        without that a state minted for one provider could be replayed against another's callback. A link
+        must also finish in the browser that started it: its provider URL is otherwise all an attacker needs
+        to bind a victim's provider account to their own. It is then claimed atomically, so of two concurrent
+        callbacks with the same state only one continues. A state that is unknown, bound elsewhere, finished
+        by another browser or already used gets the same answer, so a caller learns nothing about which of
+        those it was.
 
         Args:
             idp_slug: Slug of the provider from the callback URL.
             state: The ``state`` parameter the provider echoed back.
+            link_binding: The browser's link-binding cookie, if it sent one.
             db: Database session.
 
         Returns:
@@ -117,6 +121,12 @@ class CallbackService:
                 extra=core_logger.context(
                     value_1=core_hashing.log_fingerprint(state), idp_id=oauth_state.idp_id, id=idp.id
                 ),
+            )
+            raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
+        if oauth_state.user_id is not None and not _is_bound_browser(link_binding, oauth_state.browser_binding_hash):
+            logger.warning(
+                "IdP link callback refused for state <value_1>: not the browser that started the link",
+                extra=core_logger.context(value_1=core_hashing.log_fingerprint(state), user_id=oauth_state.user_id),
             )
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
         if not self.claim_oauth_state(state, db):
@@ -201,6 +211,13 @@ class CallbackService:
                 ),
             )
             return redirect_url
+        except user_provisioning_service.SsoSignInRefusedError as err:
+            # A provider's configuration the login page explains, not a failure of this server.
+            logger.warning(
+                "SSO sign-in refused for IdP <name>: <detail>",
+                extra=core_logger.context(name=idp.name, detail=err.detail),
+            )
+            return f"{self._frontend_host}/login?error={err.login_error}"
         except Exception as err:
             logger.error("Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err))
             # A link attempt is the one whose OAuth state carries the user who started it.
@@ -525,3 +542,18 @@ class CallbackService:
         db.commit()
         logger.debug("SSO callback session created", extra=core_logger.context(user_id=user_read.id))
         return session_id
+
+
+def _is_bound_browser(link_binding: str | None, binding_hash: str | None) -> bool:
+    """Tell whether a callback comes from the browser that started the link.
+
+    Args:
+        link_binding: The browser's link-binding cookie, if it sent one.
+        binding_hash: The digest the link's OAuth state stored, if any.
+
+    Returns:
+        True when both are present and the cookie hashes to the stored digest.
+    """
+    if not link_binding or not binding_hash:
+        return False
+    return hmac.compare_digest(core_hashing.sha256_hex(link_binding), binding_hash)

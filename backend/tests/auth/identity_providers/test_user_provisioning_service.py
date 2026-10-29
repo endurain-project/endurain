@@ -120,6 +120,49 @@ class TestFindOrCreateUserEmailLinking:
 
         assert result is created_user
         mock_create.assert_called_once()
+        assert mock_create.call_args.kwargs["email_verified"] is False
+
+
+class TestCreatedAccountEmailVerification:
+    """A new SSO account's email is verified only when the provider asserted it as verified."""
+
+    @pytest.mark.parametrize("asserted", [True, False])
+    def test_the_flag_follows_the_provider(self, asserted):
+        hasher = MagicMock()
+        hasher.generate_password.return_value = "x" * 16
+        with (
+            patch.object(user_provisioning_service.users_integration, "get_user_by_username", return_value=None),
+            patch.object(user_provisioning_service.server_settings_integration, "get_server_settings"),
+            patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
+            patch.object(
+                user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"
+            ),
+        ):
+            create_sso_user.return_value = MagicMock(id=3, username="new")
+            user_provisioning_service.create_user_from_idp(
+                _make_idp(),
+                "subject-123",
+                {"username": "new", "email": "new@example.com"},
+                hasher,
+                MagicMock(),
+                email_verified=asserted,
+            )
+
+        assert create_sso_user.call_args.kwargs["email_verified"] is asserted
+
+    @pytest.mark.parametrize("mapped", [{}, {"email": ""}, {"email": None}])
+    def test_an_account_without_an_email_is_refused_with_its_own_reason(self, mapped):
+        """Every account needs a real address for reset and notices, so none is invented for it."""
+        with (
+            patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
+            pytest.raises(user_provisioning_service.SsoSignInRefusedError) as exc_info,
+        ):
+            user_provisioning_service.create_user_from_idp(
+                _make_idp(), "subject-123", {"username": "new", **mapped}, MagicMock(), MagicMock(), email_verified=True
+            )
+
+        assert exc_info.value.login_error == "sso_email_missing"
+        create_sso_user.assert_not_called()
 
 
 class TestLocalEmailVerificationGate:

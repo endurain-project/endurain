@@ -31,3 +31,17 @@ class IdentityProviderState(BaseModel):
     version: int
 
     model_config = ConfigDict(from_attributes=True, frozen=True)
+
+
+class BrowserLinkStart(BaseModel):
+    """Where to send the browser that starts a link, and the secret that binds the link to it.
+
+    Attributes:
+        authorization_url: The provider's authorization URL.
+        browser_binding: The secret the starting browser keeps in a cookie; the callback requires it.
+    """
+
+    authorization_url: str
+    browser_binding: str
+
+    model_config = ConfigDict(frozen=True)

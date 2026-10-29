@@ -1,5 +1,6 @@
 """The start of an SSO login or link flow: authorization URLs and the OAuth state behind them."""
 
+import secrets
 from collections.abc import Callable
 
 from authlib.integrations.httpx_client import OAuth2Client
@@ -81,8 +82,12 @@ class AuthorizationService:
         claim_link_token: Callable[..., int],
         allowed_schemes: set[str],
         db: Session,
-    ) -> str:
-        """Claim a browser link token, stage OAuth state, and return the provider URL."""
+    ) -> identity_provider_contracts.BrowserLinkStart:
+        """Claim a browser link token, stage OAuth state, and return the provider URL with the browser binding.
+
+        The state stores only a digest of the binding, so the callback can tell the browser that started the
+        link from one that was handed its provider URL, and the row alone cannot reproduce the cookie.
+        """
         identity_provider_utils.validate_redirect_url(redirect, allowed_schemes)
         user_id = claim_link_token(link_token=link_token, idp_id=idp_id, client_ip=client_ip)
         idp = idp_crud.get_identity_provider(idp_id, db)
@@ -90,6 +95,7 @@ class AuthorizationService:
             raise core_exceptions.NotFoundError("Identity provider not found or disabled")
         state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
         client_type = "mobile" if identity_provider_utils.is_custom_scheme_redirect(redirect) else "web"
+        browser_binding = secrets.token_urlsafe(32)
         oauth_state_integration.create_oauth_state(
             db=db,
             state_id=state_id,
@@ -99,12 +105,15 @@ class AuthorizationService:
             ip_address=client_ip,
             user_id=user_id,
             redirect_path=redirect,
+            browser_binding_hash=core_hashing.sha256_hex(browser_binding),
         )
         authorization_url = self.initiate_link(idp, user_id, db, oauth_state_id=state_id)
         logger.info(
             "User initiated an identity provider link", extra=core_logger.context(user_id=user_id, idp_id=idp_id)
         )
-        return authorization_url
+        return identity_provider_contracts.BrowserLinkStart(
+            authorization_url=authorization_url, browser_binding=browser_binding
+        )
 
     def initiate_login(
         self,

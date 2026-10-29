@@ -1,4 +1,4 @@
-"""Shared hashing helpers for opaque auth tokens.
+"""Pure helpers the auth packages share: token hashing and the cookie ``Secure`` rule.
 
 Centralizes the two token-hashing strategies used across the auth token
 modules so the choice is made in one place and cannot drift:
@@ -132,3 +132,15 @@ def _secure_compare(a: str, b: str) -> bool:
         True if strings are equal, False otherwise.
     """
     return hmac.compare_digest(a.encode(), b.encode())
+
+
+def secure_cookie(environment: str) -> bool:
+    """Return whether the configured environment requires Secure cookies.
+
+    Args:
+        environment: The deployment environment name.
+
+    Returns:
+        True when auth cookies must only travel over HTTPS.
+    """
+    return environment in {"production", "demo"}

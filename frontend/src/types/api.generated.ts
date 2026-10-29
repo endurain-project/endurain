@@ -3069,6 +3069,7 @@ export interface paths {
          *         - Uses one-time, short-lived (60s) link tokens instead of access tokens
          *         - Validates token expiry and single-use constraint
          *         - Optional IP address validation
+         *         - Binds the link to this browser with a cookie the callback requires
          *
          *     Args:
          *         idp_id (int): The ID of the identity provider to link.
@@ -3912,6 +3913,7 @@ export interface paths {
          *         password_hasher: Password hasher dependency for session management.
          *         db: Database session dependency.
          *         service: Identity provider service.
+         *         link_binding: The cookie that binds a link to the browser that started it.
          *         code: Authorization code received from the identity provider.
          *         state: State parameter used for CSRF protection (database state ID).
          *

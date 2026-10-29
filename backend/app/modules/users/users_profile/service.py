@@ -17,6 +17,7 @@ import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.followers.integration_service as followers_integration
 import modules.users.users.integration_service as users_integration
@@ -373,8 +374,8 @@ def start_identity_provider_link(
     redirect: str | None,
     client_ip: str,
     db: Session,
-) -> str:
-    """Claim a one-time link token and return the identity provider's authorization URL.
+) -> identity_provider_contracts.BrowserLinkStart:
+    """Claim a one-time link token and return the identity provider's authorization URL and browser binding.
 
     Args:
         link_token: One-time token minted for the link.
@@ -384,9 +385,9 @@ def start_identity_provider_link(
         db: Database session.
 
     Returns:
-        The provider's authorization URL.
+        The provider's authorization URL, and the secret the browser must keep for the callback.
     """
-    authorization_url = account_security_integration.start_browser_idp_link(link_token, idp_id, redirect, client_ip, db)
+    start = account_security_integration.start_browser_idp_link(link_token, idp_id, redirect, client_ip, db)
     db.commit()
     logger.debug("Identity provider link started", extra=core_logger.context(idp_id=idp_id))
-    return authorization_url
+    return start

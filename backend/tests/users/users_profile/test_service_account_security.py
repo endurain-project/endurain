@@ -23,8 +23,8 @@ def test_changing_the_password_stages_through_account_security_then_commits(mock
 
 def test_starting_a_browser_link_commits_the_claimed_link_token_and_oauth_state(mock_db):
     with patch(_ACCOUNT_SECURITY) as account_security:
-        account_security.start_browser_idp_link.return_value = "https://idp.test/authorize"
-        url = profile_service.start_identity_provider_link("token", 2, "/settings", "10.0.0.1", mock_db)
+        account_security.start_browser_idp_link.return_value = "start"
+        start = profile_service.start_identity_provider_link("token", 2, "/settings", "10.0.0.1", mock_db)
 
-    assert url == "https://idp.test/authorize"
+    assert start == "start"
     mock_db.commit.assert_called_once()

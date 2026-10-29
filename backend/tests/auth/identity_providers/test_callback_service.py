@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import modules.auth.identity_providers.callback_service as callback_service
 
 HOST = "https://app.example.com"
@@ -24,19 +25,26 @@ def _idp(enabled=True, **overrides):
     return SimpleNamespace(**values)
 
 
+def _oauth_state(**overrides):
+    values = {"idp_id": 1, "client_type": "web", "user_id": None, "browser_binding_hash": None}
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 class TestPrepareCallback:
-    def _prepare(self, service, *, idp, oauth_state, claimed=True):
+    def _prepare(self, service, *, idp, oauth_state, claimed=True, link_binding=None):
+        self.claim = MagicMock(return_value=claimed)
         with (
             patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=idp),
             patch.object(service, "get_unused_oauth_state", return_value=oauth_state),
-            patch.object(service, "claim_oauth_state", return_value=claimed),
+            patch.object(service, "claim_oauth_state", self.claim),
         ):
-            return service.prepare_callback("test", "state-id", MagicMock())
+            return service.prepare_callback("test", "state-id", link_binding, MagicMock())
 
     def test_an_unknown_or_disabled_provider_is_not_found(self, service):
         for idp in (None, _idp(enabled=False)):
             with pytest.raises(core_exceptions.NotFoundError):
-                self._prepare(service, idp=idp, oauth_state=SimpleNamespace(idp_id=1, client_type="web"))
+                self._prepare(service, idp=idp, oauth_state=_oauth_state())
 
     def test_an_unknown_state_is_refused(self, service):
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
@@ -44,14 +52,39 @@ class TestPrepareCallback:
 
     def test_a_state_issued_for_another_provider_is_refused(self, service):
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
-            self._prepare(service, idp=_idp(id=1), oauth_state=SimpleNamespace(idp_id=2, client_type="web"))
+            self._prepare(service, idp=_idp(id=1), oauth_state=_oauth_state(idp_id=2))
 
     def test_a_replayed_state_is_refused_with_the_same_message(self, service):
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
-            self._prepare(service, idp=_idp(), oauth_state=SimpleNamespace(idp_id=1, client_type="web"), claimed=False)
+            self._prepare(service, idp=_idp(), oauth_state=_oauth_state(), claimed=False)
 
     def test_a_good_state_is_claimed_and_returned_with_its_provider(self, service):
-        idp, oauth_state = _idp(), SimpleNamespace(idp_id=1, client_type="web")
+        idp, oauth_state = _idp(), _oauth_state()
+
+        assert self._prepare(service, idp=idp, oauth_state=oauth_state) == (idp, oauth_state)
+
+    def test_a_link_finishes_in_the_browser_that_started_it(self, service):
+        idp = _idp()
+        oauth_state = _oauth_state(user_id=7, browser_binding_hash=core_hashing.sha256_hex("binding"))
+
+        assert self._prepare(service, idp=idp, oauth_state=oauth_state, link_binding="binding") == (idp, oauth_state)
+
+    @pytest.mark.parametrize("link_binding", [None, "", "another-browser"])
+    def test_a_link_from_another_browser_is_refused_before_the_state_is_claimed(self, service, link_binding):
+        """The attacker's own link URL, opened by a victim, must not bind the victim's IdP account to it."""
+        oauth_state = _oauth_state(user_id=7, browser_binding_hash=core_hashing.sha256_hex("binding"))
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
+            self._prepare(service, idp=_idp(), oauth_state=oauth_state, link_binding=link_binding)
+        self.claim.assert_not_called()
+
+    def test_a_link_state_without_a_binding_is_refused(self, service):
+        with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
+            self._prepare(service, idp=_idp(), oauth_state=_oauth_state(user_id=7), link_binding="binding")
+
+    def test_a_login_needs_no_binding(self, service):
+        """A login is bound to its client by PKCE at the token exchange instead."""
+        idp, oauth_state = _idp(), _oauth_state()
 
         assert self._prepare(service, idp=idp, oauth_state=oauth_state) == (idp, oauth_state)
 
@@ -110,6 +143,18 @@ class TestCompleteCallback:
             self._complete(service, {"user": SimpleNamespace(username="a")}, self._state(), session_id="secret-session")
 
         assert "secret-session" not in caplog.text
+
+    def test_a_refused_sign_in_returns_to_the_login_page_with_its_reason(self, service, caplog):
+        refusal = callback_service.user_provisioning_service.SsoSignInRefusedError(
+            "The identity provider did not share an email address", login_error="sso_email_missing"
+        )
+
+        with caplog.at_level(logging.WARNING, logger=callback_service.logger.name):
+            url, _ = self._complete(service, None, self._state(), error=refusal)
+
+        assert url == f"{HOST}/login?error=sso_email_missing"
+        # An identity provider's configuration problem, not a failure of this server.
+        assert [record.levelno for record in caplog.records] == [logging.WARNING]
 
     def test_a_failed_login_returns_to_the_login_page_with_an_error(self, service):
         url, _ = self._complete(service, None, self._state(), error=core_exceptions.UpstreamError("down"))

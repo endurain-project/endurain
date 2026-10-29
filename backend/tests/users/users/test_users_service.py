@@ -363,19 +363,24 @@ class TestCreateSignupUser:
         return MagicMock(signup_require_email_verification=verification, signup_require_admin_approval=approval)
 
     @pytest.mark.parametrize(
-        ("verification", "approval", "active", "email_verified", "pending"),
+        ("verification", "approval", "active", "pending"),
         [
-            (False, False, True, True, False),
-            (True, False, False, False, False),
-            (False, True, False, False, True),
-            (True, True, False, False, True),
+            (False, False, True, False),
+            (True, False, False, False),
+            (False, True, False, True),
+            (True, True, False, True),
         ],
     )
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
     def test_account_state_follows_the_signup_policy(
-        self, mock_crud, _defaults, verification, approval, active, email_verified, pending, mock_db
+        self, mock_crud, _defaults, verification, approval, active, pending, mock_db
     ):
+        """A sign-up never proves the address, so it starts unverified whatever the policy.
+
+        Only the verification link proves it; a verified flag set without it would let anyone pre-claim an
+        address and receive the owner's later SSO sign-in through email auto-linking.
+        """
         mock_crud.create_user.return_value = _user(3)
 
         users_service.create_signup_user(_signup(), self._settings(verification, approval), mock_db)
@@ -383,7 +388,7 @@ class TestCreateSignupUser:
         fields = mock_crud.create_user.call_args.args[0]
         assert (fields["active"], fields["email_verified"], fields["pending_admin_approval"]) == (
             active,
-            email_verified,
+            False,
             pending,
         )
         assert fields["access_type"] == "regular"
@@ -405,11 +410,23 @@ class TestCreateSignupUser:
     def test_sso_user_stages_without_committing(self, mock_crud, _defaults, mock_db):
         mock_crud.create_user.return_value = _user(3)
 
-        created = users_service.create_sso_user(_signup(), self._settings(False, False), mock_db)
+        created = users_service.create_sso_user(_signup(), self._settings(False, False), mock_db, email_verified=True)
 
         assert created.id == 3
         mock_db.commit.assert_not_called()
         mock_db.rollback.assert_not_called()
+
+    @pytest.mark.parametrize("email_verified", [True, False])
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_CRUD)
+    def test_an_sso_account_is_verified_only_when_the_provider_says_so(
+        self, mock_crud, _defaults, email_verified, mock_db
+    ):
+        mock_crud.create_user.return_value = _user(3)
+
+        users_service.create_sso_user(_signup(), self._settings(False, False), mock_db, email_verified=email_verified)
+
+        assert mock_crud.create_user.call_args.args[0]["email_verified"] is email_verified
 
     @patch(_CRUD)
     def test_duplicate_gives_an_abstract_conflict(self, mock_crud, mock_db):
@@ -631,6 +648,12 @@ class TestEdits:
 
 @patch(_CRUD)
 class TestApproveAndVerify:
+    @pytest.fixture(autouse=True)
+    def settings(self):
+        with patch(_SETTINGS) as mock_settings:
+            mock_settings.get_server_settings.return_value = MagicMock(signup_require_email_verification=True)
+            yield mock_settings.get_server_settings.return_value
+
     def test_approve_activates_and_commits(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, email_verified=True)
         with patch(
@@ -670,13 +693,24 @@ class TestApproveAndVerify:
         mock_request.assert_called_once_with(1, mock_db)
         mock_db.commit.assert_called_once()
 
-    def test_approve_refuses_an_unverified_email(self, mock_crud, mock_db):
+    def test_approve_refuses_an_unverified_email_while_verification_is_required(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, email_verified=False)
 
         with pytest.raises(core_exceptions.InvalidInputError):
             users_service.approve_user(1, mock_db)
 
         mock_crud.update_user.assert_not_called()
+
+    def test_approve_needs_no_verified_email_when_verification_is_off(self, mock_crud, mock_db, settings):
+        """With approval alone no verification email is ever sent, so requiring one made approval impossible."""
+        settings.signup_require_email_verification = False
+        mock_crud.get_user_by_id.return_value = _user(1, email_verified=False)
+
+        with patch("modules.users.users.service.sign_up_tokens_integration.request_sign_up_approved_email"):
+            users_service.approve_user(1, mock_db)
+
+        mock_crud.update_user.assert_called_once_with(1, {"pending_admin_approval": False, "active": True}, mock_db)
+        mock_db.commit.assert_called_once()
 
     def test_verification_activates_without_approval_policy(self, mock_crud, mock_db):
         users_service.stage_email_verification(1, MagicMock(signup_require_admin_approval=False), mock_db)

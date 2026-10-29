@@ -13,6 +13,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.schema as auth_schema
+import modules.auth.computation as auth_computation
 import modules.auth.constants as auth_constants
 
 REFRESH_TOKEN_COOKIE_NAME = "endurain" + "_refresh_token"
@@ -23,11 +24,6 @@ REFRESH_TOKEN_COOKIE_CLEAR_PATHS = (*LEGACY_REFRESH_TOKEN_COOKIE_PATHS, REFRESH_
 
 class ClearRefreshTokenCookieError(core_exceptions.UnauthenticatedError):
     """Authentication error that clears refresh-token cookies."""
-
-
-def _secure_cookie(environment: str) -> bool:
-    """Return whether the configured environment requires Secure cookies."""
-    return environment in {"production", "demo"}
 
 
 def set_refresh_token_cookie(
@@ -47,7 +43,7 @@ def set_refresh_token_cookie(
         expires=expires_at,
         httponly=True,
         path=cookie_path,
-        secure=_secure_cookie(environment),
+        secure=auth_computation.secure_cookie(environment),
         samesite="strict",
     )
 
@@ -84,7 +80,7 @@ def clear_refresh_token_cookies(
         response.delete_cookie(
             key=cookie_name,
             path=path,
-            secure=_secure_cookie(environment),
+            secure=auth_computation.secure_cookie(environment),
             httponly=True,
             samesite="strict",
         )

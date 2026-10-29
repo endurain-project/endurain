@@ -18,6 +18,7 @@ from fastapi.responses import RedirectResponse
 
 import core.dependencies as core_dependencies
 import core.network as core_network
+import modules.auth.dependencies as auth_dependencies
 import modules.users.users_profile.service as profile_service
 
 # Define the API router
@@ -51,6 +52,7 @@ def link_identity_provider(
         - Uses one-time, short-lived (60s) link tokens instead of access tokens
         - Validates token expiry and single-use constraint
         - Optional IP address validation
+        - Binds the link to this browser with a cookie the callback requires
 
     Args:
         idp_id (int): The ID of the identity provider to link.
@@ -64,15 +66,17 @@ def link_identity_provider(
             with HTTP 307 status code.
 
     """
-    authorization_url = profile_service.start_identity_provider_link(
+    start = profile_service.start_identity_provider_link(
         link_token, idp_id, redirect, core_network.get_ip_address(request), db
     )
 
-    return RedirectResponse(
-        url=authorization_url,
+    response = RedirectResponse(
+        url=start.authorization_url,
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         headers={
             "Cache-Control": "no-store, no-cache, must-revalidate, private",
             "Pragma": "no-cache",
         },
     )
+    auth_dependencies.set_idp_link_binding_cookie(response, start.browser_binding)
+    return response

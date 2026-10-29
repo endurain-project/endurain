@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 from modules.auth.identity_providers import authorization_service, integration_service
 
 _UNSET = object()
@@ -35,11 +36,21 @@ def _start(*, redirect=None, provider=_UNSET, claim=None):
 
 
 def test_start_browser_link_returns_authorization_url():
-    url, claim, service, create_state = _start()
-    assert url == "https://idp.example.com/auth"
+    start, claim, service, create_state = _start()
+    assert start.authorization_url == "https://idp.example.com/auth"
     claim.assert_called_once_with(link_token="token", idp_id=1, client_ip="10.0.0.1")
     assert create_state.call_args.kwargs["user_id"] == 7
     service.initiate_link.assert_called_once()
+
+
+def test_the_state_stores_only_a_digest_of_a_fresh_browser_binding():
+    """The browser keeps the binding; the row keeps its digest, so the row alone cannot reproduce it."""
+    first, _, _, create_state = _start()
+    second, _, _, _ = _start()
+
+    assert len(first.browser_binding) >= 43
+    assert first.browser_binding != second.browser_binding
+    assert create_state.call_args.kwargs["browser_binding_hash"] == core_hashing.sha256_hex(first.browser_binding)
 
 
 def test_start_browser_link_preserves_redirect_and_client_type():

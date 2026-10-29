@@ -334,17 +334,22 @@ def _stage_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
+    *,
+    email_verified: bool,
     persist_credential: bool = True,
 ) -> users_schema.UsersRead:
     """Stage a user through sign-up or SSO, with their default data.
 
     The account's state follows the server's sign-up policy: it starts inactive when email
-    verification or admin approval is required.
+    verification or admin approval is required. Whether the email is verified does not follow the
+    policy: it records whether the address was proven, because an unproven address marked verified
+    could be pre-claimed and receive its owner's later SSO sign-in.
 
     Args:
         user: User sign-up data.
         server_settings: Server config for sign-up requirements.
         db: Database session.
+        email_verified: Whether the address is already proven.
         persist_credential: When True, validate the supplied password and store its hash.
             SSO-created accounts pass False so they get no local credential and stay SSO-only.
 
@@ -366,7 +371,7 @@ def _stage_signup_user(
         email=user.email.lower(),
         access_type=users_schema.UserAccessType.REGULAR.value,
         active=not (needs_verification or needs_approval),
-        email_verified=not (needs_verification or needs_approval),
+        email_verified=email_verified,
         pending_admin_approval=needs_approval,
     )
 
@@ -390,9 +395,14 @@ def create_signup_user(
     db: Session,
     persist_credential: bool = True,
 ) -> users_schema.UsersRead:
-    """Create a user through sign-up or SSO and commit the staged defaults."""
+    """Create a user through sign-up or SSO and commit the staged defaults.
+
+    The address is not proven yet: the verification link proves it.
+    """
     try:
-        created = _stage_signup_user(user, server_settings, db, persist_credential)
+        created = _stage_signup_user(
+            user, server_settings, db, email_verified=False, persist_credential=persist_credential
+        )
     except core_exceptions.ConflictError as err:
         db.rollback()
         # Abstract message to reduce information leakage.
@@ -406,10 +416,25 @@ def create_sso_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
+    *,
+    email_verified: bool,
 ) -> users_schema.UsersRead:
-    """Stage an SSO-only user with the defaults used by regular sign-up."""
+    """Stage an SSO-only user with the defaults used by regular sign-up.
+
+    Args:
+        user: User sign-up data mapped from the provider.
+        server_settings: Server config for sign-up requirements.
+        db: Database session.
+        email_verified: Whether the provider asserted the address as verified.
+
+    Returns:
+        The staged user.
+
+    Raises:
+        ConflictError: If the username or email is already taken.
+    """
     try:
-        created = _stage_signup_user(user, server_settings, db, persist_credential=False)
+        created = _stage_signup_user(user, server_settings, db, email_verified=email_verified, persist_credential=False)
     except core_exceptions.ConflictError as err:
         raise core_exceptions.ConflictError("Unable to create user.") from err
     logger.info("SSO user staged", extra=core_logger.context(user_id=created.id))
@@ -649,15 +674,22 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
 def approve_user(user_id: int, db: Session) -> None:
     """Approve a pending user, staging the notice event in the same transaction.
 
+    A verified email is required only while the sign-up policy requires verification: with approval
+    alone no verification email is sent, so the user could never meet it.
+
     Args:
         user_id: ID of the user to approve.
         db: Database session.
 
     Raises:
         NotFoundError: If the user does not exist.
-        InvalidInputError: If the user's email is not verified.
+        InvalidInputError: If verification is required and the user's email is not verified.
     """
-    if not require_user(user_id, db).email_verified:
+    user = require_user(user_id, db)
+    if (
+        server_settings_integration.get_server_settings(db).signup_require_email_verification
+        and not user.email_verified
+    ):
         logger.debug("Refused to approve a user with an unverified email", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.InvalidInputError("User email is not verified")
 

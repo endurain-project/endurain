@@ -29,6 +29,7 @@ class OAuthState(Base):
         created_at: Timestamp for expiry calculation.
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
+        browser_binding_hash: SHA-256 of the secret the browser that started a link holds in a cookie.
     """
 
     __tablename__ = "oauth_states"
@@ -112,4 +113,10 @@ class OAuthState(Base):
         nullable=False,
         index=True,
         comment="True when state is consumed (prevents replay)",
+    )
+
+    browser_binding_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="SHA-256 of the link's browser-binding cookie (link mode only)",
     )
