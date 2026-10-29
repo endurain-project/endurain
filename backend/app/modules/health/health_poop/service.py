@@ -15,7 +15,6 @@ import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_poop.schema as health_poop_schema
-import modules.health.interval_service as health_interval_service
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
@@ -42,7 +41,7 @@ def list_health_poop(
     Returns:
         The page of records; ``total`` counts every record within the interval.
     """
-    since = health_interval_service.interval_start(user_id, interval, db)
+    since = health_computation.interval_start(interval, lambda: users_integration.local_today(user_id, db))
     tz_name = users_integration.resolve_timezone(user_id, db)
     total = health_poop_crud.get_health_poop_number_by_user_id(user_id, db, since, tz_name)
     records = health_poop_crud.get_health_poop_by_user_id(user_id, db, page_number, num_records, since, tz_name)

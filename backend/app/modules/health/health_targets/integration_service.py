@@ -57,4 +57,4 @@ def edit_health_targets(
         NotFoundError: If the user has no targets.
     """
     # The caller is a system writer (the profile importer), so it names no version.
-    return health_targets_crud.edit_health_target(health_targets, user_id, db, if_match="*")
+    return health_targets_crud.edit_health_targets(health_targets, user_id, db, if_match="*")

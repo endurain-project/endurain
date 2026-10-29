@@ -4,46 +4,24 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import desc, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
-import core.exceptions as core_exceptions
 import modules.health.computation as health_computation
 import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
-import modules.health.health_fasting.serializers as health_fasting_serializers
+import modules.health.record_crud as health_record_crud
+
+_SPEC = health_record_crud.RecordSpec(
+    model=health_fasting_models.HealthFasting,
+    read_schema=health_fasting_schema.HealthFastingRead,
+    not_found="Health fasting not found",
+    etag_label="fasting session record",
+)
+_ACTIVE_FAST_MESSAGE = "User already has an active fasting session"
 
 _IN_PROGRESS = health_fasting_schema.FastingStatus.IN_PROGRESS.value
 _COMPLETED = health_fasting_schema.FastingStatus.COMPLETED.value
-
-
-def _get_model_by_id_and_user_id(
-    health_fasting_id: int, user_id: int, db: Session
-) -> health_fasting_models.HealthFasting:
-    """Load a user's fasting row by id.
-
-    Args:
-        health_fasting_id: The record to load.
-        user_id: The record's owner.
-        db: Database session.
-
-    Returns:
-        The ORM row.
-
-    Raises:
-        NotFoundError: If the user has no such record.
-    """
-    stmt = select(health_fasting_models.HealthFasting).where(
-        health_fasting_models.HealthFasting.id == health_fasting_id,
-        health_fasting_models.HealthFasting.user_id == user_id,
-    )
-    db_health_fasting = db.execute(stmt).scalar_one_or_none()
-
-    if db_health_fasting is None:
-        raise core_exceptions.NotFoundError("Health fasting not found")
-
-    return db_health_fasting
 
 
 def health_fasting_exists(health_fasting_id: int, user_id: int, db: Session) -> bool:
@@ -57,15 +35,7 @@ def health_fasting_exists(health_fasting_id: int, user_id: int, db: Session) -> 
     Returns:
         True when the user has such a record.
     """
-    stmt = select(
-        select(health_fasting_models.HealthFasting.id)
-        .where(
-            health_fasting_models.HealthFasting.id == health_fasting_id,
-            health_fasting_models.HealthFasting.user_id == user_id,
-        )
-        .exists()
-    )
-    return bool(db.execute(stmt).scalar())
+    return health_record_crud.exists(_SPEC, health_fasting_id, user_id, db)
 
 
 def get_health_fasting_number_by_user_id(user_id: int, db: Session, since: date | None = None) -> int:
@@ -79,15 +49,7 @@ def get_health_fasting_number_by_user_id(user_id: int, db: Session, since: date 
     Returns:
         The number of records.
     """
-    stmt = (
-        select(func.count())
-        .select_from(health_fasting_models.HealthFasting)
-        .where(health_fasting_models.HealthFasting.user_id == user_id)
-    )
-    if since is not None:
-        stmt = stmt.where(health_fasting_models.HealthFasting.fast_start_time >= since)
-
-    return db.execute(stmt).scalar_one()
+    return health_record_crud.count(_SPEC, user_id, health_fasting_models.HealthFasting.fast_start_time, since, db)
 
 
 def get_health_fasting_by_id_and_user_id(
@@ -103,13 +65,7 @@ def get_health_fasting_by_id_and_user_id(
     Returns:
         The record, or ``None``.
     """
-    stmt = select(health_fasting_models.HealthFasting).where(
-        health_fasting_models.HealthFasting.id == health_fasting_id,
-        health_fasting_models.HealthFasting.user_id == user_id,
-    )
-    db_health_fasting = db.execute(stmt).scalar_one_or_none()
-
-    return health_fasting_serializers.to_read_schema(db_health_fasting) if db_health_fasting else None
+    return health_record_crud.find_by_id(_SPEC, health_fasting_id, user_id, db)
 
 
 def get_health_fasting_by_user_id(
@@ -131,17 +87,10 @@ def get_health_fasting_by_user_id(
     Returns:
         The records ordered by start time descending.
     """
-    stmt = select(health_fasting_models.HealthFasting).where(health_fasting_models.HealthFasting.user_id == user_id)
-
-    if since is not None:
-        stmt = stmt.where(health_fasting_models.HealthFasting.fast_start_time >= since)
-
-    stmt = stmt.order_by(desc(health_fasting_models.HealthFasting.fast_start_time))
-
-    if page_number is not None and num_records is not None:
-        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
-
-    return health_fasting_serializers.to_read_schemas(list(db.execute(stmt).scalars().all()))
+    fast_start_time = health_fasting_models.HealthFasting.fast_start_time
+    return health_record_crud.list_page(
+        _SPEC, user_id, fast_start_time, fast_start_time, since, page_number, num_records, db
+    )
 
 
 def get_active_fasting_by_user_id(user_id: int, db: Session) -> health_fasting_schema.HealthFastingRead | None:
@@ -164,7 +113,11 @@ def get_active_fasting_by_user_id(user_id: int, db: Session) -> health_fasting_s
     )
     db_health_fasting = db.execute(stmt).scalar_one_or_none()
 
-    return health_fasting_serializers.to_read_schema(db_health_fasting) if db_health_fasting else None
+    return (
+        health_computation.to_read_schema(health_fasting_schema.HealthFastingRead, db_health_fasting)
+        if db_health_fasting
+        else None
+    )
 
 
 def get_completed_fasting_count(user_id: int, db: Session) -> int:
@@ -296,19 +249,7 @@ def create_health_fasting(
     Raises:
         ConflictError: If the user already has a running fast.
     """
-    db_health_fasting = health_fasting_models.HealthFasting(
-        **health_fasting.model_dump(exclude_none=False),
-        user_id=user_id,
-    )
-
-    try:
-        db.add(db_health_fasting)
-        db.flush()
-        db.refresh(db_health_fasting)
-    except IntegrityError as err:
-        raise core_exceptions.ConflictError("User already has an active fasting session") from err
-
-    return health_fasting_serializers.to_read_schema(db_health_fasting)
+    return health_record_crud.create(_SPEC, user_id, health_fasting, db, conflict=_ACTIVE_FAST_MESSAGE)
 
 
 def edit_health_fasting(
@@ -336,19 +277,9 @@ def edit_health_fasting(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
         ConflictError: If the change would leave the user with two running fasts.
     """
-    db_health_fasting = _get_model_by_id_and_user_id(health_fasting_id, user_id, db)
-    core_etag.require_if_match(if_match, db_health_fasting.version, "fasting session record")
-
-    for key, value in health_fasting.model_dump(exclude_unset=True).items():
-        setattr(db_health_fasting, key, value)
-
-    try:
-        db.flush()
-    except IntegrityError as err:
-        raise core_exceptions.ConflictError("User already has an active fasting session") from err
-    db.refresh(db_health_fasting)
-
-    return health_fasting_serializers.to_read_schema(db_health_fasting)
+    return health_record_crud.edit(
+        _SPEC, health_fasting_id, user_id, health_fasting, db, if_match=if_match, conflict=_ACTIVE_FAST_MESSAGE
+    )
 
 
 def end_health_fasting(
@@ -381,8 +312,8 @@ def end_health_fasting(
         NotFoundError: If the user has no such session.
         PreconditionFailedError: When ``if_match`` does not name the session's version.
     """
-    db_health_fasting = _get_model_by_id_and_user_id(health_fasting_id, user_id, db)
-    core_etag.require_if_match(if_match, db_health_fasting.version, "fasting session record")
+    db_health_fasting = health_record_crud.get_owned(_SPEC, health_fasting_id, user_id, db)
+    core_etag.require_if_match(if_match, db_health_fasting.version, _SPEC.etag_label)
 
     db_health_fasting.fast_end_time = fast_end_time
     db_health_fasting.status = status
@@ -390,10 +321,7 @@ def end_health_fasting(
     if notes:
         db_health_fasting.notes = notes
 
-    db.flush()
-    db.refresh(db_health_fasting)
-
-    return health_fasting_serializers.to_read_schema(db_health_fasting)
+    return health_record_crud.save(_SPEC, db_health_fasting, db)
 
 
 def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> None:
@@ -407,5 +335,4 @@ def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> 
     Raises:
         NotFoundError: If the user has no such record.
     """
-    db.delete(_get_model_by_id_and_user_id(health_fasting_id, user_id, db))
-    db.flush()
+    health_record_crud.delete(_SPEC, health_fasting_id, user_id, db)

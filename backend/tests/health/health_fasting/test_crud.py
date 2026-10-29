@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -9,16 +9,7 @@ import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
 
-
-@pytest.fixture(autouse=True)
-def passthrough_serializers():
-    """Return ORM rows untouched: the serializer is covered by the schema tests."""
-    serializers = health_fasting_crud.health_fasting_serializers
-    with (
-        patch.object(serializers, "to_read_schema", side_effect=lambda row: row),
-        patch.object(serializers, "to_read_schemas", side_effect=lambda rows: rows),
-    ):
-        yield
+pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
 def _row(record_id: int = 1) -> MagicMock:
@@ -114,22 +105,22 @@ class TestAggregates:
 
 
 class TestCreateHealthFasting:
-    def test_stages_without_committing(self, mock_db):
+    def test_stages_without_committing(self, mock_db, stub_model):
         record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
 
-        with patch.object(health_fasting_models, "HealthFasting", return_value=_row()) as model:
+        with stub_model(health_fasting_crud, _row()) as model:
             health_fasting_crud.create_health_fasting(1, record, mock_db)
 
         assert model.call_args.kwargs["user_id"] == 1
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    def test_integrity_error_is_a_conflict(self, mock_db):
+    def test_integrity_error_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("constraint", None, None)
         record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
 
         with (
-            patch.object(health_fasting_models, "HealthFasting", return_value=_row()),
+            stub_model(health_fasting_crud, _row()),
             pytest.raises(core_exceptions.ConflictError),
         ):
             health_fasting_crud.create_health_fasting(1, record, mock_db)

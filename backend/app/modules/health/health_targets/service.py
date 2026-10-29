@@ -52,10 +52,10 @@ def update_health_targets(
     with core_etag.refuse_stale_write(
         db,
         "health targets",
-        lambda: health_targets_crud.health_targets_exist(user_id, db),
+        lambda: health_targets_crud.health_targets_exists(user_id, db),
         "Health targets not found",
     ):
-        updated = health_targets_crud.edit_health_target(health_targets, user_id, db, if_match=if_match)
+        updated = health_targets_crud.edit_health_targets(health_targets, user_id, db, if_match=if_match)
         db.commit()
     logger.debug("Updated health targets", extra=core_logger.context(user_id=user_id))
     return updated

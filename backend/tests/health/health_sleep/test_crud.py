@@ -1,5 +1,5 @@
 from datetime import date as datetime_date
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -9,16 +9,7 @@ import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.models as health_sleep_models
 import modules.health.health_sleep.schema as health_sleep_schema
 
-
-@pytest.fixture(autouse=True)
-def passthrough_serializers():
-    """Return ORM rows untouched: the serializer is covered by the schema tests."""
-    serializers = health_sleep_crud.health_sleep_serializers
-    with (
-        patch.object(serializers, "to_read_schema", side_effect=lambda row: row),
-        patch.object(serializers, "to_read_schemas", side_effect=lambda rows: rows),
-    ):
-        yield
+pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
 def _row(record_id: int = 1, seconds: int = 28800) -> MagicMock:
@@ -78,12 +69,12 @@ class TestReads:
 
 
 class TestCreateHealthSleep:
-    def test_stages_without_committing(self, mock_db):
+    def test_stages_without_committing(self, mock_db, stub_model):
         record = health_sleep_schema.HealthSleepCreate(
             date=datetime_date(2024, 1, 15), total_sleep_seconds=28800, sleep_score_overall=85
         )
 
-        with patch.object(health_sleep_models, "HealthSleep", return_value=_row()) as model:
+        with stub_model(health_sleep_crud, _row()) as model:
             health_sleep_crud.create_health_sleep(1, record, mock_db)
 
         assert model.call_args.kwargs["user_id"] == 1
@@ -91,12 +82,12 @@ class TestCreateHealthSleep:
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    def test_duplicate_date_is_a_conflict(self, mock_db):
+    def test_duplicate_date_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("duplicate", None, None)
         record = health_sleep_schema.HealthSleepCreate(date=datetime_date(2024, 1, 15), total_sleep_seconds=28800)
 
         with (
-            patch.object(health_sleep_models, "HealthSleep", return_value=_row()),
+            stub_model(health_sleep_crud, _row()),
             pytest.raises(core_exceptions.ConflictError, match="Duplicate entry error"),
         ):
             health_sleep_crud.create_health_sleep(1, record, mock_db)

@@ -17,7 +17,6 @@ import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_water.schema as health_water_schema
-import modules.health.interval_service as health_interval_service
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
@@ -44,7 +43,7 @@ def list_health_water(
     Returns:
         The page of records; ``total`` counts every record within the interval.
     """
-    since = health_interval_service.interval_start(user_id, interval, db)
+    since = health_computation.interval_start(interval, lambda: users_integration.local_today(user_id, db))
     total = health_water_crud.get_health_water_number_by_user_id(user_id, db, since)
     records = health_water_crud.get_health_water_by_user_id(user_id, db, page_number, num_records, since)
     return core_pagination.Page.build(records, total, page_number, num_records)

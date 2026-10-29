@@ -120,7 +120,7 @@ class TestCreateHealthTargets:
 
 class TestEditHealthTarget:
     """
-    Test suite for edit_health_target function.
+    Test suite for edit_health_targets function.
     """
 
     def test_edit_health_target_success(self, mock_db):
@@ -143,7 +143,7 @@ class TestEditHealthTarget:
         mock_db.execute.return_value = mock_result
 
         # Act
-        result = health_targets_crud.edit_health_target(health_target, user_id, mock_db, if_match="*")
+        result = health_targets_crud.edit_health_targets(health_target, user_id, mock_db, if_match="*")
 
         # Assert
         assert result is not None
@@ -163,7 +163,7 @@ class TestEditHealthTarget:
 
         # Act & Assert
         with pytest.raises(core_exceptions.NotFoundError, match="Health targets not found"):
-            health_targets_crud.edit_health_target(health_target, user_id, mock_db, if_match="*")
+            health_targets_crud.edit_health_targets(health_target, user_id, mock_db, if_match="*")
 
     def test_edit_health_target_update_multiple_fields(self, mock_db):
         """
@@ -189,7 +189,7 @@ class TestEditHealthTarget:
         mock_db.execute.return_value = mock_result
 
         # Act
-        health_targets_crud.edit_health_target(health_target, user_id, mock_db, if_match="*")
+        health_targets_crud.edit_health_targets(health_target, user_id, mock_db, if_match="*")
 
         # Assert
         mock_db.flush.assert_called_once()
@@ -216,7 +216,7 @@ class TestEditHealthTarget:
         mock_db.execute.return_value = mock_result
 
         # Act
-        health_targets_crud.edit_health_target(health_target, user_id, mock_db, if_match="*")
+        health_targets_crud.edit_health_targets(health_target, user_id, mock_db, if_match="*")
 
         # Assert
         mock_db.flush.assert_called_once()
@@ -242,7 +242,7 @@ class TestEditHealthTarget:
         mock_db.execute.return_value = mock_result
 
         # Act
-        health_targets_crud.edit_health_target(health_target, user_id, mock_db, if_match="*")
+        health_targets_crud.edit_health_targets(health_target, user_id, mock_db, if_match="*")
 
         # Assert
         mock_db.flush.assert_called_once()

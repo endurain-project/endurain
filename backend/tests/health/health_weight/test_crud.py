@@ -1,5 +1,5 @@
 from datetime import date as datetime_date
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -100,10 +100,10 @@ class TestSingleReads:
 
 
 class TestCreateHealthWeight:
-    def test_stages_without_committing(self, mock_db):
+    def test_stages_without_committing(self, mock_db, stub_model):
         record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=75.0, bmi=22.0)
 
-        with patch.object(health_weight_models, "HealthWeight", return_value=_row()) as model:
+        with stub_model(health_weight_crud, _row()) as model:
             health_weight_crud.create_health_weight(1, record, mock_db)
 
         assert model.call_args.kwargs["user_id"] == 1
@@ -112,12 +112,12 @@ class TestCreateHealthWeight:
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    def test_duplicate_date_is_a_conflict(self, mock_db):
+    def test_duplicate_date_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("duplicate", None, None)
         record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=75.0)
 
         with (
-            patch.object(health_weight_models, "HealthWeight", return_value=_row()),
+            stub_model(health_weight_crud, _row()),
             pytest.raises(core_exceptions.ConflictError, match="Duplicate entry error"),
         ):
             health_weight_crud.create_health_weight(1, record, mock_db)

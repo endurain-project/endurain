@@ -1,6 +1,6 @@
 from datetime import date as datetime_date
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -10,16 +10,7 @@ import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_poop.models as health_poop_models
 import modules.health.health_poop.schema as health_poop_schema
 
-
-@pytest.fixture(autouse=True)
-def passthrough_serializers():
-    """Return ORM rows untouched: the serializer is covered by the schema tests."""
-    serializers = health_poop_crud.health_poop_serializers
-    with (
-        patch.object(serializers, "to_read_schema", side_effect=lambda row: row),
-        patch.object(serializers, "to_read_schemas", side_effect=lambda rows: rows),
-    ):
-        yield
+pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
 def _row(record_id: int = 1) -> MagicMock:
@@ -85,22 +76,22 @@ class TestReads:
 
 
 class TestCreateHealthPoop:
-    def test_stages_without_committing(self, mock_db):
+    def test_stages_without_committing(self, mock_db, stub_model):
         record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
 
-        with patch.object(health_poop_models, "HealthPoop", return_value=_row()) as model:
+        with stub_model(health_poop_crud, _row()) as model:
             health_poop_crud.create_health_poop(1, record, mock_db)
 
         assert model.call_args.kwargs["user_id"] == 1
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    def test_integrity_error_is_a_conflict(self, mock_db):
+    def test_integrity_error_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("constraint", None, None)
         record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
 
         with (
-            patch.object(health_poop_models, "HealthPoop", return_value=_row()),
+            stub_model(health_poop_crud, _row()),
             pytest.raises(core_exceptions.ConflictError),
         ):
             health_poop_crud.create_health_poop(1, record, mock_db)

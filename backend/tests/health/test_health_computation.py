@@ -1,4 +1,8 @@
 from datetime import date, timedelta
+from types import SimpleNamespace
+
+import modules.health.computation as health_computation
+import modules.health.health_steps.schema as health_steps_schema
 
 
 class TestGetStartDateForInterval:
@@ -53,3 +57,40 @@ class TestIntervalEnum:
         assert Interval.LAST_90_DAYS.value == "last_90_days"
         assert Interval.LAST_YEAR.value == "last_year"
         assert Interval.ALL_TIME.value == "all_time"
+
+
+class TestIntervalStart:
+    """A list request's interval is resolved against the user's own calendar."""
+
+    def test_no_interval_means_no_lower_bound_and_no_calendar_lookup(self):
+        from modules.health.computation import interval_start
+
+        def fail() -> date:
+            raise AssertionError("today must not be read without an interval")
+
+        assert interval_start(None, fail) is None
+
+    def test_an_interval_starts_before_the_users_own_today(self):
+        from modules.health.computation import interval_start
+        from modules.health.constants import Interval
+
+        today = date(2026, 3, 15)
+
+        assert interval_start(Interval.LAST_30_DAYS, lambda: today) == today - timedelta(days=30)
+
+
+class TestToReadSchema:
+    def test_validates_a_row_against_the_given_schema(self):
+        row = SimpleNamespace(id=1, version=2, user_id=3, date=date(2024, 1, 15), steps=9000, source=None)
+
+        result = health_computation.to_read_schema(health_steps_schema.HealthStepsRead, row)
+
+        assert isinstance(result, health_steps_schema.HealthStepsRead)
+        assert result.steps == 9000
+
+    def test_converts_every_row_in_order(self):
+        rows = [
+            SimpleNamespace(id=i, version=1, user_id=3, date=date(2024, 1, i), steps=i, source=None) for i in (1, 2)
+        ]
+
+        assert [r.id for r in health_computation.to_read_schemas(health_steps_schema.HealthStepsRead, rows)] == [1, 2]

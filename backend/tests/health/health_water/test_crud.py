@@ -9,17 +9,9 @@ import core.exceptions as core_exceptions
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_water.models as health_water_models
 import modules.health.health_water.schema as health_water_schema
+import modules.health.record_crud as health_record_crud
 
-
-@pytest.fixture(autouse=True)
-def passthrough_serializers():
-    """Return ORM rows untouched: the serializer is covered by the schema tests."""
-    serializers = health_water_crud.health_water_serializers
-    with (
-        patch.object(serializers, "to_read_schema", side_effect=lambda row: row),
-        patch.object(serializers, "to_read_schemas", side_effect=lambda rows: rows),
-    ):
-        yield
+pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
 
 def _row(record_id: int = 1, amount_ml: float = 500.0) -> MagicMock:
@@ -74,10 +66,10 @@ class TestReads:
 
 
 class TestCreateHealthWater:
-    def test_stages_without_committing(self, mock_db):
+    def test_stages_without_committing(self, mock_db, stub_model):
         record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=500.0)
 
-        with patch.object(health_water_models, "HealthWater", return_value=_row()) as model:
+        with stub_model(health_water_crud, _row()) as model:
             health_water_crud.create_health_water(1, record, mock_db)
 
         assert model.call_args.kwargs["user_id"] == 1
@@ -85,12 +77,12 @@ class TestCreateHealthWater:
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    def test_duplicate_date_is_a_conflict(self, mock_db):
+    def test_duplicate_date_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("duplicate", None, None)
         record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=500.0)
 
         with (
-            patch.object(health_water_models, "HealthWater", return_value=_row()),
+            stub_model(health_water_crud, _row()),
             pytest.raises(core_exceptions.ConflictError, match="Duplicate entry error"),
         ):
             health_water_crud.create_health_water(1, record, mock_db)
@@ -136,7 +128,7 @@ class TestDeleteHealthWater:
 
 
 class TestAddHealthWaterAmount:
-    @patch.object(health_water_crud, "_get_model_by_id_and_user_id")
+    @patch.object(health_record_crud, "get_owned")
     def test_adds_in_one_update_and_returns_the_refreshed_record(self, mock_get_model, mock_db):
         mock_get_model.return_value = _row(7)
 

@@ -14,7 +14,7 @@ class TestGetHealthTargets:
 
 
 class TestUpdateHealthTargets:
-    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_target")
+    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
     def test_commits_after_edit(self, mock_edit, mock_db):
         update = health_targets_schema.HealthTargetsUpdate(weight=75.0)
         mock_edit.return_value = MagicMock()

@@ -2,44 +2,22 @@
 
 from datetime import date as date_type
 
-from sqlalchemy import desc, func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-import core.etag as core_etag
-import core.exceptions as core_exceptions
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_steps.models as health_steps_models
 import modules.health.health_steps.schema as health_steps_schema
-import modules.health.health_steps.serializers as health_steps_serializers
+import modules.health.record_crud as health_record_crud
 import modules.health.schema as health_schema
 
-
-def _get_model_by_id_and_user_id(health_steps_id: int, user_id: int, db: Session) -> health_steps_models.HealthSteps:
-    """Load a user's steps row by id.
-
-    Args:
-        health_steps_id: The record to load.
-        user_id: The record's owner.
-        db: Database session.
-
-    Returns:
-        The ORM row.
-
-    Raises:
-        NotFoundError: If the user has no such record.
-    """
-    stmt = select(health_steps_models.HealthSteps).where(
-        health_steps_models.HealthSteps.id == health_steps_id,
-        health_steps_models.HealthSteps.user_id == user_id,
-    )
-    db_health_steps = db.execute(stmt).scalar_one_or_none()
-
-    if db_health_steps is None:
-        raise core_exceptions.NotFoundError("Health steps not found")
-
-    return db_health_steps
+_SPEC = health_record_crud.RecordSpec(
+    model=health_steps_models.HealthSteps,
+    read_schema=health_steps_schema.HealthStepsRead,
+    not_found="Health steps not found",
+    etag_label="steps record",
+)
 
 
 def health_steps_exists(health_steps_id: int, user_id: int, db: Session) -> bool:
@@ -53,14 +31,7 @@ def health_steps_exists(health_steps_id: int, user_id: int, db: Session) -> bool
     Returns:
         True when the user has such a record.
     """
-    stmt = select(
-        select(health_steps_models.HealthSteps.id)
-        .where(
-            health_steps_models.HealthSteps.id == health_steps_id, health_steps_models.HealthSteps.user_id == user_id
-        )
-        .exists()
-    )
-    return bool(db.execute(stmt).scalar())
+    return health_record_crud.exists(_SPEC, health_steps_id, user_id, db)
 
 
 def get_health_steps_number_by_user_id(user_id: int, db: Session, since: date_type | None = None) -> int:
@@ -74,15 +45,7 @@ def get_health_steps_number_by_user_id(user_id: int, db: Session, since: date_ty
     Returns:
         The number of records.
     """
-    stmt = (
-        select(func.count())
-        .select_from(health_steps_models.HealthSteps)
-        .where(health_steps_models.HealthSteps.user_id == user_id)
-    )
-    if since is not None:
-        stmt = stmt.where(health_steps_models.HealthSteps.date >= since)
-
-    return db.execute(stmt).scalar_one()
+    return health_record_crud.count(_SPEC, user_id, health_steps_models.HealthSteps.date, since, db)
 
 
 def get_health_steps_by_user_id(
@@ -104,17 +67,16 @@ def get_health_steps_by_user_id(
     Returns:
         The records ordered by date descending.
     """
-    stmt = select(health_steps_models.HealthSteps).where(health_steps_models.HealthSteps.user_id == user_id)
-
-    if since is not None:
-        stmt = stmt.where(health_steps_models.HealthSteps.date >= since)
-
-    stmt = stmt.order_by(desc(health_steps_models.HealthSteps.date))
-
-    if page_number is not None and num_records is not None:
-        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
-
-    return health_steps_serializers.to_read_schemas(list(db.execute(stmt).scalars().all()))
+    return health_record_crud.list_page(
+        _SPEC,
+        user_id,
+        health_steps_models.HealthSteps.date,
+        health_steps_models.HealthSteps.date,
+        since,
+        page_number,
+        num_records,
+        db,
+    )
 
 
 def get_health_steps_by_date_and_user_id(
@@ -130,13 +92,7 @@ def get_health_steps_by_date_and_user_id(
     Returns:
         The record, or ``None``.
     """
-    stmt = select(health_steps_models.HealthSteps).where(
-        health_steps_models.HealthSteps.date == func.date(date),
-        health_steps_models.HealthSteps.user_id == user_id,
-    )
-    db_health_steps = db.execute(stmt).scalar_one_or_none()
-
-    return health_steps_serializers.to_read_schema(db_health_steps) if db_health_steps else None
+    return health_record_crud.find_by_date(_SPEC, user_id, date, db)
 
 
 def create_health_steps(
@@ -155,21 +111,9 @@ def create_health_steps(
     Raises:
         ConflictError: If the user already has a record for that date.
     """
-    db_health_steps = health_steps_models.HealthSteps(
-        **health_steps.model_dump(exclude_none=False),
-        user_id=user_id,
+    return health_record_crud.create(
+        _SPEC, user_id, health_steps, db, conflict=health_record_crud.duplicate_date_message(health_steps.date)
     )
-
-    try:
-        db.add(db_health_steps)
-        db.flush()
-        db.refresh(db_health_steps)
-    except IntegrityError as err:
-        raise core_exceptions.ConflictError(
-            f"Duplicate entry error. Check if there is already a entry created for {health_steps.date}"
-        ) from err
-
-    return health_steps_serializers.to_read_schema(db_health_steps)
 
 
 def edit_health_steps(
@@ -197,19 +141,15 @@ def edit_health_steps(
         ConflictError: If the new date already has a record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    db_health_steps = _get_model_by_id_and_user_id(health_steps_id, user_id, db)
-    core_etag.require_if_match(if_match, db_health_steps.version, "steps record")
-
-    for key, value in health_steps.model_dump(exclude_unset=True).items():
-        setattr(db_health_steps, key, value)
-
-    try:
-        db.flush()
-    except IntegrityError as err:
-        raise core_exceptions.ConflictError("Another record already exists for that date") from err
-    db.refresh(db_health_steps)
-
-    return health_steps_serializers.to_read_schema(db_health_steps)
+    return health_record_crud.edit(
+        _SPEC,
+        health_steps_id,
+        user_id,
+        health_steps,
+        db,
+        if_match=if_match,
+        conflict=health_record_crud.DATE_TAKEN_MESSAGE,
+    )
 
 
 def delete_health_steps(user_id: int, health_steps_id: int, db: Session) -> None:
@@ -223,8 +163,7 @@ def delete_health_steps(user_id: int, health_steps_id: int, db: Session) -> None
     Raises:
         NotFoundError: If the user has no such record.
     """
-    db.delete(_get_model_by_id_and_user_id(health_steps_id, user_id, db))
-    db.flush()
+    health_record_crud.delete(_SPEC, health_steps_id, user_id, db)
 
 
 def get_health_steps_chart(

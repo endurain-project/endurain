@@ -20,6 +20,7 @@ import modules.health.health_water.crud as water_crud
 import modules.health.health_water.schema as water_schema
 import modules.health.health_weight.crud as weight_crud
 import modules.health.health_weight.schema as weight_schema
+import modules.health.record_crud as health_record_crud
 
 _DAY_ONE = date(2026, 1, 1)
 _DAY_TWO = date(2026, 1, 2)
@@ -107,7 +108,7 @@ def test_a_sleep_record_moved_onto_a_day_that_has_one_is_a_conflict(mock_db):
 
     mock_db.flush.side_effect = IntegrityError("insert", {}, Exception("unique"))
     with (
-        patch.object(sleep_crud, "_get_model_by_id_and_user_id", return_value=MagicMock(version=1)),
+        patch.object(health_record_crud, "get_owned", return_value=MagicMock(version=1)),
         pytest.raises(core_exceptions.ConflictError),
     ):
         sleep_crud.edit_health_sleep(1, 5, sleep_schema.HealthSleepUpdate(date=_DAY_ONE), mock_db, if_match="1")
