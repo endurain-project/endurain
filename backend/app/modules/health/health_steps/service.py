@@ -166,19 +166,27 @@ def edit_health_steps(
     return updated
 
 
-def delete_health_steps(user_id: int, health_steps_id: int, db: Session) -> None:
+def delete_health_steps(user_id: int, health_steps_id: int, db: Session, *, if_match: str) -> None:
     """Delete a steps record and commit.
 
     Args:
         user_id: The record's owner.
         health_steps_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_steps_crud.delete_health_steps(user_id, health_steps_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "steps record",
+        lambda: health_steps_crud.health_steps_exists(health_steps_id, user_id, db),
+        "Steps record not found",
+    ):
+        health_steps_crud.delete_health_steps(user_id, health_steps_id, db, if_match=if_match)
+        db.commit()
     logger.debug("Deleted a steps record", extra=core_logger.context(user_id=user_id, health_steps_id=health_steps_id))
 
 

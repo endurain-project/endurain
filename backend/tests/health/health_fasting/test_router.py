@@ -12,6 +12,7 @@ from modules.health.health_fasting.schema import (
 
 _SERVICE = "modules.health.health_fasting.router.health_fasting_service"
 _HEADERS = {"Authorization": "Bearer x"}
+_IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
 _START = {"fast_start_time": "2024-01-15T08:00:00Z"}
 
 
@@ -173,16 +174,17 @@ class TestCompleteHealthFasting:
 class TestDeleteHealthFasting:
     @patch(f"{_SERVICE}.delete_health_fasting")
     def test_delete_success(self, mock_delete, mock_db):
-        response = _client(mock_db).delete("/health_fasting/1", headers=_HEADERS)
+        response = _client(mock_db).delete("/health_fasting/1", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
         assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_fasting")
     def test_not_found_is_404(self, mock_delete, mock_db):
         mock_delete.side_effect = core_exceptions.NotFoundError("Health fasting not found")
 
-        assert _client(mock_db).delete("/health_fasting/9", headers=_HEADERS).status_code == 404
+        assert _client(mock_db).delete("/health_fasting/9", headers=_IF_MATCH_HEADERS).status_code == 404
 
 
 class TestReadSendsTheETag:

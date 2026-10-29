@@ -221,19 +221,27 @@ def edit_health_weight(
     return updated
 
 
-def delete_health_weight(user_id: int, health_weight_id: int, db: Session) -> None:
+def delete_health_weight(user_id: int, health_weight_id: int, db: Session, *, if_match: str) -> None:
     """Delete a weight record and commit.
 
     Args:
         user_id: The record's owner.
         health_weight_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_weight_crud.delete_health_weight(user_id, health_weight_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "weight record",
+        lambda: health_weight_crud.health_weight_exists(health_weight_id, user_id, db),
+        "Weight record not found",
+    ):
+        health_weight_crud.delete_health_weight(user_id, health_weight_id, db, if_match=if_match)
+        db.commit()
     logger.debug(
         "Deleted a weight record", extra=core_logger.context(user_id=user_id, health_weight_id=health_weight_id)
     )

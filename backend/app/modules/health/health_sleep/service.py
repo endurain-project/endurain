@@ -171,19 +171,27 @@ def edit_health_sleep(
     return updated
 
 
-def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session) -> None:
+def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session, *, if_match: str) -> None:
     """Delete a sleep record and commit.
 
     Args:
         user_id: The record's owner.
         health_sleep_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_sleep_crud.delete_health_sleep(user_id, health_sleep_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "sleep record",
+        lambda: health_sleep_crud.health_sleep_exists(health_sleep_id, user_id, db),
+        "Sleep record not found",
+    ):
+        health_sleep_crud.delete_health_sleep(user_id, health_sleep_id, db, if_match=if_match)
+        db.commit()
     logger.debug("Deleted a sleep record", extra=core_logger.context(user_id=user_id, health_sleep_id=health_sleep_id))
 
 

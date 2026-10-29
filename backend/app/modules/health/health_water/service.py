@@ -209,19 +209,27 @@ def edit_health_water(
     return updated
 
 
-def delete_health_water(user_id: int, health_water_id: int, db: Session) -> None:
+def delete_health_water(user_id: int, health_water_id: int, db: Session, *, if_match: str) -> None:
     """Delete a water intake record and commit.
 
     Args:
         user_id: The record's owner.
         health_water_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_water_crud.delete_health_water(user_id, health_water_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "water intake record",
+        lambda: health_water_crud.health_water_exists(health_water_id, user_id, db),
+        "Water intake record not found",
+    ):
+        health_water_crud.delete_health_water(user_id, health_water_id, db, if_match=if_match)
+        db.commit()
     logger.debug(
         "Deleted a water intake record", extra=core_logger.context(user_id=user_id, health_water_id=health_water_id)
     )

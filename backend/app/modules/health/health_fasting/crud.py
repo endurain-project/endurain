@@ -324,15 +324,17 @@ def end_health_fasting(
     return health_record_crud.save(_SPEC, db_health_fasting, db)
 
 
-def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> None:
+def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's fasting record.
 
     Args:
         user_id: The record's owner.
         health_fasting_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_fasting_id, user_id, db)
+    health_record_crud.delete(_SPEC, health_fasting_id, user_id, db, if_match=if_match)

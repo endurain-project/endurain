@@ -198,6 +198,7 @@ def delete_health_sleep(
     request: Request,
     health_sleep_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
     """Delete a health sleep record for the authenticated user.
@@ -209,13 +210,15 @@ def delete_health_sleep(
         request: The incoming request, read by the rate limiter.
         health_sleep_id (int): The unique identifier of the health sleep record to delete.
         token_user_id (int): The user ID extracted from the access token.
+        if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for executing the delete operation.
 
     Returns:
         None: This function does not return a value.
 
     Raises:
+        PreconditionFailedError: If the record changed since the client read it.
         NotFoundError: If the user has no such record.
     """
     # Deletes entry from database
-    health_sleep_service.delete_health_sleep(token_user_id, health_sleep_id, db)
+    health_sleep_service.delete_health_sleep(token_user_id, health_sleep_id, db, if_match=if_match)

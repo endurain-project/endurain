@@ -227,6 +227,7 @@ def delete_health_poop(
     request: Request,
     health_poop_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
     """Delete a poop record for the authenticated user.
@@ -235,9 +236,11 @@ def delete_health_poop(
         request: The incoming request, read by the rate limiter.
         health_poop_id: ID of the poop record to delete.
         token_user_id: User ID from the access token.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
 
     Raises:
+        PreconditionFailedError: If the record changed since the client read it.
         NotFoundError: If the user has no such record.
     """
-    health_poop_service.delete_health_poop(token_user_id, health_poop_id, db)
+    health_poop_service.delete_health_poop(token_user_id, health_poop_id, db, if_match=if_match)

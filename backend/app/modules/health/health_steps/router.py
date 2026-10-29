@@ -170,6 +170,7 @@ def delete_health_steps(
     request: Request,
     health_steps_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
     """Delete a health steps record for the authenticated user.
@@ -181,13 +182,15 @@ def delete_health_steps(
         request: The incoming request, read by the rate limiter.
         health_steps_id (int): The unique identifier of the health steps record to delete.
         token_user_id (int): The user ID extracted from the access token.
+        if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for executing the delete operation.
 
     Returns:
         None: This function does not return a value.
 
     Raises:
+        PreconditionFailedError: If the record changed since the client read it.
         NotFoundError: If the user has no such record.
     """
     # Deletes entry from database
-    health_steps_service.delete_health_steps(token_user_id, health_steps_id, db)
+    health_steps_service.delete_health_steps(token_user_id, health_steps_id, db, if_match=if_match)

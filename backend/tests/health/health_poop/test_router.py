@@ -9,6 +9,7 @@ from modules.health.health_poop.schema import HealthPoopRead
 
 _SERVICE = "modules.health.health_poop.router.health_poop_service"
 _HEADERS = {"Authorization": "Bearer x"}
+_IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
 
 
 def _build_app(mock_db):
@@ -113,10 +114,11 @@ class TestEditHealthPoop:
 class TestDeleteHealthPoop:
     @patch(f"{_SERVICE}.delete_health_poop")
     def test_delete_success(self, mock_delete, mock_db):
-        response = TestClient(_build_app(mock_db)).delete("/health_poop/1", headers=_HEADERS)
+        response = TestClient(_build_app(mock_db)).delete("/health_poop/1", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
         assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
 
 class TestReadSendsTheETag:

@@ -77,5 +77,29 @@ class TestEditRow:
         assert row.steps == 5
 
 
+class TestDelete:
+    def test_the_named_version_deletes_the_row(self, mock_db):
+        row = _row(version=3)
+        mock_db.execute.return_value.scalar_one_or_none.return_value = row
+
+        health_record_crud.delete(_SPEC, 1, 2, mock_db, if_match='"3"')
+
+        mock_db.delete.assert_called_once_with(row)
+        mock_db.flush.assert_called_once()
+
+    def test_a_stale_version_is_refused_and_nothing_is_deleted(self, mock_db):
+        mock_db.execute.return_value.scalar_one_or_none.return_value = _row(version=4)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            health_record_crud.delete(_SPEC, 1, 2, mock_db, if_match='"3"')
+        mock_db.delete.assert_not_called()
+
+    def test_a_missing_row_is_not_found(self, mock_db):
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_record_crud.delete(_SPEC, 1, 2, mock_db, if_match='"3"')
+
+
 def test_the_duplicate_date_message_names_the_day():
     assert health_record_crud.duplicate_date_message(date(2024, 1, 15)).endswith("created for 2024-01-15")

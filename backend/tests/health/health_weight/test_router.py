@@ -167,12 +167,12 @@ class TestDeleteHealthWeight:
         # Act
         response = fast_api_client.delete(
             "/health_weight/1",
-            headers={"Authorization": "Bearer mock_token"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(1, 1, ANY)
+        mock_delete.assert_called_once_with(1, 1, ANY, if_match='"1"')
 
     @patch("modules.health.health_weight.router.health_weight_service.delete_health_weight")
     def test_delete_health_weight_not_found(self, mock_delete, fast_api_client, fast_api_app):
@@ -185,7 +185,7 @@ class TestDeleteHealthWeight:
         # Act
         response = fast_api_client.delete(
             "/health_weight/999",
-            headers={"Authorization": "Bearer mock_token"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert

@@ -122,7 +122,7 @@ class TestDeleteHealthPoop:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_poop_crud.delete_health_poop(1, 1, mock_db)
+        health_poop_crud.delete_health_poop(1, 1, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -132,5 +132,5 @@ class TestDeleteHealthPoop:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_poop_crud.delete_health_poop(1, 9, mock_db)
+            health_poop_crud.delete_health_poop(1, 9, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

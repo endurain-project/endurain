@@ -261,19 +261,27 @@ def complete_health_fasting(
     return ended
 
 
-def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> None:
+def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, if_match: str) -> None:
     """Delete a fasting record and commit.
 
     Args:
         user_id: The record's owner.
         health_fasting_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_fasting_crud.delete_health_fasting(user_id, health_fasting_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "fasting session record",
+        lambda: health_fasting_crud.health_fasting_exists(health_fasting_id, user_id, db),
+        "Fasting session record not found",
+    ):
+        health_fasting_crud.delete_health_fasting(user_id, health_fasting_id, db, if_match=if_match)
+        db.commit()
     logger.debug(
         "Deleted a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
     )

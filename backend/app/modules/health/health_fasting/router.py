@@ -244,6 +244,7 @@ def delete_health_fasting(
     request: Request,
     health_fasting_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
     """Delete a fasting record.
@@ -252,6 +253,11 @@ def delete_health_fasting(
         request: The incoming request, read by the rate limiter.
         health_fasting_id: ID of the fasting record to delete.
         token_user_id: User ID from the access token.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_fasting_service.delete_health_fasting(token_user_id, health_fasting_id, db)
+    health_fasting_service.delete_health_fasting(token_user_id, health_fasting_id, db, if_match=if_match)

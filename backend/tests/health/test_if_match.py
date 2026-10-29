@@ -55,3 +55,31 @@ def test_completing_a_fast_without_if_match_is_428():
 
     assert response.status_code == 428
     service.complete_health_fasting.assert_not_called()
+
+
+@pytest.mark.parametrize(("router_module", "name"), _ROUTES)
+def test_a_delete_without_if_match_is_428(router_module, name):
+    with patch.object(router_module, f"health_{name}_service") as service:
+        response = _client(router_module).delete("/health/1", headers=_HEADERS)
+
+    assert response.status_code == 428
+    getattr(service, f"delete_health_{name}").assert_not_called()
+
+
+@pytest.mark.parametrize(("router_module", "name"), _ROUTES)
+def test_a_delete_of_a_stale_version_is_412(router_module, name):
+    with patch.object(router_module, f"health_{name}_service") as service:
+        getattr(service, f"delete_health_{name}").side_effect = core_exceptions.PreconditionFailedError("stale")
+        response = _client(router_module).delete("/health/1", headers={**_HEADERS, "If-Match": '"1"'})
+
+    assert response.status_code == 412
+
+
+@pytest.mark.parametrize(("router_module", "name"), _ROUTES)
+def test_a_delete_with_if_match_is_204_and_hands_the_header_to_the_service(router_module, name):
+    with patch.object(router_module, f"health_{name}_service") as service:
+        response = _client(router_module).delete("/health/1", headers={**_HEADERS, "If-Match": '"3"'})
+
+    assert response.status_code == 204
+    getattr(service, f"delete_health_{name}").assert_called_once()
+    assert getattr(service, f"delete_health_{name}").call_args.kwargs == {"if_match": '"3"'}

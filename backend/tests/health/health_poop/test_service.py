@@ -49,9 +49,9 @@ class TestWrites:
 
     @patch(f"{_PREFIX}.health_poop_crud.delete_health_poop")
     def test_delete_commits(self, mock_delete, mock_db):
-        health_poop_service.delete_health_poop(1, 5, mock_db)
+        health_poop_service.delete_health_poop(1, 5, mock_db, if_match="*")
 
-        mock_delete.assert_called_once_with(1, 5, mock_db)
+        mock_delete.assert_called_once_with(1, 5, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
 
 

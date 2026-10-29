@@ -167,6 +167,7 @@ def delete_health_weight(
     request: Request,
     health_weight_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
     """Delete a health weight entry for the authenticated user.
@@ -179,12 +180,14 @@ def delete_health_weight(
         health_weight_id (int): The unique identifier of the health weight entry to delete.
         token_user_id (int): The user ID extracted from the access token, used to ensure
             users can only delete their own weight entries.
+        if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for performing database operations.
 
     Returns:
         None: This function does not return any value upon successful deletion.
 
     Raises:
+        PreconditionFailedError: If the record changed since the client read it.
         NotFoundError: If the entry doesn't exist for the user.
     """
-    health_weight_service.delete_health_weight(token_user_id, health_weight_id, db)
+    health_weight_service.delete_health_weight(token_user_id, health_weight_id, db, if_match=if_match)

@@ -152,18 +152,20 @@ def edit_health_sleep(
     )
 
 
-def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session) -> None:
+def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's sleep record.
 
     Args:
         user_id: The record's owner.
         health_sleep_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_sleep_id, user_id, db)
+    health_record_crud.delete(_SPEC, health_sleep_id, user_id, db, if_match=if_match)
 
 
 def _average_by_bucket(

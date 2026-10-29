@@ -193,6 +193,7 @@ def delete_health_water(
     request: Request,
     health_water_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
     """Delete a water intake record for the authenticated user.
@@ -201,9 +202,11 @@ def delete_health_water(
         request: The incoming request, read by the rate limiter.
         health_water_id: ID of the water intake record.
         token_user_id: User ID from the access token.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
 
     Raises:
+        PreconditionFailedError: If the record changed since the client read it.
         NotFoundError: If the user has no such record.
     """
-    health_water_service.delete_health_water(token_user_id, health_water_id, db)
+    health_water_service.delete_health_water(token_user_id, health_water_id, db, if_match=if_match)

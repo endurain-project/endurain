@@ -206,7 +206,7 @@ class TestDeleteHealthFasting:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_fasting_crud.delete_health_fasting(1, 1, mock_db)
+        health_fasting_crud.delete_health_fasting(1, 1, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -216,5 +216,5 @@ class TestDeleteHealthFasting:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_fasting_crud.delete_health_fasting(1, 9, mock_db)
+            health_fasting_crud.delete_health_fasting(1, 9, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

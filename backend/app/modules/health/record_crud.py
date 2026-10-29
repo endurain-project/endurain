@@ -303,7 +303,7 @@ def edit(
     return edit_row(spec, row, changes, db, if_match=if_match, conflict=conflict)
 
 
-def delete(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> None:
+def delete(spec: RecordSpec, record_id: int, user_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's record.
 
     Args:
@@ -311,9 +311,13 @@ def delete(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> None:
         record_id: The record to delete.
         user_id: The record's owner.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    db.delete(get_owned(spec, record_id, user_id, db))
+    row = get_owned(spec, record_id, user_id, db)
+    core_etag.require_if_match(if_match, row.version, spec.etag_label)
+    db.delete(row)
     db.flush()

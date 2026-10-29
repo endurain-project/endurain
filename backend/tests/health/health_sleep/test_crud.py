@@ -118,7 +118,7 @@ class TestDeleteHealthSleep:
         row = _row()
         _returns_one(mock_db, row)
 
-        health_sleep_crud.delete_health_sleep(1, 1, mock_db)
+        health_sleep_crud.delete_health_sleep(1, 1, mock_db, if_match="*")
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
@@ -128,5 +128,5 @@ class TestDeleteHealthSleep:
         _returns_one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_sleep_crud.delete_health_sleep(1, 9, mock_db)
+            health_sleep_crud.delete_health_sleep(1, 9, mock_db, if_match="*")
         mock_db.delete.assert_not_called()

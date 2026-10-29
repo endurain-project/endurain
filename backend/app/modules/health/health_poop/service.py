@@ -154,19 +154,27 @@ def edit_health_poop(
     return updated
 
 
-def delete_health_poop(user_id: int, health_poop_id: int, db: Session) -> None:
+def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_match: str) -> None:
     """Delete a poop record and commit.
 
     Args:
         user_id: The record's owner.
         health_poop_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_poop_crud.delete_health_poop(user_id, health_poop_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "bowel movement record",
+        lambda: health_poop_crud.health_poop_exists(health_poop_id, user_id, db),
+        "Bowel movement record not found",
+    ):
+        health_poop_crud.delete_health_poop(user_id, health_poop_id, db, if_match=if_match)
+        db.commit()
     logger.debug(
         "Deleted a bowel movement record", extra=core_logger.context(user_id=user_id, health_poop_id=health_poop_id)
     )

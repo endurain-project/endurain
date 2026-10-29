@@ -63,9 +63,9 @@ class TestEditAndDelete:
 
     @patch(f"{_CRUD}.delete_health_fasting")
     def test_delete_commits(self, mock_delete, mock_db):
-        health_fasting_service.delete_health_fasting(1, 5, mock_db)
+        health_fasting_service.delete_health_fasting(1, 5, mock_db, if_match="*")
 
-        mock_delete.assert_called_once_with(1, 5, mock_db)
+        mock_delete.assert_called_once_with(1, 5, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
 
 

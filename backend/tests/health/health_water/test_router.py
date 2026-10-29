@@ -9,6 +9,7 @@ from modules.health.health_water.schema import HealthWaterRead
 
 _SERVICE = "modules.health.health_water.router.health_water_service"
 _HEADERS = {"Authorization": "Bearer x"}
+_IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
 
 
 def _build_app(mock_db):
@@ -116,15 +117,16 @@ class TestEditHealthWater:
 class TestDeleteHealthWater:
     @patch(f"{_SERVICE}.delete_health_water")
     def test_delete(self, mock_delete, mock_db):
-        response = TestClient(_build_app(mock_db)).delete("/health_water/1", headers=_HEADERS)
+        response = TestClient(_build_app(mock_db)).delete("/health_water/1", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
         assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_water")
     def test_not_found_is_404(self, mock_delete, mock_db):
         mock_delete.side_effect = core_exceptions.NotFoundError("Health water not found")
 
-        response = TestClient(_build_app(mock_db)).delete("/health_water/9", headers=_HEADERS)
+        response = TestClient(_build_app(mock_db)).delete("/health_water/9", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 404

@@ -190,18 +190,20 @@ def edit_health_poop(
     return health_record_crud.edit(_SPEC, health_poop_id, user_id, health_poop, db, if_match=if_match)
 
 
-def delete_health_poop(user_id: int, health_poop_id: int, db: Session) -> None:
+def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's poop record.
 
     Args:
         user_id: The record's owner.
         health_poop_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_poop_id, user_id, db)
+    health_record_crud.delete(_SPEC, health_poop_id, user_id, db, if_match=if_match)
 
 
 def get_health_poop_chart(

@@ -7,6 +7,7 @@ import modules.health.health_sleep.schema as health_sleep_schema
 
 _SERVICE = "modules.health.health_sleep.router.health_sleep_service"
 _HEADERS = {"Authorization": "Bearer mock_token"}
+_IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
 
 
 def _record(record_id: int = 1, day: int = 15, seconds: int = 28800) -> health_sleep_schema.HealthSleepRead:
@@ -115,15 +116,16 @@ class TestEditHealthSleep:
 class TestDeleteHealthSleep:
     @patch(f"{_SERVICE}.delete_health_sleep")
     def test_deletes(self, mock_delete, fast_api_client, fast_api_app):
-        response = fast_api_client.delete("/health_sleep/1", headers=_HEADERS)
+        response = fast_api_client.delete("/health_sleep/1", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 204
         assert mock_delete.call_args.args[:2] == (1, 1)
+        assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
     @patch(f"{_SERVICE}.delete_health_sleep")
     def test_not_found_is_404(self, mock_delete, fast_api_client, fast_api_app):
         mock_delete.side_effect = core_exceptions.NotFoundError("Health sleep not found")
 
-        response = fast_api_client.delete("/health_sleep/999", headers=_HEADERS)
+        response = fast_api_client.delete("/health_sleep/999", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 404

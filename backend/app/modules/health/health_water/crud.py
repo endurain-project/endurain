@@ -191,18 +191,20 @@ def add_health_water_amount(
     return health_computation.to_read_schema(health_water_schema.HealthWaterRead, db_health_water)
 
 
-def delete_health_water(user_id: int, health_water_id: int, db: Session) -> None:
+def delete_health_water(user_id: int, health_water_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's water intake record.
 
     Args:
         user_id: The record's owner.
         health_water_id: The record to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such record.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_water_id, user_id, db)
+    health_record_crud.delete(_SPEC, health_water_id, user_id, db, if_match=if_match)
 
 
 def get_health_water_chart(
