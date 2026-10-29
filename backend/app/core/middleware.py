@@ -62,7 +62,7 @@ async def _reload_allowed_tile_domains(state: Any, loader: Callable[[], list[str
     except Exception as err:
         logger.warning(
             "Could not refresh the allowed tile domains; keeping the previous ones",
-            extra=core_logger.context(error=type(err).__name__),
+            exc_info=err,
         )
 
 

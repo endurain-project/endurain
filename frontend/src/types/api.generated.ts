@@ -163,7 +163,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/exercise-titles/all": {
+    "/api/v1/activities/exercise-titles": {
         parameters: {
             query?: never;
             header?: never;
@@ -181,7 +181,7 @@ export interface paths {
          *     Returns:
          *         The page of exercise titles.
          */
-        get: operations["list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get"];
+        get: operations["list_activity_exercise_titles_api_v1_activities_exercise_titles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -205,26 +205,6 @@ export interface paths {
          *     ``GET /users/id/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
          */
         get: operations["list_following_feed_api_v1_activities_feed_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gears/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Gear Activities
-         * @description List the authenticated user's activities for a gear, with the matching total.
-         */
-        get: operations["list_gear_activities_api_v1_activities_gears__gear_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -363,46 +343,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/users/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List User Activities
-         * @description List another user's visible activities, with the matching total.
-         */
-        get: operations["list_user_activities_api_v1_activities_users__user_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/users/{user_id}/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read User Activity Stats
-         * @description Aggregate per-sport stats for a user's current ``week`` or ``month``.
-         */
-        get: operations["read_user_activity_stats_api_v1_activities_users__user_id__stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/activities/{activity_id}": {
         parameters: {
             query?: never;
@@ -422,6 +362,7 @@ export interface paths {
          * @description Delete one of the authenticated user's activities.
          *
          *     Answers ``204`` with no body: the resource is gone, and the status says so.
+         *     Send ``If-Match`` with the activity's ``version`` as an ETag; a stale tag is refused with 412.
          */
         delete: operations["delete_activity_api_v1_activities__activity_id__delete"];
         options?: never;
@@ -933,109 +874,6 @@ export interface paths {
         patch: operations["accept_follow_request_api_v1_followers_follow_requests__follower_id__patch"];
         trace?: never;
     };
-    "/api/v1/followers/users/{user_id}/followers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List User Followers
-         * @description List a user's followers, with the matching total.
-         *
-         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
-         *     carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
-         *     returns), so a token with ``followers:read`` alone receives it too.
-         */
-        get: operations["list_user_followers_api_v1_followers_users__user_id__followers_get"];
-        put?: never;
-        /**
-         * Follow User
-         * @description Add the authenticated user to ``user_id``'s followers.
-         *
-         *     Always created pending: a follow takes effect only once the target accepts
-         *     it, so the returned ``status`` is ``pending`` and the target is notified.
-         */
-        post: operations["follow_user_api_v1_followers_users__user_id__followers_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/followers/{follower_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Follow Relationship
-         * @description Delete the follow relationship where ``follower_id`` follows ``user_id``.
-         *
-         *     Serves both directions. Unfollowing is ``follower_id`` = the caller; removing
-         *     a follower is ``user_id`` = the caller. Either party may delete it, and the
-         *     caller must be one of them.
-         */
-        delete: operations["delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/following": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List User Following
-         * @description List who a user follows, with the matching total.
-         *
-         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
-         *     carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
-         *     returns), so a token with ``followers:read`` alone receives it too.
-         */
-        get: operations["list_user_following_api_v1_followers_users__user_id__following_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/relationship": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read User Relationship
-         * @description Return the authenticated user's relationship with ``user_id``, both directions.
-         *
-         *     Reports the requester's outgoing follow of ``user_id`` and ``user_id``'s
-         *     incoming follow of the requester; only relationships the requester is part of
-         *     are ever exposed.
-         */
-        get: operations["read_user_relationship_api_v1_followers_users__user_id__relationship_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/garmin/activities": {
         parameters: {
             query?: never;
@@ -1219,26 +1057,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear-components/gears/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear Components Gear Id
-         * @description Retrieve one page of a gear's components with the distance and time each has accumulated.
-         */
-        get: operations["read_gear_components_gear_id_api_v1_gear_components_gears__gear_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/gear-components/types": {
         parameters: {
             query?: never;
@@ -1272,6 +1090,8 @@ export interface paths {
         /**
          * Delete Component Gear
          * @description Delete one of the authenticated user's gear components.
+         *
+         *     Send ``If-Match`` with the component's ``version`` as an ETag; a stale tag is refused with 412.
          */
         delete: operations["delete_component_gear_api_v1_gear_components__gear_component_id__delete"];
         options?: never;
@@ -1337,6 +1157,8 @@ export interface paths {
         /**
          * Delete Gear
          * @description Delete one of the authenticated user's gears.
+         *
+         *     Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412.
          */
         delete: operations["delete_gear_api_v1_gears__gear_id__delete"];
         options?: never;
@@ -1352,6 +1174,46 @@ export interface paths {
          *     conditional; a stale tag is refused with 412.
          */
         patch: operations["edit_gear_api_v1_gears__gear_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/gears/{gear_id}/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Gear Activities
+         * @description List the authenticated user's activities for a gear, with the matching total.
+         */
+        get: operations["list_gear_activities_api_v1_gears__gear_id__activities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gears/{gear_id}/components": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Gear Components Gear Id
+         * @description Retrieve one page of a gear's components with the distance and time each has accumulated.
+         */
+        get: operations["read_gear_components_gear_id_api_v1_gears__gear_id__components_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/health": {
@@ -1529,7 +1391,12 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         health_fasting_id: ID of the fasting record to delete.
          *         token_user_id: User ID from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
+         *
+         *     Raises:
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
          */
         delete: operations["delete_health_fasting_api_v1_health_fasting__health_fasting_id__delete"];
         options?: never;
@@ -1699,9 +1566,11 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         health_poop_id: ID of the poop record to delete.
          *         token_user_id: User ID from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
          *
          *     Raises:
+         *         PreconditionFailedError: If the record changed since the client read it.
          *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_poop_api_v1_health_poop__health_poop_id__delete"];
@@ -1862,12 +1731,14 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         health_sleep_id (int): The unique identifier of the health sleep record to delete.
          *         token_user_id (int): The user ID extracted from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db (Session): Database session dependency for executing the delete operation.
          *
          *     Returns:
          *         None: This function does not return a value.
          *
          *     Raises:
+         *         PreconditionFailedError: If the record changed since the client read it.
          *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete"];
@@ -2032,12 +1903,14 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         health_steps_id (int): The unique identifier of the health steps record to delete.
          *         token_user_id (int): The user ID extracted from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db (Session): Database session dependency for executing the delete operation.
          *
          *     Returns:
          *         None: This function does not return a value.
          *
          *     Raises:
+         *         PreconditionFailedError: If the record changed since the client read it.
          *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_steps_api_v1_health_steps__health_steps_id__delete"];
@@ -2229,9 +2102,11 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         health_water_id: ID of the water intake record.
          *         token_user_id: User ID from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
          *
          *     Raises:
+         *         PreconditionFailedError: If the record changed since the client read it.
          *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_water_api_v1_health_water__health_water_id__delete"];
@@ -2361,12 +2236,14 @@ export interface paths {
          *         health_weight_id (int): The unique identifier of the health weight entry to delete.
          *         token_user_id (int): The user ID extracted from the access token, used to ensure
          *             users can only delete their own weight entries.
+         *         if_match: The ``If-Match`` precondition.
          *         db (Session): Database session dependency for performing database operations.
          *
          *     Returns:
          *         None: This function does not return any value upon successful deletion.
          *
          *     Raises:
+         *         PreconditionFailedError: If the record changed since the client read it.
          *         NotFoundError: If the entry doesn't exist for the user.
          */
         delete: operations["delete_health_weight_api_v1_health_weight__health_weight_id__delete"];
@@ -2413,7 +2290,6 @@ export interface paths {
          *
          *     Args:
          *         db: SQLAlchemy database session dependency.
-         *         service: Identity provider service.
          *
          *     Returns:
          *         A list of all configured identity providers.
@@ -2428,7 +2304,6 @@ export interface paths {
          *         idp_data: Data required to create the identity provider.
          *         db: SQLAlchemy database session dependency.
          *         request: Incoming request.
-         *         service: Identity provider service.
          *
          *     Returns:
          *         The newly created identity provider.
@@ -2454,9 +2329,6 @@ export interface paths {
         /**
          * List Idp Templates
          * @description Get the list of pre-configured IdP templates (admin only).
-         *
-         *     Args:
-         *         service: Identity provider service.
          *
          *     Returns:
          *         A list of identity provider templates.
@@ -2487,7 +2359,6 @@ export interface paths {
          *         idp_data: The data to update the identity provider with.
          *         db: SQLAlchemy database session dependency.
          *         request: Incoming request.
-         *         service: Identity provider service.
          *
          *     Returns:
          *         The updated identity provider.
@@ -2504,13 +2375,14 @@ export interface paths {
          *
          *     Args:
          *         idp_id: The unique identifier of the identity provider to delete.
-         *         db: SQLAlchemy database session dependency.
          *         request: Incoming request.
-         *         service: Identity provider service.
+         *         if_match: The ``If-Match`` precondition.
+         *         db: SQLAlchemy database session dependency.
          *
          *     Raises:
          *         HTTPException: 404 if the provider is not found, 409 if users
-         *             are still linked to the provider.
+         *             are still linked to the provider, 412 if the provider changed
+         *             since the client read it.
          */
         delete: operations["delete_identity_provider_api_v1_identity_providers__idp_id__delete"];
         options?: never;
@@ -2745,6 +2617,9 @@ export interface paths {
          *         token_user_id: User ID from access token.
          *         db: Database session.
          *         if_match: The ``If-Match`` precondition, the ``version`` the client read.
+         *
+         *     Returns:
+         *         The edited profile; its ``version`` is also sent as the ETag.
          */
         patch: operations["edit_user_api_v1_profile_patch"];
         trace?: never;
@@ -2757,10 +2632,18 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Api Keys
-         * @description List API keys for the authenticated user.
+         * List User Api Keys
+         * @description List one page of API keys for the authenticated user.
+         *
+         *     Args:
+         *         token_user_id: User ID from access token.
+         *         page: The requested window.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The page of API keys, newest first.
          */
-        get: operations["get_user_api_keys_api_v1_profile_api_keys_get"];
+        get: operations["list_user_api_keys_api_v1_profile_api_keys_get"];
         put?: never;
         /**
          * Create User Api Key
@@ -3107,7 +2990,11 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         goal_id: ID of the goal to delete.
          *         token_user_id: User ID from access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
+         *
+         *     Raises:
+         *         PreconditionFailedError: If the goal changed since the client read it.
          */
         delete: operations["delete_user_goal_api_v1_profile_goals__goal_id__delete"];
         options?: never;
@@ -3304,36 +3191,6 @@ export interface paths {
          *           unlink their own IdPs.
          */
         post: operations["delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profile/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload Profile Image
-         * @description Upload user profile image with security validation.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         file: Image file to upload.
-         *         token_user_id: User ID from access token.
-         *         storage: The platform storage provider.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The servable URL of the new photo.
-         */
-        post: operations["upload_profile_image_api_v1_profile_image_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3690,7 +3547,21 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
+        /**
+         * Upload Profile Image
+         * @description Upload user profile image with security validation.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         file: Image file to upload.
+         *         token_user_id: User ID from access token.
+         *         storage: The platform storage provider.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The servable URL of the new photo.
+         */
+        post: operations["upload_profile_image_api_v1_profile_photo_post"];
         /**
          * Delete Profile Photo
          * @description Delete authenticated user's profile photo.
@@ -3731,6 +3602,9 @@ export interface paths {
          *         token_user_id: User ID from access token.
          *         db: Database session.
          *         if_match: The ``If-Match`` precondition, the ``privacy_settings_version`` the client read.
+         *
+         *     Returns:
+         *         The edited settings; their ``version`` is also sent as the ETag.
          */
         patch: operations["edit_profile_privacy_settings_api_v1_profile_privacy_patch"];
         trace?: never;
@@ -3811,7 +3685,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/activities/exercise-titles/all": {
+    "/api/v1/public/activities/exercise-titles": {
         parameters: {
             query?: never;
             header?: never;
@@ -3830,7 +3704,7 @@ export interface paths {
          *     Returns:
          *         The page of exercise titles, empty when public shareable links are disabled.
          */
-        get: operations["list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get"];
+        get: operations["list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4003,7 +3877,6 @@ export interface paths {
          *
          *     Args:
          *         db (Session): SQLAlchemy database session dependency.
-         *         service: Identity provider service.
          *
          *     Returns:
          *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an
@@ -4581,85 +4454,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/user/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Sessions User
-         * @description Retrieve one page of the sessions associated with a specific user.
-         *
-         *     Args:
-         *         user_id: The ID of the user whose sessions to retrieve.
-         *         page: The requested window.
-         *         db: Database session dependency.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         The page of session objects for the specified user.
-         */
-        get: operations["read_sessions_user_api_v1_sessions_user__user_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Sessions User
-         * @description Delete every session for a user, optionally keeping one intact.
-         *
-         *     Backs the "revoke other sessions" action: pass the caller's current
-         *     ``exclude_session_id`` to sign out every other device while staying
-         *     logged in, or omit it (an admin acting on another user) to revoke
-         *     all of that user's sessions.
-         *
-         *     Args:
-         *         user_id: The ID of the user whose sessions to revoke.
-         *         db: Database session dependency.
-         *         exclude_session_id: Optional session to leave intact.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         None.
-         */
-        delete: operations["delete_sessions_user_api_v1_sessions_user__user_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/user/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Session User
-         * @description Delete a user session.
-         *
-         *     Args:
-         *         session_id: The ID of the session to delete.
-         *         user_id: The ID of the user who owns the session.
-         *         db: Database session dependency.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: If session not found or unauthorized.
-         */
-        delete: operations["delete_session_user_api_v1_sessions__session_id__user__user_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/sign-up/confirm": {
         parameters: {
             query?: never;
@@ -5139,6 +4933,7 @@ export interface paths {
          *         token_user_id: ID of the administrator making the request.
          *         states: Shared store of the deletion's state.
          *         storage: The platform storage provider.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
          *
          *     Returns:
@@ -5147,9 +4942,50 @@ export interface paths {
          *     Raises:
          *         PermissionDeniedError: If the administrator targets their own account.
          *         NotFoundError: If the user does not exist.
+         *         PreconditionFailedError: If the user changed since the client read it.
          *         ConflictError: If the user is the only administrator, or a deletion is already pending.
          */
         delete: operations["delete_user_api_v1_users__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Activities
+         * @description List another user's visible activities, with the matching total.
+         */
+        get: operations["list_user_activities_api_v1_users__user_id__activities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/activities/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Activity Stats
+         * @description Aggregate per-sport stats for a user's current ``week`` or ``month``.
+         */
+        get: operations["read_user_activity_stats_api_v1_users__user_id__activities_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5202,6 +5038,85 @@ export interface paths {
          *         NotFoundError: If no deletion is recorded or it has expired.
          */
         get: operations["read_user_deletion_status_api_v1_users__user_id__deletion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/followers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Followers
+         * @description List a user's followers, with the matching total.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+         *     carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     returns), so a token with ``followers:read`` alone receives it too.
+         */
+        get: operations["list_user_followers_api_v1_users__user_id__followers_get"];
+        put?: never;
+        /**
+         * Follow User
+         * @description Add the authenticated user to ``user_id``'s followers.
+         *
+         *     Always created pending: a follow takes effect only once the target accepts
+         *     it, so the returned ``status`` is ``pending`` and the target is notified.
+         */
+        post: operations["follow_user_api_v1_users__user_id__followers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/followers/{follower_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Follow Relationship
+         * @description Delete the follow relationship where ``follower_id`` follows ``user_id``.
+         *
+         *     Serves both directions. Unfollowing is ``follower_id`` = the caller; removing
+         *     a follower is ``user_id`` = the caller. Either party may delete it, and the
+         *     caller must be one of them.
+         */
+        delete: operations["delete_follow_relationship_api_v1_users__user_id__followers__follower_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/following": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Following
+         * @description List who a user follows, with the matching total.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+         *     carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     returns), so a token with ``followers:read`` alone receives it too.
+         */
+        get: operations["list_user_following_api_v1_users__user_id__following_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5267,36 +5182,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/{user_id}/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload User Image
-         * @description Upload user profile image.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: ID of user to upload image for.
-         *         file: Uploaded image file.
-         *         storage: The platform storage provider.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The servable URL of the new photo.
-         */
-        post: operations["upload_user_image_api_v1_users__user_id__image_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/users/{user_id}/password/change": {
         parameters: {
             query?: never;
@@ -5347,7 +5232,21 @@ export interface paths {
          */
         get: operations["read_user_photo_api_v1_users__user_id__photo_get"];
         put?: never;
-        post?: never;
+        /**
+         * Upload User Image
+         * @description Upload user profile image.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         user_id: ID of user to upload image for.
+         *         file: Uploaded image file.
+         *         storage: The platform storage provider.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The servable URL of the new photo.
+         */
+        post: operations["upload_user_image_api_v1_users__user_id__photo_post"];
         /**
          * Delete User Photo
          * @description Delete user profile photo.
@@ -5362,6 +5261,109 @@ export interface paths {
          *         None
          */
         delete: operations["delete_user_photo_api_v1_users__user_id__photo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/relationship": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Relationship
+         * @description Return the authenticated user's relationship with ``user_id``, both directions.
+         *
+         *     Reports the requester's outgoing follow of ``user_id`` and ``user_id``'s
+         *     incoming follow of the requester; only relationships the requester is part of
+         *     are ever exposed.
+         */
+        get: operations["read_user_relationship_api_v1_users__user_id__relationship_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Sessions User
+         * @description Retrieve one page of the sessions associated with a specific user.
+         *
+         *     Args:
+         *         user_id: The ID of the user whose sessions to retrieve.
+         *         page: The requested window.
+         *         db: Database session dependency.
+         *         request: Incoming request.
+         *
+         *     Returns:
+         *         The page of session objects for the specified user.
+         */
+        get: operations["read_sessions_user_api_v1_users__user_id__sessions_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Sessions User
+         * @description Delete every session for a user, optionally keeping one intact.
+         *
+         *     Backs the "revoke other sessions" action: pass the caller's current
+         *     ``exclude_session_id`` to sign out every other device while staying
+         *     logged in, or omit it (an admin acting on another user) to revoke
+         *     all of that user's sessions.
+         *
+         *     Args:
+         *         user_id: The ID of the user whose sessions to revoke.
+         *         db: Database session dependency.
+         *         exclude_session_id: Optional session to leave intact.
+         *         request: Incoming request.
+         *
+         *     Returns:
+         *         None.
+         */
+        delete: operations["delete_sessions_user_api_v1_users__user_id__sessions_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Session User
+         * @description Delete a user session.
+         *
+         *     Args:
+         *         session_id: The ID of the session to delete.
+         *         user_id: The ID of the user who owns the session.
+         *         db: Database session dependency.
+         *         request: Incoming request.
+         *
+         *     Returns:
+         *         None.
+         *
+         *     Raises:
+         *         HTTPException: If session not found or unauthorized.
+         */
+        delete: operations["delete_session_user_api_v1_users__user_id__sessions__session_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6168,13 +6170,13 @@ export interface components {
             /** File */
             file: string;
         };
-        /** Body_upload_profile_image_api_v1_profile_image_post */
-        Body_upload_profile_image_api_v1_profile_image_post: {
+        /** Body_upload_profile_image_api_v1_profile_photo_post */
+        Body_upload_profile_image_api_v1_profile_photo_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_user_image_api_v1_users__user_id__image_post */
-        Body_upload_user_image_api_v1_users__user_id__image_post: {
+        /** Body_upload_user_image_api_v1_users__user_id__photo_post */
+        Body_upload_user_image_api_v1_users__user_id__photo_post: {
             /** File */
             file: string;
         };
@@ -10038,6 +10040,19 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Page[UsersApiKeyRead] */
+        Page_UsersApiKeyRead_: {
+            /** Items */
+            items: components["schemas"]["UsersApiKeyRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /** Page[UsersGoalProgress] */
         Page_UsersGoalProgress_: {
             /** Items */
@@ -12409,6 +12424,109 @@ export interface components {
             version: number;
         };
         /**
+         * UsersPrivacySettingsRead
+         * @description Schema for reading user privacy settings.
+         *
+         *     Attributes:
+         *         id: Unique identifier for the privacy settings record.
+         *         user_id: Foreign key reference to the user.
+         */
+        UsersPrivacySettingsRead: {
+            /**
+             * @description Default activity visibility (public, followers, private)
+             * @default public
+             */
+            default_activity_visibility: components["schemas"]["ActivityVisibility"] | null;
+            /**
+             * Hide Activity Cadence
+             * @description Hide activity cadence
+             * @default false
+             */
+            hide_activity_cadence: boolean | null;
+            /**
+             * Hide Activity Elevation
+             * @description Hide activity elevation
+             * @default false
+             */
+            hide_activity_elevation: boolean | null;
+            /**
+             * Hide Activity Gear
+             * @description Hide activity gear
+             * @default false
+             */
+            hide_activity_gear: boolean | null;
+            /**
+             * Hide Activity Hr
+             * @description Hide activity heart rate
+             * @default false
+             */
+            hide_activity_hr: boolean | null;
+            /**
+             * Hide Activity Laps
+             * @description Hide activity laps
+             * @default false
+             */
+            hide_activity_laps: boolean | null;
+            /**
+             * Hide Activity Location
+             * @description Hide activity location
+             * @default false
+             */
+            hide_activity_location: boolean | null;
+            /**
+             * Hide Activity Map
+             * @description Hide activity map
+             * @default false
+             */
+            hide_activity_map: boolean | null;
+            /**
+             * Hide Activity Pace
+             * @description Hide activity pace
+             * @default false
+             */
+            hide_activity_pace: boolean | null;
+            /**
+             * Hide Activity Power
+             * @description Hide activity power
+             * @default false
+             */
+            hide_activity_power: boolean | null;
+            /**
+             * Hide Activity Speed
+             * @description Hide activity speed
+             * @default false
+             */
+            hide_activity_speed: boolean | null;
+            /**
+             * Hide Activity Start Time
+             * @description Hide activity start time
+             * @default false
+             */
+            hide_activity_start_time: boolean | null;
+            /**
+             * Hide Activity Workout Sets Steps
+             * @description Hide activity workout sets and steps
+             * @default false
+             */
+            hide_activity_workout_sets_steps: boolean | null;
+            /**
+             * Id
+             * @description Unique identifier for privacy settings
+             */
+            id: number;
+            /**
+             * User Id
+             * @description Foreign key reference to the user
+             */
+            user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
+        };
+        /**
          * UsersPrivacySettingsUpdate
          * @description Schema for updating user privacy settings.
          *
@@ -13336,7 +13454,7 @@ export interface operations {
             };
         };
     };
-    list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get: {
+    list_activity_exercise_titles_api_v1_activities_exercise_titles_get: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -13396,49 +13514,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityFeedPage"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    list_gear_activities_api_v1_activities_gears__gear_id__get: {
-        parameters: {
-            query?: {
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ActivityRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13656,99 +13731,6 @@ export interface operations {
             };
         };
     };
-    list_user_activities_api_v1_activities_users__user_id__get: {
-        parameters: {
-            query?: {
-                type?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name?: string | null;
-                sort_by?: components["schemas"]["ActivitySortField"] | null;
-                sort_order?: components["schemas"]["ActivitySortOrder"] | null;
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ActivityRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_user_activity_stats_api_v1_activities_users__user_id__stats_get: {
-        parameters: {
-            query?: {
-                period?: string;
-                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
-                date?: string | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStatsRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     read_activity_api_v1_activities__activity_id__get: {
         parameters: {
             query?: never;
@@ -13792,7 +13774,9 @@ export interface operations {
     delete_activity_api_v1_activities__activity_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 activity_id: number;
             };
@@ -14612,213 +14596,6 @@ export interface operations {
             };
         };
     };
-    list_user_followers_api_v1_followers_users__user_id__followers_get: {
-        parameters: {
-            query?: {
-                accepted_only?: boolean;
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FollowRelationshipPage"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    follow_user_api_v1_followers_users__user_id__followers_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FollowRelationshipRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-                follower_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    list_user_following_api_v1_followers_users__user_id__following_get: {
-        parameters: {
-            query?: {
-                accepted_only?: boolean;
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FollowRelationshipPage"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_user_relationship_api_v1_followers_users__user_id__relationship_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RelationshipRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     garminconnect_retrieve_activities_days_api_v1_garmin_activities_post: {
         parameters: {
             query: {
@@ -15191,50 +14968,6 @@ export interface operations {
             };
         };
     };
-    read_gear_components_gear_id_api_v1_gear_components_gears__gear_id__get: {
-        parameters: {
-            query?: {
-                active?: boolean | null;
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_GearComponentRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     read_gear_component_types_api_v1_gear_components_types_get: {
         parameters: {
             query?: never;
@@ -15267,7 +15000,9 @@ export interface operations {
     delete_component_gear_api_v1_gear_components__gear_component_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 gear_component_id: number;
             };
@@ -15480,7 +15215,9 @@ export interface operations {
     delete_gear_api_v1_gears__gear_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 gear_id: number;
             };
@@ -15539,6 +15276,93 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GearRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_gear_activities_api_v1_gears__gear_id__activities_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                gear_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_gear_components_gear_id_api_v1_gears__gear_id__components_get: {
+        parameters: {
+            query?: {
+                active?: boolean | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                gear_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GearComponentRead_"];
                 };
             };
             /** @description Validation Error */
@@ -15776,7 +15600,9 @@ export interface operations {
     delete_health_fasting_api_v1_health_fasting__health_fasting_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_fasting_id: number;
             };
@@ -16072,7 +15898,9 @@ export interface operations {
     delete_health_poop_api_v1_health_poop__health_poop_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_poop_id: number;
             };
@@ -16323,7 +16151,9 @@ export interface operations {
     delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_sleep_id: number;
             };
@@ -16562,7 +16392,9 @@ export interface operations {
     delete_health_steps_api_v1_health_steps__health_steps_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_steps_id: number;
             };
@@ -16845,7 +16677,9 @@ export interface operations {
     delete_health_water_api_v1_health_water__health_water_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_water_id: number;
             };
@@ -17055,7 +16889,9 @@ export interface operations {
     delete_health_weight_api_v1_health_weight__health_weight_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_weight_id: number;
             };
@@ -17307,7 +17143,9 @@ export interface operations {
     delete_identity_provider_api_v1_identity_providers__idp_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 idp_id: number;
             };
@@ -17647,11 +17485,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["UsersMe"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -17673,9 +17513,12 @@ export interface operations {
             };
         };
     };
-    get_user_api_keys_api_v1_profile_api_keys_get: {
+    list_user_api_keys_api_v1_profile_api_keys_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17688,7 +17531,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersApiKeyRead"][];
+                    "application/json": components["schemas"]["Page_UsersApiKeyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -18239,7 +18091,9 @@ export interface operations {
     delete_user_goal_api_v1_profile_goals__goal_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 goal_id: number;
             };
@@ -18410,48 +18264,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    upload_profile_image_api_v1_profile_image_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_profile_image_api_v1_profile_image_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserPhotoRead"];
-                };
             };
             /** @description Validation Error */
             422: {
@@ -18839,6 +18651,48 @@ export interface operations {
             };
         };
     };
+    upload_profile_image_api_v1_profile_photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_profile_image_api_v1_profile_photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_profile_photo_api_v1_profile_photo_delete: {
         parameters: {
             query?: never;
@@ -18882,11 +18736,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["UsersPrivacySettingsRead"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -19014,7 +18870,7 @@ export interface operations {
             };
         };
     };
-    list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get: {
+    list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_get: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -20045,129 +19901,6 @@ export interface operations {
             };
         };
     };
-    read_sessions_user_api_v1_sessions_user__user_id__get: {
-        parameters: {
-            query?: {
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_sessions_user_api_v1_sessions_user__user_id__delete: {
-        parameters: {
-            query?: {
-                /** @description Session to keep intact (e.g. the caller's current session) */
-                exclude_session_id?: string | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_session_user_api_v1_sessions__session_id__user__user_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     verify_email_api_v1_sign_up_confirm_post: {
         parameters: {
             query?: never;
@@ -21009,7 +20742,9 @@ export interface operations {
     delete_user_api_v1_users__user_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 user_id: number;
             };
@@ -21024,6 +20759,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDeletionStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_activities_api_v1_users__user_id__activities_get: {
+        parameters: {
+            query?: {
+                type?: number | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                name?: string | null;
+                sort_by?: components["schemas"]["ActivitySortField"] | null;
+                sort_order?: components["schemas"]["ActivitySortOrder"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_activity_stats_api_v1_users__user_id__activities_stats_get: {
+        parameters: {
+            query?: {
+                period?: string;
+                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityStatsRead"];
                 };
             };
             /** @description Validation Error */
@@ -21124,6 +20952,173 @@ export interface operations {
             };
         };
     };
+    list_user_followers_api_v1_users__user_id__followers_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    follow_user_api_v1_users__user_id__followers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_follow_relationship_api_v1_users__user_id__followers__follower_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+                follower_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_following_api_v1_users__user_id__following_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     get_user_identity_providers_api_v1_users__user_id__identity_providers_get: {
         parameters: {
             query?: never;
@@ -21182,50 +21177,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    upload_user_image_api_v1_users__user_id__image_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_user_image_api_v1_users__user_id__image_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserPhotoRead"];
-                };
             };
             /** @description Validation Error */
             422: {
@@ -21333,11 +21284,218 @@ export interface operations {
             };
         };
     };
+    upload_user_image_api_v1_users__user_id__photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_user_image_api_v1_users__user_id__photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_user_photo_api_v1_users__user_id__photo_delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_relationship_api_v1_users__user_id__relationship_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_sessions_user_api_v1_users__user_id__sessions_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_sessions_user_api_v1_users__user_id__sessions_delete: {
+        parameters: {
+            query?: {
+                /** @description Session to keep intact (e.g. the caller's current session) */
+                exclude_session_id?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_session_user_api_v1_users__user_id__sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
                 user_id: number;
             };
             cookie?: never;

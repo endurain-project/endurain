@@ -70,16 +70,19 @@ function confirmDelete(): void {
   if (!target) {
     return
   }
-  deleteMutation.mutate(target.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('gears.delete.success'))
-      void router.push({ name: 'gears' })
+  deleteMutation.mutate(
+    { id: target.id, version: target.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('gears.delete.success'))
+        void router.push({ name: 'gears' })
+      },
+      onError: () => {
+        toasts.error(t('gears.delete.error'))
+      },
     },
-    onError: () => {
-      toasts.error(t('gears.delete.error'))
-    },
-  })
+  )
 }
 </script>
 

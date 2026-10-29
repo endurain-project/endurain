@@ -113,7 +113,6 @@ export async function updateProfile(input: ProfileEditInput, version: number): P
     method: 'PATCH',
     headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
-    responseType: 'void',
   })
 }
 
@@ -143,7 +142,6 @@ export async function updatePrivacySettings(privacy: PrivacySettings): Promise<v
     method: 'PATCH',
     headers: ifMatchHeaders(privacy.version),
     body: JSON.stringify(payload),
-    responseType: 'void',
   })
 }
 
@@ -158,7 +156,7 @@ export async function updatePrivacySettings(privacy: PrivacySettings): Promise<v
 export async function uploadProfilePhoto(file: File): Promise<void> {
   const formData = new FormData()
   formData.append('file', file, file.name)
-  await apiFetch('/profile/image', { method: 'POST', body: formData, timeoutMs: 0 })
+  await apiFetch('/profile/photo', { method: 'POST', body: formData, timeoutMs: 0 })
 }
 
 /**

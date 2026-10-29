@@ -97,9 +97,9 @@ export function useUpdateUserMutation() {
  * @returns The TanStack Query mutation for deleting a user.
  */
 export function useDeleteUserMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, { id: number; version: number }>({
     mutationKey: queryKeys.users.all(),
-    mutationFn: (id) => deleteUser(id),
+    mutationFn: ({ id, version }) => deleteUser(id, version),
   })
 }
 

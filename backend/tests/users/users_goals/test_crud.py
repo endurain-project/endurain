@@ -125,19 +125,30 @@ class TestUpdateUserGoal:
 class TestDeleteUserGoal:
     def test_stages_the_deletion(self, mock_db):
         row = MagicMock(spec=user_goals_models.UsersGoal)
+        row.version = 3
         _one(mock_db, row)
 
-        user_goals_crud.delete_user_goal(1, 5, mock_db)
+        user_goals_crud.delete_user_goal(1, 5, mock_db, if_match='"3"')
 
         mock_db.delete.assert_called_once_with(row)
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
+    def test_stale_if_match_is_refused_before_anything_is_deleted(self, mock_db):
+        row = MagicMock(spec=user_goals_models.UsersGoal)
+        row.version = 3
+        _one(mock_db, row)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            user_goals_crud.delete_user_goal(1, 5, mock_db, if_match='"2"')
+
+        mock_db.delete.assert_not_called()
+
     def test_missing_goal_is_not_found(self, mock_db):
         _one(mock_db, None)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_goals_crud.delete_user_goal(1, 5, mock_db)
+            user_goals_crud.delete_user_goal(1, 5, mock_db, if_match="*")
 
 
 class TestGoalUniquenessInTheDatabase:

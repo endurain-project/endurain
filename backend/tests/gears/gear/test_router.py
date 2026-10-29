@@ -144,13 +144,24 @@ class TestWrites:
 
     @patch("modules.gears.gear.service.delete_gear")
     def test_delete(self, mock_delete, client, mock_db):
-        response = client.delete("/gears/1", headers=_HEADERS)
+        response = client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"3"'})
 
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(1, 1, mock_db)
+        mock_delete.assert_called_once_with(1, 1, mock_db, if_match='"3"')
+
+    @patch("modules.gears.gear.service.delete_gear")
+    def test_delete_without_if_match_is_428(self, mock_delete, client):
+        assert client.delete("/gears/1", headers=_HEADERS).status_code == 428
+        mock_delete.assert_not_called()
+
+    @patch("modules.gears.gear.service.delete_gear")
+    def test_a_stale_delete_is_412(self, mock_delete, client):
+        mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+        assert client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
 
     @patch("modules.gears.gear.service.delete_gear")
     def test_delete_of_a_missing_gear_is_404(self, mock_delete, client):
         mock_delete.side_effect = core_exceptions.NotFoundError("Gear not found")
 
-        assert client.delete("/gears/1", headers=_HEADERS).status_code == 404
+        assert client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 404

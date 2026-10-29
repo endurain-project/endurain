@@ -177,22 +177,30 @@ def edit_gear(
     return updated
 
 
-def delete_gear(gear_id: int, user_id: int, db: Session) -> None:
+def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> None:
     """Delete a user's gear, unassigning it from their activities first.
 
     Args:
         gear_id: Gear ID to delete.
         user_id: Owner user ID.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such gear.
+        PreconditionFailedError: If the gear changed since the client read it.
     """
-    # Locked first, so an activity cannot be assigned the gear between the clear and the delete.
-    gears_crud.lock_gear(gear_id, user_id, db)
-    gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
-    gears_crud.delete_gear(gear_id, user_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "gear",
+        lambda: gears_crud.get_gear_user_by_id(user_id, gear_id, db) is not None,
+        "Gear not found",
+    ):
+        # Locked first, so an activity cannot be assigned the gear between the clear and the delete.
+        gears_crud.lock_gear(gear_id, user_id, db)
+        gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
+        gears_crud.delete_gear(gear_id, user_id, db, if_match=if_match)
+        db.commit()
     logger.debug("Deleted a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
 
 

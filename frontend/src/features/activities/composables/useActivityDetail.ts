@@ -347,9 +347,9 @@ export function useDisplayUnits(): ComputedRef<Units> {
 export function useDeleteActivityMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number>({
-    mutationFn: (id) => deleteActivity(id),
-    onSuccess: (_data, id) => {
+  return useMutation<void, Error, { id: number; version: number }>({
+    mutationFn: ({ id, version }) => deleteActivity(id, version),
+    onSuccess: (_data, { id }) => {
       client.removeQueries({ queryKey: queryKeys.activities.detail(id) })
     },
     onSettled: () => {

@@ -16,7 +16,7 @@ These serve an activity that its owner made public. They work only when an admin
 | `GET /public/activities/{activity_id}/workout-steps` | A page of workout steps |
 | `GET /public/activities/{activity_id}/streams` | A page of streams |
 | `GET /public/activities/{activity_id}/streams/{stream_type}` | One stream |
-| `GET /public/activities/exercise-titles/all` | The exercise title reference table |
+| `GET /public/activities/exercise-titles` | The exercise title reference table |
 | `GET /public/users/id/{user_id}` | The owner's public profile: id, name, username, city and photo URL |
 
 ```mermaid

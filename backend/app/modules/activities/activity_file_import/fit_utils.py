@@ -878,7 +878,7 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
         raise
     except fitdecode.FitError as err:
         # The uploader's file is the problem, so a retry reaches the same verdict.
-        logger.warning("Rejected a malformed FIT file", exc_info=err, extra=core_logger.context(file=Path(file).name))
+        logger.debug("Rejected a malformed FIT file", exc_info=err, extra=core_logger.context(file=Path(file).name))
         raise core_exceptions.InvalidInputError("Can't parse FIT file") from err
     except Exception as err:
         logger.error("Error in parse_fit_file", exc_info=err, extra=core_logger.context(file=Path(file).name))

@@ -17,7 +17,7 @@ import { queryKeys } from '@/services/queryKeys'
 vi.mock('@/features/gears/services/gears', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/gears/services/gears')>()),
   createGear: vi.fn<(input: GearInput) => Promise<Gear>>(),
-  deleteGear: vi.fn<(id: number) => Promise<void>>(),
+  deleteGear: vi.fn<(id: number, version: number) => Promise<void>>(),
   fetchGears: vi.fn<() => Promise<GearsPage>>(),
   updateGear: vi.fn<(id: number, input: GearInput, version: number) => Promise<Gear>>(),
 }))
@@ -135,9 +135,10 @@ describe('gear write mutations', () => {
     vi.mocked(deleteGear).mockResolvedValue()
     const mutation = mountMutation(queryClient, useDeleteGearMutation)
 
-    await mutation.mutateAsync(GEAR_ID)
+    await mutation.mutateAsync({ id: GEAR_ID, version: 2 })
     await flushPromises()
 
+    expect(deleteGear).toHaveBeenCalledWith(GEAR_ID, 2)
     expect(invalidatedNames(queryClient, GEAR_KEYS)).toEqual(Object.keys(GEAR_KEYS))
     expect(invalidatedNames(queryClient, UNAFFECTED_KEYS)).toEqual([])
   })

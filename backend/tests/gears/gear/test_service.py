@@ -110,17 +110,27 @@ class TestEditAndDelete:
 
         install_readers()
 
-        service.delete_gear(created.id, 1, db)
+        service.delete_gear(created.id, 1, db, if_match=f'"{created.version}"')
 
         commit_spy.assert_called_once_with()
         assert crud.get_gear_user_by_id(1, created.id, db) is None
+
+    def test_a_stale_delete_is_a_precondition_failure_and_not_committed(self, db, commit_spy):
+        created = crud.create_gear(gear_create(), 1, db)
+        install_readers()
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            service.delete_gear(created.id, 1, db, if_match='"99"')
+
+        commit_spy.assert_not_called()
+        assert crud.get_gear_user_by_id(1, created.id, db) is not None
 
     def test_delete_unassigns_the_activities_before_removing_the_gear(self, db):
         created = crud.create_gear(gear_create(), 1, db)
         clear = MagicMock(return_value=2)
         install_readers(clear_activities_gear=clear)
 
-        service.delete_gear(created.id, 1, db)
+        service.delete_gear(created.id, 1, db, if_match="*")
 
         clear.assert_called_once_with(created.id, 1, db)
 
@@ -129,7 +139,7 @@ class TestEditAndDelete:
         install_readers()
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.delete_gear(created.id, 2, db)
+            service.delete_gear(created.id, 2, db, if_match="*")
 
         commit_spy.assert_not_called()
 

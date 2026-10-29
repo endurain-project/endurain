@@ -2,6 +2,10 @@
 
 from unittest.mock import patch
 
+import pytest
+from sqlalchemy.orm.exc import StaleDataError
+
+import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.users.users_goals.schema as user_goals_schema
 import modules.users.users_goals.service as user_goals_service
@@ -43,7 +47,16 @@ class TestUserGoalsService:
         mock_db.commit.assert_called_once()
 
     def test_delete_commits(self, mock_crud, mock_db):
-        user_goals_service.delete_goal(1, 5, mock_db)
+        user_goals_service.delete_goal(1, 5, mock_db, if_match='"2"')
 
-        mock_crud.delete_user_goal.assert_called_once_with(1, 5, mock_db)
+        mock_crud.delete_user_goal.assert_called_once_with(1, 5, mock_db, if_match='"2"')
         mock_db.commit.assert_called_once()
+
+    def test_a_delete_that_races_past_the_check_is_a_precondition_failure(self, mock_crud, mock_db):
+        mock_crud.delete_user_goal.side_effect = StaleDataError("row changed")
+        mock_crud.user_goal_exists.return_value = True
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            user_goals_service.delete_goal(1, 5, mock_db, if_match='"2"')
+
+        mock_db.commit.assert_not_called()

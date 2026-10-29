@@ -57,9 +57,7 @@ def request_export(
     if not core_config.settings.JOBS_ENABLED:
         profile_transfer_pool.pool.require_capacity()
     if not states.begin(user_id):
-        logger.warning(
-            "Refused a second profile export while one is pending", extra=core_logger.context(user_id=user_id)
-        )
+        logger.debug("Refused a second profile export while one is pending", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.ConflictError("A profile export is already in progress")
 
     try:

@@ -29,7 +29,7 @@ class TestReadPublicExerciseTitles:
             [ActivityExerciseTitlesRead(id=1, exercise_category=1, exercise_name=1, wkt_step_name="Run")], 1, 1, 25
         )
 
-        response = client.get("/public/activity_exercise_titles/all")
+        response = client.get("/public/activity_exercise_titles")
         assert response.status_code == 200
         assert response.json()["total"] == 1
 
@@ -42,6 +42,6 @@ class TestReadPublicExerciseTitles:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityExerciseTitlesPage.build([], 0, 1, 25)
 
-        response = client.get("/public/activity_exercise_titles/all")
+        response = client.get("/public/activity_exercise_titles")
         assert response.status_code == 200
         assert response.json()["items"] == []

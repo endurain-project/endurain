@@ -126,15 +126,18 @@ function confirmDelete(): void {
   if (!entry) {
     return
   }
-  deleteMutation.mutate(entry.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('health.water.delete.success'))
+  deleteMutation.mutate(
+    { id: entry.id, version: entry.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('health.water.delete.success'))
+      },
+      onError: () => {
+        toasts.error(t('health.water.delete.error'))
+      },
     },
-    onError: () => {
-      toasts.error(t('health.water.delete.error'))
-    },
-  })
+  )
 }
 </script>
 

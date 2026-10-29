@@ -243,19 +243,21 @@ def update_user_goal(
     return user_goals_serializers.to_read_schema(db_goal)
 
 
-def delete_user_goal(user_id: int, goal_id: int, db: Session) -> None:
+def delete_user_goal(user_id: int, goal_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's goal (flushed, not committed).
 
     Args:
         user_id: The ID of the user who owns the goal.
         goal_id: The ID of the goal to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition, checked against the very row that is deleted.
 
     Raises:
         NotFoundError: If the user has no such goal.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     db_goal = _select_goal(user_id, goal_id, db)
-
+    core_etag.require_if_match(if_match, db_goal.version, "goal")
     db.delete(db_goal)
     db.flush()
 

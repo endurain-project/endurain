@@ -129,4 +129,6 @@ class BoundedPool:
             return
         error = future.exception()
         if error is not None:
-            logger.error("A %s job failed: %s", self.name, job, exc_info=error)
+            logger.error(
+                "A <pool> job failed: <job>", exc_info=error, extra=core_logger.context(pool=self.name, job=job)
+            )

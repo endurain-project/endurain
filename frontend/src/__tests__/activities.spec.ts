@@ -303,7 +303,7 @@ describe('fetchUserWeekActivities', () => {
     const result = await fetchUserWeekActivities(7, 3)
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringMatching(
-        /^\/activities\/users\/7\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
+        /^\/users\/7\/activities\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
       ),
       expect.objectContaining({ signal: undefined }),
     )
@@ -419,9 +419,12 @@ describe('deleteActivity', () => {
   it('sends a DELETE to the activity delete endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'deleted' })
 
-    await deleteActivity(5)
+    await deleteActivity(5, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', { method: 'DELETE' })
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
+    })
   })
 })
 
@@ -677,7 +680,7 @@ describe('fetchUserThisMonthActivityCount', () => {
 
     const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
     expect(url).toMatch(
-      /^\/activities\/users\/7\?start_date=\d{4}-\d{2}-01&end_date=\d{4}-\d{2}-\d{2}&num_records=1$/,
+      /^\/users\/7\/activities\?start_date=\d{4}-\d{2}-01&end_date=\d{4}-\d{2}-\d{2}&num_records=1$/,
     )
   })
 })

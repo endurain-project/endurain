@@ -230,19 +230,27 @@ def edit_gear_component(
     return updated
 
 
-def delete_gear_component(user_id: int, gear_component_id: int, db: Session) -> None:
+def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, if_match: str) -> None:
     """Delete one of the user's components.
 
     Args:
         user_id: Owner user ID.
         gear_component_id: Component ID to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such component.
+        PreconditionFailedError: If the component changed since the client read it.
     """
-    gear_components_crud.delete_gear_component(user_id, gear_component_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "gear component",
+        lambda: gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db) is not None,
+        "Gear component not found",
+    ):
+        gear_components_crud.delete_gear_component(user_id, gear_component_id, db, if_match=if_match)
+        db.commit()
     logger.debug(
         "Deleted a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=gear_component_id)
     )

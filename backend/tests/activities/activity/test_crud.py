@@ -355,36 +355,55 @@ class TestDelete:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        r = MagicMock()
-        r.rowcount = 1
-        mock_db.execute.return_value = r
-        crud.delete_activity(activity_id=1, user_id=7, db=mock_db)
-        mock_db.execute.assert_called_once()
+        db_act = MagicMock()
+        db_act.version = 3
+        setup_mock_execute(mock_db, return_one_or_none=db_act)
+        crud.delete_activity(activity_id=1, user_id=7, db=mock_db, if_match='"3"')
+        mock_db.delete.assert_called_once_with(db_act)
+        mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
     def test_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        r = MagicMock()
-        r.rowcount = 0
-        mock_db.execute.return_value = r
+        setup_mock_execute(mock_db, return_one_or_none=None)
         with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.delete_activity(activity_id=999, user_id=7, db=mock_db)
+            crud.delete_activity(activity_id=999, user_id=7, db=mock_db, if_match='"1"')
         assert e.value.status_code == 404
+        mock_db.delete.assert_not_called()
 
     def test_non_owner_is_404(self, mock_db):
-        """A delete that matches no owned row must 404, never delete another user's activity."""
+        """The lookup is scoped to the owner, so another user's activity is never deleted."""
         import modules.activities.activity.crud as crud
 
-        r = MagicMock()
-        r.rowcount = 0
-        mock_db.execute.return_value = r
+        setup_mock_execute(mock_db, return_one_or_none=None)
         with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.delete_activity(activity_id=1, user_id=999, db=mock_db)
+            crud.delete_activity(activity_id=1, user_id=999, db=mock_db, if_match='"1"')
         assert e.value.status_code == 404
+        assert "user_id" in str(mock_db.execute.call_args.args[0])
+        mock_db.delete.assert_not_called()
         mock_db.commit.assert_not_called()
         # Nothing was staged, so there is nothing to roll back.
         mock_db.rollback.assert_not_called()
+
+    def test_stale_if_match_is_refused_before_anything_is_deleted(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        db_act = MagicMock()
+        db_act.version = 5
+        setup_mock_execute(mock_db, return_one_or_none=db_act)
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.delete_activity(activity_id=1, user_id=7, db=mock_db, if_match='"4"')
+        mock_db.delete.assert_not_called()
+
+    def test_the_wildcard_deletes_whatever_the_version(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        db_act = MagicMock()
+        db_act.version = 5
+        setup_mock_execute(mock_db, return_one_or_none=db_act)
+        crud.delete_activity(activity_id=1, user_id=7, db=mock_db, if_match="*")
+        mock_db.delete.assert_called_once_with(db_act)
 
 
 class TestDistinctTypes:

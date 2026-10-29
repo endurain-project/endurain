@@ -70,13 +70,16 @@ function confirmDelete(): void {
   if (!provider) {
     return
   }
-  deleteMutation.mutate(provider.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.idp.delete.success'))
+  deleteMutation.mutate(
+    { id: provider.id, version: provider.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('settings.idp.delete.success'))
+      },
+      onError: () => toasts.error(t('settings.idp.delete.error')),
     },
-    onError: () => toasts.error(t('settings.idp.delete.error')),
-  })
+  )
 }
 
 // Inline enable/disable. Tracks the row in flight so its switch shows as busy.

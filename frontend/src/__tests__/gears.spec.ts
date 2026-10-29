@@ -223,10 +223,11 @@ describe('gear service requests', () => {
   it('deletes a gear via a void DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteGear(5)
+    await deleteGear(5, 4)
 
     expect(apiFetch).toHaveBeenCalledWith('/gears/5', {
       method: 'DELETE',
+      headers: { 'If-Match': '"4"' },
       responseType: 'void',
     })
   })

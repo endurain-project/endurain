@@ -62,19 +62,19 @@ describe('api key service', () => {
   })
 
   it('fetchApiKeys reads the path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([apiKeyDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [apiKeyDto], next: null })
 
     const keys = await fetchApiKeys()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/api-keys',
+      '/profile/api-keys?page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(keys).toHaveLength(1)
     expect(keys[0]?.scopes).toEqual(['activities:upload'])
   })
 
-  it('fetchApiKeys maps a null payload to an empty array', async () => {
+  it('fetchApiKeys maps a null payload to an empty list', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
     await expect(fetchApiKeys()).resolves.toEqual([])
   })

@@ -139,7 +139,9 @@ def get_user_profile_overview(
     )
 
 
-def edit_profile(user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str) -> int:
+def edit_profile(
+    user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
+) -> users_schema.UsersMe:
     """Apply the user's own profile edits and commit.
 
     Args:
@@ -149,7 +151,7 @@ def edit_profile(user_id: int, profile: users_schema.ProfileUpdate, db: Session,
         if_match: The ``If-Match`` precondition.
 
     Returns:
-        The user's version after the edit, which the client sends as its next ``If-Match``.
+        The edited profile, whose ``version`` the client sends as its next ``If-Match``.
 
     Raises:
         NotFoundError: If the user does not exist.
@@ -159,10 +161,10 @@ def edit_profile(user_id: int, profile: users_schema.ProfileUpdate, db: Session,
     with core_etag.refuse_stale_write(
         db, "profile", lambda: users_integration.get_user(user_id, db) is not None, "User not found"
     ):
-        version = users_integration.edit_profile(user_id, profile, db, if_match=if_match).version
+        users_integration.edit_profile(user_id, profile, db, if_match=if_match)
         db.commit()
     logger.debug("Profile updated", extra=core_logger.context(user_id=user_id))
-    return version
+    return get_profile(user_id, db)
 
 
 def change_email(
@@ -224,7 +226,7 @@ def edit_privacy_settings(
     db: Session,
     *,
     if_match: str,
-) -> int:
+) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
     """Apply the user's own privacy settings and commit.
 
     Args:
@@ -234,7 +236,7 @@ def edit_privacy_settings(
         if_match: The ``If-Match`` precondition.
 
     Returns:
-        The settings' version after the edit, which the client sends as its next ``If-Match``.
+        The edited settings, whose ``version`` the client sends as its next ``If-Match``.
 
     Raises:
         NotFoundError: If the user has no privacy settings.
@@ -246,12 +248,12 @@ def edit_privacy_settings(
         lambda: users_privacy_settings_integration.get_privacy_settings(user_id, db) is not None,
         "User privacy settings not found",
     ):
-        version = users_privacy_settings_integration.edit_privacy_settings(
+        updated = users_privacy_settings_integration.edit_privacy_settings(
             user_id, privacy_settings, db, if_match=if_match
-        ).version
+        )
         db.commit()
     logger.debug("Privacy settings updated", extra=core_logger.context(user_id=user_id))
-    return version
+    return updated
 
 
 def delete_account(

@@ -141,7 +141,7 @@ describe('gear-component service requests', () => {
     const result = await fetchGearComponents(5)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gear-components/gears/5',
+      '/gears/5/components',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedComponent])
@@ -196,10 +196,11 @@ describe('gear-component service requests', () => {
   it('deletes a component via a void DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteGearComponent(7)
+    await deleteGearComponent(7, 2)
 
     expect(apiFetch).toHaveBeenCalledWith('/gear-components/7', {
       method: 'DELETE',
+      headers: { 'If-Match': '"2"' },
       responseType: 'void',
     })
   })

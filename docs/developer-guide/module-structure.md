@@ -756,14 +756,19 @@ the conformance test's allowlist.
   off by default. The 30 s pool wait and the 30 s lock timeout are still constants in `core/database.py`.
 - **Observability.** Logs are the only signal; queue depth, job
   duration and dead-letter counts are not exported as metrics.
+- **Creates carry no `Location` and no `Idempotency-Key`.** The 25 `POST` routes that answer `201` return the new
+  resource but not a `Location` header, and only the activity upload accepts an `Idempotency-Key`, so a client
+  that retries a create after a lost response can make a duplicate. A general key needs a stored-result design
+  (a shared store through the platform `StateProvider`, replay and conflict rules, expiry) per create route, and
+  `Location` is additive but should land with it, so both are left for their own change.
 - **Broad exception handling.** `except Exception` and `BaseException` handlers are concentrated in `users`
   (the profile export), `auth` (the identity-provider service) and `activities`, and in the provider sync and
   link services of `strava` and `garmin`; `followers`, `gears`, `health` and `notifications` have none. Many are
   deliberate boundaries (a job records a failure and re-raises, a provider call degrades to a warning), but each
   should name the errors it expects. Narrowing them in bulk risks hiding a real failure as an expected one, so
   they are narrowed as the code around them is touched.
-- **Oversized services and `*_utils.py` files.** `auth/identity_providers/service.py` (about 2,400 lines),
-  `auth/authentication/service.py` and `users/users_profile/export_service.py` each hold several jobs, and a dozen
+- **Oversized services and `*_utils.py` files.** `auth/authentication/service.py` and
+  `users/users_profile/export_service.py` each hold several jobs, and a dozen
   `utils.py` or `*_utils.py` files (in `auth`, `users_profile`, `users_goals`, `garmin`, `server_settings` and
   the activity file parsers) name no role. The guide asks that a file's name state its role; splitting these is a
   refactor with no behaviour change, so it is left until a feature needs the code apart.

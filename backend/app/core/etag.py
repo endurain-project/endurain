@@ -132,7 +132,7 @@ def refuse_stale_write(
         db.rollback()
         if not still_exists():
             raise core_exceptions.NotFoundError(not_found_message) from err
-        logger.warning("Rejected a stale write", extra=core_logger.context(resource=resource))
+        logger.debug("Rejected a stale write", extra=core_logger.context(resource=resource))
         raise core_exceptions.PreconditionFailedError(
             f"The {resource} was modified by someone else; re-read it and retry"
         ) from err

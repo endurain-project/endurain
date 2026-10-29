@@ -107,15 +107,18 @@ function confirmDeleteComponent(): void {
   if (!component) {
     return
   }
-  deleteComponentMutation.mutate(component.id, {
-    onSuccess: () => {
-      isComponentDeleteOpen.value = false
-      toasts.success(t('gears.components.delete.success'))
+  deleteComponentMutation.mutate(
+    { id: component.id, version: component.version },
+    {
+      onSuccess: () => {
+        isComponentDeleteOpen.value = false
+        toasts.success(t('gears.components.delete.success'))
+      },
+      onError: () => {
+        toasts.error(t('gears.components.delete.error'))
+      },
     },
-    onError: () => {
-      toasts.error(t('gears.components.delete.error'))
-    },
-  })
+  )
 }
 
 function onFormSuccess(message: string): void {

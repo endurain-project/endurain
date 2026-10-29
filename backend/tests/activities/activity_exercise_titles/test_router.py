@@ -34,6 +34,6 @@ class TestReadExerciseTitles:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityExerciseTitlesPage.build([], 0, 1, 25)
 
-        response = client.get("/activities_exercise_titles/all", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities_exercise_titles", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json()["items"] == []

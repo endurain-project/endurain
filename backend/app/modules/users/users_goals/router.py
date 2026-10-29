@@ -160,6 +160,7 @@ def delete_user_goal(
     request: Request,
     goal_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
     """Delete a goal for the authenticated user.
@@ -168,6 +169,10 @@ def delete_user_goal(
         request: The incoming request, read by the rate limiter.
         goal_id: ID of the goal to delete.
         token_user_id: User ID from access token.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
+
+    Raises:
+        PreconditionFailedError: If the goal changed since the client read it.
     """
-    return user_goals_service.delete_goal(token_user_id, goal_id, db)
+    user_goals_service.delete_goal(token_user_id, goal_id, db, if_match=if_match)

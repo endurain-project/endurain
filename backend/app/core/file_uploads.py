@@ -1383,9 +1383,11 @@ def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
                 temp_file.write(chunk)
             temp_file.flush()
 
-        logger.info(
-            f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}",
-            extra=core_logger.context(console=True),
+        logger.debug(
+            "Decompressed <path> with inner type <inner_file_extension> to <temp_file_path>",
+            extra=core_logger.context(
+                path=str(path), inner_file_extension=inner_file_extension, temp_file_path=temp_file_path
+            ),
         )
 
         return temp_file_path, inner_file_extension

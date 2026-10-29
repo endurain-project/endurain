@@ -277,8 +277,8 @@ export async function revokeOtherSessions(): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKey[]> {
-  const dtos = await apiFetch<ApiKeyDto[] | null>('/profile/api-keys', { signal })
-  return (dtos ?? []).map(mapApiKey)
+  const dtos = await fetchAllPages<ApiKeyDto>('/profile/api-keys', undefined, signal)
+  return dtos.map(mapApiKey)
 }
 
 /**

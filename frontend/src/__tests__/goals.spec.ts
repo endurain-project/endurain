@@ -216,10 +216,11 @@ describe('goal service requests', () => {
   it('deletes a goal via a void DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteGoal(3)
+    await deleteGoal(3, 6)
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/goals/3', {
       method: 'DELETE',
+      headers: { 'If-Match': '"6"' },
       responseType: 'void',
     })
   })

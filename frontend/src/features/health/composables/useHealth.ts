@@ -124,6 +124,14 @@ interface HealthEntriesParams<Interval extends string> {
   interval: Interval
 }
 
+/** Variables for delete-entry mutations shared by CRUD health metrics. */
+interface DeleteEntryVariables {
+  /** Record id to delete. */
+  id: number
+  /** The row version the list item was read at, for `If-Match`. */
+  version: number
+}
+
 /** Variables for update-entry mutations shared by CRUD health metrics. */
 interface UpdateEntryVariables<Input> {
   /** Record id to update. */
@@ -218,11 +226,11 @@ function useUpdateHealthEntryMutation<Entry, Input>(
 /** Standard delete-entry mutation wrapper for health CRUD zones. */
 function useDeleteHealthEntryMutation(
   mutationKey: readonly unknown[],
-  deleteEntry: (id: number) => Promise<void>,
+  deleteEntry: (id: number, version: number) => Promise<void>,
 ) {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, DeleteEntryVariables>({
     mutationKey,
-    mutationFn: (id) => deleteEntry(id),
+    mutationFn: ({ id, version }) => deleteEntry(id, version),
     invalidateKey: queryKeys.health.all(),
   })
 }

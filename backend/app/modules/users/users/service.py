@@ -450,7 +450,7 @@ def _refuse_to_remove_last_admin(user: users_schema.UsersRead, action: str, db: 
 
     admin_ids = users_crud.lock_active_admin_ids(db)
     if user.id in admin_ids and len(admin_ids) <= 1:
-        logger.warning(
+        logger.debug(
             "Refused to remove the only administrator", extra=core_logger.context(user_id=user.id, action=action)
         )
         raise core_exceptions.ConflictError(f"The only administrator cannot be {action}")
@@ -658,7 +658,7 @@ def approve_user(user_id: int, db: Session) -> None:
         InvalidInputError: If the user's email is not verified.
     """
     if not require_user(user_id, db).email_verified:
-        logger.warning("Refused to approve a user with an unverified email", extra=core_logger.context(user_id=user_id))
+        logger.debug("Refused to approve a user with an unverified email", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.InvalidInputError("User email is not verified")
 
     users_crud.update_user(user_id, {"pending_admin_approval": False, "active": True}, db)
@@ -689,18 +689,22 @@ def stage_email_verification(
     users_crud.update_user(user_id, changes, db)
 
 
-def require_deletable_user(user_id: int, db: Session) -> None:
-    """Require a user to exist and not be the only active administrator.
+def require_deletable_user(user_id: int, db: Session, *, if_match: str) -> None:
+    """Require a user to exist at the version the caller read and not be the only active administrator.
 
     Args:
         user_id: ID of the user to be deleted.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user does not exist.
+        PreconditionFailedError: If the user changed since the client read it.
         ConflictError: If the user is the only administrator.
     """
-    _refuse_to_remove_last_admin(require_user(user_id, db), "deleted", db)
+    user = require_user(user_id, db)
+    core_etag.require_if_match(if_match, user.version, "user")
+    _refuse_to_remove_last_admin(user, "deleted", db)
 
 
 def timezone_or_default(timezone: str | None) -> str:

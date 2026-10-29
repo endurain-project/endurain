@@ -12,7 +12,9 @@ import modules.activities.activity.schema as activity_schema
 
 def _build_app(mock_db):
     import core.database as core_db
+    import modules.activities.activity.gear_router as activity_gear_router
     import modules.activities.activity.router as activity_router
+    import modules.activities.activity.user_router as activity_user_router
     import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
@@ -20,6 +22,8 @@ def _build_app(mock_db):
     # service is asserted as the response a client actually receives.
     core_exceptions.register_exception_handlers(app)
     app.include_router(activity_router.router, prefix="/activities")
+    app.include_router(activity_user_router.router, prefix="/users")
+    app.include_router(activity_gear_router.router, prefix="/gears")
 
     def _mock():
         return None
@@ -246,7 +250,7 @@ class TestGear:
                 "modules.activities.activity.service.activity_crud.get_gear_activities_count_by_user_id",
                 return_value=1,
             ):
-                resp = TestClient(_build_app(mock_db)).get("/activities/gears/1", headers={"Authorization": "Bearer x"})
+                resp = TestClient(_build_app(mock_db)).get("/gears/1/activities", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
             assert resp.json()["total"] == 1
 
@@ -260,12 +264,12 @@ class TestGear:
                 return_value=1,
             ):
                 resp = TestClient(_build_app(mock_db)).get(
-                    "/activities/gears/1?page_number=1&num_records=10", headers={"Authorization": "Bearer x"}
+                    "/gears/1/activities?page_number=1&num_records=10", headers={"Authorization": "Bearer x"}
                 )
             assert resp.status_code == 200
 
     def test_count_endpoint_is_gone(self, mock_db):
-        resp = TestClient(_build_app(mock_db)).get("/activities/gears/1/count", headers={"Authorization": "Bearer x"})
+        resp = TestClient(_build_app(mock_db)).get("/gears/1/activities/count", headers={"Authorization": "Bearer x"})
         assert resp.status_code == 404
 
 
@@ -304,7 +308,7 @@ class TestUserStats:
         ) as totals:
             totals.return_value = [ActivityTypeTotals(1, distance=5000.0, time=1800.0, calories=250.0)]
             resp = TestClient(_build_app(mock_db)).get(
-                f"/activities/users/1/stats?period={period}", headers={"Authorization": "Bearer x"}
+                f"/users/1/activities/stats?period={period}", headers={"Authorization": "Bearer x"}
             )
 
         assert resp.status_code == 200
@@ -318,7 +322,7 @@ class TestUserStats:
             return_value=[],
         ):
             resp = TestClient(_build_app(mock_db)).get(
-                "/activities/users/1/stats?period=week", headers={"Authorization": "Bearer x"}
+                "/users/1/activities/stats?period=week", headers={"Authorization": "Bearer x"}
             )
 
         assert resp.status_code == 200
@@ -326,7 +330,7 @@ class TestUserStats:
 
     def test_invalid_period(self, mock_db):
         resp = TestClient(_build_app(mock_db)).get(
-            "/activities/users/1/stats?period=bogus", headers={"Authorization": "Bearer x"}
+            "/users/1/activities/stats?period=bogus", headers={"Authorization": "Bearer x"}
         )
         assert resp.status_code == 422
 
@@ -338,7 +342,7 @@ class TestListUserActivities:
             patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=1),
         ):
             m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get("/activities/users/2", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get("/users/2/activities", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
             assert resp.json()["total"] == 1
 
@@ -446,23 +450,26 @@ class TestEditVisibility:
         assert resp.status_code == 400
 
 
+_DELETE_HEADERS = {"Authorization": "Bearer x", "If-Match": '"3"'}
+
+
 class TestDelete:
     def test_success(self, mock_db):
         with (
             patch("modules.activities.activity.service.activity_crud.delete_activity") as mock_del,
             patch("modules.activities.activity.service.activity_event_publishers") as mock_pub,
         ):
-            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers=_DELETE_HEADERS)
             # 204 with no body: the resource is gone, and the status says so.
             assert resp.status_code == 204
             assert resp.content == b""
-            # Ownership is in the delete's WHERE clause, so the route passes the
-            # requester through instead of pre-fetching (no read-then-delete gap).
+            # Ownership is in the delete's lookup, so the route passes the
+            # requester through instead of pre-fetching.
             assert mock_del.call_args.args[0] == 1
             assert mock_del.call_args.args[1] == mock_pub.publish_activity_deleted.call_args.args[1]
+            assert mock_del.call_args.kwargs == {"if_match": '"3"'}
             # The delete and the event are staged, then committed once, so the row
             # delete and the activity.deleted outbox row are atomic.
-            assert "commit" not in mock_del.call_args.kwargs
             mock_pub.publish_activity_deleted.assert_called_once()
             assert mock_pub.publish_activity_deleted.call_args.args[0] == 1
             assert "commit" not in mock_pub.publish_activity_deleted.call_args.kwargs
@@ -474,9 +481,37 @@ class TestDelete:
             patch("modules.activities.activity.service.activity_event_publishers") as mock_pub,
         ):
             mock_del.side_effect = HTTPException(status_code=404, detail="Activity with id 999 not found")
-            resp = TestClient(_build_app(mock_db)).delete("/activities/999", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).delete("/activities/999", headers=_DELETE_HEADERS)
             assert resp.status_code == 404
             mock_pub.publish_activity_deleted.assert_not_called()
+
+    def test_without_if_match_is_428(self, mock_db):
+        with patch("modules.activities.activity.service.activity_crud") as crud:
+            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers={"Authorization": "Bearer x"})
+
+        assert resp.status_code == 428
+        crud.delete_activity.assert_not_called()
+
+    def test_a_stale_if_match_is_412_and_publishes_nothing(self, mock_db):
+        with (
+            patch("modules.activities.activity.service.activity_crud") as crud,
+            patch("modules.activities.activity.service.activity_event_publishers") as mock_pub,
+        ):
+            crud.delete_activity.side_effect = core_exceptions.PreconditionFailedError("stale")
+            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers=_DELETE_HEADERS)
+
+        assert resp.status_code == 412
+        mock_pub.publish_activity_deleted.assert_not_called()
+
+    def test_a_delete_that_races_past_the_check_is_412(self, mock_db):
+        from sqlalchemy.orm.exc import StaleDataError
+
+        with patch("modules.activities.activity.service.activity_crud") as crud:
+            crud.get_activity_by_id_from_user_id.return_value = _valid_activity()
+            crud.delete_activity.side_effect = StaleDataError("row changed")
+            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers=_DELETE_HEADERS)
+
+        assert resp.status_code == 412
 
 
 class TestActivityConcurrency:

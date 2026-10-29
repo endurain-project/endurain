@@ -66,7 +66,7 @@ def read_users_me(
 
 
 @router.post(
-    "/image",
+    "/photo",
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserPhotoRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
@@ -97,8 +97,7 @@ def upload_profile_image(
 
 @router.patch(
     "",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
+    response_model=users_schema.UsersMe,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -109,7 +108,7 @@ def edit_user(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     if_match: core_dependencies.IfMatch,
-) -> None:
+) -> users_schema.UsersMe:
     """Edit self-service profile fields for the authenticated user.
 
     Uses an explicit allow-list (:class:`users_schema.ProfileUpdate`)
@@ -125,9 +124,13 @@ def edit_user(
         token_user_id: User ID from access token.
         db: Database session.
         if_match: The ``If-Match`` precondition, the ``version`` the client read.
+
+    Returns:
+        The edited profile; its ``version`` is also sent as the ETag.
     """
-    version = profile_service.edit_profile(token_user_id, user_attributtes, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(version)
+    profile = profile_service.edit_profile(token_user_id, user_attributtes, db, if_match=if_match)
+    response.headers["ETag"] = core_etag.format_etag(profile.version)
+    return profile
 
 
 @router.post(
@@ -172,8 +175,7 @@ def edit_profile_email(
 
 @router.patch(
     "/privacy",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
+    response_model=users_privacy_settings_schema.UsersPrivacySettingsRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -184,7 +186,7 @@ def edit_profile_privacy_settings(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     if_match: core_dependencies.IfMatch,
-) -> None:
+) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
     """Edit privacy settings for authenticated user.
 
     Args:
@@ -194,9 +196,13 @@ def edit_profile_privacy_settings(
         token_user_id: User ID from access token.
         db: Database session.
         if_match: The ``If-Match`` precondition, the ``privacy_settings_version`` the client read.
+
+    Returns:
+        The edited settings; their ``version`` is also sent as the ETag.
     """
-    version = profile_service.edit_privacy_settings(token_user_id, user_privacy_settings, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(version)
+    updated = profile_service.edit_privacy_settings(token_user_id, user_privacy_settings, db, if_match=if_match)
+    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    return updated
 
 
 @router.post(

@@ -11,7 +11,7 @@ import modules.garmin.router as garmin_router
 import modules.garmin.sync_service as garmin_sync_service
 import modules.strava.constants as strava_constants
 import modules.strava.router as strava_router
-import modules.strava.service as strava_service
+import modules.strava.sync_service as strava_sync_service
 
 _CASES = [
     pytest.param(
@@ -22,7 +22,7 @@ _CASES = [
     ),
     pytest.param(
         strava_router.strava_retrieve_activities_days,
-        strava_service,
+        strava_sync_service,
         strava_constants.PROVIDER_NAME,
         id="strava",
     ),

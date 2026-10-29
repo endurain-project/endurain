@@ -696,7 +696,7 @@ def parse_gpx_file(
         raise
     except (gpxpy.gpx.GPXException, ValueError) as err:
         # The uploader's file is the problem (broken XML, undecodable bytes), so a retry reaches the same verdict.
-        logger.warning("Rejected a malformed GPX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        logger.debug("Rejected a malformed GPX file", exc_info=err, extra=core_logger.context(user_id=user_id))
         raise core_exceptions.InvalidInputError("Failed to parse GPX file") from err
     except OSError as err:
         logger.error("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))

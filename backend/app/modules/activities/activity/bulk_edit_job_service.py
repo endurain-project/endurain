@@ -73,7 +73,7 @@ def request_visibility_edit(
     if not durable:
         _pool.require_capacity()
     if not states.begin(user_id, _Kind):
-        logger.warning("Refused a second bulk edit while one is pending", extra=core_logger.context(user_id=user_id))
+        logger.debug("Refused a second bulk edit while one is pending", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.ConflictError("A bulk edit is already in progress")
 
     try:

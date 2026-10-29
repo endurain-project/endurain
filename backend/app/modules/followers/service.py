@@ -396,7 +396,7 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
         followers_crud.count_pending_requests_for_user_id(target_user_id, db)
         >= followers_constants.MAX_PENDING_REQUESTS
     ):
-        logger.warning(
+        logger.debug(
             "Refused a follow request: the target has too many pending",
             extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
         )
@@ -434,7 +434,7 @@ def accept_follow_request(
         followers_crud.count_following_by_user_id(follower_id, db, accepted_only=True)
         >= followers_constants.MAX_ACCEPTED_FOLLOWEES
     ):
-        logger.warning(
+        logger.debug(
             "Refused a follow acceptance: the follower follows too many users",
             extra=core_logger.context(requester_user_id=requester_user_id, follower_id=follower_id),
         )

@@ -117,7 +117,11 @@ def delete_gear(
     request: Request,
     gear_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Delete one of the authenticated user's gears."""
-    gears_service.delete_gear(gear_id, token_user_id, db)
+    """Delete one of the authenticated user's gears.
+
+    Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412.
+    """
+    gears_service.delete_gear(gear_id, token_user_id, db, if_match=if_match)

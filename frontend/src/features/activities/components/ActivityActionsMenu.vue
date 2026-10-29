@@ -64,7 +64,10 @@ async function onFileSelected(event: Event): Promise<void> {
 /** Deletes the activity, then returns to the home feed. */
 async function confirmDelete(): Promise<void> {
   try {
-    await deleteMutation.mutateAsync(props.activity.id)
+    await deleteMutation.mutateAsync({
+      id: props.activity.id,
+      version: props.activity.version,
+    })
     isDeleteOpen.value = false
     toasts.success(t('activities.actions.deleteSuccess'))
     await router.push({ name: 'home' })

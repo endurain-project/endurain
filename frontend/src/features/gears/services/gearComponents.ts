@@ -72,7 +72,7 @@ export async function fetchGearComponents(
   signal?: AbortSignal,
 ): Promise<GearComponent[]> {
   const response = await apiFetch<Schemas['Page_GearComponentRead_']>(
-    `/gear-components/gears/${gearId}`,
+    `/gears/${gearId}/components`,
     { signal },
   )
   return (response.items ?? []).map(mapGearComponent)
@@ -144,8 +144,13 @@ export async function updateGearComponent(
  * there is no response body to map.
  *
  * @param id - The component id to delete.
- * @throws {HttpError} When the request fails.
+ * @param version - The row version the caller read, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the component changed since it was read).
  */
-export async function deleteGearComponent(id: number): Promise<void> {
-  await apiFetch<void>(`/gear-components/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteGearComponent(id: number, version: number): Promise<void> {
+  await apiFetch<void>(`/gear-components/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }

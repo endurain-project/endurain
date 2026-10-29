@@ -132,7 +132,7 @@ def regenerate_thumbnails_for_tile_settings_event(event: Event) -> None:
 on_tile_settings_changed_regenerate = best_effort(regenerate_thumbnails_for_tile_settings_event)
 
 
-def register_thumbnail_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the thumbnail subscribers for the activity lifecycle events.
 
     Called once at startup before the event bus is started.
@@ -145,7 +145,7 @@ def register_thumbnail_subscribers(events: EventBusProvider) -> None:
     events.subscribe(server_settings_events.TILE_SETTINGS_CHANGED, on_tile_settings_changed_regenerate)
 
 
-def register_thumbnail_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the thumbnail handlers as durable job subscribers.
 
     Used when durable jobs are enabled: the outbox relay fans ``activity.created``

@@ -171,8 +171,13 @@ export async function updateGoal(id: number, input: GoalInput, version: number):
  * Deletes a goal for the authenticated user.
  *
  * @param id - The goal id.
- * @throws {HttpError} When the request fails.
+ * @param version - The goal version the list item was read at, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the goal changed since it was read).
  */
-export async function deleteGoal(id: number): Promise<void> {
-  await apiFetch(`/profile/goals/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteGoal(id: number, version: number): Promise<void> {
+  await apiFetch(`/profile/goals/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }

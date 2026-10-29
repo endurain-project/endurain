@@ -143,9 +143,9 @@ export function useUpdateGearMutation() {
  * @returns The TanStack Query mutation for deleting a gear.
  */
 export function useDeleteGearMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, { id: number; version: number }>({
     mutationKey: queryKeys.gears.all(),
     excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
-    mutationFn: (id) => deleteGear(id),
+    mutationFn: ({ id, version }) => deleteGear(id, version),
   })
 }

@@ -60,6 +60,7 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
     "strava/rate_limit_store.py": "Reports a rate limit it records or a storage outage it tolerates; the caller only sees a bool.",
     "garmin/mfa_code_store.py": "Reports a storage outage and a code it could not delete, which have no caller to tell.",
+    "auth/identity_providers/token_policy.py": "Reports a token the age policy retires or a link with no timestamp; the caller only sees the action.",
     "auth/mfa/setup_store.py": "Reports a setup secret it could not decrypt; the caller only sees None.",
     "garmin/token_utils.py": "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None.",
     "users/users_profile/utils.py": (
@@ -80,12 +81,32 @@ _CONSOLE_ALLOWED_PREFIXES = (
 _CONSOLE_ALLOWED_ROLES = frozenset({"migration_service"})
 
 #: Exceptions a service raises to refuse a request. Raising one is a decision, and the rule says a refusal
-#: is a WARNING. ``AccessConcealedError`` is a refusal answered as ``404``; plain ``NotFoundError`` is
-#: deliberately absent: it reports a record that is missing (or whose absence cannot be told from a refusal),
-#: which is not a decision about the caller.
-_REFUSALS = frozenset({"PermissionDeniedError", "AccessConcealedError"})
+#: is a WARNING. ``AccessConcealedError`` is a refusal answered as ``404``; ``UnauthenticatedError`` is a
+#: credential the service refused. Plain ``NotFoundError`` is deliberately absent: it reports a record that is
+#: missing (or whose absence cannot be told from a refusal), which is not a decision about the caller. So are
+#: ``ConflictError`` and ``InvalidInputError``: an ordinary client mistake is not logged above DEBUG.
+_REFUSALS = frozenset({"PermissionDeniedError", "AccessConcealedError", "UnauthenticatedError"})
 
 _ROOT = pathlib.Path("app/modules")
+
+#: Files whose broad ``except Exception`` handler logs without a traceback on purpose, as ``{path: reason}``
+#: relative to ``app/``.
+_BROAD_EXCEPT_WITHOUT_TRACEBACK: dict[str, str] = {
+    "core/config.py": "Reads a secret file at import time; the exception text names the file, which must not be logged.",
+    "modules/auth/identity_providers/oidc_client_service.py": (
+        "Its broad handler only re-reads a refusal that carries its own status and detail."
+    ),
+}
+
+#: Files that log at INFO inside a loop on purpose, as ``{path: reason}`` relative to ``app/``. A loop that
+#: reports each item floods the log at the size of the data; it logs the item at DEBUG and one summary at INFO.
+_INFO_IN_LOOP: dict[str, str] = {
+    "core/network.py": "Boot-time resolution of the configured trusted proxies and an audited allowlist hit.",
+    "main.py": "Names each startup task once, at boot.",
+}
+_INFO_IN_LOOP_EXEMPT_DIRS = ("migrations", "alembic")
+
+_APP = pathlib.Path("app")
 
 
 def _log_calls(path: pathlib.Path) -> list[str]:
@@ -137,14 +158,43 @@ def _function_warns(function: ast.AST) -> bool:
 
 
 def _refuses(function: ast.AST) -> bool:
-    """Return whether a function raises one of the refusal exceptions."""
+    """Return whether a function builds or raises one of the refusal exceptions."""
     for node in ast.walk(function):
+        target = None
         if isinstance(node, ast.Raise) and node.exc is not None:
             target = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
-            name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
-            if name in _REFUSALS:
-                return True
+        elif isinstance(node, ast.Call):
+            target = node.func
+        if target is None:
+            continue
+        name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
+        if name in _REFUSALS:
+            return True
     return False
+
+
+def _is_logger_call(node: ast.AST) -> bool:
+    """Return whether a node is a call on the module ``logger``."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "logger"
+    )
+
+
+def _app_files() -> list[pathlib.Path]:
+    """Return every Python file of the application, vendored migrations excluded."""
+    return sorted(p for p in _APP.rglob("*.py") if "__pycache__" not in p.parts)
+
+
+def _own_nodes(handler: ast.ExceptHandler):
+    """Yield the nodes of an ``except`` body, leaving nested handlers to be judged on their own."""
+    stack = list(handler.body)
+    while stack:
+        node = stack.pop()
+        yield node
+        stack.extend(child for child in ast.iter_child_nodes(node) if not isinstance(child, ast.ExceptHandler))
 
 
 def _commits(function: ast.AST) -> bool:
@@ -242,5 +292,66 @@ class TestLoggingRule:
                     offenders.append(f"{_relative(path)}::{node.name} (state change without a log)")
 
         assert offenders == [], "Log the refusal (WARNING) or the state change in the same function:\n  " + "\n  ".join(
+            offenders
+        )
+
+    def test_a_failure_log_names_its_exception_the_project_way(self):
+        """``exc_info=err``, never ``exc_info=True``: the handler binds the exception it reports."""
+        offenders = [
+            f"{path}:{node.lineno}"
+            for path in _app_files()
+            for node in ast.walk(ast.parse(path.read_text()))
+            if _is_logger_call(node)
+            for keyword in node.keywords
+            if keyword.arg == "exc_info" and isinstance(keyword.value, ast.Constant)
+        ]
+
+        assert offenders == [], "Bind the exception (`except ... as err`) and pass exc_info=err:\n  " + "\n  ".join(
+            offenders
+        )
+
+    def test_an_unexpected_failure_keeps_its_traceback(self):
+        """A broad ``except Exception`` that logs a warning or an error carries the traceback with it."""
+        offenders: list[str] = []
+        for path in _app_files():
+            if "alembic" in path.parts or path.relative_to(_APP).as_posix() in _BROAD_EXCEPT_WITHOUT_TRACEBACK:
+                continue
+            for handler in ast.walk(ast.parse(path.read_text())):
+                if not isinstance(handler, ast.ExceptHandler):
+                    continue
+                caught = handler.type.elts if isinstance(handler.type, ast.Tuple) else [handler.type]
+                if not any(isinstance(t, ast.Name) and t.id in {"Exception", "BaseException"} for t in caught):
+                    continue
+                offenders.extend(
+                    f"{path}:{node.lineno}"
+                    for node in _own_nodes(handler)
+                    if _is_logger_call(node)
+                    and node.func.attr in {"warning", "error", "critical"}
+                    and not any(keyword.arg == "exc_info" for keyword in node.keywords)
+                )
+
+        assert offenders == [], "Pass exc_info=err so the traceback is kept:\n  " + "\n  ".join(offenders)
+
+    def test_a_loop_logs_its_items_at_debug_and_one_summary_at_info(self):
+        """``logger.info`` inside a loop writes one line per item; the item is DEBUG and the summary follows the loop."""
+
+        def info_in_loops(node: ast.AST, in_loop: bool = False):
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+                    yield from info_in_loops(child, False)
+                    continue
+                if in_loop and _is_logger_call(child) and child.func.attr == "info":
+                    yield child.lineno
+                yield from info_in_loops(child, in_loop or isinstance(child, (ast.For, ast.AsyncFor, ast.While)))
+
+        offenders = [
+            f"{path}:{line}"
+            for path in _app_files()
+            if not set(path.parts) & set(_INFO_IN_LOOP_EXEMPT_DIRS)
+            and path.relative_to(_APP).as_posix() not in _INFO_IN_LOOP
+            for line in info_in_loops(ast.parse(path.read_text()))
+        ]
+
+        assert offenders == [], "Log the item at DEBUG and one INFO summary after the loop:\n  " + "\n  ".join(
             offenders
         )

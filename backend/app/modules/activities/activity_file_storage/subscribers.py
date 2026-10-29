@@ -53,7 +53,7 @@ def cleanup_activity_file_for_event(event: Event) -> None:
 on_activity_deleted_cleanup_file = best_effort(cleanup_activity_file_for_event)
 
 
-def register_activity_file_cleanup_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the source-file cleanup subscriber for ``activity.deleted``.
 
     Called once at startup before the event bus is started.
@@ -64,7 +64,7 @@ def register_activity_file_cleanup_subscribers(events: EventBusProvider) -> None
     events.subscribe(activity_events.ACTIVITY_DELETED, on_activity_deleted_cleanup_file)
 
 
-def register_activity_file_cleanup_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the source-file cleanup handler as a durable job subscriber.
 
     Used when durable jobs are enabled: the outbox relay fans ``activity.deleted``

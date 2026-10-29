@@ -162,7 +162,22 @@ class TestWrites:
     def test_delete_removes_the_gear(self, db):
         created = crud.create_gear(gear_create(), 1, db)
 
-        crud.delete_gear(created.id, 1, db)
+        crud.delete_gear(created.id, 1, db, if_match=f'"{created.version}"')
+
+        assert crud.get_gear_user_by_id(1, created.id, db) is None
+
+    def test_delete_of_a_stale_version_is_refused_and_keeps_the_gear(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.delete_gear(created.id, 1, db, if_match=f'"{created.version + 1}"')
+
+        assert crud.get_gear_user_by_id(1, created.id, db) is not None
+
+    def test_delete_with_the_wildcard_removes_the_gear(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+
+        crud.delete_gear(created.id, 1, db, if_match="*")
 
         assert crud.get_gear_user_by_id(1, created.id, db) is None
 
@@ -170,7 +185,7 @@ class TestWrites:
         created = crud.create_gear(gear_create(), 1, db)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            crud.delete_gear(created.id, 2, db)
+            crud.delete_gear(created.id, 2, db, if_match="*")
 
     def test_strava_gear_is_deleted_per_owner(self, db):
         crud.create_gear(gear_create("S", strava_gear_id="b1"), 1, db)

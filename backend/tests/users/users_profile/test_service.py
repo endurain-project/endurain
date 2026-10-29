@@ -19,11 +19,13 @@ class TestEdits:
 
         mock_users.edit_profile.return_value = MagicMock(version=4)
 
-        version = profile_service.edit_profile(1, profile, mock_db, if_match="*")
+        with patch(f"{_MODULE}.get_profile", return_value=MagicMock(version=4)) as mock_get:
+            updated = profile_service.edit_profile(1, profile, mock_db, if_match="*")
 
         mock_users.edit_profile.assert_called_once_with(1, profile, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
-        assert version == 4
+        mock_get.assert_called_once_with(1, mock_db)
+        assert updated.version == 4
 
     @patch(f"{_MODULE}.users_privacy_settings_integration")
     def test_privacy_edit_stages_then_commits(self, mock_privacy, mock_db):
@@ -31,11 +33,11 @@ class TestEdits:
 
         mock_privacy.edit_privacy_settings.return_value = MagicMock(version=6)
 
-        version = profile_service.edit_privacy_settings(1, settings, mock_db, if_match="*")
+        updated = profile_service.edit_privacy_settings(1, settings, mock_db, if_match="*")
 
         mock_privacy.edit_privacy_settings.assert_called_once_with(1, settings, mock_db, if_match="*")
         mock_db.commit.assert_called_once()
-        assert version == 6
+        assert updated.version == 6
 
     @patch(f"{_MODULE}.users_integration")
     def test_a_failed_edit_does_not_commit(self, mock_users, mock_db):

@@ -700,7 +700,7 @@ class TestRequireDeletableUser:
         mock_crud.get_user_by_id.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            users_service.require_deletable_user(1, mock_db)
+            users_service.require_deletable_user(1, mock_db, if_match="*")
 
     @patch(_CRUD)
     def test_the_only_administrator_cannot_be_deleted(self, mock_crud, mock_db):
@@ -708,22 +708,37 @@ class TestRequireDeletableUser:
         mock_crud.lock_active_admin_ids.return_value = [1]
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.require_deletable_user(1, mock_db)
+            users_service.require_deletable_user(1, mock_db, if_match="*")
 
     @patch(_CRUD)
     def test_an_administrator_can_be_deleted_while_another_remains(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, access_type="admin")
         mock_crud.lock_active_admin_ids.return_value = [1, 2]
 
-        users_service.require_deletable_user(1, mock_db)
+        users_service.require_deletable_user(1, mock_db, if_match="*")
 
     @patch(_CRUD)
     def test_a_regular_user_can_be_deleted(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
 
-        users_service.require_deletable_user(1, mock_db)
+        users_service.require_deletable_user(1, mock_db, if_match="*")
 
         mock_crud.lock_active_admin_ids.assert_not_called()
+
+    @patch(_CRUD)
+    def test_a_stale_version_is_refused_before_the_administrator_check(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, access_type="admin", version=3)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            users_service.require_deletable_user(1, mock_db, if_match='"2"')
+
+        mock_crud.lock_active_admin_ids.assert_not_called()
+
+    @patch(_CRUD)
+    def test_the_current_version_is_accepted(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, version=3)
+
+        users_service.require_deletable_user(1, mock_db, if_match='"3"')
 
 
 class TestLastAdminIsProtected:

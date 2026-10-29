@@ -57,7 +57,7 @@ describe('user sessions service', () => {
 
     const sessions = await fetchUserSessions(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/user/7?page_number=1', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?page_number=1', { signal: undefined })
     expect(sessions[0]?.browser).toBe('Chrome')
   })
 
@@ -68,7 +68,11 @@ describe('user sessions service', () => {
 
     const sessions = await fetchUserSessions(7)
 
-    expect(apiFetch).toHaveBeenNthCalledWith(2, '/sessions/user/7?page_number=2', expect.anything())
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/users/7/sessions?page_number=2',
+      expect.anything(),
+    )
     expect(sessions.map((session) => session.id)).toEqual(['sess-1', 'sess-2'])
   })
 
@@ -83,7 +87,7 @@ describe('user sessions service', () => {
 
     await revokeUserSession('sess-1', 7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/sess-1/user/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/sess-1', {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -94,7 +98,7 @@ describe('user sessions service', () => {
 
     await revokeOtherUserSessions(7, 'sess-1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/user/7?exclude_session_id=sess-1', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?exclude_session_id=sess-1', {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -105,7 +109,7 @@ describe('user sessions service', () => {
 
     await revokeOtherUserSessions(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/user/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions', {
       method: 'DELETE',
       responseType: 'void',
     })

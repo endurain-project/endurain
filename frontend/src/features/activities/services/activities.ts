@@ -455,7 +455,7 @@ export async function fetchUserWeekActivities(
     num_records: '200',
   })
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
-    `/activities/users/${userId}?${params.toString()}`,
+    `/users/${userId}/activities?${params.toString()}`,
     { signal },
   )
   return (page_.items ?? []).map(mapActivity)
@@ -606,7 +606,7 @@ export async function fetchActivityStats(
 ): Promise<ActivityStats> {
   const params = new URLSearchParams({ period: timeframe, date: todayIsoDate() })
   const stats = await apiFetch<ActivityStats | null>(
-    `/activities/users/${userId}/stats?${params.toString()}`,
+    `/users/${userId}/activities/stats?${params.toString()}`,
     { signal },
   )
   return stats ?? {}
@@ -632,7 +632,7 @@ export async function fetchUserThisMonthActivityCount(
     num_records: '1',
   })
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
-    `/activities/users/${userId}?${params.toString()}`,
+    `/users/${userId}/activities?${params.toString()}`,
     { signal },
   )
   // The envelope's total is the match count, so a one-row page is enough.
@@ -801,8 +801,8 @@ export async function fetchActivityExerciseTitles(
 ): Promise<ActivityExerciseTitle[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities/exercise-titles/all`,
-    `/public/activities/exercise-titles/all`,
+    `/activities/exercise-titles`,
+    `/public/activities/exercise-titles`,
   )
   const dtos = await fetchAllChildPages<ActivityExerciseTitleDto>(path, context)
   return dtos.map(mapActivityExerciseTitle)
@@ -834,10 +834,11 @@ export async function setActivityGear(
  * Permanently deletes an activity owned by the current user.
  *
  * @param id - Activity identifier.
- * @throws {HttpError} When the delete fails (e.g. not found or not owned).
+ * @param version - The activity version the caller read, for `If-Match`.
+ * @throws {HttpError} When the delete fails (e.g. not found, not owned, or `412` when stale).
  */
-export async function deleteActivity(id: number): Promise<void> {
-  await apiFetch(`/activities/${id}`, { method: 'DELETE' })
+export async function deleteActivity(id: number, version: number): Promise<void> {
+  await apiFetch(`/activities/${id}`, { method: 'DELETE', headers: ifMatchHeaders(version) })
 }
 
 /**

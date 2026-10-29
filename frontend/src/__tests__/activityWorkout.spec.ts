@@ -170,7 +170,7 @@ describe('workout fetchers', () => {
   it('fetches the exercise-title catalogue (authenticated)', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], next: null })
     await fetchActivityExerciseTitles({ authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities/exercise-titles/all?page_number=1', {
+    expect(apiFetch).toHaveBeenCalledWith('/activities/exercise-titles?page_number=1', {
       auth: true,
       signal: undefined,
     })
@@ -179,7 +179,7 @@ describe('workout fetchers', () => {
   it('fetches the public exercise-title catalogue when anonymous', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     const titles = await fetchActivityExerciseTitles({ authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith('/public/activities/exercise-titles/all?page_number=1', {
+    expect(apiFetch).toHaveBeenCalledWith('/public/activities/exercise-titles?page_number=1', {
       auth: false,
       signal: undefined,
     })

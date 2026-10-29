@@ -130,14 +130,14 @@ An upsert that loses the version race re-reads the row and applies again, up to 
 
 ## What is not versioned
 
-Creating, deleting and action endpoints (approve a user, change a password, link an account) take no `If-Match`: there is no earlier version for a create to be stale against, and an action does not replace a representation the client read. The bulk activity edit (`PATCH /activities`) has no single record to name; it answers 202 and runs as a job.
+Creating and action endpoints (approve a user, change a password, link an account) take no `If-Match`: there is no earlier version for a create to be stale against, and an action does not replace a representation the client read. Deleting a versioned row does take it, because the client decides to delete what it saw: `DELETE` on activities, gears, gear components, goals, identity providers, administrator user deletion (still `202`) and the six health record types. Deleting something that has no version (API keys, sessions, activity media, the login photo) takes none. The delete checks the version in `crud` against the row it removes and the service wraps it in `refuse_stale_write`, like an edit; deleting a row that does not exist stays `404`. The bulk activity edit (`PATCH /activities`) has no single record to name; it answers 202 and runs as a job.
 
 ## Adding a versioned resource
 
 1. Add the `version` column and `version_id_col` to the model, and a migration with `server_default` 1.
 2. Add `version` to the `Read` schema. Keep it out of every create and update body.
-3. In `crud`, take `if_match: str` and call `core_etag.require_if_match` on the row you edit. Add a cheap `..._exists` function for the guard.
-4. In `service`, wrap the edit and its commit in `refuse_stale_write`. Give any other caller of the edit `if_match="*"` and a comment saying why.
+3. In `crud`, take `if_match: str` and call `core_etag.require_if_match` on the row you edit or delete. Add a cheap `..._exists` function for the guard.
+4. In `service`, wrap the edit or delete and its commit in `refuse_stale_write`. Give any other caller of the edit `if_match="*"` and a comment saying why.
 5. In `router`, take `core_dependencies.IfMatch` and a `Response`, and set the `ETag` from the result. Set it on the single-record reads too.
 6. Find every bulk `UPDATE` of the table and make it bump the version.
 7. Frontend: map `version` through `rowVersion(dto.version)` into the model, pass it through the mutation, and send `ifMatchHeaders(version)` (`src/services/ifMatch.ts`). Regenerate the API types.

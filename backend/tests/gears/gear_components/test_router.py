@@ -8,6 +8,7 @@ import core.database as core_db
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.dependencies as auth_deps
+import modules.gears.gear_components.gear_router as gear_router
 import modules.gears.gear_components.router as router
 import modules.gears.gear_components.schema as schema
 
@@ -19,6 +20,7 @@ _BODY = {"gear_id": 1, "type": "chain", "brand": "Shimano", "model": "XT"}
 def client(mock_db):
     app = FastAPI()
     app.include_router(router.router, prefix="/gear_components")
+    app.include_router(gear_router.router, prefix="/gears")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
     app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
@@ -48,14 +50,14 @@ def test_list(mock_list, client):
 def test_list_for_gear_passes_the_active_filter(mock_list, client, mock_db):
     mock_list.return_value = core_pagination.Page.build([_read(current_distance=3.0)], 1, 1, 200)
 
-    response = client.get("/gear_components/gears/1?active=true", headers=_HEADERS)
+    response = client.get("/gears/1/components?active=true", headers=_HEADERS)
 
     assert response.json()["items"][0]["current_distance"] == 3.0
     mock_list.assert_called_once_with(1, 1, mock_db, active=True, page_number=1, num_records=200)
 
 
 def test_a_non_positive_gear_id_is_rejected(client):
-    assert client.get("/gear_components/gears/0", headers=_HEADERS).status_code == 422
+    assert client.get("/gears/0/components", headers=_HEADERS).status_code == 422
 
 
 @patch("modules.gears.gear_components.service.create_gear_component")
@@ -105,7 +107,20 @@ def test_edit_clearing_the_purchase_date_is_rejected(mock_edit, client):
 
 @patch("modules.gears.gear_components.service.delete_gear_component")
 def test_delete(mock_delete, client, mock_db):
-    response = client.delete("/gear_components/4", headers=_HEADERS)
+    response = client.delete("/gear_components/4", headers={**_HEADERS, "If-Match": '"3"'})
 
     assert response.status_code == 204
-    mock_delete.assert_called_once_with(1, 4, mock_db)
+    mock_delete.assert_called_once_with(1, 4, mock_db, if_match='"3"')
+
+
+@patch("modules.gears.gear_components.service.delete_gear_component")
+def test_delete_without_if_match_is_428(mock_delete, client):
+    assert client.delete("/gear_components/4", headers=_HEADERS).status_code == 428
+    mock_delete.assert_not_called()
+
+
+@patch("modules.gears.gear_components.service.delete_gear_component")
+def test_a_stale_delete_is_412(mock_delete, client):
+    mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+    assert client.delete("/gear_components/4", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412

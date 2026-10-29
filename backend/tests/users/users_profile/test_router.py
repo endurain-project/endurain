@@ -15,6 +15,7 @@ import core.pagination as core_pagination
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.users.users.schema as users_schema
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
 
@@ -375,12 +376,12 @@ class TestGenerateLinkToken:
 
 
 # ===================================================================
-# POST /profile/image
+# POST /profile/photo
 # ===================================================================
 
 
 class TestUploadProfileImage:
-    """Tests for POST /profile/image — upload_profile_image."""
+    """Tests for POST /profile/photo — upload_profile_image."""
 
     @patch("modules.users.users_profile.router.users_integration.require_user")
     @patch("modules.users.users_profile.router.users_integration.upload_user_photo")
@@ -390,7 +391,7 @@ class TestUploadProfileImage:
         mock_require.return_value = MagicMock(photo_path="/users/1/photo?t=x")
 
         response = profile_client.post(
-            PREFIX + "/image",
+            PREFIX + "/photo",
             files={"file": ("photo.jpg", b"image-data", "image/jpeg")},
         )
 
@@ -406,17 +407,38 @@ class TestUploadProfileImage:
 class TestEditUser:
     """Tests for PATCH /profile — edit_user."""
 
-    @patch("modules.users.users_profile.router.users_integration.edit_profile")
-    def test_success(self, mock_edit, profile_client):
-        """Happy path: update profile, answering with the version the edit produced."""
-        mock_edit.return_value = MagicMock(version=3)
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    @patch("modules.users.users_profile.service.users_integration.edit_profile")
+    def test_success(
+        self,
+        mock_edit,
+        mock_get_user,
+        mock_get_integrations,
+        mock_get_privacy,
+        profile_client,
+        mock_auth_services,
+    ):
+        """Happy path: the edit answers 200 with the updated profile and its new ETag."""
+        updated = _make_user_mock()
+        updated.name = "Updated Name"
+        updated.version = 3
+        mock_edit.return_value = updated
+        mock_get_user.return_value = updated
+        mock_get_integrations.return_value = _make_integration_mock()
+        mock_get_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
         response = profile_client.patch(
             PREFIX,
             json={"name": "Updated Name"},
             headers={"If-Match": '"1"'},
         )
 
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json()["name"] == "Updated Name"
         assert response.headers["ETag"] == '"3"'
         mock_edit.assert_called_once()
 
@@ -476,14 +498,20 @@ class TestEditProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
     def test_success(self, mock_edit, profile_client):
         """Happy path: update privacy settings, answering with the version the edit produced."""
-        mock_edit.return_value = MagicMock(version=5)
+        mock_edit.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(
+            id=1,
+            user_id=1,
+            version=5,
+            default_activity_visibility=users_privacy_settings_schema.ActivityVisibility.FOLLOWERS,
+        )
         response = profile_client.patch(
             PREFIX + "/privacy",
             json={"default_activity_visibility": "followers"},
             headers={"If-Match": '"1"'},
         )
 
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json()["default_activity_visibility"] == "followers"
         assert response.headers["ETag"] == '"5"'
 
 

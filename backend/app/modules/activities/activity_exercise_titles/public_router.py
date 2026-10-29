@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/all",
+    "",
     response_model=activity_exercise_titles_schema.ActivityExerciseTitlesPage,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)

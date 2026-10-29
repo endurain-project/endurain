@@ -718,7 +718,7 @@ def edit_activity(
     return _with_thumbnail_urls([updated])[0]
 
 
-def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
+def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: str) -> None:
     """Delete one of the user's activities and publish ``activity.deleted``.
 
     The delete and the event are staged and committed together, so when durable
@@ -728,18 +728,29 @@ def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
     best-effort path the event dispatches after the commit and a bus-dispatch
     failure is swallowed.
 
-    Ownership lives in the delete's ``WHERE`` clause (404 when the activity is
-    missing *or* owned by someone else), so there is no read-then-delete gap and
-    no caller-side precondition to forget.
+    Ownership lives in the delete's lookup (404 when the activity is missing
+    *or* owned by someone else), so there is no caller-side precondition to
+    forget.
 
     Args:
         activity_id: The activity to delete.
         user_id: The authenticated owner.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Raises:
+        NotFoundError: When the activity is missing or not owned by ``user_id``.
+        PreconditionFailedError: When the activity changed since the client read it.
     """
-    activity_crud.delete_activity(activity_id, user_id, db)
-    activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "activity",
+        lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
+        f"Activity {activity_id} not found",
+    ):
+        activity_crud.delete_activity(activity_id, user_id, db, if_match=if_match)
+        activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
+        db.commit()
     logger.info(
         "Deleted an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),

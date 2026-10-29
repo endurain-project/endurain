@@ -555,7 +555,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
             try:
                 source = bulk_format.build_source(state.user_id, state.created_at.isoformat(), _member_reader(archive))
             except core_exceptions.DomainError as err:
-                logger.error(
+                logger.warning(
                     "Bulk import archive is not a valid export",
                     extra=core_logger.context(console=True, job_id=job_id, reason=err.detail),
                 )

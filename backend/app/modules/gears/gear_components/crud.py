@@ -271,16 +271,20 @@ def edit_gear_component(
     return gear_components_serializers.to_read_schema(db_gear_component)
 
 
-def delete_gear_component(user_id: int, gear_component_id: int, db: Session) -> None:
+def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's component.
 
     Args:
         user_id: Owner user ID.
         gear_component_id: Component ID to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition, checked against the very row that is deleted.
 
     Raises:
         NotFoundError: If the user has no such component.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    db.delete(_get_gear_component_model_or_404(gear_component_id, user_id, db))
+    db_component = _get_gear_component_model_or_404(gear_component_id, user_id, db)
+    core_etag.require_if_match(if_match, db_component.version, "gear component")
+    db.delete(db_component)
     db.flush()

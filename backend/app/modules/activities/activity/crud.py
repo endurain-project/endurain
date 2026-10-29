@@ -1700,32 +1700,38 @@ def clear_gear_from_activities(gear_id: int, user_id: int, db: Session) -> list[
     return sorted(row_id for (row_id,) in db.execute(stmt).all())
 
 
-def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
+def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of an activity owned by ``user_id``.
 
     Ownership is part of the ``WHERE`` clause rather than a precondition the
-    caller is trusted to have checked: a delete that does not match the owner
-    affects zero rows and raises 404, so a caller that forgets to pre-fetch the
-    activity cannot turn this into an IDOR (OWASP A01). The 404 is deliberately
-    indistinguishable from "no such activity" so it does not disclose the
-    existence of another user's activity.
+    caller is trusted to have checked: an activity the owner does not match is
+    not found, so a caller that forgets to pre-fetch the activity cannot turn
+    this into an IDOR (OWASP A01). The 404 is deliberately indistinguishable
+    from "no such activity" so it does not disclose the existence of another
+    user's activity.
 
     Args:
         activity_id: Activity ID.
         user_id: ID of the user that must own the activity.
         db: Database session.
+        if_match: The ``If-Match`` precondition, checked against the very row
+            that is deleted; the flush's ``version_id_col`` guard then holds the
+            ``DELETE`` to that version.
 
     Raises:
         NotFoundError: When the activity is missing or not owned by ``user_id``.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    stmt = sa_delete(activity_models.Activity).where(
+    stmt = select(activity_models.Activity).where(
         activity_models.Activity.id == activity_id,
         activity_models.Activity.user_id == user_id,
     )
-    result = cast("CursorResult[Any]", db.execute(stmt))
-    if result.rowcount == 0:
-        # Nothing matched, so nothing was staged; the 404 needs no rollback.
+    db_activity = db.execute(stmt).scalar_one_or_none()
+    if db_activity is None:
         raise core_exceptions.NotFoundError(f"Activity with id {activity_id} not found")
+    core_etag.require_if_match(if_match, db_activity.version, "activity")
+    db.delete(db_activity)
+    db.flush()
 
 
 def delete_all_strava_activities_for_user(user_id: int, db: Session, *, limit: int) -> list[int]:

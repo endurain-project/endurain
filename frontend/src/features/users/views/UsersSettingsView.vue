@@ -195,15 +195,18 @@ function confirmDelete(): void {
   if (!user) {
     return
   }
-  deleteMutation.mutate(user.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.users.delete.success'))
+  deleteMutation.mutate(
+    { id: user.id, version: user.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('settings.users.delete.success'))
+      },
+      onError: () => {
+        toasts.error(t('settings.users.delete.error'))
+      },
     },
-    onError: () => {
-      toasts.error(t('settings.users.delete.error'))
-    },
-  })
+  )
 }
 </script>
 

@@ -182,7 +182,7 @@ class TestUploadUserImage:
         mock_upload.return_value = "1.jpg"
         mock_get.return_value = _user(1, photo_path="/users/1/photo?t=x")
 
-        response = client.post("/users/1/image", files={"file": ("avatar.jpg", b"fake-image-data", "image/jpeg")})
+        response = client.post("/users/1/photo", files={"file": ("avatar.jpg", b"fake-image-data", "image/jpeg")})
 
         assert response.status_code == 201
         assert response.json() == {"photo_path": "/users/1/photo?t=x"}
@@ -280,25 +280,37 @@ class TestDeleteUser:
     def test_queues_the_deletion(self, mock_request, client, mock_db):
         mock_request.return_value = users_schema.UserDeletionStatus(status="queued")
 
-        response = client.delete("/users/1")
+        response = client.delete("/users/1", headers={"If-Match": '"3"'})
 
         assert response.status_code == 202
         assert response.json() == {"status": "queued"}
         assert mock_request.call_args.args[:2] == (1, 9)
         assert mock_request.call_args.args[2] is not None
         assert mock_request.call_args.args[4] == mock_db
+        assert mock_request.call_args.kwargs == {"if_match": '"3"'}
+
+    @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
+    def test_without_if_match_is_428(self, mock_request, client):
+        assert client.delete("/users/1").status_code == 428
+        mock_request.assert_not_called()
+
+    @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
+    def test_a_stale_if_match_is_412(self, mock_request, client):
+        mock_request.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 412
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_unknown_user_is_not_found(self, mock_request, client):
         mock_request.side_effect = core_exceptions.NotFoundError("User not found")
 
-        assert client.delete("/users/1").status_code == 404
+        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 404
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_the_only_administrator_is_refused(self, mock_request, client):
         mock_request.side_effect = core_exceptions.ConflictError("The only administrator cannot be deleted")
 
-        assert client.delete("/users/1").status_code == 409
+        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 409
 
 
 class TestReadUserDeletionStatus:

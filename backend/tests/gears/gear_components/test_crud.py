@@ -102,11 +102,19 @@ class TestWrites:
         with pytest.raises(core_exceptions.NotFoundError):
             crud.edit_gear_component(created.id, component_update(brand="x"), 2, db, if_match="*")
         with pytest.raises(core_exceptions.NotFoundError):
-            crud.delete_gear_component(2, created.id, db)
+            crud.delete_gear_component(2, created.id, db, if_match="*")
 
     def test_delete_removes_the_component(self, db):
         created = crud.create_gear_component(component_create(), 1, db)
 
-        crud.delete_gear_component(1, created.id, db)
+        crud.delete_gear_component(1, created.id, db, if_match=f'"{created.version}"')
 
         assert crud.get_gear_components_user(1, db) == []
+
+    def test_delete_of_a_stale_version_is_refused_and_keeps_the_component(self, db):
+        created = crud.create_gear_component(component_create(), 1, db)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.delete_gear_component(1, created.id, db, if_match=f'"{created.version + 1}"')
+
+        assert len(crud.get_gear_components_user(1, db)) == 1

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.backends.state_memory import MemoryState
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
@@ -60,7 +61,7 @@ class TestRequestDeletion:
             patch(f"{_MODULE}.users_event_publishers") as publishers,
             patch(f"{_MODULE}._deletion_pool") as pool,
         ):
-            result = job_service.request_deletion(1, states, MagicMock(), db)
+            result = job_service.request_deletion(1, states, MagicMock(), db, if_match='"1"')
         self.revoke_tokens = revoke_tokens
         return result, identity, users_service, users_crud, publishers, pool
 
@@ -70,7 +71,7 @@ class TestRequestDeletion:
         )
 
         assert result.status == _Status.QUEUED
-        users_service.require_deletable_user.assert_called_once_with(1, mock_db)
+        users_service.require_deletable_user.assert_called_once_with(1, mock_db, if_match='"1"')
         identity.delete_all_user_sessions.assert_called_once_with(1)
         users_crud.stage_deletion_request.assert_called_once_with(1, mock_db)
         # A verification link issued before the deletion must not reactivate the account.
@@ -116,7 +117,7 @@ class TestRequestDeletion:
         ):
             pool.require_capacity.side_effect = core_exceptions.ServiceUnavailableError("full")
             with pytest.raises(core_exceptions.ServiceUnavailableError):
-                job_service.request_deletion(1, states, MagicMock(), mock_db)
+                job_service.request_deletion(1, states, MagicMock(), mock_db, if_match='"1"')
 
         assert states.get(1, _Kind) is None
 
@@ -128,7 +129,7 @@ class TestRequestDeletion:
         ):
             users_service.require_deletable_user.side_effect = core_exceptions.ConflictError("only admin")
             with pytest.raises(core_exceptions.ConflictError):
-                job_service.request_deletion(1, states, MagicMock(), mock_db)
+                job_service.request_deletion(1, states, MagicMock(), mock_db, if_match='"1"')
 
         identity.delete_all_user_sessions.assert_not_called()
         users_crud.stage_deletion_request.assert_not_called()
@@ -138,17 +139,26 @@ class TestRequestDeletion:
 class TestRequestDeletionByAdministrator:
     def test_an_administrator_cannot_delete_their_own_account_without_step_up(self, states, mock_db):
         with patch(f"{_MODULE}.request_deletion") as request, pytest.raises(core_exceptions.PermissionDeniedError):
-            job_service.request_deletion_by_administrator(1, 1, states, MagicMock(), mock_db)
+            job_service.request_deletion_by_administrator(1, 1, states, MagicMock(), mock_db, if_match='"1"')
 
         request.assert_not_called()
 
     def test_another_users_account_is_queued(self, states, mock_db):
         storage = MagicMock()
         with patch(f"{_MODULE}.request_deletion") as request:
-            result = job_service.request_deletion_by_administrator(1, 9, states, storage, mock_db)
+            result = job_service.request_deletion_by_administrator(1, 9, states, storage, mock_db, if_match='"4"')
 
-        request.assert_called_once_with(1, states, storage, mock_db)
+        request.assert_called_once_with(1, states, storage, mock_db, if_match='"4"')
         assert result is request.return_value
+
+    def test_a_deletion_that_races_past_the_version_check_is_a_precondition_failure(self, states, mock_db):
+        with (
+            patch(f"{_MODULE}.request_deletion", side_effect=StaleDataError("moved")),
+            patch(f"{_MODULE}.users_crud") as users_crud,
+        ):
+            users_crud.get_user_by_id.return_value = MagicMock()
+            with pytest.raises(core_exceptions.PreconditionFailedError):
+                job_service.request_deletion_by_administrator(1, 9, states, MagicMock(), mock_db, if_match='"4"')
 
 
 class TestRunDeletion:

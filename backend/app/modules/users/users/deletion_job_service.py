@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
@@ -66,6 +67,8 @@ def request_deletion(
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     db: Session,
+    *,
+    if_match: str,
 ) -> users_schema.UserDeletionStatus:
     """Queue the erasure of a user's account and data.
 
@@ -77,20 +80,22 @@ def request_deletion(
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         The deletion's initial status.
 
     Raises:
         NotFoundError: If the user does not exist.
+        PreconditionFailedError: If the user changed since the client read it.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
-    users_service.require_deletable_user(user_id, db)
+    users_service.require_deletable_user(user_id, db, if_match=if_match)
     if not core_config.settings.JOBS_ENABLED:
         _deletion_pool.require_capacity()
     if not states.begin(user_id, _Kind.ACCOUNT):
-        logger.warning(
+        logger.debug(
             "Refused a second account deletion while one is pending", extra=core_logger.context(user_id=user_id)
         )
         raise core_exceptions.ConflictError("An account deletion is already in progress")
@@ -115,6 +120,8 @@ def request_deletion_by_administrator(
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     db: Session,
+    *,
+    if_match: str,
 ) -> users_schema.UserDeletionStatus:
     """Queue the erasure of another user's account on an administrator's request.
 
@@ -124,6 +131,7 @@ def request_deletion_by_administrator(
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         The deletion's initial status.
@@ -131,11 +139,15 @@ def request_deletion_by_administrator(
     Raises:
         PermissionDeniedError: If the administrator targets their own account, which needs step-up.
         NotFoundError: If the user does not exist.
+        PreconditionFailedError: If the user changed since the client read it.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     users_service.require_other_user(user_id, actor_id, "delete your account")
-    return request_deletion(user_id, states, storage, db)
+    with core_etag.refuse_stale_write(
+        db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
+    ):
+        return request_deletion(user_id, states, storage, db, if_match=if_match)
 
 
 def _dispatch(

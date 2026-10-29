@@ -151,6 +151,7 @@ describe('profile service requests', () => {
       '/profile',
       expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"6"' } }),
     )
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[1]).not.toHaveProperty('responseType')
     expect(JSON.parse(body as string)).toEqual({
       name: 'Ada L',
       username: 'ada',
@@ -196,6 +197,7 @@ describe('profile service requests', () => {
       '/profile/privacy',
       expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"2"' } }),
     )
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[1]).not.toHaveProperty('responseType')
     const parsed = JSON.parse(body as string) as Record<string, unknown>
     expect(parsed.default_activity_visibility).toBe('private')
     expect(parsed.hide_activity_location).toBe(true)
@@ -214,7 +216,7 @@ describe('profile service requests', () => {
     await uploadProfilePhoto(file)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/image',
+      '/profile/photo',
       expect.objectContaining({ method: 'POST', timeoutMs: 0 }),
     )
     expect(body).toBeInstanceOf(FormData)

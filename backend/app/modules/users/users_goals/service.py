@@ -110,17 +110,25 @@ def update_goal(
     return updated
 
 
-def delete_goal(user_id: int, goal_id: int, db: Session) -> None:
+def delete_goal(user_id: int, goal_id: int, db: Session, *, if_match: str) -> None:
     """Delete a user's goal and commit.
 
     Args:
         user_id: The user who owns the goal.
         goal_id: The goal to delete.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Raises:
         NotFoundError: If the user has no such goal.
+        PreconditionFailedError: If the goal changed since the client read it.
     """
-    user_goals_crud.delete_user_goal(user_id, goal_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "goal",
+        lambda: user_goals_crud.user_goal_exists(user_id, goal_id, db),
+        "User goal not found",
+    ):
+        user_goals_crud.delete_user_goal(user_id, goal_id, db, if_match=if_match)
+        db.commit()
     logger.debug("User goal deleted", extra=core_logger.context(user_id=user_id, goal_id=goal_id))

@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/all",
+    "",
     response_model=activity_exercise_titles_schema.ActivityExerciseTitlesPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )

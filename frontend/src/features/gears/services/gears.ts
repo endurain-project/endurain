@@ -226,8 +226,13 @@ export async function updateGear(id: number, input: GearInput, version: number):
  * response body to map.
  *
  * @param id - The gear id to delete.
- * @throws {HttpError} When the request fails.
+ * @param version - The row version the caller read, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the gear changed since it was read).
  */
-export async function deleteGear(id: number): Promise<void> {
-  await apiFetch<void>(`/gears/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteGear(id: number, version: number): Promise<void> {
+  await apiFetch<void>(`/gears/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }

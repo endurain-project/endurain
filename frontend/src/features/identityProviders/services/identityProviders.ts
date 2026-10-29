@@ -191,8 +191,13 @@ export async function updateIdentityProvider(
  * backend returns `409` when users are still linked to the provider.
  *
  * @param id - The provider id.
- * @throws {HttpError} When the request fails (e.g. users still linked).
+ * @param version - The provider version the list item was read at, for `If-Match`.
+ * @throws {HttpError} When the request fails (e.g. users still linked, or `412` when stale).
  */
-export async function deleteIdentityProvider(id: number): Promise<void> {
-  await apiFetch(`/identity-providers/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteIdentityProvider(id: number, version: number): Promise<void> {
+  await apiFetch(`/identity-providers/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }

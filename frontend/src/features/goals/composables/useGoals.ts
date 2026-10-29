@@ -71,9 +71,9 @@ export function useUpdateGoalMutation() {
 export function useDeleteGoalMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number>({
+  return useMutation<void, Error, { id: number; version: number }>({
     mutationKey: queryKeys.goals.all(),
-    mutationFn: (id) => deleteGoal(id),
+    mutationFn: ({ id, version }) => deleteGoal(id, version),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.goals.all() })
     },

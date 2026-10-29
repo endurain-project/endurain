@@ -21,7 +21,7 @@ import { makeActivity } from './fixtures/activity'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
-  deleteActivity: vi.fn<(id: number) => Promise<void>>(),
+  deleteActivity: vi.fn<(id: number, version: number) => Promise<void>>(),
   editActivity:
     vi.fn<(id: number, input: ActivityEditInput, version: number) => Promise<Activity>>(),
   setActivityGear: vi.fn<(activity: Activity, gearId: number | null) => Promise<Activity>>(),
@@ -235,9 +235,10 @@ describe('useDeleteActivityMutation', () => {
     vi.mocked(deleteActivity).mockResolvedValue()
     const mutation = mountMutation(queryClient, useDeleteActivityMutation)
 
-    await mutation.mutateAsync(ACTIVITY_ID)
+    await mutation.mutateAsync({ id: ACTIVITY_ID, version: 4 })
     await flushPromises()
 
+    expect(deleteActivity).toHaveBeenCalledWith(ACTIVITY_ID, 4)
     const activityKeys = [
       queryKeys.activities.detail(ACTIVITY_ID),
       UNAFFECTED_ACTIVITY_KEYS.streams,
@@ -254,7 +255,7 @@ describe('useDeleteActivityMutation', () => {
     vi.mocked(deleteActivity).mockResolvedValue()
     const mutation = mountMutation(queryClient, useDeleteActivityMutation)
 
-    await mutation.mutateAsync(ACTIVITY_ID)
+    await mutation.mutateAsync({ id: ACTIVITY_ID, version: 4 })
     await flushPromises()
 
     expect(invalidatedNames(queryClient, AGGREGATE_KEYS)).toEqual(Object.keys(AGGREGATE_KEYS))
@@ -274,7 +275,7 @@ describe('useDeleteActivityMutation', () => {
     vi.mocked(deleteActivity).mockRejectedValue(new Error('500'))
     const mutation = mountMutation(queryClient, useDeleteActivityMutation)
 
-    await expect(mutation.mutateAsync(ACTIVITY_ID)).rejects.toThrow('500')
+    await expect(mutation.mutateAsync({ id: ACTIVITY_ID, version: 4 })).rejects.toThrow('500')
     await flushPromises()
 
     expect(queryClient.getQueryState(queryKeys.activities.detail(ACTIVITY_ID))).toBeDefined()

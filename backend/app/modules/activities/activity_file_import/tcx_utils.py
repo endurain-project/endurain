@@ -518,7 +518,7 @@ def parse_tcx_file(
         raise
     except (ElementTree.ParseError, ValueError) as err:
         # The uploader's file is the problem (broken XML, undecodable bytes), so a retry reaches the same verdict.
-        logger.warning("Rejected a malformed TCX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        logger.debug("Rejected a malformed TCX file", exc_info=err, extra=core_logger.context(user_id=user_id))
         raise core_exceptions.InvalidInputError("Can't open TCX file") from err
     except Exception as err:
         # The exception text can carry file paths / parser internals, so it is

@@ -279,12 +279,13 @@ class TestDeleteUserGoal:
         # Act
         response = fast_api_client.delete(
             "/user_goals/1",
-            headers={"Authorization": "Bearer mock_token"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"3"'},
         )
 
         # Assert
         assert response.status_code == 204
         assert response.content == b""
+        assert mock_delete.call_args.kwargs == {"if_match": '"3"'}
 
     @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
     def test_delete_user_goal_not_found(
@@ -300,11 +301,28 @@ class TestDeleteUserGoal:
         # Act
         response = fast_api_client.delete(
             "/user_goals/999",
-            headers={"Authorization": "Bearer mock_token"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
         assert response.status_code == 404
+
+    @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
+    def test_delete_without_if_match_is_428(self, mock_delete, fast_api_client):
+        response = fast_api_client.delete("/user_goals/1", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 428
+        mock_delete.assert_not_called()
+
+    @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
+    def test_a_stale_delete_is_412(self, mock_delete, fast_api_client):
+        mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+        response = fast_api_client.delete(
+            "/user_goals/1", headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'}
+        )
+
+        assert response.status_code == 412
 
 
 class TestUpdateNeedsIfMatch:

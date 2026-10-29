@@ -101,10 +101,19 @@ class TestEditAndDelete:
     def test_delete_commits(self, db, commit_spy):
         created = crud.create_gear_component(component_create(), 1, db)
 
-        service.delete_gear_component(1, created.id, db)
+        service.delete_gear_component(1, created.id, db, if_match=f'"{created.version}"')
 
         commit_spy.assert_called_once_with()
         assert crud.get_gear_components_user(1, db) == []
+
+    def test_a_stale_delete_is_a_precondition_failure_and_not_committed(self, db, commit_spy):
+        created = crud.create_gear_component(component_create(), 1, db)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            service.delete_gear_component(1, created.id, db, if_match='"99"')
+
+        commit_spy.assert_not_called()
+        assert len(crud.get_gear_components_user(1, db)) == 1
 
 
 class TestListForGear:

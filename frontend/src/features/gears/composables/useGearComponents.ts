@@ -96,9 +96,9 @@ export function useUpdateGearComponentMutation() {
  * @returns The TanStack Query mutation for deleting a component.
  */
 export function useDeleteGearComponentMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, { id: number; version: number }>({
     mutationKey: queryKeys.gears.componentsLists(),
-    mutationFn: (id) => deleteGearComponent(id),
+    mutationFn: ({ id, version }) => deleteGearComponent(id, version),
     invalidateKey: queryKeys.gears.all(),
   })
 }

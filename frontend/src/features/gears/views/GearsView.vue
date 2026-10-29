@@ -179,15 +179,18 @@ function confirmDelete(): void {
   if (!gear) {
     return
   }
-  deleteMutation.mutate(gear.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('gears.delete.success'))
+  deleteMutation.mutate(
+    { id: gear.id, version: gear.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('gears.delete.success'))
+      },
+      onError: () => {
+        toasts.error(t('gears.delete.error'))
+      },
     },
-    onError: () => {
-      toasts.error(t('gears.delete.error'))
-    },
-  })
+  )
 }
 </script>
 

@@ -223,10 +223,11 @@ describe('identity providers service requests', () => {
   it('deleteIdentityProvider issues a DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteIdentityProvider(3)
+    await deleteIdentityProvider(3, 5)
 
     expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3', {
       method: 'DELETE',
+      headers: { 'If-Match': '"5"' },
       responseType: 'void',
     })
   })

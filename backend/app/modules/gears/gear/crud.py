@@ -407,18 +407,22 @@ def edit_gear(
     return gears_serializers.to_read_schema(db_gear)
 
 
-def delete_gear(gear_id: int, user_id: int, db: Session) -> None:
+def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> None:
     """Stage the deletion of a user's gear.
 
     Args:
         gear_id: Gear ID to delete.
         user_id: Owner user ID.
         db: Database session.
+        if_match: The ``If-Match`` precondition, checked against the very row that is deleted.
 
     Raises:
         NotFoundError: If the user has no such gear.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    db.delete(_get_gear_model_or_404(gear_id, user_id, db))
+    db_gear = _get_gear_model_or_404(gear_id, user_id, db)
+    core_etag.require_if_match(if_match, db_gear.version, "gear")
+    db.delete(db_gear)
     db.flush()
 
 

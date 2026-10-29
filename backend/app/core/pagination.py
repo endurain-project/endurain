@@ -33,6 +33,10 @@ DEFAULT_NUM_RECORDS = 25
 #: cost per request (defense against resource exhaustion).
 MAX_NUM_RECORDS = 200
 
+#: Hard cap on the client-requested page number, so a request cannot ask the database for an arbitrarily
+#: deep ``OFFSET`` (defense against resource exhaustion).
+MAX_PAGE_NUMBER = 100000
+
 #: Default page size for an activity's *child* collections (laps, sets, workout
 #: steps). Unlike a browse list these are "everything hanging off one parent",
 #: which a client almost always wants in full, so the default is the cap rather
@@ -63,7 +67,7 @@ class PageParams:
 
 
 def list_page_params(
-    page_number: Annotated[int | None, Query(ge=1)] = None,
+    page_number: Annotated[int | None, Query(ge=1, le=MAX_PAGE_NUMBER)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=MAX_NUM_RECORDS)] = None,
 ) -> PageParams:
     """
@@ -86,7 +90,7 @@ def list_page_params(
 
 
 def child_page_params(
-    page_number: Annotated[int | None, Query(ge=1)] = None,
+    page_number: Annotated[int | None, Query(ge=1, le=MAX_PAGE_NUMBER)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=MAX_NUM_RECORDS)] = None,
 ) -> PageParams:
     """

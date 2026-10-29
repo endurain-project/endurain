@@ -79,14 +79,17 @@ function confirmDelete(): void {
   if (!target) {
     return
   }
-  deleteMutation.mutate(target.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.users.delete.success'))
-      void router.push({ name: 'settings-users' })
+  deleteMutation.mutate(
+    { id: target.id, version: target.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('settings.users.delete.success'))
+        void router.push({ name: 'settings-users' })
+      },
+      onError: () => toasts.error(t('settings.users.delete.error')),
     },
-    onError: () => toasts.error(t('settings.users.delete.error')),
-  })
+  )
 }
 
 // Photo management: a hidden file input drives the upload. The backend validates
@@ -161,14 +164,17 @@ function reject(): void {
   if (!target) {
     return
   }
-  rejectMutation.mutate(target.id, {
-    onSuccess: () => {
-      isRejectOpen.value = false
-      toasts.success(t('settings.users.approval.rejectSuccess'))
-      void router.push({ name: 'settings-users' })
+  rejectMutation.mutate(
+    { id: target.id, version: target.version },
+    {
+      onSuccess: () => {
+        isRejectOpen.value = false
+        toasts.success(t('settings.users.approval.rejectSuccess'))
+        void router.push({ name: 'settings-users' })
+      },
+      onError: () => toasts.error(t('settings.users.approval.rejectError')),
     },
-    onError: () => toasts.error(t('settings.users.approval.rejectError')),
-  })
+  )
 }
 </script>
 

@@ -57,6 +57,7 @@ import modules.auth.password_reset_tokens.public_router as password_reset_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
 import modules.followers.router as followers_router
+import modules.followers.user_router as followers_user_router
 import modules.garmin.router as garmin_router
 import modules.gears.gear.router as gear_router
 import modules.gears.gear_components.router as gear_components_router
@@ -238,10 +239,10 @@ _TIERED_ENDPOINTS = [
     pytest.param(activity_router.edit_activities, core_rate_limit.WRITE, id="activity-bulk-edit"),
     pytest.param(activity_router.delete_activity, core_rate_limit.WRITE, id="activity-delete"),
     pytest.param(websocket_router.issue_ws_ticket, core_rate_limit.WRITE, id="websocket-ticket"),
-    pytest.param(followers_router.follow_user, core_rate_limit.WRITE, id="follow-user"),
+    pytest.param(followers_user_router.follow_user, core_rate_limit.WRITE, id="follow-user"),
     pytest.param(followers_router.accept_follow_request, core_rate_limit.WRITE, id="accept-follow-request"),
     pytest.param(followers_router.reject_follow_request, core_rate_limit.WRITE, id="reject-follow-request"),
-    pytest.param(followers_router.delete_follow_relationship, core_rate_limit.WRITE, id="unfollow"),
+    pytest.param(followers_user_router.delete_follow_relationship, core_rate_limit.WRITE, id="unfollow"),
     pytest.param(health_fasting_router.create_health_fasting, core_rate_limit.WRITE, id="health-fasting-create"),
     pytest.param(health_fasting_router.edit_health_fasting, core_rate_limit.WRITE, id="health-fasting-edit"),
     pytest.param(health_fasting_router.complete_health_fasting, core_rate_limit.WRITE, id="health-fasting-complete"),

@@ -9,9 +9,11 @@ def _build_app(mock_db):
     import core.exceptions as core_exceptions
     import modules.auth.dependencies as auth_deps
     import modules.followers.router as router
+    import modules.followers.user_router as user_router
 
     app = FastAPI()
     app.include_router(router.router)
+    app.include_router(user_router.router, prefix="/users")
     # Same domain-error boundary the real app registers, so these tests assert
     # the status codes clients actually receive.
     core_exceptions.register_exception_handlers(app)

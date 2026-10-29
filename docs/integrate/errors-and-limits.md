@@ -98,24 +98,24 @@ A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never ma
 
 ### Which requests need it
 
-| Resource | Edit |
-| -------- | ---- |
-| Activities | `PATCH /activities/{id}` (the bulk edit of `PATCH /activities` has no single record and does not need it) |
-| Gears and gear components | `PATCH /gears/{id}`, `PATCH /gear-components/{id}` |
-| Health records | `PATCH /health/{weight,water,steps,sleep,poop,fasting}/{id}`, and `POST /health/fasting/{id}/complete`, which changes the session it ends |
+| Resource | Requests |
+| -------- | -------- |
+| Activities | `PATCH /activities/{id}` and `DELETE /activities/{id}` (the bulk edit of `PATCH /activities` has no single record and does not need it) |
+| Gears and gear components | `PATCH` and `DELETE /gears/{id}`, `PATCH` and `DELETE /gear-components/{id}` |
+| Health records | `PATCH` and `DELETE /health/{weight,water,steps,sleep,poop,fasting}/{id}`, and `POST /health/fasting/{id}/complete`, which changes the session it ends |
 | Health targets | `PATCH /health/targets` |
 | Your profile | `PATCH /profile`, using the profile's `ETag` or `version` |
 | Your privacy settings | `PATCH /profile/privacy`, using `privacy_settings_version` from `GET /profile` (the privacy settings have their own version) |
 | Your default gear | `PATCH /profile/default-gear` |
-| Your goals | `PUT /profile/goals/{id}` |
-| Users (administrators) | `PUT /users/{id}` |
+| Your goals | `PUT` and `DELETE /profile/goals/{id}` |
+| Users (administrators) | `PUT /users/{id}` and `DELETE /users/{id}`, which still answers `202` because the account is erased by a background job |
 | Your Strava client credentials | `PUT /strava/client`, using `integrations_version` from `GET /profile` |
-| Identity providers (administrators) | `PUT /identity-providers/{idp_id}` |
+| Identity providers (administrators) | `PUT` and `DELETE /identity-providers/{idp_id}` |
 | Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
 
-Creating, deleting and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`.
+Creating and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`. Neither does deleting anything not listed above, such as an API key, a session, an activity photo or the login photo. Deleting your own account (`POST /profile/delete-account`) is confirmed with step-up instead.
 
-A `204 No Content` edit, such as `PATCH /profile`, returns no `ETag`. Read the record again for the new version.
+`PATCH /profile` and `PATCH /profile/privacy` answer `200` with the updated record and its new `ETag`, so the next edit needs no extra read.
 
 !!! note
     A change made by the server itself also moves the version. For example, approving a user, a Garmin Connect sync that updates a day, or adding a water intake all change a record, so a form you opened before that gets a `412` on save. That is the intended behaviour: it tells you the record is not what you were looking at.

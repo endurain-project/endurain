@@ -51,7 +51,7 @@ describe('fetchFollowers', () => {
 
     // The endpoint is paginated, so the request asks for the largest page the
     // backend allows rather than relying on an unbounded response.
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/followers?num_records=200', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/9/followers?num_records=200', {
       signal: undefined,
     })
     expect(edges).toEqual([
@@ -99,7 +99,7 @@ describe('fetchFollowing', () => {
 
     const { edges, profiles } = await fetchFollowing(9)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/following?num_records=200', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/9/following?num_records=200', {
       signal: undefined,
     })
     expect(edges).toEqual([{ userId: 5, isAccepted: true }])
@@ -129,20 +129,18 @@ describe('follower counts', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 12, page: 1, num_records: 1 })
 
     expect(await fetchFollowersCount(9)).toBe(12)
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/followers/users/9/followers?accepted_only=true&num_records=1',
-      { signal: undefined },
-    )
+    expect(apiFetch).toHaveBeenCalledWith('/users/9/followers?accepted_only=true&num_records=1', {
+      signal: undefined,
+    })
   })
 
   it('reads the accepted-following total off the page envelope', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 7, page: 1, num_records: 1 })
 
     expect(await fetchFollowingCount(9)).toBe(7)
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/followers/users/9/following?accepted_only=true&num_records=1',
-      { signal: undefined },
-    )
+    expect(apiFetch).toHaveBeenCalledWith('/users/9/following?accepted_only=true&num_records=1', {
+      signal: undefined,
+    })
   })
 })
 
@@ -155,7 +153,7 @@ describe('fetchFollowStatus', () => {
 
     const status = await fetchFollowStatus(2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/2/relationship', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/2/relationship', { signal: undefined })
     expect(status).toBe('pending')
   })
 
@@ -175,7 +173,7 @@ describe('follow-graph mutations', () => {
 
     await followUser(2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/2/followers', { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith('/users/2/followers', { method: 'POST' })
   })
 
   it('accepts a pending request by patching the follow-request resource', async () => {
@@ -198,7 +196,7 @@ describe('follow-graph mutations', () => {
 
     await unfollowUser(4, 1)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/4/followers/1', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/4/followers/1', {
       method: 'DELETE',
     })
   })
@@ -210,7 +208,7 @@ describe('follow-graph mutations', () => {
 
     await removeFollower(5, 1)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/1/followers/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/1/followers/5', {
       method: 'DELETE',
     })
   })

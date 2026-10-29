@@ -239,9 +239,13 @@ async function updateHealthResource<Dto, Entry, Payload extends object>(
   return mapEntry(dto)
 }
 
-/** Deletes a single health-history record. */
-async function deleteHealthResource(resource: string, id: number): Promise<void> {
-  await apiFetch<void>(`/health/${resource}/${id}`, { method: 'DELETE', responseType: 'void' })
+/** Deletes a single health-history record, conditional on the version the caller read. */
+async function deleteHealthResource(resource: string, id: number, version: number): Promise<void> {
+  await apiFetch<void>(`/health/${resource}/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }
 
 /** Updates a subset of the health-targets record and maps the response. */
@@ -265,8 +269,8 @@ interface HealthCrudService<Entry, Input> {
   create: (input: Input) => Promise<Entry>
   /** Changes an existing record, conditional on the version the caller read, and maps the response. */
   update: (id: number, input: Input, version: number) => Promise<Entry>
-  /** Deletes a record by id. */
-  remove: (id: number) => Promise<void>
+  /** Deletes a record, conditional on the version the caller read. */
+  remove: (id: number, version: number) => Promise<void>
 }
 
 /**
@@ -290,7 +294,7 @@ function createHealthCrudService<Dto, Entry, Wire extends object, Input>(
     create: (input) => createHealthResource(resource, toWireFields(input), mapEntry),
     update: (id, input, version) =>
       updateHealthResource(resource, id, toWireFields(input), version, mapEntry),
-    remove: (id) => deleteHealthResource(resource, id),
+    remove: (id, version) => deleteHealthResource(resource, id, version),
   }
 }
 
@@ -668,10 +672,11 @@ export async function completeFastingEntry(
  * Deletes a fasting session.
  *
  * @param id - The fasting record id.
- * @throws {HttpError} When the request fails.
+ * @param version - The row version the session was read at, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the session changed since it was read).
  */
-export async function deleteFastingEntry(id: number): Promise<void> {
-  await deleteHealthResource('fasting', id)
+export async function deleteFastingEntry(id: number, version: number): Promise<void> {
+  await deleteHealthResource('fasting', id, version)
 }
 
 /** Updates only the user's fasting-duration target, preserving the other targets. */

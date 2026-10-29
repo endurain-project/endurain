@@ -227,7 +227,7 @@ export async function uploadUserPhoto(userId: number, file: File): Promise<strin
   // The third arg is the multipart part filename only; the backend sanitizes it
   // and generates its own storage filename, so it never reaches a path/URL.
   formData.append('file', file, file.name)
-  const photo = await apiFetch<Schemas['UserPhotoRead']>(`/users/${userId}/image`, {
+  const photo = await apiFetch<Schemas['UserPhotoRead']>(`/users/${userId}/photo`, {
     method: 'POST',
     body: formData,
     timeoutMs: 0,
@@ -249,10 +249,15 @@ export async function deleteUserPhoto(userId: number): Promise<void> {
  * Queues the deletion of a user (admin scope `users:write`): the user is signed out and deactivated at once (202) and a background job erases their data.
  *
  * @param id - The user id to delete.
- * @throws {HttpError} When the request fails.
+ * @param version - The user version the caller read, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the user changed since it was read).
  */
-export async function deleteUser(id: number): Promise<void> {
-  await apiFetch<void>(`/users/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteUser(id: number, version: number): Promise<void> {
+  await apiFetch<void>(`/users/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }
 
 /**

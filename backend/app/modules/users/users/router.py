@@ -245,7 +245,7 @@ def create_user(
 
 
 @router.post(
-    "/{user_id}/image",
+    "/{user_id}/photo",
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserPhotoRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
@@ -398,6 +398,7 @@ def delete_user(
     token_user_id: auth_dependencies.CurrentUserId,
     states: users_dependencies.UserDeletionStateStoreDep,
     storage: core_dependencies.Storage,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> users_schema.UserDeletionStatus:
     """Queue the deletion of another user's account.
@@ -411,6 +412,7 @@ def delete_user(
         token_user_id: ID of the administrator making the request.
         states: Shared store of the deletion's state.
         storage: The platform storage provider.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
 
     Returns:
@@ -419,9 +421,12 @@ def delete_user(
     Raises:
         PermissionDeniedError: If the administrator targets their own account.
         NotFoundError: If the user does not exist.
+        PreconditionFailedError: If the user changed since the client read it.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    return users_deletion_job_service.request_deletion_by_administrator(user_id, token_user_id, states, storage, db)
+    return users_deletion_job_service.request_deletion_by_administrator(
+        user_id, token_user_id, states, storage, db, if_match=if_match
+    )
 
 
 @router.get(

@@ -83,7 +83,7 @@ class BasePerformanceConfig:
                 logger.warning("Unknown memory tier, using the default config", extra=core_logger.context(tier=tier))
                 return cls()
         except Exception as err:
-            logger.warning("Failed to create the auto config, using defaults", extra=core_logger.context(error=err))
+            logger.warning("Failed to create the auto config, using defaults", exc_info=err)
             return cls()
 
 
@@ -199,7 +199,7 @@ def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
         process = psutil.Process()
         return process.memory_info().rss / (1024 * 1024)  # Convert to MB
     except Exception as err:
-        logger.warning("Failed to get memory usage", extra=core_logger.context(error=err))
+        logger.warning("Failed to get memory usage", exc_info=err)
         return 0.0
 
 
@@ -315,5 +315,5 @@ def detect_system_memory_tier() -> tuple[str, int]:
         else:  # Low memory system
             return "low", available_mb
     except Exception as err:
-        logger.warning("Failed to detect system memory, using defaults", extra=core_logger.context(error=err))
+        logger.warning("Failed to detect system memory, using defaults", exc_info=err)
         return "medium", 1024  # Default to medium tier with 1GB

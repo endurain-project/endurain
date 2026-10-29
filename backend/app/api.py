@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends, Security
 
 import core.config as core_config
 import core.router as core_router
-import modules.activities.activity.public_router as activity_public_router
 
 # Alphabetized router imports
+import modules.activities.activity.gear_router as activity_gear_router
+import modules.activities.activity.public_router as activity_public_router
 import modules.activities.activity.router as activity_router
 import modules.activities.activity.summary_router as activity_summary_router
+import modules.activities.activity.user_router as activity_user_router
 import modules.activities.activity_detail.public_router as activity_detail_public_router
 import modules.activities.activity_detail.router as activity_detail_router
 import modules.activities.activity_ingestion.router as activity_ingestion_router
@@ -31,8 +33,10 @@ import modules.auth.password_reset_tokens.public_router as password_reset_tokens
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
 import modules.followers.router as followers_router
+import modules.followers.user_router as followers_user_router
 import modules.garmin.router as garmin_router
 import modules.gears.gear.router as gears_router
+import modules.gears.gear_components.gear_router as gear_components_gear_router
 import modules.gears.gear_components.router as gear_components_router
 import modules.health.health_dashboard.router as health_dashboard_router
 import modules.health.health_fasting.router as health_fasting_router
@@ -220,6 +224,18 @@ router.include_router(
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
+    activity_gear_router.router,
+    prefix=core_config.ROOT_PATH + "/gears",
+    tags=["activities"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    gear_components_gear_router.router,
+    prefix=core_config.ROOT_PATH + "/gears",
+    tags=["gear_components"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
     health_dashboard_router.router,
     prefix=core_config.ROOT_PATH + "/health",
     tags=["health"],
@@ -336,12 +352,6 @@ router.include_router(
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
-    auth_sessions_router.router,
-    prefix=core_config.ROOT_PATH + "/sessions",
-    tags=["sessions"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
-)
-router.include_router(
     sign_up_tokens_router.router,
     prefix=core_config.ROOT_PATH,
     tags=["sign_up_tokens"],
@@ -383,6 +393,27 @@ router.include_router(
     profile_overview_router.router,
     prefix=core_config.ROOT_PATH + "/users",
     tags=["users"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+# Resources owned by a user, served as ``/users/{user_id}/<resource>``. Mounted AFTER the users routers on
+# purpose: their literal ``/users/id/...`` and ``/users/username/...`` paths must be matched before the
+# ``{user_id}`` segment here would swallow "id" or "username".
+router.include_router(
+    auth_sessions_router.router,
+    prefix=core_config.ROOT_PATH + "/users",
+    tags=["sessions"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    activity_user_router.router,
+    prefix=core_config.ROOT_PATH + "/users",
+    tags=["activities"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    followers_user_router.router,
+    prefix=core_config.ROOT_PATH + "/users",
+    tags=["followers"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
