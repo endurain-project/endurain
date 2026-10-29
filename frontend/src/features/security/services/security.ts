@@ -20,6 +20,8 @@ import type {
   SecuritySession,
   SecuritySessionDto,
   EmailChangeDto,
+  IdpReauth,
+  IdpReauthDto,
   StepUpDto,
   StepUpInput,
 } from '@/features/security/types'
@@ -77,11 +79,22 @@ export function mapSecuritySession(dto: SecuritySessionDto): SecuritySession {
   }
 }
 
-/** Builds the step-up wire body, sending `null` for fields that don't apply. */
-function toStepUpWire(input: StepUpInput): StepUpDto {
+/** Maps the clean sign-in proof to its wire field, omitted when there is no proof. */
+function toIdpReauthWire(reauth: IdpReauth | null | undefined): { idp_reauth?: IdpReauthDto } {
+  return reauth ? { idp_reauth: { ticket: reauth.ticket, code_verifier: reauth.codeVerifier } } : {}
+}
+
+/**
+ * Builds the step-up wire body, sending `null` for fields that don't apply.
+ *
+ * @param input - The step-up credentials.
+ * @returns The wire body shared by every step-up-gated request.
+ */
+export function toStepUpWire(input: StepUpInput): StepUpDto {
   return {
     current_password: input.currentPassword,
     mfa_code: input.mfaCode,
+    ...toIdpReauthWire(input.idpReauth),
   }
 }
 
@@ -173,6 +186,7 @@ export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
   const payload: MfaEnableDto = {
     mfa_code: input.mfaCode,
     current_password: input.currentPassword,
+    ...toIdpReauthWire(input.idpReauth),
   }
   const response = await apiFetch<{ backup_codes: string[] }>('/profile/mfa/enable', {
     method: 'POST',
@@ -192,6 +206,7 @@ export async function disableMfa(input: StepUpInput): Promise<void> {
   const payload: MfaDisableDto = {
     mfa_code: input.mfaCode ?? '',
     current_password: input.currentPassword,
+    ...toIdpReauthWire(input.idpReauth),
   }
   await apiFetch('/profile/mfa/disable', {
     method: 'POST',
@@ -297,6 +312,7 @@ export async function createApiKey(input: ApiKeyCreateInput): Promise<string> {
     expires_at: input.expiresAt,
     current_password: input.currentPassword,
     mfa_code: input.mfaCode,
+    ...toIdpReauthWire(input.idpReauth),
   }
   const dto = await apiFetch<ApiKeyCreatedDto>('/profile/api-keys', {
     method: 'POST',

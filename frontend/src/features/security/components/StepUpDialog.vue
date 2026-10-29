@@ -2,14 +2,18 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { StepUpInput } from '@/features/security/types'
+import type { IdpReauth, StepUpAction, StepUpInput } from '@/features/security/types'
+import type { StepUpPending } from '@/features/security/composables/useIdpStepUp'
 
+import IdpStepUpSection from '@/features/security/components/IdpStepUpSection.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 const open = defineModel<boolean>('open', { required: true })
+// The identity-provider sign-in proof, used when the account has no password.
+const reauth = defineModel<IdpReauth | null>('reauth', { default: null })
 
 const props = withDefaults(
   defineProps<{
@@ -19,8 +23,12 @@ const props = withDefaults(
     description: string
     /** Label for the confirm button. */
     confirmLabel: string
-    /** Whether a password is required (the account has a local password). */
+    /** Whether a password is required; when not, the account signs in again with its identity provider. */
     requirePassword: boolean
+    /** The sensitive operation, sent when starting the identity-provider sign-in. */
+    action: StepUpAction
+    /** What to restore after the identity-provider round-trip; never a secret. */
+    pendingContext?: StepUpPending
     /** Whether an MFA/backup code is required (MFA is enabled). */
     requireMfa?: boolean
     /** Whether the confirming action is in flight. */
@@ -32,7 +40,13 @@ const props = withDefaults(
     /** Whether the fields the parent adds through the default slot are valid. */
     extraValid?: boolean
   }>(),
-  { requireMfa: true, confirmPhrase: undefined, destructive: false, extraValid: true },
+  {
+    requireMfa: true,
+    pendingContext: () => ({}),
+    confirmPhrase: undefined,
+    destructive: false,
+    extraValid: true,
+  },
 )
 
 const emit = defineEmits<{
@@ -50,6 +64,7 @@ const canSubmit = computed(
     props.extraValid &&
     (props.confirmPhrase === undefined || typedPhrase.value === props.confirmPhrase) &&
     (!props.requirePassword || password.value.length > 0) &&
+    (props.requirePassword || reauth.value !== null) &&
     (!props.requireMfa || mfaCode.value.trim().length > 0),
 )
 
@@ -67,6 +82,7 @@ function onSubmit(): void {
   emit('confirm', {
     currentPassword: props.requirePassword ? password.value : null,
     mfaCode: props.requireMfa ? mfaCode.value.trim() : null,
+    idpReauth: props.requirePassword ? null : reauth.value,
   })
 }
 </script>
@@ -100,6 +116,13 @@ function onSubmit(): void {
           class="w-full"
         />
       </div>
+      <IdpStepUpSection
+        v-if="!requirePassword"
+        v-model:reauth="reauth"
+        :action="action"
+        :pending-context="pendingContext"
+        :disabled="pending"
+      />
       <div v-if="requirePassword" class="flex flex-col gap-1.5">
         <Label for="stepup-password">{{ t('settings.security.password.current') }}</Label>
         <PasswordInput
@@ -109,7 +132,7 @@ function onSubmit(): void {
           :disabled="pending"
         />
       </div>
-      <div v-if="requireMfa" class="flex flex-col gap-1.5">
+      <div v-if="requireMfa && (requirePassword || reauth)" class="flex flex-col gap-1.5">
         <Label for="stepup-mfa">{{ t('settings.security.mfaCode') }}</Label>
         <Input
           id="stepup-mfa"

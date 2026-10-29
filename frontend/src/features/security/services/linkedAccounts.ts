@@ -6,6 +6,7 @@ import type {
 } from '@/features/security/types'
 
 import { API_BASE_URL, apiFetch } from '@/services/http'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw linked-provider payload to the clean {@link LinkedProvider} model
@@ -25,14 +26,6 @@ export function mapLinkedProvider(dto: LinkedProviderDto): LinkedProvider {
     subject: dto.idp_subject,
     linkedAt: dto.linked_at,
     lastLogin: dto.last_login ?? null,
-  }
-}
-
-/** Builds the step-up wire body shared by link-token and unlink requests. */
-function toStepUpWire(input: StepUpInput) {
-  return {
-    current_password: input.currentPassword,
-    mfa_code: input.mfaCode,
   }
 }
 

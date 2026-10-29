@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RefreshCw, ShieldCheck, Smartphone } from '@lucide/vue'
 
-import type { StepUpInput } from '@/features/security/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import BackupCodesDialog from '@/features/security/components/BackupCodesDialog.vue'
 import MfaSetupDialog from '@/features/security/components/MfaSetupDialog.vue'
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
+import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useBackupCodeStatusQuery,
   useDisableMfaMutation,
@@ -20,13 +22,16 @@ import {
   useRegenerateBackupCodesMutation,
 } from '@/features/security/composables/useSecurity'
 
-defineProps<{
+const props = defineProps<{
   /** Whether the account has a local password (gates step-up password fields). */
   hasLocalPassword: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t } = useI18n()
 const toasts = useToasts()
+const handleIdpChallenge = useIdpReauthChallenge()
 
 const statusQuery = useMfaStatusQuery()
 const enabled = computed(() => statusQuery.data.value?.enabled ?? false)
@@ -40,11 +45,31 @@ const disableOpen = ref(false)
 const regenerateOpen = ref(false)
 const backupCodesOpen = ref(false)
 const backupCodes = ref<string[]>([])
+// Each dialog keeps its own sign-in proof: a ticket works for one action only.
+const setupReauth = ref<IdpReauth | null>(null)
+const disableReauth = ref<IdpReauth | null>(null)
+const regenerateReauth = ref<IdpReauth | null>(null)
+
+/** Reopens the dialog the identity-provider sign-in was started for. */
+onMounted(() => {
+  const { resume } = props
+  if (resume?.action === 'mfa_enable') {
+    setupReauth.value = resume.reauth
+    setupOpen.value = true
+  } else if (resume?.action === 'mfa_disable') {
+    disableReauth.value = resume.reauth
+    disableOpen.value = true
+  } else if (resume?.action === 'mfa_backup_codes') {
+    regenerateReauth.value = resume.reauth
+    regenerateOpen.value = true
+  }
+})
 
 /** Shows the freshly issued codes once enrolment completes. */
 function onEnabled(codes: string[]): void {
   backupCodes.value = codes
   backupCodesOpen.value = true
+  setupReauth.value = null
   toasts.success(t('settings.security.mfa.enableSuccess'))
 }
 
@@ -53,9 +78,14 @@ function confirmDisable(input: StepUpInput): void {
   disableMutation.mutate(input, {
     onSuccess: () => {
       disableOpen.value = false
+      disableReauth.value = null
       toasts.success(t('settings.security.mfa.disableSuccess'))
     },
-    onError: () => toasts.error(t('settings.security.mfa.disableError')),
+    onError: (error) => {
+      if (!handleIdpChallenge(error)) {
+        toasts.error(t('settings.security.mfa.disableError'))
+      }
+    },
   })
 }
 
@@ -64,11 +94,16 @@ function confirmRegenerate(input: StepUpInput): void {
   regenerateMutation.mutate(input, {
     onSuccess: (result) => {
       regenerateOpen.value = false
+      regenerateReauth.value = null
       backupCodes.value = result.codes
       backupCodesOpen.value = true
       toasts.success(t('settings.security.mfa.regenerateSuccess'))
     },
-    onError: () => toasts.error(t('settings.security.mfa.regenerateError')),
+    onError: (error) => {
+      if (!handleIdpChallenge(error)) {
+        toasts.error(t('settings.security.mfa.regenerateError'))
+      }
+    },
   })
 }
 </script>
@@ -134,12 +169,15 @@ function confirmRegenerate(input: StepUpInput): void {
 
     <MfaSetupDialog
       v-model:open="setupOpen"
+      v-model:reauth="setupReauth"
       :require-password="hasLocalPassword"
       @enabled="onEnabled"
       @error="(message) => toasts.error(message)"
     />
     <StepUpDialog
       v-model:open="disableOpen"
+      v-model:reauth="disableReauth"
+      action="mfa_disable"
       :title="t('settings.security.mfa.disableTitle')"
       :description="t('settings.security.mfa.disableDescription')"
       :confirm-label="t('settings.security.mfa.disable')"
@@ -149,6 +187,8 @@ function confirmRegenerate(input: StepUpInput): void {
     />
     <StepUpDialog
       v-model:open="regenerateOpen"
+      v-model:reauth="regenerateReauth"
+      action="mfa_backup_codes"
       :title="t('settings.security.mfa.regenerateTitle')"
       :description="t('settings.security.mfa.regenerateDescription')"
       :confirm-label="t('settings.security.mfa.regenerate')"

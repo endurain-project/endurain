@@ -5,7 +5,13 @@ import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 import { Plus, Unlink } from '@lucide/vue'
 
-import type { AvailableProvider, LinkedProvider, StepUpInput } from '@/features/security/types'
+import type {
+  AvailableProvider,
+  IdpReauth,
+  LinkedProvider,
+  StepUpInput,
+} from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import ProviderLogo from '@/features/identityProviders/components/ProviderLogo.vue'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
@@ -13,9 +19,11 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
+import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import { HttpError } from '@/services/http'
 import { buildLinkStartUrl } from '@/features/security/services/linkedAccounts'
+import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useAvailableProvidersQuery,
   useGenerateLinkTokenMutation,
@@ -23,14 +31,17 @@ import {
   useUnlinkProviderMutation,
 } from '@/features/security/composables/useLinkedAccounts'
 
-defineProps<{
+const props = defineProps<{
   /** Whether the account has a local password (gates the step-up password field). */
   hasLocalPassword: boolean
   /** Whether MFA is enabled (gates the step-up MFA-code field). */
   mfaEnabled: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const handleIdpChallenge = useIdpReauthChallenge()
 const toasts = useToasts()
 const route = useRoute()
 const router = useRouter()
@@ -53,6 +64,7 @@ const available = computed(() =>
 type PendingAction = { type: 'link' | 'unlink'; idpId: number; name: string }
 const pendingAction = ref<PendingAction | null>(null)
 const isStepUpOpen = ref(false)
+const idpReauth = ref<IdpReauth | null>(null)
 
 const isActionPending = computed(
   () => unlinkMutation.isPending.value || linkTokenMutation.isPending.value,
@@ -77,6 +89,7 @@ const stepUpConfirmLabel = computed(() =>
 /** Opens the step-up dialog to link the given available provider. */
 function openLink(provider: AvailableProvider): void {
   pendingAction.value = { type: 'link', idpId: provider.id, name: provider.name }
+  idpReauth.value = null
   isStepUpOpen.value = true
 }
 
@@ -87,6 +100,7 @@ function openUnlink(item: LinkedProvider): void {
     idpId: item.idpId,
     name: item.name ?? item.slug ?? `#${item.idpId}`,
   }
+  idpReauth.value = null
   isStepUpOpen.value = true
 }
 
@@ -101,6 +115,9 @@ function confirmLink(idpId: number, input: StepUpInput): void {
         window.location.assign(buildLinkStartUrl(idpId, token))
       },
       onError: (error) => {
+        if (handleIdpChallenge(error)) {
+          return
+        }
         if (error instanceof HttpError && error.status === 409) {
           toasts.error(t('settings.security.linked.alreadyLinked'))
         } else if (error instanceof HttpError && error.status === 401) {
@@ -120,9 +137,13 @@ function confirmUnlink(idpId: number, input: StepUpInput): void {
     {
       onSuccess: () => {
         isStepUpOpen.value = false
+        idpReauth.value = null
         toasts.success(t('settings.security.linked.unlinkSuccess'))
       },
       onError: (error) => {
+        if (handleIdpChallenge(error)) {
+          return
+        }
         if (error instanceof HttpError && error.status === 400) {
           toasts.error(t('settings.security.linked.lastMethodError'))
         } else if (error instanceof HttpError && error.status === 401) {
@@ -148,12 +169,31 @@ function onStepUpConfirm(input: StepUpInput): void {
   }
 }
 
+/** Reopens the link or unlink dialog once the identity-provider sign-in returns. */
+function restoreStepUp(): void {
+  const { resume } = props
+  const { type, idpId, name } = resume?.pending ?? {}
+  if (
+    !resume ||
+    (resume.action !== 'idp_link' && resume.action !== 'idp_unlink') ||
+    (type !== 'link' && type !== 'unlink') ||
+    typeof idpId !== 'number' ||
+    typeof name !== 'string'
+  ) {
+    return
+  }
+  pendingAction.value = { type, idpId, name }
+  idpReauth.value = resume.reauth
+  isStepUpOpen.value = true
+}
+
 /**
  * Handles the OAuth link round-trip result. The backend returns the browser to
  * `?idp_link=success|error` (with `idp_name`); surface it as a toast, refresh
  * the list, and strip the one-time params so a refresh doesn't re-toast.
  */
 onMounted(() => {
+  restoreStepUp()
   const status = route.query.idp_link
   if (typeof status !== 'string') {
     return
@@ -216,6 +256,13 @@ onMounted(() => {
             <div class="min-w-0">
               <p class="text-body">{{ item.name ?? item.slug ?? `#${item.idpId}` }}</p>
               <p class="text-hint">{{ item.subject }}</p>
+              <p class="text-hint">
+                {{
+                  t('settings.security.linked.linkedOn', {
+                    date: formatMediumDate(item.linkedAt, locale),
+                  })
+                }}
+              </p>
             </div>
           </div>
           <Button
@@ -252,6 +299,9 @@ onMounted(() => {
 
     <StepUpDialog
       v-model:open="isStepUpOpen"
+      v-model:reauth="idpReauth"
+      :action="pendingAction?.type === 'unlink' ? 'idp_unlink' : 'idp_link'"
+      :pending-context="pendingAction ?? {}"
       :title="stepUpTitle"
       :description="stepUpDescription"
       :confirm-label="stepUpConfirmLabel"

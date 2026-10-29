@@ -27,6 +27,7 @@ function makeProfileDto(overrides: Partial<ProfileDto> = {}): ProfileDto {
   return {
     id: 5,
     version: 6,
+    has_local_password: true,
     name: 'Ada Lovelace',
     username: 'ada',
     email: 'ada@example.com',

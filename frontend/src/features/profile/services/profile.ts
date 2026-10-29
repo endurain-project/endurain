@@ -65,7 +65,7 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     firstDayOfWeek: dto.first_day_of_week,
     timezone: dto.timezone ?? null,
     accessType: dto.access_type,
-    hasLocalPassword: dto.has_local_password ?? true,
+    hasLocalPassword: dto.has_local_password,
     integrationsVersion: rowVersion(dto.integrations_version),
     stravaLinked: dto.is_strava_linked === 1,
     garminLinked: dto.is_garminconnect_linked === 1,

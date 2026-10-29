@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { Trash2 } from '@lucide/vue'
 
-import type { StepUpInput } from '@/features/security/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
+import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import { useDeleteAccountMutation } from '@/features/security/composables/useSecurity'
 
 const props = defineProps<{
@@ -20,14 +22,26 @@ const props = defineProps<{
   hasLocalPassword: boolean
   /** Whether MFA is enabled (gates the step-up MFA-code field). */
   mfaEnabled: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t } = useI18n()
 const toasts = useToasts()
 const router = useRouter()
 const deleteMutation = useDeleteAccountMutation()
+const handleIdpChallenge = useIdpReauthChallenge()
 
 const isDialogOpen = ref(false)
+const idpReauth = ref<IdpReauth | null>(null)
+
+/** Reopens the dialog once the identity-provider sign-in returns. */
+onMounted(() => {
+  if (props.resume?.action === 'account_delete') {
+    idpReauth.value = props.resume.reauth
+    isDialogOpen.value = true
+  }
+})
 
 /** Deletes the account after step-up, then leaves for the farewell page. */
 function onConfirm(input: StepUpInput): void {
@@ -37,6 +51,9 @@ function onConfirm(input: StepUpInput): void {
       void router.replace({ name: 'account-deleted' })
     },
     onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
       if (error instanceof HttpError && error.status === 409) {
         toasts.error(t('settings.security.deleteAccount.onlyAdminError'))
       } else if (error instanceof HttpError && error.status === 401) {
@@ -65,6 +82,8 @@ function onConfirm(input: StepUpInput): void {
 
     <StepUpDialog
       v-model:open="isDialogOpen"
+      v-model:reauth="idpReauth"
+      action="account_delete"
       :title="t('settings.security.deleteAccount.dialogTitle')"
       :description="t('settings.security.deleteAccount.dialogDescription')"
       :confirm-label="t('settings.security.deleteAccount.confirm')"

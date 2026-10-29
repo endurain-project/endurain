@@ -2753,7 +2753,8 @@ export interface paths {
          * Delete My Account
          * @description Queue the deletion of the authenticated user's account and all of their data.
          *
-         *     Requires step-up verification: the current password, and an MFA code when MFA is enabled. The
+         *     Requires step-up verification: the current password (or, for an account without one, a fresh
+         *     identity-provider sign-in), and an MFA code when MFA is enabled. The
          *     account is signed out and deactivated at once and a background job erases the data, which is
          *     permanent and cannot be undone. Export the profile first to keep a copy. The browser's
          *     refresh-token cookie is cleared on the response.
@@ -2763,6 +2764,7 @@ export interface paths {
          *         response: The response, which receives the cookie-deletion headers.
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
          *         step_up_store: Step-up lockout store.
          *         state: The platform state provider.
          *         storage: The platform storage provider.
@@ -3110,8 +3112,8 @@ export interface paths {
          *
          *     Linking an identity provider is a sensitive operation that enables
          *     persistent authentication. Step-up verification is required: the
-         *     caller MUST supply ``current_password``, and an MFA code when MFA
-         *     is enabled on the account.
+         *     caller MUST supply ``current_password`` (or, for an account without
+         *     one, ``idp_reauth``), and an MFA code when MFA is enabled.
          *
          *     This approach is more secure than passing access tokens in query
          *     parameters, as the link token:
@@ -3125,6 +3127,7 @@ export interface paths {
          *         link_request (IdpLinkTokenRequest): Request with step-up credentials.
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): The authenticated user's ID extracted from the access token.
+         *         token_session_id: Session ID from access token.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
          *
@@ -3139,6 +3142,45 @@ export interface paths {
          *             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
          */
         post: operations["generate_link_token_api_v1_profile_identity_providers__idp_id__link_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/identity-providers/{idp_id}/step-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Idp Step Up
+         * @description Start a fresh sign-in with a linked identity provider, for an account without a local password.
+         *
+         *     Such an account has no password to prove, so a sensitive operation asks for this instead: the browser
+         *     follows ``authorization_url``, the provider signs the user in again, and the callback returns to
+         *     ``redirect`` with a single-use ``step_up_ticket`` in the URL fragment. The sensitive request then sends the
+         *     ticket and the PKCE verifier of ``code_challenge`` as ``idp_reauth``. The response sets a cookie that binds
+         *     the sign-in to this browser.
+         *
+         *     Args:
+         *         idp_id: The linked provider to sign in with again.
+         *         start: The PKCE challenge, the operation and the return path.
+         *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which receives the browser-binding cookie.
+         *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The provider's authorization URL.
+         */
+        post: operations["start_idp_step_up_api_v1_profile_identity_providers__idp_id__step_up_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3160,7 +3202,8 @@ export interface paths {
          *
          *     This endpoint allows users to remove the association between their
          *     account and a specific identity provider. It requires step-up
-         *     verification (current password and MFA when enabled) and includes
+         *     verification (current password or a fresh identity-provider
+         *     sign-in, and MFA when enabled) and includes
          *     safety checks to prevent account lockout by ensuring users maintain
          *     at least one authentication method (either a password or another
          *     IdP link).
@@ -3170,6 +3213,7 @@ export interface paths {
          *         step_up (StepUpVerification): Step-up verification payload.
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): User ID extracted from the access token.
+         *         token_session_id: Session ID from access token.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
          *
@@ -3268,6 +3312,7 @@ export interface paths {
          *         request: FastAPI request object for rate limiting.
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
          *
@@ -3339,6 +3384,7 @@ export interface paths {
          *         mfa_request: MFA disable request with current password and
          *             MFA code.
          *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
          *
@@ -3378,8 +3424,8 @@ export interface paths {
          *     code in the request body is the fresh enrolment code from the
          *     user's authenticator app and is verified separately by
          *     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
-         *     issued by ``POST /profile/mfa/setup``. SSO-only accounts may
-         *     omit ``current_password`` (see
+         *     issued by ``POST /profile/mfa/setup``. An account without a local
+         *     password sends ``idp_reauth`` instead of ``current_password`` (see
          *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
          *
          *     Args:
@@ -3387,6 +3433,7 @@ export interface paths {
          *         mfa_request: MFA setup request with TOTP code and (when the
          *             account has a local password) current password.
          *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
          *         mfa_secret_store: Temporary secret storage.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
@@ -3905,7 +3952,7 @@ export interface paths {
          * @description Handle OAuth callback from an identity provider.
          *
          *     This endpoint processes the OAuth authorization callback from external identity providers.
-         *     It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
+         *     It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
          *
          *     Args:
          *         request: The incoming HTTP request.
@@ -3913,14 +3960,16 @@ export interface paths {
          *         password_hasher: Password hasher dependency for session management.
          *         db: Database session dependency.
          *         service: Identity provider service.
-         *         link_binding: The cookie that binds a link to the browser that started it.
-         *         code: Authorization code received from the identity provider.
+         *         browser_binding: The cookie that binds a link or step-up to the browser that started it.
+         *         code: Authorization code received from the identity provider; absent when it returned an error.
+         *         error: The provider's error code, such as ``login_required`` when it could not sign the user in again.
          *         state: State parameter used for CSRF protection (database state ID).
          *
          *     Returns:
          *         RedirectResponse: A redirect response to either:
          *             - Settings page (link mode): /settings with success parameters
          *             - Login page (login mode): /login with session_id for token exchange
+         *             - The page that started a step-up, with its ticket or error in the fragment
          *             - Error page: /login with error parameter if callback fails
          *
          *     Raises:
@@ -6298,6 +6347,8 @@ export interface components {
              * @description The new email address
              */
             email: string;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description TOTP or backup code, required when MFA is enabled
@@ -9057,15 +9108,17 @@ export interface components {
          *     It must be gated by step-up verification: the caller MUST supply
          *     ``current_password``, and an MFA code when MFA is enabled.
          *
-         *     For SSO-only accounts (no local password set), the password field
-         *     may be omitted and the password check is skipped.
+         *     An account without a local password (it signs in through an identity
+         *     provider) proves a fresh sign-in with a linked provider instead, in
+         *     ``idp_reauth``.
          *
          *     Attributes:
          *         current_password: Caller's existing password (step-up verification).
-         *             Required when the account has a local password; may be omitted
-         *             for SSO-only accounts.
+         *             Required when the account has a local password.
          *         mfa_code: TOTP or backup code, required when MFA is enabled on
          *             the account.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         IdpLinkTokenRequest: {
             /**
@@ -9073,11 +9126,36 @@ export interface components {
              * @description Current password (step-up verification). Required when the account has a local password.
              */
             current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description TOTP or backup code, required when MFA is enabled
              */
             mfa_code?: string | null;
+        };
+        /**
+         * IdpReauthProof
+         * @description Proof that a password-less account signed in again with its identity provider.
+         *
+         *     The provider's callback hands the ticket to the browser that started the step-up; that browser also holds
+         *     the PKCE verifier whose challenge the ticket records, so a ticket alone cannot be redeemed.
+         *
+         *     Attributes:
+         *         ticket: The single-use step-up ticket.
+         *         code_verifier: The PKCE verifier the step-up was started with.
+         */
+        IdpReauthProof: {
+            /**
+             * Code Verifier
+             * @description PKCE verifier the step-up was started with
+             */
+            code_verifier: string;
+            /**
+             * Ticket
+             * @description Single-use step-up ticket
+             */
+            ticket: string;
         };
         /**
          * ImportFailure
@@ -9406,16 +9484,17 @@ export interface components {
          *     the supplied input only and do not impose a policy on the
          *     stored password.
          *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
          *
          *     Attributes:
          *         current_password: Caller's existing password (step-up
          *             verification). Required when the account has a local
-         *             password; may be omitted for SSO-only accounts.
+         *             password.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         MFADisableRequest: {
             /**
@@ -9423,6 +9502,8 @@ export interface components {
              * @description Current password (step-up verification). Required when the account has a local password.
              */
             current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description MFA code (6-digit TOTP or XXXX-XXXX)
@@ -9523,11 +9604,10 @@ export interface components {
          *     re-prove their current password in addition to the freshly
          *     enrolled TOTP code.
          *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
          *
          *     Attributes:
          *         mfa_code: The 6-digit TOTP code generated from the secret
@@ -9535,7 +9615,9 @@ export interface components {
          *             authenticator app is correctly enrolled.
          *         current_password: Caller's existing password (step-up
          *             verification). Required when the account has a local
-         *             password; may be omitted for SSO-only accounts.
+         *             password.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         MFASetupRequest: {
             /**
@@ -9543,6 +9625,8 @@ export interface components {
              * @description Current password (step-up verification). Required when the account has a local password.
              */
             current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description 6-digit TOTP code
@@ -10849,6 +10933,59 @@ export interface components {
          */
         SleepStageType: 0 | 1 | 2 | 3;
         /**
+         * StepUpAction
+         * @description A sensitive operation a step-up re-authentication can authorise, so a ticket for one cannot pay for another.
+         *
+         *     Attributes:
+         *         API_KEY_CREATE: Create an API key.
+         *         IDP_LINK: Mint a token that links an identity provider.
+         *         IDP_UNLINK: Unlink an identity provider.
+         *         EMAIL_CHANGE: Change the account's email address.
+         *         ACCOUNT_DELETE: Delete the account.
+         *         MFA_ENABLE: Enable MFA.
+         *         MFA_DISABLE: Disable MFA.
+         *         MFA_BACKUP_CODES: Regenerate MFA backup codes.
+         * @enum {string}
+         */
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes";
+        /**
+         * StepUpStartRead
+         * @description Where to send the browser for a step-up re-authentication.
+         *
+         *     Attributes:
+         *         authorization_url: The identity provider's authorization URL.
+         */
+        StepUpStartRead: {
+            /**
+             * Authorization Url
+             * @description Identity provider authorization URL
+             */
+            authorization_url: string;
+        };
+        /**
+         * StepUpStartRequest
+         * @description Start a step-up re-authentication with a linked identity provider.
+         *
+         *     Attributes:
+         *         code_challenge: S256 challenge of a PKCE verifier the browser keeps until it sends the sensitive request.
+         *         action: The sensitive operation the step-up authorises.
+         *         redirect: Relative frontend path the provider's callback returns to.
+         */
+        StepUpStartRequest: {
+            /** @description Sensitive operation the step-up authorises */
+            action: components["schemas"]["StepUpAction"];
+            /**
+             * Code Challenge
+             * @description PKCE S256 challenge
+             */
+            code_challenge: string;
+            /**
+             * Redirect
+             * @description Relative path to return to
+             */
+            redirect: string;
+        };
+        /**
          * StepUpVerification
          * @description Generic step-up verification payload.
          *
@@ -10856,18 +10993,18 @@ export interface components {
          *     creation, MFA backup-code regeneration, etc.) to require
          *     fresh proof of identity beyond a valid access token.
          *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
          *
          *     Attributes:
          *         current_password: Caller's existing password. Required
-         *             when the account has a local password; may be
-         *             omitted for SSO-only accounts.
+         *             when the account has a local password.
          *         mfa_code: TOTP or backup code, required when MFA is
          *             enabled on the account.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         StepUpVerification: {
             /**
@@ -10875,6 +11012,8 @@ export interface components {
              * @description Current password (step-up verification). Required when the account has a local password.
              */
             current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description TOTP or backup code, required when MFA is enabled
@@ -11341,11 +11480,10 @@ export interface components {
          *     verification. The caller MUST supply ``current_password``,
          *     and an MFA code when MFA is enabled on the account.
          *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
          *
          *     Attributes:
          *         name: User-friendly label for the key.
@@ -11354,10 +11492,11 @@ export interface components {
          *             None means the key never expires.
          *         current_password: Caller's existing password
          *             (step-up verification). Required when the account
-         *             has a local password; may be omitted for SSO-only
-         *             accounts.
+         *             has a local password.
          *         mfa_code: TOTP or backup code, required when MFA
          *             is enabled on the account.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         UsersApiKeyCreate: {
             /**
@@ -11370,6 +11509,8 @@ export interface components {
              * @description Optional expiration datetime. None means the key never expires.
              */
             expires_at?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description TOTP or backup code, required when MFA is enabled
@@ -12235,7 +12376,8 @@ export interface components {
          *             sets/steps.
          *         hide_activity_gear: Hide gear setting.
          *         has_local_password: Whether the account has a local
-         *             password (False for SSO-only accounts).
+         *             password (False for accounts that sign in through an
+         *             identity provider).
          */
         UsersMe: {
             /** @description User access level */
@@ -12295,9 +12437,9 @@ export interface components {
             gender: components["schemas"]["Gender"];
             /**
              * Has Local Password
-             * @description Whether the account has a local password set. False indicates an SSO-only account, in which case step-up flows must skip the password factor. The raw password hash is never exposed; only this derived boolean is returned.
+             * @description Whether the account has a local password set. False indicates an account that signs in through an identity provider; its step-up proves a fresh sign-in with that provider instead of a password. The raw password hash is never exposed; only this derived boolean is returned.
              */
-            has_local_password?: boolean | null;
+            has_local_password: boolean;
             /**
              * Height
              * @description Height in centimeters
@@ -18262,6 +18404,50 @@ export interface operations {
             };
         };
     };
+    start_idp_step_up_api_v1_profile_identity_providers__idp_id__step_up_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idp_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepUpStartRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post: {
         parameters: {
             query?: never;
@@ -19256,7 +19442,9 @@ export interface operations {
         parameters: {
             query: {
                 /** @description Authorization code from IdP */
-                code: string;
+                code?: string | null;
+                /** @description Error the IdP returned instead of a code */
+                error?: string | null;
                 /** @description State parameter for CSRF protection */
                 state: string;
             };

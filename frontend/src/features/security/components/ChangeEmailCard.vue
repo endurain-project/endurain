@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle, Mail } from '@lucide/vue'
 
+import type { IdpReauth } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
+
+import IdpStepUpSection from '@/features/security/components/IdpStepUpSection.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -11,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
+import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import { useChangeEmailMutation } from '@/features/security/composables/useSecurity'
 import { isValidEmail } from '@/utils/validation'
 
@@ -21,11 +26,22 @@ const props = defineProps<{
   hasLocalPassword: boolean
   /** Whether MFA is enabled (gates the step-up MFA-code field). */
   mfaEnabled: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t } = useI18n()
 const toasts = useToasts()
 const changeMutation = useChangeEmailMutation()
+const handleIdpChallenge = useIdpReauthChallenge()
+
+// The new address is typed after the identity-provider sign-in and never stored.
+const idpReauth = ref<IdpReauth | null>(null)
+onMounted(() => {
+  if (props.resume?.action === 'email_change') {
+    idpReauth.value = props.resume.reauth
+  }
+})
 
 const newEmail = ref('')
 const currentPassword = ref('')
@@ -40,6 +56,7 @@ const canSubmit = computed(
   () =>
     isEmailValid.value &&
     (!props.hasLocalPassword || currentPassword.value.length > 0) &&
+    (props.hasLocalPassword || idpReauth.value !== null) &&
     (!props.mfaEnabled || mfaCode.value.trim().length > 0) &&
     !changeMutation.isPending.value,
 )
@@ -50,6 +67,7 @@ function resetForm(): void {
   currentPassword.value = ''
   mfaCode.value = ''
   revokeOtherSessions.value = false
+  idpReauth.value = null
 }
 
 /** Changes the email after step-up, then tells the user to verify the new address. */
@@ -63,6 +81,7 @@ function submit(): void {
       stepUp: {
         currentPassword: props.hasLocalPassword ? currentPassword.value : null,
         mfaCode: props.mfaEnabled ? mfaCode.value.trim() : null,
+        idpReauth: props.hasLocalPassword ? null : idpReauth.value,
       },
       revokeOtherSessions: revokeOtherSessions.value,
     },
@@ -72,6 +91,9 @@ function submit(): void {
         resetForm()
       },
       onError: (error) => {
+        if (handleIdpChallenge(error)) {
+          return
+        }
         if (error instanceof HttpError && error.status === 409) {
           toasts.error(t('settings.security.email.conflict'))
         } else if (error instanceof HttpError && error.status === 401) {
@@ -103,7 +125,14 @@ function submit(): void {
       />
     </div>
 
-    <div class="flex flex-col gap-1.5">
+    <IdpStepUpSection
+      v-if="!hasLocalPassword"
+      v-model:reauth="idpReauth"
+      action="email_change"
+      :disabled="changeMutation.isPending.value"
+    />
+
+    <div v-if="hasLocalPassword || idpReauth" class="flex flex-col gap-1.5">
       <Label for="security-new-email">{{ t('settings.security.email.new') }}</Label>
       <Input
         id="security-new-email"
@@ -130,7 +159,7 @@ function submit(): void {
       />
     </div>
 
-    <div v-if="mfaEnabled" class="flex flex-col gap-1.5">
+    <div v-if="mfaEnabled && (hasLocalPassword || idpReauth)" class="flex flex-col gap-1.5">
       <Label for="security-email-mfa">{{ t('settings.security.mfaCode') }}</Label>
       <Input
         id="security-email-mfa"

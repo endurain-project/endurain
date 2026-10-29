@@ -259,6 +259,33 @@ describe('deleteAccount', () => {
   })
 })
 
+describe('identity-provider re-authentication', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('sends the ticket and verifier as idp_reauth', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await deleteAccount({
+      currentPassword: null,
+      mfaCode: null,
+      idpReauth: { ticket: 't', codeVerifier: 'v' },
+    })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/delete-account',
+      expect.objectContaining({
+        body: JSON.stringify({
+          current_password: null,
+          mfa_code: null,
+          idp_reauth: { ticket: 't', code_verifier: 'v' },
+        }),
+      }),
+    )
+  })
+})
+
 describe('changeEmail', () => {
   beforeEach(() => {
     vi.mocked(apiFetch).mockReset()

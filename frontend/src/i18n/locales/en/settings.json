@@ -759,7 +759,8 @@
       "unlinkError": "Couldn't unlink the account. Please try again.",
       "invalidCredentials": "Your password or code is incorrect.",
       "alreadyLinked": "That account is already linked.",
-      "lastMethodError": "You can't unlink your only sign-in method. Set a password first."
+      "lastMethodError": "You can't unlink your only sign-in method. Set a password first.",
+      "linkedOn": "Linked on {date}"
     },
     "email": {
       "title": "Email address",
@@ -825,6 +826,18 @@
       "deleteBody": "{name} will be permanently deleted. This can't be undone.",
       "deleteSuccess": "API key deleted",
       "deleteError": "Couldn't delete the API key. Please try again."
+    },
+    "stepUp": {
+      "prompt": "Your account has no password. Sign in again with a linked identity provider to confirm it's you.",
+      "continueWith": "Continue with {name}",
+      "ready": "Identity provider sign-in confirmed.",
+      "restart": "Sign in again",
+      "noProviders": "No linked identity provider is available to confirm your identity.",
+      "startError": "Couldn't start the identity provider sign-in. Please try again.",
+      "tooManyAttempts": "Too many attempts. Please try again later.",
+      "reauthRequired": "Confirm your identity with your identity provider to continue.",
+      "failed": "Signing in again with your identity provider failed. Please try again.",
+      "notFresh": "Your identity provider did not ask you to sign in again. Contact your administrator."
     }
   },
   "integrations": {

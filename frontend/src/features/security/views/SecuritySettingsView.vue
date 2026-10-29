@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChangeEmailCard from '@/features/security/components/ChangeEmailCard.vue'
@@ -14,9 +14,25 @@ import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProfileQuery } from '@/features/profile/composables/useProfile'
+import { useToasts } from '@/composables/useToasts'
+import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
 import { useMfaStatusQuery } from '@/features/security/composables/useSecurity'
 
 const { t } = useI18n()
+const toasts = useToasts()
+
+// Returning from an identity-provider sign-in, the callback leaves its outcome
+// in the URL fragment. It is consumed once; the card that started it reopens its
+// dialog with the resume, and a failure is reported once the page is shown.
+const stepUpReturn = consumeIdpStepUpReturn()
+const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
+onMounted(() => {
+  if (stepUpReturn?.error === 'not_fresh') {
+    toasts.error(t('settings.security.stepUp.notFresh'))
+  } else if (stepUpReturn?.error) {
+    toasts.error(t('settings.security.stepUp.failed'))
+  }
+})
 
 // The profile carries `hasLocalPassword`, which gates the change-password card
 // and the step-up password fields. MFA status (shared cache key with MfaCard)
@@ -87,23 +103,30 @@ const mfaEnabled = computed(() => mfaStatusQuery.data.value?.enabled ?? false)
         :email="profile.email"
         :has-local-password="profile.hasLocalPassword"
         :mfa-enabled="mfaEnabled"
+        :resume="resume"
       />
       <ChangePasswordCard
         v-if="profile.hasLocalPassword"
         :mfa-enabled="mfaEnabled"
         :access-type="profile.accessType"
       />
-      <MfaCard :has-local-password="profile.hasLocalPassword" />
+      <MfaCard :has-local-password="profile.hasLocalPassword" :resume="resume" />
       <LinkedAccountsCard
         :has-local-password="profile.hasLocalPassword"
         :mfa-enabled="mfaEnabled"
+        :resume="resume"
       />
       <SessionsCard />
-      <ApiKeysCard :has-local-password="profile.hasLocalPassword" :mfa-enabled="mfaEnabled" />
+      <ApiKeysCard
+        :has-local-password="profile.hasLocalPassword"
+        :mfa-enabled="mfaEnabled"
+        :resume="resume"
+      />
       <DeleteAccountCard
         :username="profile.username"
         :has-local-password="profile.hasLocalPassword"
         :mfa-enabled="mfaEnabled"
+        :resume="resume"
       />
     </template>
   </div>

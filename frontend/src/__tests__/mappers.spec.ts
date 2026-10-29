@@ -79,10 +79,8 @@ describe('mapUserProfile', () => {
     ).toBe('https://cdn.test/api/v1/users/7/photo?t=a.b')
   })
 
-  it('defaults hasLocalPassword to false when absent', () => {
-    expect(mapUserProfile({ ...baseDto, has_local_password: null }).hasLocalPassword).toBe(false)
-    expect(mapUserProfile({ ...baseDto, has_local_password: undefined }).hasLocalPassword).toBe(
-      false,
-    )
+  it('maps hasLocalPassword straight from the payload', () => {
+    expect(mapUserProfile({ ...baseDto, has_local_password: true }).hasLocalPassword).toBe(true)
+    expect(mapUserProfile({ ...baseDto, has_local_password: false }).hasLocalPassword).toBe(false)
   })
 })

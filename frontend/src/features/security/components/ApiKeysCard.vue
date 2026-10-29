@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Ban, Plus, Trash2 } from '@lucide/vue'
 
-import type { ApiKey, ApiKeyCreateInput } from '@/features/security/types'
+import type { ApiKey, ApiKeyCreateInput, ApiKeyDraft, IdpReauth } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import ApiKeyCreateDialog from '@/features/security/components/ApiKeyCreateDialog.vue'
 import ApiKeyRevealDialog from '@/features/security/components/ApiKeyRevealDialog.vue'
@@ -15,6 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { HttpError } from '@/services/http'
 import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
+import { API_KEY_SCOPES } from '@/features/security/services/security'
+import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useApiKeysQuery,
   useCreateApiKeyMutation,
@@ -22,11 +25,13 @@ import {
   useRevokeApiKeyMutation,
 } from '@/features/security/composables/useSecurity'
 
-defineProps<{
+const props = defineProps<{
   /** Whether the account has a local password (gates the step-up password field). */
   hasLocalPassword: boolean
   /** Whether MFA is enabled (gates the step-up MFA-code field). */
   mfaEnabled: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t, locale } = useI18n()
@@ -39,7 +44,11 @@ const createMutation = useCreateApiKeyMutation()
 const revokeMutation = useRevokeApiKeyMutation()
 const deleteMutation = useDeleteApiKeyMutation()
 
+const handleIdpChallenge = useIdpReauthChallenge()
+
 const isCreateOpen = ref(false)
+const createReauth = ref<IdpReauth | null>(null)
+const createDraft = ref<ApiKeyDraft | null>(null)
 const isRevealOpen = ref(false)
 const newApiKey = ref('')
 
@@ -49,6 +58,25 @@ const keyToRevoke = ref<ApiKey | null>(null)
 const isRevokeOpen = ref(false)
 const keyToDelete = ref<ApiKey | null>(null)
 const isDeleteOpen = ref(false)
+
+/** Reads the stored form values back, ignoring anything that is not the expected shape. */
+function toDraft(pending: Record<string, unknown>): ApiKeyDraft {
+  const { name, scopes, expiresAt } = pending
+  return {
+    name: typeof name === 'string' ? name : '',
+    scopes: Array.isArray(scopes) ? API_KEY_SCOPES.filter((scope) => scopes.includes(scope)) : [],
+    expiresAt: typeof expiresAt === 'string' ? expiresAt : null,
+  }
+}
+
+/** Reopens the create dialog, with its form restored, once the identity-provider sign-in returns. */
+onMounted(() => {
+  if (props.resume?.action === 'api_key_create') {
+    createDraft.value = toDraft(props.resume.pending)
+    createReauth.value = props.resume.reauth
+    isCreateOpen.value = true
+  }
+})
 
 /** Formats an ISO date in the active locale, or `''` when unparseable. */
 function formatDate(iso: string): string {
@@ -60,11 +88,16 @@ function onCreate(input: ApiKeyCreateInput): void {
   createMutation.mutate(input, {
     onSuccess: (rawKey) => {
       isCreateOpen.value = false
+      createReauth.value = null
+      createDraft.value = null
       newApiKey.value = rawKey
       isRevealOpen.value = true
       toasts.success(t('settings.security.apiKeys.createSuccess'))
     },
     onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
       if (error instanceof HttpError && error.status === 401) {
         toasts.error(t('settings.security.apiKeys.invalidCredentials'))
       } else if (error instanceof HttpError && error.status === 400) {
@@ -211,6 +244,8 @@ function confirmDelete(): void {
 
     <ApiKeyCreateDialog
       v-model:open="isCreateOpen"
+      v-model:reauth="createReauth"
+      :draft="createDraft"
       :require-password="hasLocalPassword"
       :require-mfa="mfaEnabled"
       :pending="createMutation.isPending.value"
