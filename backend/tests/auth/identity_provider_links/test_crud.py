@@ -54,7 +54,7 @@ def test_create_link_stages_row_and_translates_unique_race(mock_db):
     with (
         patch("modules.auth.identity_provider_links.crud.identity_link_models.IdentityLink", return_value=row),
         patch(
-            "modules.auth.identity_provider_links.crud.identity_link_serializers.to_read_contract",
+            "modules.auth.identity_provider_links.crud.identity_link_serializers.to_read_schema",
             return_value=identity_links_contracts.IdentityLinkRead.model_validate(row),
         ),
     ):

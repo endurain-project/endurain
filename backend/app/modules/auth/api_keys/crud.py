@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -12,15 +12,30 @@ import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.serializers as api_keys_serializers
 
 
-def get_api_keys_by_user_id(user_id: int, db: Session) -> list[api_keys_schema.UsersApiKeyRead]:
-    """Return an owner's API keys in creation order."""
+def get_api_keys_page(
+    user_id: int,
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+) -> list[api_keys_schema.UsersApiKeyRead]:
+    """Return one window of an owner's API keys, newest first with the id as tiebreak."""
     stmt = (
         select(api_keys_models.UsersApiKeys)
         .where(api_keys_models.UsersApiKeys.user_id == user_id)
-        .order_by(api_keys_models.UsersApiKeys.created_at.desc())
+        .order_by(api_keys_models.UsersApiKeys.created_at.desc(), api_keys_models.UsersApiKeys.id)
+        .limit(limit)
+        .offset(offset)
     )
     rows = db.execute(stmt).scalars()
     return [api_keys_serializers.to_read_schema(row) for row in rows]
+
+
+def count_api_keys(user_id: int, db: Session) -> int:
+    """Return how many API keys an owner has."""
+    return db.execute(
+        select(func.count(api_keys_models.UsersApiKeys.id)).where(api_keys_models.UsersApiKeys.user_id == user_id)
+    ).scalar_one()
 
 
 def get_api_key_by_id(api_key_id: str, user_id: int, db: Session) -> api_keys_schema.UsersApiKeyRead | None:

@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Security, status
 
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.api_key_service as api_key_service
 import modules.auth.api_keys.schema as api_keys_schema
@@ -15,15 +16,25 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=list[api_keys_schema.UsersApiKeyRead],
+    response_model=api_keys_schema.UsersApiKeyPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-def get_user_api_keys(
+def list_user_api_keys(
     token_user_id: auth_dependencies.CurrentUserId,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     db: core_dependencies.DbSession,
-) -> list[api_keys_schema.UsersApiKeyRead]:
-    """List API keys for the authenticated user."""
-    return api_key_service.get_user_api_keys(token_user_id, db)
+) -> api_keys_schema.UsersApiKeyPage:
+    """List one page of API keys for the authenticated user.
+
+    Args:
+        token_user_id: User ID from access token.
+        page: The requested window.
+        db: Database session.
+
+    Returns:
+        The page of API keys, newest first.
+    """
+    return api_key_service.list_user_api_keys(token_user_id, page, db)
 
 
 @router.post(

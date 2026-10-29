@@ -22,7 +22,7 @@ def get_user_identity_providers_by_user_id(user_id: int, db: Session) -> list[id
     """Return the user's identity-provider links."""
     statement = select(identity_link_models.IdentityLink).where(identity_link_models.IdentityLink.user_id == user_id)
     rows = db.execute(statement).scalars().all()
-    return [identity_link_serializers.to_read_contract(row) for row in rows]
+    return [identity_link_serializers.to_read_schema(row) for row in rows]
 
 
 def get_user_identity_provider_by_user_id_and_idp_id(
@@ -36,7 +36,7 @@ def get_user_identity_provider_by_user_id_and_idp_id(
         identity_link_models.IdentityLink.idp_id == idp_id,
     )
     row = db.execute(statement).scalar_one_or_none()
-    return identity_link_serializers.to_read_contract(row) if row is not None else None
+    return identity_link_serializers.to_read_schema(row) if row is not None else None
 
 
 def get_user_identity_provider_by_subject_and_idp_id(
@@ -50,7 +50,7 @@ def get_user_identity_provider_by_subject_and_idp_id(
         identity_link_models.IdentityLink.idp_subject == idp_subject,
     )
     row = db.execute(statement).scalar_one_or_none()
-    return identity_link_serializers.to_read_contract(row) if row is not None else None
+    return identity_link_serializers.to_read_schema(row) if row is not None else None
 
 
 def create_user_identity_provider(
@@ -73,7 +73,7 @@ def create_user_identity_provider(
             db.flush()
     except IntegrityError as err:
         raise core_exceptions.ConflictError("Identity provider already linked") from err
-    return identity_link_serializers.to_read_contract(row)
+    return identity_link_serializers.to_read_schema(row)
 
 
 def update_user_identity_provider_last_login(
@@ -92,7 +92,7 @@ def update_user_identity_provider_last_login(
         return None
     row.last_login = datetime.now(UTC)
     db.flush()
-    return identity_link_serializers.to_read_contract(row)
+    return identity_link_serializers.to_read_schema(row)
 
 
 def store_user_identity_provider_tokens(
@@ -115,7 +115,7 @@ def store_user_identity_provider_tokens(
     row.idp_access_token_expires_at = access_token_expires_at
     row.idp_refresh_token_updated_at = datetime.now(UTC)
     db.flush()
-    return identity_link_serializers.to_read_contract(row)
+    return identity_link_serializers.to_read_schema(row)
 
 
 def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(

@@ -67,7 +67,7 @@ def _held_lock(lock_name: str) -> Generator[bool]:
         yield acquired
 
 
-def _run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
+def run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
     """Run a synchronous scheduled job only while holding its distributed lock.
 
     Args:
@@ -153,7 +153,7 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
         func = job.func
         args: Sequence[object] = job.args
         if job.lock_name is not None:
-            func = _run_locked_async_job if inspect.iscoroutinefunction(job.func) else _run_locked_job
+            func = _run_locked_async_job if inspect.iscoroutinefunction(job.func) else run_locked_job
             args = (job.lock_name, job.func, *job.args)
         add_scheduler_job(func, "interval", job.minutes, args, job.description)
 
@@ -186,7 +186,7 @@ def run_once(func: Callable[..., object], *, job_id: str, description: str, lock
     """
     args: tuple[object, ...] = ()
     if lock_name is not None:
-        func, args = _run_locked_job, (lock_name, func)
+        func, args = run_locked_job, (lock_name, func)
     try:
         scheduler.add_job(
             func,

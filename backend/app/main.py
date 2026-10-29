@@ -264,7 +264,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     for task in runtime_module_registry.startup_tasks():
         logger.info(task.description, extra=core_logger.context(console=True))
-        _safe_run(task.name, task.func)
+        _safe_run(task.name, task.run)
 
     logger.info(
         "Initializing allowed tile domains for Content Security Policy", extra=core_logger.context(console=True)
@@ -318,7 +318,8 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
         core_db_engine.dispose()
     except Exception as err:
         logger.error(
-            f"Error disposing database engine on shutdown: {type(err).__name__}",
+            "Error disposing database engine on shutdown",
+            exc_info=err,
             extra=core_logger.context(console=True),
         )
 

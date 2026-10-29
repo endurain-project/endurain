@@ -1,4 +1,4 @@
-"""Admin API endpoints for auth sessions."""
+"""Admin API endpoints for auth sessions, served under ``/users/{user_id}/sessions``."""
 
 from typing import Annotated
 
@@ -18,7 +18,7 @@ SessionId = Annotated[str, Path()]
 
 
 @router.get(
-    "/user/{user_id}",
+    "/{user_id}/sessions",
     response_model=sessions_schema.UsersSessionsPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:read"])],
 )
@@ -44,7 +44,7 @@ def read_sessions_user(
 
 
 @router.delete(
-    "/{session_id}/user/{user_id}",
+    "/{user_id}/sessions/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:write"])],
@@ -75,7 +75,7 @@ def delete_session_user(
 
 
 @router.delete(
-    "/user/{user_id}",
+    "/{user_id}/sessions",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:write"])],

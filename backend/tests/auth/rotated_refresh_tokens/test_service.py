@@ -257,7 +257,7 @@ class TestCleanupExpiredRotatedTokens:
         db = MagicMock()
         mock_session_local.return_value.__enter__.return_value = db
         mock_delete.return_value = 10
-        rotated_token_jobs.cleanup_expired_rotated_tokens()
+        rotated_token_jobs.delete_expired_rotated_tokens()
         mock_delete.assert_called_once()
         db.commit.assert_called_once()
 
@@ -267,7 +267,7 @@ class TestCleanupExpiredRotatedTokens:
         mock_session_local.return_value.__enter__.return_value = MagicMock()
         mock_delete.return_value = 0
         before = datetime.now(UTC)
-        rotated_token_jobs.cleanup_expired_rotated_tokens()
+        rotated_token_jobs.delete_expired_rotated_tokens()
         cutoff = mock_delete.call_args.args[0]
         lifetime = timedelta(days=core_config.settings.REFRESH_TOKEN_EXPIRE_DAYS)
         assert before - lifetime <= cutoff <= datetime.now(UTC) - lifetime

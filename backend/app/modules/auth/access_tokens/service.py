@@ -4,7 +4,6 @@ Defines :class:`TokenType`, :class:`TokenManager` (issue/decode/validate JWTs
 and mint CSRF tokens) and a singleton accessor used as a FastAPI dependency.
 """
 
-import logging
 import os
 import secrets
 import uuid
@@ -263,9 +262,9 @@ class TokenManager:
 
         Wraps :meth:`validate_token_expiration` for ``TokenType.ACCESS`` and
         applies the shared logging policy used by the access-token validation
-        dependency and principal resolution: expired tokens log at ``debug``
-        (an expected, routine condition) while all other validation failures
-        log at ``error``. The original :class:`core_exceptions.UnauthenticatedError` is re-raised
+        dependency and principal resolution: a refused token is an expected 401, so
+        it logs at ``debug`` here (the manager already warned about anything but an
+        expiry). The original :class:`core_exceptions.UnauthenticatedError` is re-raised
         unchanged so callers keep the same 401 semantics.
 
         Args:
@@ -277,12 +276,9 @@ class TokenManager:
         """
         try:
             self.validate_token_expiration(access_token, TokenType.ACCESS)
-        except core_exceptions.UnauthenticatedError as http_err:
-            log_level = logging.DEBUG if "expired" in http_err.detail.lower() else logging.ERROR
-            logger.log(
-                log_level,
+        except core_exceptions.UnauthenticatedError:
+            logger.debug(
                 "Access token validation failed",
-                exc_info=http_err,
                 extra=core_logger.context(credential="access_token"),
             )
             raise

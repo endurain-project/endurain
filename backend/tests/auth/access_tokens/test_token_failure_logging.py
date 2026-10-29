@@ -69,3 +69,33 @@ class TestFailedLoginIsLogged:
         assert len(warnings) == 1
         assert "alice-the-user" not in warnings[0].getMessage()
         assert "alice-the-user" not in str(getattr(warnings[0], "__dict__", {}))
+
+
+def test_a_refused_access_token_is_logged_below_error(token_manager, caplog):
+    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.UnauthenticatedError):
+        token_manager.validate_access_expiration_logged("garbage")
+
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert all(record.exc_info is None for record in caplog.records if record.levelno >= logging.WARNING)
+
+
+class TestRefusedCredentialsAreLogged:
+    """A guessed or stale credential is a security refusal: the service says so at WARNING."""
+
+    def test_an_unknown_api_key_is_a_warning(self, caplog):
+        from unittest.mock import MagicMock, patch
+
+        import modules.auth.authentication.principal_service as principal_service
+
+        with (
+            caplog.at_level(logging.DEBUG),
+            patch.object(principal_service.api_keys_integration, "hash_api_key", return_value="0" * 64),
+            patch.object(principal_service.api_keys_integration, "get_api_key_by_hash", return_value=None),
+            pytest.raises(core_exceptions.UnauthenticatedError),
+        ):
+            principal_service.resolve_from_api_key("endu_unknown", "/api/v1/x", "203.0.113.9", MagicMock())
+
+        warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert "endu_unknown" not in warnings[0].getMessage()
+        assert "endu_unknown" not in str(warnings[0].__dict__)

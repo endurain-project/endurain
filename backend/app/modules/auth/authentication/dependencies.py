@@ -1,6 +1,5 @@
 """Authentication transport dependencies and refresh-cookie helpers."""
 
-import logging
 from typing import Annotated, Any
 
 from fastapi import Depends, Request, Response
@@ -148,6 +147,7 @@ def get_token(
             if non_cookie_token is None:
                 raise core_exceptions.UnauthenticatedError("Refresh token missing from Authorization header")
             return non_cookie_token
+    logger.warning("Token lookup refused: unsupported client type or token type")
     raise core_exceptions.PermissionDeniedError("Invalid client type or token type")
 
 
@@ -176,14 +176,9 @@ def validate_refresh_token(
     try:
         token_manager.validate_token_expiration(refresh_token, access_tokens_integration.TokenType.REFRESH)
     except core_exceptions.DomainError as http_err:
-        log_level = logging.DEBUG if "expired" in http_err.detail.lower() else logging.ERROR
-        logger.log(
-            log_level,
+        logger.debug(
             "Refresh token validation failed: <detail>",
-            exc_info=http_err,
-            extra=dict(
-                {**core_logger.context(credential="refresh_token"), **core_logger.context(detail=http_err.detail)}
-            ),
+            extra=core_logger.context(credential="refresh_token", detail=http_err.detail),
         )
         if isinstance(http_err.__cause__, MissingClaimError):
             raise ClearRefreshTokenCookieError(http_err.detail) from http_err

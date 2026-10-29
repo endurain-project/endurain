@@ -231,6 +231,7 @@ def validate_and_claim_browser_link_token(
     link_token_hash = identity_provider_link_tokens_integration.hash_idp_link_token(link_token)
     db_token = identity_provider_link_tokens_integration.get_idp_link_token_by_hash(link_token_hash, db)
     if not db_token:
+        logger.warning("IdP link refused: unknown or expired link token", extra=core_logger.context(idp_id=idp_id))
         raise core_exceptions.UnauthenticatedError("Invalid or expired link token")
 
     if db_token.idp_id != idp_id:

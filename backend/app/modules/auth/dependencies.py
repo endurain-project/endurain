@@ -63,6 +63,7 @@ def _require_scopes(granted: Iterable[str], required: SecurityScopes) -> None:
     """
     missing = set(required.scopes) - set(granted)
     if missing:
+        logger.warning("Request refused: missing scopes <scopes>", extra=core_logger.context(scopes=sorted(missing)))
         error = core_exceptions.PermissionDeniedError(f"Unauthorized Access - Missing permissions: {missing}")
         error.headers = {"WWW-Authenticate": f'Bearer scope="{required.scopes}"'}
         raise error

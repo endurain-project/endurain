@@ -29,13 +29,19 @@ def _row(**overrides):
     return SimpleNamespace(**values)
 
 
-def test_get_api_keys_returns_read_dtos(mock_db):
+def test_get_api_keys_page_returns_read_dtos(mock_db):
     row = _row()
     mock_db.execute.return_value.scalars.return_value = [row]
 
-    result = api_keys_crud.get_api_keys_by_user_id(1, mock_db)
+    result = api_keys_crud.get_api_keys_page(1, mock_db, limit=25, offset=0)
 
     assert result == [api_keys_schema.UsersApiKeyRead.model_validate(row)]
+
+
+def test_count_api_keys_returns_owner_total(mock_db):
+    mock_db.execute.return_value.scalar_one.return_value = 3
+
+    assert api_keys_crud.count_api_keys(1, mock_db) == 3
 
 
 def test_get_api_key_by_id_and_hash_return_read_dtos(mock_db):

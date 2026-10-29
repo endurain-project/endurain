@@ -57,7 +57,7 @@ def store_user_identity_provider_tokens(
     )
 
 
-def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id: int, idp_id: int, db: Session) -> bool:
+def clear_user_identity_provider_refresh_token(user_id: int, idp_id: int, db: Session) -> bool:
     """Stage removal of stored provider-token metadata."""
     return identity_link_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id, idp_id, db)
 

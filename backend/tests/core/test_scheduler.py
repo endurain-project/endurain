@@ -58,13 +58,13 @@ class TestStartScheduler:
             patch("core.scheduler.add_scheduler_job") as mock_add_job,
         ):
             mock_scheduler.running = True
-            from core.scheduler import ScheduledJob, _run_locked_job, start_scheduler
+            from core.scheduler import ScheduledJob, run_locked_job, start_scheduler
 
             operation = MagicMock()
             start_scheduler([ScheduledJob(operation, 5, "locked", [1], "provider_sync")])
 
             mock_add_job.assert_called_once_with(
-                _run_locked_job,
+                run_locked_job,
                 "interval",
                 5,
                 ("provider_sync", operation, 1),
@@ -162,22 +162,22 @@ class TestLockedSchedulerJobs:
 
     @patch("core.scheduler.platform_runtime")
     def test_sync_job_runs_when_lock_is_acquired(self, mock_runtime):
-        from core.scheduler import _run_locked_job
+        from core.scheduler import run_locked_job
 
         mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = True
         operation = MagicMock(return_value="done")
 
-        assert _run_locked_job("provider_sync", operation, 1) == "done"
+        assert run_locked_job("provider_sync", operation, 1) == "done"
         operation.assert_called_once_with(1)
 
     @patch("core.scheduler.platform_runtime")
     def test_sync_job_skips_when_lock_is_held(self, mock_runtime):
-        from core.scheduler import _run_locked_job
+        from core.scheduler import run_locked_job
 
         mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = False
         operation = MagicMock()
 
-        assert _run_locked_job("provider_sync", operation, 1) is None
+        assert run_locked_job("provider_sync", operation, 1) is None
         operation.assert_not_called()
 
     @patch("core.scheduler.platform_runtime")
@@ -227,5 +227,5 @@ def test_run_once_with_a_lock_runs_the_job_only_under_that_lock():
     with patch.object(core_scheduler.scheduler, "add_job") as add_job:
         core_scheduler.run_once(print, job_id="job", description="job", lock_name="lock")
 
-    assert add_job.call_args.args[0] is core_scheduler._run_locked_job
+    assert add_job.call_args.args[0] is core_scheduler.run_locked_job
     assert add_job.call_args.kwargs["args"] == ("lock", print)

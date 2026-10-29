@@ -47,7 +47,7 @@ def sessions_app(mock_db) -> FastAPI:
     app = FastAPI()
     app.include_router(
         users_sessions_router.router,
-        prefix="/sessions",
+        prefix="/users",
     )
 
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
@@ -71,12 +71,12 @@ def sessions_client(sessions_app: FastAPI) -> TestClient:
 
 
 # ---------------------------------------------------------------------------
-# GET /sessions/user/{user_id}
+# GET /users/{user_id}/sessions
 # ---------------------------------------------------------------------------
 
 
 class TestReadSessionsUser:
-    """Tests for GET /sessions/user/{user_id}."""
+    """Tests for GET /users/{user_id}/sessions."""
 
     @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
     def test_returns_a_page_of_sessions_for_user(self, mock_list, sessions_client) -> None:
@@ -99,7 +99,7 @@ class TestReadSessionsUser:
         )
         mock_list.return_value = users_session_schema.UsersSessionsPage.build([session], 3, 2, 1)
 
-        response = sessions_client.get("/sessions/user/5?page_number=2&num_records=1")
+        response = sessions_client.get("/users/5/sessions?page_number=2&num_records=1")
 
         assert response.status_code == status.HTTP_200_OK
         body = response.json()
@@ -112,7 +112,7 @@ class TestReadSessionsUser:
         """Omitted paging parameters resolve to the default window."""
         mock_list.return_value = users_session_schema.UsersSessionsPage.build([], 0, 1, 25)
 
-        response = sessions_client.get("/sessions/user/42")
+        response = sessions_client.get("/users/42/sessions")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["items"] == []
@@ -120,7 +120,7 @@ class TestReadSessionsUser:
 
     def test_rejects_an_oversized_page(self, sessions_client) -> None:
         """A page size above the cap is a validation error."""
-        response = sessions_client.get("/sessions/user/1?num_records=201")
+        response = sessions_client.get("/users/1/sessions?num_records=201")
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
@@ -129,7 +129,7 @@ class TestReadSessionsUser:
         """Demo hides sessions without querying the database."""
         mock_settings.ENVIRONMENT = "demo"
 
-        response = sessions_client.get("/sessions/user/1")
+        response = sessions_client.get("/users/1/sessions")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["items"] == []
@@ -143,18 +143,18 @@ class TestReadSessionsUser:
             detail="Database error occurred",
         )
 
-        response = sessions_client.get("/sessions/user/1")
+        response = sessions_client.get("/users/1/sessions")
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 # ---------------------------------------------------------------------------
-# DELETE /sessions/{session_id}/user/{user_id}
+# DELETE /users/{user_id}/sessions/{session_id}
 # ---------------------------------------------------------------------------
 
 
 class TestDeleteSessionUser:
-    """Tests for DELETE /sessions/{session_id}/user/{user_id}."""
+    """Tests for DELETE /users/{user_id}/sessions/{session_id}."""
 
     @patch("modules.auth.sessions.router.sessions_service.delete_session")
     def test_delete_session_success_returns_204(
@@ -167,7 +167,7 @@ class TestDeleteSessionUser:
         """
         mock_delete.return_value = None
 
-        response = sessions_client.delete("/sessions/session-abc/user/1")
+        response = sessions_client.delete("/users/1/sessions/session-abc")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         mock_delete.assert_called_once()
@@ -186,7 +186,7 @@ class TestDeleteSessionUser:
             detail="Session not found",
         )
 
-        response = sessions_client.delete("/sessions/no-such-session/user/1")
+        response = sessions_client.delete("/users/1/sessions/no-such-session")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -205,7 +205,7 @@ class TestDeleteSessionUser:
             detail="Session not found",
         )
 
-        response = sessions_client.delete("/sessions/session-abc/user/99")
+        response = sessions_client.delete("/users/99/sessions/session-abc")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -222,7 +222,7 @@ class TestDeleteSessionUser:
         """
         mock_delete.return_value = None
 
-        sessions_client.delete("/sessions/my-session-id/user/7")
+        sessions_client.delete("/users/7/sessions/my-session-id")
 
         mock_delete.assert_called_once_with("my-session-id", 7, mock_db)
 
@@ -240,18 +240,18 @@ class TestDeleteSessionUser:
             detail="Database error occurred",
         )
 
-        response = sessions_client.delete("/sessions/session-abc/user/1")
+        response = sessions_client.delete("/users/1/sessions/session-abc")
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 # ---------------------------------------------------------------------------
-# DELETE /sessions/user/{user_id}
+# DELETE /users/{user_id}/sessions
 # ---------------------------------------------------------------------------
 
 
 class TestDeleteSessionsUser:
-    """Tests for DELETE /sessions/user/{user_id}."""
+    """Tests for DELETE /users/{user_id}/sessions."""
 
     @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
     def test_delete_all_sessions_success_returns_204(
@@ -266,7 +266,7 @@ class TestDeleteSessionsUser:
         """
         mock_delete.return_value = 3
 
-        response = sessions_client.delete("/sessions/user/7")
+        response = sessions_client.delete("/users/7/sessions")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         mock_delete.assert_called_once_with(7, mock_db, exclude_session_id=None)
@@ -285,7 +285,7 @@ class TestDeleteSessionsUser:
         mock_delete.return_value = 2
 
         response = sessions_client.delete(
-            "/sessions/user/7",
+            "/users/7/sessions",
             params={"exclude_session_id": "keep-this-session"},
         )
 
@@ -310,6 +310,6 @@ class TestDeleteSessionsUser:
             detail="Database error occurred",
         )
 
-        response = sessions_client.delete("/sessions/user/1")
+        response = sessions_client.delete("/users/1/sessions")
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -13,7 +13,7 @@ logger = core_logger.get_logger(__name__)
 CLEANUP_LOCK_NAME = "auth_rotated_refresh_tokens_cleanup"
 
 
-def cleanup_expired_rotated_tokens() -> None:
+def delete_expired_rotated_tokens() -> None:
     """Delete rotated-token rows older than the refresh-token lifetime in a short-lived transaction.
 
     A rotated token stays recorded until it could no longer be presented, so a replay after the grace
@@ -31,7 +31,7 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
     """Return recurring rotated-token maintenance work."""
     return (
         core_scheduler.ScheduledJob(
-            cleanup_expired_rotated_tokens,
+            delete_expired_rotated_tokens,
             1,
             "cleanup expired rotated refresh tokens",
             lock_name=CLEANUP_LOCK_NAME,

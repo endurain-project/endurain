@@ -45,7 +45,6 @@ import modules.activities.contributor_registry as activities_contributor_registr
 import modules.auth.authentication.subscriber_registry as authentication_subscriber_registry
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_provider_link_tokens_scheduled_jobs
 import modules.auth.identity_providers.subscriber_registry as identity_providers_subscriber_registry
-import modules.auth.mfa.scheduled_jobs as auth_mfa_scheduled_jobs
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_scheduled_jobs
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
@@ -156,6 +155,17 @@ class StartupTask:
     name: str
     description: str
     func: Callable[[], None]
+    lock_name: str | None = None
+
+    def run(self) -> None:
+        """Run the task, holding its distributed lock when it declares one.
+
+        A replica that does not get the lock skips the task, so a purge every replica starts at once runs once.
+        """
+        if self.lock_name is None:
+            self.func()
+        else:
+            core_scheduler.run_locked_job(self.lock_name, self.func)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -249,12 +259,12 @@ MODULES: tuple[RuntimeModule, ...] = (
                 "purge_expired_oauth_states",
                 "Purging expired OAuth states",
                 oauth_state_scheduled_jobs.delete_expired_oauth_states_from_db,
+                lock_name=oauth_state_scheduled_jobs.PURGE_LOCK_NAME,
             ),
         ),
     ),
     RuntimeModule(name="sessions", recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="rotated_refresh_tokens", recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs),
-    RuntimeModule(name="mfa", recurring_jobs=auth_mfa_scheduled_jobs.recurring_jobs),
     RuntimeModule(
         name="identity_providers",
         register_bus=identity_providers_subscriber_registry.register_bus_subscribers,
@@ -269,6 +279,7 @@ MODULES: tuple[RuntimeModule, ...] = (
                 "purge_expired_identity_provider_link_tokens",
                 "Purging expired identity-provider link tokens",
                 identity_provider_link_tokens_scheduled_jobs.delete_expired_tokens_from_db,
+                lock_name=identity_provider_link_tokens_scheduled_jobs.PURGE_LOCK_NAME,
             ),
         ),
     ),
@@ -283,6 +294,7 @@ MODULES: tuple[RuntimeModule, ...] = (
                 "purge_expired_password_reset_tokens",
                 "Purging expired password reset tokens",
                 password_reset_tokens_scheduled_jobs.delete_expired_tokens_from_db,
+                lock_name=password_reset_tokens_scheduled_jobs.PURGE_LOCK_NAME,
             ),
         ),
     ),
@@ -297,6 +309,7 @@ MODULES: tuple[RuntimeModule, ...] = (
                 "purge_expired_sign_up_tokens",
                 "Purging expired sign-up tokens",
                 sign_up_tokens_scheduled_jobs.delete_expired_tokens_from_db,
+                lock_name=sign_up_tokens_scheduled_jobs.PURGE_LOCK_NAME,
             ),
         ),
     ),

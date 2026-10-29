@@ -475,6 +475,13 @@ def _refuse_while_mfa_locked_out(username: str, pending_mfa_store: mfa_dependenc
             lockout_until = pending_mfa_store.get_lockout_time(username)
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
+                logger.warning(
+                    "MFA attempt refused: account locked out",
+                    extra=core_logger.context(
+                        username_log_id=lockout_integration.username_log_identifier(username),
+                        seconds_remaining=seconds_remaining,
+                    ),
+                )
                 raise core_exceptions.TooManyRequestsError(
                     f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds."
                 )
@@ -634,6 +641,13 @@ def login_for_access_token(
             lockout_until = failed_attempts.get_lockout_time(username)
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
+                logger.warning(
+                    "Login refused: account locked out",
+                    extra=core_logger.context(
+                        username_log_id=lockout_integration.username_log_identifier(username),
+                        seconds_remaining=seconds_remaining,
+                    ),
+                )
                 raise core_exceptions.TooManyRequestsError(
                     f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds."
                 )
@@ -856,6 +870,10 @@ def _replay_rotation(
     if replay is None:
         # Replacement was cleaned up (or never stored); fall back to the
         # standard invalid-token response.
+        logger.warning(
+            "Refresh token replay refused: no replacement stored for user <token_user_id>",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
         raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
     replay_refresh_token, replay_refresh_token_exp = replay
@@ -988,6 +1006,10 @@ def refresh_token(
         and not sessions_integration.verify_csrf_token(x_csrf_token, session.csrf_token_hash)
     ):
         # CSRF token was provided: validate it
+        logger.warning(
+            "Token refresh refused: invalid CSRF token for user <token_user_id>",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
         raise core_exceptions.PermissionDeniedError("Invalid CSRF token")
 
     # Verify session has a refresh token (not pending PKCE exchange)
@@ -1005,6 +1027,10 @@ def refresh_token(
         sessions_integration.invalidate_token_family(session.token_family_id, db)
         # The family stays invalidated although this request is refused.
         db.commit()
+        logger.warning(
+            "Refresh token reuse detected for user <token_user_id>; token family invalidated",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
         raise core_exceptions.UnauthenticatedError("Token reuse detected. All sessions invalidated.", scheme="Bearer")
 
     if is_reused and in_grace:
@@ -1015,6 +1041,10 @@ def refresh_token(
     is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
 
     if not is_valid:
+        logger.warning(
+            "Token refresh refused: refresh token does not match session for user <token_user_id>",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
         raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
     # get user
@@ -1137,6 +1167,10 @@ def logout(
 
         # If the refresh token is not valid, raise an exception
         if not is_valid:
+            logger.warning(
+                "Logout refused: refresh token does not match session for user <token_user_id>",
+                extra=core_logger.context(token_user_id=token_user_id),
+            )
             raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
         # Delete the session from the database

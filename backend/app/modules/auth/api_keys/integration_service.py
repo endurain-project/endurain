@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 
+import core.pagination as core_pagination
 import modules.auth.api_keys.crud as api_keys_crud
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.service as api_keys_service
@@ -38,9 +39,9 @@ def validate_api_key_scopes(scopes: list[str]) -> None:
     api_keys_utils.validate_api_key_scopes(scopes)
 
 
-def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersApiKeyRead]:
-    """List API keys owned by a user."""
-    return api_keys_crud.get_api_keys_by_user_id(user_id, db)
+def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UsersApiKeyPage:
+    """Return one page of the API keys owned by a user."""
+    return api_keys_service.list_user_api_keys(user_id, page, db)
 
 
 def create_api_key(

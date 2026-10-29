@@ -11,6 +11,7 @@ from pydantic import (
     field_validator,
 )
 
+import core.pagination as core_pagination
 import modules.auth.api_keys.utils as api_keys_utils
 
 
@@ -144,3 +145,7 @@ class UsersApiKeyCreatedRead(UsersApiKeyRead):
         from_attributes=True,
         extra="forbid",
     )
+
+
+#: One page of a user's API keys.
+UsersApiKeyPage = core_pagination.Page[UsersApiKeyRead]

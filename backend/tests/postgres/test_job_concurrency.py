@@ -294,7 +294,7 @@ class TestRegenerationLock:
         release, thread = self._hold(lock, thumbnail_service.BACKFILL_LOCK_NAME)
         try:
             with patch.object(core_scheduler.platform_runtime, "get_active_platform", return_value=platform):
-                core_scheduler._run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
+                core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
         finally:
             release.set()
             thread.join(timeout=10)
@@ -307,6 +307,6 @@ class TestRegenerationLock:
         ran = []
         platform = type("Platform", (), {"lock": lock})()
         with patch.object(core_scheduler.platform_runtime, "get_active_platform", return_value=platform):
-            core_scheduler._run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
+            core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
 
         assert ran == [True]

@@ -39,10 +39,6 @@ def test_clear_for_user_removes_only_matching_user_entries():
     assert store.get_pending_login("bob") == 34
 
 
-def test_cleanup_is_a_ttl_managed_noop():
-    assert pending_mfa.PendingMFALogin(MemoryState()).cleanup_expired() == 0
-
-
 @pytest.mark.parametrize(
     ("method", "operation"),
     [

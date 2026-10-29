@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import NoReturn
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +28,27 @@ def _record_failure(step_up_store: account_security_step_up_store.StepUpStore, k
     """
     failed_attempts = step_up_store.record_failed_attempt(key)
     lockout_integration.report_lockout_applied("step_up", lockout_contracts.STEP_UP_LOCKOUT_TIERS, failed_attempts)
+
+
+def _refuse_step_up(
+    step_up_store: account_security_step_up_store.StepUpStore, key: str, user_id: int, detail: str
+) -> NoReturn:
+    """Record a failed step-up attempt, log it and refuse it.
+
+    Args:
+        step_up_store: Step-up lockout store.
+        key: Lockout key of the user.
+        user_id: Authenticated user ID, for the log.
+        detail: Client-facing reason for the refusal.
+
+    Raises:
+        UnauthenticatedError: Always raised.
+    """
+    _record_failure(step_up_store, key)
+    logger.warning(
+        "Step-up refused for user <user_id>: <detail>", extra=core_logger.context(user_id=user_id, detail=detail)
+    )
+    raise core_exceptions.UnauthenticatedError(detail, scheme="Bearer")
 
 
 def _step_up_key(user_id: int) -> str:
@@ -127,23 +149,19 @@ def verify_step_up_credentials(
     password_hash = credentials_integration.get_password_hash(user_id, db)
     if password_hash is not None:
         if not current_password:
-            _record_failure(step_up_store, key)
-            raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
+            _refuse_step_up(step_up_store, key, user_id, "Step-up verification failed")
         if not credentials_integration.verify_password(current_password, password_hash):
-            _record_failure(step_up_store, key)
-            raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
+            _refuse_step_up(step_up_store, key, user_id, "Step-up verification failed")
     # else: SSO-only account; no password to verify. See docstring
     # and docs/developer-guide/auth-boundary.md "Known Structural Debt".
 
     if mfa_integration.is_mfa_enabled_for_user(user_id, db):
         if not mfa_code:
-            _record_failure(step_up_store, key)
-            raise core_exceptions.UnauthenticatedError("MFA code required for this operation", scheme="Bearer")
+            _refuse_step_up(step_up_store, key, user_id, "MFA code required for this operation")
         if not mfa_integration.verify_user_mfa(
             user_id, mfa_code, credentials_integration, db, replay_guard=step_up_store
         ):
-            _record_failure(step_up_store, key)
-            raise core_exceptions.UnauthenticatedError("Step-up verification failed", scheme="Bearer")
+            _refuse_step_up(step_up_store, key, user_id, "Step-up verification failed")
 
     # All factors passed — reset the failure counter.
     step_up_store.reset_attempts(key)
@@ -176,6 +194,7 @@ def verify_mfa_code(
     _raise_if_locked_out(step_up_store, key, user_id)
     if not mfa_integration.verify_user_mfa(user_id, mfa_code, credentials_integration, db, replay_guard=step_up_store):
         _record_failure(step_up_store, key)
+        logger.warning("MFA code refused for user <user_id>", extra=core_logger.context(user_id=user_id))
         return False
     step_up_store.reset_attempts(key)
     return True

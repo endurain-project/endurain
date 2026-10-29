@@ -93,8 +93,8 @@ def _decrypt_secret(encrypted_secret: str) -> str | None:
     """
     try:
         return core_cryptography.decrypt_token_fernet(encrypted_secret)
-    except core_exceptions.CryptographyError:
-        logger.warning("Could not decrypt the stored MFA setup secret", exc_info=True)
+    except core_exceptions.CryptographyError as err:
+        logger.warning("Could not decrypt the stored MFA setup secret", exc_info=err)
         return None
 
 

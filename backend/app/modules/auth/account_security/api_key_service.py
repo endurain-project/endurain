@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.api_keys.integration_service as api_keys_integration
@@ -12,9 +13,9 @@ import modules.users.users.integration_service as users_integration
 logger = core_logger.get_logger(__name__)
 
 
-def get_user_api_keys(user_id: int, db: Session) -> list[api_keys_schema.UsersApiKeyRead]:
-    """List the user's API keys."""
-    return api_keys_integration.get_user_api_keys(user_id, db)
+def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UsersApiKeyPage:
+    """Return one page of the user's API keys."""
+    return api_keys_integration.list_user_api_keys(user_id, page, db)
 
 
 def create_user_api_key(

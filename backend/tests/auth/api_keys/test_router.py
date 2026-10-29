@@ -15,8 +15,8 @@ class TestGetUserApiKeys:
     Test suite for GET /api-keys endpoint.
     """
 
-    @patch("modules.auth.account_security.api_keys_router.api_key_service.get_user_api_keys")
-    def test_get_user_api_keys_success(self, mock_get_keys, fast_api_client, fast_api_app):
+    @patch("modules.auth.account_security.api_keys_router.api_key_service.list_user_api_keys")
+    def test_list_user_api_keys_success(self, mock_get_keys, fast_api_client, fast_api_app):
         """Test successful retrieval of all API keys returns 200 with a list."""
         # Arrange
         now = datetime.now(UTC)
@@ -30,7 +30,9 @@ class TestGetUserApiKeys:
         mock_key.last_used_at = None
         mock_key.created_at = now
         mock_key.is_active = True
-        mock_get_keys.return_value = [mock_key]
+        mock_get_keys.return_value = api_keys_schema.UsersApiKeyPage.build(
+            [api_keys_schema.UsersApiKeyRead.model_validate(mock_key)], 1, 1, 25
+        )
 
         # Act
         response = fast_api_client.get(
@@ -41,14 +43,14 @@ class TestGetUserApiKeys:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
 
-    @patch("modules.auth.account_security.api_keys_router.api_key_service.get_user_api_keys")
-    def test_get_user_api_keys_empty(self, mock_get_keys, fast_api_client, fast_api_app):
+    @patch("modules.auth.account_security.api_keys_router.api_key_service.list_user_api_keys")
+    def test_list_user_api_keys_empty(self, mock_get_keys, fast_api_client, fast_api_app):
         """Test that an empty list is returned when the user has no API keys."""
         # Arrange
-        mock_get_keys.return_value = []
+        mock_get_keys.return_value = api_keys_schema.UsersApiKeyPage.build([], 0, 1, 25)
 
         # Act
         response = fast_api_client.get(
@@ -58,7 +60,8 @@ class TestGetUserApiKeys:
 
         # Assert
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []
+        assert response.json()["total"] == 0
 
 
 class TestCreateUserApiKey:
@@ -470,7 +473,7 @@ class TestApiKeyResponseSafety:
     response.
     """
 
-    @patch("modules.auth.account_security.api_keys_router.api_key_service.get_user_api_keys")
+    @patch("modules.auth.account_security.api_keys_router.api_key_service.list_user_api_keys")
     def test_list_response_excludes_key_and_key_hash(
         self,
         mock_get_keys,
@@ -495,7 +498,9 @@ class TestApiKeyResponseSafety:
         mock_key.last_used_at = None
         mock_key.created_at = now
         mock_key.is_active = True
-        mock_get_keys.return_value = [mock_key]
+        mock_get_keys.return_value = api_keys_schema.UsersApiKeyPage.build(
+            [api_keys_schema.UsersApiKeyRead.model_validate(mock_key)], 1, 1, 25
+        )
 
         response = fast_api_client.get(
             "/api-keys",
@@ -504,9 +509,8 @@ class TestApiKeyResponseSafety:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
-        item = data[0]
+        assert len(data["items"]) == 1
+        item = data["items"][0]
         assert "key" not in item, "Raw key must not appear in list response"
         assert "key_hash" not in item, "key_hash must not appear in list response"
 

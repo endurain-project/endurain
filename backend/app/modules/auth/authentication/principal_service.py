@@ -31,14 +31,14 @@ logger = core_logger.get_logger(__name__)
 
 
 def _build_principal(
-    user: object,
+    user: users_schema.UsersRead,
     scopes: list[str],
     credential: (PasswordCred | AccessTokenCred | ApiKeyCred | SessionCookieCred | OAuthCred),
 ) -> Principal:
-    """Build a ``Principal`` from an ORM user row.
+    """Build a ``Principal`` from a user read model.
 
     Args:
-        user: SQLAlchemy ``Users`` model instance.
+        user: The user read model.
         scopes: List of granted OAuth2 scope strings.
         credential: Typed credential variant.
 
@@ -47,13 +47,11 @@ def _build_principal(
             ``request.state``.
     """
     return Principal(
-        user_id=user.id,  # type: ignore[attr-defined]
-        username=user.username,  # type: ignore[attr-defined]
-        email=user.email,  # type: ignore[attr-defined]
-        is_active=bool(user.active),  # type: ignore[attr-defined]
-        is_superuser=(
-            user.access_type == "admin"  # type: ignore[attr-defined]
-        ),
+        user_id=user.id,
+        username=user.username,
+        email=user.email,
+        is_active=bool(user.active),
+        is_superuser=user.access_type == "admin",
         scopes=frozenset(scopes),
         credential=credential,
     )
@@ -119,10 +117,12 @@ def resolve_from_access_token(
 
     sub = token_manager.get_token_claim(access_token, "sub")
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
+        logger.warning("Access token refused: malformed 'sub' claim")
         raise core_exceptions.UnauthenticatedError("Invalid token: 'sub' claim must be a decimal string")
 
     sid = token_manager.get_token_claim(access_token, "sid")
     if not isinstance(sid, str):
+        logger.warning("Access token refused: malformed 'sid' claim")
         raise core_exceptions.UnauthenticatedError("Invalid token: 'sid' claim must be a string")
 
     user = users_integration.require_user(int(sub), db)
@@ -132,6 +132,10 @@ def resolve_from_access_token(
     # refresh-token theft delete the session, and that must end the access token as well.
     session = sessions_integration.get_session_by_id_not_expired(sid, db)
     if session is None or session.user_id != user.id:
+        logger.warning(
+            "Access token refused: its session is no longer valid for user <user_id>",
+            extra=core_logger.context(user_id=user.id),
+        )
         raise core_exceptions.UnauthenticatedError("Session is no longer valid", scheme="Bearer")
 
     # Scopes follow the user's current access type, not the claim minted into the token, so a demotion
@@ -177,15 +181,31 @@ def resolve_from_api_key(
         db_key = None
 
     if db_key is None:
+        logger.warning(
+            "API key refused: unknown key",
+            extra=core_logger.context(endpoint=endpoint, ip=ip_address),
+        )
         raise core_exceptions.UnauthenticatedError("Invalid API key", scheme="ApiKey")
 
     user = users_integration.require_user(db_key.user_id, db)
     users_integration.require_active_user(user)
 
     if not db_key.is_active:
+        logger.warning(
+            "API key refused: key was revoked",
+            extra=core_logger.context(
+                key_prefix=db_key.key_prefix, user_id=db_key.user_id, endpoint=endpoint, ip=ip_address
+            ),
+        )
         raise core_exceptions.UnauthenticatedError("API key has been revoked", scheme="ApiKey")
 
     if db_key.expires_at is not None and datetime.now(UTC) > db_key.expires_at:
+        logger.warning(
+            "API key refused: key has expired",
+            extra=core_logger.context(
+                key_prefix=db_key.key_prefix, user_id=db_key.user_id, endpoint=endpoint, ip=ip_address
+            ),
+        )
         raise core_exceptions.UnauthenticatedError("API key has expired", scheme="ApiKey")
 
     authentication_event_publishers.publish_api_key_used(db_key.id, db)
@@ -232,6 +252,7 @@ def resolve_from_session_cookie(
     """
     db_session = sessions_integration.get_session_by_id_not_expired(session_id, db)
     if db_session is None:
+        logger.warning("Session refused: not found or expired")
         raise core_exceptions.UnauthenticatedError("Session not found or expired", scheme="Bearer")
 
     user = users_integration.require_user(db_session.user_id, db)

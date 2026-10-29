@@ -12,7 +12,7 @@ def get_user_mfa_row(user_id: int, db: Session) -> mfa_contracts.MFAStateRead | 
     """Return the MFA state for a user."""
     stmt = select(auth_mfa_models.UsersMFA).where(auth_mfa_models.UsersMFA.user_id == user_id)
     row = db.execute(stmt).scalar_one_or_none()
-    return mfa_serializers.to_state_read(row) if row is not None else None
+    return mfa_serializers.to_read_schema(row) if row is not None else None
 
 
 def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, bool]:
@@ -47,4 +47,4 @@ def create_users_mfa_row(user_id: int, db: Session) -> mfa_contracts.MFAStateRea
     db.add(row)
     db.flush()
     db.refresh(row)
-    return mfa_serializers.to_state_read(row)
+    return mfa_serializers.to_read_schema(row)
