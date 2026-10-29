@@ -27,3 +27,8 @@ class FollowStatus(StrEnum):
 #: Follow requests a user may have waiting for their decision. Past it, new requests are refused, so a
 #: script cannot flood one user with requests and notifications.
 MAX_PENDING_REQUESTS = 200
+
+#: Accepted followees a user may have. Activities' feed and visibility filters put every followee id in an
+#: ``IN (...)`` list, so the count is bounded to keep those queries small. It is far above any real
+#: following list; past it, new acceptances are refused and existing relationships are left untouched.
+MAX_ACCEPTED_FOLLOWEES = 1000

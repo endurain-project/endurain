@@ -426,8 +426,19 @@ def accept_follow_request(
         The accepted relationship, read back after the flush.
 
     Raises:
+        ConflictError: When the requester already follows the maximum number of users.
         NotFoundError: When no pending request from that user exists.
     """
+    followers_crud.lock_accepted_followees(follower_id, db)
+    if (
+        followers_crud.count_following_by_user_id(follower_id, db, accepted_only=True)
+        >= followers_constants.MAX_ACCEPTED_FOLLOWEES
+    ):
+        logger.warning(
+            "Refused a follow acceptance: the follower follows too many users",
+            extra=core_logger.context(requester_user_id=requester_user_id, follower_id=follower_id),
+        )
+        raise core_exceptions.ConflictError("This user already follows the maximum number of users")
     relationship = followers_crud.accept_follower(requester_user_id, follower_id, db)
     followers_event_publishers.publish_follower_accepted(requester_user_id, follower_id, db, commit=db.commit)
     logger.debug(

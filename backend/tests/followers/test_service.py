@@ -255,10 +255,46 @@ class TestAcceptFollowRequest:
         from modules.followers.service import accept_follow_request
 
         db = MagicMock()
+        mock_crud.count_following_by_user_id.return_value = 0
         accept_follow_request(1, 2, db)
 
         mock_crud.accept_follower.assert_called_once_with(1, 2, db)
         mock_pub.publish_follower_accepted.assert_called_once_with(1, 2, db, commit=db.commit)
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_follower_at_the_followee_cap_cannot_be_accepted(self, mock_crud, mock_pub):
+        import core.exceptions as core_exceptions
+        from modules.followers.constants import MAX_ACCEPTED_FOLLOWEES
+        from modules.followers.service import accept_follow_request
+
+        db = MagicMock()
+        mock_crud.count_following_by_user_id.return_value = MAX_ACCEPTED_FOLLOWEES
+
+        with pytest.raises(core_exceptions.ConflictError) as e:
+            accept_follow_request(1, 2, db)
+
+        assert e.value.status_code == 409
+        mock_crud.count_following_by_user_id.assert_called_once_with(2, db, accepted_only=True)
+        mock_crud.accept_follower.assert_not_called()
+        mock_pub.publish_follower_accepted.assert_not_called()
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_the_followers_followees_are_locked_before_they_are_counted(self, mock_crud, mock_pub):
+        from modules.followers.service import accept_follow_request
+
+        calls = MagicMock()
+        calls.attach_mock(mock_crud.lock_accepted_followees, "lock")
+        calls.attach_mock(mock_crud.count_following_by_user_id, "count")
+        calls.attach_mock(mock_crud.accept_follower, "accept")
+        mock_crud.count_following_by_user_id.return_value = 0
+
+        accept_follow_request(1, 2, MagicMock())
+
+        assert [call[0] for call in calls.mock_calls] == ["lock", "count", "accept"]
+        mock_crud.lock_accepted_followees.assert_called_once()
+        assert mock_crud.lock_accepted_followees.call_args.args[0] == 2
 
 
 class TestDeleteRelationship:

@@ -20,6 +20,9 @@ _FOLLOWEE_CACHE_KEY = "followers.accepted_followee_ids"
 #: Advisory-lock namespace of a user's pending follow requests, kept apart from every other advisory lock.
 _PENDING_LOCK_NAMESPACE = 7301
 
+#: Advisory-lock namespace of a user's accepted followees, kept apart from every other advisory lock.
+_ACCEPTED_LOCK_NAMESPACE = 7302
+
 #: The name of the model's unique (follower, followee) constraint.
 _UNIQUE_PAIR_CONSTRAINT = "uq_followers_follower_followee"
 
@@ -226,21 +229,44 @@ def get_pending_requests_for_user_id(
     )
 
 
+def _advisory_xact_lock(namespace: int, user_id: int, db: Session) -> None:
+    """Take a transaction-scoped advisory lock keyed by a user, released on commit or rollback.
+
+    Args:
+        namespace: The lock namespace, so unrelated locks on the same user do not collide.
+        user_id: The user the lock is keyed by.
+        db: Database session.
+    """
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:namespace, :user_id)"),
+        {"namespace": namespace, "user_id": user_id},
+    )
+
+
 def lock_pending_requests(user_id: int, db: Session) -> None:
     """Serialise the writers that add a pending request for a user, until the transaction ends.
 
     A cap read with ``count`` and then enforced by an insert lets concurrent requests each see room
-    and all insert, so the writer takes this lock first. It is a transaction-scoped advisory lock keyed
-    by the target user, so it blocks only requests for the same user and releases on commit or rollback.
+    and all insert, so the writer takes this lock first. It blocks only requests for the same user.
 
     Args:
         user_id: The user the requests are addressed to.
         db: Database session.
     """
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(:namespace, :user_id)"),
-        {"namespace": _PENDING_LOCK_NAMESPACE, "user_id": user_id},
-    )
+    _advisory_xact_lock(_PENDING_LOCK_NAMESPACE, user_id, db)
+
+
+def lock_accepted_followees(follower_id: int, db: Session) -> None:
+    """Serialise the writers that accept a follow for a follower, until the transaction ends.
+
+    Same reasoning as :func:`lock_pending_requests`, keyed by the follower whose accepted followees
+    are capped, so concurrent accepts by different followees cannot each see room and all succeed.
+
+    Args:
+        follower_id: The user whose request is being accepted.
+        db: Database session.
+    """
+    _advisory_xact_lock(_ACCEPTED_LOCK_NAMESPACE, follower_id, db)
 
 
 def count_pending_requests_for_user_id(user_id: int, db: Session) -> int:
@@ -318,6 +344,10 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     child resource through the visibility gate. Any write to the graph clears
     the cache (:func:`_invalidate_followee_cache`), so a request that accepts a
     follow and then reads a feed still sees its own write.
+
+    Bounded by ``MAX_ACCEPTED_FOLLOWEES``, which the accept path enforces, so callers may use the
+    result in an ``IN (...)`` list. Relationships accepted before the cap existed may exceed it;
+    they are still returned.
 
     Args:
         user_id: The follower whose accepted followees to list.
