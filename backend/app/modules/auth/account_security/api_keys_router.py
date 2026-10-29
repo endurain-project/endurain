@@ -21,7 +21,7 @@ router = APIRouter()
 )
 def list_user_api_keys(
     token_user_id: auth_dependencies.CurrentUserId,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> api_keys_schema.UsersApiKeyPage:
     """List one page of API keys for the authenticated user.

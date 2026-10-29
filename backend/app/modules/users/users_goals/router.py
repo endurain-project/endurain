@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -24,7 +24,7 @@ router = APIRouter()
 )
 def get_user_goals(
     token_user_id: auth_dependencies.CurrentUserId,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
     interval: Annotated[
         user_goals_schema.Interval | None,
@@ -71,7 +71,7 @@ def get_user_goals(
 def get_user_goals_results(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> user_goals_schema.UsersGoalProgressPage:
     """Calculate and retrieve one page of goal progress for the authenticated user.
@@ -145,7 +145,7 @@ def update_user_goal(
         The updated goal object.
     """
     updated = user_goals_service.update_goal(token_user_id, goal_id, user_goal, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

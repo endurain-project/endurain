@@ -13,26 +13,12 @@ import modules.health.health_poop.schema as health_poop_schema
 import modules.health.record_crud as health_record_crud
 import modules.health.schema as health_schema
 
-_SPEC = health_record_crud.RecordSpec(
+SPEC = health_record_crud.RecordSpec(
     model=health_poop_models.HealthPoop,
     read_schema=health_poop_schema.HealthPoopRead,
     not_found="Health poop not found",
     etag_label="bowel movement record",
 )
-
-
-def health_poop_exists(health_poop_id: int, user_id: int, db: Session) -> bool:
-    """Report whether a user has a bowel movement record.
-
-    Args:
-        health_poop_id: The record to look for.
-        user_id: The record's owner.
-        db: Database session.
-
-    Returns:
-        True when the user has such a record.
-    """
-    return health_record_crud.exists(_SPEC, health_poop_id, user_id, db)
 
 
 def get_health_poop_number_by_user_id(
@@ -50,7 +36,7 @@ def get_health_poop_number_by_user_id(
         The number of records.
     """
     since_column = health_computation.local_date_expression(health_poop_models.HealthPoop.date_time, tz_name)
-    return health_record_crud.count(_SPEC, user_id, since_column, since, db)
+    return health_record_crud.count(SPEC, user_id, since_column, since, db)
 
 
 def get_health_poop_by_id_and_user_id(
@@ -66,7 +52,7 @@ def get_health_poop_by_id_and_user_id(
     Returns:
         The record, or ``None``.
     """
-    return health_record_crud.find_by_id(_SPEC, health_poop_id, user_id, db)
+    return health_record_crud.find_by_id(SPEC, health_poop_id, user_id, db)
 
 
 def get_health_poop_by_user_id(
@@ -92,7 +78,7 @@ def get_health_poop_by_user_id(
     """
     since_column = health_computation.local_date_expression(health_poop_models.HealthPoop.date_time, tz_name)
     return health_record_crud.list_page(
-        _SPEC, user_id, health_poop_models.HealthPoop.date_time, since_column, since, page_number, num_records, db
+        SPEC, user_id, health_poop_models.HealthPoop.date_time, since_column, since, page_number, num_records, db
     )
 
 
@@ -164,7 +150,7 @@ def create_health_poop(
         ConflictError: If the insert violates a database constraint.
     """
     return health_record_crud.create(
-        _SPEC, user_id, health_poop, db, conflict="Failed to create poop record. Database integrity error."
+        SPEC, user_id, health_poop, db, conflict="Failed to create poop record. Database integrity error."
     )
 
 
@@ -187,7 +173,7 @@ def edit_health_poop(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    return health_record_crud.edit(_SPEC, health_poop_id, user_id, health_poop, db, if_match=if_match)
+    return health_record_crud.edit(SPEC, health_poop_id, user_id, health_poop, db, if_match=if_match)
 
 
 def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_match: str) -> None:
@@ -203,7 +189,7 @@ def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_mat
         NotFoundError: If the user has no such record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_poop_id, user_id, db, if_match=if_match)
+    health_record_crud.delete(SPEC, health_poop_id, user_id, db, if_match=if_match)
 
 
 def get_health_poop_chart(

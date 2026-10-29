@@ -36,21 +36,23 @@
 
 ## Endpoints
 
-- `response_model` on every JSON route (bytes routes declare `responses=` with the media type); status 200 GET, 201 POST create, 202 POST accepted for background processing, 204 DELETE.
+- `response_model` on every JSON route (bytes routes declare `responses=` with the media type); status 200 GET and a `POST` action answered at once (login, step-up), 201 `POST` that creates or replaces a resource (an upload included), 202 `POST` accepted for background processing, 204 `DELETE` and a write with nothing to return.
 - Routers validate and delegate; domain rules live in `service`.
 - Authorization through `dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])]` on the route decorator; the caller's id through `auth_dependencies.CurrentUserId`.
+- Path ids use the shared aliases (`core_dependencies.PositiveId`, `auth_dependencies.AuthSessionId` and the module's own in its `dependencies.py`), never a local `Annotated[..., Path()]`.
 - Blob routes addressed by a signed capability token answer 404, not 403, for a bad token, and log a WARNING.
 
 ## Versioned writes and long work
 
-- A client-editable resource has a `version`; reads set `ETag`, `PUT`/`PATCH` take `IfMatch`, and a stale tag is 412 (missing header 428). `IfMatch` refuses `*`: only in-process callers pass `if_match="*"`. Creates, deletes and actions are not versioned.
+- A client-editable resource has a `version`; reads set `ETag` with `core_etag.set_etag(response, version)`, `PUT`/`PATCH` take `IfMatch`, and a stale tag is 412 (missing header 428). `IfMatch` refuses `*`: only in-process callers pass `if_match="*"`. Creates, deletes and actions are not versioned.
 - Slow work starts with `POST` and answers 202 with a status handle; the client polls a `GET .../status` route. Idempotent actions use `PUT /{id}/<action>`.
-- Link, sync and unlink routes of a provider mirror each other (`POST /link`, `DELETE /link`, status via a polled route); a new provider copies Garmin and Strava rather than inventing names. `garmin` and `strava` `sync_service` are near copies; the third provider extracts the shared runner first.
+- Link, sync and unlink routes of a provider mirror each other (`POST /link`, `DELETE /link`, status via a polled route); a new provider copies Garmin and Strava rather than inventing names. The pools, the claim-start-release step, the queue-a-sync step, the run-and-record state machine and the durable job with its dead-letter hook live in `core/sync_runner.py`; a provider passes in what its work is and keeps only what differs.
 - A provider rate-limit response is raised as `TooManyRequestsError(retry_at=...)`; ingestion defers the job until then.
 
 ## Pagination
 
 - Offset lists return `core.pagination.Page[T]`, built with `Page.build(items, total, page, num_records)`; `next` is derived server-side.
+- A list route declares its window as `page: core_pagination.ListPage` (`ChildPage` for a child collection).
 - Defaults: 25 per page, maximum 200; child collections default to the maximum.
 - `total` carries the same filters and access scoping as `items`.
 - Lists that grow at the head (feeds) use `CursorPage` keyset pagination, not offset, so concurrent inserts cannot duplicate or skip rows.

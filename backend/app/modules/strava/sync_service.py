@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.exceptions as core_exceptions
-import core.local_pool as core_local_pool
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
@@ -32,8 +31,7 @@ import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
-# Small on purpose: syncs are Strava round trips and compete with the request threads.
-_sync_pool = core_local_pool.BoundedPool("strava-sync", workers=2, max_pending=core_sync_runner.MAX_PENDING_LOCAL_SYNCS)
+_sync_pool = core_sync_runner.sync_pool("strava-sync")
 
 
 def shutdown_sync_pool(*, wait: bool = False) -> None:

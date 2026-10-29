@@ -13,7 +13,6 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
     Query,
     Request,
     Response,
@@ -44,7 +43,7 @@ router = APIRouter()
 def list_own_activities(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     activity_type: activity_dependencies.ActivityTypeFilter = None,
     start_date: Annotated[date | None, Query()] = None,
     end_date: Annotated[date | None, Query()] = None,
@@ -189,7 +188,7 @@ def read_activity(
     activity = activity_service.get_activity(activity_id, token_user_id, db)
     if activity.version is not None:
         # The tag the client echoes back in If-Match when it later saves.
-        response.headers["ETag"] = core_etag.format_etag(activity.version)
+        core_etag.set_etag(response, activity.version)
     return activity
 
 
@@ -216,7 +215,7 @@ def edit_activity(
     """
     activity = activity_service.edit_activity(activity_id, token_user_id, activity_attributes, db, if_match=if_match)
     if activity.version is not None:
-        response.headers["ETag"] = core_etag.format_etag(activity.version)
+        core_etag.set_etag(response, activity.version)
     return activity
 
 

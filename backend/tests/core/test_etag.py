@@ -1,6 +1,7 @@
 """Tests for ETag / If-Match optimistic concurrency."""
 
 import pytest
+from fastapi import Response
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
@@ -9,6 +10,15 @@ import core.exceptions as core_exceptions
 class TestFormatEtag:
     def test_is_a_quoted_strong_tag(self):
         assert core_etag.format_etag(7) == '"7"'
+
+
+class TestSetEtag:
+    def test_sends_the_version_as_the_etag_header(self):
+        response = Response()
+
+        core_etag.set_etag(response, 7)
+
+        assert response.headers["ETag"] == '"7"'
 
 
 class TestParseIfMatch:

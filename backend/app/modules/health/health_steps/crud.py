@@ -12,26 +12,12 @@ import modules.health.health_steps.schema as health_steps_schema
 import modules.health.record_crud as health_record_crud
 import modules.health.schema as health_schema
 
-_SPEC = health_record_crud.RecordSpec(
+SPEC = health_record_crud.RecordSpec(
     model=health_steps_models.HealthSteps,
     read_schema=health_steps_schema.HealthStepsRead,
     not_found="Health steps not found",
     etag_label="steps record",
 )
-
-
-def health_steps_exists(health_steps_id: int, user_id: int, db: Session) -> bool:
-    """Report whether a user has a steps record.
-
-    Args:
-        health_steps_id: The record to look for.
-        user_id: The record's owner.
-        db: Database session.
-
-    Returns:
-        True when the user has such a record.
-    """
-    return health_record_crud.exists(_SPEC, health_steps_id, user_id, db)
 
 
 def get_health_steps_number_by_user_id(user_id: int, db: Session, since: date_type | None = None) -> int:
@@ -45,7 +31,7 @@ def get_health_steps_number_by_user_id(user_id: int, db: Session, since: date_ty
     Returns:
         The number of records.
     """
-    return health_record_crud.count(_SPEC, user_id, health_steps_models.HealthSteps.date, since, db)
+    return health_record_crud.count(SPEC, user_id, health_steps_models.HealthSteps.date, since, db)
 
 
 def get_health_steps_by_user_id(
@@ -68,7 +54,7 @@ def get_health_steps_by_user_id(
         The records ordered by date descending.
     """
     return health_record_crud.list_page(
-        _SPEC,
+        SPEC,
         user_id,
         health_steps_models.HealthSteps.date,
         health_steps_models.HealthSteps.date,
@@ -92,7 +78,7 @@ def get_health_steps_by_date_and_user_id(
     Returns:
         The record, or ``None``.
     """
-    return health_record_crud.find_by_date(_SPEC, user_id, date, db)
+    return health_record_crud.find_by_date(SPEC, user_id, date, db)
 
 
 def create_health_steps(
@@ -112,7 +98,7 @@ def create_health_steps(
         ConflictError: If the user already has a record for that date.
     """
     return health_record_crud.create(
-        _SPEC, user_id, health_steps, db, conflict=health_record_crud.duplicate_date_message(health_steps.date)
+        SPEC, user_id, health_steps, db, conflict=health_record_crud.duplicate_date_message(health_steps.date)
     )
 
 
@@ -142,7 +128,7 @@ def edit_health_steps(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     return health_record_crud.edit(
-        _SPEC,
+        SPEC,
         health_steps_id,
         user_id,
         health_steps,
@@ -165,7 +151,7 @@ def delete_health_steps(user_id: int, health_steps_id: int, db: Session, *, if_m
         NotFoundError: If the user has no such record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_steps_id, user_id, db, if_match=if_match)
+    health_record_crud.delete(SPEC, health_steps_id, user_id, db, if_match=if_match)
 
 
 def get_health_steps_chart(

@@ -33,12 +33,6 @@ class _MemoryState:
         self.expiry[key] = time.monotonic() + ttl_seconds
 
 
-class _NetworkGuardError(Exception):
-    def __init__(self, status_code: int, detail: str):
-        self.status_code = status_code
-        self.detail = detail
-
-
 @pytest.fixture
 def state_provider() -> _MemoryState:
     return _MemoryState()
@@ -155,41 +149,22 @@ class TestFetchJwks:
 class TestGetOidcConfigurationGuardFailures:
     """Discovery logs why the SSRF guard did not clear the issuer URL."""
 
-    @staticmethod
-    def _discover_with_guard_failure(service, status_code: int, detail: str):
+    def test_blocked_url_points_the_operator_at_ssrf_allowed_hosts(self, service):
         idp = MagicMock(issuer_url="https://idp.example.com", id=1)
         idp.name = "Test IdP"
         with (
             patch(
                 "modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url",
-                side_effect=_NetworkGuardError(status_code, detail),
+                side_effect=core_exceptions.InvalidInputError("URL resolves to a non-public address"),
             ),
             patch("modules.auth.identity_providers.oidc_client_service.logger") as mock_logger,
         ):
             result = service.get_oidc_configuration(idp)
-        return result, str(mock_logger.warning.call_args)
 
-    def test_blocked_url_points_the_operator_at_ssrf_allowed_hosts(self, service):
-        result, message = self._discover_with_guard_failure(
-            service, status.HTTP_400_BAD_REQUEST, "URL resolves to a non-public address"
-        )
+        message = str(mock_logger.warning.call_args)
         assert result is None
         assert "was rejected" in message
         assert "SSRF_ALLOWED_HOSTS" in message
-
-    @pytest.mark.parametrize(
-        ("status_code", "detail"),
-        [
-            (status.HTTP_503_SERVICE_UNAVAILABLE, "Hostname resolution is busy"),
-            (status.HTTP_504_GATEWAY_TIMEOUT, "Hostname resolution timed out"),
-        ],
-    )
-    def test_unchecked_url_is_not_blamed_on_the_allowlist(self, service, status_code, detail):
-        result, message = self._discover_with_guard_failure(service, status_code, detail)
-        assert result is None
-        assert "could not be checked" in message
-        assert detail in message
-        assert "SSRF_ALLOWED_HOSTS" not in message
 
 
 def test_discovery_cache_is_shared_between_services_and_refetches_after_expiry(state_provider):

@@ -1,8 +1,6 @@
 """Gear components API router endpoints for one gear, served under ``/gears``."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Security
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -22,7 +20,7 @@ def read_gear_components_gear_id(
     gear_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
     active: bool | None = None,
 ) -> core_pagination.Page[gear_components_schema.GearComponentRead]:
     """Retrieve one page of a gear's components with the distance and time each has accumulated."""

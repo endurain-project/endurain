@@ -438,6 +438,20 @@ class TestRecentHealth:
         assert publish.call_args.kwargs["source"] == garmin_constants.SYNC_SOURCE_API
 
 
+def _registered() -> JobHandlerRegistry:
+    registry = JobHandlerRegistry()
+    garmin_subscribers.register_durable_handlers(registry)
+    return registry
+
+
+def _handle(event: Event) -> None:
+    _registered().get(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(event)
+
+
+def _dead_letter(event: Event, error: str | None) -> None:
+    _registered().dead_letter_callback(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(event, error)
+
+
 def _sync_event(retry_count: int = 1, max_attempts: int | None = 3) -> Event:
     return Event(
         event_id="evt-1",
@@ -459,7 +473,7 @@ def test_the_durable_handler_asks_for_a_retry_only_while_attempts_remain(states,
         patch.object(garmin_subscribers.platform_runtime, "get_state"),
         patch.object(garmin_subscribers.garmin_sync_service, "run_sync") as run,
     ):
-        garmin_subscribers.process_sync_requested_for_event(_sync_event(retry_count))
+        _handle(_sync_event(retry_count))
 
     run.assert_called_once_with(payload, states, rate_limits, will_retry=will_retry)
 
@@ -480,7 +494,7 @@ class TestDeadLetter:
         stores.begin(1, Kind.GEAR)
         stores.set_status(1, Kind.GEAR, status)
 
-        garmin_subscribers.on_sync_requested_dead_letter(_sync_event(3), "lease expired")
+        _dead_letter(_sync_event(3), "lease expired")
 
         assert stores.get(1, Kind.GEAR).status == Status.FAILED
         assert stores.begin(1, Kind.GEAR) is True
@@ -489,12 +503,12 @@ class TestDeadLetter:
         stores.begin(1, Kind.GEAR)
         stores.set_status(1, Kind.GEAR, Status.COMPLETED)
 
-        garmin_subscribers.on_sync_requested_dead_letter(_sync_event(3), None)
+        _dead_letter(_sync_event(3), None)
 
         assert stores.get(1, Kind.GEAR).status == Status.COMPLETED
 
     def test_an_expired_state_is_not_resurrected(self, stores):
-        garmin_subscribers.on_sync_requested_dead_letter(_sync_event(3), None)
+        _dead_letter(_sync_event(3), None)
 
         assert stores.get(1, Kind.GEAR) is None
 

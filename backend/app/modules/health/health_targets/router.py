@@ -41,7 +41,7 @@ def read_health_targets_all(
     """
     targets = health_targets_service.get_health_targets(token_user_id, db)
     if targets is not None:
-        response.headers["ETag"] = core_etag.format_etag(targets.version)
+        core_etag.set_etag(response, targets.version)
     return targets
 
 
@@ -85,5 +85,5 @@ def update_health_targets(
         PreconditionFailedError: If the targets changed since the client read them.
     """
     updated = health_targets_service.update_health_targets(health_targets, token_user_id, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated

@@ -7,7 +7,6 @@ consume lives in :mod:`modules.health.health_weight.integration_service`.
 
 from sqlalchemy.orm import Session
 
-import core.etag as core_etag
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.health.computation as health_computation
@@ -15,6 +14,7 @@ import modules.health.constants as health_constants
 import modules.health.health_weight.bmi as health_weight_bmi
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
+import modules.health.record_service as health_record_service
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
@@ -209,15 +209,14 @@ def edit_health_weight(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    with core_etag.refuse_stale_write(
+    updated = health_record_service.commit_write(
+        health_weight_crud.SPEC,
+        health_weight_id,
+        user_id,
+        lambda: stage_edit_health_weight(user_id, health_weight_id, health_weight, db, if_match=if_match),
         db,
-        "weight record",
-        lambda: health_weight_crud.health_weight_exists(health_weight_id, user_id, db),
-        "Weight record not found",
-    ):
-        updated = stage_edit_health_weight(user_id, health_weight_id, health_weight, db, if_match=if_match)
-        db.commit()
-    logger.info("Edited a weight record", extra=core_logger.context(user_id=user_id))
+        log_message="Edited a weight record",
+    )
     return updated
 
 
@@ -234,16 +233,13 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session, *, if
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    with core_etag.refuse_stale_write(
+    health_record_service.commit_write(
+        health_weight_crud.SPEC,
+        health_weight_id,
+        user_id,
+        lambda: health_weight_crud.delete_health_weight(user_id, health_weight_id, db, if_match=if_match),
         db,
-        "weight record",
-        lambda: health_weight_crud.health_weight_exists(health_weight_id, user_id, db),
-        "Weight record not found",
-    ):
-        health_weight_crud.delete_health_weight(user_id, health_weight_id, db, if_match=if_match)
-        db.commit()
-    logger.info(
-        "Deleted a weight record", extra=core_logger.context(user_id=user_id, health_weight_id=health_weight_id)
+        log_message="Deleted a weight record",
     )
 
 
@@ -260,8 +256,9 @@ def get_health_weight_chart(
     Returns:
         The interval's buckets, one point per bucket that holds a value.
     """
-    since = health_computation.get_start_date_for_interval(interval.value, users_integration.local_today(user_id, db))
-    bucket, points = health_computation.chart_points(
-        lambda bucket: health_weight_crud.get_health_weight_chart(user_id, since, bucket, db)
+    return health_record_service.chart(
+        user_id,
+        interval,
+        lambda since, bucket: health_weight_crud.get_health_weight_chart(user_id, since, bucket, db),
+        db,
     )
-    return health_schema.HealthChartSeries(bucket=bucket, points=points)

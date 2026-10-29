@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, Security, UploadFile, status
+from fastapi import APIRouter, Query, Request, Response, Security, UploadFile, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -28,7 +28,7 @@ router = APIRouter()
 )
 def read_users_all_pagination(
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     show_inactive: Annotated[
         bool | None,
         Query(description="Filter by inactive status"),
@@ -89,7 +89,7 @@ def read_users_all_pagination(
 )
 def read_users_contain_username(
     username: users_dependencies.Username,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> users_schema.UserPublicPage:
     """Search active users by partial username match, one page at a time.
@@ -129,7 +129,7 @@ def read_users_username(
         NotFoundError: If there is no such user.
     """
     user = users_service.require_user_by_username(username, db)
-    response.headers["ETag"] = core_etag.format_etag(user.version)
+    core_etag.set_etag(response, user.version)
     return user
 
 
@@ -163,7 +163,7 @@ def lookup_user_by_email(
         NotFoundError: If there is no such user.
     """
     user = users_service.require_user_by_email(lookup.email, db)
-    response.headers["ETag"] = core_etag.format_etag(user.version)
+    core_etag.set_etag(response, user.version)
     return user
 
 
@@ -215,7 +215,7 @@ def read_users_full(
         NotFoundError: If the user does not exist.
     """
     user = users_service.require_user(user_id, db)
-    response.headers["ETag"] = core_etag.format_etag(user.version)
+    core_etag.set_etag(response, user.version)
     return user
 
 
@@ -306,7 +306,7 @@ def edit_user(
         Updated user data.
     """
     updated = users_service.edit_user(user_id, user_attributtes, token_user_id, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

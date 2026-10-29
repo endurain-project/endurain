@@ -96,9 +96,6 @@ _ROOT = pathlib.Path("app/modules")
 #: relative to ``app/``.
 _BROAD_EXCEPT_WITHOUT_TRACEBACK: dict[str, str] = {
     "core/config.py": "Reads a secret file at import time; the exception text names the file, which must not be logged.",
-    "modules/auth/identity_providers/oidc_client_service.py": (
-        "Its broad handler only re-reads a refusal that carries its own status and detail."
-    ),
 }
 
 #: Files that log at INFO inside a loop on purpose, as ``{path: reason}`` relative to ``app/``. A loop that

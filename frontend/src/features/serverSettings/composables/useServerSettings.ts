@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type {
   EmailStatusDto,
   LogFilters,
+  LoginPhotoDto,
   LogPage,
   LogsStatusDto,
   MailSettings,
@@ -104,7 +105,7 @@ export function useUpdateServerSettingsMutation() {
 export function useUploadLoginPhotoMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, File>({
+  return useMutation<LoginPhotoDto, Error, File>({
     mutationKey: queryKeys.serverSettings.all(),
     mutationFn: (file) => uploadLoginPhoto(file),
     onSettled: () => invalidateServerSettings(client),

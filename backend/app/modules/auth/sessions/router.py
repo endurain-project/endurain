@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Query, Request, Security, status
+from fastapi import APIRouter, Query, Request, Security, status
 from starlette.responses import Response
 
 import core.dependencies as core_dependencies
@@ -13,8 +13,6 @@ import modules.auth.sessions.schema as sessions_schema
 import modules.auth.sessions.service as sessions_service
 
 router = APIRouter()
-UserId = Annotated[int, Path()]
-SessionId = Annotated[str, Path()]
 
 
 @router.get(
@@ -25,8 +23,8 @@ SessionId = Annotated[str, Path()]
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
 def read_sessions_user(
     request: Request,
-    user_id: UserId,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    user_id: core_dependencies.PositiveId,
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> sessions_schema.UsersSessionsPage:
     """Retrieve one page of the sessions associated with a specific user.
@@ -52,8 +50,8 @@ def read_sessions_user(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_session_user(
     request: Request,
-    session_id: SessionId,
-    user_id: UserId,
+    session_id: auth_dependencies.AuthSessionId,
+    user_id: core_dependencies.PositiveId,
     db: core_dependencies.DbSession,
 ) -> Response:
     """Delete a user session.
@@ -83,7 +81,7 @@ def delete_session_user(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_sessions_user(
     request: Request,
-    user_id: UserId,
+    user_id: core_dependencies.PositiveId,
     db: core_dependencies.DbSession,
     exclude_session_id: Annotated[
         str | None,

@@ -282,6 +282,24 @@ class TestEditRejectsReadOnlyFields:
         assert response.status_code == 422
 
 
+class TestUploadLoginPhoto:
+    """Test suite for upload_login_photo endpoint."""
+
+    @patch("modules.server_settings.router.server_settings_login_photo_service.upload_login_photo")
+    def test_upload_login_photo_answers_201_with_the_photo_version(self, mock_upload, fast_api_client, fast_api_app):
+        """An upload stores the photo and names the version that now identifies it."""
+        mock_upload.return_value = server_settings_schema.LoginPhotoRead(version=4)
+
+        response = fast_api_client.post(
+            "/server_settings/login-photo",
+            headers={"Authorization": "Bearer mock_token"},
+            files={"file": ("login.png", b"png", "image/png")},
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"version": 4}
+
+
 class TestDeleteLoginPhoto:
     """Test suite for delete_login_photo endpoint."""
 

@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Security, status
+from fastapi import APIRouter, Query, Request, Security, status
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -23,7 +23,7 @@ def list_user_followers(
     user_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     accepted_only: Annotated[bool, Query()] = False,
 ) -> followers_schema.FollowRelationshipPage:
     """List a user's followers, with the matching total.
@@ -51,7 +51,7 @@ def list_user_following(
     user_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     accepted_only: Annotated[bool, Query()] = False,
 ) -> followers_schema.FollowRelationshipPage:
     """List who a user follows, with the matching total.

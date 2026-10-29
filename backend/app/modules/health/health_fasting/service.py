@@ -8,7 +8,6 @@ boundary. What other modules may consume lives in
 
 from sqlalchemy.orm import Session
 
-import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -18,6 +17,7 @@ import modules.health.constants as health_constants
 import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_fasting.streaks as health_fasting_streaks
+import modules.health.record_service as health_record_service
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -189,17 +189,16 @@ def edit_health_fasting(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    with core_etag.refuse_stale_write(
-        db,
-        "fasting session record",
-        lambda: health_fasting_crud.health_fasting_exists(health_fasting_id, user_id, db),
-        "Fasting session record not found",
-    ):
-        updated = health_fasting_crud.edit_health_fasting(
+    updated = health_record_service.commit_write(
+        health_fasting_crud.SPEC,
+        health_fasting_id,
+        user_id,
+        lambda: health_fasting_crud.edit_health_fasting(
             user_id, health_fasting_id, health_fasting, db, if_match=if_match
-        )
-        db.commit()
-    logger.info("Edited a fasting session", extra=core_logger.context(user_id=user_id))
+        ),
+        db,
+        log_message="Edited a fasting session",
+    )
     return updated
 
 
@@ -238,13 +237,11 @@ def complete_health_fasting(
     if end_time < start_time:
         raise core_exceptions.InvalidInputError("Fasting session cannot end before it started")
 
-    with core_etag.refuse_stale_write(
-        db,
-        "fasting session record",
-        lambda: health_fasting_crud.health_fasting_exists(health_fasting_id, user_id, db),
-        "Fasting session record not found",
-    ):
-        ended = health_fasting_crud.end_health_fasting(
+    ended = health_record_service.commit_write(
+        health_fasting_crud.SPEC,
+        health_fasting_id,
+        user_id,
+        lambda: health_fasting_crud.end_health_fasting(
             user_id,
             health_fasting_id,
             end_time,
@@ -253,10 +250,9 @@ def complete_health_fasting(
             complete_data.notes,
             db,
             if_match=if_match,
-        )
-        db.commit()
-    logger.info(
-        "Completed a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
+        ),
+        db,
+        log_message="Completed a fasting session",
     )
     return ended
 
@@ -274,14 +270,11 @@ def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, 
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    with core_etag.refuse_stale_write(
+    health_record_service.commit_write(
+        health_fasting_crud.SPEC,
+        health_fasting_id,
+        user_id,
+        lambda: health_fasting_crud.delete_health_fasting(user_id, health_fasting_id, db, if_match=if_match),
         db,
-        "fasting session record",
-        lambda: health_fasting_crud.health_fasting_exists(health_fasting_id, user_id, db),
-        "Fasting session record not found",
-    ):
-        health_fasting_crud.delete_health_fasting(user_id, health_fasting_id, db, if_match=if_match)
-        db.commit()
-    logger.info(
-        "Deleted a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
+        log_message="Deleted a fasting session",
     )

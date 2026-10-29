@@ -305,7 +305,7 @@ class TestLoginEndpoint:
     @patch("modules.auth.authentication.service.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
     @patch("modules.auth.authentication.service.authenticate_user")
-    def test_login_mfa_required_returns_202(
+    def test_login_mfa_required_returns_200(
         self,
         mock_auth,
         mock_check_active,
@@ -314,7 +314,7 @@ class TestLoginEndpoint:
         auth_app,
         fake_pending_mfa_store,
     ):
-        """MFA required returns 202 for web client."""
+        """MFA required answers 200, like every other login outcome."""
         mock_user = MagicMock()
         mock_user.id = 1
         mock_auth.return_value = mock_user
@@ -326,7 +326,7 @@ class TestLoginEndpoint:
             data={"username": "mfauser", "password": "Password1!"},
         )
 
-        assert response.status_code == 202
+        assert response.status_code == 200
         data = response.json()
         assert data["mfa_required"] is True
         assert data["username"] == "mfauser"

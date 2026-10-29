@@ -52,7 +52,7 @@ def read_server_settings(
     """
     settings = server_settings_service.get_server_settings_for_admin(db)
     # The tag the client echoes back in If-Match when it later saves.
-    response.headers["ETag"] = core_etag.format_etag(settings.version)
+    core_etag.set_etag(response, settings.version)
     return settings
 
 
@@ -91,14 +91,14 @@ def edit_server_settings(
     request.app.state.allowed_tile_domains = server_settings_tile_service.allowed_tile_domains_for_url(
         updated.tileserver_url
     )
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 
 @router.post(
     "/login-photo",
-    response_model=None,
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=server_settings_schema.LoginPhotoRead,
+    status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
@@ -107,7 +107,7 @@ def upload_login_photo(
     file: UploadFile,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
-) -> None:
+) -> server_settings_schema.LoginPhotoRead:
     """Upload custom login page photo.
 
     Requires admin authentication with server_settings:write scope.
@@ -119,11 +119,9 @@ def upload_login_photo(
         db: Database session.
 
     Returns:
-        A confirmation message.
+        The stored photo's version.
     """
-    server_settings_login_photo_service.upload_login_photo(file, storage, db)
-
-    return {"message": "Login photo uploaded successfully."}
+    return server_settings_login_photo_service.upload_login_photo(file, storage, db)
 
 
 @router.delete(
@@ -193,7 +191,7 @@ def read_mail_settings(
         ``env_managed`` names the fields an environment variable currently sets.
     """
     mail_settings = server_settings_mail_service.get_mail_settings_for_admin(db)
-    response.headers["ETag"] = core_etag.format_etag(mail_settings.version)
+    core_etag.set_etag(response, mail_settings.version)
     return mail_settings
 
 
@@ -233,7 +231,7 @@ def edit_mail_settings(
         PreconditionFailedError: 412 if the settings changed since the client read them.
     """
     updated = server_settings_mail_service.edit_mail_settings(mail_settings_attributes, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

@@ -276,20 +276,21 @@ describe('server settings service requests', () => {
     })
   })
 
-  it('uploadLoginPhoto posts the file as multipart form data', async () => {
+  it('uploadLoginPhoto posts the file as multipart form data and returns the photo version', async () => {
     let capturedBody: unknown
     vi.mocked(apiFetch).mockImplementation((_path, init) => {
       capturedBody = init?.body
-      return Promise.resolve(undefined)
+      return Promise.resolve({ version: 4 })
     })
     const file = new File(['x'], 'login.png', { type: 'image/png' })
 
-    await uploadLoginPhoto(file)
+    await expect(uploadLoginPhoto(file)).resolves.toEqual({ version: 4 })
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/server-settings/login-photo',
-      expect.objectContaining({ method: 'POST', responseType: 'void' }),
+      expect.objectContaining({ method: 'POST' }),
     )
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[1]).not.toHaveProperty('responseType')
     expect(capturedBody).toBeInstanceOf(FormData)
     expect((capturedBody as FormData).get('file')).toBe(file)
   })

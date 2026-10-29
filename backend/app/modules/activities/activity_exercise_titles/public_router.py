@@ -1,8 +1,6 @@
 """Public API router for activity exercise titles."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -20,7 +18,7 @@ router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def list_public_activity_exercise_titles(
     request: Request,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
     db: core_dependencies.DbSession,
 ) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
     """Return one page of the activity exercise titles via the public endpoint.

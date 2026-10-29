@@ -10,7 +10,6 @@ import garminconnect
 
 import core.database as core_database
 import core.exceptions as core_exceptions
-import core.local_pool as core_local_pool
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.garmin.constants as garmin_constants
@@ -25,11 +24,7 @@ logger = core_logger.get_logger(__name__)
 
 # Logins run here, not on the request threadpool: one waits up to MFA_WAIT_SECONDS for the
 # user's code, and a few users linking at once must not leave the API without worker threads.
-# A login past this capacity is refused rather than queued: a queued one would outlive its
-# polled state while holding the user's credentials in memory.
-_link_pool = core_local_pool.BoundedPool(
-    "garmin-link", workers=core_sync_runner.MAX_CONCURRENT_LINKS, max_pending=core_sync_runner.MAX_CONCURRENT_LINKS
-)
+_link_pool = core_sync_runner.link_pool("garmin-link")
 
 
 def shutdown_link_pool(*, wait: bool = False) -> None:
@@ -97,10 +92,10 @@ def start_link(
     """
     # Checked before the attempt is recorded, so a refused login leaves no pending state to poll.
     _link_pool.require_capacity()
-    if not link_states.begin(user_id):
-        raise core_exceptions.ConflictError("A Garmin Connect link is already in progress")
-    try:
-        _link_pool.submit(
+    core_sync_runner.start_claimed(
+        lambda: link_states.begin(user_id),
+        "A Garmin Connect link is already in progress",
+        lambda: _link_pool.submit(
             link_garminconnect,
             user_id,
             login.username,
@@ -108,11 +103,9 @@ def start_link(
             mfa_codes,
             link_states,
             login.is_cn,
-        )
-    except BaseException:
-        # The attempt never started, so nothing would ever release its claim.
-        link_states.release(user_id)
-        raise
+        ),
+        lambda: link_states.release(user_id),
+    )
     return garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.PENDING)
 
 

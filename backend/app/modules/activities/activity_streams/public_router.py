@@ -1,8 +1,6 @@
 """Public activity stream endpoints."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -24,7 +22,7 @@ def list_public_activity_streams(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
 ) -> activity_streams_schema.ActivityStreamsPage:
     """Return one page of a publicly shared activity's streams, with the matching total."""
     return activity_streams_service.list_public_activity_streams(

@@ -1,18 +1,24 @@
 """The state machine of a provider sync that is accepted with 202 and runs elsewhere.
 
-Strava and Garmin Connect queue their gear and health syncs the same way: a claim stops the same sync being
-queued twice, the work runs on a durable worker or an in-process pool, and the state a client polls records
-where it is. The provider-specific parts (what the work is, which errors mean "the provider refused", what to
-announce afterwards) stay with the provider and are passed in; the bookkeeping lives here so a fix to it is
-made once.
+Strava and Garmin Connect queue their gear and health syncs and start their account links the same way: a
+claim stops the same work being started twice, the work runs on a durable worker or an in-process pool, and
+the state a client polls records where it is. The provider-specific parts (what the work is, which errors mean
+"the provider refused", what to announce afterwards) stay with the provider and are passed in; the pools, the
+claim, the durable job and the bookkeeping live here so a fix to them is made once.
 """
 
 from collections.abc import Callable
 from datetime import date, timedelta
 from enum import StrEnum
 
+import jasil.event_versioning as platform_event_versioning
+from jasil.event_versioning import VersionedPayload
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
+
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
+import core.local_pool as core_local_pool
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -25,8 +31,39 @@ MAX_CONCURRENT_LINKS = 4
 #: Syncs the in-process pool may hold, running or queued, when durable jobs are off.
 MAX_PENDING_LOCAL_SYNCS = 50
 
+#: Syncs the in-process pool runs at once. Small on purpose: syncs are provider round trips and compete with
+#: the request threads.
+LOCAL_SYNC_WORKERS = 2
+
 #: Longest activity range one request may ask for; a longer history is fetched in several requests.
 MAX_ACTIVITIES_RANGE_DAYS = 366
+
+
+def sync_pool(name: str) -> core_local_pool.BoundedPool:
+    """Build a provider's in-process sync pool, which runs its syncs when durable jobs are off.
+
+    Args:
+        name: The pool's thread-name prefix.
+
+    Returns:
+        The pool.
+    """
+    return core_local_pool.BoundedPool(name, workers=LOCAL_SYNC_WORKERS, max_pending=MAX_PENDING_LOCAL_SYNCS)
+
+
+def link_pool(name: str) -> core_local_pool.BoundedPool:
+    """Build a provider's link pool, which runs account links off the request threadpool.
+
+    A link past its capacity is refused rather than queued: a link holds what the user just handed over (a
+    password, a one-time code) only in this process's memory, so it is never a durable job and never waits.
+
+    Args:
+        name: The pool's thread-name prefix.
+
+    Returns:
+        The pool.
+    """
+    return core_local_pool.BoundedPool(name, workers=MAX_CONCURRENT_LINKS, max_pending=MAX_CONCURRENT_LINKS)
 
 
 def validate_range(start_date: date, end_date: date, max_days: int, today: date) -> None:
@@ -99,6 +136,30 @@ def run_recorded(
     return synced
 
 
+def start_claimed(
+    claim: Callable[[], bool], conflict: str, start: Callable[[], None], release: Callable[[], None]
+) -> None:
+    """Take a claim and start the work it guards, giving the claim back when the work never started.
+
+    Args:
+        claim: Takes the claim; False when the work is already pending.
+        conflict: The detail of the error for a claim already taken.
+        start: Hands the work to a worker or a pool.
+        release: Gives the claim back.
+
+    Raises:
+        ConflictError: When the claim is already taken.
+    """
+    if not claim():
+        raise core_exceptions.ConflictError(conflict)
+    try:
+        start()
+    except BaseException:
+        # The work never started, so nothing else would release its claim.
+        release()
+        raise
+
+
 def queue_sync(
     states: core_attempt_state.SyncStateStore,
     user_id: int,
@@ -123,17 +184,12 @@ def queue_sync(
     Raises:
         ConflictError: When a sync of this kind is already pending for the user.
     """
-    if not states.begin(user_id, kind):
-        raise core_exceptions.ConflictError(f"A {label} {kind.value} sync is already in progress")
-    try:
-        if durable:
-            publish()
-        else:
-            submit()
-    except BaseException:
-        # The sync never started, so nothing else would finish its claim.
-        states.set_status(user_id, kind, _Status.FAILED)
-        raise
+    start_claimed(
+        lambda: states.begin(user_id, kind),
+        f"A {label} {kind.value} sync is already in progress",
+        publish if durable else submit,
+        lambda: states.set_status(user_id, kind, _Status.FAILED),
+    )
 
 
 def read_state(
@@ -175,3 +231,44 @@ def close_dead_lettered(states: core_attempt_state.SyncStateStore, user_id: int,
         logger.error(
             "A <label> sync was dead-lettered", extra=core_logger.context(label=label, user_id=user_id, kind=kind)
         )
+
+
+def register_sync_job[PayloadT: VersionedPayload](
+    registry: JobHandlerRegistry,
+    event_type: str,
+    subscriber_id: str,
+    payload_type: type[PayloadT],
+    *,
+    run: Callable[[PayloadT, bool], None],
+    close: Callable[[PayloadT], None],
+) -> None:
+    """Register a provider's queued sync as a durable job, with the dead-letter hook that closes it.
+
+    Args:
+        registry: The durable-handler registry to register on.
+        event_type: The event that requests the sync.
+        subscriber_id: The durable subscriber's stable id.
+        payload_type: The event's payload model.
+        run: Runs the sync; called with the payload and whether a durable worker runs it again if it raises.
+        close: Closes a sync the runner gave up on; called with the payload.
+    """
+
+    def handle(event: Event) -> None:
+        """Run one queued sync.
+
+        Args:
+            event: The event that requested it.
+        """
+        run(platform_event_versioning.parse_payload(payload_type, event), not event.is_last_attempt)
+        logger.debug("A sync job finished", extra=core_logger.context(subscriber_id=subscriber_id))
+
+    def on_dead_letter(event: Event, error: str | None) -> None:
+        """Close a sync the runner gave up on.
+
+        Args:
+            event: The event that requested it.
+            error: What the runner recorded, which the sync's own log line already carries.
+        """
+        close(platform_event_versioning.parse_payload(payload_type, event))
+
+    registry.register(event_type, subscriber_id, handle, on_dead_letter=on_dead_letter)

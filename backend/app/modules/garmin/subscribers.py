@@ -5,64 +5,56 @@ Garmin round trips that does not belong on a request thread. The channel is dura
 only: without ``JOBS_ENABLED`` the routes run the same body on an in-process pool.
 """
 
-import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
-from jasil.events import Event
 from jasil.jobs.registry import JobHandlerRegistry
 
-import core.logger as core_logger
+import core.sync_runner as core_sync_runner
 import modules.garmin.events as garmin_events
 import modules.garmin.rate_limit_store as garmin_rate_limit_store
 import modules.garmin.sync_service as garmin_sync_service
 import modules.garmin.sync_state_store as garmin_sync_state_store
 
-logger = core_logger.get_logger(__name__)
-
 SYNC_REQUESTED_SUBSCRIBER_ID = "garmin.sync_requested"
 
 
-def process_sync_requested_for_event(event: Event) -> None:
-    """Durable handler: run one queued gear or health sync.
+def _run_sync(payload: garmin_events.SyncRequestedPayload, will_retry: bool) -> None:
+    """Run one queued gear or health sync over the platform state.
 
     Args:
-        event: The ``garmin.sync_requested`` event.
+        payload: What to run.
+        will_retry: Whether a durable worker runs it again if it raises.
     """
-    payload = platform_event_versioning.parse_payload(garmin_events.SyncRequestedPayload, event)
     state = platform_runtime.get_state()
     garmin_sync_service.run_sync(
         payload,
         garmin_sync_state_store.GarminSyncStateStore(state),
         garmin_rate_limit_store.GarminRateLimitStore(state),
-        will_retry=not event.is_last_attempt,
-    )
-    logger.debug(
-        "Garmin Connect sync job finished",
-        extra=core_logger.context(user_id=payload.user_id, kind=payload.kind),
+        will_retry=will_retry,
     )
 
 
-def on_sync_requested_dead_letter(event: Event, error: str | None) -> None:
-    """Close a sync the runner gave up on.
+def _close_sync(payload: garmin_events.SyncRequestedPayload) -> None:
+    """Close a gear or health sync the runner gave up on.
 
     Args:
-        event: The ``garmin.sync_requested`` event.
-        error: What the runner recorded, which the sync's own log line already carries.
+        payload: What was to run.
     """
-    payload = platform_event_versioning.parse_payload(garmin_events.SyncRequestedPayload, event)
     garmin_sync_service.close_dead_lettered_sync(
         payload, garmin_sync_state_store.GarminSyncStateStore(platform_runtime.get_state())
     )
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
-    """Register the Garmin Connect sync handler as a durable job subscriber.
+    """Register the Garmin Connect sync as a durable job, with the dead-letter hook that closes it.
 
     Args:
         registry: The durable-subscriber registry to register on.
     """
-    registry.register(
+    core_sync_runner.register_sync_job(
+        registry,
         garmin_events.GARMIN_SYNC_REQUESTED,
         SYNC_REQUESTED_SUBSCRIBER_ID,
-        process_sync_requested_for_event,
-        on_dead_letter=on_sync_requested_dead_letter,
+        garmin_events.SyncRequestedPayload,
+        run=_run_sync,
+        close=_close_sync,
     )

@@ -1,8 +1,6 @@
 """FastAPI routes for the activities recorded with a gear (authenticated), served under ``/gears``."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Security
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -22,7 +20,7 @@ def list_gear_activities(
     gear_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
 ) -> activity_schema.ActivityPage:
     """List the authenticated user's activities for a gear, with the matching total."""
     return activity_service.page_gear_activities(

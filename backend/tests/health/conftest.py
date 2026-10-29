@@ -31,7 +31,7 @@ def stub_model():
     @contextmanager
     def stub(crud_module, row):
         model = MagicMock(return_value=row)
-        with patch.object(crud_module, "_SPEC", replace(crud_module._SPEC, model=model)):
+        with patch.object(crud_module, "SPEC", replace(crud_module.SPEC, model=model)):
             yield model
 
     return stub

@@ -19,6 +19,7 @@ import modules.health.health_water.schema as water_schema
 import modules.health.health_water.service as water_service
 import modules.health.health_weight.crud as weight_crud
 import modules.health.health_weight.models as weight_models
+import modules.health.record_crud as health_record_crud
 from tests._helpers.db import ensure_user
 
 _DAY = date(2026, 10, 1)
@@ -55,8 +56,8 @@ def test_an_intake_added_in_bulk_changes_the_version(factory):
     with factory() as db:
         row = db.scalar(select(water_models.HealthWater).where(water_models.HealthWater.id == first.id))
         assert (row.amount_ml, row.version) == (Decimal(250), 2)
-        assert water_crud.health_water_exists(first.id, 1, db) is True
-        assert water_crud.health_water_exists(first.id, 2, db) is False
+        assert health_record_crud.exists(water_crud.SPEC, first.id, 1, db) is True
+        assert health_record_crud.exists(water_crud.SPEC, first.id, 2, db) is False
 
 
 def test_a_bmi_recalculation_in_bulk_changes_the_version(factory):

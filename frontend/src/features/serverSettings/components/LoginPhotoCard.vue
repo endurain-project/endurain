@@ -25,7 +25,8 @@ const deleteMutation = useDeleteLoginPhotoMutation()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDeleteOpen = ref(false)
-// Bumped after each upload so the browser refetches the photo instead of serving its cached copy.
+// Set to the stored photo's version after each upload so the browser refetches it instead of serving its
+// cached copy.
 const previewVersion = ref(Date.now())
 
 const previewUrl = computed(
@@ -56,8 +57,8 @@ function onFileChange(event: Event): void {
     return
   }
   uploadMutation.mutate(file, {
-    onSuccess: () => {
-      previewVersion.value = Date.now()
+    onSuccess: (photo) => {
+      previewVersion.value = photo.version
       toasts.success(t('settings.server.photo.uploadSuccess'))
     },
     onError: () => toasts.error(t('settings.server.photo.uploadError')),

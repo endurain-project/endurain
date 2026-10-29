@@ -1,8 +1,6 @@
 """Public (unauthenticated) routes for activity laps."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -23,7 +21,7 @@ def list_public_activity_laps(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
 ) -> activity_laps_schema.ActivityLapsPage:
     """Return one page of public laps for an activity exposed via shareable link."""
     return activity_laps_service.list_public_activity_laps(

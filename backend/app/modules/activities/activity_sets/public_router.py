@@ -1,8 +1,6 @@
 """Public (unauthenticated) routes for activity workout sets."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -23,7 +21,7 @@ def list_public_activity_sets(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
 ) -> activity_sets_schema.ActivitySetsPage:
     """Return one page of a publicly shared activity's sets."""
     return activity_sets_service.list_public_activity_sets(

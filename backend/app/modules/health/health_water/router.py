@@ -8,7 +8,6 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
     Query,
     Request,
     Response,
@@ -43,7 +42,7 @@ router = APIRouter()
 def read_health_water_all_pagination(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     interval: Annotated[
         health_constants.Interval | None,
         Query(description="Filter by goal interval"),
@@ -173,7 +172,7 @@ def edit_health_water(
     updated = health_water_service.edit_health_water(
         token_user_id, health_water_id, health_water, db, if_match=if_match
     )
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

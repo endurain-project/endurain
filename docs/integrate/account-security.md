@@ -102,24 +102,13 @@ X-Client-Type: web|mobile
 username=user@example.com&password=userpassword
 ```
 
-**Response (when MFA is enabled):**
-
-- **Web clients**: HTTP 202 Accepted
+**Response (when MFA is enabled):** HTTP 200 OK for web and mobile clients. `mfa_challenge` names this login; send it with the code in step 2.
 
 ```json
 {
   "mfa_required": true,
   "username": "example",
-  "message": "MFA verification required"
-}
-```
-
-- **Mobile clients**: HTTP 200 OK
-
-```json
-{
-  "mfa_required": true,
-  "username": "example",
+  "mfa_challenge": "<opaque challenge>",
   "message": "MFA verification required"
 }
 ```
@@ -134,7 +123,7 @@ Content-Type: application/json
 X-Client-Type: web|mobile
 
 {
-  "username": "user@example.com",
+  "mfa_challenge": "<mfa_challenge from the login response>",
   "mfa_code": "123456"
 }
 ```
@@ -282,7 +271,7 @@ Content-Type: application/json
 X-Client-Type: web|mobile
 
 {
-  "username": "user@example.com",
+  "mfa_challenge": "<mfa_challenge from the login response>",
   "mfa_code": "A3K9-7BDF"
 }
 ```

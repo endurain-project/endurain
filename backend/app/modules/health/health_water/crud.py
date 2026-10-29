@@ -13,26 +13,12 @@ import modules.health.health_water.schema as health_water_schema
 import modules.health.record_crud as health_record_crud
 import modules.health.schema as health_schema
 
-_SPEC = health_record_crud.RecordSpec(
+SPEC = health_record_crud.RecordSpec(
     model=health_water_models.HealthWater,
     read_schema=health_water_schema.HealthWaterRead,
     not_found="Health water not found",
     etag_label="water intake record",
 )
-
-
-def health_water_exists(health_water_id: int, user_id: int, db: Session) -> bool:
-    """Report whether a user has a water intake record.
-
-    Args:
-        health_water_id: The record to look for.
-        user_id: The record's owner.
-        db: Database session.
-
-    Returns:
-        True when the user has such a record.
-    """
-    return health_record_crud.exists(_SPEC, health_water_id, user_id, db)
 
 
 def get_health_water_number_by_user_id(user_id: int, db: Session, since: date_type | None = None) -> int:
@@ -46,7 +32,7 @@ def get_health_water_number_by_user_id(user_id: int, db: Session, since: date_ty
     Returns:
         The number of records.
     """
-    return health_record_crud.count(_SPEC, user_id, health_water_models.HealthWater.date, since, db)
+    return health_record_crud.count(SPEC, user_id, health_water_models.HealthWater.date, since, db)
 
 
 def get_health_water_by_user_id(
@@ -69,7 +55,7 @@ def get_health_water_by_user_id(
         The records ordered by date descending.
     """
     return health_record_crud.list_page(
-        _SPEC,
+        SPEC,
         user_id,
         health_water_models.HealthWater.date,
         health_water_models.HealthWater.date,
@@ -93,7 +79,7 @@ def get_health_water_by_date_and_user_id(
     Returns:
         The record, or ``None``.
     """
-    return health_record_crud.find_by_date(_SPEC, user_id, date, db)
+    return health_record_crud.find_by_date(SPEC, user_id, date, db)
 
 
 def create_health_water(
@@ -113,7 +99,7 @@ def create_health_water(
         ConflictError: If the user already has a record for that date.
     """
     return health_record_crud.create(
-        _SPEC, user_id, health_water, db, conflict=health_record_crud.duplicate_date_message(health_water.date)
+        SPEC, user_id, health_water, db, conflict=health_record_crud.duplicate_date_message(health_water.date)
     )
 
 
@@ -143,7 +129,7 @@ def edit_health_water(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     return health_record_crud.edit(
-        _SPEC,
+        SPEC,
         health_water_id,
         user_id,
         health_water,
@@ -174,7 +160,7 @@ def add_health_water_amount(
     Raises:
         NotFoundError: If the user has no such record.
     """
-    db_health_water = health_record_crud.get_owned(_SPEC, health_water_id, user_id, db)
+    db_health_water = health_record_crud.get_owned(SPEC, health_water_id, user_id, db)
     db.execute(
         update(health_water_models.HealthWater)
         .where(health_water_models.HealthWater.id == health_water_id)
@@ -204,7 +190,7 @@ def delete_health_water(user_id: int, health_water_id: int, db: Session, *, if_m
         NotFoundError: If the user has no such record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_water_id, user_id, db, if_match=if_match)
+    health_record_crud.delete(SPEC, health_water_id, user_id, db, if_match=if_match)
 
 
 def get_health_water_chart(

@@ -1,8 +1,6 @@
 """Authenticated routes for activity workout sets."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Security
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -23,7 +21,7 @@ def list_activity_sets(
     activity_id: activity_dependencies.ActivityId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
 ) -> activity_sets_schema.ActivitySetsPage:
     """Return one page of the activity's sets, with the matching total."""
     return activity_sets_service.list_activity_sets(

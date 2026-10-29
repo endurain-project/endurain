@@ -1,6 +1,7 @@
 import type {
   EmailStatusDto,
   LogFilters,
+  LoginPhotoDto,
   LogPage,
   LogsStatusDto,
   MailSettings,
@@ -191,15 +192,15 @@ export async function updateServerSettings(
  * caller's filename is never used to build a path.
  *
  * @param file - The PNG image to upload.
+ * @returns The stored photo's version, which identifies the image for cache busting.
  * @throws {HttpError} When the upload fails (e.g. wrong file type).
  */
-export async function uploadLoginPhoto(file: File): Promise<void> {
+export async function uploadLoginPhoto(file: File): Promise<LoginPhotoDto> {
   const formData = new FormData()
   formData.append('file', file)
-  await apiFetch('/server-settings/login-photo', {
+  return apiFetch<LoginPhotoDto>('/server-settings/login-photo', {
     method: 'POST',
     body: formData,
-    responseType: 'void',
   })
 }
 

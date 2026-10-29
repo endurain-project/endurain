@@ -12,26 +12,12 @@ import modules.health.health_weight.schema as health_weight_schema
 import modules.health.record_crud as health_record_crud
 import modules.health.schema as health_schema
 
-_SPEC = health_record_crud.RecordSpec(
+SPEC = health_record_crud.RecordSpec(
     model=health_weight_models.HealthWeight,
     read_schema=health_weight_schema.HealthWeightRead,
     not_found="Health weight not found",
     etag_label="weight record",
 )
-
-
-def health_weight_exists(health_weight_id: int, user_id: int, db: Session) -> bool:
-    """Report whether a user has a weight record.
-
-    Args:
-        health_weight_id: The record to look for.
-        user_id: The record's owner.
-        db: Database session.
-
-    Returns:
-        True when the user has such a record.
-    """
-    return health_record_crud.exists(_SPEC, health_weight_id, user_id, db)
 
 
 def get_all_health_weight(db: Session) -> list[health_weight_schema.HealthWeightRead]:
@@ -60,7 +46,7 @@ def get_health_weight_number_by_user_id(user_id: int, db: Session, since: date_t
     Returns:
         The number of records.
     """
-    return health_record_crud.count(_SPEC, user_id, health_weight_models.HealthWeight.date, since, db)
+    return health_record_crud.count(SPEC, user_id, health_weight_models.HealthWeight.date, since, db)
 
 
 def get_all_health_weight_by_user_id(user_id: int, db: Session) -> list[health_weight_schema.HealthWeightRead]:
@@ -103,7 +89,7 @@ def get_health_weight_by_user_id(
         The records ordered by date descending.
     """
     return health_record_crud.list_page(
-        _SPEC,
+        SPEC,
         user_id,
         health_weight_models.HealthWeight.date,
         health_weight_models.HealthWeight.date,
@@ -127,7 +113,7 @@ def get_health_weight_by_date_and_user_id(
     Returns:
         The record, or ``None``.
     """
-    return health_record_crud.find_by_date(_SPEC, user_id, date, db)
+    return health_record_crud.find_by_date(SPEC, user_id, date, db)
 
 
 def get_latest_weight_by_user_id(user_id: int, db: Session) -> health_weight_schema.HealthWeightRead | None:
@@ -172,7 +158,7 @@ def create_health_weight(
         ConflictError: If the user already has a record for that date.
     """
     return health_record_crud.create(
-        _SPEC, user_id, health_weight, db, conflict=health_record_crud.duplicate_date_message(health_weight.date)
+        SPEC, user_id, health_weight, db, conflict=health_record_crud.duplicate_date_message(health_weight.date)
     )
 
 
@@ -202,7 +188,7 @@ def edit_health_weight(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     return health_record_crud.edit(
-        _SPEC,
+        SPEC,
         health_weight_id,
         user_id,
         health_weight,
@@ -252,7 +238,7 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session, *, if
         NotFoundError: If the user has no such record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_weight_id, user_id, db, if_match=if_match)
+    health_record_crud.delete(SPEC, health_weight_id, user_id, db, if_match=if_match)
 
 
 def get_health_weight_chart(

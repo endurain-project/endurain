@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Request, Security, status
+from fastapi import APIRouter, Depends, Request, Security, status
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -13,9 +13,6 @@ import modules.auth.sessions.schema as auth_sessions_schema
 
 router = APIRouter()
 
-#: The identifier of one of the caller's sessions, as the auth boundary issued it.
-SessionId = Annotated[str, Path(min_length=1)]
-
 
 @router.get(
     "",
@@ -24,7 +21,7 @@ SessionId = Annotated[str, Path(min_length=1)]
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> auth_sessions_schema.UsersSessionsPage:
     """Retrieve one page of the authenticated user's sessions.
@@ -85,7 +82,7 @@ def delete_profile_other_sessions(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_session(
     request: Request,
-    session_id: SessionId,
+    session_id: auth_dependencies.AuthSessionId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:

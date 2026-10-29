@@ -8,7 +8,6 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
     Query,
     Request,
     Response,
@@ -43,7 +42,7 @@ router = APIRouter()
 def read_health_poop_all_pagination(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     interval: Annotated[
         health_constants.Interval | None,
         Query(description="Filter by goal interval"),
@@ -129,7 +128,7 @@ def read_health_poop_by_id(
         NotFoundError: If the user has no such record.
     """
     record = health_poop_service.get_health_poop(token_user_id, health_poop_id, db)
-    response.headers["ETag"] = core_etag.format_etag(record.version)
+    core_etag.set_etag(response, record.version)
     return record
 
 
@@ -207,7 +206,7 @@ def edit_health_poop(
         PreconditionFailedError: If the record changed since the client read it.
     """
     updated = health_poop_service.edit_health_poop(token_user_id, health_poop_id, health_poop, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

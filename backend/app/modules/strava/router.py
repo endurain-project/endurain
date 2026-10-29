@@ -170,7 +170,7 @@ def strava_set_user_client(
         A confirmation message.
     """
     version = strava_service.set_client(token_user_id, client, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(version)
+    core_etag.set_etag(response, version)
     return strava_schema.StravaDetail(detail="Strava client edited successfully")
 
 

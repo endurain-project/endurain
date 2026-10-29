@@ -453,6 +453,17 @@ class ServerSettingsReadPublic(ServerSettingsBase):
     )
 
 
+class LoginPhotoRead(BaseModel):
+    """The login photo after an upload.
+
+    Attributes:
+        version: The server settings version that identifies the stored photo; the public photo route
+            sends it as the ``ETag``.
+    """
+
+    version: StrictInt = Field(..., ge=1, description="Version that identifies the stored photo")
+
+
 class TileMapsTemplate(BaseModel):
     """Schema representing available tile map templates.
 

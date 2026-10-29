@@ -202,6 +202,9 @@ export type ServerSettingsUpdate = Omit<
   geocodingApiKey?: string | null
 }
 
+/** The login photo after an upload: the version that identifies the stored image. */
+export type LoginPhotoDto = Schemas['LoginPhotoRead']
+
 /** Raw email-status payload (the mail settings are valid, or why they are not). */
 export type EmailStatusDto = Schemas['EmailStatus']
 

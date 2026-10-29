@@ -1,10 +1,14 @@
 """Tests for the shared state machine of a queued provider sync."""
 
 from enum import StrEnum
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import pytest
 from jasil.backends.state_memory import MemoryState
+from jasil.event_versioning import VersionedPayload
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
 
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
@@ -99,6 +103,32 @@ class TestRunRecorded:
         assert states.begin(1, _Kinds.GEAR) is True
 
 
+class TestStartClaimed:
+    def test_a_claimed_start_runs(self):
+        start, release = MagicMock(), MagicMock()
+
+        core_sync_runner.start_claimed(lambda: True, "busy", start, release)
+
+        start.assert_called_once_with()
+        release.assert_not_called()
+
+    def test_a_held_claim_is_a_conflict_and_nothing_starts(self):
+        start = MagicMock()
+
+        with pytest.raises(core_exceptions.ConflictError, match="busy"):
+            core_sync_runner.start_claimed(lambda: False, "busy", start, MagicMock())
+
+        start.assert_not_called()
+
+    def test_a_start_that_fails_releases_the_claim(self):
+        release = MagicMock()
+
+        with pytest.raises(RuntimeError):
+            core_sync_runner.start_claimed(lambda: True, "busy", MagicMock(side_effect=RuntimeError("boom")), release)
+
+        release.assert_called_once_with()
+
+
 class TestQueueSync:
     def test_a_durable_sync_is_published(self, states):
         publish, submit = MagicMock(), MagicMock()
@@ -158,3 +188,47 @@ class TestStatusAndDeadLetter:
 
         assert states.get(1, _Kinds.GEAR).status == Status.FAILED
         assert states.begin(1, _Kinds.GEAR) is True
+
+
+class _Payload(VersionedPayload):
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    user_id: int
+
+
+def _event(retry_count: int) -> Event:
+    return Event(
+        event_id="evt-1",
+        event_type="feature.sync_requested",
+        source="test",
+        timestamp="2026-10-31T00:00:00+00:00",
+        payload={"user_id": 7},
+        retry_count=retry_count,
+        max_attempts=3,
+    )
+
+
+class TestRegisterSyncJob:
+    @pytest.fixture
+    def handlers(self):
+        run, close = MagicMock(), MagicMock()
+        registry = JobHandlerRegistry()
+        core_sync_runner.register_sync_job(
+            registry, "feature.sync_requested", "feature.sync", _Payload, run=run, close=close
+        )
+        return registry, run, close
+
+    @pytest.mark.parametrize(("retry_count", "will_retry"), [(1, True), (2, True), (3, False)])
+    def test_the_job_asks_for_a_retry_only_while_attempts_remain(self, handlers, retry_count, will_retry):
+        registry, run, _close = handlers
+
+        registry.get("feature.sync")(_event(retry_count))
+
+        run.assert_called_once_with(_Payload(user_id=7), will_retry)
+
+    def test_a_dead_lettered_job_closes_its_sync(self, handlers):
+        registry, _run, close = handlers
+
+        registry.dead_letter_callback("feature.sync")(_event(3), "lease expired")
+
+        close.assert_called_once_with(_Payload(user_id=7))

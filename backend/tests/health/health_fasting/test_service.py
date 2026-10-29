@@ -83,7 +83,7 @@ class TestCompleteHealthFasting:
         assert args[3:6] == ("completed", 86400, "done")
         mock_db.commit.assert_called_once()
 
-    @patch(f"{_CRUD}.health_fasting_exists", return_value=True)
+    @patch("modules.health.record_crud.exists", return_value=True)
     @patch(f"{_CRUD}.end_health_fasting", side_effect=StaleDataError())
     @patch(f"{_CRUD}.get_health_fasting_by_id_and_user_id")
     def test_a_session_changed_by_another_request_is_a_stale_write_not_a_server_error(

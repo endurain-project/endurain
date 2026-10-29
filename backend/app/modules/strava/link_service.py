@@ -3,7 +3,6 @@
 import core.cryptography as core_cryptography
 import core.database as core_database
 import core.exceptions as core_exceptions
-import core.local_pool as core_local_pool
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.strava.client_service as strava_client_service
@@ -19,10 +18,8 @@ logger = core_logger.get_logger(__name__)
 # The exchange runs here, not on the request threadpool: it is a Strava round trip, and a few users
 # linking at once must not leave the API without worker threads. It is a pool and not a durable job
 # because the one-time authorization code is never written to a job row, and a consumed code cannot
-# be retried. A link past this capacity is refused rather than queued.
-_link_pool = core_local_pool.BoundedPool(
-    "strava-link", workers=core_sync_runner.MAX_CONCURRENT_LINKS, max_pending=core_sync_runner.MAX_CONCURRENT_LINKS
-)
+# be retried.
+_link_pool = core_sync_runner.link_pool("strava-link")
 
 
 def shutdown_link_pool(*, wait: bool = False) -> None:
@@ -73,14 +70,12 @@ def start_link(
         or user_integrations.strava_client_secret is None
     ):
         raise core_exceptions.InvalidInputError("Strava client ID and secret not set")
-    if not states.begin(user_id, strava_constants.SyncKind.LINK):
-        raise core_exceptions.ConflictError("A Strava link is already in progress")
-    try:
-        _link_pool.submit(run_link, user_id, link.code, states)
-    except BaseException:
-        # The link never started, so nothing else would finish its claim.
-        states.set_status(user_id, strava_constants.SyncKind.LINK, strava_constants.SyncStatus.FAILED)
-        raise
+    core_sync_runner.start_claimed(
+        lambda: states.begin(user_id, strava_constants.SyncKind.LINK),
+        "A Strava link is already in progress",
+        lambda: _link_pool.submit(run_link, user_id, link.code, states),
+        lambda: states.set_status(user_id, strava_constants.SyncKind.LINK, strava_constants.SyncStatus.FAILED),
+    )
     logger.info("Strava link queued", extra=core_logger.context(user_id=user_id))
     return strava_schema.StravaSyncStatus(
         kind=strava_constants.SyncKind.LINK, status=strava_constants.SyncStatus.QUEUED

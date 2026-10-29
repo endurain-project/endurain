@@ -97,7 +97,7 @@ def create_identity_provider(
             database errors.
     """
     provider = idp_provider_service.create_identity_provider(idp_data, db)
-    response.headers["ETag"] = core_etag.format_etag(provider.version)
+    core_etag.set_etag(response, provider.version)
     return provider
 
 
@@ -159,7 +159,7 @@ def update_identity_provider(
             412 if the provider changed, or 500 on database errors.
     """
     provider = idp_provider_service.update_identity_provider(idp_id, idp_data, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(provider.version)
+    core_etag.set_etag(response, provider.version)
     return provider
 
 

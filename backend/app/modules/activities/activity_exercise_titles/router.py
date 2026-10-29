@@ -1,8 +1,6 @@
 """Authenticated API router for activity exercise titles."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Security
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -19,7 +17,7 @@ router = APIRouter()
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_activity_exercise_titles(
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
     db: core_dependencies.DbSession,
 ) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
     """Return one page of the activity exercise titles.

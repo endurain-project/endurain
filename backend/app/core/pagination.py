@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Self
 
-from fastapi import Query
+from fastapi import Depends, Query
 from pydantic import BaseModel
 
 import core.cryptography as core_cryptography
@@ -111,6 +111,13 @@ def child_page_params(
         None.
     """
     return PageParams(page_number or 1, num_records or DEFAULT_CHILD_NUM_RECORDS)
+
+
+#: A browse-list route's paging window, declared as ``page: core_pagination.ListPage``.
+ListPage = Annotated[PageParams, Depends(list_page_params)]
+
+#: A child-collection route's paging window, declared as ``page: core_pagination.ChildPage``.
+ChildPage = Annotated[PageParams, Depends(child_page_params)]
 
 
 class Page[ItemT](BaseModel):

@@ -31,5 +31,5 @@ def read_activity_detail(
     """
     detail = activity_detail_service.get_activity_detail(activity_id, token_user_id, db)
     if detail.activity.version is not None:
-        response.headers["ETag"] = core_etag.format_etag(detail.activity.version)
+        core_etag.set_etag(response, detail.activity.version)
     return detail

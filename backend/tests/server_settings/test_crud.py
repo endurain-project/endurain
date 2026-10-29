@@ -167,8 +167,9 @@ class TestSetLoginPhoto:
         _mock_row(mock_db, row)
 
         with patch.object(server_settings_crud, "flag_modified") as flag_modified:
-            server_settings_crud.set_login_photo(True, mock_db)
+            version = server_settings_crud.set_login_photo(True, mock_db)
 
+        assert version == row.version
         assert row.login_photo_set is True
         flag_modified.assert_called_once_with(row, "login_photo_set")
         mock_db.flush.assert_called_once()

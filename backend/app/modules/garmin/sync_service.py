@@ -35,8 +35,7 @@ import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
-# Small on purpose: syncs are Garmin round trips and compete with the request threads.
-_sync_pool = core_local_pool.BoundedPool("garmin-sync", workers=2, max_pending=core_sync_runner.MAX_PENDING_LOCAL_SYNCS)
+_sync_pool = core_sync_runner.sync_pool("garmin-sync")
 
 _USERS_PAGE_SIZE = 100
 

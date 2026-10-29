@@ -10,7 +10,6 @@ from fastapi import (
     Query,
     Request,
     Response,
-    status,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -124,8 +123,6 @@ def login_for_access_token(
         code_challenge,
         code_challenge_method,
     )
-    if isinstance(outcome.body, auth_schema.MFARequiredRead):
-        response.status_code = status.HTTP_202_ACCEPTED
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 

@@ -7,7 +7,6 @@ transaction boundary. What other modules may consume lives in
 
 from sqlalchemy.orm import Session
 
-import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -15,6 +14,7 @@ import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_poop.crud as health_poop_crud
 import modules.health.health_poop.schema as health_poop_schema
+import modules.health.record_service as health_record_service
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
@@ -142,15 +142,14 @@ def edit_health_poop(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    with core_etag.refuse_stale_write(
+    updated = health_record_service.commit_write(
+        health_poop_crud.SPEC,
+        health_poop_id,
+        user_id,
+        lambda: health_poop_crud.edit_health_poop(user_id, health_poop_id, health_poop, db, if_match=if_match),
         db,
-        "bowel movement record",
-        lambda: health_poop_crud.health_poop_exists(health_poop_id, user_id, db),
-        "Bowel movement record not found",
-    ):
-        updated = health_poop_crud.edit_health_poop(user_id, health_poop_id, health_poop, db, if_match=if_match)
-        db.commit()
-    logger.info("Edited a bowel movement record", extra=core_logger.context(user_id=user_id))
+        log_message="Edited a bowel movement record",
+    )
     return updated
 
 
@@ -167,16 +166,13 @@ def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_mat
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    with core_etag.refuse_stale_write(
+    health_record_service.commit_write(
+        health_poop_crud.SPEC,
+        health_poop_id,
+        user_id,
+        lambda: health_poop_crud.delete_health_poop(user_id, health_poop_id, db, if_match=if_match),
         db,
-        "bowel movement record",
-        lambda: health_poop_crud.health_poop_exists(health_poop_id, user_id, db),
-        "Bowel movement record not found",
-    ):
-        health_poop_crud.delete_health_poop(user_id, health_poop_id, db, if_match=if_match)
-        db.commit()
-    logger.info(
-        "Deleted a bowel movement record", extra=core_logger.context(user_id=user_id, health_poop_id=health_poop_id)
+        log_message="Deleted a bowel movement record",
     )
 
 

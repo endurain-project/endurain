@@ -124,6 +124,12 @@ class TestReadSessionsUser:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
+    def test_rejects_a_non_positive_user_id(self, sessions_client) -> None:
+        """A user id below 1 is a validation error, as on every other id path."""
+        response = sessions_client.get("/users/0/sessions")
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
     @patch("modules.auth.sessions.service.core_config.settings")
     def test_returns_an_empty_page_in_demo_environment(self, mock_settings, sessions_client) -> None:
         """Demo hides sessions without querying the database."""

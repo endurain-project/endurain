@@ -1,8 +1,6 @@
 """Authenticated activity stream endpoints."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request, Security
+from fastapi import APIRouter, Request, Security
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -32,7 +30,7 @@ def list_activity_streams(
     activity_id: activity_dependencies.ActivityId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
 ) -> activity_streams_schema.ActivityStreamsPage:
     """Return one page of the given activity's streams, with the matching total."""
     return activity_streams_service.list_activity_streams(

@@ -1,8 +1,6 @@
 """API routes for follower relationships and follow requests."""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request, Security, status
+from fastapi import APIRouter, Request, Security, status
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -23,7 +21,7 @@ router = APIRouter()
 def list_follow_requests(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
 ) -> followers_schema.FollowRelationshipPage:
     """List the follow requests awaiting the authenticated user's decision.
 

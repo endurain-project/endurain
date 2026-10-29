@@ -9,6 +9,7 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.crud as server_settings_crud
+import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
 
 logger = core_logger.get_logger(__name__)
@@ -40,7 +41,9 @@ def _sniff_image_type(data: bytes) -> str | None:
     return None
 
 
-def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProvider, db: Session) -> None:
+def upload_login_photo(
+    file: UploadFile, storage: platform_providers.StorageProvider, db: Session
+) -> server_settings_schema.LoginPhotoRead:
     """Save the custom login page photo and mark it as set.
 
     The blob is written before the settings row is locked, so storage latency never
@@ -53,6 +56,9 @@ def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProv
         file: The uploaded image.
         storage: The platform storage provider.
         db: Database session.
+
+    Returns:
+        The stored photo's version.
 
     Raises:
         DomainError: If the upload fails validation or exceeds the login-photo size cap.
@@ -70,9 +76,10 @@ def upload_login_photo(file: UploadFile, storage: platform_providers.StorageProv
         data,
         media_type,
     )
-    server_settings_crud.set_login_photo(True, db)
+    version = server_settings_crud.set_login_photo(True, db)
     db.commit()
     logger.info("Login photo uploaded")
+    return server_settings_schema.LoginPhotoRead(version=version)
 
 
 def delete_login_photo(storage: platform_providers.StorageProvider, db: Session) -> None:

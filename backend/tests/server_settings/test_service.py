@@ -764,10 +764,11 @@ class TestLoginPhoto:
 
         with (
             patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
-            patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=4),
         ):
-            server_settings_login_photo_service.upload_login_photo(file, storage, db)
+            photo = server_settings_login_photo_service.upload_login_photo(file, storage, db)
 
+        assert photo == server_settings_schema.LoginPhotoRead(version=4)
         assert calls == ["save", "commit"]
         # The type is detected from the bytes, not taken from the client's claim.
         storage.save.assert_called_once_with("server_images", "login.png", _PNG, "image/png")

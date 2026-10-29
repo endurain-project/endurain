@@ -35,7 +35,7 @@ def read_user_default_gear(
     """
     default_gear = user_default_gear_service.get_default_gear(token_user_id, db)
     if default_gear is not None:
-        response.headers["ETag"] = core_etag.format_etag(default_gear.version)
+        core_etag.set_etag(response, default_gear.version)
     return default_gear
 
 
@@ -67,5 +67,5 @@ def edit_user_default_gear(
         Updated user default gear settings.
     """
     updated = user_default_gear_service.edit_default_gear(user_default_gear, token_user_id, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated

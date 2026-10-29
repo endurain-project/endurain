@@ -4,9 +4,7 @@ Thin HTTP adapter: authorization, storage naming and file cleanup live in
 :mod:`modules.activities.activity_media.service`.
 """
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request, Security, UploadFile, status
+from fastapi import APIRouter, Request, Security, UploadFile, status
 
 import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
@@ -30,7 +28,7 @@ def list_activity_media(
     activity_id: activity_dependencies.ActivityId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    page: core_pagination.ChildPage,
 ) -> activity_media_schema.ActivityMediaPage:
     """Return one page of the media attached to an activity owned by the user.
 

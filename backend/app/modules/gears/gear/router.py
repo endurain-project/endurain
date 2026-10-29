@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -23,7 +23,7 @@ router = APIRouter()
 def list_gears(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     show_inactive: Annotated[bool | None, Query(description="Filter by inactive status")] = None,
     gear_type: Annotated[gears_schema.GearType | None, Query(description="Keep only gears of this type")] = None,
     nickname_contains: Annotated[
@@ -57,7 +57,7 @@ def read_gear_id(
     """Retrieve a gear by ID with its total distance, time and components cost."""
     gear = gears_service.read_gear_detail(gear_id, token_user_id, db)
     # The tag the client echoes back in If-Match when it later saves.
-    response.headers["ETag"] = core_etag.format_etag(gear.version)
+    core_etag.set_etag(response, gear.version)
     return gear
 
 
@@ -102,7 +102,7 @@ def edit_gear(
     conditional; a stale tag is refused with 412.
     """
     updated = gears_service.edit_gear(gear_id, gear, token_user_id, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

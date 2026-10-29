@@ -61,7 +61,7 @@ def read_users_me(
         User object with integration and privacy settings.
     """
     profile = profile_service.get_profile(token_user_id, db)
-    response.headers["ETag"] = core_etag.format_etag(profile.version)
+    core_etag.set_etag(response, profile.version)
     return profile
 
 
@@ -129,7 +129,7 @@ def edit_user(
         The edited profile; its ``version`` is also sent as the ETag.
     """
     profile = profile_service.edit_profile(token_user_id, user_attributtes, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(profile.version)
+    core_etag.set_etag(response, profile.version)
     return profile
 
 
@@ -201,7 +201,7 @@ def edit_profile_privacy_settings(
         The edited settings; their ``version`` is also sent as the ETag.
     """
     updated = profile_service.edit_privacy_settings(token_user_id, user_privacy_settings, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

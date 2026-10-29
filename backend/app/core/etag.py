@@ -14,6 +14,7 @@ mechanism for exactly this and needs no bespoke field in every payload.
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 
+from fastapi import Response
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -41,6 +42,16 @@ def format_etag(version: int) -> str:
         The quoted entity tag, e.g. ``'"7"'``.
     """
     return f'"{version}"'
+
+
+def set_etag(response: Response, version: int) -> None:
+    """Send a row version as the response's ``ETag``, the tag a client echoes in ``If-Match``.
+
+    Args:
+        response: The response the route returns.
+        version: The row's optimistic-concurrency counter.
+    """
+    response.headers["ETag"] = format_etag(version)
 
 
 def parse_if_match(header: str) -> set[str]:

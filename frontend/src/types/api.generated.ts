@@ -4333,7 +4333,7 @@ export interface paths {
          *         db: Database session.
          *
          *     Returns:
-         *         A confirmation message.
+         *         The stored photo's version.
          */
         post: operations["upload_login_photo_api_v1_server_settings_login_photo_post"];
         /**
@@ -9302,6 +9302,21 @@ export interface components {
             cursor: number;
             /** Entries */
             entries: components["schemas"]["LogEntry"][];
+        };
+        /**
+         * LoginPhotoRead
+         * @description The login photo after an upload.
+         *
+         *     Attributes:
+         *         version: The server settings version that identifies the stored photo; the public photo route
+         *             sends it as the ``ETag``.
+         */
+        LoginPhotoRead: {
+            /**
+             * Version
+             * @description Version that identifies the stored photo
+             */
+            version: number;
         };
         /**
          * LogoutRead
@@ -19720,11 +19735,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LoginPhotoRead"];
+                };
             };
             /** @description Validation Error */
             422: {

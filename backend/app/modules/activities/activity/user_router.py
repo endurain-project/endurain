@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security
+from fastapi import APIRouter, Query, Security
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
@@ -49,7 +49,7 @@ def list_user_activities(
     user_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     activity_type: activity_dependencies.ActivityTypeFilter = None,
     start_date: Annotated[date | None, Query()] = None,
     end_date: Annotated[date | None, Query()] = None,

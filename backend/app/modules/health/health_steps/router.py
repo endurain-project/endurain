@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -26,7 +26,7 @@ router = APIRouter()
 def read_health_steps_all_pagination(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    page: core_pagination.ListPage,
     interval: Annotated[
         health_constants.Interval | None,
         Query(description="Filter by goal interval"),
@@ -155,7 +155,7 @@ def edit_health_steps(
     updated = health_steps_service.edit_health_steps(
         token_user_id, health_steps_id, health_steps, db, if_match=if_match
     )
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 
 

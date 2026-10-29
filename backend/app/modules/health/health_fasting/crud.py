@@ -12,7 +12,7 @@ import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.record_crud as health_record_crud
 
-_SPEC = health_record_crud.RecordSpec(
+SPEC = health_record_crud.RecordSpec(
     model=health_fasting_models.HealthFasting,
     read_schema=health_fasting_schema.HealthFastingRead,
     not_found="Health fasting not found",
@@ -22,20 +22,6 @@ _ACTIVE_FAST_MESSAGE = "User already has an active fasting session"
 
 _IN_PROGRESS = health_fasting_schema.FastingStatus.IN_PROGRESS.value
 _COMPLETED = health_fasting_schema.FastingStatus.COMPLETED.value
-
-
-def health_fasting_exists(health_fasting_id: int, user_id: int, db: Session) -> bool:
-    """Report whether a user has a fasting session record.
-
-    Args:
-        health_fasting_id: The record to look for.
-        user_id: The record's owner.
-        db: Database session.
-
-    Returns:
-        True when the user has such a record.
-    """
-    return health_record_crud.exists(_SPEC, health_fasting_id, user_id, db)
 
 
 def get_health_fasting_number_by_user_id(user_id: int, db: Session, since: date | None = None) -> int:
@@ -49,7 +35,7 @@ def get_health_fasting_number_by_user_id(user_id: int, db: Session, since: date 
     Returns:
         The number of records.
     """
-    return health_record_crud.count(_SPEC, user_id, health_fasting_models.HealthFasting.fast_start_time, since, db)
+    return health_record_crud.count(SPEC, user_id, health_fasting_models.HealthFasting.fast_start_time, since, db)
 
 
 def get_health_fasting_by_id_and_user_id(
@@ -65,7 +51,7 @@ def get_health_fasting_by_id_and_user_id(
     Returns:
         The record, or ``None``.
     """
-    return health_record_crud.find_by_id(_SPEC, health_fasting_id, user_id, db)
+    return health_record_crud.find_by_id(SPEC, health_fasting_id, user_id, db)
 
 
 def get_health_fasting_by_user_id(
@@ -89,7 +75,7 @@ def get_health_fasting_by_user_id(
     """
     fast_start_time = health_fasting_models.HealthFasting.fast_start_time
     return health_record_crud.list_page(
-        _SPEC, user_id, fast_start_time, fast_start_time, since, page_number, num_records, db
+        SPEC, user_id, fast_start_time, fast_start_time, since, page_number, num_records, db
     )
 
 
@@ -249,7 +235,7 @@ def create_health_fasting(
     Raises:
         ConflictError: If the user already has a running fast.
     """
-    return health_record_crud.create(_SPEC, user_id, health_fasting, db, conflict=_ACTIVE_FAST_MESSAGE)
+    return health_record_crud.create(SPEC, user_id, health_fasting, db, conflict=_ACTIVE_FAST_MESSAGE)
 
 
 def edit_health_fasting(
@@ -278,7 +264,7 @@ def edit_health_fasting(
         ConflictError: If the change would leave the user with two running fasts.
     """
     return health_record_crud.edit(
-        _SPEC, health_fasting_id, user_id, health_fasting, db, if_match=if_match, conflict=_ACTIVE_FAST_MESSAGE
+        SPEC, health_fasting_id, user_id, health_fasting, db, if_match=if_match, conflict=_ACTIVE_FAST_MESSAGE
     )
 
 
@@ -312,8 +298,8 @@ def end_health_fasting(
         NotFoundError: If the user has no such session.
         PreconditionFailedError: When ``if_match`` does not name the session's version.
     """
-    db_health_fasting = health_record_crud.get_owned(_SPEC, health_fasting_id, user_id, db)
-    core_etag.require_if_match(if_match, db_health_fasting.version, _SPEC.etag_label)
+    db_health_fasting = health_record_crud.get_owned(SPEC, health_fasting_id, user_id, db)
+    core_etag.require_if_match(if_match, db_health_fasting.version, SPEC.etag_label)
 
     db_health_fasting.fast_end_time = fast_end_time
     db_health_fasting.status = status
@@ -321,7 +307,7 @@ def end_health_fasting(
     if notes:
         db_health_fasting.notes = notes
 
-    return health_record_crud.save(_SPEC, db_health_fasting, db)
+    return health_record_crud.save(SPEC, db_health_fasting, db)
 
 
 def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, if_match: str) -> None:
@@ -337,4 +323,4 @@ def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, 
         NotFoundError: If the user has no such record.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    health_record_crud.delete(_SPEC, health_fasting_id, user_id, db, if_match=if_match)
+    health_record_crud.delete(SPEC, health_fasting_id, user_id, db, if_match=if_match)

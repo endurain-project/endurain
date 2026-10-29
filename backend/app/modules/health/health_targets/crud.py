@@ -9,7 +9,7 @@ import modules.health.health_targets.models as health_targets_models
 import modules.health.health_targets.schema as health_targets_schema
 import modules.health.record_crud as health_record_crud
 
-_SPEC = health_record_crud.RecordSpec(
+SPEC = health_record_crud.RecordSpec(
     model=health_targets_models.HealthTargets,
     read_schema=health_targets_schema.HealthTargetsRead,
     not_found="Health targets not found",
@@ -52,7 +52,7 @@ def create_health_targets(user_id: int, db: Session) -> health_targets_schema.He
     """
     row = health_targets_models.HealthTargets(user_id=user_id)
     return health_record_crud.add(
-        _SPEC, row, db, conflict="Duplicate entry error. Check if there is already an entry created for the user"
+        SPEC, row, db, conflict="Duplicate entry error. Check if there is already an entry created for the user"
     )
 
 
@@ -82,9 +82,9 @@ def edit_health_targets(
     db_health_target = db.execute(stmt).scalar_one_or_none()
 
     if db_health_target is None:
-        raise core_exceptions.NotFoundError(_SPEC.not_found)
+        raise core_exceptions.NotFoundError(SPEC.not_found)
 
-    return health_record_crud.edit_row(_SPEC, db_health_target, health_target, db, if_match=if_match)
+    return health_record_crud.edit_row(SPEC, db_health_target, health_target, db, if_match=if_match)
 
 
 def health_targets_exists(user_id: int, db: Session) -> bool:

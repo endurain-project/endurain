@@ -110,12 +110,15 @@ def edit_server_settings(
     return server_settings_serializers.to_server_settings_read(row)
 
 
-def set_login_photo(is_set: bool, db: Session) -> None:
+def set_login_photo(is_set: bool, db: Session) -> int:
     """Stage whether a custom login photo is configured.
 
     Args:
         is_set: True when a login photo exists.
         db: Database session.
+
+    Returns:
+        The settings version the change was staged as, which identifies the photo.
 
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
@@ -126,6 +129,7 @@ def set_login_photo(is_set: bool, db: Session) -> None:
     # which is the photo's entity tag.
     flag_modified(row, "login_photo_set")
     db.flush()
+    return row.version
 
 
 def get_mail_settings(db: Session, *, for_update: bool = False) -> server_settings_schema.MailSettingsRead | None:

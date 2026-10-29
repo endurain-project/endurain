@@ -251,39 +251,16 @@ class OidcClientService:
                 extra=core_logger.context(name=idp.name, discovery_url=discovery_url, err=err),
             )
             return None
-        except core_exceptions.DomainError as err:
-            if err.status_code == 400:
-                # The SSRF guard refused the URL. Log with an actionable
-                # hint for the operator so they know about the
-                # SSRF_ALLOWED_HOSTS escape hatch for self-hosted IdPs.
-                logger.warning(
-                    "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. "
-                    "If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS.",
-                    extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
-                )
-            else:
-                # The hostname could not be checked (resolution timed out or the
-                # lookup pool is busy). The URL was not judged, so no hint.
-                logger.warning(
-                    "OIDC discovery for <name> could not be checked: <detail>. URL: <discovery_url>.",
-                    extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
-                )
+        except core_exceptions.InvalidInputError as err:
+            # The SSRF guard refused the URL. Log with an actionable hint for the operator so they
+            # know about the SSRF_ALLOWED_HOSTS escape hatch for self-hosted IdPs.
+            logger.warning(
+                "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. "
+                "If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS.",
+                extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
+            )
             return None
         except Exception as err:
-            if hasattr(err, "status_code") and hasattr(err, "detail"):
-                if err.status_code == 400:
-                    logger.warning(
-                        "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. "
-                        "If this is a self-hosted IdP on a private network, "
-                        "add its host or CIDR to SSRF_ALLOWED_HOSTS.",
-                        extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
-                    )
-                else:
-                    logger.warning(
-                        "OIDC discovery for <name> could not be checked: <detail>. URL: <discovery_url>.",
-                        extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
-                    )
-                return None
             logger.warning(
                 "Failed to fetch OIDC discovery for <name>", exc_info=err, extra=core_logger.context(name=idp.name)
             )

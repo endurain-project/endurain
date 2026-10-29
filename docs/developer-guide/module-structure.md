@@ -806,6 +806,9 @@ These constraints remain visible until a coordinated design change resolves them
   (the persistence steps every per-user record runs identically: load by id and owner, count, page, create,
   edit under `If-Match`, delete). A package describes its record once with a `RecordSpec` (model, read schema,
   error labels) and its `crud` delegates to `record_crud`, keeping only what is specific to the record.
+  `record_service.py` is the service-layer counterpart: `commit_write` commits and logs a staged write under
+  the version-race guard, and `chart` charts a metric over an interval; each package `service` passes its
+  `crud.SPEC` and the callables that stage or read what is specific to it.
   Persistence may import a namespace's `computation` like a data shape (`_PERSISTENCE_SHARED_ROLES`) and the
   `crud`-role file directly under its own namespace (`_PERSISTENCE_NAMESPACE_ROLES`): neither declares a table.
   Anything that resolves a value through another module, such as the user's "today", stays in the
