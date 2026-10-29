@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.schema as oauth_state_schema
 from tests._helpers.db import create_sqlite_session
@@ -23,6 +24,7 @@ def _state(**overrides):
         "expires_at": datetime.now(UTC) + timedelta(minutes=5),
         "used": False,
         "user_id": None,
+        "purpose": oauth_state_constants.OAuthStatePurpose.LOGIN,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -50,7 +52,9 @@ def test_create_state_stages_row_and_returns_schema(mock_db):
             return_value=oauth_state_schema.OAuthStateRead.model_validate(state),
         ),
     ):
-        result = oauth_state_crud.create_oauth_state(state.id, state.nonce, state.client_type, None, mock_db)
+        result = oauth_state_crud.create_oauth_state(
+            state.id, state.nonce, state.client_type, None, mock_db, purpose=state.purpose
+        )
     assert result.id == state.id
     mock_db.add.assert_called_once_with(state)
     mock_db.flush.assert_called_once()
@@ -61,7 +65,15 @@ def test_a_link_state_keeps_the_digest_of_its_browser_binding():
     db = create_sqlite_session()
 
     created = oauth_state_crud.create_oauth_state(
-        "s" * 32, "n" * 32, "web", None, db, user_id=7, browser_binding_hash="d" * 64, idp_code_verifier="v" * 64
+        "s" * 32,
+        "n" * 32,
+        "web",
+        None,
+        db,
+        user_id=7,
+        browser_binding_hash="d" * 64,
+        idp_code_verifier="v" * 64,
+        purpose=oauth_state_constants.OAuthStatePurpose.LINK,
     )
 
     assert created.browser_binding_hash == "d" * 64

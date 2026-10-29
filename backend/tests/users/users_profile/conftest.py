@@ -132,7 +132,9 @@ def profile_app(
     monkeypatch.setattr(
         account_security_integration,
         "verify_step_up",
-        lambda step_up, user_id, store, db: mock_auth_services.verify_step_up(step_up, user_id, store),
+        lambda step_up, user_id, session_id, action, store, db: mock_auth_services.verify_step_up(
+            step_up, user_id, session_id, action, store
+        ),
     )
     monkeypatch.setattr(
         account_security_integration,
@@ -191,15 +193,19 @@ def profile_app(
     monkeypatch.setattr(
         mfa_workflow_service,
         "enable_mfa",
-        lambda request, user_id, step_up_store, secret_store, db: mock_auth_services.enable_mfa(
-            request=request, user_id=user_id, step_up_store=step_up_store, mfa_secret_store=secret_store
+        lambda request, user_id, session_id, step_up_store, secret_store, db: mock_auth_services.enable_mfa(
+            request=request,
+            user_id=user_id,
+            session_id=session_id,
+            step_up_store=step_up_store,
+            mfa_secret_store=secret_store,
         ),
     )
     monkeypatch.setattr(
         mfa_workflow_service,
         "disable_mfa",
-        lambda request, user_id, store, db: mock_auth_services.disable_mfa(
-            request=request, user_id=user_id, step_up_store=store
+        lambda request, user_id, session_id, store, db: mock_auth_services.disable_mfa(
+            request=request, user_id=user_id, session_id=session_id, step_up_store=store
         ),
     )
     monkeypatch.setattr(
@@ -212,18 +218,19 @@ def profile_app(
     monkeypatch.setattr(
         mfa_workflow_service,
         "generate_backup_codes",
-        lambda step_up, user_id, store, db: mock_auth_services.generate_backup_codes(
-            step_up=step_up, user_id=user_id, step_up_store=store
+        lambda step_up, user_id, session_id, store, db: mock_auth_services.generate_backup_codes(
+            step_up=step_up, user_id=user_id, session_id=session_id, step_up_store=store
         ),
     )
     monkeypatch.setattr(
         identity_link_service,
         "generate_link_token",
-        lambda idp_id, request, http_request, user_id, store, db: mock_auth_services.generate_link_token(
+        lambda idp_id, request, http_request, user_id, session_id, store, db: mock_auth_services.generate_link_token(
             idp_id=idp_id,
             link_request=request,
             request=http_request,
             user_id=user_id,
+            session_id=session_id,
             step_up_store=store,
         ),
     )
@@ -235,8 +242,8 @@ def profile_app(
     monkeypatch.setattr(
         identity_link_service,
         "delete_identity_provider_link",
-        lambda idp_id, step_up, user_id, store, db: mock_auth_services.delete_identity_provider_link(
-            idp_id=idp_id, step_up=step_up, user_id=user_id, step_up_store=store
+        lambda idp_id, step_up, user_id, session_id, store, db: mock_auth_services.delete_identity_provider_link(
+            idp_id=idp_id, step_up=step_up, user_id=user_id, session_id=session_id, step_up_store=store
         ),
     )
 

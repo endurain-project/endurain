@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 import core.pagination as core_pagination
+import modules.auth.identity_providers.schema as idp_schema
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.constants as users_constants
 
@@ -434,7 +435,8 @@ class UsersMe(UsersRead):
             sets/steps.
         hide_activity_gear: Hide gear setting.
         has_local_password: Whether the account has a local
-            password (False for SSO-only accounts).
+            password (False for accounts that sign in through an
+            identity provider).
     """
 
     privacy_settings_version: StrictInt | None = Field(
@@ -461,14 +463,14 @@ class UsersMe(UsersRead):
         default=None, description="Hide activity workout sets and steps"
     )
     hide_activity_gear: StrictBool | None = Field(default=None, description="Hide activity gear")
-    has_local_password: StrictBool | None = Field(
-        default=None,
+    has_local_password: StrictBool = Field(
+        ...,
         description=(
             "Whether the account has a local password set. False"
-            " indicates an SSO-only account, in which case"
-            " step-up flows must skip the password factor. The"
-            " raw password hash is never exposed; only this"
-            " derived boolean is returned."
+            " indicates an account that signs in through an identity"
+            " provider; its step-up proves a fresh sign-in with that"
+            " provider instead of a password. The raw password hash"
+            " is never exposed; only this derived boolean is returned."
         ),
     )
 
@@ -606,18 +608,18 @@ class StepUpVerification(BaseModel):
     creation, MFA backup-code regeneration, etc.) to require
     fresh proof of identity beyond a valid access token.
 
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
+    An account without a local password (it signs in through an
+    identity provider) proves a fresh sign-in with a linked provider
+    instead: ``idp_reauth`` carries the ticket from
+    ``POST /profile/identity-providers/{idp_id}/step-up``.
 
     Attributes:
         current_password: Caller's existing password. Required
-            when the account has a local password; may be
-            omitted for SSO-only accounts.
+            when the account has a local password.
         mfa_code: TOTP or backup code, required when MFA is
             enabled on the account.
+        idp_reauth: Proof of a fresh identity-provider sign-in. Required
+            when the account has no local password.
     """
 
     current_password: StrictStr | None = Field(
@@ -630,6 +632,11 @@ class StepUpVerification(BaseModel):
         default=None,
         max_length=32,
         description="TOTP or backup code, required when MFA is enabled",
+    )
+
+    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+        default=None,
+        description="Fresh identity-provider sign-in, required when the account has no local password",
     )
 
     model_config = ConfigDict(

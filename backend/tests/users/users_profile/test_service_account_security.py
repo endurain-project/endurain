@@ -21,10 +21,18 @@ def test_changing_the_password_stages_through_account_security_then_commits(mock
     mock_db.commit.assert_called_once()
 
 
-def test_starting_a_browser_link_commits_the_claimed_link_token_and_oauth_state(mock_db):
+def test_starting_a_browser_link_commits_the_staged_state_before_building_the_provider_url(mock_db):
+    staged = MagicMock(browser_binding="binding-secret")
+    order = MagicMock()
+    order.attach_mock(mock_db.commit, "commit")
     with patch(_ACCOUNT_SECURITY) as account_security:
-        account_security.start_browser_idp_link.return_value = "start"
+        account_security.stage_browser_idp_link.return_value = staged
+        account_security.browser_flow_authorization_url.return_value = "https://idp.example.com/auth"
+        order.attach_mock(account_security.browser_flow_authorization_url, "build_url")
         start = profile_service.start_identity_provider_link("token", 2, "/settings", "10.0.0.1", mock_db)
 
-    assert start == "start"
-    mock_db.commit.assert_called_once()
+    account_security.stage_browser_idp_link.assert_called_once_with("token", 2, "/settings", "10.0.0.1", mock_db)
+    account_security.browser_flow_authorization_url.assert_called_once_with(staged)
+    assert [call[0] for call in order.mock_calls] == ["commit", "build_url"]
+    assert start.authorization_url == "https://idp.example.com/auth"
+    assert start.browser_binding == "binding-secret"

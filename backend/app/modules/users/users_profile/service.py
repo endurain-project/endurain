@@ -17,6 +17,7 @@ import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.followers.integration_service as followers_integration
@@ -76,8 +77,9 @@ def get_profile(
     if privacy_settings is None:
         raise core_exceptions.NotFoundError("User privacy settings not found")
 
-    return users_schema.UsersMe.model_validate(user).model_copy(
-        update={
+    return users_schema.UsersMe.model_validate(
+        {
+            **user.model_dump(),
             "integrations_version": user_integrations.version,
             "is_strava_linked": 1 if user_integrations.strava_token else 0,
             "is_garminconnect_linked": 1 if user_integrations.garminconnect_token else 0,
@@ -95,8 +97,8 @@ def get_profile(
             "hide_activity_laps": privacy_settings.hide_activity_laps,
             "hide_activity_workout_sets_steps": privacy_settings.hide_activity_workout_sets_steps,
             "hide_activity_gear": privacy_settings.hide_activity_gear,
-            # Lets the frontend tell SSO-only accounts from accounts with a local password, so
-            # step-up prompts can hide the password field. Both flags are auth-owned and come
+            # Lets the frontend tell an account that signs in through an identity provider from one with a
+            # local password, so a step-up asks for the right proof. Both flags are auth-owned and come
             # through the auth boundary, so the hash never leaves it.
             "has_local_password": credentials_integration.has_local_password(user_id, db),
             "mfa_enabled": account_security_integration.get_mfa_status(user_id, db).mfa_enabled,
@@ -197,6 +199,8 @@ def change_email(
     account_security_integration.verify_step_up(
         users_schema.StepUpVerification(**change.model_dump(exclude={"email", "revoke_other_sessions"})),
         user_id,
+        session_id,
+        identity_providers_constants.StepUpAction.EMAIL_CHANGE,
         step_up_store,
         db,
     )
@@ -259,6 +263,7 @@ def edit_privacy_settings(
 
 def delete_account(
     user_id: int,
+    session_id: str,
     step_up: users_schema.StepUpVerification,
     step_up_store: "auth_dependencies.StepUpStore",
     state: platform_providers.StateProvider,
@@ -274,7 +279,9 @@ def delete_account(
 
     Args:
         user_id: The authenticated user.
-        step_up: Step-up verification payload (password, and an MFA code when MFA is enabled).
+        session_id: The caller's session.
+        step_up: Step-up verification payload (password or identity-provider sign-in, and an MFA code when MFA
+            is enabled).
         step_up_store: Step-up lockout store.
         state: The platform state provider.
         storage: The platform storage provider.
@@ -287,7 +294,9 @@ def delete_account(
         UnauthenticatedError: If step-up verification fails.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    account_security_integration.verify_step_up(step_up, user_id, step_up_store, db)
+    account_security_integration.verify_step_up(
+        step_up, user_id, session_id, identity_providers_constants.StepUpAction.ACCOUNT_DELETE, step_up_store, db
+    )
     status = users_integration.request_user_deletion(user_id, state, storage, db)
     logger.info("Account deletion requested by its owner", extra=core_logger.context(user_id=user_id))
     return status
@@ -374,7 +383,7 @@ def start_identity_provider_link(
     redirect: str | None,
     client_ip: str,
     db: Session,
-) -> identity_provider_contracts.BrowserLinkStart:
+) -> identity_provider_contracts.BrowserFlowStart:
     """Claim a one-time link token and return the identity provider's authorization URL and browser binding.
 
     Args:
@@ -387,7 +396,12 @@ def start_identity_provider_link(
     Returns:
         The provider's authorization URL, and the secret the browser must keep for the callback.
     """
-    start = account_security_integration.start_browser_idp_link(link_token, idp_id, redirect, client_ip, db)
+    staged = account_security_integration.stage_browser_idp_link(link_token, idp_id, redirect, client_ip, db)
+    # Committed before the provider URL is built: building it may run OIDC discovery, a network call no open
+    # transaction may span.
     db.commit()
+    authorization_url = account_security_integration.browser_flow_authorization_url(staged)
     logger.debug("Identity provider link started", extra=core_logger.context(idp_id=idp_id))
-    return start
+    return identity_provider_contracts.BrowserFlowStart(
+        authorization_url=authorization_url, browser_binding=staged.browser_binding
+    )

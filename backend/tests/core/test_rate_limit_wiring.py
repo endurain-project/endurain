@@ -152,6 +152,11 @@ _TIERED_ENDPOINTS = [
     pytest.param(auth_api_keys_router.revoke_user_api_key, core_rate_limit.SENSITIVE, id="api-key-revoke"),
     pytest.param(auth_api_keys_router.delete_user_api_key, core_rate_limit.SENSITIVE, id="api-key-delete"),
     pytest.param(
+        auth_idp_profile_router.start_idp_step_up,
+        core_rate_limit.SENSITIVE,
+        id="sso-step-up-start",
+    ),
+    pytest.param(
         auth_idp_profile_router.delete_my_identity_provider,
         core_rate_limit.SENSITIVE,
         id="sso-unlink",

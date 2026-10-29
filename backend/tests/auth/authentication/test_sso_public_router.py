@@ -11,6 +11,7 @@ import core.database as core_db
 import core.exceptions as core_exceptions
 import modules.auth.authentication.sso_public_router as sso_public_router
 import modules.auth.mfa.dependencies as mfa_dependencies
+import modules.auth.oauth_state.constants as oauth_state_constants
 
 _VERIFIER = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
 _SERVICE = "modules.auth.authentication.service"
@@ -52,6 +53,7 @@ def _session_and_state(client_type: str = "mobile", idp_id: int | None = 5) -> t
     oauth_state.code_challenge_method = "S256"
     oauth_state.client_type = client_type
     oauth_state.idp_id = idp_id
+    oauth_state.purpose = oauth_state_constants.OAuthStatePurpose.LOGIN
     return session, oauth_state
 
 

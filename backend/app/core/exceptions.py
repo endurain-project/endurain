@@ -156,6 +156,29 @@ class MfaRequiredError(PermissionDeniedError):
     default_detail = "MFA verification required"
 
 
+class IdpReauthRequiredError(UnauthenticatedError):
+    """The account has no local password and the request carried no proof of a fresh identity-provider sign-in.
+
+    Clients branch on the ``idp-reauth-required`` problem type to send the user through their identity provider
+    and send the same request again with the proof. The challenge follows RFC 9470.
+    """
+
+    code = "idp-reauth-required"
+    default_detail = "Sign in again with your identity provider to continue"
+
+    def __init__(self, max_age: int, detail: str | None = None) -> None:
+        """Initialise the error with the freshness the new sign-in must meet.
+
+        Args:
+            max_age: Seconds within which the identity-provider sign-in must have happened.
+            detail: Message returned to the client.
+        """
+        super().__init__(
+            detail,
+            scheme=f'Bearer error="insufficient_user_authentication", max_age="{max_age}"',
+        )
+
+
 class ConflictError(DomainError):
     """The action conflicts with the resource's current state."""
 

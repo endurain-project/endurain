@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 import core.cryptography as core_cryptography
+import modules.auth.identity_providers.constants as idp_constants
 
 
 class IdentityProviderBase(BaseModel):
@@ -216,3 +217,48 @@ class IdentityProviderTemplateRead(BaseModel):
     user_mapping: dict[str, Any] | None = None
     description: StrictStr = Field(..., description="Description of this template")
     configuration_notes: StrictStr | None = Field(default=None, description="Setup instructions for this IdP")
+
+
+class IdpReauthProof(BaseModel):
+    """Proof that a password-less account signed in again with its identity provider.
+
+    The provider's callback hands the ticket to the browser that started the step-up; that browser also holds
+    the PKCE verifier whose challenge the ticket records, so a ticket alone cannot be redeemed.
+
+    Attributes:
+        ticket: The single-use step-up ticket.
+        code_verifier: The PKCE verifier the step-up was started with.
+    """
+
+    ticket: StrictStr = Field(..., min_length=43, max_length=64, description="Single-use step-up ticket")
+    code_verifier: StrictStr = Field(
+        ..., min_length=43, max_length=128, description="PKCE verifier the step-up was started with"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StepUpStartRequest(BaseModel):
+    """Start a step-up re-authentication with a linked identity provider.
+
+    Attributes:
+        code_challenge: S256 challenge of a PKCE verifier the browser keeps until it sends the sensitive request.
+        action: The sensitive operation the step-up authorises.
+        redirect: Relative frontend path the provider's callback returns to.
+    """
+
+    code_challenge: StrictStr = Field(..., min_length=43, max_length=128, description="PKCE S256 challenge")
+    action: idp_constants.StepUpAction = Field(..., description="Sensitive operation the step-up authorises")
+    redirect: StrictStr = Field(..., min_length=1, max_length=500, description="Relative path to return to")
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StepUpStartRead(BaseModel):
+    """Where to send the browser for a step-up re-authentication.
+
+    Attributes:
+        authorization_url: The identity provider's authorization URL.
+    """
+
+    authorization_url: StrictStr = Field(..., description="Identity provider authorization URL")

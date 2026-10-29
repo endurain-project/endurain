@@ -117,14 +117,15 @@ def handle_callback(
     ],
     db: core_dependencies.DbSession,
     service: idp_dependencies.CallbackService,
-    link_binding: idp_dependencies.LinkBinding = None,
-    code: str = Query(..., description="Authorization code from IdP"),
+    browser_binding: idp_dependencies.BrowserBinding = None,
+    code: str | None = Query(None, description="Authorization code from IdP"),
+    error: str | None = Query(None, max_length=128, description="Error the IdP returned instead of a code"),
     state: str = Query(..., description="State parameter for CSRF protection"),
 ):
     """Handle OAuth callback from an identity provider.
 
     This endpoint processes the OAuth authorization callback from external identity providers.
-    It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
+    It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
 
     Args:
         request: The incoming HTTP request.
@@ -132,14 +133,16 @@ def handle_callback(
         password_hasher: Password hasher dependency for session management.
         db: Database session dependency.
         service: Identity provider service.
-        link_binding: The cookie that binds a link to the browser that started it.
-        code: Authorization code received from the identity provider.
+        browser_binding: The cookie that binds a link or step-up to the browser that started it.
+        code: Authorization code received from the identity provider; absent when it returned an error.
+        error: The provider's error code, such as ``login_required`` when it could not sign the user in again.
         state: State parameter used for CSRF protection (database state ID).
 
     Returns:
         RedirectResponse: A redirect response to either:
             - Settings page (link mode): /settings with success parameters
             - Login page (login mode): /login with session_id for token exchange
+            - The page that started a step-up, with its ticket or error in the fragment
             - Error page: /login with error parameter if callback fails
 
     Raises:
@@ -154,10 +157,11 @@ def handle_callback(
         - On error: Redirects to login page with error parameter
         - All redirects use HTTP 307 (Temporary Redirect) status code
     """
-    idp, oauth_state = service.prepare_callback(idp_slug, state, link_binding, db)
+    idp, oauth_state = service.prepare_callback(idp_slug, state, browser_binding, db)
     redirect_url = service.complete_callback(
         idp,
         code,
+        error,
         state,
         oauth_state,
         core_network.get_ip_address(request),
@@ -166,5 +170,5 @@ def handle_callback(
         db,
     )
     response = RedirectResponse(url=redirect_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-    idp_dependencies.clear_link_binding_cookie(response)
+    idp_dependencies.clear_browser_binding_cookie(response)
     return response

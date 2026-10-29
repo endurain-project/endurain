@@ -22,6 +22,7 @@ import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
 import modules.auth.sessions.contracts as sessions_contracts
@@ -392,6 +393,7 @@ def create_mobile_pkce_session_response(
         redirect_path=None,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
+        purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
     )
 
     # Create session linked to oauth_state (enables PKCE exchange)
@@ -1254,6 +1256,12 @@ def exchange_tokens_for_session(
         logger.warning(
             "Token exchange failed: session <value_1> has no OAuth state",
             extra=core_logger.context(value_1=fingerprint),
+        )
+        raise core_exceptions.NotFoundError("Session not eligible for PKCE token exchange")
+    if oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN:
+        logger.warning(
+            "Token exchange failed: session <value_1> belongs to a <purpose> flow, not a login",
+            extra=core_logger.context(value_1=fingerprint, purpose=oauth_state.purpose),
         )
         raise core_exceptions.NotFoundError("Session not eligible for PKCE token exchange")
 

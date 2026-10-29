@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Security, status
+from fastapi import APIRouter, Depends, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.network as core_network
@@ -11,6 +11,7 @@ import modules.auth.account_security.identity_link_service as identity_link_serv
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+import modules.auth.identity_providers.schema as identity_providers_schema
 import modules.users.users.schema as users_schema
 
 router = APIRouter()
@@ -28,6 +29,7 @@ def generate_link_token(
     link_request: idp_link_token_schema.IdpLinkTokenRequest,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -42,8 +44,8 @@ def generate_link_token(
 
     Linking an identity provider is a sensitive operation that enables
     persistent authentication. Step-up verification is required: the
-    caller MUST supply ``current_password``, and an MFA code when MFA
-    is enabled on the account.
+    caller MUST supply ``current_password`` (or, for an account without
+    one, ``idp_reauth``), and an MFA code when MFA is enabled.
 
     This approach is more secure than passing access tokens in query
     parameters, as the link token:
@@ -57,6 +59,7 @@ def generate_link_token(
         link_request (IdpLinkTokenRequest): Request with step-up credentials.
         request (Request): The FastAPI request object.
         token_user_id (int): The authenticated user's ID extracted from the access token.
+        token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -71,8 +74,67 @@ def generate_link_token(
             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
     """
     return identity_link_service.generate_link_token(
-        idp_id, link_request, core_network.get_ip_address(request), token_user_id, step_up_store, db
+        idp_id,
+        link_request,
+        core_network.get_ip_address(request),
+        token_user_id,
+        token_session_id,
+        step_up_store,
+        db,
     )
+
+
+@router.post(
+    "/{idp_id}/step-up",
+    response_model=identity_providers_schema.StepUpStartRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def start_idp_step_up(
+    idp_id: core_dependencies.PositiveId,
+    start: identity_providers_schema.StepUpStartRequest,
+    request: Request,
+    response: Response,
+    token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
+    db: core_dependencies.DbSession,
+) -> identity_providers_schema.StepUpStartRead:
+    """Start a fresh sign-in with a linked identity provider, for an account without a local password.
+
+    Such an account has no password to prove, so a sensitive operation asks for this instead: the browser
+    follows ``authorization_url``, the provider signs the user in again, and the callback returns to
+    ``redirect`` with a single-use ``step_up_ticket`` in the URL fragment. The sensitive request then sends the
+    ticket and the PKCE verifier of ``code_challenge`` as ``idp_reauth``. The response sets a cookie that binds
+    the sign-in to this browser.
+
+    Args:
+        idp_id: The linked provider to sign in with again.
+        start: The PKCE challenge, the operation and the return path.
+        request: The incoming request, read by the rate limiter.
+        response: The response, which receives the browser-binding cookie.
+        token_user_id: User ID from access token.
+        token_session_id: Session ID from access token.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Returns:
+        The provider's authorization URL.
+    """
+    flow = identity_link_service.start_idp_step_up(
+        idp_id,
+        start,
+        core_network.get_ip_address(request),
+        token_user_id,
+        token_session_id,
+        step_up_store,
+        db,
+    )
+    auth_dependencies.set_idp_browser_binding_cookie(response, flow.browser_binding)
+    return identity_providers_schema.StepUpStartRead(authorization_url=flow.authorization_url)
 
 
 # Identity Provider Management Endpoints
@@ -129,6 +191,7 @@ def delete_my_identity_provider(
     step_up: users_schema.StepUpVerification,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -139,7 +202,8 @@ def delete_my_identity_provider(
 
     This endpoint allows users to remove the association between their
     account and a specific identity provider. It requires step-up
-    verification (current password and MFA when enabled) and includes
+    verification (current password or a fresh identity-provider
+    sign-in, and MFA when enabled) and includes
     safety checks to prevent account lockout by ensuring users maintain
     at least one authentication method (either a password or another
     IdP link).
@@ -149,6 +213,7 @@ def delete_my_identity_provider(
         step_up (StepUpVerification): Step-up verification payload.
         request (Request): The FastAPI request object.
         token_user_id (int): User ID extracted from the access token.
+        token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -171,5 +236,7 @@ def delete_my_identity_provider(
         - Uses token-based authentication to ensure users can only
           unlink their own IdPs.
     """
-    identity_link_service.delete_identity_provider_link(idp_id, step_up, token_user_id, step_up_store, db)
+    identity_link_service.delete_identity_provider_link(
+        idp_id, step_up, token_user_id, token_session_id, step_up_store, db
+    )
     return None

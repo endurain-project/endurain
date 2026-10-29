@@ -49,6 +49,14 @@ class FakeStepUpStore:
         self._attempts.pop(key, None)
         self._locked.pop(key, None)
 
+    def read_ticket(self, ticket: str) -> None:
+        """Return no ticket: these tests issue none."""
+        return None
+
+    def redeem_ticket(self, ticket: str) -> None:
+        """Redeem no ticket: these tests issue none."""
+        return None
+
     def set_locked(self, key: str, seconds: int = 300) -> None:
         """Helper to pre-set a lockout for a key."""
         self._locked[key] = datetime.now(UTC) + timedelta(seconds=seconds)
@@ -151,129 +159,57 @@ class TestVerifyStepUpCredentials:
         # Should not raise 429
         store = FakeStepUpStore()
         mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        # No password, no MFA → success path
-        self._call(user_id=1, step_up_store=store, mock_user=mock_user)
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+        self._call(user_id=1, step_up_store=store, mock_user=mock_user, current_password="correct")
 
     # ----------------------------------------------------------------
     # SSO-only accounts (no local password)
     # ----------------------------------------------------------------
 
-    def test_sso_no_mfa_success(self):
-        """SSO-only accounts pass step-up with no credentials supplied.
-
-        Password factor is skipped when db_user.password is None because
-        there is no local credential to verify against. This is the
-        intended behavior; a future IdP re-auth flow would close the gap.
-        See verify_step_up_credentials docstring for the known coverage note.
-        """
+    def _sso_user(self):
         mock_user = MagicMock()
         mock_user.password = None
         mock_user.has_local_password = False
-        store = FakeStepUpStore()
-        self._call(mock_user=mock_user, step_up_store=store)
+        return mock_user
 
-    def test_sso_no_mfa_resets_attempts_on_success(self):
-        """A successful SSO-only step-up clears any prior failed-attempt counter."""
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
+    def test_sso_without_reauth_proof_is_refused_with_the_idp_challenge(self):
+        """An SSO-only account must prove a fresh provider sign-in; no credentials is not a pass."""
+        with pytest.raises(core_exceptions.IdpReauthRequiredError) as exc:
+            self._call(mock_user=self._sso_user(), step_up_store=FakeStepUpStore())
+
+        assert exc.value.status_code == 401
+        assert exc.value.code == "idp-reauth-required"
+
+    def test_sso_challenge_is_not_counted_as_a_failure(self):
         store = FakeStepUpStore()
         store._attempts["user:1"] = 3
 
-        self._call(user_id=1, mock_user=mock_user, step_up_store=store)
+        with pytest.raises(core_exceptions.IdpReauthRequiredError):
+            self._call(user_id=1, mock_user=self._sso_user(), step_up_store=store)
 
-        assert "user:1" not in store._attempts
+        assert store._attempts["user:1"] == 3
 
-    def test_sso_mfa_missing_code_raises_401(self):
-        """SSO-only accounts still require MFA when it is enabled.
-
-        Even though the password factor is skipped, an enrolled MFA code
-        must still be supplied. Omitting it raises 401.
-        """
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
+    @pytest.mark.parametrize(
+        ("mfa_code", "mfa_valid"),
+        [(None, True), ("wrong", False), ("123456", True)],
+        ids=["missing-code", "wrong-code", "correct-code"],
+    )
+    def test_sso_with_mfa_is_still_refused_without_reauth_proof(self, mfa_code, mfa_valid):
+        """A valid MFA code alone never substitutes for the identity-provider sign-in."""
         store = FakeStepUpStore()
 
-        with pytest.raises(core_exceptions.DomainError) as exc:
-            self._call(
-                mock_user=mock_user,
-                step_up_store=store,
-                mfa_enabled=True,
-                mfa_code=None,
-            )
-
-        assert exc.value.status_code == 401
-        assert exc.value.detail == "MFA code required for this operation"
-
-    def test_sso_mfa_missing_code_records_failure(self):
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        with pytest.raises(core_exceptions.DomainError):
+        with pytest.raises(core_exceptions.IdpReauthRequiredError):
             self._call(
                 user_id=1,
-                mock_user=mock_user,
+                mock_user=self._sso_user(),
                 step_up_store=store,
                 mfa_enabled=True,
-                mfa_code=None,
+                mfa_code=mfa_code,
+                mfa_valid=mfa_valid,
             )
 
-        assert store._attempts.get("user:1", 0) == 1
-
-    def test_sso_mfa_wrong_code_raises_401(self):
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        with pytest.raises(core_exceptions.DomainError) as exc:
-            self._call(
-                mock_user=mock_user,
-                step_up_store=store,
-                mfa_enabled=True,
-                mfa_code="wrong",
-                mfa_valid=False,
-            )
-
-        assert exc.value.status_code == 401
-
-    def test_sso_mfa_wrong_code_records_failure(self):
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        with pytest.raises(core_exceptions.DomainError):
-            self._call(
-                user_id=1,
-                mock_user=mock_user,
-                step_up_store=store,
-                mfa_enabled=True,
-                mfa_code="wrong",
-                mfa_valid=False,
-            )
-
-        assert store._attempts.get("user:1", 0) == 1
-
-    def test_sso_mfa_correct_code_success(self):
-        """SSO-only account with MFA enabled passes when valid MFA code is provided."""
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        self._call(
-            mock_user=mock_user,
-            step_up_store=store,
-            mfa_enabled=True,
-            mfa_code="123456",
-            mfa_valid=True,
-        )
+        assert store._attempts.get("user:1", 0) == 0
 
     # ----------------------------------------------------------------
     # Accounts with local password
@@ -491,8 +427,8 @@ class TestVerifyStepUpCredentials:
 
     def test_lockout_cleared_on_success(self):
         mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
         password_valid = True
         store = step_up_store_module.StepUpAttempts(MemoryState())
         key = "user:1"
@@ -505,6 +441,7 @@ class TestVerifyStepUpCredentials:
             mock_user=mock_user,
             password_valid=password_valid,
             step_up_store=store,
+            current_password="correct",
             mfa_enabled=False,
         )
 

@@ -48,6 +48,7 @@ def create_user_api_key(
     data: api_keys_schema.UsersApiKeyCreate,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -55,7 +56,7 @@ def create_user_api_key(
     db: core_dependencies.DbSession,
 ) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Create an API key after step-up verification."""
-    return api_key_service.create_user_api_key(token_user_id, data, step_up_store, db)
+    return api_key_service.create_user_api_key(token_user_id, token_session_id, data, step_up_store, db)
 
 
 @router.post(

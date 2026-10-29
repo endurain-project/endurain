@@ -19,7 +19,7 @@ class OAuthState(Base):
     Attributes:
         id: Primary key, state parameter itself (random URL-safe token).
         idp_id: Foreign key to identity_provider.
-        user_id: Foreign key to users (for link mode, nullable).
+        user_id: Foreign key to users (the signed-in user of a link or step-up flow, nullable).
         code_challenge: PKCE challenge (base64url-encoded).
         code_challenge_method: PKCE method (always S256).
         nonce: OIDC nonce for ID token validation.
@@ -29,8 +29,11 @@ class OAuthState(Base):
         created_at: Timestamp for expiry calculation.
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
-        browser_binding_hash: SHA-256 of the secret the browser that started a link holds in a cookie.
+        browser_binding_hash: SHA-256 of the secret the browser that started a link or step-up holds in a cookie.
         idp_code_verifier: PKCE verifier this server sends the identity provider at the token exchange.
+        purpose: The flow the state belongs to (``OAuthStatePurpose``).
+        session_id: The session that started a step-up flow.
+        action: The sensitive operation a step-up flow authorises.
     """
 
     __tablename__ = "oauth_states"
@@ -119,7 +122,25 @@ class OAuthState(Base):
     browser_binding_hash: Mapped[str | None] = mapped_column(
         String(64),
         nullable=True,
-        comment="SHA-256 of the link's browser-binding cookie (link mode only)",
+        comment="SHA-256 of the browser-binding cookie (link and step-up flows)",
+    )
+
+    purpose: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        comment="Flow the state belongs to: login, link or step_up",
+    )
+
+    session_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+        comment="Session that started a step-up flow (step-up only)",
+    )
+
+    action: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment="Sensitive operation a step-up flow authorises (step-up only)",
     )
 
     idp_code_verifier: Mapped[str | None] = mapped_column(

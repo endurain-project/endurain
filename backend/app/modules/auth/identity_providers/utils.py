@@ -124,6 +124,24 @@ def build_link_result_url(host: str, redirect_path: str | None, idp_name: str | 
     return f"{host}{append_query_params(base, params)}"
 
 
+def build_step_up_result_url(host: str, redirect_path: str | None, result: dict[str, str]) -> str:
+    """Build the redirect that hands a step-up's outcome back to the page that started it.
+
+    The outcome travels in the fragment: a browser never sends it to a server, so a ticket stays out of access
+    logs, proxies and ``Referer`` headers.
+
+    Args:
+        host: The configured frontend host.
+        redirect_path: The validated relative return path, or None.
+        result: The outcome, ``step_up_ticket`` on success or ``step_up_error`` on failure.
+
+    Returns:
+        The absolute URL to redirect the browser to.
+    """
+    parts = urlsplit(redirect_path or "/settings/security")
+    return f"{host}{urlunsplit(('', '', parts.path, parts.query, urlencode(result)))}"
+
+
 # Pre-configured templates for common IdPs
 IDP_TEMPLATES: dict[str, dict[str, Any]] = {
     "authelia": {

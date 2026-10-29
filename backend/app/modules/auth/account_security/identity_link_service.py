@@ -13,7 +13,10 @@ import modules.auth.identity_provider_link_tokens.integration_service as identit
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.integration_service as identity_providers_integration
+import modules.auth.identity_providers.schema as identity_providers_schema
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
@@ -24,16 +27,21 @@ def generate_link_token(
     link_request: idp_link_token_schema.IdpLinkTokenRequest,
     ip_address: str,
     token_user_id: int,
+    session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
     """Generate a one-time IdP link token after step-up verification.
+
+    The provider and the existing links are checked before step-up, so a refused request does not spend an
+    identity-provider step-up ticket.
 
     Args:
         idp_id: The identity provider to link.
         link_request: Step-up credentials.
         ip_address: Client address the token is bound to.
         token_user_id: The authenticated user's ID.
+        session_id: The caller's session.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -44,14 +52,6 @@ def generate_link_token(
         NotFoundError: If the identity provider is missing or disabled.
         ConflictError: If the provider is already linked.
     """
-    step_up_service.verify_step_up_credentials(
-        token_user_id,
-        link_request.current_password,
-        link_request.mfa_code,
-        step_up_store,
-        db,
-    )
-
     idp = identity_providers_integration.get_identity_provider(idp_id, db)
     if not idp or not idp.enabled:
         raise core_exceptions.NotFoundError("Identity provider not found or disabled")
@@ -63,6 +63,17 @@ def generate_link_token(
     )
     if existing_link:
         raise core_exceptions.ConflictError(f"Identity provider {idp.name} is already linked to your account")
+
+    step_up_service.verify_step_up_credentials(
+        token_user_id,
+        link_request.current_password,
+        link_request.mfa_code,
+        step_up_store,
+        db,
+        idp_reauth=link_request.idp_reauth,
+        session_id=session_id,
+        action=identity_providers_constants.StepUpAction.IDP_LINK,
+    )
 
     link_token = identity_provider_link_tokens_integration.generate_idp_link_token(
         user_id=token_user_id,
@@ -80,22 +91,68 @@ def generate_link_token(
     return link_token
 
 
+def start_idp_step_up(
+    idp_id: int,
+    start: identity_providers_schema.StepUpStartRequest,
+    client_ip: str,
+    token_user_id: int,
+    session_id: str,
+    step_up_store: account_security_step_up_store.StepUpStore,
+    db: Session,
+) -> identity_providers_contracts.BrowserFlowStart:
+    """Start the fresh identity-provider sign-in an account without a local password steps up with.
+
+    The OAuth state is committed before the provider URL is built, because building it may run OIDC discovery,
+    a network call no open transaction may span.
+
+    Args:
+        idp_id: The linked provider to sign in with again.
+        start: The PKCE challenge, the operation and the return path.
+        client_ip: Address of the client.
+        token_user_id: The authenticated user's ID.
+        session_id: The caller's session; the resulting ticket is valid only in it.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Returns:
+        The provider URL and the browser binding the route sets as a cookie.
+
+    Raises:
+        TooManyRequestsError: If the user is locked out of step-up attempts.
+        InvalidInputError: If the account has a local password, or the request or provider is unusable.
+        NotFoundError: If the provider is missing, disabled or not linked to the user.
+    """
+    step_up_service.require_not_locked_out(token_user_id, step_up_store)
+    if credentials_integration.has_local_password(token_user_id, db):
+        logger.warning(
+            "Identity-provider step-up refused for user <user_id>: the account has a local password",
+            extra=core_logger.context(user_id=token_user_id),
+        )
+        raise core_exceptions.InvalidInputError("This account confirms sensitive changes with its password")
+    staged = identity_providers_integration.stage_step_up(
+        token_user_id, session_id, idp_id, start.action, start.code_challenge, start.redirect, client_ip, db
+    )
+    db.commit()
+    logger.debug("Identity-provider step-up state committed", extra=core_logger.context(user_id=token_user_id))
+    return identity_providers_contracts.BrowserFlowStart(
+        authorization_url=identity_providers_integration.authorization_url(staged),
+        browser_binding=staged.browser_binding,
+    )
+
+
 def delete_identity_provider_link(
     idp_id: int,
     step_up: users_schema.StepUpVerification,
     token_user_id: int,
+    session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> None:
-    """Unlink an IdP while enforcing anti-lockout checks."""
-    step_up_service.verify_step_up_credentials(
-        token_user_id,
-        step_up.current_password,
-        step_up.mfa_code,
-        step_up_store,
-        db,
-    )
+    """Unlink an IdP while enforcing anti-lockout checks.
 
+    The provider, the link and the last-sign-in-method rule are checked before step-up, so a refused request
+    does not spend an identity-provider step-up ticket.
+    """
     idp = identity_providers_integration.get_identity_provider(idp_id, db)
     if idp is None:
         raise core_exceptions.NotFoundError(f"Identity provider with id {idp_id} not found")
@@ -116,8 +173,19 @@ def delete_identity_provider_link(
 
     if not credentials_integration.has_local_password(token_user_id, db) and remaining_idp_count == 0:
         raise core_exceptions.InvalidInputError(
-            "Cannot unlink last authentication method. Please set a password first."
+            "Cannot unlink last authentication method. Link another identity provider first."
         )
+
+    step_up_service.verify_step_up_credentials(
+        token_user_id,
+        step_up.current_password,
+        step_up.mfa_code,
+        step_up_store,
+        db,
+        idp_reauth=step_up.idp_reauth,
+        session_id=session_id,
+        action=identity_providers_constants.StepUpAction.IDP_UNLINK,
+    )
 
     success = identity_provider_links_integration.delete_user_identity_provider(
         token_user_id,

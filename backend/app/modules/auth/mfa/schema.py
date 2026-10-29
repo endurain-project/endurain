@@ -9,6 +9,8 @@ from pydantic import (
     field_validator,
 )
 
+import modules.auth.identity_providers.schema as idp_schema
+
 
 class MFARequest(BaseModel):
     """Request model for MFA verification.
@@ -65,16 +67,17 @@ class MFADisableRequest(MFARequest):
     the supplied input only and do not impose a policy on the
     stored password.
 
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
+    An account without a local password (it signs in through an
+    identity provider) proves a fresh sign-in with a linked provider
+    instead: ``idp_reauth`` carries the ticket from
+    ``POST /profile/identity-providers/{idp_id}/step-up``.
 
     Attributes:
         current_password: Caller's existing password (step-up
             verification). Required when the account has a local
-            password; may be omitted for SSO-only accounts.
+            password.
+        idp_reauth: Proof of a fresh identity-provider sign-in. Required
+            when the account has no local password.
     """
 
     current_password: StrictStr | None = Field(
@@ -82,6 +85,10 @@ class MFADisableRequest(MFARequest):
         min_length=1,
         max_length=250,
         description=("Current password (step-up verification). Required when the account has a local password."),
+    )
+    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+        default=None,
+        description="Fresh identity-provider sign-in, required when the account has no local password",
     )
 
 
@@ -97,11 +104,10 @@ class MFASetupRequest(BaseModel):
     re-prove their current password in addition to the freshly
     enrolled TOTP code.
 
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
+    An account without a local password (it signs in through an
+    identity provider) proves a fresh sign-in with a linked provider
+    instead: ``idp_reauth`` carries the ticket from
+    ``POST /profile/identity-providers/{idp_id}/step-up``.
 
     Attributes:
         mfa_code: The 6-digit TOTP code generated from the secret
@@ -109,7 +115,9 @@ class MFASetupRequest(BaseModel):
             authenticator app is correctly enrolled.
         current_password: Caller's existing password (step-up
             verification). Required when the account has a local
-            password; may be omitted for SSO-only accounts.
+            password.
+        idp_reauth: Proof of a fresh identity-provider sign-in. Required
+            when the account has no local password.
     """
 
     mfa_code: StrictStr = Field(
@@ -124,6 +132,11 @@ class MFASetupRequest(BaseModel):
         min_length=1,
         max_length=250,
         description=("Current password (step-up verification). Required when the account has a local password."),
+    )
+
+    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+        default=None,
+        description="Fresh identity-provider sign-in, required when the account has no local password",
     )
 
     model_config = ConfigDict(

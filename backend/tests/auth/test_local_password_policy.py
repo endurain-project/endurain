@@ -6,8 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.authentication.service as authentication_service
 import modules.auth.credentials.service as credentials_service
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.password_reset_tokens.service as password_reset_service
 
 
@@ -140,3 +142,41 @@ class TestPasswordReset:
             password_reset_service.use_password_reset_token("token", "N3w-Passw0rd!", MagicMock())
 
         set_hash.assert_not_called()
+
+
+class TestFirstPassword:
+    def test_an_account_without_a_password_cannot_set_one_itself(self):
+        with (
+            patch.object(account_security_service.credentials_integration, "has_local_password", return_value=False),
+            patch.object(account_security_service.step_up_service, "verify_step_up_credentials") as step_up,
+            patch.object(account_security_service.credentials_integration, "set_local_password_hash") as set_hash,
+            pytest.raises(core_exceptions.PermissionDeniedError),
+        ):
+            account_security_service.stage_change_own_password(
+                7, "anything", "N3w-Passw0rd!", None, MagicMock(), MagicMock()
+            )
+
+        step_up.assert_not_called()
+        set_hash.assert_not_called()
+
+
+class TestTokenExchange:
+    @pytest.mark.parametrize(
+        "purpose", [oauth_state_constants.OAuthStatePurpose.LINK, oauth_state_constants.OAuthStatePurpose.STEP_UP]
+    )
+    def test_only_a_login_state_can_be_exchanged_for_tokens(self, purpose):
+        session = SimpleNamespace(tokens_exchanged=False, user_id=7)
+        oauth_state = SimpleNamespace(
+            id="state-id", purpose=purpose, code_challenge="c" * 43, code_challenge_method="S256"
+        )
+        with (
+            patch.object(
+                authentication_service.sessions_integration,
+                "get_session_with_oauth_state",
+                return_value=(session, oauth_state),
+            ),
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            authentication_service.exchange_tokens_for_session(
+                "session-id", "v" * 43, None, None, MagicMock(), MagicMock(), MagicMock(), MagicMock()
+            )

@@ -28,7 +28,7 @@ AuthContext = auth_contracts.AuthContext
 ApiKeyId = Annotated[str, Path(min_length=1)]
 IdentityProviderSlug = Annotated[str, Path(min_length=1)]
 AuthSessionId = Annotated[str, Path(min_length=1)]
-set_idp_link_binding_cookie = identity_providers_dependencies.set_link_binding_cookie
+set_idp_browser_binding_cookie = identity_providers_dependencies.set_browser_binding_cookie
 
 
 def get_access_token(
@@ -157,6 +157,8 @@ def check_auth_scopes(
 
 #: Authenticated user id extracted from a resolved access token.
 CurrentUserId = Annotated[int, Depends(get_sub_from_access_token)]
+#: Session id carried by a resolved access token.
+CurrentSessionId = Annotated[str, Depends(get_sid_from_access_token)]
 StepUpStore = account_security_integration.StepUpStore
 get_step_up_attempts = account_security_integration.get_step_up_attempts
 MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend
@@ -164,6 +166,7 @@ get_mfa_secret_store = auth_mfa_dependencies.get_mfa_secret_store
 
 __all__ = [
     "AuthContext",
+    "CurrentSessionId",
     "CurrentUserId",
     "MFASecretStoreBackend",
     "StepUpStore",

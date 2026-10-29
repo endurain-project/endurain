@@ -91,41 +91,51 @@ class TestGenerateLinkToken:
                 return_value=mock_token,
             ) as mock_generate,
         ):
-            result = identity_link_service.generate_link_token(1, link_request, "127.0.0.1", 10, step_up_store, mock_db)
+            result = identity_link_service.generate_link_token(
+                1, link_request, "127.0.0.1", 10, "sid", step_up_store, mock_db
+            )
 
         assert result is mock_token
         assert mock_generate.call_args.kwargs["ip_address"] == "127.0.0.1"
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
-            patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
             patch(
                 "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=None,
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_404_when_idp_disabled(self, mock_db):
         with (
-            patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
             patch(
                 "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=self._make_idp(enabled=False),
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_409_when_already_linked(self, mock_db):
         existing_link = MagicMock()
         with (
-            patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
             patch(
                 "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=self._make_idp(),
@@ -136,20 +146,29 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
 
         assert exc.value.status_code == 409
+        verify_step_up.assert_not_called()
 
     def test_step_up_failure_propagates(self, mock_db):
         """Step-up 401/429 from verify_step_up_credentials propagates to caller."""
         with (
+            patch(
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
+                return_value=self._make_idp(),
+            ),
+            patch(
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=None,
+            ),
             patch(
                 "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials",
                 side_effect=core_exceptions.UnauthenticatedError("Step-up verification failed"),
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
 
         assert exc.value.status_code == 401
 
@@ -184,24 +203,29 @@ class TestDeleteIdentityProviderLink:
                 return_value=True,
             ),
         ):
-            identity_link_service.delete_identity_provider_link(1, step_up, 10, MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(1, step_up, 10, "sid", MagicMock(), mock_db)
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
-            patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
             patch(
                 "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=None,
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, "sid", MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_404_when_link_not_found(self, mock_db):
         with (
-            patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
             patch(
                 "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
@@ -212,15 +236,18 @@ class TestDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, "sid", MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_400_when_last_auth_method(self, mock_db):
         """Cannot unlink the last IdP when the user has no password."""
 
         with (
-            patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
             patch(
                 "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
@@ -239,10 +266,11 @@ class TestDeleteIdentityProviderLink:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, "sid", MagicMock(), mock_db)
 
         assert exc.value.status_code == 400
         assert "Cannot unlink last authentication method" in exc.value.detail
+        verify_step_up.assert_not_called()
 
 
 class TestAdminDeleteIdentityProviderLink:

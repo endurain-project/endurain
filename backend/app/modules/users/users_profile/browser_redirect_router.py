@@ -78,5 +78,5 @@ def link_identity_provider(
             "Pragma": "no-cache",
         },
     )
-    auth_dependencies.set_idp_link_binding_cookie(response, start.browser_binding)
+    auth_dependencies.set_idp_browser_binding_cookie(response, start.browser_binding)
     return response

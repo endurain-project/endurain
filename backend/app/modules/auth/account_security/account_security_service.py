@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.auth.account_security.step_up_service as step_up_service
@@ -131,8 +132,19 @@ def stage_change_own_password(
         None.
 
     Raises:
+        PermissionDeniedError: If the account has no local password; an administrator sets a first one.
         DomainError: If step-up verification or persistence fails.
     """
+    # An account that signs in through an identity provider has no password to prove, so letting it set one
+    # here would turn a stolen access token into a permanent password.
+    if not credentials_integration.has_local_password(user_id, db):
+        logger.warning(
+            "Password change refused for user <user_id>: the account has no local password",
+            extra=core_logger.context(user_id=user_id),
+        )
+        raise core_exceptions.PermissionDeniedError(
+            "This account signs in through an identity provider and has no password to change"
+        )
     step_up_service.verify_step_up_credentials(
         user_id,
         current_password,

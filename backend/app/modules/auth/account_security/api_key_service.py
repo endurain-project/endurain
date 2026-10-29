@@ -8,6 +8,7 @@ import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.api_keys.schema as api_keys_schema
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -20,14 +21,28 @@ def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Sessi
 
 def create_user_api_key(
     user_id: int,
+    session_id: str,
     data: api_keys_schema.UsersApiKeyCreate,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
 ) -> api_keys_schema.UsersApiKeyCreatedRead:
-    """Verify step-up, stage a key, and commit it before returning its secret once."""
-    step_up_service.verify_step_up_credentials(user_id, data.current_password, data.mfa_code, step_up_store, db)
-    users_integration.require_user(user_id, db)
+    """Verify step-up, stage a key, and commit it before returning its secret once.
+
+    The scopes are checked before step-up, so a request refused for them does not spend an identity-provider
+    step-up ticket.
+    """
     api_keys_integration.validate_api_key_scopes(data.scopes)
+    step_up_service.verify_step_up_credentials(
+        user_id,
+        data.current_password,
+        data.mfa_code,
+        step_up_store,
+        db,
+        idp_reauth=data.idp_reauth,
+        session_id=session_id,
+        action=identity_providers_constants.StepUpAction.API_KEY_CREATE,
+    )
+    users_integration.require_user(user_id, db)
     raw_key = api_keys_integration.generate_api_key()
     api_key = api_keys_integration.create_api_key(user_id, data, raw_key, db)
     db.commit()

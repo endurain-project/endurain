@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.service as profile_service
 
@@ -63,8 +64,8 @@ class TestChangeEmail:
         with (
             patch(
                 "modules.auth.account_security.integration_service.verify_step_up",
-                side_effect=lambda step_up, user_id, step_up_store, db: identity.verify_step_up(
-                    step_up, user_id, step_up_store
+                side_effect=lambda step_up, user_id, session_id, action, step_up_store, db: identity.verify_step_up(
+                    step_up, user_id, session_id, action, step_up_store
                 ),
             ),
             patch(
@@ -102,7 +103,7 @@ class TestChangeEmail:
         identity.delete_other_user_sessions.assert_called_once_with(1, "sid-1")
         verification = identity.verify_step_up.call_args.args
         assert (verification[0].current_password, verification[0].mfa_code) == ("pw", "123456")
-        assert verification[1:] == (1, store)
+        assert verification[1:] == (1, "sid-1", identity_providers_constants.StepUpAction.EMAIL_CHANGE, store)
         mock_users.stage_email_change.assert_called_once_with(1, "New@example.com", mock_db)
 
     @patch(f"{_MODULE}.users_integration")
@@ -230,14 +231,16 @@ class TestDeleteAccount:
 
         with patch(
             "modules.auth.account_security.integration_service.verify_step_up",
-            side_effect=lambda value, user_id, step_up_store, db: identity.verify_step_up(
-                value, user_id, step_up_store
+            side_effect=lambda value, user_id, session_id, action, step_up_store, db: identity.verify_step_up(
+                value, user_id, session_id, action, step_up_store
             ),
         ):
-            result = profile_service.delete_account(1, step_up, store, state, storage, mock_db)
+            result = profile_service.delete_account(1, "sid-1", step_up, store, state, storage, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
-        identity.verify_step_up.assert_called_once_with(step_up, 1, store)
+        identity.verify_step_up.assert_called_once_with(
+            step_up, 1, "sid-1", identity_providers_constants.StepUpAction.ACCOUNT_DELETE, store
+        )
         mock_users.request_user_deletion.assert_called_once_with(1, state, storage, mock_db)
         assert result is mock_users.request_user_deletion.return_value
 
@@ -250,11 +253,11 @@ class TestDeleteAccount:
             pytest.raises(core_exceptions.PermissionDeniedError),
             patch(
                 "modules.auth.account_security.integration_service.verify_step_up",
-                side_effect=lambda step_up, user_id, step_up_store, db: identity.verify_step_up(
-                    step_up, user_id, step_up_store
+                side_effect=lambda step_up, user_id, session_id, action, step_up_store, db: identity.verify_step_up(
+                    step_up, user_id, session_id, action, step_up_store
                 ),
             ),
         ):
-            profile_service.delete_account(1, MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db)
+            profile_service.delete_account(1, "sid-1", MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db)
 
         mock_users.request_user_deletion.assert_not_called()

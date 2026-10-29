@@ -9,6 +9,10 @@ import pytest
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import modules.auth.identity_providers.callback_service as callback_service
+import modules.auth.oauth_state.constants as oauth_state_constants
+
+_LOGIN = oauth_state_constants.OAuthStatePurpose.LOGIN
+_LINK = oauth_state_constants.OAuthStatePurpose.LINK
 
 HOST = "https://app.example.com"
 AUD = "client-id-123"
@@ -16,7 +20,7 @@ AUD = "client-id-123"
 
 @pytest.fixture
 def service():
-    return callback_service.CallbackService(MagicMock(), MagicMock(), HOST)
+    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), HOST)
 
 
 def _idp(enabled=True, **overrides):
@@ -26,20 +30,20 @@ def _idp(enabled=True, **overrides):
 
 
 def _oauth_state(**overrides):
-    values = {"idp_id": 1, "client_type": "web", "user_id": None, "browser_binding_hash": None}
+    values = {"idp_id": 1, "client_type": "web", "user_id": None, "browser_binding_hash": None, "purpose": _LOGIN}
     values.update(overrides)
     return SimpleNamespace(**values)
 
 
 class TestPrepareCallback:
-    def _prepare(self, service, *, idp, oauth_state, claimed=True, link_binding=None):
+    def _prepare(self, service, *, idp, oauth_state, claimed=True, browser_binding=None):
         self.claim = MagicMock(return_value=claimed)
         with (
             patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=idp),
             patch.object(service, "get_unused_oauth_state", return_value=oauth_state),
             patch.object(service, "claim_oauth_state", self.claim),
         ):
-            return service.prepare_callback("test", "state-id", link_binding, MagicMock())
+            return service.prepare_callback("test", "state-id", browser_binding, MagicMock())
 
     def test_an_unknown_or_disabled_provider_is_not_found(self, service):
         for idp in (None, _idp(enabled=False)):
@@ -65,22 +69,24 @@ class TestPrepareCallback:
 
     def test_a_link_finishes_in_the_browser_that_started_it(self, service):
         idp = _idp()
-        oauth_state = _oauth_state(user_id=7, browser_binding_hash=core_hashing.sha256_hex("binding"))
+        oauth_state = _oauth_state(user_id=7, purpose=_LINK, browser_binding_hash=core_hashing.sha256_hex("binding"))
 
-        assert self._prepare(service, idp=idp, oauth_state=oauth_state, link_binding="binding") == (idp, oauth_state)
+        assert self._prepare(service, idp=idp, oauth_state=oauth_state, browser_binding="binding") == (idp, oauth_state)
 
-    @pytest.mark.parametrize("link_binding", [None, "", "another-browser"])
-    def test_a_link_from_another_browser_is_refused_before_the_state_is_claimed(self, service, link_binding):
+    @pytest.mark.parametrize("browser_binding", [None, "", "another-browser"])
+    def test_a_link_from_another_browser_is_refused_before_the_state_is_claimed(self, service, browser_binding):
         """The attacker's own link URL, opened by a victim, must not bind the victim's IdP account to it."""
-        oauth_state = _oauth_state(user_id=7, browser_binding_hash=core_hashing.sha256_hex("binding"))
+        oauth_state = _oauth_state(user_id=7, purpose=_LINK, browser_binding_hash=core_hashing.sha256_hex("binding"))
 
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
-            self._prepare(service, idp=_idp(), oauth_state=oauth_state, link_binding=link_binding)
+            self._prepare(service, idp=_idp(), oauth_state=oauth_state, browser_binding=browser_binding)
         self.claim.assert_not_called()
 
     def test_a_link_state_without_a_binding_is_refused(self, service):
         with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired OAuth state"):
-            self._prepare(service, idp=_idp(), oauth_state=_oauth_state(user_id=7), link_binding="binding")
+            self._prepare(
+                service, idp=_idp(), oauth_state=_oauth_state(user_id=7, purpose=_LINK), browser_binding="binding"
+            )
 
     def test_a_login_needs_no_binding(self, service):
         """A login is bound to its client by PKCE at the token exchange instead."""
@@ -96,12 +102,12 @@ class TestCompleteCallback:
             patch.object(service, "create_callback_session", return_value=session_id) as create_session,
         ):
             url = service.complete_callback(
-                _idp(), "code", "state", oauth_state, "10.0.0.1", "agent", MagicMock(), MagicMock()
+                _idp(), "code", None, "state", oauth_state, "10.0.0.1", "agent", MagicMock(), MagicMock()
             )
         return url, create_session
 
     def _state(self, **overrides):
-        values = {"id": "state-id", "redirect_path": None, "user_id": None}
+        values = {"id": "state-id", "redirect_path": None, "user_id": None, "purpose": _LOGIN}
         values.update(overrides)
         return SimpleNamespace(**values)
 
@@ -109,7 +115,9 @@ class TestCompleteCallback:
         user = SimpleNamespace(username="alice")
 
         url, create_session = self._complete(
-            service, {"user": user, "mode": "link"}, self._state(redirect_path="/settings/security", user_id=7)
+            service,
+            {"user": user, "mode": "link"},
+            self._state(redirect_path="/settings/security", user_id=7, purpose=_LINK),
         )
 
         assert url == f"{HOST}/settings/security?idp_link=success&idp_name=Test"
@@ -165,7 +173,7 @@ class TestCompleteCallback:
         url, _ = self._complete(
             service,
             None,
-            self._state(redirect_path="/settings/security", user_id=7),
+            self._state(redirect_path="/settings/security", user_id=7, purpose=_LINK),
             error=RuntimeError("boom"),
         )
 
@@ -178,7 +186,7 @@ class TestHandleCallback:
     def test_login_mode_returns_userinfo_from_token_exchange(self, service):
         idp = MagicMock(issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp")
         idp.name = "Pocket ID"
-        oauth_state = MagicMock(user_id=None, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
         token_response = {"access_token": "at"}
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = token_response
@@ -205,7 +213,7 @@ class TestHandleCallback:
         """The session holds a pooled connection once it is used, so no network call may run after that."""
         idp = MagicMock(issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp")
         idp.name = "Pocket ID"
-        oauth_state = MagicMock(user_id=None, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
         db = MagicMock()

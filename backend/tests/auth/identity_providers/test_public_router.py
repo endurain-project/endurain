@@ -109,12 +109,12 @@ class TestHandleCallback:
     def test_the_browser_binding_reaches_the_state_check_and_is_cleared(self, client, service):
         service.prepare_callback.return_value = (MagicMock(), MagicMock())
         service.complete_callback.return_value = "https://app.example.com/settings/security?idp_link=success"
-        client.cookies.set("endurain_idp_link", "binding-secret", path="/api/v1/public/idp/callback")
+        client.cookies.set("endurain_idp_binding", "binding-secret", path="/api/v1/public/idp/callback")
 
         response = self._callback(client)
 
         assert service.prepare_callback.call_args.args[:3] == ("pocket-id", "xyz", "binding-secret")
-        assert 'endurain_idp_link=""' in response.headers["set-cookie"]
+        assert 'endurain_idp_binding=""' in response.headers["set-cookie"]
         assert "Max-Age=0" in response.headers["set-cookie"]
 
     def test_the_code_and_state_are_required(self, client):

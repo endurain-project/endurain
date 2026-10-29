@@ -13,6 +13,7 @@ import modules.auth.identity_provider_link_tokens.crud as idp_link_token_crud
 import modules.auth.identity_provider_link_tokens.models as idp_link_token_models
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as idp_link_jobs
 import modules.auth.identity_provider_link_tokens.service as idp_link_token_service
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_jobs
@@ -43,7 +44,13 @@ def test_token_and_session_packages_publish_cleanup_jobs():
 
 
 def _oauth_state(key: str, expires_at: datetime) -> Any:
-    return oauth_state_models.OAuthState(id=key, nonce="n", client_type="web", expires_at=expires_at)
+    return oauth_state_models.OAuthState(
+        id=key,
+        nonce="n",
+        client_type="web",
+        expires_at=expires_at,
+        purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
+    )
 
 
 def _password_reset(key: str, expires_at: datetime) -> Any:

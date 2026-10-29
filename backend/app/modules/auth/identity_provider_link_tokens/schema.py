@@ -11,6 +11,8 @@ from pydantic import (
     StrictStr,
 )
 
+import modules.auth.identity_providers.schema as idp_schema
+
 
 class IdpLinkTokenCreate(BaseModel):
     """Schema for creating an IdP link token."""
@@ -61,15 +63,17 @@ class IdpLinkTokenRequest(BaseModel):
     It must be gated by step-up verification: the caller MUST supply
     ``current_password``, and an MFA code when MFA is enabled.
 
-    For SSO-only accounts (no local password set), the password field
-    may be omitted and the password check is skipped.
+    An account without a local password (it signs in through an identity
+    provider) proves a fresh sign-in with a linked provider instead, in
+    ``idp_reauth``.
 
     Attributes:
         current_password: Caller's existing password (step-up verification).
-            Required when the account has a local password; may be omitted
-            for SSO-only accounts.
+            Required when the account has a local password.
         mfa_code: TOTP or backup code, required when MFA is enabled on
             the account.
+        idp_reauth: Proof of a fresh identity-provider sign-in. Required
+            when the account has no local password.
     """
 
     current_password: StrictStr | None = Field(
@@ -82,6 +86,11 @@ class IdpLinkTokenRequest(BaseModel):
         default=None,
         max_length=32,
         description="TOTP or backup code, required when MFA is enabled",
+    )
+
+    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+        default=None,
+        description="Fresh identity-provider sign-in, required when the account has no local password",
     )
 
     model_config = ConfigDict(strict=True)

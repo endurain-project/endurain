@@ -23,6 +23,7 @@ import core.logger as core_logger
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
@@ -96,22 +97,30 @@ def setup_mfa(
 def enable_mfa(
     request: mfa_schema.MFASetupRequest,
     token_user_id: int,
+    session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     mfa_secret_store: MFASecretStoreBackend,
     db: Session,
 ) -> mfa_schema.MFAEnableRead:
-    """Enable MFA using pending secret and verification code."""
+    """Enable MFA using pending secret and verification code.
+
+    The pending setup is checked before step-up, so a request without one does not spend an identity-provider
+    step-up ticket.
+    """
+    secret = mfa_secret_store.get_secret(token_user_id)
+    if not secret:
+        raise core_exceptions.InvalidInputError("No MFA setup in progress. Please run setup first.")
+
     step_up_service.verify_step_up_credentials(
         token_user_id,
         request.current_password,
         None,
         step_up_store,
         db,
+        idp_reauth=request.idp_reauth,
+        session_id=session_id,
+        action=identity_providers_constants.StepUpAction.MFA_ENABLE,
     )
-
-    secret = mfa_secret_store.get_secret(token_user_id)
-    if not secret:
-        raise core_exceptions.InvalidInputError("No MFA setup in progress. Please run setup first.")
 
     try:
         backup_codes = mfa_integration.enable_user_mfa(
@@ -138,6 +147,7 @@ def enable_mfa(
 def disable_mfa(
     request: mfa_schema.MFADisableRequest,
     token_user_id: int,
+    session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> mfa_schema.MFADisableRead:
@@ -148,6 +158,9 @@ def disable_mfa(
         request.mfa_code,
         step_up_store,
         db,
+        idp_reauth=request.idp_reauth,
+        session_id=session_id,
+        action=identity_providers_constants.StepUpAction.MFA_DISABLE,
     )
     mfa_integration.disable_user_mfa(token_user_id, db)
     db.commit()
@@ -175,6 +188,7 @@ def verify_mfa(
 def generate_backup_codes(
     step_up: users_schema.StepUpVerification,
     token_user_id: int,
+    session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> mfa_backup_codes_schema.MFABackupCodesRead:
@@ -193,6 +207,9 @@ def generate_backup_codes(
         step_up.mfa_code,
         step_up_store,
         db,
+        idp_reauth=step_up.idp_reauth,
+        session_id=session_id,
+        action=identity_providers_constants.StepUpAction.MFA_BACKUP_CODES,
     )
 
     codes = mfa_backup_codes_integration.create_backup_codes(

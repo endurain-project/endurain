@@ -25,52 +25,32 @@ PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
 # ---------------------------------------------------------------------------
 
 
-def _make_user_mock() -> MagicMock:
-    user = MagicMock()
-    user.id = 1
-    user.version = 1
-    user.name = "Test User"
-    user.username = "testuser"
-    user.email = "test@example.com"
-    user.city = None
-    user.birthdate = None
-    user.preferred_language = "en"
-    user.gender = "unspecified"
-    user.units = "metric"
-    user.height = None
-    user.max_heart_rate = None
-    user.first_day_of_week = "monday"
-    user.currency = "euro"
-    user.timezone = None
-    user.access_type = "regular"
-    user.photo_path = None
-    user.active = True
-    user.mfa_enabled = False
-    user.email_verified = True
-    user.pending_admin_approval = False
-    user.external_auth_count = 0
-    user.is_strava_linked = 0
-    user.privacy_settings_version = None
-    user.integrations_version = None
-    user.is_garminconnect_linked = 0
-    user.default_activity_visibility = "public"
-    user.hide_activity_start_time = False
-    user.hide_activity_location = False
-    user.hide_activity_map = False
-    user.hide_activity_hr = False
-    user.hide_activity_power = False
-    user.hide_activity_cadence = False
-    user.hide_activity_elevation = False
-    user.hide_activity_speed = False
-    user.hide_activity_pace = False
-    user.hide_activity_laps = False
-    user.hide_activity_workout_sets_steps = False
-    user.hide_activity_gear = False
-    # Mirror the ORM: no has_local_password attribute, so
-    # UsersMe.model_validate falls back to the default (None)
-    # before the router overrides it through the credentials integration.
-    user.has_local_password = None
-    return user
+def _make_user_mock() -> users_schema.UsersRead:
+    """Return the user as ``users_integration.require_user`` serves it."""
+    return users_schema.UsersRead(
+        id=1,
+        version=1,
+        name="Test User",
+        username="testuser",
+        email="test@example.com",
+        city=None,
+        birthdate=None,
+        preferred_language="en",
+        gender="unspecified",
+        units="metric",
+        height=None,
+        max_heart_rate=None,
+        first_day_of_week="monday",
+        currency="euro",
+        timezone=None,
+        access_type="regular",
+        photo_path=None,
+        active=True,
+        mfa_enabled=False,
+        email_verified=True,
+        pending_admin_approval=False,
+        external_auth_count=0,
+    )
 
 
 def _make_integration_mock() -> MagicMock:
@@ -142,7 +122,7 @@ class TestReadUsersMe:
         self, mock_get_user, mock_get_integrations, mock_get_privacy, profile_client, mock_auth_services
     ):
         mock_get_user.return_value = _make_user_mock()
-        mock_get_user.return_value.version = 8
+        mock_get_user.return_value = mock_get_user.return_value.model_copy(update={"version": 8})
         mock_get_integrations.return_value = _make_integration_mock()
         mock_get_privacy.return_value = _make_privacy_mock()
         mock_auth_services.has_local_password.return_value = True
@@ -421,9 +401,7 @@ class TestEditUser:
         mock_auth_services,
     ):
         """Happy path: the edit answers 200 with the updated profile and its new ETag."""
-        updated = _make_user_mock()
-        updated.name = "Updated Name"
-        updated.version = 3
+        updated = _make_user_mock().model_copy(update={"name": "Updated Name", "version": 3})
         mock_edit.return_value = updated
         mock_get_user.return_value = updated
         mock_get_integrations.return_value = _make_integration_mock()
@@ -1245,7 +1223,8 @@ class TestDeleteMyAccount:
         assert response.status_code == 202
         assert response.json() == {"status": "queued"}
         assert mock_delete.call_args.args[0] == 1
-        assert mock_delete.call_args.args[1].current_password == "secret-password"
+        assert mock_delete.call_args.args[1] == "session-1"
+        assert mock_delete.call_args.args[2].current_password == "secret-password"
         mock_clear_cookies.assert_called_once()
 
     @patch("modules.users.users_profile.router.profile_service.delete_account")

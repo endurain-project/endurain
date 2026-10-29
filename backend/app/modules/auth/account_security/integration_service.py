@@ -9,6 +9,7 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow_servic
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.identity_provider_links.schema as identity_links_schema
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.schema as mfa_schema
@@ -25,11 +26,22 @@ def get_step_up_attempts(state: core_dependencies.PlatformState) -> StepUpStore:
 def verify_step_up(
     step_up: users_schema.StepUpVerification,
     user_id: int,
+    session_id: str,
+    action: identity_providers_constants.StepUpAction,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
 ) -> None:
     """Require fresh proof of identity for a sensitive account operation."""
-    step_up_service.verify_step_up_credentials(user_id, step_up.current_password, step_up.mfa_code, step_up_store, db)
+    step_up_service.verify_step_up_credentials(
+        user_id,
+        step_up.current_password,
+        step_up.mfa_code,
+        step_up_store,
+        db,
+        idp_reauth=step_up.idp_reauth,
+        session_id=session_id,
+        action=action,
+    )
 
 
 def change_own_password(
@@ -93,11 +105,11 @@ def admin_delete_identity_provider_link(user_id: int, idp_id: int, db: Session) 
     identity_link_service.admin_delete_identity_provider_link(user_id, idp_id, db)
 
 
-def start_browser_idp_link(
+def stage_browser_idp_link(
     link_token: str, idp_id: int, redirect: str | None, client_ip: str, db: Session
-) -> identity_providers_contracts.BrowserLinkStart:
-    """Stage the claim of a one-time IdP link token and build the provider redirect and browser binding."""
-    return identity_providers_integration.start_browser_link(
+) -> identity_providers_contracts.StagedBrowserFlow:
+    """Stage the claim of a one-time IdP link token and the link's OAuth state; the caller commits."""
+    return identity_providers_integration.stage_browser_link(
         link_token,
         idp_id,
         redirect,
@@ -107,3 +119,8 @@ def start_browser_idp_link(
         ),
         db,
     )
+
+
+def browser_flow_authorization_url(staged: identity_providers_contracts.StagedBrowserFlow) -> str:
+    """Build the provider URL of a committed link; it touches no database."""
+    return identity_providers_integration.authorization_url(staged)

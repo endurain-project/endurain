@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.oauth_state.utils as oauth_state_utils
@@ -21,6 +22,9 @@ def create_oauth_state(
     user_id: int | None = None,
     browser_binding_hash: str | None = None,
     idp_code_verifier: str | None = None,
+    purpose: oauth_state_constants.OAuthStatePurpose,
+    session_id: str | None = None,
+    action: str | None = None,
 ) -> oauth_state_schema.OAuthStateRead:
     """Stage an OAuth-state row."""
     return oauth_state_crud.create_oauth_state(
@@ -36,6 +40,9 @@ def create_oauth_state(
         user_id=user_id,
         browser_binding_hash=browser_binding_hash,
         idp_code_verifier=idp_code_verifier,
+        purpose=purpose,
+        session_id=session_id,
+        action=action,
     )
 
 

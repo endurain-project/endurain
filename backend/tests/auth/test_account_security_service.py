@@ -34,6 +34,10 @@ class TestChangeOwnPassword:
                 return_value=mock_settings,
             ),
             patch(
+                "modules.auth.account_security.account_security_service.credentials_integration.has_local_password",
+                return_value=True,
+            ),
+            patch(
                 "modules.auth.account_security.account_security_service.users_integration.require_user",
                 return_value=mock_user,
             ),
@@ -93,6 +97,10 @@ class TestChangeOwnPassword:
                 return_value=mock_settings,
             ),
             patch(
+                "modules.auth.account_security.account_security_service.credentials_integration.has_local_password",
+                return_value=True,
+            ),
+            patch(
                 "modules.auth.account_security.account_security_service.users_integration.require_user",
                 return_value=mock_user,
             ),
@@ -137,6 +145,10 @@ class TestChangeManagedUserPassword:
             patch(
                 "modules.auth.account_security.account_security_service.server_settings_integration.get_server_settings",
                 return_value=mock_settings,
+            ),
+            patch(
+                "modules.auth.account_security.account_security_service.credentials_integration.has_local_password",
+                return_value=True,
             ),
             patch(
                 "modules.auth.account_security.account_security_service.users_integration.require_user",

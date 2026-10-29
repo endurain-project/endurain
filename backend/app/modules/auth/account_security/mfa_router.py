@@ -98,6 +98,7 @@ def enable_mfa(
     request: Request,
     mfa_request: mfa_schema.MFASetupRequest,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -118,8 +119,8 @@ def enable_mfa(
     code in the request body is the fresh enrolment code from the
     user's authenticator app and is verified separately by
     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
-    issued by ``POST /profile/mfa/setup``. SSO-only accounts may
-    omit ``current_password`` (see
+    issued by ``POST /profile/mfa/setup``. An account without a local
+    password sends ``idp_reauth`` instead of ``current_password`` (see
     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
 
     Args:
@@ -127,6 +128,7 @@ def enable_mfa(
         mfa_request: MFA setup request with TOTP code and (when the
             account has a local password) current password.
         token_user_id: User ID from access token.
+        token_session_id: Session ID from access token.
         mfa_secret_store: Temporary secret storage.
         step_up_store: Step-up lockout store.
         db: Database session.
@@ -138,7 +140,9 @@ def enable_mfa(
         DomainError: 400 if no setup is in progress or the TOTP
             code is invalid; 401 if step-up verification fails.
     """
-    return mfa_workflow_service.enable_mfa(mfa_request, token_user_id, step_up_store, mfa_secret_store, db)
+    return mfa_workflow_service.enable_mfa(
+        mfa_request, token_user_id, token_session_id, step_up_store, mfa_secret_store, db
+    )
 
 
 @router.post(
@@ -151,6 +155,7 @@ def disable_mfa(
     request: Request,
     mfa_request: mfa_schema.MFADisableRequest,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -173,6 +178,7 @@ def disable_mfa(
         mfa_request: MFA disable request with current password and
             MFA code.
         token_user_id: User ID from access token.
+        token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -184,7 +190,7 @@ def disable_mfa(
             the MFA code is invalid; 400 if MFA is not currently
             enabled.
     """
-    return mfa_workflow_service.disable_mfa(mfa_request, token_user_id, step_up_store, db)
+    return mfa_workflow_service.disable_mfa(mfa_request, token_user_id, token_session_id, step_up_store, db)
 
 
 @router.post(
@@ -233,6 +239,7 @@ def generate_mfa_backup_codes(
     request: Request,
     step_up: users_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -252,6 +259,7 @@ def generate_mfa_backup_codes(
         request: FastAPI request object for rate limiting.
         step_up: Step-up verification payload.
         token_user_id: User ID from access token.
+        token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -262,4 +270,4 @@ def generate_mfa_backup_codes(
         DomainError: 401 if step-up verification fails, 404 if
             user not found, 400 if MFA is not enabled.
     """
-    return mfa_workflow_service.generate_backup_codes(step_up, token_user_id, step_up_store, db)
+    return mfa_workflow_service.generate_backup_codes(step_up, token_user_id, token_session_id, step_up_store, db)

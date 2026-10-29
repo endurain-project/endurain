@@ -1,7 +1,7 @@
-"""The end of an SSO login or link flow: the provider's callback, user matching and session creation."""
+"""The end of an SSO login, link or step-up flow: the provider's callback, user matching and session creation."""
 
 import hmac
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 from uuid import uuid4
@@ -13,15 +13,20 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.id_token_service as id_token_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
+import modules.auth.identity_providers.step_up_ticket_store as step_up_ticket_store
 import modules.auth.identity_providers.token_service as token_service
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
 import modules.auth.identity_providers.utils as identity_provider_utils
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.sessions.integration_service as sessions_integration
@@ -33,17 +38,19 @@ logger = core_logger.get_logger(__name__)
 
 
 class CallbackService:
-    """Finish an SSO login or account-link flow when the identity provider calls back."""
+    """Finish an SSO login, account-link or step-up flow when the identity provider calls back."""
 
     def __init__(
         self,
         oidc: oidc_client_service.OidcClientService,
         tokens: token_service.IdpTokenService,
+        step_up_tickets: step_up_ticket_store.StepUpTicketStore,
         frontend_host: str,
     ) -> None:
-        """Initialize the service with the provider client, the token store and the frontend host."""
+        """Initialize the service with the provider client, the token and ticket stores and the frontend host."""
         self._oidc = oidc
         self._tokens = tokens
+        self._step_up_tickets = step_up_tickets
         self._frontend_host = frontend_host
 
     def get_unused_oauth_state(self, state_id: str, db: Session) -> oauth_state_schema.OAuthStateRead | None:
@@ -79,14 +86,15 @@ class CallbackService:
         return claimed
 
     def prepare_callback(
-        self, idp_slug: str, state: str, link_binding: str | None, db: Session
+        self, idp_slug: str, state: str, browser_binding: str | None, db: Session
     ) -> tuple[identity_provider_contracts.IdentityProviderState, oauth_state_schema.OAuthStateRead]:
         """Accept a provider callback: find its provider and claim its one-time state.
 
         The state is looked up by its opaque id and checked against the provider named in the URL, because
-        without that a state minted for one provider could be replayed against another's callback. A link
-        must also finish in the browser that started it: its provider URL is otherwise all an attacker needs
-        to bind a victim's provider account to their own. It is then claimed atomically, so of two concurrent
+        without that a state minted for one provider could be replayed against another's callback. A link or
+        step-up must also finish in the browser that started it: a link's provider URL is otherwise all an
+        attacker needs to bind a victim's provider account to their own, and a step-up's to have the victim
+        prove a sign-in for the attacker's session. It is then claimed atomically, so of two concurrent
         callbacks with the same state only one continues. A state that is unknown, bound elsewhere, finished
         by another browser or already used gets the same answer, so a caller learns nothing about which of
         those it was.
@@ -94,7 +102,7 @@ class CallbackService:
         Args:
             idp_slug: Slug of the provider from the callback URL.
             state: The ``state`` parameter the provider echoed back.
-            link_binding: The browser's link-binding cookie, if it sent one.
+            browser_binding: The browser's binding cookie, if it sent one.
             db: Database session.
 
         Returns:
@@ -123,10 +131,16 @@ class CallbackService:
                 ),
             )
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
-        if oauth_state.user_id is not None and not _is_bound_browser(link_binding, oauth_state.browser_binding_hash):
+        if oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN and not _is_bound_browser(
+            browser_binding, oauth_state.browser_binding_hash
+        ):
             logger.warning(
-                "IdP link callback refused for state <value_1>: not the browser that started the link",
-                extra=core_logger.context(value_1=core_hashing.log_fingerprint(state), user_id=oauth_state.user_id),
+                "IdP <purpose> callback refused for state <value_1>: not the browser that started it",
+                extra=core_logger.context(
+                    purpose=oauth_state.purpose,
+                    value_1=core_hashing.log_fingerprint(state),
+                    user_id=oauth_state.user_id,
+                ),
             )
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
         if not self.claim_oauth_state(state, db):
@@ -145,7 +159,8 @@ class CallbackService:
     def complete_callback(
         self,
         idp: identity_provider_contracts.IdentityProviderState,
-        code: str,
+        code: str | None,
+        error: str | None,
         state: str,
         oauth_state: oauth_state_schema.OAuthStateRead,
         ip_address: str,
@@ -157,12 +172,13 @@ class CallbackService:
 
         This is the browser leg of the flow, so it always ends in a redirect: a failure after the state was
         claimed (the provider refused the code, a user could not be created) must not leave the user on a JSON
-        error. A failed link returns to the page that started it with an error flag, and a failed login to the
-        login page.
+        error. A failed link or step-up returns to the page that started it with an error flag, and a failed
+        login to the login page.
 
         Args:
             idp: The provider the callback came from.
-            code: The authorization code.
+            code: The authorization code, or ``None`` when the provider answered with an error.
+            error: The provider's error code, when it sent no code.
             state: The ``state`` parameter, as the provider echoed it.
             oauth_state: The claimed OAuth state.
             ip_address: Client address, recorded on the new session.
@@ -173,6 +189,14 @@ class CallbackService:
         Returns:
             The URL to redirect the browser to.
         """
+        if code is None:
+            logger.warning(
+                "IdP <name> answered a <purpose> callback with an error instead of a code: <error>",
+                extra=core_logger.context(name=idp.name, purpose=oauth_state.purpose, error=(error or "")[:128]),
+            )
+            return self._failure_url(oauth_state)
+        if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.STEP_UP:
+            return self.complete_step_up_callback(idp, code, oauth_state, db)
         try:
             result = self.handle_callback(idp, code, state, password_hasher, oauth_state, db)
             user = result["user"]
@@ -220,12 +244,26 @@ class CallbackService:
             return f"{self._frontend_host}/login?error={err.login_error}"
         except Exception as err:
             logger.error("Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err))
-            # A link attempt is the one whose OAuth state carries the user who started it.
-            if oauth_state.user_id is not None:
-                return identity_provider_utils.build_link_result_url(
-                    self._frontend_host, oauth_state.redirect_path, None, success=False
-                )
-            return f"{self._frontend_host}/login?error=sso_failed"
+            return self._failure_url(oauth_state)
+
+    def _failure_url(self, oauth_state: oauth_state_schema.OAuthStateRead) -> str:
+        """Return where a failed callback sends the browser: back to where its flow started.
+
+        Args:
+            oauth_state: The claimed OAuth state.
+
+        Returns:
+            The URL to redirect the browser to.
+        """
+        if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.STEP_UP:
+            return identity_provider_utils.build_step_up_result_url(
+                self._frontend_host, oauth_state.redirect_path, {"step_up_error": "failed"}
+            )
+        if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LINK:
+            return identity_provider_utils.build_link_result_url(
+                self._frontend_host, oauth_state.redirect_path, None, success=False
+            )
+        return f"{self._frontend_host}/login?error=sso_failed"
 
     def handle_callback(
         self,
@@ -288,8 +326,7 @@ class CallbackService:
                 extra=core_logger.context(name=idp.name, client_type=client_type),
             )
 
-            # Detect link mode from OAuth state (user_id indicates authenticated user linking)
-            is_link_mode = oauth_state.user_id is not None
+            is_link_mode = oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LINK
             link_user_id = oauth_state.user_id
 
             if is_link_mode:
@@ -519,6 +556,131 @@ class CallbackService:
             if oauth_client is not None:
                 oauth_client.close()
 
+    def complete_step_up_callback(
+        self,
+        idp: identity_provider_contracts.IdentityProviderState,
+        code: str,
+        oauth_state: oauth_state_schema.OAuthStateRead,
+        db: Session,
+    ) -> str:
+        """Finish a step-up: prove a fresh sign-in of the linked provider account and hand back a ticket.
+
+        Only a signed ID token proves who signed in and when, so userinfo is never consulted. The sign-in must
+        be of the provider account linked to the user who started the step-up, and recent enough
+        (``auth_time``); nothing else changes: no user is created or updated, no link is made and no provider
+        token or session is stored.
+
+        Args:
+            idp: The provider the callback came from.
+            code: The authorization code.
+            oauth_state: The claimed step-up state.
+            db: Database session.
+
+        Returns:
+            The page that started the step-up, with ``step_up_ticket`` or ``step_up_error`` in the fragment.
+        """
+        try:
+            subject = self._verify_step_up_sign_in(idp, code, oauth_state)
+            link = identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id(
+                idp.id, subject, db
+            )
+            if link is None or link.user_id != oauth_state.user_id:
+                logger.warning(
+                    "Step-up refused for user <user_id>: IdP <name> signed in an account not linked to them",
+                    extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name),
+                )
+                return self._failure_url(oauth_state)
+            ticket = self._step_up_tickets.issue(
+                identity_provider_contracts.StepUpTicket(
+                    user_id=link.user_id,
+                    session_id=oauth_state.session_id,
+                    idp_id=idp.id,
+                    code_challenge=oauth_state.code_challenge,
+                    action=oauth_state.action,
+                )
+            )
+        except _StaleSignInError as err:
+            logger.warning(
+                "Step-up refused for user <user_id>: IdP <name> did not prove a fresh sign-in (<reason>)",
+                extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name, reason=str(err)),
+            )
+            return identity_provider_utils.build_step_up_result_url(
+                self._frontend_host, oauth_state.redirect_path, {"step_up_error": "not_fresh"}
+            )
+        except Exception as err:
+            logger.warning(
+                "Step-up re-authentication with IdP <name> failed for user <user_id>",
+                exc_info=err,
+                extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name),
+            )
+            return self._failure_url(oauth_state)
+        logger.info(
+            "User <user_id> re-authenticated with IdP <name> for <action>",
+            extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name, action=oauth_state.action),
+        )
+        return identity_provider_utils.build_step_up_result_url(
+            self._frontend_host, oauth_state.redirect_path, {"step_up_ticket": ticket}
+        )
+
+    def _verify_step_up_sign_in(
+        self,
+        idp: identity_provider_contracts.IdentityProviderState,
+        code: str,
+        oauth_state: oauth_state_schema.OAuthStateRead,
+    ) -> str:
+        """Redeem the code and return the subject of a verified, fresh ID token.
+
+        Args:
+            idp: The provider.
+            code: The authorization code.
+            oauth_state: The claimed step-up state.
+
+        Returns:
+            The ``sub`` claim of the verified ID token.
+
+        Raises:
+            UpstreamError: If the provider publishes no issuer or signing keys, or returns no ID token.
+            UnauthenticatedError: If the ID token does not verify or names no subject.
+            _StaleSignInError: If the ID token does not prove a sign-in within the step-up's limit.
+        """
+        client_id = self._oidc.decrypt_client_id(idp)
+        config = self._oidc.get_oidc_configuration(idp) or {}
+        jwks_uri = config.get("jwks_uri")
+        issuer = config.get("issuer")
+        if not jwks_uri or not issuer:
+            logger.warning(
+                "Step-up refused: IdP <name> publishes no issuer or signing keys",
+                extra=core_logger.context(name=idp.name),
+            )
+            raise core_exceptions.UpstreamError(f"Identity provider {idp.name} publishes no issuer or signing keys")
+        with self._oidc.create_oauth_client(
+            client_id=client_id,
+            client_secret=self._oidc.decrypt_client_secret(idp),
+            redirect_uri=identity_provider_utils.build_redirect_uri(self._frontend_host, idp.slug),
+        ) as oauth_client:
+            token_response = oauth_client.fetch_token(
+                self._oidc.resolve_token_endpoint(idp),
+                grant_type="authorization_code",
+                code=code,
+                code_verifier=oauth_state.idp_code_verifier,
+            )
+        id_token = token_response.get("id_token")
+        if not isinstance(id_token, str):
+            logger.warning("Step-up refused: IdP <name> returned no ID token", extra=core_logger.context(name=idp.name))
+            raise core_exceptions.UpstreamError(f"Identity provider {idp.name} returned no ID token")
+        claims = id_token_service.verify_id_token(
+            self._oidc.fetch_jwks, id_token, jwks_uri, issuer, client_id, expected_nonce=oauth_state.nonce
+        )
+        _require_fresh_sign_in(claims, oauth_state)
+        subject = claims.get("sub")
+        if not isinstance(subject, str) or not subject:
+            logger.warning(
+                "Step-up refused: IdP <name> issued an ID token with no subject",
+                extra=core_logger.context(name=idp.name),
+            )
+            raise core_exceptions.UnauthenticatedError("ID token names no subject")
+        return subject
+
     def create_callback_session(
         self,
         user: Any,
@@ -549,16 +711,47 @@ class CallbackService:
         return session_id
 
 
-def _is_bound_browser(link_binding: str | None, binding_hash: str | None) -> bool:
-    """Tell whether a callback comes from the browser that started the link.
+class _StaleSignInError(Exception):
+    """The provider's ID token does not prove a sign-in recent enough for a step-up."""
+
+
+def _require_fresh_sign_in(claims: dict[str, Any], oauth_state: oauth_state_schema.OAuthStateRead) -> None:
+    """Require the ID token's ``auth_time`` to fall after the step-up started.
+
+    A provider that reused its own session instead of signing the user in again reports the earlier sign-in, so
+    this check, not the ``prompt=login`` the request asked for, is what makes the step-up fresh. The start is
+    derived from the state's expiry, which this server set, so the database clock plays no part.
 
     Args:
-        link_binding: The browser's link-binding cookie, if it sent one.
+        claims: The verified ID-token claims.
+        oauth_state: The claimed step-up state.
+
+    Raises:
+        _StaleSignInError: If ``auth_time`` is missing, malformed, before the step-up started or in the future,
+            each beyond the step-up's tolerance.
+    """
+    auth_time = claims.get("auth_time")
+    if isinstance(auth_time, bool) or not isinstance(auth_time, int | float):
+        raise _StaleSignInError("no auth_time claim")
+    expires_at = core_timezone.to_utc_aware(oauth_state.expires_at)
+    started = expires_at - timedelta(seconds=oauth_state_constants.STATE_TTL_SECONDS)
+    tolerance = idp_constants.STEP_UP_MAX_AGE_SECONDS
+    if auth_time < started.timestamp() - tolerance:
+        raise _StaleSignInError("sign-in predates the step-up")
+    if auth_time > datetime.now(UTC).timestamp() + tolerance:
+        raise _StaleSignInError("sign-in is in the future")
+
+
+def _is_bound_browser(browser_binding: str | None, binding_hash: str | None) -> bool:
+    """Tell whether a callback comes from the browser that started the link or step-up.
+
+    Args:
+        browser_binding: The browser's link-binding cookie, if it sent one.
         binding_hash: The digest the link's OAuth state stored, if any.
 
     Returns:
         True when both are present and the cookie hashes to the stored digest.
     """
-    if not link_binding or not binding_hash:
+    if not browser_binding or not binding_hash:
         return False
-    return hmac.compare_digest(core_hashing.sha256_hex(link_binding), binding_hash)
+    return hmac.compare_digest(core_hashing.sha256_hex(browser_binding), binding_hash)
