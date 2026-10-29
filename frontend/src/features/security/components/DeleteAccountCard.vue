@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import { Trash2 } from '@lucide/vue'
 
 import type { IdpReauth, StepUpInput } from '@/features/security/types'
@@ -28,7 +27,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const toasts = useToasts()
-const router = useRouter()
 const deleteMutation = useDeleteAccountMutation()
 const handleIdpChallenge = useIdpReauthChallenge()
 
@@ -43,13 +41,9 @@ onMounted(() => {
   }
 })
 
-/** Deletes the account after step-up, then leaves for the farewell page. */
+/** Deletes the account after step-up; the mutation leaves for the farewell page. */
 function onConfirm(input: StepUpInput): void {
   deleteMutation.mutate(input, {
-    onSuccess: () => {
-      isDialogOpen.value = false
-      void router.replace({ name: 'account-deleted' })
-    },
     onError: (error) => {
       if (handleIdpChallenge(error)) {
         return

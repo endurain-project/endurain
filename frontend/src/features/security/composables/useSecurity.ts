@@ -1,6 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useRouter } from 'vue-router'
 
 import type {
   ApiKeyCreateInput,
@@ -270,18 +271,24 @@ export function useDeleteApiKeyMutation() {
 
 /**
  * Delete-my-account mutation. On success the account and its sessions no longer
- * exist on the server, so only the local session is cleared (which also empties
- * the Query cache); calling the logout endpoint would just fail.
+ * exist on the server, so it leaves for the farewell page and then clears only
+ * the local session; calling the logout endpoint would just fail. Navigation
+ * comes first because clearing empties the Query cache, which unmounts the
+ * calling view and with it any per-call `mutate` callback.
  *
  * @returns The TanStack Query mutation for deleting the account.
  */
 export function useDeleteAccountMutation() {
   const authStore = useAuthStore()
+  const router = useRouter()
 
   return useMutation<void, Error, StepUpInput>({
     mutationKey: queryKeys.security.all(),
     mutationFn: (input) => deleteAccount(input),
-    onSuccess: () => authStore.clearLocalSession(),
+    onSuccess: async () => {
+      await router.replace({ name: 'account-deleted' })
+      authStore.clearLocalSession()
+    },
   })
 }
 
