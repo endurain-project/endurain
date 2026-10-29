@@ -7,8 +7,9 @@ runs on a small in-process pool that is not the request threadpool. Either way t
 state store is what an administrator polls, and its claim stops a user being queued twice.
 
 The job erases the activities a batch per transaction, so no transaction holds the whole account, then
-deletes the user row, which removes everything else through the database cascade. Every step can be
-repeated, so a job a worker died in is simply run again.
+the profile photo, then deletes the user row, which removes everything else through the database
+cascade. Every step can be repeated, so a job a worker died in is simply run again, and every step
+that can fail runs while the row still marks the deletion, so the stalled-deletion sweep finds it.
 """
 
 from datetime import timedelta
@@ -234,6 +235,7 @@ def run_deletion(
     states.set_status(user_id, _Kind.ACCOUNT, _Status.RUNNING)
     try:
         activities = _erase_activities(user_id)
+        _erase_photo(user_id, storage)
         _delete_user_row(user_id)
     except _DeletionCancelledError:
         states.discard(user_id, _Kind.ACCOUNT)
@@ -250,7 +252,6 @@ def run_deletion(
         states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
         return
 
-    users_photo_service.delete_photo_files(user_id, storage)
     users_contributor_registry.erasers().delete_staged_files(user_id, storage)
     states.set_status(user_id, _Kind.ACCOUNT, _Status.COMPLETED)
     logger.info("User deleted", extra=core_logger.context(user_id=user_id, activities=activities))
@@ -296,6 +297,28 @@ def _require_not_cancelled(user_id: int, db: Session) -> None:
     """
     if users_crud.is_deletion_cancelled(user_id, db):
         raise _DeletionCancelledError
+
+
+def _erase_photo(user_id: int, storage: platform_providers.StorageProvider) -> None:
+    """Clear the user's photo reference, then delete every photo blob under their prefix.
+
+    The reference goes first, so a reactivation that stops the deletion afterwards leaves no row naming
+    a blob that is gone. A storage failure is raised, so the deletion is retried.
+
+    Args:
+        user_id: The user whose photo to erase.
+        storage: The platform storage provider.
+
+    Raises:
+        _DeletionCancelledError: When the account was reactivated.
+    """
+    with core_database.SessionLocal() as db:
+        _require_not_cancelled(user_id, db)
+        if users_crud.get_user_by_id(user_id, db) is not None:
+            users_crud.replace_photo_key(user_id, None, db)
+            db.commit()
+    users_photo_service.delete_photo_files(user_id, storage)
+    logger.debug("Erased the user's photo", extra=core_logger.context(user_id=user_id))
 
 
 def _delete_user_row(user_id: int) -> None:

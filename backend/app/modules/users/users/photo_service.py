@@ -9,6 +9,7 @@ import jasil.providers as platform_providers
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
@@ -29,20 +30,81 @@ PHOTO_CONTENT_TYPES = {
 
 
 def delete_photo_files(user_id: int, storage: platform_providers.StorageProvider) -> None:
-    """Delete every stored photo blob of a user, as housekeeping.
+    """Delete every stored photo blob of a user.
 
-    Used once the row no longer names a photo. Failing to remove a blob only wastes space, so the
-    failure is logged and not raised: the caller's change is already committed.
+    Part of erasing an account, so a storage failure is raised: the deletion is retried rather than
+    reported complete with the photo left behind.
 
     Args:
         user_id: ID of the user whose photo files to delete.
         storage: The platform storage provider.
     """
-    try:
-        for key in storage.list_keys(users_constants.USER_IMAGE_STORAGE_AREA, f"{user_id}."):
-            storage.delete(users_constants.USER_IMAGE_STORAGE_AREA, key)
-    except Exception as err:
-        logger.warning("Could not delete user photo files", exc_info=err, extra=core_logger.context(user_id=user_id))
+    for key in storage.list_keys(users_constants.USER_IMAGE_STORAGE_AREA, f"{user_id}."):
+        storage.delete(users_constants.USER_IMAGE_STORAGE_AREA, key)
+
+
+def sweep_unreferenced_photos(storage: platform_providers.StorageProvider) -> int:
+    """Delete photo blobs no user names any more.
+
+    The reconciliation net of the photo area: it removes what a failed best-effort delete left after
+    a photo was replaced or removed, and an upload whose key was never recorded.
+
+    Args:
+        storage: The platform storage provider.
+
+    Returns:
+        The number of blobs deleted.
+    """
+    removed = core_blob_sweep.sweep_unreferenced_blobs(
+        storage, users_constants.USER_IMAGE_STORAGE_AREA, _referenced_photo_keys
+    )
+    if removed:
+        logger.info("Removed user photos no user names", extra=core_logger.context(removed=removed))
+    return removed
+
+
+def _referenced_photo_keys(keys: list[str], db: Session) -> set[str]:
+    """Tell which of the given photo-area keys must be kept.
+
+    A key is ``{user_id}{extension}``. It is kept while its user's row names it, by its file name, so a
+    row a failed data migration left on a legacy filesystem path still owns its photo. A key that names
+    no user is not this area's to judge and is kept too.
+
+    Args:
+        keys: Keys found in the photo area.
+        db: Database session.
+
+    Returns:
+        The keys to keep.
+    """
+    owners = {key: _owner_of(key) for key in keys}
+    named = users_crud.get_photo_keys_by_user_ids(sorted({owner for owner in owners.values() if owner is not None}), db)
+    return {key for key, owner in owners.items() if owner is None or _file_name(named.get(owner)) == key}
+
+
+def _owner_of(key: str) -> int | None:
+    """Return the user a photo key belongs to, or None for a key that names no user.
+
+    Args:
+        key: A key in the photo area.
+
+    Returns:
+        The user id, or None.
+    """
+    stem = os.path.splitext(key)[0]
+    return int(stem) if stem.isascii() and stem.isdecimal() else None
+
+
+def _file_name(photo: str | None) -> str | None:
+    """Return the file name a stored photo reference ends in.
+
+    Args:
+        photo: The row's photo reference: a storage key, a legacy filesystem path, or None.
+
+    Returns:
+        The file name, or None when there is no photo.
+    """
+    return photo.replace("\\", "/").rsplit("/", 1)[-1] if photo else None
 
 
 def _delete_replaced_blob(
@@ -52,8 +114,8 @@ def _delete_replaced_blob(
 
     Only the key the row held is removed, never a listing of the user's blobs: a listing could
     include the blob of a concurrent upload that has not committed yet. Failing to remove it only
-    wastes space, and account deletion removes every blob under the user's prefix, so the failure
-    is logged and not raised.
+    wastes space, and the photo sweep removes what no user names, so the failure is logged and not
+    raised.
 
     Args:
         user_id: The user whose old blob to remove.

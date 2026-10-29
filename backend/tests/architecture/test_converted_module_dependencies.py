@@ -25,6 +25,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.sync_runner": "The shared claim, run and dead-letter bookkeeping of a queued provider sync.",
     "core.provider_rate_limit": "The shared, expiring record of a provider's rate limit, which Strava and Garmin both keep.",
     "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
+    "core.blob_sweep": "The storage-side reconciliation sweeps for blobs no row owns or names any more.",
     "core.calendar": "Period boundaries for activity summaries.",
     "core.cryptography": "Encrypts and decrypts the tile-provider API key at rest.",
     "core.email_cooldown": "The per-account cooldown on emails anyone can trigger without signing in.",

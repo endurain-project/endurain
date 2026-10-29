@@ -266,6 +266,22 @@ def get_photo_key(user_id: int, db: Session) -> str | None:
     return db.execute(stmt).scalar_one_or_none()
 
 
+def get_photo_keys_by_user_ids(user_ids: list[int], db: Session) -> dict[int, str]:
+    """Return the photo each of the given users names, as stored on the row.
+
+    Args:
+        user_ids: The users to look up.
+        db: Database session.
+
+    Returns:
+        The stored photo by user id; a user with no photo, or that does not exist, is left out.
+    """
+    stmt = select(users_models.Users.id, users_models.Users.photo_path).where(
+        users_models.Users.id.in_(user_ids), users_models.Users.photo_path.is_not(None)
+    )
+    return {user_id: photo for user_id, photo in db.execute(stmt).all()}
+
+
 def replace_photo_key(user_id: int, photo_key: str | None, db: Session) -> str | None:
     """Row-lock a user, set their stored photo key, and return the key it replaced (flushed, not committed).
 

@@ -162,7 +162,17 @@ class TestRequestDeletionByAdministrator:
 
 
 class TestRunDeletion:
-    def _run(self, states, *, batches, row_exists=True, delete_error=None, will_retry=False, cancelled=(False,)):
+    def _run(
+        self,
+        states,
+        *,
+        batches,
+        row_exists=True,
+        delete_error=None,
+        photo_error=None,
+        will_retry=False,
+        cancelled=(False,),
+    ):
         erasers = MagicMock()
         erasers.delete_activities.side_effect = [*batches, 0] if delete_error is None else delete_error
         with (
@@ -173,31 +183,69 @@ class TestRunDeletion:
         ):
             users_crud.get_user_by_id.return_value = MagicMock() if row_exists else None
             users_crud.is_deletion_cancelled.side_effect = _repeat_last(cancelled)
+            photos.delete_photo_files.side_effect = photo_error
             storage = MagicMock()
             job_service.run_deletion(_payload(), states, storage, will_retry=will_retry)
         return erasers, users_crud, photos, session_local, storage
 
-    def test_erases_in_batches_then_the_row_then_the_files(self, states):
+    def test_erases_in_batches_then_the_photo_then_the_row_then_the_staged_files(self, states):
         states.begin(1, _Kind)
 
         erasers, users_crud, photos, session_local, storage = self._run(states, batches=[100, 40])
 
         assert erasers.delete_activities.call_count == 3
         assert erasers.delete_activities.call_args.args[:2] == (1, users_constants.DELETION_BATCH_SIZE)
-        users_crud.delete_user.assert_called_once()
+        users_crud.replace_photo_key.assert_called_once_with(1, None, session_local.return_value.__enter__.return_value)
         photos.delete_photo_files.assert_called_once_with(1, storage)
+        users_crud.delete_user.assert_called_once()
         erasers.delete_staged_files.assert_called_once_with(1, storage)
         assert states.get(1, _Kind).status == _Status.COMPLETED
-        # Every batch, and the row, commits in a transaction of its own.
-        assert session_local.return_value.__enter__.return_value.commit.call_count == 4
+        # Every batch, the cleared photo reference and the row commit in a transaction of their own.
+        assert session_local.return_value.__enter__.return_value.commit.call_count == 5
+
+    def test_the_photo_is_erased_while_the_row_still_marks_the_deletion(self, states):
+        """The row is the deletion's record: a photo erased after it went could not be retried."""
+        states.begin(1, _Kind)
+        order: list[str] = []
+        with patch(f"{_MODULE}.users_photo_service") as photos, patch(f"{_MODULE}.users_crud") as users_crud:
+            photos.delete_photo_files.side_effect = lambda *_: order.append("photo")
+            users_crud.delete_user.side_effect = lambda *_: order.append("row")
+            users_crud.is_deletion_cancelled.return_value = False
+            with (
+                patch(f"{_MODULE}.core_database.SessionLocal"),
+                patch(f"{_MODULE}.users_contributor_registry.erasers") as erasers,
+            ):
+                erasers.return_value.delete_activities.return_value = 0
+                job_service.run_deletion(_payload(), states, MagicMock())
+
+        assert order == ["photo", "row"]
 
     def test_a_row_an_earlier_attempt_deleted_is_not_deleted_again(self, states):
         states.begin(1, _Kind)
 
-        _, users_crud, _, _, _ = self._run(states, batches=[], row_exists=False)
+        _, users_crud, photos, _, storage = self._run(states, batches=[], row_exists=False)
 
         users_crud.delete_user.assert_not_called()
+        users_crud.replace_photo_key.assert_not_called()
+        photos.delete_photo_files.assert_called_once_with(1, storage)
         assert states.get(1, _Kind).status == _Status.COMPLETED
+
+    def test_a_photo_storage_failure_nothing_retries_fails_the_deletion_and_keeps_the_row(self, states):
+        """A deletion is only complete once the photo is gone; the kept row lets the sweep queue it again."""
+        states.begin(1, _Kind)
+
+        _, users_crud, _, _, _ = self._run(states, batches=[], photo_error=OSError("storage down"))
+
+        users_crud.delete_user.assert_not_called()
+        assert states.get(1, _Kind).status == _Status.FAILED
+
+    def test_a_photo_storage_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
+        states.begin(1, _Kind)
+
+        with pytest.raises(OSError):
+            self._run(states, batches=[], photo_error=OSError("storage down"), will_retry=True)
+
+        assert states.get(1, _Kind).status == _Status.QUEUED
 
     def test_a_deletion_that_is_not_pending_is_skipped(self, states):
         erasers, users_crud, _, _, _ = self._run(states, batches=[])

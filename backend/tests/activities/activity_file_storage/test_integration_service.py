@@ -123,7 +123,7 @@ class TestOrphanSweepOnPlainLayout:
 
         with (
             patch("modules.activities.activity_file_storage.scheduled_jobs.platform_runtime") as runtime,
-            patch("modules.activities.orphan_sweep_service.core_database"),
+            patch("core.blob_sweep.core_database"),
             patch("modules.activities.activity_file_storage.scheduled_jobs.activity_integration") as integration,
         ):
             runtime.get_active_platform.return_value.storage = storage

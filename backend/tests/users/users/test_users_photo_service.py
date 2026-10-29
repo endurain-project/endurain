@@ -1,13 +1,20 @@
 """Tests for users.users.photo_service module."""
 
 import io
+import os
+import time
+from contextlib import nullcontext
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import UploadFile
+from jasil.backends.storage_local import LocalStorage
 from starlette.datastructures import Headers
+from tests._helpers.db import create_sqlite_session
 
+import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
+import modules.users.users.models as users_models
 import modules.users.users.photo_service as users_photo_service
 
 _CRUD = "modules.users.users.photo_service.users_crud"
@@ -32,11 +39,65 @@ class TestDeletePhotoFiles:
 
 
 class TestDeletePhotoFilesFailure:
-    def test_a_storage_failure_is_logged_not_raised(self):
+    def test_a_storage_failure_is_raised_so_the_account_deletion_is_retried(self):
         storage = MagicMock()
         storage.list_keys.side_effect = OSError("storage down")
 
-        users_photo_service.delete_photo_files(7, storage)
+        with pytest.raises(OSError):
+            users_photo_service.delete_photo_files(7, storage)
+
+
+class TestSweepUnreferencedPhotos:
+    """The net for a photo a deletion or a replacement left behind."""
+
+    @patch(_CRUD)
+    def test_a_key_is_kept_only_while_its_user_names_it(self, mock_crud, mock_db):
+        mock_crud.get_photo_keys_by_user_ids.return_value = {1: "1.png", 3: "/app/backend/data/user_images/3.png"}
+
+        referenced = users_photo_service._referenced_photo_keys(
+            ["1.png", "1.jpg", "2.png", "3.png", "notes.txt"], mock_db
+        )
+
+        # 1.jpg was replaced and 2.png's user is gone; a row not yet rewritten from a legacy path still
+        # owns its file, and a key that names no user is not this sweep's to judge.
+        assert referenced == {"1.png", "3.png", "notes.txt"}
+        mock_crud.get_photo_keys_by_user_ids.assert_called_once_with([1, 2, 3], mock_db)
+
+    def test_on_the_plain_local_layout_only_unnamed_photos_go(self, tmp_path):
+        """The area is a browsable directory, so it may hold files that are no user's photo."""
+        storage = LocalStorage(str(tmp_path), plain_areas=frozenset({"user_images"}))
+        for key in ("1.png", "1.jpg", "2.png", "3.png", "__init__.py"):
+            storage.save("user_images", key, b"x")
+        old = time.time() - 2 * core_blob_sweep.MIN_AGE_SECONDS
+        for path in (tmp_path / "user_images").iterdir():
+            os.utime(path, (old, old))
+        db = create_sqlite_session()
+        for user_id, photo in ((1, "1.png"), (3, "/app/backend/data/user_images/3.png")):
+            db.add(
+                users_models.Users(
+                    id=user_id,
+                    name=f"User {user_id}",
+                    username=f"user{user_id}",
+                    email=f"user{user_id}@example.com",
+                    preferred_language="us",
+                    access_type="regular",
+                    photo_path=photo,
+                )
+            )
+        db.commit()
+
+        with patch("core.blob_sweep.core_database.SessionLocal", return_value=nullcontext(db)):
+            assert users_photo_service.sweep_unreferenced_photos(storage) == 2
+
+        assert sorted(storage.list_keys("user_images")) == ["1.png", "3.png", "__init__.py"]
+        db.close()
+
+    @patch("modules.users.users.photo_service.core_blob_sweep.sweep_unreferenced_blobs", return_value=2)
+    def test_the_sweep_walks_the_photo_area(self, mock_sweep):
+        storage = MagicMock()
+
+        assert users_photo_service.sweep_unreferenced_photos(storage) == 2
+        mock_sweep.assert_called_once_with(storage, "user_images", users_photo_service._referenced_photo_keys)
 
 
 class TestDeletePhoto:

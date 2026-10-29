@@ -312,6 +312,28 @@ class TestIsDeletionCancelled:
         assert users_crud.is_deletion_cancelled(1, mock_db) is False
 
 
+class TestGetPhotoKeysByUserIds:
+    def test_returns_the_photo_each_existing_user_names(self):
+        db = create_sqlite_session()
+        for user_id, photo in ((1, "1.png"), (2, None), (3, "3.jpg")):
+            db.add(
+                users_models.Users(
+                    id=user_id,
+                    name=f"User {user_id}",
+                    username=f"user{user_id}",
+                    email=f"user{user_id}@example.com",
+                    preferred_language="us",
+                    access_type="regular",
+                    photo_path=photo,
+                )
+            )
+        db.commit()
+
+        # A user without a photo, and one that does not exist, name nothing.
+        assert users_crud.get_photo_keys_by_user_ids([1, 2, 3, 4], db) == {1: "1.png", 3: "3.jpg"}
+        db.close()
+
+
 class TestListStalledDeletionIds:
     def test_returns_the_ids_the_query_found(self, mock_db):
         mock_db.scalars.return_value.all.return_value = [3, 5]

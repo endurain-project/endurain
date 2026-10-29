@@ -50,6 +50,9 @@ DELETION_POOL_MAX_PENDING = 5
 #: How often the sweep looks for deletions that never finished, in minutes.
 DELETION_SWEEP_INTERVAL_MINUTES = 60
 
+#: How often the photo area is swept for blobs no user names.
+PHOTO_SWEEP_INTERVAL_MINUTES = 1440
+
 #: A deletion queued longer ago than this and still not finished is stalled: it outlasts the claim, so no
 #: live job holds it.
 DELETION_STALL_AFTER_SECONDS = DELETION_STATE_TTL_SECONDS + 60 * 60

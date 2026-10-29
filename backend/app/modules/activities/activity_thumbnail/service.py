@@ -18,6 +18,7 @@ import jasil.jobs as platform_jobs
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -29,7 +30,6 @@ import modules.activities.activity_streams.integration_service as activity_strea
 import modules.activities.activity_thumbnail.constants as activity_thumbnail_constants
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
-import modules.activities.orphan_sweep_service as activities_orphan_sweep_service
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
 
@@ -550,7 +550,7 @@ def sweep_orphaned_thumbnails(storage: platform_providers.StorageProvider) -> in
     Returns:
         The number of blobs deleted.
     """
-    return activities_orphan_sweep_service.sweep_orphaned_blobs(
+    return core_blob_sweep.sweep_orphaned_blobs(
         storage,
         activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA,
         activity_integration.filter_existing_activity_ids,

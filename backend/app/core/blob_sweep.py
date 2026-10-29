@@ -1,16 +1,14 @@
-"""Storage-side sweep for blobs whose activity no longer exists.
+"""Storage-side sweeps for blobs that no row owns or names any more.
 
-Cleanup subscribers derive a blob's key from the deleted activity's id, but a
-dropped ``activity.deleted`` event leaves nothing that names the blob: no row
-remains to backfill from. This walks the storage area instead and deletes keys
-whose owning activity is gone.
+A cleanup subscriber or a best-effort delete can miss a blob: a dropped event, or a storage failure
+after the row changed, leaves nothing that names it. These walk a storage area instead and delete
+what is left, as the reconciliation net of the area's owner.
 
-A second sweep covers blobs whose own row is gone while the activity lives on
-(a failed best-effort delete after the row was removed).
+The first sweep deletes keys whose owning row is gone; the second deletes keys no row names.
 
-The helper imports no module: the caller supplies the key parser and the
-existence lookup. It opens one short session per batch for that lookup and closes
-it before any storage call, so no connection waits on an object-storage round trip.
+The helpers import no module: the caller supplies the key parser and the lookup. Each opens one
+short session per batch for that lookup and closes it before any storage call, so no connection
+waits on an object-storage round trip.
 """
 
 from collections.abc import Callable, Iterator
@@ -33,18 +31,18 @@ def sweep_orphaned_blobs(
     storage: platform_providers.StorageProvider,
     area: str,
     existing_ids: Callable[[list[int], Session], set[int]],
-    activity_id_of: Callable[[str], int | None],
+    owner_id_of: Callable[[str], int | None],
     *,
     prefix: str = "",
     min_age_seconds: int = MIN_AGE_SECONDS,
 ) -> int:
-    """Delete blobs in ``area`` whose activity row no longer exists.
+    """Delete blobs in ``area`` whose owning row no longer exists.
 
     Args:
         storage: The blob-storage provider.
         area: The storage area to scan.
-        existing_ids: Returns which of the given activity ids still exist, given a session.
-        activity_id_of: Maps a storage key to its activity id, or ``None`` for a
+        existing_ids: Returns which of the given owner ids still exist, given a session.
+        owner_id_of: Maps a storage key to its owner's id, or ``None`` for a
             key this sweep does not own (left untouched).
         prefix: Restricts the scan to one key root inside the area.
         min_age_seconds: Skip blobs modified more recently than this.
@@ -55,7 +53,7 @@ def sweep_orphaned_blobs(
     cutoff = time() - min_age_seconds
     return sum(
         _delete_orphans(storage, area, batch, existing_ids)
-        for batch in batched(_candidates(storage, area, prefix, activity_id_of, cutoff), _BATCH_SIZE, strict=False)
+        for batch in batched(_candidates(storage, area, prefix, owner_id_of, cutoff), _BATCH_SIZE, strict=False)
     )
 
 
@@ -63,25 +61,25 @@ def _candidates(
     storage: platform_providers.StorageProvider,
     area: str,
     prefix: str,
-    activity_id_of: Callable[[str], int | None],
+    owner_id_of: Callable[[str], int | None],
     cutoff: float,
 ) -> Iterator[tuple[str, int]]:
-    """Yield ``(key, activity id)`` for old-enough blobs this sweep owns.
+    """Yield ``(key, owner id)`` for old-enough blobs this sweep owns.
 
     Args:
         storage: The blob-storage provider.
         area: The storage area to scan.
         prefix: Key root to scan.
-        activity_id_of: Maps a key to its activity id, or ``None``.
+        owner_id_of: Maps a key to its owner's id, or ``None``.
         cutoff: Epoch seconds; newer blobs are skipped.
 
     Returns:
-        An iterator of ``(key, activity id)``.
+        An iterator of ``(key, owner id)``.
     """
     for key, modified in storage.iter_objects(area, prefix):
-        activity_id = activity_id_of(key)
-        if activity_id is not None and modified <= cutoff:
-            yield key, activity_id
+        owner_id = owner_id_of(key)
+        if owner_id is not None and modified <= cutoff:
+            yield key, owner_id
 
 
 def _delete_orphans(
@@ -90,20 +88,20 @@ def _delete_orphans(
     batch: tuple[tuple[str, int], ...],
     existing_ids: Callable[[list[int], Session], set[int]],
 ) -> int:
-    """Delete the blobs of one batch whose activity is gone.
+    """Delete the blobs of one batch whose owner is gone.
 
     Args:
         storage: The blob-storage provider.
         area: The storage area the keys live in.
-        batch: ``(key, activity id)`` pairs.
-        existing_ids: Returns which of the given activity ids still exist, given a session.
+        batch: ``(key, owner id)`` pairs.
+        existing_ids: Returns which of the given owner ids still exist, given a session.
 
     Returns:
         The number of blobs deleted.
     """
     with core_database.SessionLocal() as db:
-        alive = existing_ids(sorted({activity_id for _key, activity_id in batch}), db)
-    orphans = [key for key, activity_id in batch if activity_id not in alive]
+        alive = existing_ids(sorted({owner_id for _key, owner_id in batch}), db)
+    orphans = [key for key, owner_id in batch if owner_id not in alive]
     for key in orphans:
         storage.delete(area, key)
     return len(orphans)

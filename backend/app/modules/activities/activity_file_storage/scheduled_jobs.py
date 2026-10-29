@@ -2,12 +2,12 @@
 
 import jasil.runtime as platform_runtime
 
+import core.blob_sweep as core_blob_sweep
 import core.logger as core_logger
 import core.scheduler as core_scheduler
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_file_storage.constants as activity_file_storage_constants
 import modules.activities.activity_file_storage.files as activity_file_storage_files
-import modules.activities.orphan_sweep_service as activities_orphan_sweep_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -23,7 +23,7 @@ def sweep_orphaned_activity_files() -> None:
     point resolves it; the scheduler's lock keeps it to one replica.
     """
     platform = platform_runtime.get_active_platform()
-    removed = activities_orphan_sweep_service.sweep_orphaned_blobs(
+    removed = core_blob_sweep.sweep_orphaned_blobs(
         platform.storage,
         activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA,
         activity_integration.filter_existing_activity_ids,

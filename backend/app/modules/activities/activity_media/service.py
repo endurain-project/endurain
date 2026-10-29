@@ -18,6 +18,7 @@ from pathlib import PurePosixPath
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
@@ -28,7 +29,6 @@ import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.schema as activity_media_schema
 import modules.activities.activity_media.signing as activity_media_signing
-import modules.activities.orphan_sweep_service as activities_orphan_sweep_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -641,13 +641,13 @@ def sweep_orphaned_media(storage: platform_providers.StorageProvider) -> int:
     Returns:
         The number of blobs deleted.
     """
-    removed = activities_orphan_sweep_service.sweep_orphaned_blobs(
+    removed = core_blob_sweep.sweep_orphaned_blobs(
         storage,
         activity_media_constants.MEDIA_STORAGE_AREA,
         activity_integration.filter_existing_activity_ids,
         _activity_id_of_media_key,
     )
-    return removed + activities_orphan_sweep_service.sweep_unreferenced_blobs(
+    return removed + core_blob_sweep.sweep_unreferenced_blobs(
         storage,
         activity_media_constants.MEDIA_STORAGE_AREA,
         activity_media_crud.get_existing_media_paths,
