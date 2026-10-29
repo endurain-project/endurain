@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.route_map as core_route_map
+import modules.server_settings.constants as server_settings_constants
 from core.route_map import RouteMapRenderRequest, normalise_tile_url
 
 logger = core_logger.get_logger(__name__)
@@ -27,8 +28,6 @@ _THUMBNAIL_QUALITY = 75
 # a one-time background render.
 _THUMBNAIL_METHOD = 6
 
-# Fallback tile URL used when server settings are unavailable.
-DEFAULT_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 DEFAULT_BG_COLOR = "#dddddd"
 
 # Visual constants mirroring the frontend Leaflet map (design tokens):
@@ -68,7 +67,7 @@ def render_activity_thumbnail(
     activity_id: int,
     waypoints: list[dict],
     *,
-    tile_url: str = DEFAULT_TILE_URL,
+    tile_url: str = server_settings_constants.DEFAULT_TILE_URL,
     background_color: str = DEFAULT_BG_COLOR,
     api_key: str | None = None,
     user_agent: str = DEFAULT_USER_AGENT,

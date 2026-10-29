@@ -602,6 +602,17 @@ def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.Arc
     """
 
     def read(member_name: str) -> bytes | None:
+        """Read one archive member.
+
+        Args:
+            member_name: The member's name in the archive.
+
+        Returns:
+            The member's bytes, or ``None`` when it is absent.
+
+        Raises:
+            PayloadTooLargeError: When the member is larger than the read limit.
+        """
         try:
             info = archive.getinfo(member_name)
         except KeyError:

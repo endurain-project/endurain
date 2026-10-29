@@ -551,22 +551,32 @@ class TestGetAllActivitiesForMigration:
         assert crud.get_all_activities_for_migration(db=mock_db) == []
 
 
-class TestGetUserActivitiesByGarminGear:
-    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
-    def test_success(self, mock_ser, mock_db):
+class TestGetGarminGearActivityRefs:
+    def test_projects_the_id_and_gear_id_only(self, mock_db):
         import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_activities_by_user_id_and_garminconnect_gear_set(user_id=1, db=mock_db)
-        assert r is not None and len(r) == 1
+        mock_db.execute.return_value = [SimpleNamespace(id=1, garminconnect_gear_id="g-1")]
+        refs = crud.get_garminconnect_gear_activity_refs(user_id=1, db=mock_db)
+        assert [(ref.id, ref.garminconnect_gear_id) for ref in refs] == [(1, "g-1")]
+        compiled = str(mock_db.execute.call_args.args[0].compile())
+        assert compiled.startswith("SELECT activities.id, activities.garminconnect_gear_id")
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_user_activities_by_user_id_and_garminconnect_gear_set(user_id=1, db=mock_db) == []
+        mock_db.execute.return_value = []
+        assert crud.get_garminconnect_gear_activity_refs(user_id=1, db=mock_db) == []
+
+    def test_pages_from_the_cursor_for_one_user(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value = []
+        crud.get_garminconnect_gear_activity_refs(user_id=3, db=mock_db, after_id=7, limit=2)
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "activities.user_id = 3" in compiled
+        assert "activities.garminconnect_gear_id IS NOT NULL" in compiled
+        assert "activities.id > 7" in compiled
+        assert "LIMIT 2" in compiled
 
 
 class TestGetUserActivitiesPerTimeframeAndTypes:

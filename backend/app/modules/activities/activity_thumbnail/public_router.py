@@ -13,14 +13,12 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, Response
 
 import core.dependencies as core_dependencies
+import core.http_cache as core_http_cache
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 
 router = APIRouter()
-
-# Browser cache for the (stable, signed) thumbnail URL, in seconds.
-_CACHE_MAX_AGE = 3600
 
 
 @router.get(
@@ -43,5 +41,5 @@ def read_activity_thumbnail(
     return Response(
         content=data,
         media_type="image/webp",
-        headers={"Cache-Control": f"private, max-age={_CACHE_MAX_AGE}"},
+        headers={"Cache-Control": f"private, max-age={core_http_cache.SIGNED_URL_CACHE_MAX_AGE}"},
     )

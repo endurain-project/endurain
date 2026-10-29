@@ -148,7 +148,9 @@ def create_bulk_import_from_archive(
         str,
         Query(
             max_length=50,
-            description="The archive layout: `generic` for plain activity files, or a provider export such as `strava`.",
+            description=(
+                "The archive layout: `generic` for plain activity files, or a provider export such as `strava`."
+            ),
         ),
     ] = activity_ingestion_bulk_import_service.GENERIC_FORMAT_NAME,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:

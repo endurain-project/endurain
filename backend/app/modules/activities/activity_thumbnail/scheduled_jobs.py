@@ -38,12 +38,10 @@ def sweep_orphaned_thumbnails() -> None:
     """Delete thumbnail blobs whose activity no longer exists.
 
     The storage-side net for the cleanup subscriber. Scheduler-invoked, so this
-    entry point resolves the providers and opens the session; the scheduler's
-    lock keeps it to one replica.
+    entry point resolves the provider; the scheduler's lock keeps it to one replica.
     """
     platform = platform_runtime.get_active_platform()
-    with core_database.SessionLocal() as db:
-        activity_thumbnail_service.sweep_orphaned_thumbnails(platform.storage, db)
+    activity_thumbnail_service.sweep_orphaned_thumbnails(platform.storage)
 
 
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:

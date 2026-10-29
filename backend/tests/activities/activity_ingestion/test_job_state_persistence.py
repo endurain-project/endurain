@@ -280,6 +280,61 @@ class TestDeferredRefresh:
         assert busy == {7}
 
 
+class TestOrphanedLocalRefreshes:
+    """A restart loses the in-process pool's refreshes, so the local profile fails their rows at startup."""
+
+    @pytest.fixture(autouse=True)
+    def _single_process(self):
+        with patch.object(ingestion_jobs.core_config.settings, "WEB_WORKERS", 1):
+            yield
+
+    def _fail_at_startup(self, factory, *, jobs_enabled: bool) -> int:
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", jobs_enabled),
+        ):
+            return ingestion_jobs.fail_orphaned_local_refreshes()
+
+    @pytest.mark.parametrize("status", ["pending", "processing"])
+    def test_local_profile_fails_the_refresh_the_lost_pool_held(self, factory, status):
+        _add_job(factory, kind="refresh", staged_key=None, status=status)
+
+        assert self._fail_at_startup(factory, jobs_enabled=False) == 1
+
+        job = _read_job(factory)
+        assert job.status == "failed"
+        assert job.error_code == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED.value
+        with factory() as db:
+            assert ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([7], db) == set()
+
+    def test_local_profile_keeps_what_the_pool_does_not_own(self, factory):
+        _add_job(factory, id="deferred", kind="refresh", staged_key=None, status="deferred", retry_after=_now())
+        _add_job(factory, id="upload", kind="upload", status="pending")
+        _add_job(factory, id="done", kind="refresh", staged_key=None, status="completed", completed_at=_now())
+
+        assert self._fail_at_startup(factory, jobs_enabled=False) == 0
+
+        assert _read_job(factory, "deferred").status == "deferred"
+        assert _read_job(factory, "upload").status == "pending"
+        assert _read_job(factory, "done").status == "completed"
+
+    @pytest.mark.parametrize("status", ["pending", "processing"])
+    def test_durable_profile_leaves_the_leased_refresh_to_its_worker(self, factory, status):
+        _add_job(factory, kind="refresh", staged_key=None, status=status)
+
+        assert self._fail_at_startup(factory, jobs_enabled=True) == 0
+
+        assert _read_job(factory).status == status
+
+    def test_several_web_workers_leave_a_sibling_workers_refresh_alone(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="processing")
+
+        with patch.object(ingestion_jobs.core_config.settings, "WEB_WORKERS", 2):
+            assert self._fail_at_startup(factory, jobs_enabled=False) == 0
+
+        assert _read_job(factory).status == "processing"
+
+
 class TestPrune:
     def test_deleted_rows_stay_deleted(self, factory):
         old = datetime.now(UTC) - timedelta(days=400)

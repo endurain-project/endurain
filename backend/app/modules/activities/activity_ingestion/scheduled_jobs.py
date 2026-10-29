@@ -44,6 +44,11 @@ def redispatch_deferred_refreshes() -> None:
     activity_ingestion_service.redispatch_deferred_refreshes(platform.storage)
 
 
+def fail_orphaned_local_refreshes() -> None:
+    """Fail the refreshes a restart cost the in-process pool, before the startup fan-out queues new ones."""
+    activity_ingestion_service.fail_orphaned_local_refreshes()
+
+
 def schedule_provider_refresh() -> None:
     """Queue one provider refresh fan-out, so a restart catches up on what it missed."""
     core_scheduler.run_once(

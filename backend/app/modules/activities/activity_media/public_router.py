@@ -12,14 +12,12 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, Response
 
 import core.dependencies as core_dependencies
+import core.http_cache as core_http_cache
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_media.service as activity_media_service
 
 router = APIRouter()
-
-# Browser cache for the (stable, signed) media URL, in seconds.
-_CACHE_MAX_AGE = 3600
 
 
 @router.get(
@@ -45,5 +43,5 @@ def read_activity_media_file(
     return Response(
         content=data,
         media_type=content_type,
-        headers={"Cache-Control": f"private, max-age={_CACHE_MAX_AGE}"},
+        headers={"Cache-Control": f"private, max-age={core_http_cache.SIGNED_URL_CACHE_MAX_AGE}"},
     )

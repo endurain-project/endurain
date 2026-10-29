@@ -874,6 +874,32 @@ def fail_stale_ingestion_jobs(
         logger.debug("Stale ingestion jobs: none found")
 
 
+def fail_orphaned_local_refreshes() -> int:
+    """Fail the refreshes a restart cost the in-process pool, so the next run queues them again.
+
+    Without durable jobs a pending or processing refresh lives only in the pool, which a restart
+    discards. Its row would otherwise make the fan-out skip the user until the stale-job reaper
+    fails it a day later. Does nothing when a durable worker or a sibling web worker may still own
+    the row.
+
+    Returns:
+        The number of refreshes failed.
+    """
+    if not activity_ingestion_dispatch_service.pool_owns_jobs():
+        logger.debug("Orphaned refresh cleanup: the in-process pool does not own the jobs")
+        return 0
+    with core_database.SessionLocal() as db:
+        failed = activity_ingestion_crud.fail_open_refresh_jobs(
+            activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, db
+        )
+        db.commit()
+    if failed:
+        logger.warning(
+            "Failed provider refreshes lost with the in-process pool", extra=core_logger.context(failed=failed)
+        )
+    return failed
+
+
 # Staged blobs are normally removed with their job. This sweeps what a crash, a
 # lost event or a failed delete left behind. The age sits well past the longest
 # time a live job can still need its blob: the stale-job reaper fails a job after

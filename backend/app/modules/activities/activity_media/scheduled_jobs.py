@@ -2,7 +2,6 @@
 
 import jasil.runtime as platform_runtime
 
-import core.database as core_database
 import core.logger as core_logger
 import core.scheduler as core_scheduler
 import modules.activities.activity_media.service as activity_media_service
@@ -16,12 +15,11 @@ def sweep_orphaned_media() -> None:
     """Delete media blobs whose activity no longer exists.
 
     The storage-side net for the cleanup subscriber. Scheduler-invoked, with no
-    request to carry the provider or a session, so this entry point resolves the
-    provider and opens the session; the scheduler's lock keeps it to one replica.
+    request to carry the provider, so this entry point resolves it; the scheduler's
+    lock keeps it to one replica.
     """
     platform = platform_runtime.get_active_platform()
-    with core_database.SessionLocal() as db:
-        removed = activity_media_service.sweep_orphaned_media(platform.storage, db)
+    removed = activity_media_service.sweep_orphaned_media(platform.storage)
     if removed:
         logger.info("Removed orphaned activity media blobs", extra=core_logger.context(removed=removed))
 

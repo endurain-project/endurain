@@ -37,6 +37,18 @@ def worker_retries() -> bool:
     return core_config.settings.JOBS_ENABLED
 
 
+def pool_owns_jobs() -> bool:
+    """Return whether this process's in-process pool is the only place queued jobs run.
+
+    Jobs the pool held are gone once the process restarts. That is not true with a durable worker
+    (its lease protects the job) nor with several web workers (a sibling's pool still holds its own).
+
+    Returns:
+        True on the local profile with a single web worker.
+    """
+    return not worker_retries() and core_config.settings.WEB_WORKERS == 1
+
+
 def claim_lease() -> timedelta:
     """Return how long a ``processing`` claim stays valid without being touched.
 

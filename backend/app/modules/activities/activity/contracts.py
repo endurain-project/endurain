@@ -85,6 +85,19 @@ class UserProfileActivitySummary:
 
 
 @dataclass(frozen=True)
+class ActivityGarminGearRef:
+    """Lightweight activity reference for assigning gear from Garmin Connect.
+
+    Attributes:
+        id: The activity id.
+        garminconnect_gear_id: The Garmin Connect gear UUID the activity carries.
+    """
+
+    id: int
+    garminconnect_gear_id: str
+
+
+@dataclass(frozen=True)
 class ActivityThumbnailRef:
     """Lightweight activity reference for thumbnail maintenance.
 

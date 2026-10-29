@@ -34,16 +34,16 @@ class TestIntegrationService:
         mock_crud.get_activity_by_garminconnect_id_from_user_id.assert_called_once_with(222, 3, db)
 
     @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_list_user_activities_with_garminconnect_gear_delegates(self, mock_crud):
+    def test_list_garminconnect_gear_activity_refs_delegates(self, mock_crud):
         from modules.activities.activity import integration_service
 
         db = MagicMock()
-        mock_crud.get_user_activities_by_user_id_and_garminconnect_gear_set.return_value = ["a"]
+        mock_crud.get_garminconnect_gear_activity_refs.return_value = ["a"]
 
-        result = integration_service.list_user_activities_with_garminconnect_gear(3, db)
+        result = integration_service.list_garminconnect_gear_activity_refs(3, db, after_id=5, limit=10)
 
         assert result == ["a"]
-        mock_crud.get_user_activities_by_user_id_and_garminconnect_gear_set.assert_called_once_with(3, db)
+        mock_crud.get_garminconnect_gear_activity_refs.assert_called_once_with(3, db, after_id=5, limit=10)
 
     @patch("modules.activities.activity.integration_service.activity_service")
     def test_bulk_set_activities_gear_delegates(self, mock_service):

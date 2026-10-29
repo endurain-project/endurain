@@ -8,8 +8,9 @@ whose owning activity is gone.
 A second sweep covers blobs whose own row is gone while the activity lives on
 (a failed best-effort delete after the row was removed).
 
-Dependency-free on purpose: the caller supplies the key parser and the
-existence lookup, so the helper imports no module.
+The helper imports no module: the caller supplies the key parser and the
+existence lookup. It opens one short session per batch for that lookup and closes
+it before any storage call, so no connection waits on an object-storage round trip.
 """
 
 from collections.abc import Callable, Iterator
@@ -17,6 +18,9 @@ from itertools import batched
 from time import time
 
 import jasil.providers as platform_providers
+from sqlalchemy.orm import Session
+
+import core.database as core_database
 
 #: A blob younger than this is never swept, so a blob written moments before its
 #: row commits is not mistaken for an orphan.
@@ -28,7 +32,7 @@ _BATCH_SIZE = 500
 def sweep_orphaned_blobs(
     storage: platform_providers.StorageProvider,
     area: str,
-    existing_ids: Callable[[list[int]], set[int]],
+    existing_ids: Callable[[list[int], Session], set[int]],
     activity_id_of: Callable[[str], int | None],
     *,
     prefix: str = "",
@@ -39,7 +43,7 @@ def sweep_orphaned_blobs(
     Args:
         storage: The blob-storage provider.
         area: The storage area to scan.
-        existing_ids: Returns which of the given activity ids still exist.
+        existing_ids: Returns which of the given activity ids still exist, given a session.
         activity_id_of: Maps a storage key to its activity id, or ``None`` for a
             key this sweep does not own (left untouched).
         prefix: Restricts the scan to one key root inside the area.
@@ -84,7 +88,7 @@ def _delete_orphans(
     storage: platform_providers.StorageProvider,
     area: str,
     batch: tuple[tuple[str, int], ...],
-    existing_ids: Callable[[list[int]], set[int]],
+    existing_ids: Callable[[list[int], Session], set[int]],
 ) -> int:
     """Delete the blobs of one batch whose activity is gone.
 
@@ -92,12 +96,13 @@ def _delete_orphans(
         storage: The blob-storage provider.
         area: The storage area the keys live in.
         batch: ``(key, activity id)`` pairs.
-        existing_ids: Returns which of the given activity ids still exist.
+        existing_ids: Returns which of the given activity ids still exist, given a session.
 
     Returns:
         The number of blobs deleted.
     """
-    alive = existing_ids(sorted({activity_id for _key, activity_id in batch}))
+    with core_database.SessionLocal() as db:
+        alive = existing_ids(sorted({activity_id for _key, activity_id in batch}), db)
     orphans = [key for key, activity_id in batch if activity_id not in alive]
     for key in orphans:
         storage.delete(area, key)
@@ -107,7 +112,7 @@ def _delete_orphans(
 def sweep_unreferenced_blobs(
     storage: platform_providers.StorageProvider,
     area: str,
-    referenced_keys: Callable[[list[str]], set[str]],
+    referenced_keys: Callable[[list[str], Session], set[str]],
     *,
     min_age_seconds: int = MIN_AGE_SECONDS,
 ) -> int:
@@ -116,7 +121,7 @@ def sweep_unreferenced_blobs(
     Args:
         storage: The blob-storage provider.
         area: The storage area to scan.
-        referenced_keys: Returns which of the given keys a row still names.
+        referenced_keys: Returns which of the given keys a row still names, given a session.
         min_age_seconds: Skip blobs modified more recently than this.
 
     Returns:
@@ -126,7 +131,8 @@ def sweep_unreferenced_blobs(
     old_keys = (key for key, modified in storage.iter_objects(area, "") if modified <= cutoff)
     removed = 0
     for batch in batched(old_keys, _BATCH_SIZE, strict=False):
-        named = referenced_keys(list(batch))
+        with core_database.SessionLocal() as db:
+            named = referenced_keys(list(batch), db)
         for key in batch:
             if key not in named:
                 storage.delete(area, key)

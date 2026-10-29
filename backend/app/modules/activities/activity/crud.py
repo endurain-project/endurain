@@ -364,33 +364,41 @@ def count_user_activities(
     return count or 0
 
 
-def get_user_activities_by_user_id_and_garminconnect_gear_set(
-    user_id: int, db: Session
-) -> list[activity_schema.ActivityRead]:
-    """Get activities for a user that have a Garmin gear ID.
+def get_garminconnect_gear_activity_refs(
+    user_id: int,
+    db: Session,
+    *,
+    after_id: int = 0,
+    limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
+) -> list[activity_contracts.ActivityGarminGearRef]:
+    """Return one bounded page of a user's activities that carry a Garmin gear id.
+
+    Ordered by id and paged via ``after_id``, so assigning gear walks the user's
+    history in bounded batches of two columns instead of loading every activity.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
+        after_id: Return only activities with ``id`` greater than this.
+        limit: Maximum number of rows to return.
 
     Returns:
-        The matching activity schemas, empty when there are none.
+        The activity id and Garmin gear id of each matching row, empty when there are none.
     """
     stmt = (
-        select(activity_models.Activity)
+        select(activity_models.Activity.id, activity_models.Activity.garminconnect_gear_id)
         .where(
             activity_models.Activity.user_id == user_id,
             activity_models.Activity.garminconnect_gear_id.isnot(None),
+            activity_models.Activity.id > after_id,
         )
-        .order_by(desc(activity_models.Activity.start_time))
+        .order_by(activity_models.Activity.id)
+        .limit(limit)
     )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return []
-    return activity_serializers.serialize_and_mask(
-        list(activities),
-        requester_user_id=user_id,
-    )
+    return [
+        activity_contracts.ActivityGarminGearRef(id=row.id, garminconnect_gear_id=row.garminconnect_gear_id)
+        for row in db.execute(stmt)
+    ]
 
 
 def get_user_activities_with_pagination(

@@ -2,7 +2,6 @@
 
 import jasil.runtime as platform_runtime
 
-import core.database as core_database
 import core.logger as core_logger
 import core.scheduler as core_scheduler
 import modules.activities.activity.integration_service as activity_integration
@@ -20,19 +19,17 @@ def sweep_orphaned_activity_files() -> None:
 
     The storage-side net for the cleanup subscriber. The package has no
     ``service`` (it is a leaf over ``StorageProvider``), so the sweep is wired
-    here. Scheduler-invoked, with no request to carry the provider or a session,
-    so this entry point resolves the provider and opens the session; the
-    scheduler's lock keeps it to one replica.
+    here. Scheduler-invoked, with no request to carry the provider, so this entry
+    point resolves it; the scheduler's lock keeps it to one replica.
     """
     platform = platform_runtime.get_active_platform()
-    with core_database.SessionLocal() as db:
-        removed = activities_orphan_sweep.sweep_orphaned_blobs(
-            platform.storage,
-            activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA,
-            lambda ids: activity_integration.filter_existing_activity_ids(ids, db),
-            activity_file_storage_files.activity_id_of_processed_key,
-            prefix="processed/",
-        )
+    removed = activities_orphan_sweep.sweep_orphaned_blobs(
+        platform.storage,
+        activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA,
+        activity_integration.filter_existing_activity_ids,
+        activity_file_storage_files.activity_id_of_processed_key,
+        prefix="processed/",
+    )
     if removed:
         logger.info("Removed orphaned activity source files", extra=core_logger.context(removed=removed))
 

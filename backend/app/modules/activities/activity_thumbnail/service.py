@@ -30,6 +30,7 @@ import modules.activities.activity_thumbnail.constants as activity_thumbnail_con
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 import modules.activities.orphan_sweep as activities_orphan_sweep
+import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
 
 logger = core_logger.get_logger(__name__)
@@ -136,7 +137,7 @@ def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
     """
     settings = server_settings_integration.get_tile_server_settings(db)
     return (
-        settings.tile_url or activity_thumbnail_render.DEFAULT_TILE_URL,
+        settings.tile_url or server_settings_constants.DEFAULT_TILE_URL,
         settings.background_color or activity_thumbnail_render.DEFAULT_BG_COLOR,
         settings.api_key,
     )
@@ -410,19 +411,24 @@ def _clear_references_to_missing_blobs(storage: platform_providers.StorageProvid
         for key, _modified in storage.iter_objects(activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA)
         if (activity_id := _activity_id_of_thumbnail_key(key)) is not None
     }
-    for activity in _iter_activities_with_thumbnail(db):
-        key = activity.map_thumbnail_path
-        if key is None or activity.id in existing:
-            continue
-        if storage.exists(activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA, key):
-            continue
-        # Conditional on the key still being the one read: a subscriber may have stored a
-        # fresh thumbnail since, and that one must survive.
-        if activity_integration.set_thumbnail_key(activity.id, None, db, expected_key=key):
-            logger.info(
-                "Thumbnail scheduler: cleared a thumbnail path whose blob is missing",
-                extra=core_logger.context(activity_id=activity.id),
-            )
+    for page in _iter_activity_pages(activity_integration.list_activities_with_thumbnail, db):
+        unlisted = [
+            activity for activity in page if activity.map_thumbnail_path is not None and activity.id not in existing
+        ]
+        # The page is plain data, so the read ends here: the existence checks below are storage
+        # round trips and must not keep a transaction open.
+        db.commit()
+        for activity in unlisted:
+            key = activity.map_thumbnail_path
+            if key is None or storage.exists(activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA, key):
+                continue
+            # Conditional on the key still being the one read: a subscriber may have stored a
+            # fresh thumbnail since, and that one must survive.
+            if activity_integration.set_thumbnail_key(activity.id, None, db, expected_key=key):
+                logger.info(
+                    "Thumbnail scheduler: cleared a thumbnail path whose blob is missing",
+                    extra=core_logger.context(activity_id=activity.id),
+                )
             db.commit()
 
 
@@ -523,16 +529,16 @@ def _activity_id_of_thumbnail_key(key: str) -> int | None:
     return int(stem) if suffix == "webp" and stem.isdecimal() else None
 
 
-def sweep_orphaned_thumbnails(storage: platform_providers.StorageProvider, db: Session) -> int:
+def sweep_orphaned_thumbnails(storage: platform_providers.StorageProvider) -> int:
     """Delete thumbnail blobs whose activity no longer exists.
 
     The storage-side net for the cleanup subscriber: a dropped
     ``activity.deleted`` event leaves a blob no row names, so only a scan of the
-    area can find it.
+    area can find it. The lookups run in their own short sessions, so none is
+    open during a storage call.
 
     Args:
         storage: The blob-storage provider.
-        db: Database session.
 
     Returns:
         The number of blobs deleted.
@@ -540,6 +546,6 @@ def sweep_orphaned_thumbnails(storage: platform_providers.StorageProvider, db: S
     return activities_orphan_sweep.sweep_orphaned_blobs(
         storage,
         activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA,
-        lambda ids: activity_integration.filter_existing_activity_ids(ids, db),
+        activity_integration.filter_existing_activity_ids,
         _activity_id_of_thumbnail_key,
     )

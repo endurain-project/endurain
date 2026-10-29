@@ -617,6 +617,42 @@ def fail_jobs_idle_since(
     return failed
 
 
+def fail_open_refresh_jobs(error_code: activity_ingestion_constants.IngestionJobErrorCode, db: Session) -> int:
+    """Stage the failure of every refresh that is still pending or processing (not committed).
+
+    A deferred refresh is left alone: it waits in the row, not in a worker's memory.
+
+    Args:
+        error_code: Sanitized failure reason shown to the owner.
+        db: Database session.
+
+    Returns:
+        The number of jobs failed.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    now = datetime.now(UTC)
+    stmt = (
+        update(model)
+        .where(
+            model.kind == activity_ingestion_constants.IngestionJobKind.REFRESH.value,
+            model.completed_at.is_(None),
+            model.status.in_(
+                (
+                    activity_ingestion_constants.IngestionJobStatus.PENDING.value,
+                    activity_ingestion_constants.IngestionJobStatus.PROCESSING.value,
+                )
+            ),
+        )
+        .values(
+            status=activity_ingestion_constants.IngestionJobStatus.FAILED.value,
+            error_code=error_code.value,
+            updated_at=now,
+            completed_at=now,
+        )
+    )
+    return cast(CursorResult[Any], db.execute(stmt)).rowcount
+
+
 def get_referenced_staged_keys(staged_keys: Sequence[str], db: Session) -> set[str]:
     """Return which of the given staged-upload keys a job row still names.
 

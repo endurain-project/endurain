@@ -44,6 +44,7 @@ class TestResolveTileSettings:
     @patch("modules.activities.activity_thumbnail.service.server_settings_integration")
     def test_defaults_without_settings(self, mock_settings):
         import modules.activities.activity_thumbnail.render as render
+        import modules.server_settings.constants as server_settings_constants
         import modules.server_settings.contracts as server_settings_contracts
         from modules.activities.activity_thumbnail.service import resolve_tile_settings
 
@@ -51,7 +52,7 @@ class TestResolveTileSettings:
 
         url, background_color, api_key = resolve_tile_settings(MagicMock())
 
-        assert url == render.DEFAULT_TILE_URL
+        assert url == server_settings_constants.DEFAULT_TILE_URL
         assert background_color == render.DEFAULT_BG_COLOR
         assert api_key is None
 
@@ -510,3 +511,39 @@ class TestBackfillFailureIsolation:
         generate_missing_activity_thumbnails(platform.storage, platform.clock, MagicMock())
 
         mock_activities.set_thumbnail_key.assert_not_called()
+
+
+class TestClearReferencesToMissingBlobs:
+    """The reconciliation confirms blobs on storage, which must not happen inside a database transaction."""
+
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    def test_confirms_and_clears_with_no_transaction_open_across_storage_calls(self, integration):
+        import modules.activities.activity.contracts as activity_contracts
+        from modules.activities.activity_thumbnail.service import _clear_references_to_missing_blobs
+
+        in_transaction = False
+
+        def read_page(db, *, after_id, limit):
+            nonlocal in_transaction
+            in_transaction = True
+            return [activity_contracts.ActivityThumbnailRef(id=1, map_thumbnail_path="1.webp")] if after_id == 0 else []
+
+        def end_transaction():
+            nonlocal in_transaction
+            in_transaction = False
+
+        def exists(area, key):
+            assert not in_transaction, "a transaction was open during a storage existence check"
+            return False
+
+        integration.list_activities_with_thumbnail.side_effect = read_page
+        integration.set_thumbnail_key.return_value = True
+        db = MagicMock()
+        db.commit.side_effect = end_transaction
+        storage = MagicMock()
+        storage.iter_objects.return_value = iter([])
+        storage.exists.side_effect = exists
+
+        _clear_references_to_missing_blobs(storage, db)
+
+        integration.set_thumbnail_key.assert_called_once_with(1, None, db, expected_key="1.webp")
