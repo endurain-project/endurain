@@ -98,7 +98,6 @@ def test_shoe_transform_keeps_a_trailing_plus_in_a_name():
 
 @pytest.mark.parametrize("blank", [None, "", "  ", "+", "+ +"])
 def test_shoe_transform_names_a_nameless_shoe(blank, monkeypatch):
-    monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
     with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]):
         gears = gear_utils.transform_csv_shoe_gear_to_schema_gear([_shoe(blank, "Nike", "Pegasus")], 1, MagicMock())
 
@@ -106,7 +105,6 @@ def test_shoe_transform_names_a_nameless_shoe(blank, monkeypatch):
 
 
 def test_nameless_shoes_avoid_the_users_gear_and_each_other(monkeypatch):
-    monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
     existing = [SimpleNamespace(nickname="Unnamed Shoe 1")]
     with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=existing) as lookup:
         gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(

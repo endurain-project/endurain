@@ -41,9 +41,6 @@ ROOT_PATH = "/api/v1"
 
 SERVER_IMAGES_URL_PATH = "server_images"
 
-STRAVA_BULK_IMPORT_ACTIVITIES_FILE = "activities.csv"
-STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE = "Unnamed Shoe "
-
 SUPPORTED_FILE_FORMATS = [
     ".fit",
     ".gpx",
@@ -803,7 +800,6 @@ FILES_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/bulk_import"
 # on S3. Kept under DATA_DIR rather than the system temp dir because an
 # activity file can be up to 200 MiB.
 FILES_UPLOAD_INCOMING_DIR = f"{settings.FILES_DIR}/upload_incoming"
-STRAVA_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/strava_import"
 
 
 def bulk_import_dir_for(user_id: int) -> str:
@@ -823,23 +819,6 @@ def bulk_import_dir_for(user_id: int) -> str:
         Absolute path of that user's bulk-import directory.
     """
     return f"{FILES_BULK_IMPORT_DIR}/{int(user_id)}"
-
-
-def strava_bulk_import_dir_for(user_id: int) -> str:
-    """Return the Strava-export drop directory belonging to one user.
-
-    Per user for the same reason as :func:`bulk_import_dir_for`: one shared
-    directory would attribute whatever any user left there to whoever started the
-    import.
-
-    Args:
-        user_id: The owning user's id. Coerced to ``int`` so the value can only
-            ever be a single path segment.
-
-    Returns:
-        Absolute path of that user's Strava-export directory.
-    """
-    return f"{STRAVA_BULK_IMPORT_DIR}/{int(user_id)}"
 
 
 # Secret loading and environment validation

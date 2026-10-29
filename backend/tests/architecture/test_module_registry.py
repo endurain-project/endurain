@@ -158,3 +158,30 @@ class TestDeferredSubscriptions:
         event_type, deferred = bus.subscribe.call_args.args
         assert event_type == "x.y"
         assert deferred.__name__ == "handler"
+
+
+class TestShutdownModulePools:
+    """Each module declares what it must release; the entry points release it all through one call."""
+
+    def test_every_declared_pool_and_the_subscriber_pool_are_released(self, monkeypatch):
+        released: list[str] = []
+        modules = (
+            *(
+                runtime_module_registry.RuntimeModule(name=name, shutdown=lambda name=name: released.append(name))
+                for name in ("first", "second")
+            ),
+            runtime_module_registry.RuntimeModule(name="no_pool"),
+        )
+        monkeypatch.setattr(runtime_module_registry, "MODULES", modules)
+        monkeypatch.setattr(
+            runtime_module_registry, "shutdown_deferred_subscribers", lambda: released.append("subscribers")
+        )
+
+        runtime_module_registry.shutdown_module_pools()
+
+        assert released == ["subscribers", "first", "second"]
+
+    def test_the_modules_that_run_pools_declare_their_release(self):
+        declared = {module.name for module in runtime_module_registry.MODULES if module.shutdown is not None}
+
+        assert {"activity", "activity_ingestion", "garmin", "strava", "users", "users_profile"} <= declared

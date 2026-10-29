@@ -7,7 +7,6 @@ from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 
-import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
@@ -18,6 +17,7 @@ import modules.activities.activity.schema as activity_schema
 import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
 import modules.strava.client_service as strava_client_service
+import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
 
@@ -293,9 +293,9 @@ def transform_csv_shoe_gear_to_schema_gear(
         raw_name = row[name_column] or ""
         name = _clean(raw_name) if raw_name.replace("+", " ").strip() else None
         if name is None:
-            while f"{core_config.STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE}{next_number}" in taken:
+            while f"{strava_constants.UNNAMED_SHOE_NICKNAME_PREFIX}{next_number}" in taken:
                 next_number += 1
-            name = f"{core_config.STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE}{next_number}"
+            name = f"{strava_constants.UNNAMED_SHOE_NICKNAME_PREFIX}{next_number}"
             taken.add(name)
             renamed += 1
             logger.debug("Shoe name was blank, it has been renamed", extra=core_logger.context(nickname=name))

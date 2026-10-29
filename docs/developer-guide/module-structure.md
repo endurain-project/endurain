@@ -322,9 +322,11 @@ to make a *domain* decision from it — mapping `IntegrityError` to `ConflictErr
 is the precedent — never to re-raise a generic one.
 
 `test_crud_does_not_end_transactions` enforces it: a `crud`-role file in a
-converted module may not call `commit` or `rollback`. Files that still do are
-listed in `_CRUD_TRANSACTION_DEBT`, and the test fails on an entry that no longer
-offends so the register shrinks rather than lingers.
+converted module may not call `commit` or `rollback`, and there is no exception
+list. `test_only_transaction_owners_end_transactions` states the same rule for
+every file: only `service`, `migration_service`, `subscribers` and
+`scheduled_jobs` may end a transaction, so a file whose name declares no role
+cannot slip past it.
 
 ## What a module may depend on
 
@@ -794,7 +796,7 @@ These constraints remain visible until a coordinated design change resolves them
   transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and declares its usage questions in
   `gears/contributors.py`; `module_registry.configure_gear_contributors` installs the activities answers.
 - **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the per-module manifest for subscribers,
-  durable handlers, nets, recurring jobs and startup tasks. Routers (`api.py`) and models (`model_registry.py`)
+  durable handlers, nets, recurring jobs, startup tasks and the shutdown of the module's in-process pools. Routers (`api.py`) and models (`model_registry.py`)
   remain separate composition surfaces for the HTTP app and Alembic.
 
 - **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`),

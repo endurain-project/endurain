@@ -90,27 +90,6 @@ def sanitize_markdown(content: str | None) -> str | None:
     )
 
 
-def sanitize_plain_text(content: str | None) -> str | None:
-    """
-    Sanitize plain text content by stripping all HTML.
-
-    Args:
-        content: The raw text content to sanitize.
-
-    Returns:
-        Sanitized plain text with all HTML removed,
-        or None if input is None.
-    """
-    if content is None:
-        return None
-
-    if not isinstance(content, str):
-        return None
-
-    # Strip all HTML tags
-    return nh3.clean(content, tags=set(), attributes={})
-
-
 def sanitize_attribution(content: str | None) -> str | None:
     """
     Sanitize attribution text to prevent XSS attacks.

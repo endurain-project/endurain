@@ -504,7 +504,7 @@ def _is_export_member(member_name: str) -> bool:
     """
     top = member_name.split("/", 1)[0]
     return (
-        member_name == core_config.STRAVA_BULK_IMPORT_ACTIVITIES_FILE
+        member_name == strava_constants.BULK_IMPORT_ACTIVITIES_FILE
         or _is_activity_member(member_name)
         or (top == MEDIA_FOLDER and "/" in member_name)
     )
@@ -528,11 +528,11 @@ def _build_source(
     Raises:
         InvalidInputError: When the archive has no usable ``activities.csv``.
     """
-    manifest = read_member(core_config.STRAVA_BULK_IMPORT_ACTIVITIES_FILE)
+    manifest = read_member(strava_constants.BULK_IMPORT_ACTIVITIES_FILE)
     if manifest is None:
         raise core_exceptions.InvalidInputError("The export has no activities.csv")
     with tempfile.TemporaryDirectory(prefix="strava-manifest-") as work_dir:
-        path = os.path.join(work_dir, core_config.STRAVA_BULK_IMPORT_ACTIVITIES_FILE)
+        path = os.path.join(work_dir, strava_constants.BULK_IMPORT_ACTIVITIES_FILE)
         with open(path, "wb") as handle:
             handle.write(manifest)
         strava_activities = parse_activities_manifest(path)
@@ -551,6 +551,20 @@ def _build_source(
     )
 
 
+def drop_directory_for(user_id: int) -> str:
+    """Return the directory one user drops their Strava export in.
+
+    Per user, so an import never ingests another user's export and attributes it to whoever started it.
+
+    Args:
+        user_id: The owning user's id. Coerced to ``int`` so the value can only ever be a single path segment.
+
+    Returns:
+        Absolute path of that user's Strava-export directory.
+    """
+    return f"{core_config.settings.FILES_DIR}/{strava_constants.BULK_IMPORT_DIR_NAME}/{int(user_id)}"
+
+
 def register_bulk_import_format() -> None:
     """Register the Strava export layout with activity ingestion."""
     activity_ingestion_integration.register_bulk_import_format(
@@ -558,7 +572,7 @@ def register_bulk_import_format() -> None:
             name=strava_constants.BULK_IMPORT_FORMAT_NAME,
             is_activity_member=_is_activity_member,
             is_export_member=_is_export_member,
-            drop_directory=core_config.strava_bulk_import_dir_for,
+            drop_directory=drop_directory_for,
             build_source=_build_source,
         )
     )

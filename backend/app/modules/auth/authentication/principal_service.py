@@ -13,7 +13,6 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.service as authentication_service
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.integration_service as users_integration
@@ -55,41 +54,6 @@ def _build_principal(
         scopes=frozenset(scopes),
         credential=credential,
     )
-
-
-def authenticate_password(
-    username: str,
-    password: str,
-    password_hasher: credentials_integration.PasswordHasher,
-    db: Session,
-) -> Principal:
-    """Verify username/password and return a Principal.
-
-    Args:
-        username: The username supplied by the caller.
-        password: The plaintext password to verify.
-        db: Database session.
-        password_hasher: Password hasher for the stored token.
-
-    Returns:
-        Principal: Resolved principal with a
-            :class:`~auth.contracts.PasswordCred`.
-
-    Raises:
-        UnauthenticatedError: If the credentials are
-            invalid or the account does not exist.
-    """
-    user = authentication_service.authenticate_user(
-        username,
-        password,
-        password_hasher,
-        db,
-    )
-    # Scopes are determined by the token-issuing step;
-    # at password-auth time we return an empty set so
-    # callers know authentication succeeded but must
-    # call issue_token_pair to get scoped tokens.
-    return _build_principal(user, [], PasswordCred(username=username))
 
 
 def resolve_from_access_token(
@@ -228,40 +192,6 @@ def resolve_from_api_key(
             api_key_id=db_key.id,
             key_prefix=db_key.key_prefix,
         ),
-    )
-
-
-def resolve_from_session_cookie(
-    session_id: str,
-    db: Session,
-) -> Principal:
-    """Validate a session ID and return a Principal.
-
-    Args:
-        session_id: The session identifier from the
-            cookie or token ``sid`` claim.
-        db: Database session.
-
-    Returns:
-        Principal: Resolved principal with a
-            :class:`~auth.contracts.SessionCookieCred`.
-
-    Raises:
-        UnauthenticatedError: If the session is not
-            found or has expired.
-    """
-    db_session = sessions_integration.get_session_by_id_not_expired(session_id, db)
-    if db_session is None:
-        logger.warning("Session refused: not found or expired")
-        raise core_exceptions.UnauthenticatedError("Session not found or expired", scheme="Bearer")
-
-    user = users_integration.require_user(db_session.user_id, db)
-    users_integration.require_active_user(user)
-
-    return _build_principal(
-        user,
-        [],
-        SessionCookieCred(session_id=session_id),
     )
 
 

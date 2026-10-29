@@ -27,6 +27,7 @@ import modules.activities.activity_file_storage.subscriber_registry as activity_
 import modules.activities.activity_geocoding.scheduled_jobs as activity_geocoding_scheduled_jobs
 import modules.activities.activity_geocoding.subscriber_registry as activity_geocoding_subscriber_registry
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
+import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.scheduled_jobs as activity_ingestion_scheduled_jobs
 import modules.activities.activity_ingestion.subscriber_registry as activity_ingestion_subscriber_registry
 import modules.activities.activity_laps.integration_service as activity_laps_integration
@@ -67,6 +68,7 @@ import modules.strava.subscriber_registry as strava_subscriber_registry
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.contributors as users_contributors
 import modules.users.users.constants as users_constants
+import modules.users.users.integration_service as users_integration
 import modules.users.users.scheduled_jobs as users_scheduled_jobs
 import modules.users.users.subscriber_registry as users_subscriber_registry
 import modules.users.users_profile.constants as users_profile_constants
@@ -89,6 +91,17 @@ _deferred_pool = core_local_pool.BoundedPool("event-subscriber", workers=2, max_
 def shutdown_deferred_subscribers() -> None:
     """Stop the subscriber pool without waiting; queued work is repaired by the reconciliation nets."""
     _deferred_pool.shutdown()
+
+
+def shutdown_module_pools() -> None:
+    """Stop the subscriber pool and every in-process pool an installed module declares.
+
+    Each entry point calls this one function, so a pool a module adds is released wherever the module runs.
+    """
+    shutdown_deferred_subscribers()
+    for module in MODULES:
+        if module.shutdown is not None:
+            module.shutdown()
 
 
 class _DeferredSubscriptions:
@@ -179,6 +192,8 @@ class RuntimeModule:
     nets: tuple[DurableSubscriberNet, ...] = ()
     recurring_jobs: RecurringJobs | None = None
     startup_tasks: tuple[StartupTask, ...] = ()
+    #: Stops the in-process pools the module runs work on; a no-op when it never started one.
+    shutdown: Callable[[], None] | None = None
 
 
 MODULES: tuple[RuntimeModule, ...] = (
@@ -190,6 +205,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         name="activity",
         register_durable=activity_subscriber_registry.register_durable_handlers,
         nets=activity_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        shutdown=activity_integration.shutdown_bulk_edit_pool,
     ),
     RuntimeModule(
         name="activity_thumbnail",
@@ -250,6 +266,7 @@ MODULES: tuple[RuntimeModule, ...] = (
                 activity_ingestion_scheduled_jobs.schedule_provider_refresh,
             ),
         ),
+        shutdown=activity_ingestion_integration.shutdown_background_ingestion,
     ),
     RuntimeModule(
         name="oauth_state",
@@ -325,6 +342,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=users_subscriber_registry.register_durable_handlers,
         nets=users_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=users_scheduled_jobs.recurring_jobs,
+        shutdown=users_integration.shutdown_deletion_pool,
     ),
     RuntimeModule(
         name="users_profile",
@@ -332,6 +350,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=users_profile_subscriber_registry.register_durable_handlers,
         nets=users_profile_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=users_profile_scheduled_jobs.recurring_jobs,
+        shutdown=users_profile_integration.shutdown_transfer_pool,
     ),
     RuntimeModule(
         name="garmin",
@@ -345,11 +364,13 @@ MODULES: tuple[RuntimeModule, ...] = (
                 garmin_scheduled_jobs.schedule_recent_health,
             ),
         ),
+        shutdown=garmin_integration.shutdown_pools,
     ),
     RuntimeModule(
         name="strava",
         register_durable=strava_subscriber_registry.register_durable_handlers,
         nets=strava_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        shutdown=strava_integration.shutdown_pools,
     ),
     RuntimeModule(
         name="websocket",

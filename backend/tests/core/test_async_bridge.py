@@ -42,11 +42,11 @@ def _stop_loop(loop: asyncio.AbstractEventLoop, thread: threading.Thread) -> Non
 
 class TestSetGetLoop:
     def test_roundtrip(self):
-        assert async_bridge.get_main_loop() is None
+        assert async_bridge._main_loop is None
         loop = asyncio.new_event_loop()
         try:
             async_bridge.set_main_loop(loop)
-            assert async_bridge.get_main_loop() is loop
+            assert async_bridge._main_loop is loop
         finally:
             async_bridge.set_main_loop(None)
             loop.close()
@@ -54,7 +54,7 @@ class TestSetGetLoop:
     def test_capture_running_loop(self):
         async def _main() -> asyncio.AbstractEventLoop | None:
             async_bridge.capture_running_loop()
-            return async_bridge.get_main_loop()
+            return async_bridge._main_loop
 
         loop = asyncio.new_event_loop()
         try:

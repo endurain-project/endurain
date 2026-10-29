@@ -46,3 +46,22 @@ def test_entry_point_does_not_install_pieces_of_the_setup_itself(entry_point):
     called = _called_names(ast.parse((_APP_ROOT / entry_point).read_text()))
 
     assert not set(_REQUIRED_CALLS) & called
+
+
+#: Module pools an entry point once stopped by hand; each now comes from its module's ``shutdown`` hook.
+_POOL_SHUTDOWNS = (
+    "shutdown_background_ingestion",
+    "shutdown_pools",
+    "shutdown_transfer_pool",
+    "shutdown_deletion_pool",
+    "shutdown_bulk_edit_pool",
+)
+
+
+@pytest.mark.parametrize("entry_point", _ENTRY_POINTS)
+def test_entry_point_releases_every_module_pool_through_the_registry(entry_point):
+    """One list of what each module must release, so a pool added to a module is never left running."""
+    called = _called_names(ast.parse((_APP_ROOT / entry_point).read_text()))
+
+    assert "shutdown_module_pools" in called
+    assert not set(_POOL_SHUTDOWNS) & called

@@ -194,3 +194,18 @@ class TestBuildSource:
         assert registered is not None
         assert registered.drop_directory(5).endswith("/5")
         provider_registry.clear()
+
+
+class TestDropDirectory:
+    """Each user drops their Strava export in a directory of their own under the files directory."""
+
+    def test_each_user_gets_their_own_directory(self, monkeypatch):
+        monkeypatch.setattr(strava_bulk_import_source.core_config.settings, "FILES_DIR", "/data/files")
+
+        assert strava_bulk_import_source.drop_directory_for(2) == "/data/files/strava_import/2"
+
+    def test_the_id_can_only_be_a_single_path_segment(self, monkeypatch):
+        monkeypatch.setattr(strava_bulk_import_source.core_config.settings, "FILES_DIR", "/data/files")
+
+        with pytest.raises(ValueError):
+            strava_bulk_import_source.drop_directory_for("../2")

@@ -91,6 +91,8 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
         # under the distributed profile that is a Redis consumer thread and a
         # pool of connections that would otherwise outlive the run.
         jasil_lifecycle.shutdown()
+        # Then any in-process pool a job handler started here (each a no-op when it never started).
+        runtime_module_registry.shutdown_module_pools()
     logger.info("Durable job worker stopped", extra=core_logger.context(console=True))
 
 

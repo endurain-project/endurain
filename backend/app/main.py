@@ -29,23 +29,17 @@ import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_body_limit as core_middleware_body_limit
 import core.middleware_request_id as core_middleware_request_id
-import core.migrations as core_migrations
 import core.network as core_network
 import core.platform_settings as core_platform_settings
 import core.problem_details as core_problem_details
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
 import core.signing as core_signing
+import migrations.startup as migrations_startup
 import module_registry as runtime_module_registry
-import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.auth.authentication.dependencies as auth_dependencies
-import modules.garmin.integration_service as garmin_integration
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
-import modules.strava.integration_service as strava_integration
-import modules.users.users.integration_service as users_integration
-import modules.users.users_profile.integration_service as users_profile_integration
 from api import router as api_router
 from core.database import SessionLocal
 from core.database import engine as core_db_engine
@@ -190,7 +184,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     # Phase 1: critical pre-flight tasks. Every migration step runs under one lock, and
     # nothing consumes events or hints until the schema is current.
-    await core_migrations.migrate_schema_and_data()
+    await migrations_startup.migrate_schema_and_data()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -294,15 +288,8 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     # the bus still up.
     jasil_lifecycle.shutdown()
 
-    # Stop the bulk-import background pool (no-op when it was never started, i.e.
-    # when durable jobs handle imports instead).
-    activity_ingestion_integration.shutdown_background_ingestion()
-    garmin_integration.shutdown_pools()
-    strava_integration.shutdown_pools()
-    runtime_module_registry.shutdown_deferred_subscribers()
-    users_profile_integration.shutdown_transfer_pool()
-    users_integration.shutdown_deletion_pool()
-    activity_integration.shutdown_bulk_edit_pool()
+    # Stop the subscriber pool and every module's in-process pools (each a no-op when it never started).
+    runtime_module_registry.shutdown_module_pools()
 
     # Stop the SSRF hostname-resolution pool (no-op when no lookup ever ran).
     core_network.shutdown_ssrf_dns_executor()

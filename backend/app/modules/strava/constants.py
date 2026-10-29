@@ -9,6 +9,15 @@ PROVIDER_NAME = "strava"
 #: The name the Strava export layout registers under with bulk import.
 BULK_IMPORT_FORMAT_NAME = "strava"
 
+#: The member of a Strava export that lists its activities.
+BULK_IMPORT_ACTIVITIES_FILE = "activities.csv"
+
+#: The directory under ``FILES_DIR`` each user's Strava export is dropped in, one subdirectory per user.
+BULK_IMPORT_DIR_NAME = "strava_import"
+
+#: The name a shoe with no name in a Strava gear export gets, followed by a number that keeps it unique.
+UNNAMED_SHOE_NICKNAME_PREFIX = "Unnamed Shoe "
+
 #: The job names a Strava link's and unlink's realtime hints carry; the web client follows the same names.
 LINK_JOB = "strava:link"
 UNLINK_JOB = "strava:unlink"

@@ -1,4 +1,8 @@
-"""Migration consistency checks run during backend startup."""
+"""Bring the schema and the data to the current version when the backend starts.
+
+The application's own startup step: it runs the Alembic and substrate upgrades and the data migrations in this
+package, so it lives beside them rather than in ``core``, which knows nothing of the application.
+"""
 
 from collections.abc import Generator
 from contextlib import contextmanager

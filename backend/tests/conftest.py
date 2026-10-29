@@ -401,7 +401,6 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     app.dependency_overrides[auth_mfa_dependencies.get_pending_mfa_store] = lambda: fake_store
 
     # Override auth-internal dependencies for auth router endpoint tests.
-    app.dependency_overrides[auth_dependencies.validate_access_token_expiration] = _mock_validate_access_token
     app.dependency_overrides[authentication_dependencies.validate_refresh_token] = _mock_validate_refresh_token
     app.dependency_overrides[auth_dependencies.get_access_token] = _mock_get_access_token
     app.dependency_overrides[authentication_dependencies.get_refresh_token] = _mock_get_refresh_token

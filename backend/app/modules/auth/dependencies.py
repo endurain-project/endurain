@@ -13,7 +13,6 @@ import core.config as core_config
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
@@ -40,17 +39,6 @@ def get_access_token(
     if access_token is None:
         raise core_exceptions.UnauthenticatedError("Access token missing from Authorization header")
     return access_token
-
-
-def validate_access_token_expiration(
-    access_token: Annotated[str, Depends(get_access_token)],
-    token_manager: Annotated[
-        access_tokens_integration.TokenManager,
-        Depends(access_tokens_integration.get_token_manager),
-    ],
-) -> None:
-    """Validate access-token signature and expiration without loading its user."""
-    token_manager.validate_access_expiration_logged(access_token)
 
 
 def _require_scopes(granted: Iterable[str], required: SecurityScopes) -> None:
@@ -188,6 +176,5 @@ __all__ = [
     "get_sub_from_access_token",
     "get_user_id_from_auth",
     "validate_access_token",
-    "validate_access_token_expiration",
     "validate_access_token_or_api_key",
 ]

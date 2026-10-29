@@ -17,7 +17,7 @@ Auth consumes users data through `modules.users.users.integration_service`. User
 
 The credential is a discriminated union of `PasswordCred`, `AccessTokenCred`, `ApiKeyCred`, `SessionCookieCred`, and `OAuthCred`. Each variant contains only fields relevant to that method. Prefer `Principal` helpers such as `is_api_key()` and `credential_id()` over matching on credential internals.
 
-`modules.auth.authentication.principal_service` resolves access tokens, API keys, and session cookies. Request dependencies call the published `authentication.integration_service` and cache the resolved principal for the request.
+`modules.auth.authentication.principal_service` resolves access tokens and API keys. Request dependencies call the published `authentication.integration_service` and cache the resolved principal for the request.
 
 ## Ownership map
 

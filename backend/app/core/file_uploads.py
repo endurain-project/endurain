@@ -21,7 +21,6 @@ The unified pipeline gives every upload the same defenses:
 
 import asyncio
 import contextlib
-import glob
 import gzip
 import hashlib
 import io
@@ -43,7 +42,6 @@ from safeuploads import (
     FileValidator,
     SecurityLimits,
 )
-from safeuploads.audit import SecurityAuditLogger
 from safeuploads.exceptions import (
     CompressionSecurityError,
     ExtensionSecurityError,
@@ -114,9 +112,6 @@ file_validator: FileValidator = FileValidator(config=_build_security_config())
 #: Structured audit logger backing the ``safeuploads.audit`` Python
 #: logger. Records validation start/success/failure events with a
 #: per-request correlation ID.
-audit_logger: SecurityAuditLogger = SecurityAuditLogger(enabled=True)
-
-
 # ---------------------------------------------------------------------------
 # Upload kinds and per-kind dispatch
 # ---------------------------------------------------------------------------
@@ -350,22 +345,6 @@ def _resolve_upload_path(upload_dir: str, filename: str) -> Path:
     return file_path
 
 
-def resolve_storage_path(upload_dir: str, filename: str) -> Path:
-    """Resolve a server-generated filename inside a storage dir.
-
-    Args:
-        upload_dir: Trusted storage directory.
-        filename: Server-generated filename to resolve.
-
-    Returns:
-        Resolved path inside ``upload_dir``.
-
-    Raises:
-        DomainError: If the filename is empty or unsafe.
-    """
-    return _resolve_upload_path(upload_dir, filename)
-
-
 async def save_file(
     file: UploadFile | bytes,
     upload_dir: str,
@@ -588,28 +567,6 @@ async def save_validated_upload(
         raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
-async def read_validated_upload(file: UploadFile, *, kind: UploadKind) -> bytes:
-    """Validate an upload and return its bytes, without touching the filesystem.
-
-    The async counterpart of :func:`read_validated_upload_sync`, for callers that
-    hand the bytes to the platform ``StorageProvider`` rather than writing them
-    to a local directory.
-
-    Args:
-        file: Incoming FastAPI UploadFile.
-        kind: Logical content type, drives validator + size cap.
-
-    Returns:
-        The validated file contents.
-
-    Raises:
-        DomainError: 400/413/500 depending on the failure mode.
-    """
-    await validate_upload(file, kind=kind)
-    # The read is blocking on a spooled file that may have hit disk.
-    return await asyncio.to_thread(_read_capped_sync, file, _max_bytes_for(kind))
-
-
 def _read_capped_sync(file: UploadFile, max_bytes: int) -> bytes:
     """Read an already-validated upload into memory, enforcing the size cap."""
     chunks: list[bytes] = []
@@ -705,51 +662,6 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
 # ---------------------------------------------------------------------------
 # Filesystem cleanup helpers
 # ---------------------------------------------------------------------------
-
-
-async def delete_files_by_pattern(directory: str, pattern: str) -> None:
-    """
-    Delete files from filesystem matching a glob pattern asynchronously.
-
-    Searches directory for files matching the pattern and removes
-    them asynchronously. Silently skips files that no longer exist.
-
-    Args:
-        directory: Directory path to search in.
-        pattern: Glob pattern to match (e.g., "user_123.*").
-
-    Returns:
-        None
-
-    Raises:
-        None - errors logged but not raised for resilience.
-    """
-    try:
-        # Build full pattern path
-        full_pattern = os.path.join(directory, pattern)
-
-        # Find all files matching the pattern
-        files_to_delete = glob.glob(full_pattern)
-
-        # Remove each file found asynchronously
-        for file_path in files_to_delete:
-            try:
-                if await aiofiles.os.path.exists(file_path):
-                    await aiofiles.os.remove(file_path)
-
-                logger.debug(
-                    "File deleted successfully", extra=core_logger.context(file_name=os.path.basename(file_path))
-                )
-            except OSError as err:
-                logger.warning(
-                    "Failed to delete a file",
-                    exc_info=err,
-                    extra=core_logger.context(file_name=os.path.basename(file_path)),
-                )
-    except Exception as err:
-        logger.error(
-            "Error deleting files matching a pattern", exc_info=err, extra=core_logger.context(pattern=pattern)
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -1176,26 +1088,6 @@ def _resolve_within(path: str | os.PathLike, base_dir: Path) -> Path:
     except ValueError as err:
         raise core_exceptions.InvalidInputError("Path escapes the allowed directory") from err
     return resolved
-
-
-def ensure_within(path: str | os.PathLike, base_dir: str | os.PathLike) -> Path:
-    """Resolve ``path`` and verify it is contained under ``base_dir``.
-
-    Public containment guard for callers that receive a filesystem path from
-    an untrusted or replayable source (e.g. a durable-job payload) and must
-    confirm it has not escaped a trusted base directory before using it.
-
-    Args:
-        path: Filesystem path to verify.
-        base_dir: Trusted base directory.
-
-    Returns:
-        The resolved path, guaranteed to be inside ``base_dir``.
-
-    Raises:
-        DomainError: 400 when the resolved path escapes ``base_dir``.
-    """
-    return _resolve_within(path, Path(os.fspath(base_dir)).resolve())
 
 
 def move_within(
