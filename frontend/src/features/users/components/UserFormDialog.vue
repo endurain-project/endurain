@@ -40,8 +40,10 @@ const props = withDefaults(
   defineProps<{
     /** The user being edited, or `null`/absent when adding a new one. */
     user?: ManagedUser | null
+    /** Whether the edited user is the signed-in administrator, whose email changes only through Security settings. */
+    isSelf?: boolean
   }>(),
-  { user: null },
+  { user: null, isSelf: false },
 )
 
 const emit = defineEmits<{
@@ -432,10 +434,16 @@ watch(open, (isOpen) => {
             type="email"
             name="email"
             :placeholder="placeholder"
-            :disabled="isSubmitting"
+            :disabled="isSubmitting || isSelf"
             @blur="handleBlur('email')"
           />
-          <p v-if="emailChanged" class="text-hint">
+          <p v-if="isSelf" class="text-hint">
+            {{ t('settings.profile.emailManagedIn') }}
+            <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
+              {{ t('settings.profile.emailManagedLink') }}
+            </RouterLink>
+          </p>
+          <p v-else-if="emailChanged" class="text-hint">
             {{ t('settings.users.form.emailChangeHint') }}
           </p>
         </template>

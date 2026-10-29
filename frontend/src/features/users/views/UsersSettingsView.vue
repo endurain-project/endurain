@@ -328,6 +328,7 @@ function confirmDelete(): void {
     <UserFormDialog
       v-model:open="isFormOpen"
       :user="editingUser"
+      :is-self="editingUser !== null && isSelf(editingUser)"
       @success="onFormSuccess"
       @error="onFormError"
     />

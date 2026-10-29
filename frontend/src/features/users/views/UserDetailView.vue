@@ -399,6 +399,7 @@ function reject(): void {
       <UserFormDialog
         v-model:open="isFormOpen"
         :user="user"
+        :is-self="isSelf"
         @success="onFormSuccess"
         @error="onFormError"
       />
