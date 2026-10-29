@@ -107,7 +107,7 @@ def should_refresh_idp_token(link: auth_identity_links_contracts.IdentityLinkRea
         )
         action = should_refresh_idp_token(link)
         if action == TokenAction.REFRESH:
-            tokens.refresh_idp_session(user_id, idp_id)
+            tokens.refresh_idp_session(user_id, idp_id, claims)
         elif action == TokenAction.CLEAR:
             identity_provider_links_integration.clear_user_identity_provider_refresh_token(
                 user_id, idp_id, db

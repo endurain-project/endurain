@@ -10,6 +10,8 @@ from sqlalchemy.exc import IntegrityError
 import core.exceptions as core_exceptions
 import modules.auth.identity_provider_links.contracts as identity_links_contracts
 import modules.auth.identity_provider_links.crud as identity_links_crud
+import modules.auth.identity_provider_links.models as identity_links_models
+from tests._helpers.db import create_sqlite_session
 
 
 def _link(**overrides):
@@ -89,3 +91,54 @@ def test_delete_link_stages_deletion(mock_db):
     mock_db.execute.return_value.rowcount = 1
     assert identity_links_crud.delete_user_identity_provider(7, 3, mock_db) is True
     mock_db.commit.assert_not_called()
+
+
+class TestCompareAndSetTokens:
+    """A refresh writes only over the token it read, so a slower one cannot undo a faster one."""
+
+    @staticmethod
+    def _db_with_link(refresh_token):
+        db = create_sqlite_session()
+        db.add(
+            identity_links_models.IdentityLink(
+                user_id=7, idp_id=3, idp_subject="subject-1", idp_refresh_token=refresh_token
+            )
+        )
+        db.commit()
+        return db
+
+    def _stored(self, db):
+        return identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(7, 3, db)
+
+    def test_a_replace_over_the_token_read_is_applied(self):
+        db = self._db_with_link("old")
+        expires = datetime(2026, 11, 1, tzinfo=UTC)
+
+        assert identity_links_crud.replace_refresh_token_if_unchanged(7, 3, "old", "new", expires, db) is True
+        assert self._stored(db).idp_refresh_token == "new"
+        # SQLite returns the stored instant without its zone.
+        assert self._stored(db).idp_access_token_expires_at.replace(tzinfo=UTC) == expires
+        db.close()
+
+    def test_a_replace_over_a_token_another_refresh_stored_is_dropped(self):
+        db = self._db_with_link("stored-by-another")
+
+        assert (
+            identity_links_crud.replace_refresh_token_if_unchanged(7, 3, "old", "new", datetime.now(UTC), db) is False
+        )
+        assert self._stored(db).idp_refresh_token == "stored-by-another"
+        db.close()
+
+    def test_a_clear_of_the_token_read_is_applied(self):
+        db = self._db_with_link("old")
+
+        assert identity_links_crud.clear_refresh_token_if_unchanged(7, 3, "old", db) is True
+        assert self._stored(db).idp_refresh_token is None
+        db.close()
+
+    def test_a_clear_never_wipes_a_token_another_refresh_stored(self):
+        db = self._db_with_link("stored-by-another")
+
+        assert identity_links_crud.clear_refresh_token_if_unchanged(7, 3, "old", db) is False
+        assert self._stored(db).idp_refresh_token == "stored-by-another"
+        db.close()

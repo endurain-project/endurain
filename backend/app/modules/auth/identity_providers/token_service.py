@@ -16,6 +16,7 @@ import modules.auth.identity_provider_links.integration_service as identity_prov
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.event_publishers as idp_event_publishers
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
+import modules.auth.identity_providers.refresh_claim_store as idp_refresh_claim_store
 import modules.auth.identity_providers.token_policy as token_policy
 
 logger = core_logger.get_logger(__name__)
@@ -60,20 +61,21 @@ class IdpTokenService:
         if refresh_needed:
             idp_event_publishers.publish_idp_token_refresh_requested(user_id, db)
 
-    def refresh_idp_tokens(self, user_id: int) -> None:
+    def refresh_idp_tokens(self, user_id: int, claims: idp_refresh_claim_store.IdpRefreshClaimStore) -> None:
         """Refresh the user's identity-provider tokens that are about to expire. Blocking; run it on a worker.
 
         The links are read in a short session that closes before any provider is called.
 
         Args:
             user_id: The user whose tokens to refresh.
+            claims: The shared claims that keep one refresh of a link running at a time.
         """
         with core_database.SessionLocal() as db:
             links = identity_provider_links_integration.get_user_identity_providers_by_user_id(user_id, db)
         for link in links:
             try:
                 if token_policy.should_refresh_idp_token(link) is token_policy.TokenAction.REFRESH:
-                    self.refresh_idp_session(user_id, link.idp_id)
+                    self.refresh_idp_session(user_id, link.idp_id, claims)
             except Exception as err:
                 logger.warning(
                     "Could not refresh identity-provider token",
@@ -109,8 +111,10 @@ class IdpTokenService:
         idp_id: int,
         token_response: dict[str, Any],
         db: Session,
+        *,
+        expected_refresh_token: str | None = None,
     ) -> None:
-        """Store IdP tokens after successful authentication.
+        """Store IdP tokens after successful authentication or a refresh.
 
         This method extracts the refresh token from the OAuth token response, encrypts it,
         and stores it along with metadata for future session renewal. If no refresh token
@@ -122,6 +126,8 @@ class IdpTokenService:
             token_response (dict[str, Any]): The OAuth token response from the IdP containing
                 access_token, refresh_token (optional), and expires_in.
             db (Session): The database session for storing tokens.
+            expected_refresh_token (str | None): For a refresh, the encrypted token it read: the new one is
+                stored only while the link still holds it, so a slower refresh never overwrites a newer token.
 
         Returns:
             None
@@ -165,14 +171,23 @@ class IdpTokenService:
             expires_in = token_response.get("expires_in", DEFAULT_TOKEN_EXPIRY_SECONDS)
             access_token_expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
 
-            # Store encrypted token and metadata in database
-            identity_provider_links_integration.store_user_identity_provider_tokens(
-                user_id=user_id,
-                idp_id=idp_id,
-                encrypted_refresh_token=encrypted_refresh,
-                access_token_expires_at=access_token_expires_at,
-                db=db,
-            )
+            if expected_refresh_token is not None:
+                if not identity_provider_links_integration.replace_user_identity_provider_tokens_if_unchanged(
+                    user_id, idp_id, expected_refresh_token, encrypted_refresh, access_token_expires_at, db
+                ):
+                    logger.debug(
+                        "Kept the IdP refresh token another refresh stored for user <user_id>, idp <idp_id>",
+                        extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+                    )
+                    return
+            else:
+                identity_provider_links_integration.store_user_identity_provider_tokens(
+                    user_id=user_id,
+                    idp_id=idp_id,
+                    encrypted_refresh_token=encrypted_refresh,
+                    access_token_expires_at=access_token_expires_at,
+                    db=db,
+                )
 
             logger.debug(
                 "Stored IdP refresh token for user <user_id>, idp <idp_id> (expires at <value_3>)",
@@ -190,6 +205,39 @@ class IdpTokenService:
             # User will need to re-auth when session expires, but that's acceptable
 
     def refresh_idp_session(
+        self,
+        user_id: int,
+        idp_id: int,
+        claims: idp_refresh_claim_store.IdpRefreshClaimStore,
+    ) -> dict[str, Any] | None:
+        """Refresh one link's IdP session unless another refresh of that link is running.
+
+        Two refreshes would present the same refresh token to the provider, which a rotating provider rejects
+        and one with reuse detection punishes by revoking the session, so the link is claimed first.
+
+        Args:
+            user_id: The ID of the user whose session should be refreshed.
+            idp_id: The ID of the identity provider.
+            claims: The shared claims that keep one refresh of a link running at a time.
+
+        Returns:
+            The new token response, or None if another refresh holds the link or this one failed.
+
+        Raises:
+            domain error: If the IdP is not found, disabled, or misconfigured.
+        """
+        if not claims.claim(user_id, idp_id):
+            logger.debug(
+                "Skipped an IdP refresh another worker is running for user <user_id>, idp <idp_id>",
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+            )
+            return None
+        try:
+            return self._refresh_claimed_session(user_id, idp_id)
+        finally:
+            claims.release(user_id, idp_id)
+
+    def _refresh_claimed_session(
         self,
         user_id: int,
         idp_id: int,
@@ -225,7 +273,8 @@ class IdpTokenService:
 
         Security Notes:
             - Refresh token is decrypted only in memory, never logged
-            - If refresh fails (invalid/revoked), the stored token is cleared
+            - If refresh fails (invalid/revoked), the stored token is cleared, unless another refresh replaced it
+            - The new token is stored only over the token this refresh read
             - Network errors do not clear the token (IdP may be temporarily down)
         """
         with core_database.SessionLocal() as db:
@@ -260,7 +309,7 @@ class IdpTokenService:
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
             )
             # Clear corrupted token
-            self._clear_refresh_token(user_id, idp_id)
+            self._clear_refresh_token(user_id, idp_id, encrypted_refresh_token)
             return None
 
         # Resolve endpoints and credentials using helper methods
@@ -291,7 +340,9 @@ class IdpTokenService:
 
             # Store the new tokens (they may include a new refresh token)
             with core_database.SessionLocal() as db:
-                self.store_idp_tokens(user_id, idp_id, token_response, db)
+                self.store_idp_tokens(
+                    user_id, idp_id, token_response, db, expected_refresh_token=encrypted_refresh_token
+                )
                 db.commit()
 
             return token_response
@@ -313,8 +364,8 @@ class IdpTokenService:
                     exc_info=err,
                     extra=core_logger.context(user_id=user_id, idp_id=idp_id, status_code=err.response.status_code),
                 )
-                # Clear invalid token from database
-                self._clear_refresh_token(user_id, idp_id)
+                # Clear the rejected token, unless another refresh has replaced it meanwhile
+                self._clear_refresh_token(user_id, idp_id, encrypted_refresh_token)
                 return None
             else:
                 # Other HTTP errors (5xx) - don't clear token
@@ -346,16 +397,25 @@ class IdpTokenService:
                 client.close()
 
     @staticmethod
-    def _clear_refresh_token(user_id: int, idp_id: int) -> None:
-        """Clear a user's stored refresh token for a provider, in a session of its own.
+    def _clear_refresh_token(user_id: int, idp_id: int, expected_refresh_token: str) -> None:
+        """Clear the refresh token a refresh read, in a session of its own, unless the link holds another now.
 
         Args:
             user_id: The user whose token to clear.
             idp_id: The provider the token belongs to.
+            expected_refresh_token: The encrypted token the refresh read.
         """
         with core_database.SessionLocal() as db:
-            identity_provider_links_integration.clear_user_identity_provider_refresh_token(user_id, idp_id, db)
+            cleared = identity_provider_links_integration.clear_user_identity_provider_refresh_token_if_unchanged(
+                user_id, idp_id, expected_refresh_token, db
+            )
             db.commit()
+        if not cleared:
+            logger.debug(
+                "Kept the IdP refresh token another refresh stored for user <user_id>, idp <idp_id>",
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+            )
+            return
         logger.info(
             "Cleared the identity-provider refresh token for user <user_id>, idp <idp_id>",
             extra=core_logger.context(user_id=user_id, idp_id=idp_id),

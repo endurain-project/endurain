@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, exists, func, select
+from sqlalchemy import CursorResult, delete, exists, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -137,6 +137,61 @@ def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
     row.idp_refresh_token_updated_at = None
     db.flush()
     return True
+
+
+def replace_refresh_token_if_unchanged(
+    user_id: int,
+    idp_id: int,
+    expected_refresh_token: str,
+    encrypted_refresh_token: str,
+    access_token_expires_at: datetime,
+    db: Session,
+) -> bool:
+    """Stage new provider-token metadata only while the link still holds the token that was read.
+
+    Args:
+        user_id: The link's user.
+        idp_id: The link's provider.
+        expected_refresh_token: The encrypted refresh token the caller read.
+        encrypted_refresh_token: The encrypted refresh token to store.
+        access_token_expires_at: When the new access token expires.
+        db: Database session.
+
+    Returns:
+        True when the token was replaced, False when the link holds another one now.
+    """
+    model = identity_link_models.IdentityLink
+    result: CursorResult[object] = db.execute(
+        update(model)
+        .where(model.user_id == user_id, model.idp_id == idp_id, model.idp_refresh_token == expected_refresh_token)
+        .values(
+            idp_refresh_token=encrypted_refresh_token,
+            idp_access_token_expires_at=access_token_expires_at,
+            idp_refresh_token_updated_at=datetime.now(UTC),
+        )
+    )
+    return result.rowcount == 1
+
+
+def clear_refresh_token_if_unchanged(user_id: int, idp_id: int, expected_refresh_token: str, db: Session) -> bool:
+    """Stage removal of provider-token metadata only while the link still holds the token that was read.
+
+    Args:
+        user_id: The link's user.
+        idp_id: The link's provider.
+        expected_refresh_token: The encrypted refresh token the caller read.
+        db: Database session.
+
+    Returns:
+        True when the token was cleared, False when the link holds another one now.
+    """
+    model = identity_link_models.IdentityLink
+    result: CursorResult[object] = db.execute(
+        update(model)
+        .where(model.user_id == user_id, model.idp_id == idp_id, model.idp_refresh_token == expected_refresh_token)
+        .values(idp_refresh_token=None, idp_access_token_expires_at=None, idp_refresh_token_updated_at=None)
+    )
+    return result.rowcount == 1
 
 
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:

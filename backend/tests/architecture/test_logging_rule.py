@@ -60,6 +60,7 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
     "strava/rate_limit_store.py": "Reports a rate limit it records or a storage outage it tolerates; the caller only sees a bool.",
     "garmin/mfa_code_store.py": "Reports a storage outage and a code it could not delete, which have no caller to tell.",
+    "auth/identity_providers/refresh_claim_store.py": "Reports a storage outage it tolerates by failing open; the caller only sees a bool.",
     "auth/identity_providers/token_policy.py": "Reports a token the age policy retires or a link with no timestamp; the caller only sees the action.",
     "auth/mfa/setup_store.py": "Reports a setup secret it could not decrypt; the caller only sees None.",
     "garmin/token_utils.py": "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None.",

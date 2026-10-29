@@ -11,6 +11,7 @@ import core.config as core_config
 import core.logger as core_logger
 import modules.auth.identity_providers.events as idp_events
 import modules.auth.identity_providers.oidc_client_service as idp_oidc_client
+import modules.auth.identity_providers.refresh_claim_store as idp_refresh_claim_store
 import modules.auth.identity_providers.token_service as idp_token_service
 
 logger = core_logger.get_logger(__name__)
@@ -22,7 +23,9 @@ def refresh_idp_tokens_for_event(event: Event) -> None:
     payload = platform_event_versioning.parse_payload(idp_events.IdpTokenRefreshPayload, event)
     oidc = idp_oidc_client.OidcClientService(platform_runtime.get_state(), core_config.API_VERSION)
     service = idp_token_service.IdpTokenService(oidc)
-    service.refresh_idp_tokens(payload.user_id)
+    service.refresh_idp_tokens(
+        payload.user_id, idp_refresh_claim_store.IdpRefreshClaimStore(platform_runtime.get_state())
+    )
     logger.debug("IdP token refresh event processed", extra=core_logger.context(user_id=payload.user_id))
 
 

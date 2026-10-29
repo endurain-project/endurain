@@ -62,6 +62,27 @@ def clear_user_identity_provider_refresh_token(user_id: int, idp_id: int, db: Se
     return identity_link_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id, idp_id, db)
 
 
+def replace_user_identity_provider_tokens_if_unchanged(
+    user_id: int,
+    idp_id: int,
+    expected_refresh_token: str,
+    encrypted_refresh_token: str,
+    access_token_expires_at: datetime,
+    db: Session,
+) -> bool:
+    """Stage new provider-token metadata only while the link still holds the token that was read."""
+    return identity_link_crud.replace_refresh_token_if_unchanged(
+        user_id, idp_id, expected_refresh_token, encrypted_refresh_token, access_token_expires_at, db
+    )
+
+
+def clear_user_identity_provider_refresh_token_if_unchanged(
+    user_id: int, idp_id: int, expected_refresh_token: str, db: Session
+) -> bool:
+    """Stage removal of provider-token metadata only while the link still holds the token that was read."""
+    return identity_link_crud.clear_refresh_token_if_unchanged(user_id, idp_id, expected_refresh_token, db)
+
+
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
     """Stage deletion of a user's identity-provider link."""
     return identity_link_crud.delete_user_identity_provider(user_id, idp_id, db)

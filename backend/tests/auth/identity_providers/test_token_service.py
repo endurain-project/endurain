@@ -78,7 +78,7 @@ class TestRefreshIdpTokens:
                 open_sessions -= 1
                 return False
 
-        def refresh(user_id, idp_id):
+        def refresh(user_id, idp_id, claims):
             open_during_refresh.append(open_sessions)
             if refresh_side_effect is not None:
                 refresh_side_effect(idp_id)
@@ -93,13 +93,18 @@ class TestRefreshIdpTokens:
             ),
             patch.object(token_service_module.token_policy, "should_refresh_idp_token", side_effect=actions),
         ):
-            service.refresh_idp_tokens(7)
+            service.refresh_idp_tokens(7, self.claims)
         return service, open_during_refresh
+
+    claims = MagicMock()
 
     def test_only_links_with_a_refresh_action_are_refreshed_with_no_session_open(self):
         service, open_during_refresh = self._run([TokenAction.SKIP, TokenAction.REFRESH, TokenAction.REFRESH])
 
-        assert [call.args for call in service.refresh_idp_session.call_args_list] == [(7, 4), (7, 5)]
+        assert [call.args for call in service.refresh_idp_session.call_args_list] == [
+            (7, 4, self.claims),
+            (7, 5, self.claims),
+        ]
         assert open_during_refresh == [0, 0]
 
     def test_a_provider_that_fails_does_not_stop_the_others(self):
@@ -137,7 +142,7 @@ class TestRefreshIdpSession:
         service._oidc.decrypt_client_id = MagicMock(return_value="cid")
         service._oidc.decrypt_client_secret = MagicMock(return_value="secret")
         service._oidc.create_oauth_client = MagicMock(return_value=client)
-        service.store_idp_tokens = MagicMock(side_effect=lambda *a: events.append("store"))
+        service.store_idp_tokens = MagicMock(side_effect=lambda *a, **k: events.append("store"))
         patches = [
             patch.object(token_service_module.core_database, "SessionLocal", _Session),
             patch.object(token_service_module.idp_crud, "get_identity_provider", return_value=idp),
@@ -149,19 +154,20 @@ class TestRefreshIdpSession:
             patch.object(token_service_module.core_cryptography, "decrypt_token_fernet", return_value="plain"),
             patch.object(
                 token_service_module.identity_provider_links_integration,
-                "clear_user_identity_provider_refresh_token",
-                side_effect=lambda *a: events.append("clear"),
+                "clear_user_identity_provider_refresh_token_if_unchanged",
+                side_effect=lambda *a: events.append("clear") or True,
             ),
         ]
         return client, events, state, patches
 
-    def _refresh(self, service, patches):
+    def _refresh(self, service, patches, claims=None):
         from contextlib import ExitStack
 
+        self.claims = claims or MagicMock(**{"claim.return_value": True})
         with ExitStack() as stack:
             for patcher in patches:
                 stack.enter_context(patcher)
-            return service.refresh_idp_session(7, 3)
+            return service.refresh_idp_session(7, 3, self.claims)
 
     def test_the_provider_is_called_with_no_session_open_and_the_new_tokens_are_committed(self):
         service = _service()
@@ -175,7 +181,10 @@ class TestRefreshIdpSession:
         assert result == {"access_token": "new"}
         assert open_during_call == [0]
         assert events == ["store", "commit"]
+        # The new token is written only over the one this refresh read.
+        assert service.store_idp_tokens.call_args.kwargs["expected_refresh_token"] == "encrypted"
         client.close.assert_called_once()
+        self.claims.release.assert_called_once_with(7, 3)
 
     @pytest.mark.parametrize("status_code", [400, 401])
     def test_a_token_the_provider_rejects_is_cleared_and_committed(self, status_code):
@@ -190,6 +199,44 @@ class TestRefreshIdpSession:
 
         assert self._refresh(service, patches) is None
         assert events == ["clear", "commit"]
+        self.claims.release.assert_called_once_with(7, 3)
+
+    def test_a_rejection_clears_only_the_token_this_refresh_read(self):
+        """A slower refresh's invalid_grant must not wipe the token a faster one just stored."""
+        service = _service()
+        response = MagicMock(status_code=400, text="invalid_grant")
+
+        def reject(*_a, **_k):
+            raise httpx2.HTTPStatusError("rejected", request=MagicMock(), response=response)
+
+        _, _, _, patches = self._setup(service, fetch=reject)
+        with patch.object(
+            token_service_module.identity_provider_links_integration,
+            "clear_user_identity_provider_refresh_token_if_unchanged",
+            return_value=False,
+        ) as clear:
+            patches.pop()
+            assert self._refresh(service, patches) is None
+
+        assert clear.call_args.args[:3] == (7, 3, "encrypted")
+
+    def test_a_refresh_another_worker_is_running_is_skipped(self):
+        service = _service()
+        client, events, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
+
+        assert self._refresh(service, patches, claims=MagicMock(**{"claim.return_value": False})) is None
+        client.fetch_token.assert_not_called()
+        assert events == []
+        self.claims.release.assert_not_called()
+
+    def test_the_claim_is_released_when_the_refresh_raises(self):
+        service = _service()
+        _, _, _, patches = self._setup(service, fetch=lambda *a, **k: {})
+        patches[1] = patch.object(token_service_module.idp_crud, "get_identity_provider", return_value=None)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            self._refresh(service, patches)
+        self.claims.release.assert_called_once_with(7, 3)
 
     def test_a_provider_outage_keeps_the_token(self):
         service = _service()
@@ -201,6 +248,7 @@ class TestRefreshIdpSession:
 
         assert self._refresh(service, patches) is None
         assert events == []
+        self.claims.release.assert_called_once_with(7, 3)
 
     def test_a_disabled_provider_is_refused(self):
         service = _service()
@@ -277,3 +325,36 @@ class TestRevokeIdpToken:
 
         assert result is False
         http_client.post.assert_not_called()
+
+
+class TestStoreIdpTokens:
+    """The callbacks store unconditionally; a refresh stores only over the token it read."""
+
+    def _store(self, expected=None):
+        with (
+            patch.object(token_service_module.core_cryptography, "encrypt_token_fernet", return_value="ciphertext"),
+            patch.object(
+                token_service_module.identity_provider_links_integration, "store_user_identity_provider_tokens"
+            ) as store,
+            patch.object(
+                token_service_module.identity_provider_links_integration,
+                "replace_user_identity_provider_tokens_if_unchanged",
+                return_value=False,
+            ) as replace,
+        ):
+            _service().store_idp_tokens(
+                7, 3, {"refresh_token": "rt", "expires_in": 60}, MagicMock(), expected_refresh_token=expected
+            )
+        return store, replace
+
+    def test_a_callback_store_is_unconditional(self):
+        store, replace = self._store()
+
+        assert store.call_args.kwargs["encrypted_refresh_token"] == "ciphertext"
+        replace.assert_not_called()
+
+    def test_a_refresh_store_is_conditional_on_the_token_read(self):
+        store, replace = self._store(expected="read-ciphertext")
+
+        store.assert_not_called()
+        assert replace.call_args.args[:4] == (7, 3, "read-ciphertext", "ciphertext")

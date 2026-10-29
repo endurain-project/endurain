@@ -34,11 +34,13 @@ class TestSubscriber:
         with (
             patch(f"{_MODULE}.idp_token_service.IdpTokenService", return_value=service),
             patch(f"{_MODULE}.idp_oidc_client.OidcClientService"),
-            patch(f"{_MODULE}.platform_runtime.get_state"),
+            patch(f"{_MODULE}.platform_runtime.get_state") as get_state,
+            patch(f"{_MODULE}.idp_refresh_claim_store.IdpRefreshClaimStore") as claim_store,
         ):
             idp_subscribers.refresh_idp_tokens_for_event(_event(7))
 
-        service.refresh_idp_tokens.assert_called_once_with(7)
+        claim_store.assert_called_once_with(get_state.return_value)
+        service.refresh_idp_tokens.assert_called_once_with(7, claim_store.return_value)
 
     def test_a_failure_reaches_the_durable_runner_but_not_the_bus(self):
         service = MagicMock()
