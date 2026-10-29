@@ -10,7 +10,8 @@ from jasil.subscribers import best_effort
 import core.config as core_config
 import core.logger as core_logger
 import modules.auth.identity_providers.events as idp_events
-import modules.auth.identity_providers.service as idp_service
+import modules.auth.identity_providers.oidc_client_service as idp_oidc_client
+import modules.auth.identity_providers.token_service as idp_token_service
 
 logger = core_logger.get_logger(__name__)
 IDP_TOKEN_REFRESH_SUBSCRIBER_ID = "auth.refresh_idp_tokens"  # noqa: S105 - subscriber id, not a credential
@@ -19,9 +20,8 @@ IDP_TOKEN_REFRESH_SUBSCRIBER_ID = "auth.refresh_idp_tokens"  # noqa: S105 - subs
 def refresh_idp_tokens_for_event(event: Event) -> None:
     """Refresh the user's expiring identity-provider tokens for a refresh request."""
     payload = platform_event_versioning.parse_payload(idp_events.IdpTokenRefreshPayload, event)
-    service = idp_service.IdentityProviderService(
-        platform_runtime.get_state(), core_config.settings.ENDURAIN_HOST, core_config.API_VERSION
-    )
+    oidc = idp_oidc_client.OidcClientService(platform_runtime.get_state(), core_config.API_VERSION)
+    service = idp_token_service.IdpTokenService(oidc)
     service.refresh_idp_tokens(payload.user_id)
     logger.debug("IdP token refresh event processed", extra=core_logger.context(user_id=payload.user_id))
 

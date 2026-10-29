@@ -6,7 +6,7 @@ import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_providers.dependencies as idp_dependencies
+import modules.auth.identity_providers.provider_service as idp_provider_service
 import modules.auth.identity_providers.schema as idp_schema
 
 router = APIRouter()
@@ -19,18 +19,16 @@ router = APIRouter()
 )
 def list_identity_providers(
     db: core_dependencies.DbSession,
-    service: idp_dependencies.IdentityProviderService,
 ) -> list[idp_schema.IdentityProviderRead]:
     """Retrieve a list of all identity providers.
 
     Args:
         db: SQLAlchemy database session dependency.
-        service: Identity provider service.
 
     Returns:
         A list of all configured identity providers.
     """
-    return service.list_identity_providers(db)
+    return idp_provider_service.list_identity_providers(db)
 
 
 @router.get(
@@ -38,18 +36,13 @@ def list_identity_providers(
     response_model=list[idp_schema.IdentityProviderTemplateRead],
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
-def list_idp_templates(
-    service: idp_dependencies.IdentityProviderService,
-) -> list[idp_schema.IdentityProviderTemplateRead]:
+def list_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
     """Get the list of pre-configured IdP templates (admin only).
-
-    Args:
-        service: Identity provider service.
 
     Returns:
         A list of identity provider templates.
     """
-    return service.get_idp_templates()
+    return idp_provider_service.get_idp_templates()
 
 
 @router.post(
@@ -62,7 +55,7 @@ def list_idp_templates(
         "    idp_data: Data required to create the identity provider.\n"
         "    db: SQLAlchemy database session dependency.\n"
         "    request: Incoming request.\n"
-        "    service: Identity provider service.\n\n"
+        "\n"
         "Returns:\n"
         "    The newly created identity provider.\n\n"
         "Raises:\n"
@@ -87,7 +80,6 @@ def create_identity_provider(
     request: Request,
     db: core_dependencies.DbSession,
     response: Response,
-    service: idp_dependencies.IdentityProviderService,
 ) -> idp_schema.IdentityProviderRead:
     """Create a new identity provider.
 
@@ -96,7 +88,6 @@ def create_identity_provider(
         db: SQLAlchemy database session dependency.
         request: Incoming request.
         response: The response, which carries the new ETag.
-        service: Identity provider service.
 
     Returns:
         The newly created identity provider.
@@ -105,7 +96,7 @@ def create_identity_provider(
         HTTPException: 409 if the slug already exists, 500 on
             database errors.
     """
-    provider = service.create_identity_provider(idp_data, db)
+    provider = idp_provider_service.create_identity_provider(idp_data, db)
     response.headers["ETag"] = core_etag.format_etag(provider.version)
     return provider
 
@@ -120,7 +111,7 @@ def create_identity_provider(
         "    idp_data: The data to update the identity provider with.\n"
         "    db: SQLAlchemy database session dependency.\n"
         "    request: Incoming request.\n"
-        "    service: Identity provider service.\n\n"
+        "\n"
         "Returns:\n"
         "    The updated identity provider.\n\n"
         "Raises:\n"
@@ -149,7 +140,6 @@ def update_identity_provider(
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
-    service: idp_dependencies.IdentityProviderService,
 ) -> idp_schema.IdentityProviderRead:
     """Update an existing identity provider.
 
@@ -160,7 +150,6 @@ def update_identity_provider(
         request: Incoming request.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition the client read.
-        service: Identity provider service.
 
     Returns:
         The updated identity provider.
@@ -169,7 +158,7 @@ def update_identity_provider(
         HTTPException: 404 if the provider is not found, 409 on slug conflict,
             412 if the provider changed, or 500 on database errors.
     """
-    provider = service.update_identity_provider(idp_id, idp_data, db, if_match=if_match)
+    provider = idp_provider_service.update_identity_provider(idp_id, idp_data, db, if_match=if_match)
     response.headers["ETag"] = core_etag.format_etag(provider.version)
     return provider
 
@@ -184,19 +173,20 @@ def update_identity_provider(
 def delete_identity_provider(
     idp_id: core_dependencies.PositiveId,
     request: Request,
+    if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
-    service: idp_dependencies.IdentityProviderService,
 ) -> None:
     """Delete an identity provider by ID.
 
     Args:
         idp_id: The unique identifier of the identity provider to delete.
-        db: SQLAlchemy database session dependency.
         request: Incoming request.
-        service: Identity provider service.
+        if_match: The ``If-Match`` precondition.
+        db: SQLAlchemy database session dependency.
 
     Raises:
         HTTPException: 404 if the provider is not found, 409 if users
-            are still linked to the provider.
+            are still linked to the provider, 412 if the provider changed
+            since the client read it.
     """
-    service.delete_identity_provider(idp_id, db)
+    idp_provider_service.delete_identity_provider(idp_id, db, if_match=if_match)

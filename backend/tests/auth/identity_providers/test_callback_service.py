@@ -1,7 +1,4 @@
-"""The browser legs of an SSO flow: starting a login, accepting the callback and finishing it.
-
-The routes only translate HTTP; these tests cover the decisions that used to sit in them.
-"""
+"""The end of an SSO flow: accepting the provider callback, matching the user and creating the session."""
 
 import logging
 from types import SimpleNamespace
@@ -10,17 +7,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
-import modules.auth.identity_providers.utils as idp_utils
-from modules.auth.identity_providers.service import IdentityProviderService
+import modules.auth.identity_providers.callback_service as callback_service
 
 HOST = "https://app.example.com"
-CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-ALLOWED = {"gadgetbridge"}
+AUD = "client-id-123"
 
 
 @pytest.fixture
 def service():
-    return IdentityProviderService(MagicMock(), HOST, "test")
+    return callback_service.CallbackService(MagicMock(), MagicMock(), HOST)
 
 
 def _idp(enabled=True, **overrides):
@@ -29,105 +24,10 @@ def _idp(enabled=True, **overrides):
     return SimpleNamespace(**values)
 
 
-class TestAppendQueryParams:
-    def test_appends_to_path_without_query(self):
-        assert idp_utils.append_query_params("/settings/security", {"idp_link": "success"}) == (
-            "/settings/security?idp_link=success"
-        )
-
-    def test_preserves_existing_query(self):
-        assert idp_utils.append_query_params("/settings?tab=security", {"idp_link": "success"}) == (
-            "/settings?tab=security&idp_link=success"
-        )
-
-    def test_url_encodes_values(self):
-        assert idp_utils.append_query_params("/settings/security", {"idp_name": "My IdP"}) == (
-            "/settings/security?idp_name=My+IdP"
-        )
-
-
-class TestBuildLinkResultUrl:
-    def test_default_path_when_no_return_path(self):
-        assert idp_utils.build_link_result_url(HOST, None, "Google", success=True) == (
-            f"{HOST}/settings/security?idp_link=success&idp_name=Google"
-        )
-
-    def test_honors_relative_return_path(self):
-        assert idp_utils.build_link_result_url(HOST, "/settings/security", "Google", success=True) == (
-            f"{HOST}/settings/security?idp_link=success&idp_name=Google"
-        )
-
-    def test_custom_scheme_is_not_host_prefixed(self):
-        assert idp_utils.build_link_result_url(HOST, "gadgetbridge://callback", "Google", success=True) == (
-            "gadgetbridge://callback?idp_link=success&idp_name=Google"
-        )
-
-    def test_error_omits_idp_name(self):
-        assert idp_utils.build_link_result_url(HOST, "/settings/security", None, success=False) == (
-            f"{HOST}/settings/security?idp_link=error"
-        )
-
-    def test_error_falls_back_to_default_path(self):
-        assert idp_utils.build_link_result_url(HOST, None, None, success=False) == (
-            f"{HOST}/settings/security?idp_link=error"
-        )
-
-
-class TestBeginLogin:
-    def _begin(self, service, *, idp=None, challenge=CHALLENGE, method="S256", redirect=None, header=None):
-        with (
-            patch.object(service, "get_identity_provider_by_slug", return_value=idp),
-            patch.object(service, "create_login_oauth_state", return_value="state-id") as create_state,
-            patch.object(service, "initiate_login", return_value="https://provider.example/auth") as initiate,
-        ):
-            url = service.begin_login("test", challenge, method, redirect, "10.0.0.1", header, ALLOWED, MagicMock())
-        return url, create_state, initiate
-
-    def test_an_unknown_provider_is_not_found(self, service):
-        with pytest.raises(core_exceptions.NotFoundError):
-            self._begin(service, idp=None)
-
-    def test_a_disabled_provider_is_not_found(self, service):
-        with pytest.raises(core_exceptions.NotFoundError):
-            self._begin(service, idp=_idp(enabled=False))
-
-    @pytest.mark.parametrize(("challenge", "method"), [("", "S256"), (CHALLENGE, ""), (CHALLENGE, "plain")])
-    def test_pkce_is_mandatory_and_s256(self, service, challenge, method):
-        with pytest.raises(core_exceptions.InvalidInputError):
-            self._begin(service, idp=_idp(), challenge=challenge, method=method)
-
-    def test_a_malformed_challenge_is_refused(self, service):
-        with pytest.raises(core_exceptions.DomainError):
-            self._begin(service, idp=_idp(), challenge="short")
-
-    def test_a_redirect_that_leaves_the_app_is_refused(self, service):
-        with pytest.raises(core_exceptions.InvalidInputError):
-            self._begin(service, idp=_idp(), redirect="https://evil.example/")
-
-    def test_a_valid_request_returns_the_authorization_url(self, service):
-        url, create_state, initiate = self._begin(service, idp=_idp(), redirect="/dashboard")
-
-        assert url == "https://provider.example/auth"
-        assert create_state.call_args.kwargs["redirect_path"] == "/dashboard"
-        assert create_state.call_args.kwargs["ip_address"] == "10.0.0.1"
-        assert initiate.call_args.kwargs["oauth_state_id"] == "state-id"
-
-    @pytest.mark.parametrize(("header", "expected"), [(None, "web"), ("mobile", "mobile"), ("desktop", "web")])
-    def test_the_client_type_comes_from_the_header_and_defaults_to_web(self, service, header, expected):
-        _, create_state, _ = self._begin(service, idp=_idp(), header=header)
-
-        assert create_state.call_args.kwargs["client_type"] == expected
-
-    def test_a_custom_scheme_redirect_means_a_mobile_client(self, service):
-        _, create_state, _ = self._begin(service, idp=_idp(), redirect="gadgetbridge://done", header="web")
-
-        assert create_state.call_args.kwargs["client_type"] == "mobile"
-
-
 class TestPrepareCallback:
     def _prepare(self, service, *, idp, oauth_state, claimed=True):
         with (
-            patch.object(service, "get_identity_provider_by_slug", return_value=idp),
+            patch.object(callback_service.idp_crud, "get_identity_provider_by_slug", return_value=idp),
             patch.object(service, "get_unused_oauth_state", return_value=oauth_state),
             patch.object(service, "claim_oauth_state", return_value=claimed),
         ):
@@ -225,3 +125,71 @@ class TestCompleteCallback:
         )
 
         assert url == f"{HOST}/settings/security?idp_link=error"
+
+
+class TestHandleCallback:
+    """The callback fetches userinfo after a successful token exchange."""
+
+    def test_login_mode_returns_userinfo_from_token_exchange(self, service):
+        idp = MagicMock(issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp")
+        idp.name = "Pocket ID"
+        oauth_state = MagicMock(user_id=None, nonce="nonce", redirect_path="/", client_type="web")
+        token_response = {"access_token": "at"}
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = token_response
+        user = MagicMock(id=1, username="alice")
+        userinfo = {"sub": "user-1", "email": "a@example.com"}
+
+        with (
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            patch.object(service._oidc, "get_userinfo", return_value=userinfo) as get_userinfo,
+            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=user),
+            patch.object(service._tokens, "store_idp_tokens"),
+        ):
+            result = service.handle_callback(idp, "code", "state", MagicMock(), oauth_state, MagicMock())
+
+        get_userinfo.assert_called_once()
+        assert result["userinfo"] == userinfo
+        assert result["user"] is user
+
+    def test_the_database_is_not_touched_until_the_identity_provider_has_answered(self, service):
+        """The session holds a pooled connection once it is used, so no network call may run after that."""
+        idp = MagicMock(issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp")
+        idp.name = "Pocket ID"
+        oauth_state = MagicMock(user_id=None, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = {"access_token": "at"}
+        db = MagicMock()
+        order = MagicMock()
+        order.attach_mock(oauth_client.fetch_token, "token_exchange")
+        order.attach_mock(db, "db")
+
+        with (
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            patch.object(service._oidc, "get_userinfo", return_value={"sub": "user-1"}) as get_userinfo,
+            patch.object(
+                callback_service.user_provisioning_service,
+                "find_or_create_user",
+                return_value=MagicMock(id=1, username="alice"),
+            ),
+            patch.object(service._tokens, "store_idp_tokens"),
+        ):
+            order.attach_mock(get_userinfo, "userinfo")
+            service.handle_callback(idp, "code", "state", MagicMock(), oauth_state, db)
+
+        names = [call[0] for call in order.mock_calls]
+        last_network_call = max(names.index("token_exchange"), names.index("userinfo"))
+        assert not any(name.startswith("db") for name in names[: last_network_call + 1])
+
+
+def test_a_claim_is_committed_even_when_another_callback_won(mock_db, service):
+    with patch.object(callback_service.oauth_state_integration, "mark_oauth_state_used", return_value=False):
+        assert service.claim_oauth_state("s", mock_db) is False
+
+    mock_db.commit.assert_called_once()

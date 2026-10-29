@@ -9,16 +9,16 @@ import core.config as core_config
 import modules.auth.identity_provider_links.contracts as identity_links_contracts
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_provider_links.schema as identity_links_schema
+import modules.auth.identity_providers.authorization_service as identity_providers_authorization
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.crud as identity_providers_crud
-import modules.auth.identity_providers.service as identity_providers_service
+import modules.auth.identity_providers.oidc_client_service as identity_providers_oidc_client
+import modules.auth.identity_providers.token_service as identity_providers_tokens
 
 
-def _service() -> identity_providers_service.IdentityProviderService:
-    """Resolve runtime state and build an IdP service at this entrypoint."""
-    return identity_providers_service.IdentityProviderService(
-        platform_runtime.get_state(), core_config.settings.ENDURAIN_HOST, core_config.API_VERSION
-    )
+def _oidc_client() -> identity_providers_oidc_client.OidcClientService:
+    """Resolve runtime state and build the provider client at this entrypoint."""
+    return identity_providers_oidc_client.OidcClientService(platform_runtime.get_state(), core_config.API_VERSION)
 
 
 def get_identity_provider(idp_id: int, db: Session) -> identity_providers_contracts.IdentityProviderState | None:
@@ -47,7 +47,8 @@ def start_browser_link(
     db: Session,
 ) -> str:
     """Claim a browser link token and prepare its identity-provider redirect."""
-    return _service().start_browser_link(
+    service = identity_providers_authorization.AuthorizationService(_oidc_client(), core_config.settings.ENDURAIN_HOST)
+    return service.start_browser_link(
         link_token,
         idp_id,
         redirect,
@@ -60,9 +61,9 @@ def start_browser_link(
 
 def request_idp_token_refresh(user_id: int, db: Session) -> None:
     """Clear the user's retired IdP tokens now and queue the refresh of those expiring, with the caller's commit."""
-    _service().request_idp_token_refresh(user_id, db)
+    identity_providers_tokens.IdpTokenService(_oidc_client()).request_idp_token_refresh(user_id, db)
 
 
 def clear_all_idp_tokens(user_id: int, db: Session, revoke_at_idp: bool = False) -> None:
     """Clear all locally stored IdP refresh tokens, optionally revoking them remotely."""
-    _service().clear_all_idp_tokens(user_id, db, revoke_at_idp)
+    identity_providers_tokens.IdpTokenService(_oidc_client()).clear_all_idp_tokens(user_id, db, revoke_at_idp)

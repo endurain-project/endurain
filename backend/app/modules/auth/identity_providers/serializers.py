@@ -10,6 +10,8 @@ def to_state(row: identity_provider_models.IdentityProvider) -> identity_provide
     return identity_provider_contracts.IdentityProviderState.model_validate(row)
 
 
-def to_read(state: identity_provider_contracts.IdentityProviderState) -> identity_provider_schema.IdentityProviderRead:
+def to_read_schema(
+    state: identity_provider_contracts.IdentityProviderState,
+) -> identity_provider_schema.IdentityProviderRead:
     """Return the client-facing provider representation."""
     return identity_provider_schema.IdentityProviderRead.model_validate(state)

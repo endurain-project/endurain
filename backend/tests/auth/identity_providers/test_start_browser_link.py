@@ -5,8 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
-from modules.auth.identity_providers import integration_service
-from modules.auth.identity_providers import service as idp_service
+from modules.auth.identity_providers import authorization_service, integration_service
 
 _UNSET = object()
 
@@ -16,17 +15,20 @@ def _start(*, redirect=None, provider=_UNSET, claim=None):
         provider = MagicMock(enabled=True, id=1, name="Test IdP")
     claim = claim or MagicMock(return_value=7)
     db = MagicMock()
-    service = idp_service.IdentityProviderService(MagicMock(), "https://app.example", "test")
+    service = authorization_service.AuthorizationService(MagicMock(), "https://app.example")
     service.initiate_link = MagicMock(return_value="https://idp.example.com/auth")
     with (
-        patch.object(idp_service.idp_crud, "get_identity_provider", return_value=provider),
-        patch.object(integration_service, "_service", return_value=service),
+        patch.object(authorization_service.idp_crud, "get_identity_provider", return_value=provider),
         patch.object(
-            idp_service.oauth_state_integration,
+            integration_service.identity_providers_authorization, "AuthorizationService", return_value=service
+        ),
+        patch.object(integration_service, "_oidc_client"),
+        patch.object(
+            authorization_service.oauth_state_integration,
             "create_state_id_and_nonce",
             return_value=("state", "nonce"),
         ),
-        patch.object(idp_service.oauth_state_integration, "create_oauth_state") as create_state,
+        patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
         url = integration_service.start_browser_link("token", 1, redirect, "10.0.0.1", claim, db)
     return url, claim, service, create_state

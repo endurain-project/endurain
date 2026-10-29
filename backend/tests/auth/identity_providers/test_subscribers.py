@@ -32,7 +32,8 @@ class TestSubscriber:
     def test_the_handler_refreshes_the_users_tokens(self):
         service = MagicMock()
         with (
-            patch(f"{_MODULE}.idp_service.IdentityProviderService", return_value=service),
+            patch(f"{_MODULE}.idp_token_service.IdpTokenService", return_value=service),
+            patch(f"{_MODULE}.idp_oidc_client.OidcClientService"),
             patch(f"{_MODULE}.platform_runtime.get_state"),
         ):
             idp_subscribers.refresh_idp_tokens_for_event(_event(7))
@@ -43,7 +44,8 @@ class TestSubscriber:
         service = MagicMock()
         service.refresh_idp_tokens.side_effect = RuntimeError("boom")
         with (
-            patch(f"{_MODULE}.idp_service.IdentityProviderService", return_value=service),
+            patch(f"{_MODULE}.idp_token_service.IdpTokenService", return_value=service),
+            patch(f"{_MODULE}.idp_oidc_client.OidcClientService"),
             patch(f"{_MODULE}.platform_runtime.get_state"),
         ):
             with pytest.raises(RuntimeError):

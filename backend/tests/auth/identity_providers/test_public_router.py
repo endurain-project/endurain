@@ -26,12 +26,14 @@ def service():
 
 
 @pytest.fixture
-def client(service):
+def client(service, monkeypatch):
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)
     app.include_router(public_router.router, prefix=PREFIX)
     app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
-    app.dependency_overrides[idp_dependencies.get_identity_provider_service] = lambda: service
+    app.dependency_overrides[idp_dependencies.get_authorization_service] = lambda: service
+    app.dependency_overrides[idp_dependencies.get_callback_service] = lambda: service
+    monkeypatch.setattr(public_router, "idp_provider_service", service)
     app.dependency_overrides[credentials_integration.get_password_hasher] = lambda: MagicMock()
     return TestClient(app)
 

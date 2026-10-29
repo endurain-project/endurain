@@ -3,6 +3,7 @@
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.identity_providers.utils as idp_utils
 from modules.auth.computation import validate_pkce_challenge
 from modules.auth.identity_providers.schema import IdentityProviderTemplateRead
 from modules.auth.identity_providers.utils import (
@@ -12,6 +13,8 @@ from modules.auth.identity_providers.utils import (
 from modules.auth.identity_providers.utils import (
     validate_redirect_url as _validate_redirect_url,
 )
+
+HOST = "https://app.example.com"
 
 
 def validate_redirect_url(redirect, allowed_schemes=None):
@@ -502,3 +505,55 @@ class TestValidateRedirectUrl:
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("javascript:alert(1)")
         assert exc_info.value.status_code == 400
+
+
+class TestAppendQueryParams:
+    def test_appends_to_path_without_query(self):
+        assert idp_utils.append_query_params("/settings/security", {"idp_link": "success"}) == (
+            "/settings/security?idp_link=success"
+        )
+
+    def test_preserves_existing_query(self):
+        assert idp_utils.append_query_params("/settings?tab=security", {"idp_link": "success"}) == (
+            "/settings?tab=security&idp_link=success"
+        )
+
+    def test_url_encodes_values(self):
+        assert idp_utils.append_query_params("/settings/security", {"idp_name": "My IdP"}) == (
+            "/settings/security?idp_name=My+IdP"
+        )
+
+
+class TestBuildLinkResultUrl:
+    def test_default_path_when_no_return_path(self):
+        assert idp_utils.build_link_result_url(HOST, None, "Google", success=True) == (
+            f"{HOST}/settings/security?idp_link=success&idp_name=Google"
+        )
+
+    def test_honors_relative_return_path(self):
+        assert idp_utils.build_link_result_url(HOST, "/settings/security", "Google", success=True) == (
+            f"{HOST}/settings/security?idp_link=success&idp_name=Google"
+        )
+
+    def test_custom_scheme_is_not_host_prefixed(self):
+        assert idp_utils.build_link_result_url(HOST, "gadgetbridge://callback", "Google", success=True) == (
+            "gadgetbridge://callback?idp_link=success&idp_name=Google"
+        )
+
+    def test_error_omits_idp_name(self):
+        assert idp_utils.build_link_result_url(HOST, "/settings/security", None, success=False) == (
+            f"{HOST}/settings/security?idp_link=error"
+        )
+
+    def test_error_falls_back_to_default_path(self):
+        assert idp_utils.build_link_result_url(HOST, None, None, success=False) == (
+            f"{HOST}/settings/security?idp_link=error"
+        )
+
+
+class TestBuildRedirectUri:
+    """build_redirect_uri builds the public callback URL."""
+
+    def test_builds_expected_callback_url(self):
+        uri = idp_utils.build_redirect_uri("https://endurain.example", "my-idp")
+        assert uri == "https://endurain.example/api/v1/public/idp/callback/my-idp"

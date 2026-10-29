@@ -154,13 +154,26 @@ def identity_provider_exists(idp_id: int, db: Session) -> bool:
     )
 
 
-def delete_identity_provider(idp_id: int, db: Session) -> bool:
-    """Stage deletion of a provider row, returning whether it existed."""
+def delete_identity_provider(idp_id: int, db: Session, *, if_match: str) -> bool:
+    """Stage deletion of a provider row, returning whether it existed.
+
+    Args:
+        idp_id: The provider to delete.
+        db: Database session.
+        if_match: The ``If-Match`` precondition, checked against the very row that is deleted.
+
+    Returns:
+        True when the provider existed and its deletion is staged.
+
+    Raises:
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
+    """
     row = db.execute(
         select(identity_provider_models.IdentityProvider).where(identity_provider_models.IdentityProvider.id == idp_id)
     ).scalar_one_or_none()
     if row is None:
         return False
+    core_etag.require_if_match(if_match, row.version, "identity provider")
     db.delete(row)
     db.flush()
     return True

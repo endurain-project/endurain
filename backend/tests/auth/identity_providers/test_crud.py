@@ -109,9 +109,22 @@ def test_delete_provider_stages_without_committing(mock_db):
     row = _row()
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    deleted = idp_crud.delete_identity_provider(1, mock_db)
+    deleted = idp_crud.delete_identity_provider(1, mock_db, if_match='"1"')
 
     assert deleted is True
     mock_db.delete.assert_called_once_with(row)
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
+
+
+def test_delete_provider_checks_the_version_before_deleting(mock_db):
+    import pytest
+
+    import core.exceptions as core_exceptions
+
+    mock_db.execute.return_value.scalar_one_or_none.return_value = _row(version=2)
+
+    with pytest.raises(core_exceptions.PreconditionFailedError):
+        idp_crud.delete_identity_provider(1, mock_db, if_match='"1"')
+
+    mock_db.delete.assert_not_called()

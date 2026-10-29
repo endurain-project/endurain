@@ -1,4 +1,4 @@
-"""Tests for identity-provider token maintenance integration operations."""
+"""Tests for the storage, refresh and revocation of identity-provider tokens."""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,25 +6,12 @@ import httpx2
 import pytest
 
 import core.exceptions as core_exceptions
-import modules.auth.identity_providers.service as idp_service_module
-from modules.auth.identity_providers import integration_service
-from modules.auth.identity_providers.service import IdentityProviderService, TokenAction
-
-
-def test_requesting_a_refresh_delegates_to_request_scoped_service(mock_db):
-    with patch.object(integration_service, "_service") as service_factory:
-        integration_service.request_idp_token_refresh(7, mock_db)
-    service_factory.return_value.request_idp_token_refresh.assert_called_once_with(7, mock_db)
-
-
-def test_clear_tokens_delegates_with_remote_revoke_option(mock_db):
-    with patch.object(integration_service, "_service") as service_factory:
-        integration_service.clear_all_idp_tokens(7, mock_db, revoke_at_idp=True)
-    service_factory.return_value.clear_all_idp_tokens.assert_called_once_with(7, mock_db, True)
+import modules.auth.identity_providers.token_service as token_service_module
+from modules.auth.identity_providers.token_policy import TokenAction
 
 
 def _service():
-    return IdentityProviderService(MagicMock(), "https://app.example", "test")
+    return token_service_module.IdpTokenService(MagicMock())
 
 
 class TestRequestIdpTokenRefresh:
@@ -33,19 +20,19 @@ class TestRequestIdpTokenRefresh:
     def _request(self, mock_db, actions):
         service = _service()
         links = [MagicMock(idp_id=3 + index) for index in range(len(actions))]
-        service._should_refresh_idp_token = MagicMock(side_effect=actions)
         service.refresh_idp_session = MagicMock()
         with (
             patch.object(
-                idp_service_module.identity_provider_links_integration,
+                token_service_module.identity_provider_links_integration,
                 "get_user_identity_providers_by_user_id",
                 return_value=links,
             ),
             patch.object(
-                idp_service_module.identity_provider_links_integration,
-                "clear_user_identity_provider_refresh_token_by_user_id_and_idp_id",
+                token_service_module.identity_provider_links_integration,
+                "clear_user_identity_provider_refresh_token",
             ) as clear,
-            patch.object(idp_service_module.idp_event_publishers, "publish_idp_token_refresh_requested") as publish,
+            patch.object(token_service_module.idp_event_publishers, "publish_idp_token_refresh_requested") as publish,
+            patch.object(token_service_module.token_policy, "should_refresh_idp_token", side_effect=actions),
         ):
             service.request_idp_token_refresh(7, mock_db)
         return service, clear, publish
@@ -77,7 +64,6 @@ class TestRefreshIdpTokens:
     def _run(self, actions, refresh_side_effect=None):
         service = _service()
         links = [MagicMock(idp_id=3 + index) for index in range(len(actions))]
-        service._should_refresh_idp_token = MagicMock(side_effect=actions)
         open_sessions = 0
         open_during_refresh: list[int] = []
 
@@ -99,12 +85,13 @@ class TestRefreshIdpTokens:
 
         service.refresh_idp_session = MagicMock(side_effect=refresh)
         with (
-            patch.object(idp_service_module.core_database, "SessionLocal", _Session),
+            patch.object(token_service_module.core_database, "SessionLocal", _Session),
             patch.object(
-                idp_service_module.identity_provider_links_integration,
+                token_service_module.identity_provider_links_integration,
                 "get_user_identity_providers_by_user_id",
                 return_value=links,
             ),
+            patch.object(token_service_module.token_policy, "should_refresh_idp_token", side_effect=actions),
         ):
             service.refresh_idp_tokens(7)
         return service, open_during_refresh
@@ -146,23 +133,23 @@ class TestRefreshIdpSession:
                 state["open"] -= 1
                 return False
 
-        service._resolve_token_endpoint = MagicMock(return_value="https://idp.example/token")
-        service._decrypt_client_id = MagicMock(return_value="cid")
-        service._decrypt_client_secret = MagicMock(return_value="secret")
-        service._create_oauth_client = MagicMock(return_value=client)
-        service._store_idp_tokens = MagicMock(side_effect=lambda *a: events.append("store"))
+        service._oidc.resolve_token_endpoint = MagicMock(return_value="https://idp.example/token")
+        service._oidc.decrypt_client_id = MagicMock(return_value="cid")
+        service._oidc.decrypt_client_secret = MagicMock(return_value="secret")
+        service._oidc.create_oauth_client = MagicMock(return_value=client)
+        service.store_idp_tokens = MagicMock(side_effect=lambda *a: events.append("store"))
         patches = [
-            patch.object(idp_service_module.core_database, "SessionLocal", _Session),
-            patch.object(idp_service_module.idp_crud, "get_identity_provider", return_value=idp),
+            patch.object(token_service_module.core_database, "SessionLocal", _Session),
+            patch.object(token_service_module.idp_crud, "get_identity_provider", return_value=idp),
             patch.object(
-                idp_service_module.identity_provider_links_integration,
+                token_service_module.identity_provider_links_integration,
                 "get_user_identity_provider_refresh_token_by_user_id_and_idp_id",
                 return_value="encrypted",
             ),
-            patch.object(idp_service_module.core_cryptography, "decrypt_token_fernet", return_value="plain"),
+            patch.object(token_service_module.core_cryptography, "decrypt_token_fernet", return_value="plain"),
             patch.object(
-                idp_service_module.identity_provider_links_integration,
-                "clear_user_identity_provider_refresh_token_by_user_id_and_idp_id",
+                token_service_module.identity_provider_links_integration,
+                "clear_user_identity_provider_refresh_token",
                 side_effect=lambda *a: events.append("clear"),
             ),
         ]
@@ -218,24 +205,24 @@ class TestRefreshIdpSession:
     def test_a_disabled_provider_is_refused(self):
         service = _service()
         _, _, _, patches = self._setup(service, fetch=lambda *a, **k: {})
-        patches[1] = patch.object(idp_service_module.idp_crud, "get_identity_provider", return_value=None)
+        patches[1] = patch.object(token_service_module.idp_crud, "get_identity_provider", return_value=None)
 
         with pytest.raises(core_exceptions.NotFoundError):
             self._refresh(service, patches)
 
 
 def test_service_clears_tokens_after_failed_remote_revocation(mock_db):
-    service = IdentityProviderService(MagicMock(), "https://app.example", "test")
+    service = _service()
     service.revoke_idp_token = MagicMock(side_effect=RuntimeError("offline"))
     with (
         patch.object(
-            idp_service_module.identity_provider_links_integration,
+            token_service_module.identity_provider_links_integration,
             "get_user_identity_providers_by_user_id",
             return_value=[MagicMock(idp_id=3)],
         ),
         patch.object(
-            idp_service_module.identity_provider_links_integration,
-            "clear_user_identity_provider_refresh_token_by_user_id_and_idp_id",
+            token_service_module.identity_provider_links_integration,
+            "clear_user_identity_provider_refresh_token",
         ) as clear,
     ):
         service.clear_all_idp_tokens(7, mock_db, revoke_at_idp=True)
@@ -252,27 +239,27 @@ class TestRevokeIdpToken:
         service = _service()
         idp = MagicMock(enabled=True, issuer_url="https://idp.example")
         idp.name = "Pocket ID"
-        service.get_oidc_configuration = MagicMock(return_value={"revocation_endpoint": "http://10.0.0.5/revoke"})
-        service._decrypt_client_id = MagicMock(return_value="cid")
-        service._decrypt_client_secret = MagicMock(return_value="secret")
+        service._oidc.get_oidc_configuration = MagicMock(return_value={"revocation_endpoint": "http://10.0.0.5/revoke"})
+        service._oidc.decrypt_client_id = MagicMock(return_value="cid")
+        service._oidc.decrypt_client_secret = MagicMock(return_value="secret")
         http_client = MagicMock()
         http_client.post.return_value = MagicMock(status_code=200)
-        service._http_client = MagicMock()
-        service._http_client.return_value.__enter__.return_value = http_client
+        service._oidc.http_client = MagicMock()
+        service._oidc.http_client.return_value.__enter__.return_value = http_client
         with ExitStack() as stack:
-            stack.enter_context(patch.object(idp_service_module.idp_crud, "get_identity_provider", return_value=idp))
+            stack.enter_context(patch.object(token_service_module.idp_crud, "get_identity_provider", return_value=idp))
             stack.enter_context(
                 patch.object(
-                    idp_service_module.identity_provider_links_integration,
+                    token_service_module.identity_provider_links_integration,
                     "get_user_identity_provider_refresh_token_by_user_id_and_idp_id",
                     return_value="encrypted",
                 )
             )
             stack.enter_context(
-                patch.object(idp_service_module.core_cryptography, "decrypt_token_fernet", return_value="plain")
+                patch.object(token_service_module.core_cryptography, "decrypt_token_fernet", return_value="plain")
             )
             guard = stack.enter_context(
-                patch.object(idp_service_module.core_network, "reject_private_url", side_effect=guard_error)
+                patch.object(token_service_module.core_network, "reject_private_url", side_effect=guard_error)
             )
             result = service.revoke_idp_token(7, 3, MagicMock())
         return result, guard, http_client, service
@@ -283,7 +270,7 @@ class TestRevokeIdpToken:
         assert result is True
         guard.assert_called_once_with("http://10.0.0.5/revoke", purpose="oidc_revocation")
         http_client.post.assert_called_once()
-        service._http_client.assert_called_once_with(follow_redirects=False)
+        service._oidc.http_client.assert_called_once_with(follow_redirects=False)
 
     def test_an_internal_endpoint_is_never_called(self):
         result, _, http_client, _ = self._revoke(guard_error=core_exceptions.InvalidInputError("private address"))

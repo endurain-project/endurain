@@ -1,7 +1,8 @@
 """Public (unauthenticated) HTTP routes for identity provider SSO flows.
 
 The routes translate HTTP; the decisions (PKCE, redirect checks, state binding, where to send the browser)
-are :class:`~modules.auth.identity_providers.service.IdentityProviderService`'s.
+are :class:`~modules.auth.identity_providers.authorization_service.AuthorizationService`'s and
+:class:`~modules.auth.identity_providers.callback_service.CallbackService`'s.
 """
 
 from typing import Annotated
@@ -16,6 +17,7 @@ import core.rate_limit as core_rate_limit
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.dependencies as idp_dependencies
+import modules.auth.identity_providers.provider_service as idp_provider_service
 import modules.auth.identity_providers.schema as idp_schema
 
 # Define the API router
@@ -28,19 +30,17 @@ router = APIRouter()
 )
 def get_enabled_identity_providers(
     db: core_dependencies.DbSession,
-    service: idp_dependencies.IdentityProviderService,
 ) -> list[idp_schema.IdentityProviderPublicRead]:
     """Retrieve a list of enabled identity providers from the database.
 
     Args:
         db (Session): SQLAlchemy database session dependency.
-        service: Identity provider service.
 
     Returns:
         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an
         IdentityProviderPublic schema.
     """
-    return service.get_enabled_identity_providers(db)
+    return idp_provider_service.get_enabled_identity_providers(db)
 
 
 @router.get("/login/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT, response_class=RedirectResponse)
@@ -49,7 +49,7 @@ def initiate_login(
     idp_slug: auth_dependencies.IdentityProviderSlug,
     request: Request,
     db: core_dependencies.DbSession,
-    service: idp_dependencies.IdentityProviderService,
+    service: idp_dependencies.AuthorizationService,
     code_challenge: Annotated[
         str,
         Query(
@@ -116,7 +116,7 @@ def handle_callback(
         Depends(credentials_integration.get_password_hasher),
     ],
     db: core_dependencies.DbSession,
-    service: idp_dependencies.IdentityProviderService,
+    service: idp_dependencies.CallbackService,
     code: str = Query(..., description="Authorization code from IdP"),
     state: str = Query(..., description="State parameter for CSRF protection"),
 ):

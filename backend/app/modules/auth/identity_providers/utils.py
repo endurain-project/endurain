@@ -238,3 +238,16 @@ def get_idp_template(template_id: str) -> dict[str, Any] | None:
         dict[str, Any] | None: The template dictionary if found, otherwise None.
     """
     return IDP_TEMPLATES.get(template_id)
+
+
+def build_redirect_uri(frontend_host: str, idp_slug: str) -> str:
+    """Return the callback URL an identity provider redirects the browser to.
+
+    Args:
+        frontend_host: Public host the application is served from.
+        idp_slug: Slug of the identity provider.
+
+    Returns:
+        The complete redirect URI for the provider.
+    """
+    return f"{frontend_host}/api/v1/public/idp/callback/{idp_slug}"
