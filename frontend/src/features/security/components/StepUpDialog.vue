@@ -29,6 +29,8 @@ const props = withDefaults(
     action: StepUpAction
     /** What to restore after the identity-provider round-trip; never a secret. */
     pendingContext?: StepUpPending
+    /** The context the identity-provider round-trip brought back, which refills the form once. */
+    restoredContext?: StepUpPending
     /** Whether an MFA/backup code is required (MFA is enabled). */
     requireMfa?: boolean
     /** Whether the confirming action is in flight. */
@@ -43,6 +45,7 @@ const props = withDefaults(
   {
     requireMfa: true,
     pendingContext: () => ({}),
+    restoredContext: undefined,
     confirmPhrase: undefined,
     destructive: false,
     extraValid: true,
@@ -68,14 +71,29 @@ const canSubmit = computed(
     (!props.requireMfa || mfaCode.value.trim().length > 0),
 )
 
+// The confirmation phrase is not a secret, so the user does not retype it after signing in again with the
+// identity provider: it travels with the pending context and comes back once, on the reopen that resumes it.
+let restoredPhrase =
+  typeof props.restoredContext?.typedPhrase === 'string' ? props.restoredContext.typedPhrase : ''
+const sectionContext = computed<StepUpPending>(() =>
+  props.confirmPhrase === undefined
+    ? props.pendingContext
+    : { ...props.pendingContext, typedPhrase: typedPhrase.value },
+)
+
 // Clear the fields each time the dialog opens.
-watch(open, (isOpen) => {
-  if (isOpen) {
-    password.value = ''
-    mfaCode.value = ''
-    typedPhrase.value = ''
-  }
-})
+watch(
+  open,
+  (isOpen) => {
+    if (isOpen) {
+      password.value = ''
+      mfaCode.value = ''
+      typedPhrase.value = restoredPhrase
+      restoredPhrase = ''
+    }
+  },
+  { immediate: true },
+)
 
 /** Emits the collected step-up credentials; the parent runs the action. */
 function onSubmit(): void {
@@ -120,7 +138,7 @@ function onSubmit(): void {
         v-if="!requirePassword"
         v-model:reauth="reauth"
         :action="action"
-        :pending-context="pendingContext"
+        :pending-context="sectionContext"
         :disabled="pending"
       />
       <div v-if="requirePassword" class="flex flex-col gap-1.5">

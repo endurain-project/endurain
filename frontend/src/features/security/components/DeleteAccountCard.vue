@@ -84,6 +84,9 @@ function onConfirm(input: StepUpInput): void {
       :require-password="props.hasLocalPassword"
       :require-mfa="props.mfaEnabled"
       :confirm-phrase="props.username"
+      :restored-context="
+        props.resume?.action === 'account_delete' ? props.resume.pending : undefined
+      "
       destructive
       :pending="deleteMutation.isPending.value"
       @confirm="onConfirm"

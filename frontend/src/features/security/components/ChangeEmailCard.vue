@@ -35,18 +35,21 @@ const toasts = useToasts()
 const changeMutation = useChangeEmailMutation()
 const handleIdpChallenge = useIdpReauthChallenge()
 
-// The new address is typed after the identity-provider sign-in and never stored.
-const idpReauth = ref<IdpReauth | null>(null)
-onMounted(() => {
-  if (props.resume?.action === 'email_change') {
-    idpReauth.value = props.resume.reauth
-  }
-})
-
 const newEmail = ref('')
 const currentPassword = ref('')
 const mfaCode = ref('')
 const revokeOtherSessions = ref(false)
+
+// The new address is typed after the identity-provider sign-in and never stored; the sessions switch is not
+// a secret, so it survives the round-trip.
+const idpReauth = ref<IdpReauth | null>(null)
+const pendingContext = computed(() => ({ revokeOtherSessions: revokeOtherSessions.value }))
+onMounted(() => {
+  if (props.resume?.action === 'email_change') {
+    idpReauth.value = props.resume.reauth
+    revokeOtherSessions.value = props.resume.pending.revokeOtherSessions === true
+  }
+})
 
 const trimmedEmail = computed(() => newEmail.value.trim())
 const isEmailValid = computed(() => isValidEmail(trimmedEmail.value))
@@ -129,6 +132,7 @@ function submit(): void {
       v-if="!hasLocalPassword"
       v-model:reauth="idpReauth"
       action="email_change"
+      :pending-context="pendingContext"
       :disabled="changeMutation.isPending.value"
     />
 

@@ -123,4 +123,34 @@ describe('StepUpDialog', () => {
     await restart!.trigger('click')
     expect(wrapper.emitted('update:reauth')?.[0]).toEqual([null])
   })
+
+  it('carries the typed confirmation phrase through the identity-provider sign-in', async () => {
+    const wrapper = mountDialog({
+      requirePassword: false,
+      requireMfa: false,
+      confirmPhrase: 'joao',
+      pendingContext: { type: 'x' },
+    })
+    await wrapper.find('#stepup-confirm-phrase').setValue('joao')
+    const buttons = wrapper.findAll('button[type="button"]')
+    await buttons.find((button) => button.text() === 'Continue with Keycloak')!.trigger('click')
+    expect(start).toHaveBeenCalledWith(11, 'mfa_disable', { type: 'x', typedPhrase: 'joao' })
+  })
+
+  it('refills the confirmation phrase on the reopen that resumes the sign-in, and only then', async () => {
+    const wrapper = mountDialog({
+      requirePassword: false,
+      requireMfa: false,
+      confirmPhrase: 'joao',
+      reauth: { ticket: 't', codeVerifier: 'v' },
+      restoredContext: { typedPhrase: 'joao' },
+    })
+    const phrase = wrapper.find<HTMLInputElement>('#stepup-confirm-phrase')
+    expect(phrase.element.value).toBe('joao')
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined()
+
+    await wrapper.setProps({ open: false })
+    await wrapper.setProps({ open: true })
+    expect(wrapper.find<HTMLInputElement>('#stepup-confirm-phrase').element.value).toBe('')
+  })
 })
