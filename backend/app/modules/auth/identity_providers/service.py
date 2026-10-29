@@ -43,6 +43,7 @@ import modules.auth.identity_providers.event_publishers as idp_event_publishers
 import modules.auth.identity_providers.schema as identity_provider_schema
 import modules.auth.identity_providers.serializers as identity_provider_serializers
 import modules.auth.identity_providers.utils as identity_provider_utils
+import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.sessions.integration_service as sessions_integration
@@ -745,11 +746,12 @@ class IdentityProviderService:
         Otherwise, it fetches the configuration over HTTP, caches it, and returns the result.
 
         Args:
-            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the issuer URL and unique ID.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the
+                issuer URL and unique ID.
 
         Returns:
-            dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if fetching fails
-            or the issuer URL is not provided.
+            dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if
+            fetching fails or the issuer URL is not provided.
 
         Raises:
             Does not raise exceptions directly; logs errors and returns None on failure.
@@ -781,13 +783,14 @@ class IdentityProviderService:
             return config
         except httpx2.HTTPStatusError as err:
             logger.warning(
-                "HTTP error fetching OIDC discovery for <name>: <status_code> - <text>",
-                extra=core_logger.context(name=idp.name, status_code=err.response.status_code, text=err.response.text),
+                "HTTP error fetching OIDC discovery for <name>: <status_code>",
+                extra=core_logger.context(name=idp.name, status_code=err.response.status_code),
             )
             return None
         except httpx2.ConnectError as err:
             logger.error(
-                "Connection error fetching OIDC discovery for <name>. URL: <discovery_url>. Error: <err>. Check if the service is reachable and not using 'localhost' in Docker.",
+                "Connection error fetching OIDC discovery for <name>. URL: <discovery_url>. Error: <err>. "
+                "Check if the service is reachable and not using 'localhost' in Docker.",
                 extra=core_logger.context(name=idp.name, discovery_url=discovery_url, err=err),
             )
             return None
@@ -803,7 +806,8 @@ class IdentityProviderService:
                 # hint for the operator so they know about the
                 # SSRF_ALLOWED_HOSTS escape hatch for self-hosted IdPs.
                 logger.warning(
-                    "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS.",
+                    "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. "
+                    "If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS.",
                     extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
                 )
             else:
@@ -818,7 +822,9 @@ class IdentityProviderService:
             if hasattr(err, "status_code") and hasattr(err, "detail"):
                 if err.status_code == 400:
                     logger.warning(
-                        "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. If this is a self-hosted IdP on a private network, add its host or CIDR to SSRF_ALLOWED_HOSTS.",
+                        "OIDC discovery for <name> was rejected: <detail>. URL: <discovery_url>. "
+                        "If this is a self-hosted IdP on a private network, "
+                        "add its host or CIDR to SSRF_ALLOWED_HOSTS.",
                         extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
                     )
                 else:
@@ -852,7 +858,8 @@ class IdentityProviderService:
         and raises an HTTP 500 exception indicating a configuration error.
 
         Args:
-            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the encrypted client ID.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the
+                encrypted client ID.
 
         Returns:
             str: The decrypted client ID.
@@ -1008,7 +1015,8 @@ class IdentityProviderService:
 
 
         Args:
-            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing configuration details.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing
+                configuration details.
             request (Request): The current HTTP request object.
             db (Session): The database session.
             redirect_path (str | None): Optional frontend path to redirect to after successful login.
@@ -1084,8 +1092,8 @@ class IdentityProviderService:
         login page. Uses database-backed OAuth state for security and replay protection.
 
         Args:
-            idp (identity_provider_contracts.IdentityProviderState): The identity provider configuration object containing
-                client credentials, endpoints, and other OAuth/OIDC settings.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider configuration object
+                containing client credentials, endpoints, and other OAuth/OIDC settings.
             request (Request): The FastAPI request object used to access and store session data.
             user_id (int): The ID of the authenticated user who is linking their account to the
                 identity provider.
@@ -1284,7 +1292,8 @@ class IdentityProviderService:
         code: str,
         state: str,
         oauth_state: oauth_state_schema.OAuthStateRead,
-        request: Any,
+        ip_address: str,
+        user_agent: str,
         password_hasher: credentials_integration.PasswordHasher,
         db: Session,
     ) -> str:
@@ -1300,7 +1309,8 @@ class IdentityProviderService:
             code: The authorization code.
             state: The ``state`` parameter, as the provider echoed it.
             oauth_state: The claimed OAuth state.
-            request: The incoming request, recorded on the new session.
+            ip_address: Client address, recorded on the new session.
+            user_agent: Client user agent, recorded on the new session.
             password_hasher: Hasher for the session's refresh token.
             db: Database session.
 
@@ -1313,15 +1323,17 @@ class IdentityProviderService:
 
             if result.get("mode") == "link":
                 logger.info(
-                    "IdP link successful for user <username>, IdP <name>",
-                    extra=core_logger.context(username=user.username, name=idp.name),
+                    "IdP link successful for user <username_log_id>, IdP <name>",
+                    extra=core_logger.context(
+                        username_log_id=lockout_integration.username_log_identifier(user.username), name=idp.name
+                    ),
                 )
                 return identity_provider_utils.build_link_result_url(
                     self._frontend_host, oauth_state.redirect_path, idp.name, success=True
                 )
 
             # Login: a session without tokens, which the token exchange completes after PKCE.
-            session_id = self.create_callback_session(user, request, password_hasher, oauth_state.id, db)
+            session_id = self.create_callback_session(user, ip_address, user_agent, password_hasher, oauth_state.id, db)
             redirect_url = f"{self._frontend_host}/login?sso=success&session_id={session_id}"
             redirect_path = result.get("redirect_path")
             if redirect_path:
@@ -1335,9 +1347,11 @@ class IdentityProviderService:
 
             # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.
             logger.info(
-                "SSO login successful for user <username> via <name> (session=<value_3>)",
+                "SSO login successful for user <username_log_id> via <name> (session=<value_3>)",
                 extra=core_logger.context(
-                    username=user.username, name=idp.name, value_3=core_hashing.log_fingerprint(session_id)
+                    username_log_id=lockout_integration.username_log_identifier(user.username),
+                    name=idp.name,
+                    value_3=core_hashing.log_fingerprint(session_id),
                 ),
             )
             return redirect_url
@@ -1446,7 +1460,8 @@ class IdentityProviderService:
                         expected_issuer = config.get("issuer")
 
                         logger.debug(
-                            "OIDC discovery complete for <name>: userinfo=<value_2>, jwks_uri=<value_3>, issuer=<value_4>",
+                            "OIDC discovery complete for <name>: userinfo=<value_2>, jwks_uri=<value_3>, "
+                            "issuer=<value_4>",
                             extra=core_logger.context(
                                 name=idp.name,
                                 value_2=bool(userinfo_endpoint),
@@ -1485,16 +1500,17 @@ class IdentityProviderService:
                 ) from err
             except httpx2.HTTPStatusError as err:
                 logger.warning(
-                    "HTTP error from IdP <name> token endpoint: <status_code> - <text>",
-                    extra=core_logger.context(
-                        name=idp.name, status_code=err.response.status_code, text=err.response.text
-                    ),
+                    "HTTP error from IdP <name> token endpoint: <status_code>",
+                    extra=core_logger.context(name=idp.name, status_code=err.response.status_code),
                 )
                 # Check for common OAuth2 error responses
                 if err.response.status_code == 400:
                     detail = "Authorization code is invalid or expired. Please try logging in again."
                 elif err.response.status_code == 401:
-                    detail = f"Identity provider {idp.name} rejected the authentication request. Please contact administrator."
+                    detail = (
+                        f"Identity provider {idp.name} rejected the authentication request. "
+                        "Please contact administrator."
+                    )
                 else:
                     detail = f"Identity provider {idp.name} returned an error. Please try again later."
 
@@ -1534,7 +1550,8 @@ class IdentityProviderService:
                     extra=core_logger.context(name=idp.name, value_2=list(userinfo.keys())),
                 )
                 raise core_exceptions.UpstreamError(
-                    f"Identity provider {idp.name} did not provide required user identifier. Please contact administrator."
+                    f"Identity provider {idp.name} did not provide required user identifier. "
+                    "Please contact administrator."
                 )
 
             # Handle link mode differently from login mode
@@ -1575,9 +1592,12 @@ class IdentityProviderService:
                 self._store_idp_tokens(link_user_id, idp.id, token_response, db)
 
                 logger.info(
-                    "User <username> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",
+                    "User <username_log_id> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",
                     extra=core_logger.context(
-                        username=user.username, link_user_id=link_user_id, name=idp.name, subject=subject
+                        username_log_id=lockout_integration.username_log_identifier(user.username),
+                        link_user_id=link_user_id,
+                        name=idp.name,
+                        subject=subject,
                     ),
                 )
 
@@ -1599,8 +1619,10 @@ class IdentityProviderService:
 
                 db.commit()
                 logger.info(
-                    "User <username> authenticated via IdP <name>",
-                    extra=core_logger.context(username=user.username, name=idp.name),
+                    "User <username_log_id> authenticated via IdP <name>",
+                    extra=core_logger.context(
+                        username_log_id=lockout_integration.username_log_identifier(user.username), name=idp.name
+                    ),
                 )
 
                 return {
@@ -1622,7 +1644,8 @@ class IdentityProviderService:
                 extra=core_logger.context(name=idp.name, err=err),
             )
             raise core_exceptions.ProcessingError(
-                f"An unexpected error occurred during authentication with {idp.name}. Please try again or contact administrator."
+                f"An unexpected error occurred during authentication with {idp.name}. "
+                "Please try again or contact administrator."
             ) from err
         finally:
             if oauth_client is not None:
@@ -1631,7 +1654,8 @@ class IdentityProviderService:
     def create_callback_session(
         self,
         user: Any,
-        request: Any,
+        ip_address: str,
+        user_agent: str,
         password_hasher: credentials_integration.PasswordHasher,
         oauth_state_id: str,
         db: Session,
@@ -1644,7 +1668,8 @@ class IdentityProviderService:
         sessions_integration.create_session(
             session_id,
             user_read,
-            request,
+            ip_address,
+            user_agent,
             None,
             password_hasher,
             expires_at,
@@ -1667,9 +1692,9 @@ class IdentityProviderService:
     ) -> dict[str, Any]:
         """Retrieve user information from an identity provider using the provided token response.
 
-        This method first attempts to fetch user information from the given `userinfo_endpoint` using the provided OAuth2 client.
-        If the endpoint is unavailable or the request fails, it falls back to extracting claims from the `id_token` in the token response,
-        verifying the ID token signature using JWKS before returning the claims.
+        This method first attempts to fetch user information from the given `userinfo_endpoint` using the provided
+        OAuth2 client. If the endpoint is unavailable or the request fails, it falls back to extracting claims from
+        the `id_token` in the token response, verifying the ID token signature using JWKS before returning the claims.
 
         Security Enhancement:
         - ID tokens are now cryptographically verified using joserfc and JWKS
@@ -1724,9 +1749,9 @@ class IdentityProviderService:
                 )
             except httpx2.HTTPStatusError as err:
                 logger.warning(
-                    "HTTP error <status_code> fetching userinfo: <text>",
+                    "HTTP error <status_code> fetching userinfo",
                     exc_info=err,
-                    extra=core_logger.context(status_code=err.response.status_code, text=err.response.text),
+                    extra=core_logger.context(status_code=err.response.status_code),
                 )
             except httpx2.RequestError as err:
                 logger.warning(
@@ -1838,7 +1863,8 @@ class IdentityProviderService:
 
         if not refresh_token:
             logger.debug(
-                "No refresh token provided by IdP (user_id=<user_id>, idp_id=<idp_id>). User will need to re-authenticate when session expires.",
+                "No refresh token provided by IdP (user_id=<user_id>, idp_id=<idp_id>). "
+                "User will need to re-authenticate when session expires.",
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id),
             )
             return
@@ -1892,7 +1918,8 @@ class IdentityProviderService:
         using both default and custom mappings defined in the identity provider.
 
         Args:
-            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing optional custom user mapping.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing optional
+                custom user mapping.
             claims (dict[str, Any]): The dictionary of claims received from the identity provider.
 
         Returns:
@@ -2011,8 +2038,11 @@ class IdentityProviderService:
             if user:
                 if not self._is_email_verified(userinfo):
                     logger.warning(
-                        "Refusing to link IdP <name> to existing account <username>: provider did not assert a verified email",
-                        extra=core_logger.context(name=idp.name, username=user.username),
+                        "Refusing to link IdP <name> to existing account <username_log_id>: "
+                        "provider did not assert a verified email",
+                        extra=core_logger.context(
+                            name=idp.name, username_log_id=lockout_integration.username_log_identifier(user.username)
+                        ),
                     )
                     raise core_exceptions.PermissionDeniedError(
                         "Cannot link this identity provider to an existing "
@@ -2024,8 +2054,10 @@ class IdentityProviderService:
                 # the IdP's assertion proves nothing about who owns this account.
                 if not user.email_verified:
                     logger.warning(
-                        "Refusing to link IdP <name> to account <username>: the account email is not verified",
-                        extra=core_logger.context(name=idp.name, username=user.username),
+                        "Refusing to link IdP <name> to account <username_log_id>: the account email is not verified",
+                        extra=core_logger.context(
+                            name=idp.name, username_log_id=lockout_integration.username_log_identifier(user.username)
+                        ),
                     )
                     raise core_exceptions.PermissionDeniedError(
                         "Cannot link this identity provider to an existing "
@@ -2037,8 +2069,10 @@ class IdentityProviderService:
                 identity_provider_links_integration.create_user_identity_provider(user.id, idp.id, subject, db)
 
                 logger.info(
-                    "Linked existing user <username> to IdP <name>",
-                    extra=core_logger.context(username=user.username, name=idp.name),
+                    "Linked existing user <username_log_id> to IdP <name>",
+                    extra=core_logger.context(
+                        username_log_id=lockout_integration.username_log_identifier(user.username), name=idp.name
+                    ),
                 )
 
                 # Update user info if sync is enabled
@@ -2122,8 +2156,10 @@ class IdentityProviderService:
         identity_provider_links_integration.create_user_identity_provider(created_user.id, idp.id, subject, db)
 
         logger.info(
-            "Created new user <username> from IdP <name>",
-            extra=core_logger.context(username=created_user.username, name=idp.name),
+            "Created new user <username_log_id> from IdP <name>",
+            extra=core_logger.context(
+                username_log_id=lockout_integration.username_log_identifier(created_user.username), name=idp.name
+            ),
         )
 
         return created_user
@@ -2147,7 +2183,8 @@ class IdentityProviderService:
 
         Args:
             user (users_schema.UsersRead): The user schema instance to update.
-            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance with user_mapping config.
+            idp (identity_provider_contracts.IdentityProviderState): The identity provider instance with user_mapping
+                config.
             userinfo (Dict[str, Any]): The user information claims received from the IdP.
             db (Session): The SQLAlchemy database session.
 
@@ -2170,17 +2207,22 @@ class IdentityProviderService:
                 )
             else:
                 logger.debug(
-                    "Syncing email for user <username> from IdP <name>",
-                    extra=core_logger.context(username=user.username, name=idp.name),
+                    "Syncing email for user <username_log_id> from IdP <name>",
+                    extra=core_logger.context(
+                        username_log_id=lockout_integration.username_log_identifier(user.username), name=idp.name
+                    ),
                 )
                 updates["email"] = mapped_data["email"].strip()
 
         # Check name
         if "name" in mapped_data and mapped_data["name"] != user.name:
             logger.debug(
-                "Syncing name for user <username> from IdP <name>: <name_2> -> <value_4>",
+                "Syncing name for user <username_log_id> from IdP <name>: <name_2> -> <value_4>",
                 extra=core_logger.context(
-                    username=user.username, name=idp.name, name_2=user.name, value_4=mapped_data["name"]
+                    username_log_id=lockout_integration.username_log_identifier(user.username),
+                    name=idp.name,
+                    name_2=user.name,
+                    value_4=mapped_data["name"],
                 ),
             )
             updates["name"] = mapped_data["name"].strip()
@@ -2188,12 +2230,10 @@ class IdentityProviderService:
         # Only call CRUD if there are updates
         if updates:
             logger.info(
-                "Applying updates to user <username>: <updates>",
-                extra=dict(
-                    {
-                        **core_logger.context(),
-                        **core_logger.context(username=user.username, updates=updates),
-                    }
+                "Applying updates to user <username_log_id>: <updated_fields>",
+                extra=core_logger.context(
+                    username_log_id=lockout_integration.username_log_identifier(user.username),
+                    updated_fields=sorted(updates),
                 ),
             )
             updated_user = user.model_copy(update=updates)
@@ -2324,11 +2364,9 @@ class IdentityProviderService:
             # Check if this is a token revocation (400) or auth failure (401)
             if err.response.status_code in (400, 401):
                 logger.warning(
-                    "IdP refresh token invalid/revoked for user <user_id>, idp <idp_id>: <status_code> - <text>",
+                    "IdP refresh token invalid/revoked for user <user_id>, idp <idp_id>: <status_code>",
                     exc_info=err,
-                    extra=core_logger.context(
-                        user_id=user_id, idp_id=idp_id, status_code=err.response.status_code, text=err.response.text
-                    ),
+                    extra=core_logger.context(user_id=user_id, idp_id=idp_id, status_code=err.response.status_code),
                 )
                 # Clear invalid token from database
                 self._clear_refresh_token(user_id, idp_id)
@@ -2336,11 +2374,9 @@ class IdentityProviderService:
             else:
                 # Other HTTP errors (5xx) - don't clear token
                 logger.warning(
-                    "HTTP error refreshing IdP session for user <user_id>, idp <idp_id>: <status_code> - <text>",
+                    "HTTP error refreshing IdP session for user <user_id>, idp <idp_id>: <status_code>",
                     exc_info=err,
-                    extra=core_logger.context(
-                        user_id=user_id, idp_id=idp_id, status_code=err.response.status_code, text=err.response.text
-                    ),
+                    extra=core_logger.context(user_id=user_id, idp_id=idp_id, status_code=err.response.status_code),
                 )
                 return None
 
@@ -2485,7 +2521,8 @@ class IdentityProviderService:
             if not revocation_endpoint:
                 # IdP doesn't advertise a revocation endpoint
                 logger.debug(
-                    "IdP <name> does not support token revocation (no revocation_endpoint). Token will be cleared locally only.",
+                    "IdP <name> does not support token revocation (no revocation_endpoint). "
+                    "Token will be cleared locally only.",
                     extra=core_logger.context(name=idp.name),
                 )
                 return False
@@ -2639,12 +2676,16 @@ class IdentityProviderService:
             - SKIP if token is still valid and not close to expiry
 
         Example usage:
-            link = identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
+            link = identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(
+                user_id, idp_id, db
+            )
             action = self._should_refresh_idp_token(link)
             if action == TokenAction.REFRESH:
                 self.refresh_idp_session(user_id, idp_id)
             elif action == TokenAction.CLEAR:
-                identity_provider_links_integration.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id, idp_id, db)
+                identity_provider_links_integration.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+                    user_id, idp_id, db
+                )
         """
         # Check if refresh token exists
         if not link or not link.idp_refresh_token:
@@ -2653,7 +2694,8 @@ class IdentityProviderService:
         # Check if token has exceeded maximum age (security policy)
         if self._is_token_expired_by_age(link):
             logger.info(
-                "IdP refresh token for user_id=<user_id>, idp_id=<idp_id> has exceeded maximum age (<MAX_IDP_TOKEN_AGE_DAYS> days). Will be cleared.",
+                "IdP refresh token for user_id=<user_id>, idp_id=<idp_id> has exceeded maximum age "
+                "(<MAX_IDP_TOKEN_AGE_DAYS> days). Will be cleared.",
                 extra=core_logger.context(
                     user_id=link.user_id, idp_id=link.idp_id, MAX_IDP_TOKEN_AGE_DAYS=MAX_IDP_TOKEN_AGE_DAYS
                 ),

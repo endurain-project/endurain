@@ -185,7 +185,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
-| **Get User Sessions** | `/sessions/user/{user_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope |
+| **Get User Sessions** | `/sessions/user/{user_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope. Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` |
 | **Delete Session** | `/sessions/{session_id}/user/{user_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:write` scope; web clients must also include `X-CSRF-Token` |
 
 ### API Key Management Endpoints

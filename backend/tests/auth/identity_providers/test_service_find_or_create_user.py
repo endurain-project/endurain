@@ -184,6 +184,7 @@ class TestUpdateUserFromIdpEmail:
     def _sync(userinfo):
         service = IdentityProviderService(MagicMock(), "https://app.example", "test")
         user = MagicMock()
+        user.username = "alice"
         user.email = "old@example.com"
         user.name = "Same"
         idp = _make_idp()
@@ -209,3 +210,32 @@ class TestUpdateUserFromIdpEmail:
 
         user.model_copy.assert_called_once_with(update={"email": "new@example.com"})
         mock_edit.assert_called_once()
+
+
+class TestUpdateUserFromIdpLogging:
+    """Sync logging names the changed fields and a username fingerprint, never the values."""
+
+    def test_applied_updates_log_field_names_and_hashed_username(self):
+        service = IdentityProviderService(MagicMock(), "https://app.example", "test")
+        user = MagicMock()
+        user.username = "alice"
+        user.email = "old@example.com"
+        user.name = "Same"
+        with (
+            patch("modules.auth.identity_providers.service.users_integration.get_user_by_email", return_value=None),
+            patch("modules.auth.identity_providers.service.users_integration.edit_user"),
+            patch("modules.auth.identity_providers.service.users_schema.UsersEdit.from_read"),
+            patch("modules.auth.identity_providers.service.logger") as mock_logger,
+        ):
+            service._update_user_from_idp(
+                user,
+                _make_idp(),
+                {"email": "new@example.com", "name": "Same", "email_verified": True},
+                MagicMock(spec=Session),
+            )
+
+        extra = mock_logger.info.call_args.kwargs["extra"]
+        assert extra["updated_fields"] == ["email"]
+        assert "updates" not in extra
+        assert "alice" not in str(extra)
+        assert "new@example.com" not in str(extra)
