@@ -61,6 +61,8 @@ sequenceDiagram
 - The reset link is valid for one hour and works once.
 - The answer on the page is always the same. This stops anyone from using the form to find out which emails have accounts.
 - Inactive accounts (not yet verified or approved, or deactivated) get no email.
+- Accounts without a local password (they sign in through an identity provider) get no email, and an already-issued reset link no longer works for them. An administrator can [set a password](user-management.md#resetting-a-password).
+- When an administrator turned off [local username and password login](single-sign-on.md#auto-redirect-to-sso), resets and password sign-in are refused for regular users, answered like a wrong password. Administrators keep both.
 - An account is emailed at most once every five minutes, so the form cannot be used to flood an inbox. A second request inside that time gets the same answer and no new email; use the link from the first one, or ask again afterwards.
 - If the server has no mail configured, the request is answered with a "service unavailable" error. Ask an administrator to reset the password in [user management](user-management.md#resetting-a-password).
 - The new password must satisfy the server's password policy.
@@ -85,6 +87,6 @@ Under **Settings → Security** you can:
 - create and revoke [API keys](../integrate/api-keys.md), which can upload activities;
 - delete your account.
 
-Accounts that sign in only through single sign-on have no local password, so password prompts are skipped for them. They still need a code if two-step verification is on.
+Accounts that sign in only through single sign-on have no local password. They cannot change a password themselves, and they confirm sensitive changes by signing in again with their identity provider; see [Single Sign-On](single-sign-on.md#confirming-sensitive-changes-without-a-password).
 
 Deleting an account signs you out at once and deletes its data in the background, including activities, photos, thumbnails and stored files. The only administrator of a server cannot delete or demote themselves; make another user an administrator first.

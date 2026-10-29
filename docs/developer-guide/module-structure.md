@@ -774,11 +774,6 @@ the conformance test's allowlist.
   `utils.py` or `*_utils.py` files (in `auth`, `users_profile`, `users_goals`, `garmin`, `server_settings` and
   the activity file parsers) name no role. The guide asks that a file's name state its role; splitting these is a
   refactor with no behaviour change, so it is left until a feature needs the code apart.
-- **Fresh re-authentication for SSO-only step-up.** An account with no local password skips the password factor of
-  a step-up, and has no MFA factor unless MFA is on, so a stolen access token on such an account can create API
-  keys, link a provider or enable MFA without proving anything again. The fix is to require a recent identity
-  provider re-authentication for these accounts, which is a feature of its own; `step_up_service` carries a
-  `TODO(issue)` for it until the tracker issue exists.
 - **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which
   grows with the follow count. A peer-published, read-only query fragment (a followee subquery)
   would avoid the list but needs its own allowed-import entry and test, so it is undecided.

@@ -178,7 +178,8 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Header: `X-Client-Type` (`web` or `mobile`). For mobile OAuth/PKCE this must be `mobile`; query params: `redirect`, `code_challenge`, `code_challenge_method` | 10 requests/min per IP |
 | **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | 10 requests/min per IP |
 | **Token Exchange (PKCE)** | `/public/idp/session/{session_id}/tokens` | JSON: `{"code_verifier": "<verifier>"}` (password PKCE or SSO PKCE). Optional Header: `X-Client-Type`; if present, it must match the client type stored on the PKCE/OAuth state. | 10 requests/min |
-| **Create IdP Link Token** | `/profile/identity-providers/{idp_id}/link/token` | Requires authenticated session and step-up JSON body: `current_password` for local-password accounts; `mfa_code` when MFA is enabled. Returns a 60-second one-time link token | 10 requests/min |
+| **Create IdP Link Token** | `/profile/identity-providers/{idp_id}/link/token` | Requires authenticated session and step-up JSON body: `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled. Returns a 60-second one-time link token | 10 requests/min |
+| **Start IdP Step-up** | `/profile/identity-providers/{idp_id}/step-up` | Requires authenticated session. JSON: `code_challenge`, `action`, `redirect` (relative path). Returns `authorization_url` and sets the `endurain_idp_binding` cookie. See [Account security](account-security.md#step-up-for-accounts-without-a-password) | - |
 | **Link IdP to Account** | `/profile/identity-providers/{idp_id}/link?link_token=<token>` | Browser redirect endpoint using the one-time link token | - |
 
 ### Session Management Endpoints

@@ -16,6 +16,7 @@ Certain sensitive account operations require the user to re-prove possession of 
 | Create API key | `POST /profile/api-keys` |
 | Generate IdP link token | `POST /profile/identity-providers/{idp_id}/link/token` |
 | Remove IdP link | `POST /profile/identity-providers/{idp_id}/unlink` |
+| Delete own account | `POST /profile/delete-account` |
 
 ### Step-up Request Body
 
@@ -23,7 +24,8 @@ All step-up operations accept the following fields in their JSON request body (a
 
 | Field | Required | Description |
 | ----- | -------- | ----------- |
-| `current_password` | Conditionally | Required for accounts with a local password. Omit for SSO-only accounts (no local credential exists) |
+| `current_password` | Conditionally | Required for accounts with a local password |
+| `idp_reauth` | Conditionally | Required for accounts without a local password: `{"ticket": "...", "code_verifier": "..."}`, proof of a fresh sign-in with a linked identity provider. See [Step-up for accounts without a password](#step-up-for-accounts-without-a-password) |
 | `mfa_code` | Conditionally | Required when MFA is enabled on the account. Accepts TOTP codes or backup codes |
 
 **Example:**
@@ -35,7 +37,38 @@ All step-up operations accept the following fields in their JSON request body (a
 }
 ```
 
-SSO-only accounts (no local password) may omit `current_password`. The password factor is skipped because there is nothing to verify against. If MFA is enabled, the `mfa_code` is still required regardless of account type.
+Account deletion and email change use the same fields. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account.
+
+### Step-up for accounts without a password
+
+An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link token, IdP unlink, email change, account deletion, MFA enable, MFA disable and backup-code regeneration.
+
+1. The sensitive request arrives without `idp_reauth`. The API answers `401` with problem type `urn:endurain:error:idp-reauth-required` and `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` ([RFC 9470](https://datatracker.ietf.org/doc/html/rfc9470)). A missing proof is not counted as a failed attempt.
+2. The client generates a PKCE verifier and starts the sign-in with `POST /profile/identity-providers/{idp_id}/step-up`:
+
+    ```json
+    {
+      "code_challenge": "<S256 challenge>",
+      "action": "api_key_create",
+      "redirect": "/settings?tab=security"
+    }
+    ```
+
+    `action` is one of `api_key_create`, `idp_link`, `idp_unlink`, `email_change`, `account_delete`, `mfa_enable`, `mfa_disable`, `mfa_backup_codes`. `redirect` must be a relative path; other values, including custom schemes, are refused. The response is `{"authorization_url": "..."}` and sets the HttpOnly, `SameSite=Lax` cookie `endurain_idp_binding`, scoped to the callback path, which ties the flow to that browser.
+3. The browser opens `authorization_url`. Endurain asks the provider for a new sign-in (`prompt=login`, `max_age=60`, PKCE). The callback verifies the ID token (signature, `iss`, `aud`, `azp`, `exp`/`iat` with 60 seconds of leeway, `nonce`) and requires `auth_time` to be no earlier than 60 seconds before the step-up started. The userinfo endpoint is not used, and the provider account must be the one linked to the user.
+4. The callback redirects to `redirect` with the result in the URL fragment: `#step_up_ticket=<ticket>` on success, or `#step_up_error=failed` or `#step_up_error=not_fresh`. `not_fresh` means the provider did not make the user sign in again.
+5. The client repeats the sensitive request with `idp_reauth`:
+
+    ```json
+    {
+      "idp_reauth": { "ticket": "<ticket>", "code_verifier": "<PKCE verifier>" },
+      "mfa_code": "123456"
+    }
+    ```
+
+    `mfa_code` is also required when MFA is enabled. The ticket is single use, valid for 300 seconds, and bound to the user, the session, the action and the PKCE verifier. A wrong MFA code does not consume it.
+
+Native and mobile clients cannot use this flow because the redirect must be a relative path, so they cannot step up an account without a password; the user does it in the web UI. Providers without an issuer URL (OAuth2 only) cannot do step-up. See [Single Sign-On](../features/single-sign-on.md#confirming-sensitive-changes-without-a-password).
 
 ### Step-up Lockout Policy
 
@@ -217,7 +250,7 @@ Backup codes provide a recovery mechanism when users lose access to their authen
 | What | URL | Method | Description |
 | ---- | --- | ------ | ----------- |
 | **Get Backup Code Status** | `/profile/mfa/backup-codes/status` | GET | Returns count of unused/used codes |
-| **Regenerate Backup Codes** | `/profile/mfa/backup-codes` | POST | Generates new codes (invalidates old). Requires step-up JSON body: `current_password` for local-password accounts and `mfa_code` when MFA is enabled |
+| **Regenerate Backup Codes** | `/profile/mfa/backup-codes` | POST | Generates new codes (invalidates old). Requires step-up JSON body: `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled |
 
 ### Regenerate Backup Codes Request
 
@@ -234,7 +267,7 @@ Content-Type: application/json
 }
 ```
 
-For SSO-only accounts, `current_password` may be omitted because there is no local password to verify. If MFA is enabled, `mfa_code` is required.
+Accounts without a local password send `idp_reauth` instead of `current_password`. If MFA is enabled, `mfa_code` is required.
 
 ### Backup Code Status Response
 

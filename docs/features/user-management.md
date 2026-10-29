@@ -43,7 +43,7 @@ Approve the user from their row. Endurain activates the account and emails the u
 
 ## Resetting a password
 
-**Reset password** sets a new password for the user without needing their current one. It must satisfy the password policy. Endurain revokes the user's sessions and other sign-in state, so they must sign in again with the new password. Use this when a user cannot receive the [reset email](accounts-and-sign-in.md#forgotten-password), for example because no mail server is configured.
+**Reset password** sets a new password for the user without needing their current one. It must satisfy the password policy. Endurain revokes the user's sessions and other sign-in state, so they must sign in again with the new password. Use this when a user cannot receive the [reset email](accounts-and-sign-in.md#forgotten-password), for example because no mail server is configured. It is also how an account that has no local password gets one: such an account cannot set its own. An administrator cannot reset their own password here.
 
 ## Sessions and identity providers
 

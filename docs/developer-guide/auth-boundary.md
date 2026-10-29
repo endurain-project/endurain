@@ -45,8 +45,10 @@ User profile fields, profile routes, privacy settings, and non-auth account data
 
 CRUD functions stage database changes with `flush()` and raise domain errors from `core.exceptions`. A service owns the complete workflow and commits after all related writes are staged. An integration surface never ends a transaction: it stages through its package's service or crud and the caller, which holds the unit of work (the `users` services for the account-security actions, the `authentication` service for login, refresh, logout and the SSO exchange), commits. Where a write is advisory and must not sit on the request path, such as an API key's last-used time, the package publishes a best-effort event and a subscriber commits in its own session. Application migrations use each package's migration service and commit through application-level migration orchestration.
 
-## Step-up verification gap for SSO-only accounts
+## Step-up for accounts without a local password
 
-SSO-only accounts with no local password skip the password factor in `modules.auth.account_security.step_up_service.verify_step_up_credentials`. MFA still gates when enabled, but an account without a local password or MFA receives no step-up challenge.
+`modules.auth.account_security.step_up_service.verify_step_up_credentials` verifies a password for an account that has one. For an account without one it requires an `idp_reauth` proof, and MFA alone never passes. Without the proof it raises `IdpReauthRequiredError` (`401`, RFC 9470 challenge).
 
-The complete fix is to require fresh IdP re-authentication for SSO-only accounts on the same sensitive-endpoint set. This is not implemented. Tracked in [issue 657](https://github.com/endurain-project/endurain/issues/657).
+The flow lives in `identity_providers`: `account_security.identity_link_service.start_idp_step_up` stages the state through `authorization_service.stage_step_up`, and `callback_service.complete_step_up_callback` verifies the ID token and issues a single-use ticket in `step_up_ticket_store`. The ticket records the user, session, action and PKCE challenge; `account_security` reads and redeems it only through `identity_providers.integration_service`, after every other factor passed, so a wrong MFA code does not cost the ticket.
+
+The provider's `auth_time` claim decides freshness, not the `prompt=login` the request sends, because providers differ in honouring `prompt` and `max_age`. A provider that cannot put a recent `auth_time` in the ID token cannot step up; an administrator then sets a local password for the user.

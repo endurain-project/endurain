@@ -154,6 +154,26 @@ Save the generated **Client ID** and **Client Secret**.
 
 Signing in through your identity provider does not replace the multi-factor authentication you set up in Endurain. If your account has MFA enabled, Endurain asks for your authentication code (or a backup code) after the provider signs you in, and only then finishes the login. Wrong codes count toward the same lockout as the password login. Accounts without MFA sign in as before.
 
+## Confirming sensitive changes without a password
+
+An account that signs in only through an identity provider has no local password. To create an API key, link or unlink a provider, change the email, delete the account, or turn MFA on or off or regenerate its backup codes, Endurain sends you back to your provider to sign in again. The provider must show that you signed in within the last 60 seconds and must be one already linked to your account; if it reuses an existing provider session, Endurain refuses with a "not fresh" error. If MFA is on you also enter your code, and a wrong code does not force a new provider sign-in. MFA alone is not enough.
+
+These accounts cannot change their password themselves. An administrator sets one in [user management](user-management.md#resetting-a-password).
+
+This needs the provider to be configured with an issuer URL, so Endurain can use OIDC discovery and the signing keys. OAuth2-only providers cannot confirm sensitive changes. Native and mobile apps cannot do it either; use the web interface.
+
+| Provider | Notes |
+| -------- | ----- |
+| Keycloak | Assign the `basic` client scope so `auth_time` is in the ID token |
+| authentik | Works with `max_age`; `prompt=login` alone is unreliable |
+| Authelia | Supported |
+| Pocket ID | Version 2.10.0 or later |
+| Casdoor | Version 4.24.0 or later |
+
+If your provider cannot prove a fresh sign-in, an administrator sets a local password for you. Keep at least one administrator account with a local password: an administrator cannot reset their own password through the admin route, so create it before relying only on SSO.
+
+Linking an identity provider sends a notification to the account.
+
 ## Auto-redirect to SSO
 
 Under **Settings → Server Settings**, the **Auto-redirect to SSO** option skips the login page's provider picker and immediately sends unauthenticated users to your identity provider. It only takes effect when:
@@ -165,6 +185,8 @@ If **Allow local username and password login** is enabled, the auto-redirect is 
 
 !!! tip "Bypassing auto-redirect"
     If you ever need to reach the local username/password form while auto-redirect is enabled (for example, if your identity provider is unreachable), append `?forceLocalLogin=true` to the Endurain URL, e.g. `https://endurain.mydomain.com/?forceLocalLogin=true`. This shows the local login form for that attempt and suppresses the automatic redirect. It does **not** disable the auto-redirect setting itself, it only applies to the current page load.
+
+    With **Allow local username and password login** off, only administrators can sign in with a password, so an administrator is the way back in when the provider is down. Other accounts are refused as if the password were wrong.
 
 ## Troubleshooting
 

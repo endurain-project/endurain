@@ -73,7 +73,7 @@ Creating an API key also requires step-up verification because the key is a long
 
 - Local-password accounts must provide `current_password`
 - Accounts with MFA enabled must also provide `mfa_code`
-- SSO-only accounts may omit `current_password` because there is no local password to verify
+- Accounts without a local password must provide `idp_reauth`, proof of a fresh identity provider sign-in; see [step-up for accounts without a password](account-security.md#step-up-for-accounts-without-a-password)
 
 **Create API Key Request:**
 
@@ -98,7 +98,8 @@ Content-Type: application/json
 | `name` | Yes | Human-readable label (max 100 characters) |
 | `scopes` | Yes | Array of API-key scopes to grant. Currently only `activities:upload` is accepted |
 | `expires_at` | No | ISO 8601 expiry datetime. Omit or `null` for no expiry |
-| `current_password` | Conditionally | Required for accounts with a local password. Omit for SSO-only accounts |
+| `current_password` | Conditionally | Required for accounts with a local password |
+| `idp_reauth` | Conditionally | Required for accounts without a local password. Without it the API answers `401` with `urn:endurain:error:idp-reauth-required` |
 | `mfa_code` | Conditionally | Required when MFA is enabled on the account |
 
 **Create API Key Response (HTTP 201):**

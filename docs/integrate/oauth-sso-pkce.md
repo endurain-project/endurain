@@ -32,10 +32,15 @@ Identity providers must be configured with the following parameters:
 Users can link their Endurain account to an OAuth provider:
 
 1. User must be authenticated with a valid session
-2. Create a one-time link token with `POST /profile/identity-providers/{idp_id}/link/token`. Local-password accounts must include `current_password`; accounts with MFA enabled must also include `mfa_code`. SSO-only accounts may omit `current_password`.
+2. Create a one-time link token with `POST /profile/identity-providers/{idp_id}/link/token`. Local-password accounts must include `current_password`; accounts without one must include `idp_reauth` ([step-up](account-security.md#step-up-for-accounts-without-a-password)); accounts with MFA enabled must also include `mfa_code`.
 3. Open `/profile/identity-providers/{idp_id}/link?link_token=<token>` in the browser before the token expires (60 seconds)
 4. Authenticate with the identity provider
 5. Provider is linked to the existing account
+
+### Step-up re-authentication
+An account without a local password proves a sensitive change by signing in again with a linked provider. `POST /profile/identity-providers/{idp_id}/step-up` takes `code_challenge`, `action` and a relative `redirect`, and returns an `authorization_url`. The authorize request carries `prompt=login`, `max_age=60` and PKCE, and the callback requires an ID token whose `auth_time` is recent. It returns to `redirect` with `#step_up_ticket=...` or `#step_up_error=failed|not_fresh` in the fragment. The flow is in [Account security](account-security.md#step-up-for-accounts-without-a-password). It needs a provider with an issuer URL and does not work for native clients.
+
+ID tokens are checked for `azp` and allow 60 seconds of clock leeway.
 
 ### OAuth Token Response
 When authenticating via OAuth, the response format matches the standard authentication:
