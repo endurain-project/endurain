@@ -930,6 +930,8 @@ def sweep_stale_staged_blobs(
 
     A staged blob is removed with its job, but a crash between committing the
     outcome and deleting it, or a failed delete, leaves one that no row names.
+    Each batch is looked up in a short session of its own that closes before the
+    listing goes on or a blob is deleted, so no connection waits on object storage.
 
     Args:
         clock: The platform clock provider.
@@ -942,15 +944,15 @@ def sweep_stale_staged_blobs(
     prefix = activity_ingestion_upload_entry_service.UPLOAD_STAGING_KEY_PREFIX
     area = activity_ingestion_upload_entry_service.UPLOAD_STAGING_STORAGE_AREA
     upload_keys = _aged_keys(storage, area, prefix, (clock.now() - _STAGED_UPLOAD_MIN_AGE).timestamp())
-    with core_database.SessionLocal() as db:
-        for batch in batched(upload_keys, _STAGED_BLOB_BATCH_SIZE, strict=False):
+    for batch in batched(upload_keys, _STAGED_BLOB_BATCH_SIZE, strict=False):
+        with core_database.SessionLocal() as db:
             referenced = activity_ingestion_crud.get_referenced_staged_keys(
                 [key.removeprefix(prefix) for key in batch], db
             )
-            for key in batch:
-                if key.removeprefix(prefix) not in referenced:
-                    storage.delete(area, key)
-                    removed += 1
+        for key in batch:
+            if key.removeprefix(prefix) not in referenced:
+                storage.delete(area, key)
+                removed += 1
 
     if removed:
         logger.info("Removed stale staged ingestion blobs", extra=core_logger.context(removed=removed))

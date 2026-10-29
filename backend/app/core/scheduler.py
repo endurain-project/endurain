@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 import jasil.retention as platform_retention
 import jasil.runtime as platform_runtime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from jasil.providers import StateBackendUnavailableError
 
 import core.logger as core_logger
 import core.network as core_network
@@ -25,6 +26,11 @@ import core.network as core_network
 logger = core_logger.get_logger(__name__)
 
 scheduler = AsyncIOScheduler()
+
+#: How much of its interval a run of a locked job marks as done. Each replica's scheduler fires its own
+#: interval, so a run marks the job for most of one: another replica's tick inside it skips, and the mark
+#: has expired by the time this replica's own next tick comes round.
+_DUE_MARK_FRACTION = 0.9
 
 
 @dataclass(frozen=True)
@@ -82,19 +88,69 @@ def run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -
         return func(*args) if acquired else None
 
 
-async def _run_locked_async_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
-    """Run an asynchronous scheduled job only while holding its distributed lock.
+def _claim_interval(lock_name: str, minutes: int) -> bool:
+    """Mark a locked job as run for this interval, unless another replica already ran it.
+
+    The lock only keeps two runs from overlapping; without the mark, every replica would run the job once
+    per interval of its own. An unreachable state store lets the run go ahead, still under its lock.
+
+    Args:
+        lock_name: Stable coordination-lock name, which also names the mark.
+        minutes: The job's interval.
+
+    Returns:
+        True when this run is due, False when another replica ran the job this interval.
+    """
+    ttl_seconds = max(int(minutes * 60 * _DUE_MARK_FRACTION), 1)
+    try:
+        claimed = platform_runtime.get_active_platform().state.set_if_absent(
+            f"endurain:scheduler:last-run:{lock_name}", b"1", ttl_seconds
+        )
+    except StateBackendUnavailableError as err:
+        logger.warning(
+            "Could not mark a scheduler job as run; running it under its lock",
+            exc_info=err,
+            extra=core_logger.context(lock_name=lock_name),
+        )
+        return True
+    if not claimed:
+        logger.debug(
+            "Scheduler job skipped because another replica already ran it this interval",
+            extra=core_logger.context(lock_name=lock_name),
+        )
+    return claimed
+
+
+def run_due_job(lock_name: str, minutes: int, func: Callable[..., object], *args: object) -> object | None:
+    """Run a synchronous recurring job once per interval across every replica.
 
     Args:
         lock_name: Stable coordination-lock name.
+        minutes: The job's interval.
+        func: Scheduled operation to run.
+        *args: Positional arguments forwarded to the operation.
+
+    Returns:
+        The operation result, or ``None`` when another replica holds the lock or already ran the job.
+    """
+    with _held_lock(lock_name) as acquired:
+        return func(*args) if acquired and _claim_interval(lock_name, minutes) else None
+
+
+async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., object], *args: object) -> object | None:
+    """Run an asynchronous recurring job once per interval across every replica.
+
+    Args:
+        lock_name: Stable coordination-lock name.
+        minutes: The job's interval.
         func: Scheduled coroutine function to run.
         *args: Positional arguments forwarded to the operation.
 
     Returns:
-        The awaited result, or ``None`` when another replica holds the lock.
+        The awaited result, or ``None`` when another replica holds the lock or already ran the job.
     """
     with _held_lock(lock_name) as acquired:
-        if not acquired:
+        if not acquired or not _claim_interval(lock_name, minutes):
             return None
         result = func(*args)
         if inspect.isawaitable(result):
@@ -153,8 +209,8 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
         func = job.func
         args: Sequence[object] = job.args
         if job.lock_name is not None:
-            func = _run_locked_async_job if inspect.iscoroutinefunction(job.func) else run_locked_job
-            args = (job.lock_name, job.func, *job.args)
+            func = _run_due_async_job if inspect.iscoroutinefunction(job.func) else run_due_job
+            args = (job.lock_name, job.minutes, job.func, *job.args)
         add_scheduler_job(func, "interval", job.minutes, args, job.description)
 
     # Clears any backlog promptly, so a frequently-restarted deployment does not

@@ -84,22 +84,6 @@ def _iter_activity_pages(
         after_id = page[-1].id
 
 
-def _iter_activities_with_thumbnail(db: Session) -> Iterator[activity_contracts.ActivityThumbnailRef]:
-    """Yield every activity carrying a thumbnail key, one bounded page at a time.
-
-    Args:
-        db: Database session.
-
-    Yields:
-        Thumbnail references, ascending by activity id.
-
-    Returns:
-        Thumbnail references, in id order.
-    """
-    for page in _iter_activity_pages(activity_integration.list_activities_with_thumbnail, db):
-        yield from page
-
-
 def _iter_activities_without_thumbnail(
     due_at: datetime, db: Session
 ) -> Iterator[list[activity_contracts.ActivityThumbnailRef]]:
@@ -347,22 +331,25 @@ def _delete_all_thumbnails(storage: platform_providers.StorageProvider, db: Sess
     logger.info("Thumbnail regeneration: deleting all existing thumbnails")
 
     deleted = 0
-    for activity in _iter_activities_with_thumbnail(db):
-        if platform_jobs.lease_lost():
-            logger.warning("Thumbnail regeneration: lease lost; stopping before the keys are cleared")
-            return False
-        key = activity.map_thumbnail_path
-        if key is None:
-            continue
-        try:
-            storage.delete(activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA, key)
-            deleted += 1
-        except Exception as err:
-            logger.warning(
-                "Thumbnail regeneration: could not delete the existing thumbnail",
-                exc_info=err,
-                extra=core_logger.context(activity_id=activity.id),
-            )
+    for page in _iter_activity_pages(activity_integration.list_activities_with_thumbnail, db):
+        # The page is plain data, so the read ends here: no transaction stays open across the blob deletes.
+        db.commit()
+        for activity in page:
+            if platform_jobs.lease_lost():
+                logger.warning("Thumbnail regeneration: lease lost; stopping before the keys are cleared")
+                return False
+            key = activity.map_thumbnail_path
+            if key is None:
+                continue
+            try:
+                storage.delete(activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA, key)
+                deleted += 1
+            except Exception as err:
+                logger.warning(
+                    "Thumbnail regeneration: could not delete the existing thumbnail",
+                    exc_info=err,
+                    extra=core_logger.context(activity_id=activity.id),
+                )
     # Clear DB references so the generation pass picks them all up.
     activity_integration.clear_all_thumbnail_keys(db)
     db.commit()

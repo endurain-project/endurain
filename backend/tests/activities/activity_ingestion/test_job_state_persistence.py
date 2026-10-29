@@ -498,6 +498,38 @@ class TestSweepStaleStagedBlobs:
 
         assert deleted == [(area, "upload_staging/orphan.gpx")]
 
+    def test_no_session_stays_open_across_a_storage_call(self, factory):
+        """A listing page or a delete is an object-storage round trip, so no connection may wait on it."""
+        open_sessions = {"count": 0}
+        seen_open: list[int] = []
+
+        class _Tracked:
+            def __enter__(self):
+                open_sessions["count"] += 1
+                self._session = factory()
+                return self._session.__enter__()
+
+            def __exit__(self, *exc):
+                open_sessions["count"] -= 1
+                return self._session.__exit__(*exc)
+
+        objects = [(f"upload_staging/orphan-{n}.gpx", self._age(3)) for n in range(3)]
+
+        def iter_objects(area_name, prefix=""):
+            for item in objects:
+                seen_open.append(open_sessions["count"])
+                yield item
+
+        platform = MagicMock()
+        platform.clock.now.return_value = self._NOW
+        platform.storage.iter_objects.side_effect = iter_objects
+        platform.storage.delete.side_effect = lambda *_a: seen_open.append(open_sessions["count"])
+        with patch.object(ingestion_jobs.core_database, "SessionLocal", _Tracked):
+            ingestion_jobs.sweep_stale_staged_blobs(platform.clock, platform.storage)
+
+        assert platform.storage.delete.call_count == 3
+        assert set(seen_open) == {0}
+
     def test_an_upload_a_job_still_names_is_kept(self, factory):
         _add_job(factory, staged_key="live.gpx")
         area = ingestion_jobs.activity_ingestion_upload_entry_service.UPLOAD_STAGING_STORAGE_AREA

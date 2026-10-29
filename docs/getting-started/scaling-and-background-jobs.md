@@ -68,7 +68,7 @@ flowchart TB
     W1 & W2 -. advisory lock .-> PG
 ```
 
-Replicas share no local state: rate limits, login lockout and pending MFA live in Redis, files live in the bucket, and a PostgreSQL advisory lock makes sure a scheduled job runs on one replica at a time.
+Replicas share no local state: rate limits, login lockout and pending MFA live in Redis, files live in the bucket, a PostgreSQL advisory lock makes sure a scheduled job runs on one replica at a time, and a mark in the shared state makes it run once per interval rather than once per replica.
 
 ### Live updates
 

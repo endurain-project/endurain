@@ -63,7 +63,7 @@ When no backfill is possible pass `None` plus `exempt_reason=...` explaining why
 ## Scheduled and startup work
 
 - Recurring work: `scheduled_jobs.recurring_jobs()` returning `core_scheduler.ScheduledJob(...)` tuples; one-shots via `core_scheduler.run_once(...)`.
-- A pass that may be skipped when another replica is running it declares `lock_name=` on its `ScheduledJob` (and on the `run_once` that catches up after a restart); the service does not take the lock itself. An operation that must be retried rather than skipped (a full thumbnail regeneration) takes its own lock and raises `ConflictError` so a durable job retries it.
+- A pass that may be skipped when another replica is running it declares `lock_name=` on its `ScheduledJob` (and on the `run_once` that catches up after a restart); the service does not take the lock itself. A locked recurring job also marks itself run in the shared state, so it runs once per interval across replicas, not once per replica. An operation that must be retried rather than skipped (a full thumbnail regeneration) takes its own lock and raises `ConflictError` so a durable job retries it.
 - Startup backfills are `StartupTask`s on the module's `RuntimeModule`.
 - The scheduler schedules what it is handed and imports no module.
 - Everything must also run in `worker.py`; `module_registry` is what keeps API and worker from drifting.
