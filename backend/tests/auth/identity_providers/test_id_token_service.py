@@ -202,7 +202,7 @@ class TestVerifyIdTokenSignatureAndClaims:
 
     def test_expired_token_raises_401(self, service, rsa_key):
         now = int(time.time())
-        token = _sign(rsa_key, _valid_claims(exp=now - 10, iat=now - 3600))
+        token = _sign(rsa_key, _valid_claims(exp=now - 120, iat=now - 3600))
         with (
             patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,

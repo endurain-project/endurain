@@ -20,6 +20,9 @@ import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
 
+#: Clock skew tolerated between this server and the provider on ``exp`` and ``iat``.
+ID_TOKEN_CLOCK_LEEWAY_SECONDS = 60
+
 # Allow-list of acceptable ID-token signature algorithms.
 #
 # OIDC ID tokens are verified against the IdP's *public* JWKS keys, so only
@@ -62,7 +65,7 @@ def verify_id_token(
     3. Finds the matching public key in the JWKS
     4. Imports the key based on its type (RSA, EC, or Oct)
     5. Verifies the JWT signature using joserfc
-    6. Validates standard claims (iss, aud, exp, iat)
+    6. Validates standard claims (iss, aud, exp, iat), allowing a small clock skew, and the authorized party
     7. Validates nonce if provided (required for implicit/hybrid flows)
 
     This replaces the insecure manual JWT decode that was previously used.
@@ -176,6 +179,7 @@ def verify_id_token(
         # Step 5a: Validate claims (iss, aud, exp, iat)
         # This is done separately after decoding in joserfc
         claims_request = jwt.JWTClaimsRegistry(
+            leeway=ID_TOKEN_CLOCK_LEEWAY_SECONDS,
             iss={"essential": True, "value": expected_issuer},
             aud={"essential": True, "value": expected_audience},
             exp={"essential": True},
@@ -184,6 +188,7 @@ def verify_id_token(
 
         # Validate all claims
         claims_request.validate(claims)
+        _require_authorized_party(claims, expected_audience)
 
         logger.debug(
             "Successfully verified ID token signature for sub=<value_1>",
@@ -229,3 +234,26 @@ def verify_id_token(
     except Exception as err:
         logger.debug("Unexpected error verifying ID token: <err>", exc_info=err, extra=core_logger.context(err=err))
         raise core_exceptions.ProcessingError("Failed to verify ID token") from err
+
+
+def _require_authorized_party(claims: dict[str, Any], client_id: str) -> None:
+    """Require the token to have been issued to this client when it names an authorized party (OIDC Core 3.1.3.7).
+
+    A token with several audiences must say which of them it was issued to, and an ``azp`` that names another
+    client means the token was issued to that client and only lists this one as an audience.
+
+    Args:
+        claims: The ID token's claims, already validated for ``aud``.
+        client_id: This server's client id at the provider.
+
+    Raises:
+        UnauthenticatedError: If ``azp`` names another client, or is missing from a token with several audiences.
+    """
+    azp = claims.get("azp")
+    audience = claims.get("aud")
+    if azp is None and isinstance(audience, list) and len(audience) > 1:
+        logger.warning("ID token has several audiences and no authorized party")
+        raise core_exceptions.UnauthenticatedError("ID token names no authorized party")
+    if azp is not None and azp != client_id:
+        logger.warning("ID token was issued to another client")
+        raise core_exceptions.UnauthenticatedError("ID token was issued to another client")
