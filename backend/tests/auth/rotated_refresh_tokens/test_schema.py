@@ -25,6 +25,7 @@ class TestRotatedRefreshTokenCreateSchema:
             rotation_count=0,
             rotated_at=now,
             expires_at=now,
+            refresh_token_exp=now,
         )
 
         # Assert
@@ -33,6 +34,7 @@ class TestRotatedRefreshTokenCreateSchema:
         assert token.rotation_count == 0
         assert token.rotated_at == now
         assert token.expires_at == now
+        assert token.refresh_token_exp == now
 
     def test_create_schema_requires_token_family_id(self):
         """
@@ -48,6 +50,7 @@ class TestRotatedRefreshTokenCreateSchema:
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "token_family_id" in str(exc_info.value)
@@ -66,6 +69,7 @@ class TestRotatedRefreshTokenCreateSchema:
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "hashed_token" in str(exc_info.value)
@@ -85,6 +89,7 @@ class TestRotatedRefreshTokenCreateSchema:
                 rotation_count=-1,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "rotation_count" in str(exc_info.value)
@@ -105,6 +110,7 @@ class TestRotatedRefreshTokenCreateSchema:
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "token_family_id" in str(exc_info.value)
@@ -125,6 +131,7 @@ class TestRotatedRefreshTokenCreateSchema:
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "hashed_token" in str(exc_info.value)
@@ -144,6 +151,7 @@ class TestRotatedRefreshTokenCreateSchema:
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
                 extra_field="not allowed",
             )
 
@@ -171,6 +179,7 @@ class TestRotatedRefreshTokenCreateSchema:
                 rotation_count="not-an-int",
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "rotation_count" in str(exc_info.value)
@@ -196,6 +205,7 @@ class TestRotatedRefreshTokenReadSchema:
             rotation_count=0,
             rotated_at=now,
             expires_at=now,
+            refresh_token_exp=now,
         )
 
         # Assert
@@ -216,6 +226,7 @@ class TestRotatedRefreshTokenReadSchema:
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "id" in str(exc_info.value)
@@ -236,6 +247,7 @@ class TestRotatedRefreshTokenReadSchema:
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
+                refresh_token_exp=now,
             )
 
         assert "id" in str(exc_info.value)

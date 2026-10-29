@@ -52,11 +52,11 @@ def create_rotated_token(
     return rotated_token_schema.RotatedRefreshTokenRead.model_validate(row)
 
 
-def delete_expired_tokens(cutoff_time: datetime, db: Session) -> int:
-    """Stage deletion of rotated-token records rotated before ``cutoff_time``."""
+def delete_expired_tokens(now: datetime, db: Session) -> int:
+    """Stage deletion of rotated-token records whose refresh token expired before ``now``."""
     result = db.execute(
         delete(rotated_token_models.RotatedRefreshToken).where(
-            rotated_token_models.RotatedRefreshToken.rotated_at < cutoff_time
+            rotated_token_models.RotatedRefreshToken.refresh_token_exp < now
         )
     )
     db.flush()

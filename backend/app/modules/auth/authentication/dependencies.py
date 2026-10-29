@@ -1,5 +1,6 @@
 """Authentication transport dependencies and refresh-cookie helpers."""
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import Depends, Request, Response
@@ -220,6 +221,20 @@ def get_sid_from_refresh_token(
     if not isinstance(sid, str):
         raise core_exceptions.UnauthenticatedError("Invalid token: 'sid' claim must be a string")
     return sid
+
+
+def get_exp_from_refresh_token(
+    refresh_token: Annotated[str, Depends(get_refresh_token)],
+    token_manager: Annotated[
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
+    ],
+) -> datetime:
+    """Return the expiry claim of a refresh token as a timezone-aware UTC instant."""
+    exp = token_manager.get_token_claim(refresh_token, "exp")
+    if not isinstance(exp, int):
+        raise core_exceptions.UnauthenticatedError("Invalid token: 'exp' claim must be an integer")
+    return datetime.fromtimestamp(exp, UTC)
 
 
 def get_and_return_refresh_token(

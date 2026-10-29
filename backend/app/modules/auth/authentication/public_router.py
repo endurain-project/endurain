@@ -1,6 +1,7 @@
 """Public login, refresh, MFA-login and logout routes."""
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import (
@@ -225,6 +226,10 @@ def refresh_token(
         str,
         Depends(authentication_dependencies.get_and_return_refresh_token),
     ],
+    refresh_token_exp: Annotated[
+        datetime,
+        Depends(authentication_dependencies.get_exp_from_refresh_token),
+    ],
     password_hasher: Annotated[
         credentials_integration.PasswordHasher,
         Depends(credentials_integration.get_password_hasher),
@@ -256,6 +261,7 @@ def refresh_token(
         token_user_id: User ID extracted from the refresh token.
         token_session_id: Session ID extracted from the refresh token.
         refresh_token_value: The raw refresh token value.
+        refresh_token_exp: Expiry of the presented refresh token.
         password_hasher: Utility for verifying token hashes.
         token_manager: Utility for creating tokens.
         db: Database session.
@@ -276,6 +282,7 @@ def refresh_token(
         token_user_id,
         token_session_id,
         refresh_token_value,
+        refresh_token_exp,
         password_hasher,
         token_manager,
         client_type,

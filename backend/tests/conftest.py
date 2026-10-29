@@ -1,5 +1,5 @@
 import contextlib
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from unittest.mock import MagicMock
 
@@ -397,6 +397,10 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         """Return mock session ID from refresh token"""
         return app.state.mock_session_id
 
+    def _mock_get_exp_from_refresh_token():
+        """Return a mock expiry from refresh token"""
+        return datetime.now(UTC) + timedelta(days=7)
+
     def _mock_get_and_return_refresh_token():
         """Return mock refresh token"""
         return app.state.mock_refresh_token
@@ -417,6 +421,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = _mock_get_sid_from_access_token
     app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = _mock_get_sub_from_refresh_token
     app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = _mock_get_sid_from_refresh_token
+    app.dependency_overrides[authentication_dependencies.get_exp_from_refresh_token] = _mock_get_exp_from_refresh_token
     app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = (
         _mock_get_and_return_refresh_token
     )

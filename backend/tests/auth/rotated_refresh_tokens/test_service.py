@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import core.config as core_config
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_token_jobs
 import modules.auth.rotated_refresh_tokens.service as rotated_token_utils
@@ -54,6 +53,7 @@ class TestStoreRotatedToken:
         mock_hash.return_value = "hashed-token"
         mock_crypto.encrypt_token_fernet.return_value = "encrypted-replacement"
         replacement_exp = datetime.now(UTC) + timedelta(days=7)
+        rotated_exp = datetime.now(UTC) + timedelta(days=6)
         mock_db = MagicMock()
 
         # Act
@@ -62,6 +62,7 @@ class TestStoreRotatedToken:
             "family-id",
             0,
             mock_db,
+            refresh_token_exp=rotated_exp,
             replacement_refresh_token="new-refresh-token",
             replacement_refresh_token_exp=replacement_exp,
         )
@@ -73,6 +74,7 @@ class TestStoreRotatedToken:
         stored_schema = mock_crud.create_rotated_token.call_args.args[0]
         assert stored_schema.replacement_refresh_token == "encrypted-replacement"
         assert stored_schema.replacement_refresh_token_exp == replacement_exp
+        assert stored_schema.refresh_token_exp == rotated_exp
 
 
 class TestCheckTokenReuse:
@@ -263,14 +265,13 @@ class TestCleanupExpiredRotatedTokens:
 
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")
-    def test_cleanup_keeps_records_for_the_refresh_token_lifetime(self, mock_delete, mock_session_local):
+    def test_cleanup_removes_what_has_expired_by_now(self, mock_delete, mock_session_local):
+        """Each record carries its own token's expiry, so the job asks only for what has passed."""
         mock_session_local.return_value.__enter__.return_value = MagicMock()
         mock_delete.return_value = 0
         before = datetime.now(UTC)
         rotated_token_jobs.delete_expired_rotated_tokens()
-        cutoff = mock_delete.call_args.args[0]
-        lifetime = timedelta(days=core_config.settings.REFRESH_TOKEN_EXPIRE_DAYS)
-        assert before - lifetime <= cutoff <= datetime.now(UTC) - lifetime
+        assert before <= mock_delete.call_args.args[0] <= datetime.now(UTC)
 
     def test_recurring_job_runs_every_minute(self):
         assert rotated_token_jobs.recurring_jobs()[0].minutes == 1

@@ -792,6 +792,7 @@ export interface paths {
          *         token_user_id: User ID extracted from the refresh token.
          *         token_session_id: Session ID extracted from the refresh token.
          *         refresh_token_value: The raw refresh token value.
+         *         refresh_token_exp: Expiry of the presented refresh token.
          *         password_hasher: Utility for verifying token hashes.
          *         token_manager: Utility for creating tokens.
          *         db: Database session.

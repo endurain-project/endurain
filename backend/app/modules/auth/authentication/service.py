@@ -920,6 +920,7 @@ def refresh_token(
     token_user_id: int,
     token_session_id: str,
     refresh_token_value: str,
+    refresh_token_exp: datetime,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     client_type: str,
@@ -945,6 +946,7 @@ def refresh_token(
         token_user_id: User ID extracted from the refresh token.
         token_session_id: Session ID extracted from the refresh token.
         refresh_token_value: The raw refresh token value.
+        refresh_token_exp: Expiry of the presented refresh token; its rotated record is kept until then.
         password_hasher: Utility for verifying token hashes.
         token_manager: Utility for creating tokens.
         db: Database session.
@@ -1081,6 +1083,7 @@ def refresh_token(
             session.token_family_id,
             session.rotation_count,
             db,
+            refresh_token_exp=refresh_token_exp,
             replacement_refresh_token=new_refresh_token,
             replacement_refresh_token_exp=new_refresh_token_exp,
         )

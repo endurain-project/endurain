@@ -46,6 +46,23 @@ def test_refresh_claims_are_extracted(token_manager, sample_user_read):
     assert authentication_dependencies.get_sid_from_refresh_token(refresh_token, token_manager) == "session-id"
 
 
+def test_refresh_expiry_is_the_tokens_own_exp_claim(token_manager, sample_user_read):
+    """The rotated record is kept until this instant, so it has to be the token's, not the policy's."""
+    exp, refresh_token = token_manager.create_token(
+        "session-id", sample_user_read, access_tokens_service.TokenType.REFRESH, timedelta(days=30)
+    )
+    assert authentication_dependencies.get_exp_from_refresh_token(refresh_token, token_manager) == exp.replace(
+        microsecond=0
+    )
+
+
+def test_refresh_expiry_must_be_an_integer_claim():
+    token_manager = MagicMock()
+    token_manager.get_token_claim.return_value = "soon"
+    with pytest.raises(core_exceptions.UnauthenticatedError):
+        authentication_dependencies.get_exp_from_refresh_token("refresh", token_manager)
+
+
 def test_validate_refresh_token_accepts_a_valid_token(token_manager, sample_user_read):
     _, refresh_token = token_manager.create_token(
         "session-id", sample_user_read, access_tokens_service.TokenType.REFRESH, timedelta(days=1)

@@ -42,6 +42,7 @@ def store_rotated_token(
     rotation_count: int,
     db: Session,
     *,
+    refresh_token_exp: datetime,
     replacement_refresh_token: str,
     replacement_refresh_token_exp: datetime,
 ) -> None:
@@ -57,6 +58,8 @@ def store_rotated_token(
         token_family_id: UUID of the token family.
         rotation_count: Current rotation count for this token.
         db: SQLAlchemy database session.
+        refresh_token_exp: Expiry of ``raw_token``; the record is kept until
+            then, so a replay of the old token is recognised as reuse.
         replacement_refresh_token: The new refresh token minted
             to replace ``raw_token`` (replayed within grace).
         replacement_refresh_token_exp: Expiry of the replacement
@@ -78,6 +81,7 @@ def store_rotated_token(
         rotation_count=rotation_count,
         rotated_at=now,
         expires_at=expires_at,
+        refresh_token_exp=refresh_token_exp,
         replacement_refresh_token=core_cryptography.encrypt_token_fernet(replacement_refresh_token),
         replacement_refresh_token_exp=replacement_refresh_token_exp,
     )
@@ -182,6 +186,6 @@ def delete_by_family(token_family_id: str, db: Session) -> int:
     return rotated_token_crud.delete_by_family(token_family_id, db)
 
 
-def delete_expired_tokens(cutoff_time: datetime, db: Session) -> int:
-    """Stage deletion of rotated-token records rotated before ``cutoff_time``."""
-    return rotated_token_crud.delete_expired_tokens(cutoff_time, db)
+def delete_expired_tokens(now: datetime, db: Session) -> int:
+    """Stage deletion of rotated-token records whose refresh token expired before ``now``."""
+    return rotated_token_crud.delete_expired_tokens(now, db)

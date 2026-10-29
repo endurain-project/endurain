@@ -1,6 +1,6 @@
 """Integration tests for auth.router endpoints."""
 
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -141,6 +141,9 @@ def auth_app(
     app.dependency_overrides[auth_router.authentication_dependencies.header_client_type_scheme] = _client_type
     app.dependency_overrides[failed_login_store.get_failed_login_attempts] = lambda: fake_failed_login_store
     app.dependency_overrides[auth_mfa_dependencies.get_pending_mfa_store] = lambda: fake_pending_mfa_store
+    app.dependency_overrides[authentication_dependencies.get_exp_from_refresh_token] = lambda: (
+        datetime.now(UTC) + timedelta(days=7)
+    )
 
     return app
 

@@ -13,6 +13,7 @@ def store_rotated_token(
     rotation_count: int,
     db: Session,
     *,
+    refresh_token_exp: datetime,
     replacement_refresh_token: str,
     replacement_refresh_token_exp: datetime,
 ) -> None:
@@ -22,6 +23,7 @@ def store_rotated_token(
         token_family_id,
         rotation_count,
         db,
+        refresh_token_exp=refresh_token_exp,
         replacement_refresh_token=replacement_refresh_token,
         replacement_refresh_token_exp=replacement_refresh_token_exp,
     )

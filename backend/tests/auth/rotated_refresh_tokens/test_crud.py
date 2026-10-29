@@ -22,6 +22,7 @@ def _token(**overrides):
         "expires_at": datetime.now(UTC) + timedelta(seconds=30),
         "replacement_refresh_token": "encrypted",
         "replacement_refresh_token_exp": datetime.now(UTC) + timedelta(days=1),
+        "refresh_token_exp": datetime.now(UTC) + timedelta(days=1),
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -68,3 +69,27 @@ def test_delete_operations_stage_and_return_row_counts(mock_db):
     assert rotated_token_crud.delete_by_family("f" * 36, mock_db) == 2
     assert mock_db.flush.call_count == 2
     mock_db.commit.assert_not_called()
+
+
+def _stage(db, hashed_token, *, rotated_at, refresh_token_exp):
+    values = _token(hashed_token=hashed_token, rotated_at=rotated_at, refresh_token_exp=refresh_token_exp).__dict__
+    values.pop("id")
+    rotated_token_crud.create_rotated_token(rotated_token_schema.RotatedRefreshTokenCreate(**values), db)
+
+
+def test_a_record_is_kept_until_its_refresh_token_expires():
+    """Reuse detection needs the record for as long as the old token could still be presented.
+
+    A token issued under a 30-day lifetime and rotated 8 days ago is still valid, so its record stays;
+    one whose own expiry has passed goes, however recently it was rotated.
+    """
+    db = create_sqlite_session()
+    now = datetime.now(UTC)
+    _stage(db, "a" * 64, rotated_at=now - timedelta(days=8), refresh_token_exp=now + timedelta(days=22))
+    _stage(db, "b" * 64, rotated_at=now - timedelta(minutes=5), refresh_token_exp=now - timedelta(minutes=1))
+
+    assert rotated_token_crud.delete_expired_tokens(now, db) == 1
+    assert rotated_token_crud.get_rotated_token_by_hash("a" * 64, db) is not None
+    assert rotated_token_crud.get_rotated_token_by_hash("b" * 64, db) is None
+
+    db.close()

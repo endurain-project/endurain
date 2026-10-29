@@ -25,6 +25,7 @@ class TestRotatedRefreshTokenModel:
         assert hasattr(model, "rotation_count")
         assert hasattr(model, "rotated_at")
         assert hasattr(model, "expires_at")
+        assert hasattr(model, "refresh_token_exp")
 
     def test_rotated_refresh_token_model_primary_key(self):
         """
