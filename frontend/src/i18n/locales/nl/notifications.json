@@ -39,6 +39,11 @@
       "title": "Garmin Connect vereist aandacht",
       "body": "Je Garmin Connect-sessie is verlopen. Koppel opnieuw om te blijven synchroniseren."
     },
+    "idpLinked": {
+      "title": "Nieuwe aanmeldprovider gekoppeld",
+      "body": "{name} is aan je account gekoppeld. Was jij dit niet, controleer dan je beveiligingsinstellingen.",
+      "bodyGeneric": "Er is een aanmeldprovider aan je account gekoppeld. Was jij dit niet, controleer dan je beveiligingsinstellingen."
+    },
     "adminSignUpApproval": {
       "title": "Nieuwe registratie vereist goedkeuring",
       "body": "{name} ({'@'}{username}) wacht op accountgoedkeuring."

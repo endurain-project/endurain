@@ -3,6 +3,7 @@ import {
   Activity,
   Bell,
   CopyCheck,
+  KeyRound,
   ShieldAlert,
   UserCheck,
   UserPlus,
@@ -90,6 +91,22 @@ describe('presentNotification', () => {
     expect(result.icon).toBe(Unplug)
     expect(result.titleKey).toBe('notifications.types.stravaTokenExpired.title')
     expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
+  })
+
+  it('names the linked provider and routes to security settings', () => {
+    const result = presentNotification(make(31, { idp_id: 4, idp_name: 'Authentik' }))
+
+    expect(result.icon).toBe(KeyRound)
+    expect(result.titleKey).toBe('notifications.types.idpLinked.title')
+    expect(result.bodyKey).toBe('notifications.types.idpLinked.body')
+    expect(result.bodyParams).toEqual({ name: 'Authentik' })
+    expect(result.to).toEqual({ name: 'settings-security' })
+  })
+
+  it('falls back to the generic body when the linked provider has no name', () => {
+    const result = presentNotification(make(31, { idp_id: 4, idp_name: null }))
+
+    expect(result.bodyKey).toBe('notifications.types.idpLinked.bodyGeneric')
   })
 
   it('routes an admin sign-up approval to settings users', () => {

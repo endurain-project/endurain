@@ -58,4 +58,12 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
             "an idempotent reaction with no independently reconcilable state."
         ),
     ),
+    DurableSubscriberNet(
+        notification_subscribers.IDP_LINKED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The identity-provider link row is the source of truth; its notification is "
+            "a transient reaction with no independently reconcilable state."
+        ),
+    ),
 )

@@ -39,6 +39,11 @@
       "title": "Garmin Connect nécessite votre attention",
       "body": "Votre session Garmin Connect a expiré. Reconnectez-la pour continuer la synchronisation."
     },
+    "idpLinked": {
+      "title": "Nouveau fournisseur de connexion associé",
+      "body": "{name} a été associé à votre compte. Si ce n'était pas vous, vérifiez vos paramètres de sécurité.",
+      "bodyGeneric": "Un fournisseur de connexion a été associé à votre compte. Si ce n'était pas vous, vérifiez vos paramètres de sécurité."
+    },
     "adminSignUpApproval": {
       "title": "Nouvelle inscription en attente d'approbation",
       "body": "{name} ({'@'}{username}) attend l'approbation de son compte."

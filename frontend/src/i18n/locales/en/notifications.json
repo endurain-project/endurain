@@ -43,6 +43,11 @@
       "title": "Strava needs attention",
       "body": "Strava rejected your connection. Reconnect it to keep syncing."
     },
+    "idpLinked": {
+      "title": "New sign-in provider linked",
+      "body": "{name} was linked to your account. If this wasn't you, review your security settings.",
+      "bodyGeneric": "A sign-in provider was linked to your account. If this wasn't you, review your security settings."
+    },
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",
       "body": "{name} ({'@'}{username}) is waiting for account approval."

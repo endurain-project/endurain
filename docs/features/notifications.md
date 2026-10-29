@@ -11,6 +11,7 @@ Notifications tell you that something happened that you did not do yourself on t
 | New follower request | The user being followed | Someone asked to follow you |
 | Follower request accepted | The user who asked | Someone accepted your request |
 | Garmin Connect disconnected | The account owner | Garmin Connect rejected your stored login during a sync. Endurain unlinked the account, and you must [connect it again](integrations.md#garmin-connect) |
+| Identity provider linked | The account owner | An identity provider was linked to your account |
 | Sign-up waiting for approval | Every administrator | A new user verified their email and needs [approval](user-management.md#approving-sign-ups) |
 
 If someone withdraws a follow request, the "new follower request" notification it left behind is removed.

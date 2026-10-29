@@ -16,6 +16,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import modules.auth.identity_providers.integration_service as idp_integration
 import modules.notifications.constants as notifications_constants
 import modules.notifications.crud as notifications_crud
 import modules.notifications.schema as notifications_schema
@@ -344,3 +345,40 @@ def remove_follow_request_notifications(requester_user_id: int, target_user_id: 
         extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id, deleted=deleted),
     )
     return deleted > 0
+
+
+def create_idp_linked_notification(
+    user_id: int,
+    idp_id: int,
+    source_event_id: str,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
+    """Record the notification that a sign-in provider was linked to the account.
+
+    The provider's name is included when it still exists; a provider deleted since
+    the event leaves the notification without one.
+
+    Args:
+        user_id: The user whose account gained the link, who owns the notification row.
+        idp_id: The linked identity provider.
+        source_event_id: Stable durable event identifier.
+        db: Database session.
+
+    Returns:
+        The notification, the websocket message type the caller should push, and
+        whether this call created it.
+
+    Raises:
+        NotFoundError: When the user no longer exists.
+    """
+    if users_integration.get_user(user_id, db) is None:
+        raise core_exceptions.NotFoundError("User not found")
+    idp = idp_integration.get_identity_provider(idp_id, db)
+    return _record_event_notification(
+        user_id,
+        notifications_constants.NotificationType.IDP_LINKED,
+        notifications_constants.IDP_LINKED_WS_MESSAGE,
+        {"idp_id": idp_id, "idp_name": idp.name if idp is not None else None},
+        source_event_id,
+        db,
+    )

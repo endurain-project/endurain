@@ -19,6 +19,7 @@ import modules.auth.identity_provider_links.integration_service as identity_prov
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.event_publishers as idp_event_publishers
 import modules.auth.identity_providers.id_token_service as id_token_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 import modules.auth.identity_providers.step_up_ticket_store as step_up_ticket_store
@@ -488,6 +489,7 @@ class CallbackService:
                 identity_provider_links_integration.create_user_identity_provider(
                     user_id=link_user_id, idp_id=idp.id, idp_subject=subject, db=db
                 )
+                idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
 
                 # Update user info if sync is enabled
                 if idp.sync_user_info:
