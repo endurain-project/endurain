@@ -3,8 +3,10 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from jasil.providers import StateBackendUnavailableError, StateProvider
 from sqlalchemy.orm import Session
 
+import core.email_cooldown as core_email_cooldown
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
@@ -20,6 +22,8 @@ import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
+
+EXISTING_ACCOUNT_NOTICE_COOLDOWN_SECONDS = 3600
 
 
 def create_sign_up_token(user_id: int, db: Session) -> str:
@@ -68,9 +72,22 @@ def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:
         sign_up_event_publishers.publish_sign_up_approval_requested(user_id, admin.id, db)
 
 
-def request_sign_up_existing_account_notice(user_id: int, db: Session) -> None:
-    """Stage a notice event for the owner of an email address a sign-up reused, when mail is configured."""
+def request_sign_up_existing_account_notice(user_id: int, state: StateProvider, db: Session) -> None:
+    """Stage a notice event for the owner of an email address a sign-up reused.
+
+    Nothing is staged without mail configured, when the owner was already told within the cooldown, or
+    when the cooldown store is unreachable: the sign-up answer must not depend on the outcome, so an
+    outage skips the notice instead of failing the request.
+    """
     if not server_settings_integration.is_mail_configured(db):
+        return
+    try:
+        if not core_email_cooldown.claim_email(
+            state, "sign_up_existing_account", user_id, EXISTING_ACCOUNT_NOTICE_COOLDOWN_SECONDS
+        ):
+            return
+    except StateBackendUnavailableError as err:
+        logger.error("Sign-up notice cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user_id))
         return
     sign_up_event_publishers.publish_sign_up_existing_account(user_id, db)
 
@@ -195,17 +212,19 @@ def _signup_response(server_settings: server_settings_schema.ServerSettingsRead)
 
 def signup(
     user: users_schema.UsersSignup,
+    state: StateProvider,
     db: Session,
 ) -> sign_up_schema.SignUpRead:
     """Create a user and stage the configured verification event.
 
     A sign-up with an email address that already has an account answers exactly like a new
     account, so the endpoint does not reveal which addresses are registered; the address's owner
-    is told by email instead. A taken username with a new address is refused, because usernames
+    is told by email instead, at most once per cooldown. A taken username with a new address is refused, because usernames
     are already visible to every signed-in user.
 
     Args:
         user: The sign-up details.
+        state: The platform state provider, for the notice cooldown.
         db: Database session.
 
     Returns:
@@ -227,7 +246,7 @@ def signup(
         existing = users_integration.get_user_by_email(user.email, db)
         if existing is None:
             raise core_exceptions.ConflictError("That username is already taken") from None
-        request_sign_up_existing_account_notice(existing.id, db)
+        request_sign_up_existing_account_notice(existing.id, state, db)
         db.commit()
         logger.info("Sign-up used an existing email address", extra=core_logger.context(user_id=existing.id))
         return _signup_response(server_settings)

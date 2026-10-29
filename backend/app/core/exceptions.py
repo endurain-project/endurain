@@ -146,6 +146,16 @@ class InvalidMfaCodeError(InvalidInputError):
     default_detail = "Invalid MFA code"
 
 
+class MfaRequiredError(PermissionDeniedError):
+    """The account has MFA enabled and the request carried no MFA code.
+
+    Clients branch on the ``mfa-required`` problem type to ask for a code and send the same request again.
+    """
+
+    code = "mfa-required"
+    default_detail = "MFA verification required"
+
+
 class ConflictError(DomainError):
     """The action conflicts with the resource's current state."""
 

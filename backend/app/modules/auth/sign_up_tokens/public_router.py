@@ -20,10 +20,11 @@ router = APIRouter()
 def signup(
     request: Request,
     user: users_schema.UsersSignup,
+    state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,
 ) -> sign_up_schema.SignUpRead:
     """Create an account using the configured sign-up policy."""
-    return sign_up_service.signup(user, db)
+    return sign_up_service.signup(user, state, db)
 
 
 @router.post(

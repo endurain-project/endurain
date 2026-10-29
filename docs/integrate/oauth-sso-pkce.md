@@ -373,8 +373,12 @@ X-Client-Type: mobile
 | 400 | Invalid code_verifier | Verifier doesn't match the challenge |
 | 400 | `client_type does not match the OAuth state` | `X-Client-Type` at token exchange differs from the value stored on the PKCE/OAuth state |
 | 404 | Session not found | Invalid session_id or not a PKCE flow |
+| 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
+| 400 | Invalid MFA code | The `mfa_code` was wrong, expired or an already used backup code |
 | 409 | Tokens already exchanged | Replay attack prevention |
-| 429 | Rate limit exceeded | Max 10 requests/minute per IP |
+| 429 | Rate limit exceeded | Max 10 requests/minute per IP, or the account is locked out after too many wrong MFA codes |
+
+**Accounts with MFA enabled:** signing in with an identity provider does not replace the account's own MFA. When the account has MFA enabled, the exchange is refused with `403` and the problem type `urn:endurain:error:mfa-required` until the request also carries `"mfa_code"` (a TOTP code or a backup code). The refusal does not use up the session: ask the user for a code and send the same request again with it. The verifier is checked first, so only the client that started the flow can try codes, and wrong codes count toward the same lockout as the password login.
 
 #### Step 5: Store Tokens Securely
 

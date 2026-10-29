@@ -3,8 +3,10 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from jasil.providers import StateBackendUnavailableError, StateProvider
 from sqlalchemy.orm import Session
 
+import core.email_cooldown as core_email_cooldown
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
@@ -21,6 +23,8 @@ import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
+
+RESET_EMAIL_COOLDOWN_SECONDS = 300
 
 
 class PasswordPolicyError(core_exceptions.DomainError):
@@ -51,15 +55,35 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
     return token
 
 
-def request_password_reset_email(email: str, db: Session) -> None:
-    """Stage and commit a reset-email request without revealing account existence."""
+def request_password_reset_email(email: str, state: StateProvider, db: Session) -> None:
+    """Stage and commit a reset-email request without revealing account existence.
+
+    An account is mailed at most once per cooldown, so the endpoint cannot flood an inbox. A request inside
+    the cooldown, or one the cooldown store cannot answer, sends nothing and still gets the same answer: the
+    reply must not tell a registered address from an unregistered one.
+
+    Args:
+        email: The address the reset was requested for.
+        state: The platform state provider, for the cooldown.
+        db: Database session.
+
+    Raises:
+        ServiceUnavailableError: If mail is not configured.
+    """
     if not server_settings_integration.is_mail_configured(db):
         raise core_exceptions.ServiceUnavailableError("Email service is not configured")
     user = users_integration.get_user_by_email(email, db)
-    if user and user.active:
-        password_reset_event_publishers.publish_password_reset_requested(user.id, db)
-        db.commit()
-        logger.info("Password-reset email requested", extra=core_logger.context(user_id=user.id))
+    if not (user and user.active):
+        return
+    try:
+        if not core_email_cooldown.claim_email(state, "password_reset", user.id, RESET_EMAIL_COOLDOWN_SECONDS):
+            return
+    except StateBackendUnavailableError as err:
+        logger.error("Password-reset cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user.id))
+        return
+    password_reset_event_publishers.publish_password_reset_requested(user.id, db)
+    db.commit()
+    logger.info("Password-reset email requested", extra=core_logger.context(user_id=user.id))
 
 
 def prepare_password_reset_email(

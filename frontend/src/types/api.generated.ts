@@ -4121,13 +4121,16 @@ export interface paths {
          * @description Exchange a PKCE code verifier for the JWT tokens of an SSO session.
          *
          *     After the identity-provider callback creates a session, the client proves it holds the PKCE code verifier and
-         *     receives the tokens. The exchange succeeds once per session.
+         *     receives the tokens. The exchange succeeds once per session. An identity-provider session of an account with MFA
+         *     enabled also needs ``mfa_code``; without it the answer is a ``403`` with the ``mfa-required`` problem type and the
+         *     session stays usable.
          *
          *     Args:
          *         session_id: Session created by the identity-provider callback.
          *         request: Incoming request, read for the ``X-Client-Type`` header.
          *         response: Response that receives the refresh cookie for web clients.
-         *         token_exchange: Body carrying the PKCE code verifier.
+         *         token_exchange: Body carrying the PKCE code verifier and, when MFA applies, the MFA code.
+         *         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
          *         password_hasher: Hasher for the stored refresh token.
          *         token_manager: Token manager that signs the tokens.
          *         db: Database session.
@@ -11042,6 +11045,8 @@ export interface components {
          *     Attributes:
          *         code_verifier (str): PKCE code verifier (43-128 chars, base64url).
          *             Must hash to the code_challenge stored in OAuth state.
+         *         mfa_code (str | None): TOTP or backup code. Required when the session
+         *             came from an identity provider and the account has MFA enabled.
          */
         TokenExchangeRequest: {
             /**
@@ -11049,6 +11054,11 @@ export interface components {
              * @description PKCE code verifier (base64url, 43-128 chars)
              */
             code_verifier: string;
+            /**
+             * Mfa Code
+             * @description MFA code, required for an identity-provider session of an account with MFA enabled
+             */
+            mfa_code?: string | null;
         };
         /**
          * TokenMobileRead

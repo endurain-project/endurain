@@ -30,7 +30,7 @@ const { t } = useI18n()
 const { config } = useAppConfig()
 const { serverSettings, ssoProviders, isSettingsLoading, isSsoLoading, loginImageUrl, load } =
   usePublicServerSettings()
-const { startSsoLogin, processSsoCallback, maybeAutoRedirect } = useSsoLogin()
+const { startSsoLogin, processSsoCallback, completeSsoMfa, maybeAutoRedirect } = useSsoLogin()
 const { navigateAfterLogin } = useSafeRedirect()
 const { resolveInitialAlert, shouldForceLocalLogin } = useLoginRouteMessages()
 const toasts = useToasts()
@@ -42,9 +42,10 @@ const pendingUsername = ref('')
 const forceLocalLogin = ref(false)
 const isLoading = ref(false)
 const isForgotPasswordOpen = ref(false)
+const isSsoMfaPending = ref(false)
 const alert = ref<AlertState | null>(null)
 
-const isMfaStep = computed(() => pendingUsername.value.length > 0)
+const isMfaStep = computed(() => pendingUsername.value.length > 0 || isSsoMfaPending.value)
 const showLocalLogin = computed(
   () => serverSettings.value.local_login_enabled || isMfaStep.value || forceLocalLogin.value,
 )
@@ -114,6 +115,11 @@ async function submitForm(): Promise<void> {
   const duringMfa = isMfaStep.value
 
   try {
+    if (isSsoMfaPending.value) {
+      await completeSsoMfa(mfaCode.value.trim().toUpperCase())
+      return
+    }
+
     const result = duringMfa
       ? await auth.verifyMfa(pendingUsername.value, mfaCode.value.trim().toUpperCase())
       : await auth.login(username.value.trim(), password.value)
@@ -201,6 +207,11 @@ onMounted(async () => {
 
   const callback = await processSsoCallback()
   if (callback.status === 'completed') {
+    return
+  }
+  if (callback.status === 'mfa-required') {
+    isSsoMfaPending.value = true
+    alert.value = { kind: 'info', message: t('login.mfaRequired') }
     return
   }
   if (callback.status === 'error') {

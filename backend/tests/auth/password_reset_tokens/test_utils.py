@@ -4,6 +4,8 @@ import hashlib
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.backends.state_memory import MemoryState
+from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
 import modules.auth.password_reset_tokens.service as password_reset_service
@@ -100,7 +102,7 @@ class TestRequestPasswordReset:
     )
     def test_mail_unavailable_is_a_domain_error(self, _configured, mock_db):
         with pytest.raises(core_exceptions.ServiceUnavailableError):
-            password_reset_service.request_password_reset_email("user@example.com", mock_db)
+            password_reset_service.request_password_reset_email("user@example.com", MemoryState(), mock_db)
 
     @patch(
         "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
@@ -111,9 +113,9 @@ class TestRequestPasswordReset:
     )
     def test_unknown_or_inactive_users_are_not_disclosed(self, _configured, get_user, publish, mock_db):
         get_user.return_value = None
-        password_reset_service.request_password_reset_email("nobody@example.com", mock_db)
+        password_reset_service.request_password_reset_email("nobody@example.com", MemoryState(), mock_db)
         get_user.return_value = MagicMock(active=False)
-        password_reset_service.request_password_reset_email("inactive@example.com", mock_db)
+        password_reset_service.request_password_reset_email("inactive@example.com", MemoryState(), mock_db)
         publish.assert_not_called()
         mock_db.commit.assert_not_called()
 
@@ -128,9 +130,54 @@ class TestRequestPasswordReset:
         "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=True
     )
     def test_active_user_event_is_committed(self, _configured, _user, publish, mock_db):
-        password_reset_service.request_password_reset_email("user@example.com", mock_db)
+        password_reset_service.request_password_reset_email("user@example.com", MemoryState(), mock_db)
         publish.assert_called_once_with(9, mock_db)
         mock_db.commit.assert_called_once()
+
+
+class TestPasswordResetCooldown:
+    @pytest.fixture(autouse=True)
+    def _mail_and_user(self):
+        with (
+            patch(
+                "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured",
+                return_value=True,
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.users_integration.get_user_by_email",
+                side_effect=lambda email, db: MagicMock(id=9 if email == "a@example.com" else 10, active=True),
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.password_reset_event_publishers"
+                ".publish_password_reset_requested"
+            ) as publish,
+        ):
+            self.publish = publish
+            yield
+
+    def test_an_address_is_mailed_once_per_cooldown(self, mock_db):
+        state = MemoryState()
+
+        password_reset_service.request_password_reset_email("a@example.com", state, mock_db)
+        password_reset_service.request_password_reset_email("a@example.com", state, mock_db)
+
+        self.publish.assert_called_once_with(9, mock_db)
+
+    def test_each_account_has_its_own_cooldown(self, mock_db):
+        state = MemoryState()
+
+        password_reset_service.request_password_reset_email("a@example.com", state, mock_db)
+        password_reset_service.request_password_reset_email("b@example.com", state, mock_db)
+
+        assert self.publish.call_count == 2
+
+    def test_an_unreachable_state_store_skips_the_email_without_failing_the_request(self, mock_db):
+        broken = MagicMock()
+        broken.set_if_absent.side_effect = StateBackendUnavailableError("down")
+
+        password_reset_service.request_password_reset_email("a@example.com", broken, mock_db)
+
+        self.publish.assert_not_called()
 
 
 class TestPreparePasswordResetEmail:

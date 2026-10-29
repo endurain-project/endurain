@@ -459,6 +459,71 @@ def _raise_auth_security_store_unavailable(
     raise core_exceptions.ServiceUnavailableError("Authentication temporarily unavailable")
 
 
+def _refuse_while_mfa_locked_out(username: str, pending_mfa_store: mfa_dependencies.PendingMFAStore) -> None:
+    """Refuse an MFA attempt while the account is locked out from too many failed codes.
+
+    Args:
+        username: The account's username.
+        pending_mfa_store: Store for pending MFA logins and the MFA lockout.
+
+    Raises:
+        TooManyRequestsError: If the account is locked out.
+        ServiceUnavailableError: If the lockout store is down.
+    """
+    try:
+        if pending_mfa_store.is_locked_out(username):
+            lockout_until = pending_mfa_store.get_lockout_time(username)
+            if lockout_until:
+                seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
+                raise core_exceptions.TooManyRequestsError(
+                    f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds."
+                )
+    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+        _raise_auth_security_store_unavailable(err)
+
+
+def _require_valid_mfa_code(
+    username: str,
+    user_id: int,
+    mfa_code: str,
+    pending_mfa_store: mfa_dependencies.PendingMFAStore,
+    db: Session,
+) -> None:
+    """Check a TOTP or backup code, counting a failure toward the MFA lockout.
+
+    A backup code the check consumes stays consumed: the commit happens before the caller finishes the login.
+
+    Args:
+        username: The account's username.
+        user_id: The account's id.
+        mfa_code: The submitted TOTP or backup code.
+        pending_mfa_store: Store for pending MFA logins, the MFA lockout and the TOTP replay guard.
+        db: Database session.
+
+    Raises:
+        InvalidMfaCodeError: If the code does not verify.
+        ServiceUnavailableError: If the lockout store is down.
+    """
+    username_log_id = lockout_integration.username_log_identifier(username)
+    if not mfa_integration.verify_user_mfa(
+        user_id, mfa_code, credentials_integration, db, replay_guard=pending_mfa_store
+    ):
+        # Record failed attempt and apply lockout if threshold exceeded
+        try:
+            failed_count = pending_mfa_store.record_failed_attempt(username)
+        except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+            _raise_auth_security_store_unavailable(err)
+        lockout_integration.report_lockout_applied(
+            "mfa", lockout_contracts.MFA_LOCKOUT_TIERS, failed_count, username=username
+        )
+        logger.warning(
+            "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
+            extra=core_logger.context(username_log_id=username_log_id, failed_count=failed_count),
+        )
+        raise core_exceptions.InvalidMfaCodeError("Invalid MFA code, backup code or backup code already used.")
+    db.commit()
+
+
 def _finish_login(
     ip_address: str,
     user_agent: str,
@@ -693,17 +758,7 @@ def verify_mfa_and_login(
 
     username_log_id = lockout_integration.username_log_identifier(mfa_request.username)
 
-    # Check if user is locked out from too many failed attempts
-    try:
-        if pending_mfa_store.is_locked_out(mfa_request.username):
-            lockout_until = pending_mfa_store.get_lockout_time(mfa_request.username)
-            if lockout_until:
-                seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
-                raise core_exceptions.TooManyRequestsError(
-                    f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds."
-                )
-    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
-        _raise_auth_security_store_unavailable(err)
+    _refuse_while_mfa_locked_out(mfa_request.username, pending_mfa_store)
 
     # Check if there's a pending MFA login for this username
     try:
@@ -723,25 +778,7 @@ def verify_mfa_and_login(
         )
         raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
 
-    # Verify the MFA code (TOTP or backup code)
-    if not mfa_integration.verify_user_mfa(
-        user_id, mfa_request.mfa_code, credentials_integration, db, replay_guard=pending_mfa_store
-    ):
-        # Record failed attempt and apply lockout if threshold exceeded
-        try:
-            failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
-        except lockout_contracts.AuthSecurityStoreUnavailableError as err:
-            _raise_auth_security_store_unavailable(err)
-        lockout_integration.report_lockout_applied(
-            "mfa", lockout_contracts.MFA_LOCKOUT_TIERS, failed_count, username=mfa_request.username
-        )
-        logger.warning(
-            "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
-            extra=core_logger.context(username_log_id=username_log_id, failed_count=failed_count),
-        )
-        raise core_exceptions.InvalidInputError("Invalid MFA code, backup code or backup code already used.")
-    # A backup code the verification consumed stays consumed even if completing the login fails.
-    db.commit()
+    _require_valid_mfa_code(mfa_request.username, user_id, mfa_request.mfa_code, pending_mfa_store, db)
 
     try:
         claimed_user_id = pending_mfa_store.claim_pending_login(mfa_request.username)
@@ -1119,7 +1156,9 @@ def logout(
 def exchange_tokens_for_session(
     session_id: str,
     code_verifier: str,
+    mfa_code: str | None,
     header_client_type: str | None,
+    pending_mfa_store: mfa_dependencies.PendingMFAStore,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
@@ -1129,10 +1168,17 @@ def exchange_tokens_for_session(
     The session was created by the identity-provider callback and holds no tokens yet. The caller proves it holds the
     verifier whose challenge the OAuth state stored; the exchange succeeds once per session.
 
+    A session that came from an identity provider also needs an MFA code when the account has MFA enabled, since
+    the provider's sign-in does not replace the account's own second factor. The code is checked after the PKCE
+    verifier, so only the client that started the flow can try codes, and a wrong or missing code leaves the
+    session unused for another attempt. A session from a password login has already passed MFA.
+
     Args:
         session_id: Session created by the identity-provider callback.
         code_verifier: PKCE verifier sent by the client.
+        mfa_code: TOTP or backup code, if the client has one.
         header_client_type: ``X-Client-Type`` header of the exchange request, if any.
+        pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
@@ -1145,6 +1191,9 @@ def exchange_tokens_for_session(
         ConflictError: If the tokens were already exchanged, or another exchange won the race.
         InvalidInputError: If the OAuth state holds no PKCE data, the verifier does not match, or the client type
             contradicts the one recorded when the flow started.
+        MfaRequiredError: If the account has MFA enabled and no code was sent.
+        InvalidMfaCodeError: If the code does not verify.
+        TooManyRequestsError: If the account is locked out from too many failed MFA codes.
     """
     fingerprint = core_hashing.log_fingerprint(session_id)
     session_with_state = sessions_integration.get_session_with_oauth_state(session_id, db)
@@ -1210,6 +1259,19 @@ def exchange_tokens_for_session(
 
     user = users_integration.require_user(session_obj.user_id, db)
     users_integration.require_active_user(user)
+
+    if oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db):
+        if mfa_code is None:
+            logger.info(
+                "Token exchange for session <value_1> needs an MFA code", extra=core_logger.context(value_1=fingerprint)
+            )
+            raise core_exceptions.MfaRequiredError()
+        _refuse_while_mfa_locked_out(user.username, pending_mfa_store)
+        _require_valid_mfa_code(user.username, user.id, mfa_code, pending_mfa_store, db)
+        try:
+            pending_mfa_store.reset_attempts(user.username)
+        except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+            _raise_auth_security_store_unavailable(err)
 
     (_, access_token_exp, access_token, refresh_token_exp, refresh_token, csrf_token) = create_tokens(
         user, token_manager, server_settings_integration.get_session_policy(db), session_id

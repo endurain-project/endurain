@@ -145,13 +145,22 @@ class TokenExchangeRequest(BaseModel):
     Attributes:
         code_verifier (str): PKCE code verifier (43-128 chars, base64url).
             Must hash to the code_challenge stored in OAuth state.
+        mfa_code (str | None): TOTP or backup code. Required when the session
+            came from an identity provider and the account has MFA enabled.
     """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
 
     code_verifier: StrictStr = Field(
         ...,
         min_length=43,
         max_length=128,
         description="PKCE code verifier (base64url, 43-128 chars)",
+    )
+    mfa_code: StrictStr | None = Field(
+        default=None,
+        pattern=r"^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
+        description="MFA code, required for an identity-provider session of an account with MFA enabled",
     )
 
     @field_validator("code_verifier")

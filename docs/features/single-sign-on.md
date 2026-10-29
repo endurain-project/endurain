@@ -150,6 +150,10 @@ Save the generated **Client ID** and **Client Secret**.
 3. Verify that a **Sign in with `Provider Name`** button appears
 4. Test the authentication flow
 
+## Accounts with MFA enabled
+
+Signing in through your identity provider does not replace the multi-factor authentication you set up in Endurain. If your account has MFA enabled, Endurain asks for your authentication code (or a backup code) after the provider signs you in, and only then finishes the login. Wrong codes count toward the same lockout as the password login. Accounts without MFA sign in as before.
+
 ## Auto-redirect to SSO
 
 Under **Settings → Server Settings**, the **Auto-redirect to SSO** option skips the login page's provider picker and immediately sends unauthenticated users to your identity provider. It only takes effect when:

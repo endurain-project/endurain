@@ -5,9 +5,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
+from jasil.backends.state_memory import MemoryState
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
@@ -67,6 +69,7 @@ def signup_app(
     )
 
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
+    app.dependency_overrides[core_dependencies.get_platform_state] = lambda: MemoryState()
     app.dependency_overrides[auth_password_hasher.get_password_hasher] = lambda: password_hasher
 
     return app

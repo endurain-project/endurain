@@ -18,10 +18,11 @@ router = APIRouter()
 def request_password_reset(
     request: Request,
     request_data: password_reset_schema.PasswordResetRequest,
+    state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,
 ) -> password_reset_schema.PasswordResetRead:
     """Request a password reset without revealing whether the email exists."""
-    password_reset_service.request_password_reset_email(request_data.email, db)
+    password_reset_service.request_password_reset_email(request_data.email, state, db)
     return password_reset_schema.PasswordResetRead(
         message="If the email exists in the system, a password reset link has been sent."
     )
