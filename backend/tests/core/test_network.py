@@ -377,6 +377,11 @@ class TestIsPrivateOrReserved:
         addr = ipaddress.ip_address("8.8.8.8")
         assert core_network._is_private_or_reserved(addr) is False
 
+    @pytest.mark.parametrize("address", ["100.64.0.1", "100.127.255.254", "192.0.0.8", "2001:db8::1"])
+    def test_any_address_that_is_not_globally_routable(self, address):
+        """Shared address space (CGNAT) and documentation ranges are neither private nor reserved to ``ipaddress``."""
+        assert core_network._is_private_or_reserved(ipaddress.ip_address(address)) is True
+
     def test_link_local(self):
         addr = ipaddress.ip_address("169.254.1.1")
         assert core_network._is_private_or_reserved(addr) is True

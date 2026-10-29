@@ -318,7 +318,7 @@ class TestRevokeIdpToken:
         assert result is True
         guard.assert_called_once_with("http://10.0.0.5/revoke", purpose="oidc_revocation")
         http_client.post.assert_called_once()
-        service._oidc.http_client.assert_called_once_with(follow_redirects=False)
+        service._oidc.http_client.assert_called_once_with()
 
     def test_an_internal_endpoint_is_never_called(self):
         result, _, http_client, _ = self._revoke(guard_error=core_exceptions.InvalidInputError("private address"))

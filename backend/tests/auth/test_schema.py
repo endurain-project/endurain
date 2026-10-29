@@ -51,26 +51,26 @@ class TestMFALoginRequest:
 
     def test_mfa_login_request_valid(self):
         """Test valid MFA login request with 6-digit code."""
-        request = auth_schema.MFALoginRequest(username="testuser", mfa_code="123456")
-        assert request.username == "testuser"
+        request = auth_schema.MFALoginRequest(mfa_challenge="c" * 43, mfa_code="123456")
+        assert request.mfa_challenge == "c" * 43
         assert request.mfa_code == "123456"
 
     def test_mfa_login_request_invalid_code_format_letters(self):
         """Test MFA login request with non-numeric code."""
         with pytest.raises(ValidationError) as exc_info:
-            auth_schema.MFALoginRequest(username="testuser", mfa_code="12345a")
+            auth_schema.MFALoginRequest(mfa_challenge="c" * 43, mfa_code="12345a")
         assert "mfa_code" in str(exc_info.value)
 
     def test_mfa_login_request_invalid_code_too_short(self):
         """Test MFA login request with code less than 6 digits."""
         with pytest.raises(ValidationError) as exc_info:
-            auth_schema.MFALoginRequest(username="testuser", mfa_code="12345")
+            auth_schema.MFALoginRequest(mfa_challenge="c" * 43, mfa_code="12345")
         assert "mfa_code" in str(exc_info.value)
 
     def test_mfa_login_request_invalid_code_too_long(self):
         """Test MFA login request with code more than 6 digits."""
         with pytest.raises(ValidationError) as exc_info:
-            auth_schema.MFALoginRequest(username="testuser", mfa_code="1234567")
+            auth_schema.MFALoginRequest(mfa_challenge="c" * 43, mfa_code="1234567")
         assert "mfa_code" in str(exc_info.value)
 
 
@@ -79,20 +79,22 @@ class TestMFARequiredResponse:
 
     def test_mfa_required_response_defaults(self):
         """Test MFA required response with default values."""
-        response = auth_schema.MFARequiredRead(username="testuser")
+        response = auth_schema.MFARequiredRead(username="testuser", mfa_challenge="c" * 43)
         assert response.mfa_required is True
         assert response.username == "testuser"
         assert response.message == "MFA verification required"
 
     def test_mfa_required_response_custom_message(self):
         """Test MFA required response with custom message."""
-        response = auth_schema.MFARequiredRead(username="testuser", message="Custom MFA message")
+        response = auth_schema.MFARequiredRead(
+            username="testuser", mfa_challenge="c" * 43, message="Custom MFA message"
+        )
         assert response.mfa_required is True
         assert response.message == "Custom MFA message"
 
     def test_mfa_required_response_explicit_false(self):
         """Test MFA required response with explicit False."""
-        response = auth_schema.MFARequiredRead(mfa_required=False, username="testuser")
+        response = auth_schema.MFARequiredRead(mfa_required=False, username="testuser", mfa_challenge="c" * 43)
         assert response.mfa_required is False
 
 
@@ -143,7 +145,7 @@ class TestAuthRouterErrors:
                 response=None,
                 request=SimpleNamespace(client=None, headers={}),
                 mfa_request=auth_schema.MFALoginRequest(
-                    username="testuser",
+                    mfa_challenge="c" * 43,
                     mfa_code="123456",
                 ),
                 client_type="mobile",
@@ -201,13 +203,18 @@ class TestAuthRouterErrors:
             "warning",
             capture_log,
         )
+        monkeypatch.setattr(
+            auth_service.users_integration,
+            "get_user",
+            lambda *args, **kwargs: SimpleNamespace(id=123, username=raw_username),
+        )
 
         with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_service.verify_mfa_and_login(
                 ip_address="127.0.0.1",
                 user_agent="pytest-agent",
                 mfa_request=auth_schema.MFALoginRequest(
-                    username=raw_username,
+                    mfa_challenge="c" * 43,
                     mfa_code="123456",
                 ),
                 client_type="web",
@@ -251,13 +258,18 @@ class TestAuthRouterErrors:
             "verify_user_mfa",
             lambda *args, **kwargs: True,
         )
+        monkeypatch.setattr(
+            auth_service.users_integration,
+            "get_user",
+            lambda *args, **kwargs: SimpleNamespace(id=123, username="testuser"),
+        )
 
         with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_service.verify_mfa_and_login(
                 ip_address="127.0.0.1",
                 user_agent="pytest-agent",
                 mfa_request=auth_schema.MFALoginRequest(
-                    username="testuser",
+                    mfa_challenge="c" * 43,
                     mfa_code="123456",
                 ),
                 client_type="web",
@@ -269,4 +281,4 @@ class TestAuthRouterErrors:
             )
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == ("No pending MFA login found for this username")
+        assert exc_info.value.detail == "Invalid MFA code, backup code or backup code already used."

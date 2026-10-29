@@ -158,7 +158,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | ---- | --- | -------------------- | ---------- |
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: web`; `FORM` with fields: `username`, `password`. HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: web`; Cookie: `endurain_refresh_token`; optional Header: `X-CSRF-Token` (bootstrap logic) | 30 requests/min |
-| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: web`; JSON `{'username': <username>, 'mfa_code': '123456'}` | 10 requests/min |
+| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: web`; JSON `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}` | 10 requests/min |
 | **Logout** | `/auth/logout` | Header: `X-Client-Type: web`; Cookie: `endurain_refresh_token` | 30 requests/min |
 
 ### Core Authentication Endpoints (Mobile)
@@ -167,7 +167,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | ---- | --- | -------------------- | ---------- |
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: mobile`; `FORM` with fields: `username`, `password`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE). HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
-| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: mobile`; JSON body: `{'username': <username>, 'mfa_code': '123456'}`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE) | 10 requests/min |
+| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: mobile`; JSON body: `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE) | 10 requests/min |
 | **Logout** | `/auth/logout` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
 
 ### OAuth/SSO Endpoints

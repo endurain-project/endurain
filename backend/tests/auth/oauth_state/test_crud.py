@@ -61,10 +61,11 @@ def test_a_link_state_keeps_the_digest_of_its_browser_binding():
     db = create_sqlite_session()
 
     created = oauth_state_crud.create_oauth_state(
-        "s" * 32, "n" * 32, "web", None, db, user_id=7, browser_binding_hash="d" * 64
+        "s" * 32, "n" * 32, "web", None, db, user_id=7, browser_binding_hash="d" * 64, idp_code_verifier="v" * 64
     )
 
     assert created.browser_binding_hash == "d" * 64
+    assert created.idp_code_verifier == "v" * 64
     assert oauth_state_crud.get_oauth_state_by_id_and_not_used("s" * 32, db).browser_binding_hash == "d" * 64
     db.close()
 

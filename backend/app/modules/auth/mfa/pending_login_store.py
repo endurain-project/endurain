@@ -1,5 +1,6 @@
 """Shared state for pending MFA login challenges."""
 
+import secrets
 from datetime import datetime
 from typing import NoReturn, Protocol, runtime_checkable
 
@@ -21,24 +22,20 @@ AuthSecurityStoreUnavailableError = lockout_contracts.AuthSecurityStoreUnavailab
 class PendingMFAStore(Protocol):
     """Contract for pending login and MFA lockout state."""
 
-    def add_pending_login(self, username: str, user_id: int) -> None:
-        """Implement the add pending login operation."""
+    def add_pending_login(self, user_id: int) -> str:
+        """Start a pending login and return the challenge that names it."""
         ...
 
-    def get_pending_login(self, username: str) -> int | None:
-        """Implement the get pending login operation."""
+    def get_pending_login(self, challenge: str) -> int | None:
+        """Return the user a challenge names, if it is still pending."""
         ...
 
-    def claim_pending_login(self, username: str) -> int | None:
-        """Implement the claim pending login operation."""
+    def claim_pending_login(self, challenge: str) -> int | None:
+        """Atomically end a pending login and return its user."""
         ...
 
-    def delete_pending_login(self, username: str) -> None:
-        """Implement the delete pending login operation."""
-        ...
-
-    def has_pending_login(self, username: str) -> bool:
-        """Implement the has pending login operation."""
+    def delete_pending_login(self, challenge: str) -> None:
+        """Abandon a pending login."""
         ...
 
     def clear_for_user(self, user_id: int) -> int:
@@ -75,11 +72,6 @@ def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
     raise AuthSecurityStoreUnavailableError("auth security storage is unavailable") from err
 
 
-def _username_digest(username: str) -> str:
-    """Hash a canonical username for state key names."""
-    return core_hashing.sha256_hex(lockout_integration.normalize_username_key(username))
-
-
 class PendingMFALogin:
     """Store pending MFA logins and their progressive failure lockout."""
 
@@ -94,20 +86,27 @@ class PendingMFALogin:
             normalize_key=lockout_integration.normalize_username_key,
         )
 
-    def _pending_key(self, username: str) -> str:
-        """Build the key for a user's pending MFA login."""
-        return f"{_PENDING_MFA_KEY_PREFIX}:{_username_digest(username)}"
+    @staticmethod
+    def _pending_key(challenge: str) -> str:
+        """Build the key for a pending MFA login from a digest of its challenge, so the store never holds it."""
+        return f"{_PENDING_MFA_KEY_PREFIX}:{core_hashing.sha256_hex(challenge)}"
 
-    def add_pending_login(self, username: str, user_id: int) -> None:
-        """Store a pending login for five minutes."""
+    def add_pending_login(self, user_id: int) -> str:
+        """Start a pending login for five minutes and return the unguessable challenge that names it.
+
+        The challenge, not the username, names the login, so only the client that signed in can submit its
+        codes, and nobody who merely knows a username can try codes or lock the account out.
+        """
+        challenge = secrets.token_urlsafe(32)
         try:
-            self._state.set(self._pending_key(username), str(user_id).encode(), ttl_seconds=_PENDING_MFA_TTL_SECONDS)
+            self._state.set(self._pending_key(challenge), str(user_id).encode(), ttl_seconds=_PENDING_MFA_TTL_SECONDS)
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
+        return challenge
 
-    def get_pending_login(self, username: str) -> int | None:
+    def get_pending_login(self, challenge: str) -> int | None:
         """Return the pending user ID, removing a corrupt entry."""
-        key = self._pending_key(username)
+        key = self._pending_key(challenge)
         try:
             value = self._state.get(key)
         except StateBackendUnavailableError as err:
@@ -123,10 +122,10 @@ class PendingMFALogin:
                 _raise_store_unavailable(err)
             return None
 
-    def claim_pending_login(self, username: str) -> int | None:
+    def claim_pending_login(self, challenge: str) -> int | None:
         """Atomically retrieve and remove a pending login."""
         try:
-            value = self._state.get_and_delete(self._pending_key(username))
+            value = self._state.get_and_delete(self._pending_key(challenge))
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
         if value is None:
@@ -136,10 +135,10 @@ class PendingMFALogin:
         except (TypeError, ValueError):
             return None
 
-    def delete_pending_login(self, username: str) -> None:
+    def delete_pending_login(self, challenge: str) -> None:
         """Remove a pending login."""
         try:
-            self._state.delete(self._pending_key(username))
+            self._state.delete(self._pending_key(challenge))
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
 
@@ -155,10 +154,6 @@ class PendingMFALogin:
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
         return removed
-
-    def has_pending_login(self, username: str) -> bool:
-        """Return whether a valid pending login exists."""
-        return self.get_pending_login(username) is not None
 
     def claim_totp_step(self, user_id: int, step: int) -> bool:
         """Record an accepted TOTP step as used; False when it already was."""

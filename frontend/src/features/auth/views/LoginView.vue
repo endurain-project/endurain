@@ -38,14 +38,14 @@ const toasts = useToasts()
 const username = ref('')
 const password = ref('')
 const mfaCode = ref('')
-const pendingUsername = ref('')
+const pendingChallenge = ref('')
 const forceLocalLogin = ref(false)
 const isLoading = ref(false)
 const isForgotPasswordOpen = ref(false)
 const isSsoMfaPending = ref(false)
 const alert = ref<AlertState | null>(null)
 
-const isMfaStep = computed(() => pendingUsername.value.length > 0 || isSsoMfaPending.value)
+const isMfaStep = computed(() => pendingChallenge.value.length > 0 || isSsoMfaPending.value)
 const showLocalLogin = computed(
   () => serverSettings.value.local_login_enabled || isMfaStep.value || forceLocalLogin.value,
 )
@@ -121,11 +121,11 @@ async function submitForm(): Promise<void> {
     }
 
     const result = duringMfa
-      ? await auth.verifyMfa(pendingUsername.value, mfaCode.value.trim().toUpperCase())
+      ? await auth.verifyMfa(pendingChallenge.value, mfaCode.value.trim().toUpperCase())
       : await auth.login(username.value.trim(), password.value)
 
     if (result.status === 'mfa-required') {
-      pendingUsername.value = result.username
+      pendingChallenge.value = result.challenge
       password.value = ''
       alert.value = { kind: 'info', message: t('login.mfaRequired') }
       return

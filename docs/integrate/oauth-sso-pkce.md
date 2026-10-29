@@ -191,9 +191,9 @@ Responds with tokens directly (no PKCE):
 If the user has MFA enabled, the flow includes an additional MFA verification step:
 
 1. Client sends login with PKCE parameters
-2. Backend returns `"mfa_required": true` with message
+2. Backend returns `"mfa_required": true` with a message and an `mfa_challenge` that names this login
 3. Client collects MFA code from user
-4. Client sends MFA code to `/auth/mfa/verify` with PKCE parameters
+4. Client sends the `mfa_challenge` and the MFA code to `/auth/mfa/verify` with PKCE parameters
 5. Backend verifies MFA and returns session_id (for PKCE) or tokens directly
 6. Client exchanges session_id for tokens using code_verifier
 
@@ -205,7 +205,7 @@ Content-Type: application/json
 X-Client-Type: mobile
 
 {
-  "username": "user@example.com",
+  "mfa_challenge": "<mfa_challenge from the login response>",
   "mfa_code": "123456"
 }
 ```

@@ -46,6 +46,7 @@ def create_oauth_state(
     code_challenge_method: str | None = None,
     user_id: int | None = None,
     browser_binding_hash: str | None = None,
+    idp_code_verifier: str | None = None,
 ) -> oauth_state_schema.OAuthStateRead:
     """Stage a new OAuth state with its fixed ten-minute expiry."""
     row = oauth_state_models.OAuthState(
@@ -59,6 +60,7 @@ def create_oauth_state(
         code_challenge_method=code_challenge_method,
         user_id=user_id,
         browser_binding_hash=browser_binding_hash,
+        idp_code_verifier=idp_code_verifier,
         expires_at=datetime.now(UTC) + timedelta(seconds=oauth_state_constants.STATE_TTL_SECONDS),
         used=False,
     )

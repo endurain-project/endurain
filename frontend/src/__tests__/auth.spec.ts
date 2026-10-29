@@ -78,16 +78,31 @@ describe('auth store', () => {
     vi.mocked(loginWithPassword).mockResolvedValue({
       mfa_required: true,
       username: 'demo',
+      mfa_challenge: 'challenge-123',
       message: 'MFA verification required',
     })
 
     const auth = useAuthStore()
     const result = await auth.login('demo', 'password123')
 
-    expect(result).toEqual({ status: 'mfa-required', username: 'demo' })
+    expect(result).toEqual({ status: 'mfa-required', challenge: 'challenge-123' })
     expect(setAuthTokens).not.toHaveBeenCalled()
     expect(fetchCurrentUser).not.toHaveBeenCalled()
     expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it('verifies MFA with the challenge the password step returned', async () => {
+    vi.mocked(verifyMfaLogin).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+
+    const auth = useAuthStore()
+    const result = await auth.verifyMfa('challenge-123', '123456')
+
+    expect(verifyMfaLogin).toHaveBeenCalledWith({
+      mfa_challenge: 'challenge-123',
+      mfa_code: '123456',
+    })
+    expect(result).toEqual({ status: 'authenticated', user: authUser })
   })
 
   it('hydrates the user after successful login', async () => {

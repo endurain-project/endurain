@@ -63,6 +63,7 @@ class AuthorizationService:
             redirect_path=redirect_path,
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
+            idp_code_verifier=_new_code_verifier(),
         )
         db.commit()
         logger.debug(
@@ -106,6 +107,7 @@ class AuthorizationService:
             user_id=user_id,
             redirect_path=redirect,
             browser_binding_hash=core_hashing.sha256_hex(browser_binding),
+            idp_code_verifier=_new_code_verifier(),
         )
         authorization_url = self.initiate_link(idp, user_id, db, oauth_state_id=state_id)
         logger.info(
@@ -178,8 +180,12 @@ class AuthorizationService:
             redirect_uri = identity_provider_utils.build_redirect_uri(self._frontend_host, idp.slug)
             scopes = idp.scopes or "openid profile email"
 
-            with OAuth2Client(client_id=client_id, redirect_uri=redirect_uri, scope=scopes) as client:
-                authorization_url, _ = client.create_authorization_url(authorization_endpoint, state=state, nonce=nonce)
+            with OAuth2Client(
+                client_id=client_id, redirect_uri=redirect_uri, scope=scopes, code_challenge_method="S256"
+            ) as client:
+                authorization_url, _ = client.create_authorization_url(
+                    authorization_endpoint, state=state, nonce=nonce, code_verifier=oauth_state_obj.idp_code_verifier
+                )
 
             return authorization_url
 
@@ -269,8 +275,12 @@ class AuthorizationService:
             redirect_uri = identity_provider_utils.build_redirect_uri(self._frontend_host, idp.slug)
             scopes = idp.scopes or "openid profile email"
 
-            with OAuth2Client(client_id=client_id, redirect_uri=redirect_uri, scope=scopes) as client:
-                authorization_url, _ = client.create_authorization_url(authorization_endpoint, state=state, nonce=nonce)
+            with OAuth2Client(
+                client_id=client_id, redirect_uri=redirect_uri, scope=scopes, code_challenge_method="S256"
+            ) as client:
+                authorization_url, _ = client.create_authorization_url(
+                    authorization_endpoint, state=state, nonce=nonce, code_verifier=oauth_state_obj.idp_code_verifier
+                )
 
             return authorization_url
 
@@ -344,3 +354,12 @@ class AuthorizationService:
             db=db,
         )
         return self.initiate_login(idp, db, redirect, oauth_state_id=state_id)
+
+
+def _new_code_verifier() -> str:
+    """Return a fresh PKCE verifier for the provider leg of an SSO flow.
+
+    Returns:
+        A random 86-character verifier, within the 43 to 128 characters RFC 7636 allows.
+    """
+    return secrets.token_urlsafe(64)

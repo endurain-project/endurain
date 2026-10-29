@@ -2,11 +2,14 @@
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from authlib.oauth2.rfc7636 import create_s256_code_challenge
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.authorization_service as authorization_service
+import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 
 HOST = "https://app.example.com"
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
@@ -95,3 +98,26 @@ def test_a_login_oauth_state_is_committed_before_the_browser_is_redirected(mock_
     assert state_id == "s"
     assert create.call_args.kwargs["idp_id"] == 3
     mock_db.commit.assert_called_once()
+    assert 43 <= len(create.call_args.kwargs["idp_code_verifier"]) <= 128
+
+
+def test_the_authorization_url_carries_the_s256_challenge_of_the_states_verifier(mock_db):
+    """PKCE between this server and the provider: a leaked code is useless without the verifier."""
+    oidc = oidc_client_service.OidcClientService(MagicMock(), "v1")
+    service = authorization_service.AuthorizationService(oidc, HOST)
+    verifier = "v" * 64
+    idp = SimpleNamespace(
+        id=3, slug="idp", name="IdP", scopes="openid email", authorization_endpoint="https://idp.example/authorize"
+    )
+    state = SimpleNamespace(nonce="nonce-1", idp_code_verifier=verifier)
+    with (
+        patch.object(oidc, "decrypt_client_id", return_value="cid"),
+        patch.object(
+            authorization_service.oauth_state_integration, "get_oauth_state_by_id_and_not_used", return_value=state
+        ),
+    ):
+        url = service.initiate_login(idp, "/", mock_db, oauth_state_id="state-1")
+
+    query = parse_qs(urlsplit(url).query)
+    assert query["code_challenge"] == [create_s256_code_challenge(verifier)]
+    assert query["code_challenge_method"] == ["S256"]

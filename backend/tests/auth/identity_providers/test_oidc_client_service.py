@@ -455,3 +455,22 @@ class TestDiscoveryErrorLogging:
         extra = mock_logger.warning.call_args.kwargs["extra"]
         assert extra["status_code"] == 500
         assert "secret-body" not in str(extra)
+
+
+class TestNoRedirects:
+    """A redirect would send the request, and any secret it carries, to a host the SSRF check never saw."""
+
+    def test_the_plain_client_never_follows_a_redirect(self):
+        service = oidc_client_service.OidcClientService(MagicMock(), "v1")
+
+        with service.http_client() as client:
+            assert client.follow_redirects is False
+
+    def test_the_oauth_client_never_follows_a_redirect(self):
+        service = oidc_client_service.OidcClientService(MagicMock(), "v1")
+
+        client = service.create_oauth_client("id", "secret", None)
+
+        assert client.follow_redirects is False
+        assert client.code_challenge_method == "S256"
+        client.close()

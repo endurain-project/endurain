@@ -199,6 +199,7 @@ class TestHandleCallback:
         get_userinfo.assert_called_once()
         assert result["userinfo"] == userinfo
         assert result["user"] is user
+        assert oauth_client.fetch_token.call_args.kwargs["code_verifier"] is oauth_state.idp_code_verifier
 
     def test_the_database_is_not_touched_until_the_identity_provider_has_answered(self, service):
         """The session holds a pooled connection once it is used, so no network call may run after that."""

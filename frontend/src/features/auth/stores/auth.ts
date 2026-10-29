@@ -27,7 +27,8 @@ export interface AuthCompletedResult {
 
 export interface MfaRequiredResult {
   status: 'mfa-required'
-  username: string
+  /** Names this login; the MFA step must send it back. */
+  challenge: string
 }
 
 export type LoginResult = AuthCompletedResult | MfaRequiredResult
@@ -128,7 +129,7 @@ export const useAuthStore = defineStore('auth', () => {
     const response = await loginWithPassword(username, password)
 
     if (isMfaRequiredResponse(response)) {
-      return { status: 'mfa-required', username: response.username }
+      return { status: 'mfa-required', challenge: response.mfa_challenge }
     }
 
     const result = await completeTokenLogin(response)
@@ -139,13 +140,15 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Completes a pending MFA login.
    *
-   * @param username - Username returned by the MFA challenge.
+   * @param challenge - The challenge the password step returned.
    * @param mfaCode - TOTP or backup code.
    * @returns Authenticated result containing the current user.
-   * @throws {HttpError} When the MFA code is invalid or expired.
+   * @throws {HttpError} When the MFA code or the challenge is invalid or expired.
    */
-  async function verifyMfa(username: string, mfaCode: string): Promise<AuthCompletedResult> {
-    const result = await completeTokenLogin(await verifyMfaLogin({ username, mfa_code: mfaCode }))
+  async function verifyMfa(challenge: string, mfaCode: string): Promise<AuthCompletedResult> {
+    const result = await completeTokenLogin(
+      await verifyMfaLogin({ mfa_challenge: challenge, mfa_code: mfaCode }),
+    )
     useTelemetry().trackEvent('login_succeeded', { method: 'mfa' })
     return result
   }

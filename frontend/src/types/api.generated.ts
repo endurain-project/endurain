@@ -9433,14 +9433,14 @@ export interface components {
          * @description Schema for MFA login requests.
          *
          *     Attributes:
-         *         username: Username of the user attempting to log in.
+         *         mfa_challenge: The challenge the password step returned for this login.
          *         mfa_code: Either a 6-digit TOTP code or a backup code.
          */
         MFALoginRequest: {
+            /** Mfa Challenge */
+            mfa_challenge: string;
             /** Mfa Code */
             mfa_code: string;
-            /** Username */
-            username: string;
         };
         /**
          * MFARequiredRead
@@ -9449,6 +9449,7 @@ export interface components {
          *     Attributes:
          *         mfa_required: Indicates whether MFA is required.
          *         username: Username for which MFA is required.
+         *         mfa_challenge: The challenge the MFA step must send back; it names this login.
          *         message: Message describing the requirement.
          */
         MFARequiredRead: {
@@ -9457,6 +9458,8 @@ export interface components {
              * @default MFA verification required
              */
             message: string;
+            /** Mfa Challenge */
+            mfa_challenge: string;
             /**
              * Mfa Required
              * @default true

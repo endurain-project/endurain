@@ -69,16 +69,15 @@ class OidcClientService:
             logger.warning("OIDC cache write failed", exc_info=err)
 
     @contextmanager
-    def http_client(self, *, follow_redirects: bool = True) -> Generator[httpx2.Client]:
+    def http_client(self) -> Generator[httpx2.Client]:
         """Open a short-lived HTTP client for one outbound request.
 
-        Args:
-            follow_redirects: Whether to follow redirects. A call that carries secrets turns it off, because
-                a redirect would send them to a host the SSRF guard never checked.
+        It never follows a redirect: the SSRF guard checks only the URL the caller names, so a redirect
+        would send the request, and any secret it carries, to a host the guard never saw.
         """
         with httpx2.Client(
             timeout=10.0,
-            follow_redirects=follow_redirects,
+            follow_redirects=False,
             headers={"User-Agent": f"Endurain/{self._api_version} (OIDC Client)", "Accept": "application/json"},
         ) as client:
             yield client
@@ -437,7 +436,9 @@ class OidcClientService:
             client_secret=client_secret,
             redirect_uri=redirect_uri,
             timeout=10.0,
-            follow_redirects=True,
+            # Like http_client: the token and userinfo calls carry the client secret and the code.
+            follow_redirects=False,
+            code_challenge_method="S256",
             headers={"User-Agent": f"Endurain/{self._api_version} (OIDC Client)", "Accept": "application/json"},
         )
 

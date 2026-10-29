@@ -34,13 +34,13 @@ class MFALoginRequest(BaseModel):
     """Schema for MFA login requests.
 
     Attributes:
-        username: Username of the user attempting to log in.
+        mfa_challenge: The challenge the password step returned for this login.
         mfa_code: Either a 6-digit TOTP code or a backup code.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    username: StrictStr = Field(..., min_length=1, max_length=250)
+    mfa_challenge: StrictStr = Field(..., min_length=43, max_length=64)
     mfa_code: StrictStr = Field(
         ...,
         pattern=r"^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
@@ -53,6 +53,7 @@ class MFARequiredRead(BaseModel):
     Attributes:
         mfa_required: Indicates whether MFA is required.
         username: Username for which MFA is required.
+        mfa_challenge: The challenge the MFA step must send back; it names this login.
         message: Message describing the requirement.
     """
 
@@ -60,6 +61,7 @@ class MFARequiredRead(BaseModel):
 
     mfa_required: StrictBool = True
     username: StrictStr
+    mfa_challenge: StrictStr
     message: StrictStr = "MFA verification required"
 
 

@@ -20,6 +20,7 @@ def create_oauth_state(
     code_challenge_method: str | None = None,
     user_id: int | None = None,
     browser_binding_hash: str | None = None,
+    idp_code_verifier: str | None = None,
 ) -> oauth_state_schema.OAuthStateRead:
     """Stage an OAuth-state row."""
     return oauth_state_crud.create_oauth_state(
@@ -34,6 +35,7 @@ def create_oauth_state(
         code_challenge_method=code_challenge_method,
         user_id=user_id,
         browser_binding_hash=browser_binding_hash,
+        idp_code_verifier=idp_code_verifier,
     )
 
 

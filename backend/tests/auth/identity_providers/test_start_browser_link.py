@@ -53,6 +53,15 @@ def test_the_state_stores_only_a_digest_of_a_fresh_browser_binding():
     assert create_state.call_args.kwargs["browser_binding_hash"] == core_hashing.sha256_hex(first.browser_binding)
 
 
+def test_a_link_state_keeps_a_fresh_pkce_verifier_for_the_provider():
+    _, _, _, first = _start()
+    _, _, _, second = _start()
+
+    verifier = first.call_args.kwargs["idp_code_verifier"]
+    assert 43 <= len(verifier) <= 128
+    assert verifier != second.call_args.kwargs["idp_code_verifier"]
+
+
 def test_start_browser_link_preserves_redirect_and_client_type():
     _, _, _, create_state = _start(redirect="/settings/security")
     assert create_state.call_args.kwargs["redirect_path"] == "/settings/security"

@@ -352,7 +352,12 @@ class CallbackService:
                     redirect_uri=redirect_uri,
                 )
 
-                token_response = oauth_client.fetch_token(token_endpoint, grant_type="authorization_code", code=code)
+                token_response = oauth_client.fetch_token(
+                    token_endpoint,
+                    grant_type="authorization_code",
+                    code=code,
+                    code_verifier=oauth_state.idp_code_verifier,
+                )
             except httpx2.TimeoutException as err:
                 logger.warning(
                     "Timeout connecting to IdP <name> token endpoint: <err>",

@@ -546,7 +546,7 @@ class IdpTokenService:
             try:
                 # The endpoint comes from the provider's discovery document and receives the client secret.
                 core_network.reject_private_url(revocation_endpoint, purpose="oidc_revocation")
-                with self._oidc.http_client(follow_redirects=False) as client:
+                with self._oidc.http_client() as client:
                     response = client.post(
                         revocation_endpoint,
                         data={

@@ -34,6 +34,10 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
+#: The one answer to an MFA step that fails, whether the code or the challenge was wrong.
+_INVALID_MFA_CODE_MESSAGE = "Invalid MFA code, backup code or backup code already used."
+
+
 def _refuse_credentials(username: str) -> NoReturn:
     """Log a refused sign-in and answer with the one message every cause shares.
 
@@ -527,7 +531,7 @@ def _require_valid_mfa_code(
             "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
             extra=core_logger.context(username_log_id=username_log_id, failed_count=failed_count),
         )
-        raise core_exceptions.InvalidMfaCodeError("Invalid MFA code, backup code or backup code already used.")
+        raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
     db.commit()
 
 
@@ -627,7 +631,8 @@ def login_for_access_token(
             - If MFA is not required and no PKCE, the tokens from complete_login(), with the refresh cookie for web
 
     Raises:
-        DomainError: If authentication fails, user is inactive, or account is locked
+        DomainError: If authentication fails (an inactive account included, with the same answer), or the
+            account is locked
     """
     _validate_pkce_query_params(
         client_type,
@@ -657,6 +662,10 @@ def login_for_access_token(
     # Authenticate user
     try:
         user = authenticate_user(username, password, password_hasher, db)
+        if not user.active:
+            # Answered and counted exactly like a wrong password, so the response never confirms that the
+            # password of a deactivated or pending account is right.
+            _refuse_credentials(username)
     except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:
@@ -669,14 +678,11 @@ def login_for_access_token(
             )
         raise err
 
-    # Check if the user is active
-    users_integration.require_active_user(user)
-
     # Check if MFA is enabled for this user
     if mfa_integration.is_mfa_enabled_for_user(user.id, db):
         # Store the user for pending MFA verification
         try:
-            pending_mfa_store.add_pending_login(username, user.id)
+            mfa_challenge = pending_mfa_store.add_pending_login(user.id)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             _raise_auth_security_store_unavailable(err)
 
@@ -689,6 +695,7 @@ def login_for_access_token(
                 auth_schema.MFARequiredRead(
                     mfa_required=True,
                     username=username,
+                    mfa_challenge=mfa_challenge,
                     message="MFA verification required",
                 )
             )
@@ -697,6 +704,7 @@ def login_for_access_token(
                 {
                     "mfa_required": True,
                     "username": username,
+                    "mfa_challenge": mfa_challenge,
                     "message": "MFA verification required",
                 }
             )
@@ -749,7 +757,7 @@ def verify_mfa_and_login(
         ip_address: Client address, recorded on the session
         user_agent: Client user agent, recorded on the session
         failed_attempts: Failed login attempts tracker for progressive lockout
-        mfa_request: MFA login request containing username and MFA code
+        mfa_request: MFA login request containing the login's challenge and the MFA code
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
         password_hasher: The password hasher instance used for verifying passwords
@@ -762,7 +770,7 @@ def verify_mfa_and_login(
         The outcome of complete_login() or the PKCE session response
 
     Raises:
-        DomainError: If no pending login found, MFA code is invalid, or user not found
+        DomainError: If the challenge or the MFA code is invalid (answered alike), or the user is not found
     """
     _validate_pkce_query_params(
         client_type,
@@ -770,42 +778,19 @@ def verify_mfa_and_login(
         code_challenge_method,
     )
 
-    username_log_id = lockout_integration.username_log_identifier(mfa_request.username)
-
-    _refuse_while_mfa_locked_out(mfa_request.username, pending_mfa_store)
-
-    # Check if there's a pending MFA login for this username
+    # The challenge names the login; an unknown one answers exactly like a wrong code and counts against no
+    # account, so neither guessing it nor knowing a username gets anyone further.
     try:
-        user_id = pending_mfa_store.get_pending_login(mfa_request.username)
+        user_id = pending_mfa_store.get_pending_login(mfa_request.mfa_challenge)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
     if not user_id:
-        # Run a dummy Argon2 verify so the wall-clock latency of the
-        # "no pending MFA login" branch matches the "pending login,
-        # wrong code" branch (where backup-code verification performs
-        # an Argon2 verify). Without this, an attacker could enumerate
-        # which usernames are mid-login by measuring response time.
+        # Run a dummy Argon2 verify so the wall-clock latency of the unknown-challenge branch matches the
+        # wrong-code branch, where backup-code verification performs an Argon2 verify.
         password_hasher.dummy_verify()
-        logger.warning(
-            "No pending MFA login found for <username_log_id>",
-            extra=core_logger.context(username_log_id=username_log_id),
-        )
-        raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
+        logger.warning("MFA verification refused: unknown or expired challenge")
+        raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
 
-    _require_valid_mfa_code(mfa_request.username, user_id, mfa_request.mfa_code, pending_mfa_store, db)
-
-    try:
-        claimed_user_id = pending_mfa_store.claim_pending_login(mfa_request.username)
-    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
-        _raise_auth_security_store_unavailable(err)
-    if claimed_user_id != user_id:
-        logger.warning(
-            "Pending MFA login for <username_log_id> was missing or already claimed",
-            extra=core_logger.context(username_log_id=username_log_id),
-        )
-        raise core_exceptions.InvalidInputError("No pending MFA login found for this username")
-
-    # Get the user and complete login
     user = users_integration.get_user(user_id, db)
     if not user:
         logger.warning(
@@ -813,13 +798,27 @@ def verify_mfa_and_login(
         )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
+    _refuse_while_mfa_locked_out(user.username, pending_mfa_store)
+    _require_valid_mfa_code(user.username, user_id, mfa_request.mfa_code, pending_mfa_store, db)
+
+    try:
+        claimed_user_id = pending_mfa_store.claim_pending_login(mfa_request.mfa_challenge)
+    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+        _raise_auth_security_store_unavailable(err)
+    if claimed_user_id != user_id:
+        logger.warning(
+            "Pending MFA login for <username_log_id> was already claimed",
+            extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(user.username)),
+        )
+        raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
+
     # Check if the user is still active
     users_integration.require_active_user(user)
 
     # MFA verification successful - reset both MFA and login failed attempts counters
     try:
-        pending_mfa_store.reset_attempts(mfa_request.username)
-        failed_attempts.reset_attempts(mfa_request.username)
+        pending_mfa_store.reset_attempts(user.username)
+        failed_attempts.reset_attempts(user.username)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
 

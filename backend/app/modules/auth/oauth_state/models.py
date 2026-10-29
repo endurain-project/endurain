@@ -30,6 +30,7 @@ class OAuthState(Base):
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
         browser_binding_hash: SHA-256 of the secret the browser that started a link holds in a cookie.
+        idp_code_verifier: PKCE verifier this server sends the identity provider at the token exchange.
     """
 
     __tablename__ = "oauth_states"
@@ -119,4 +120,10 @@ class OAuthState(Base):
         String(64),
         nullable=True,
         comment="SHA-256 of the link's browser-binding cookie (link mode only)",
+    )
+
+    idp_code_verifier: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+        comment="PKCE verifier sent to the identity provider at the token exchange",
     )

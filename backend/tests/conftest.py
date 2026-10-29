@@ -251,15 +251,14 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         Primarily used for testing purposes to simulate the behavior of a pending MFA store.
 
         Attributes:
-            calls (list): A list that records each call to add_pending_login as a tuple of (username, user_id).
-            _store (dict): Internal storage mapping usernames to user IDs for pending logins.
+            calls (list): The user ID of each call to add_pending_login.
+            _store (dict): Internal storage mapping challenges to user IDs for pending logins.
 
         Methods:
-            add_pending_login(username, user_id):
-            get_pending_login(username):
-            claim_pending_login(username):
-            delete_pending_login(username):
-            has_pending_login(username):
+            add_pending_login(user_id):
+            get_pending_login(challenge):
+            claim_pending_login(challenge):
+            delete_pending_login(challenge):
             clear_all():
         """
 
@@ -270,19 +269,20 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             self.calls = []
             self._store = {}
 
-        def add_pending_login(self, username, user_id):
+        def add_pending_login(self, user_id):
             """
-            Adds a pending login attempt to the internal calls list and store.
+            Adds a pending login and returns the challenge that names it.
 
             Args:
-                username (str): The username of the user attempting to log in.
                 user_id (Any): The unique identifier of the user.
 
             Returns:
-                None
+                str: The challenge.
             """
-            self.calls.append((username, user_id))
-            self._store[username] = user_id
+            challenge = f"challenge-{len(self.calls)}"
+            self.calls.append(user_id)
+            self._store[challenge] = user_id
+            return challenge
 
         def get_pending_login(self, username: str):
             """
@@ -320,18 +320,6 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             """
             if username in self._store:
                 del self._store[username]
-
-        def has_pending_login(self, username: str):
-            """
-            Checks if the given username has a pending login session.
-
-            Args:
-                username (str): The username to check for a pending login.
-
-            Returns:
-                bool: True if the username has a pending login, False otherwise.
-            """
-            return username in self._store
 
         def clear_all(self):
             """

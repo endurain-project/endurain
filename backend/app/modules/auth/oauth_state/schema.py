@@ -44,6 +44,9 @@ class OAuthStateCreate(BaseModel):
     browser_binding_hash: StrictStr | None = Field(
         None, min_length=64, max_length=64, description="SHA-256 of the link's browser binding (link mode)"
     )
+    idp_code_verifier: StrictStr | None = Field(
+        None, min_length=43, max_length=128, description="PKCE verifier sent to the identity provider"
+    )
 
 
 class OAuthStateRead(BaseModel):
@@ -67,3 +70,4 @@ class OAuthStateRead(BaseModel):
     used: StrictBool = Field(..., description="Whether state has been used")
     user_id: StrictInt | None = Field(None, description="User ID if link mode")
     browser_binding_hash: StrictStr | None = Field(None, description="SHA-256 of the link's browser binding")
+    idp_code_verifier: StrictStr | None = Field(None, description="PKCE verifier sent to the identity provider")

@@ -313,7 +313,10 @@ def _is_private_or_reserved(
     Combines every "do not dial" predicate Python's
     ``ipaddress`` module exposes: private (RFC1918,
     fc00::/7), loopback, link-local, multicast,
-    unspecified (0.0.0.0, ::), and reserved blocks. Any
+    unspecified (0.0.0.0, ::), reserved, and anything
+    else that is not globally routable, such as shared
+    address space (100.64.0.0/10, used by CGNAT and
+    overlay networks) which ``is_private`` misses. Any
     of these would let an attacker pivot to internal
     infrastructure or cloud metadata services.
     """
@@ -324,6 +327,7 @@ def _is_private_or_reserved(
         or addr.is_multicast
         or addr.is_unspecified
         or addr.is_reserved
+        or not addr.is_global
     )
 
 

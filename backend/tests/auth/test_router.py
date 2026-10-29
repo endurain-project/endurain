@@ -1,10 +1,11 @@
 """Integration tests for auth.router endpoints."""
 
+import secrets
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -61,6 +62,10 @@ class FakeFailedLoginStore:
         pass
 
 
+#: A well-formed challenge no login issued.
+UNKNOWN_CHALLENGE = "u" * 43
+
+
 class FakePendingMFAStore:
     """In-memory PendingMFAStore double for testing."""
 
@@ -78,17 +83,19 @@ class FakePendingMFAStore:
         """Return lockout time."""
         return self._lockout_time
 
-    def add_pending_login(self, username: str, user_id: int):
-        """Add pending login."""
-        self._store[username] = user_id
+    def add_pending_login(self, user_id: int) -> str:
+        """Add a pending login and return its challenge."""
+        challenge = secrets.token_urlsafe(32)
+        self._store[challenge] = user_id
+        return challenge
 
-    def get_pending_login(self, username: str):
+    def get_pending_login(self, challenge: str):
         """Get pending login."""
-        return self._store.get(username)
+        return self._store.get(challenge)
 
-    def claim_pending_login(self, username: str):
+    def claim_pending_login(self, challenge: str):
         """Claim pending login."""
-        return self._store.pop(username, None)
+        return self._store.pop(challenge, None)
 
     def record_failed_attempt(self, username: str) -> int:
         """Record failed MFA attempt."""
@@ -255,26 +262,25 @@ class TestLoginEndpoint:
 
         assert response.status_code == 401
 
-    @patch("modules.auth.authentication.service.users_integration.require_active_user")
     @patch("modules.auth.authentication.service.authenticate_user")
-    def test_login_inactive_user_returns_403(
+    def test_login_inactive_user_answers_like_a_wrong_password(
         self,
         mock_auth,
-        mock_check_active,
         auth_client,
         auth_app,
+        fake_failed_login_store,
     ):
-        """Inactive user raises 403."""
-        mock_user = MagicMock()
-        mock_auth.return_value = mock_user
-        mock_check_active.side_effect = HTTPException(status_code=403, detail="User is not active")
+        """A correct password for an inactive account must not be told apart from a wrong one."""
+        mock_auth.return_value = MagicMock(active=False)
 
-        response = auth_client.post(
-            "/auth/login",
-            data={"username": "inactive", "password": "Password1!"},
+        inactive = auth_client.post("/auth/login", data={"username": "inactive", "password": "Password1!"})
+        mock_auth.side_effect = core_exceptions.UnauthenticatedError(
+            "Unable to authenticate with provided credentials", scheme="Bearer"
         )
+        wrong = auth_client.post("/auth/login", data={"username": "inactive", "password": "WrongPass1!"})
 
-        assert response.status_code == 403
+        assert (inactive.status_code, inactive.json()["detail"]) == (wrong.status_code, wrong.json()["detail"])
+        assert inactive.status_code == 401
 
     def test_login_locked_out_returns_429(
         self,
@@ -306,6 +312,7 @@ class TestLoginEndpoint:
         mock_mfa_check,
         auth_client,
         auth_app,
+        fake_pending_mfa_store,
     ):
         """MFA required returns 202 for web client."""
         mock_user = MagicMock()
@@ -323,6 +330,8 @@ class TestLoginEndpoint:
         data = response.json()
         assert data["mfa_required"] is True
         assert data["username"] == "mfauser"
+        # The only handle /auth/mfa/verify accepts, so nobody who did not sign in can submit codes.
+        assert fake_pending_mfa_store.get_pending_login(data["mfa_challenge"]) == 1
 
     def test_login_partial_pkce_returns_400(self, auth_client, auth_app):
         """Partial PKCE params on mobile returns 400."""
@@ -520,6 +529,7 @@ class TestLoginEndpoint:
         )
         assert response.status_code == 200
         assert response.json()["mfa_required"] is True
+        assert len(response.json()["mfa_challenge"]) >= 43
 
 
 # ------------------------------------------------------------------
@@ -529,6 +539,13 @@ class TestLoginEndpoint:
 
 class TestMFAVerifyEndpoint:
     """Tests for POST /auth/mfa/verify endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def challenged_user(self):
+        """The account a challenge names, read before its code is checked."""
+        with patch("modules.auth.authentication.service.users_integration.get_user") as get_user:
+            get_user.return_value = MagicMock(id=1, username="testuser", active=True)
+            yield get_user
 
     @patch("modules.auth.authentication.service.complete_login")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
@@ -545,10 +562,11 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """Valid MFA code completes login."""
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
         mock_user.id = 1
+        mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
         mock_complete_login.return_value = auth_schema.AuthOutcome(
@@ -565,13 +583,15 @@ class TestMFAVerifyEndpoint:
         response = auth_client.post(
             "/auth/mfa/verify",
             json={
-                "username": "testuser",
+                "mfa_challenge": challenge,
                 "mfa_code": "123456",
             },
         )
 
         assert response.status_code == 200
         assert response.json()["access_token"] == "at-mfa"
+        replay = auth_client.post("/auth/mfa/verify", json={"mfa_challenge": challenge, "mfa_code": "123456"})
+        assert replay.status_code == 400
 
     @patch("modules.auth.authentication.service.mfa_integration.verify_user_mfa")
     def test_mfa_verify_invalid_code_returns_400(
@@ -582,13 +602,13 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """Invalid MFA code returns 400."""
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_verify_mfa.return_value = False
 
         response = auth_client.post(
             "/auth/mfa/verify",
             json={
-                "username": "testuser",
+                "mfa_challenge": challenge,
                 "mfa_code": "000000",
             },
         )
@@ -612,12 +632,13 @@ class TestMFAVerifyEndpoint:
         mock_db,
     ):
         """Backup-code MFA login calls mfa_backup_codes.utils directly (through the credentials integration)."""
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_mfa = MagicMock()
         mock_mfa.mfa_enabled = True
         mock_mfa.mfa_secret = "encrypted-secret"
         mock_user = MagicMock()
         mock_user.id = 1
+        mock_user.username = "testuser"
         mock_user.auth_mfa = mock_mfa
         mock_get_user.return_value = mock_user
         mock_require_user.return_value = mock_user
@@ -646,7 +667,7 @@ class TestMFAVerifyEndpoint:
             response = auth_client.post(
                 "/auth/mfa/verify",
                 json={
-                    "username": "testuser",
+                    "mfa_challenge": challenge,
                     "mfa_code": "A3K9-7BDF",
                 },
             )
@@ -660,24 +681,28 @@ class TestMFAVerifyEndpoint:
             mock_db,
         )
 
-    def test_mfa_verify_no_pending_login_returns_400(
+    def test_mfa_verify_unknown_challenge_answers_like_a_wrong_code(
         self,
         auth_client,
         auth_app,
         fake_pending_mfa_store,
     ):
-        """No pending MFA login returns 400."""
-        # No pending login stored
+        """Nothing tells an unknown challenge from a wrong code, and it counts against no account."""
+        fake_pending_mfa_store.record_failed_attempt = MagicMock(return_value=1)
+
         response = auth_client.post(
             "/auth/mfa/verify",
-            json={
-                "username": "unknown",
-                "mfa_code": "123456",
-            },
+            json={"mfa_challenge": UNKNOWN_CHALLENGE, "mfa_code": "123456"},
         )
 
         assert response.status_code == 400
-        assert "No pending MFA" in response.json()["detail"]
+        assert response.json()["detail"] == "Invalid MFA code, backup code or backup code already used."
+        fake_pending_mfa_store.record_failed_attempt.assert_not_called()
+
+    def test_mfa_verify_requires_the_challenge(self, auth_client, auth_app):
+        response = auth_client.post("/auth/mfa/verify", json={"username": "testuser", "mfa_code": "123456"})
+
+        assert response.status_code == 422
 
     def test_mfa_verify_locked_out_returns_429(
         self,
@@ -688,13 +713,14 @@ class TestMFAVerifyEndpoint:
         """MFA lockout returns 429."""
         from datetime import datetime, timedelta
 
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         fake_pending_mfa_store._locked = True
         fake_pending_mfa_store._lockout_time = datetime.now(UTC) + timedelta(minutes=5)
 
         response = auth_client.post(
             "/auth/mfa/verify",
             json={
-                "username": "lockeduser",
+                "mfa_challenge": challenge,
                 "mfa_code": "123456",
             },
         )
@@ -727,7 +753,7 @@ class TestMFAVerifyEndpoint:
 
         response = auth_client.post(
             "/auth/mfa/verify",
-            json={"username": "testuser", "mfa_code": "123456"},
+            json={"mfa_challenge": UNKNOWN_CHALLENGE, "mfa_code": "123456"},
         )
 
         assert response.status_code == 503
@@ -740,12 +766,13 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when is_locked_out raises AuthSecurityStoreUnavailableError."""
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         fake_pending_mfa_store.is_locked_out = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
         )
         response = auth_client.post(
             "/auth/mfa/verify",
-            json={"username": "testuser", "mfa_code": "123456"},
+            json={"mfa_challenge": challenge, "mfa_code": "123456"},
         )
         assert response.status_code == 503
         assert "unavailable" in response.json()["detail"].lower()
@@ -759,14 +786,14 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when record_failed_attempt raises after invalid MFA code."""
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_verify_mfa.return_value = False
         fake_pending_mfa_store.record_failed_attempt = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
         )
         response = auth_client.post(
             "/auth/mfa/verify",
-            json={"username": "testuser", "mfa_code": "000000"},
+            json={"mfa_challenge": challenge, "mfa_code": "000000"},
         )
         assert response.status_code == 503
         assert "unavailable" in response.json()["detail"].lower()
@@ -780,14 +807,14 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when claim_pending_login raises after valid MFA code."""
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_verify_mfa.return_value = True
         fake_pending_mfa_store.claim_pending_login = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
         )
         response = auth_client.post(
             "/auth/mfa/verify",
-            json={"username": "testuser", "mfa_code": "123456"},
+            json={"mfa_challenge": challenge, "mfa_code": "123456"},
         )
         assert response.status_code == 503
         assert "unavailable" in response.json()["detail"].lower()
@@ -803,12 +830,12 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """401 when user is not found after MFA verification."""
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_verify_mfa.return_value = True
         mock_get_user.return_value = None
         response = auth_client.post(
             "/auth/mfa/verify",
-            json={"username": "testuser", "mfa_code": "123456"},
+            json={"mfa_challenge": challenge, "mfa_code": "123456"},
         )
         assert response.status_code == 401
         assert "Unable to authenticate" in response.json()["detail"]
@@ -826,10 +853,11 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when reset_attempts raises after successful MFA."""
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
         mock_user.id = 1
+        mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
         fake_pending_mfa_store.reset_attempts = MagicMock(
@@ -837,7 +865,7 @@ class TestMFAVerifyEndpoint:
         )
         response = auth_client.post(
             "/auth/mfa/verify",
-            json={"username": "testuser", "mfa_code": "123456"},
+            json={"mfa_challenge": challenge, "mfa_code": "123456"},
         )
         assert response.status_code == 503
         assert "unavailable" in response.json()["detail"].lower()
@@ -858,10 +886,11 @@ class TestMFAVerifyEndpoint:
     ):
         """Mobile PKCE flow after MFA returns session response."""
         auth_app.state._client_type = "mobile"
-        fake_pending_mfa_store.add_pending_login("testuser", 1)
+        challenge = fake_pending_mfa_store.add_pending_login(1)
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
         mock_user.id = 1
+        mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
         mock_pkce.return_value = {
@@ -869,10 +898,10 @@ class TestMFAVerifyEndpoint:
             "mfa_required": False,
             "message": "Complete authentication...",
         }
-        challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        pkce_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         response = auth_client.post(
-            f"/auth/mfa/verify?code_challenge={challenge}&code_challenge_method=S256",
-            json={"username": "testuser", "mfa_code": "123456"},
+            f"/auth/mfa/verify?code_challenge={pkce_challenge}&code_challenge_method=S256",
+            json={"mfa_challenge": challenge, "mfa_code": "123456"},
         )
         assert response.status_code == 200
         assert response.json()["session_id"] == "pkce-sid-mfa"
