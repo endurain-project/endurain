@@ -241,6 +241,18 @@ def _is_trusted_peer(peer_ip: str) -> bool:
     return peer_ip in resolved_ips
 
 
+def get_user_agent(request: Request) -> str:
+    """Return the request's ``User-Agent`` header, or an empty string when it has none.
+
+    Args:
+        request: Request object with headers.
+
+    Returns:
+        The user agent string.
+    """
+    return request.headers.get("user-agent", "")
+
+
 def get_ip_address(request: Request) -> str:
     """
     Extract client IP address from request, respecting TRUSTED_PROXIES.

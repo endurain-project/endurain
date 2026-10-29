@@ -7,6 +7,7 @@ import pytest
 from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
+import core.sync_runner as core_sync_runner
 import modules.garmin.constants as garmin_constants
 import modules.garmin.link_service as garmin_link_service
 import modules.garmin.link_state_store as link_state_store
@@ -171,11 +172,9 @@ def test_starting_a_link_hands_it_to_the_link_pool(stores):
 
 def test_a_link_beyond_the_capacity_is_refused_and_leaves_no_attempt_behind(stores, blocked_pool, monkeypatch):
     monkeypatch.setattr(garmin_link_service, "link_garminconnect", lambda *args: blocked_pool.release.wait(5))
-    monkeypatch.setattr(
-        garmin_link_service, "_link_pool", blocked_pool(garmin_link_service.garmin_constants.MAX_CONCURRENT_LINKS)
-    )
+    monkeypatch.setattr(garmin_link_service, "_link_pool", blocked_pool(core_sync_runner.MAX_CONCURRENT_LINKS))
     login = garmin_schema.GarminLogin(username="me", password="pw")
-    for user_id in range(garmin_link_service.garmin_constants.MAX_CONCURRENT_LINKS):
+    for user_id in range(core_sync_runner.MAX_CONCURRENT_LINKS):
         garmin_link_service.start_link(user_id, login, *stores)
 
     with pytest.raises(core_exceptions.ServiceUnavailableError):

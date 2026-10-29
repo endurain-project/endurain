@@ -14,17 +14,15 @@ Interface::
 from jasil.providers import StateProvider
 
 import core.attempt_state as core_attempt_state
-import modules.garmin.constants as garmin_constants
 
 
 class GarminSyncStateStore(core_attempt_state.SyncStateStore):
     """Garmin sync state backed by the platform ``StateProvider``."""
 
-    def __init__(self, state: StateProvider, ttl_seconds: int = garmin_constants.SYNC_TTL_SECONDS) -> None:
+    def __init__(self, state: StateProvider) -> None:
         """Initialize the sync state store.
 
         Args:
             state: The platform state provider.
-            ttl_seconds: How long a sync's claim and state last.
         """
-        super().__init__(state, "garmin", ttl_seconds)
+        super().__init__(state, "garmin")

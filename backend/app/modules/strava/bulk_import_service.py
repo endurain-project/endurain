@@ -107,7 +107,8 @@ def parse_activities_manifest(manifest_path: str) -> dict | None:
 def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[str, list[int]]:
     """Creates a dictionary that links gear nicknames in Endurain to their Endurain gear IDs.
 
-    The dictionary includes both base Endurain gear nickname and the gear name smoosh ("{brand} {model} {name}") that Strava uses for its shoe gear listing in activities.csv
+    The dictionary includes both base Endurain gear nickname and the gear name smoosh
+    ("{brand} {model} {name}") that Strava uses for its shoe gear listing in activities.csv
 
     Args:
         user_id: The importing user.
@@ -120,7 +121,8 @@ def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[st
     gear_by_name: dict[str, list[int]] = {}
     for item in gears_integration.get_gear_user(user_id, db) or []:
         gear_by_name[item.nickname] = [item.id]
-        # Strava apparently exports shoe names as a smoosh of "{brand} {model} {name}", so adding that as a second key for each gear item
+        # Strava apparently exports shoe names as a smoosh of "{brand} {model} {name}", so adding that as a
+        # second key for each gear item
         strava_name_smoosh = " ".join(
             part
             for part in [
@@ -232,11 +234,15 @@ def build_import_dictionary(
 
 def does_activity_start_time_match_the_data_in_strava_activities_csv(
     activity: activity_contracts.ActivityCore,  # A parsed activity about to be added to Endurain
-    activity_metadata_dict: dict,  # A dictionary containing parsed information from a Strava activities.csv file
+    # A dictionary containing parsed information from a Strava activities.csv file
+    activity_metadata_dict: dict,
 ) -> bool:
-    """Strava includes each multi-activity .fit file once for each activity inside the fit file.  Thus, run without filtering, a 5-activity fit file is imported 5 times for 25 activities imported.
+    """Strava includes each multi-activity .fit file once for each activity inside the fit file.
 
-    So, to find out which activity goes with which file, we check if start time of activity aligns with start time of the activity's strava activities.csv file data.  If it does import.
+    Thus, run without filtering, a 5-activity fit file is imported 5 times for 25 activities imported.
+
+    So, to find out which activity goes with which file, we check if start time of activity aligns with
+    start time of the activity's strava activities.csv file data.  If it does import.
 
     Formatting of times in the two files:
         Activity start time - from Endurain activity parser: 2023-10-21T07:41:47

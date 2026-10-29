@@ -216,6 +216,10 @@ class SyncState(BaseModel):
     status: SyncStatus
 
 
+#: Lifetime of a queued sync's claim and state: longer than any sync takes, shorter than a stuck claim should
+#: block the user.
+SYNC_TTL_SECONDS = 30 * 60
+
 _PENDING = (SyncStatus.QUEUED, SyncStatus.RUNNING)
 _FINISHED = (SyncStatus.COMPLETED, SyncStatus.FAILED)
 
@@ -231,7 +235,7 @@ class SyncStateStore:
         _attempts: The claim and state storage for the feature's syncs.
     """
 
-    def __init__(self, state: StateProvider, namespace: str, ttl_seconds: int) -> None:
+    def __init__(self, state: StateProvider, namespace: str, ttl_seconds: int = SYNC_TTL_SECONDS) -> None:
         """Initialize the store.
 
         Args:

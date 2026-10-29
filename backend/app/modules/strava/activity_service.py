@@ -528,11 +528,28 @@ def fetch_and_process_activity_streams(
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activity streams") from err
 
     def stream_data(name: str) -> list:
+        """Return a stream's data, or an empty list when Strava sent no such stream.
+
+        Args:
+            name: The stream's name.
+
+        Returns:
+            The stream's values.
+        """
         return streams[name].data if name in streams else []
 
     time = stream_data("time")
 
     def waypoints(name: str, make: Callable) -> list[dict]:
+        """Pair a stream's values with the time stream.
+
+        Args:
+            name: The stream's name.
+            make: Builds a waypoint's fields from one value.
+
+        Returns:
+            The waypoints, one per timestamp that has a value.
+        """
         # A stream longer than the time stream has no timestamp for its extra points.
         return [{"time": t, **make(value)} for t, value in zip(time, stream_data(name), strict=False)]
 
@@ -676,9 +693,9 @@ def fetch_and_process_activity_laps(
 
 
 def get_user_strava_activities_by_dates(
+    user_id: int,
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> list[activity_schema.ActivityRead | None] | None:
     """Fetch and store one user's Strava activities recorded in a window.
@@ -688,9 +705,9 @@ def get_user_strava_activities_by_dates(
     every user is needed.
 
     Args:
+        user_id: The user to sync.
         start_date: Start of the window.
         end_date: End of the window.
-        user_id: The user to sync.
         rate_limits: The shared Strava rate-limit state.
 
     Returns:

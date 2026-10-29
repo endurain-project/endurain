@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.logger as core_logger
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity.schema as activity_schema
 import modules.garmin.rate_limit_store as garmin_rate_limit_store
 import modules.garmin.service as garmin_service
 import modules.gears.gear.integration_service as gears_integration
@@ -75,7 +75,7 @@ def process_gear(gear: dict, user_id: int, db: Session) -> gears_schema.GearCrea
 
 
 def match_gear_for_activity(
-    activity: activity_schema.ActivityRead,
+    activity: activity_contracts.ActivityGarminGearRef,
     gears: list[gears_schema.GearRead],
 ) -> int | None:
     """Return the local gear ID matching this activity's Garmin gear, else None."""
@@ -127,38 +127,29 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     Returns:
         The number of activities whose gear was set.
     """
-    # Get user activities
-    activities = activity_integration.list_user_activities_with_garminconnect_gear(user_id, db)
-
-    # Skip if no activities
-    if not activities:
-        logger.debug(
-            "No activities found",
-            extra=core_logger.context(user_id=user_id),
-        )
-        return 0
-
-    logger.debug(
-        "Activities found",
-        extra=core_logger.context(user_id=user_id, count=len(activities)),
-    )
-
-    # Get user gears
     gears = gears_integration.get_gear_user(user_id, db)
 
-    # Build {activity_id: gear_id} for all activities with a match
-    gear_assignments: dict[int, int | None] = {}
-    for activity in activities:
-        matched_gear_id = match_gear_for_activity(activity, gears)
-        if matched_gear_id is not None:
-            gear_assignments[activity.id] = matched_gear_id
-
-    # Persist via CRUD (single UPDATE per distinct gear_id)
-    if gear_assignments:
-        activity_integration.bulk_set_activities_gear(user_id, gear_assignments, db)
+    assigned = 0
+    after_id = 0
+    while page := activity_integration.list_garminconnect_gear_activity_refs(user_id, db, after_id=after_id):
+        after_id = page[-1].id
+        # {activity_id: gear_id} for the page's activities that have a match
+        gear_assignments = {
+            activity.id: matched_gear_id
+            for activity in page
+            if (matched_gear_id := match_gear_for_activity(activity, gears)) is not None
+        }
+        if gear_assignments:
+            activity_integration.bulk_set_activities_gear(user_id, gear_assignments, db)
+            assigned += len(gear_assignments)
+        # Ends the read transaction, so a long history never holds one open
         db.commit()
 
-    return len(gear_assignments)
+    logger.debug(
+        "Garmin Connect gear set on activities",
+        extra=core_logger.context(user_id=user_id, count=assigned),
+    )
+    return assigned
 
 
 def get_user_gear(user_id: int, rate_limits: garmin_rate_limit_store.GarminRateLimitStore) -> bool:

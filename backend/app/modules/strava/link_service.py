@@ -4,6 +4,7 @@ import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
+import core.sync_runner as core_sync_runner
 import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
@@ -20,7 +21,7 @@ logger = core_logger.get_logger(__name__)
 # because the one-time authorization code is never written to a job row, and a consumed code cannot
 # be retried. A link past this capacity is refused rather than queued.
 _link_pool = core_local_pool.BoundedPool(
-    "strava-link", workers=strava_constants.MAX_CONCURRENT_LINKS, max_pending=strava_constants.MAX_CONCURRENT_LINKS
+    "strava-link", workers=core_sync_runner.MAX_CONCURRENT_LINKS, max_pending=core_sync_runner.MAX_CONCURRENT_LINKS
 )
 
 

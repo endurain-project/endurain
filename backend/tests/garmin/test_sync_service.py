@@ -9,6 +9,7 @@ from jasil.events import Event
 from jasil.jobs.registry import JobHandlerRegistry
 
 import core.exceptions as core_exceptions
+import core.sync_runner as core_sync_runner
 import modules.garmin.constants as garmin_constants
 import modules.garmin.events as garmin_events
 import modules.garmin.subscribers as garmin_subscribers
@@ -158,7 +159,7 @@ def test_an_activities_range_beyond_the_cap_is_refused():
 
 
 def test_the_longest_allowed_activities_range_is_accepted():
-    first = DAY - timedelta(days=garmin_constants.MAX_ACTIVITIES_RANGE_DAYS - 1)
+    first = DAY - timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS - 1)
     with patch.object(garmin_sync_service.activity_ingestion_integration, "request_provider_sync") as request:
         garmin_sync_service.request_activities_sync(1, first, DAY, MagicMock(), MagicMock())
 
@@ -355,6 +356,32 @@ class TestRecentHealth:
         assert local.submit.call_count == 2
         assert states.get(1, Kind.HEALTH).status == Status.QUEUED
         assert states.get(2, Kind.HEALTH).status == Status.QUEUED
+
+    def test_no_connection_is_held_while_waiting_for_a_pool_slot(self, rate_limits, local, states, local_today):
+        sessions = []
+
+        def new_session():
+            session = MagicMock(holds_connection=False)
+            session.__enter__.return_value = session
+            session.close.side_effect = lambda: setattr(session, "holds_connection", False)
+            sessions.append(session)
+            return session
+
+        def read_today(_user_id, db):
+            db.holds_connection = True
+            return DAY
+
+        local_today.side_effect = read_today
+        held_at_submit = []
+        local.submit.side_effect = lambda *_, **__: held_at_submit.extend(s.holds_connection for s in sessions)
+        with (
+            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[1], []]),
+            patch.object(garmin_sync_service.core_database, "SessionLocal", side_effect=new_session),
+        ):
+            garmin_sync_service.sync_recent_health(states, rate_limits)
+
+        assert held_at_submit == [False] * len(sessions)
+        assert held_at_submit
 
     def test_a_pool_that_stays_full_ends_the_pass(self, rate_limits, full_pool, states, monkeypatch):
         monkeypatch.setattr(garmin_constants, "SCHEDULED_SLOT_WAIT_SECONDS", 0.01)

@@ -16,9 +16,8 @@ import modules.strava.bulk_import_service as strava_bulk_import_service
 import modules.strava.constants as strava_constants
 import modules.strava.link_service as strava_link_service
 import modules.strava.rate_limit_store as strava_rate_limit_store
+import modules.strava.service as strava_service
 import modules.strava.sync_service as strava_sync_service
-import modules.users.users_integrations.integration_service as user_integrations_integration
-from core.database import SessionLocal
 
 
 def _fetch_window(
@@ -37,25 +36,11 @@ def _fetch_window(
         The stored activities, or ``None`` when Strava is not linked.
     """
     return strava_activity_service.get_user_strava_activities_by_dates(
+        user_id,
         window_start,
         window_end,
-        user_id,
         strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state()),
     )
-
-
-def _linked_user_ids(after_id: int, limit: int) -> list[int]:
-    """Page through the users who have linked Strava.
-
-    Args:
-        after_id: Return only users with an id greater than this.
-        limit: Maximum number of user ids to return.
-
-    Returns:
-        The linked user ids, ascending.
-    """
-    with SessionLocal() as db:
-        return user_integrations_integration.list_user_ids_with_strava_linked(after_id, limit, db)
 
 
 def shutdown_pools() -> None:
@@ -67,6 +52,6 @@ def shutdown_pools() -> None:
 def register_activity_provider() -> None:
     """Register Strava, and its export format, on the activities provider registry."""
     activity_ingestion_integration.register_activity_provider(
-        strava_constants.PROVIDER_NAME, _fetch_window, _linked_user_ids
+        strava_constants.PROVIDER_NAME, _fetch_window, strava_service.linked_user_ids
     )
     strava_bulk_import_service.register_bulk_import_format()

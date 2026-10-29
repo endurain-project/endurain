@@ -27,7 +27,7 @@ import modules.websocket.integration_service as websocket_integration
 logger = core_logger.get_logger(__name__)
 
 # Small on purpose: syncs are Strava round trips and compete with the request threads.
-_sync_pool = core_local_pool.BoundedPool("strava-sync", workers=2, max_pending=strava_constants.MAX_PENDING_LOCAL_SYNCS)
+_sync_pool = core_local_pool.BoundedPool("strava-sync", workers=2, max_pending=core_sync_runner.MAX_PENDING_LOCAL_SYNCS)
 
 
 def shutdown_sync_pool(*, wait: bool = False) -> None:
@@ -69,6 +69,11 @@ def run_sync(
         raise ValueError("A Strava link runs on the link pool, not as a sync job")
 
     def work() -> bool:
+        """Run the gear sync or the unlink the payload asks for.
+
+        Returns:
+            Whether the work did anything.
+        """
         if payload.kind == strava_constants.SyncKind.GEAR:
             return strava_gear_service.get_user_gear(payload.user_id, rate_limits)
         strava_service.unlink_account(payload.user_id)

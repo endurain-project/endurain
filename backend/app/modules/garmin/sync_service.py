@@ -36,7 +36,7 @@ import modules.websocket.integration_service as websocket_integration
 logger = core_logger.get_logger(__name__)
 
 # Small on purpose: syncs are Garmin round trips and compete with the request threads.
-_sync_pool = core_local_pool.BoundedPool("garmin-sync", workers=2, max_pending=garmin_constants.MAX_PENDING_LOCAL_SYNCS)
+_sync_pool = core_local_pool.BoundedPool("garmin-sync", workers=2, max_pending=core_sync_runner.MAX_PENDING_LOCAL_SYNCS)
 
 _USERS_PAGE_SIZE = 100
 
@@ -99,6 +99,11 @@ def run_sync(
     """
 
     def work() -> bool:
+        """Run the gear or health sync the payload asks for.
+
+        Returns:
+            Whether the sync did anything.
+        """
         if payload.kind == garmin_constants.SyncKind.GEAR:
             return garmin_gear_service.get_user_gear(payload.user_id, rate_limits)
         if payload.start_date is not None and payload.end_date is not None:
@@ -108,6 +113,11 @@ def run_sync(
         return False
 
     def record_refusal(err: Exception) -> None:
+        """Record a Garmin Connect rate limit for every process.
+
+        Args:
+            err: The error that made Garmin Connect or the rate-limit state refuse the sync.
+        """
         if isinstance(err, garminconnect.GarminConnectTooManyRequestsError):
             # Recorded for every process, so the next sync waits out the cooldown instead of meeting the limit again.
             garmin_service.rate_limit_error(err, payload.user_id, rate_limits)
@@ -308,7 +318,7 @@ def request_activities_sync(
     _validate_range(
         start_date,
         end_date,
-        garmin_constants.MAX_ACTIVITIES_RANGE_DAYS,
+        core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS,
         users_integration.local_today(user_id, db),
     )
 
@@ -348,6 +358,8 @@ def _sync_recent_health_for_user(
     """
     with core_database.SessionLocal() as db:
         end_date = users_integration.local_today(user_id, db)
+        # Return the connection to the pool now: queueing may wait minutes for a pool slot.
+        db.close()
         try:
             _queue(
                 user_id,

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.sync_runner as core_sync_runner
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -54,9 +55,9 @@ def request_activities_sync(
         raise core_exceptions.InvalidInputError("start_date must not be after end_date")
     if end_date > users_integration.local_today(user_id, db):
         raise core_exceptions.InvalidInputError("end_date must not be in the future")
-    if end_date - start_date >= timedelta(days=strava_constants.MAX_ACTIVITIES_RANGE_DAYS):
+    if end_date - start_date >= timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS):
         raise core_exceptions.InvalidInputError(
-            f"The date range must not exceed {strava_constants.MAX_ACTIVITIES_RANGE_DAYS} days"
+            f"The date range must not exceed {core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS} days"
         )
 
     job = activity_ingestion_integration.request_provider_sync(
@@ -194,3 +195,17 @@ def _delete_imported_activities(user_id: int) -> int:
         )
         if deleted < strava_constants.UNLINK_DELETE_BATCH_SIZE:
             return total
+
+
+def linked_user_ids(after_id: int, limit: int) -> list[int]:
+    """Page through the users who have linked Strava, in a short session of its own.
+
+    Args:
+        after_id: Return only users with an id greater than this.
+        limit: Maximum number of user ids to return.
+
+    Returns:
+        The linked user ids, ascending.
+    """
+    with SessionLocal() as db:
+        return user_integrations_integration.list_user_ids_with_strava_linked(after_id, limit, db)

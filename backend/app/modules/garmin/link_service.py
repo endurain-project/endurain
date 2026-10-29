@@ -12,6 +12,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
+import core.sync_runner as core_sync_runner
 import modules.garmin.constants as garmin_constants
 import modules.garmin.link_state_store as garmin_link_state_store
 import modules.garmin.mfa_code_store as garmin_mfa_code_store
@@ -31,7 +32,7 @@ _LINK_JOB = "garmin-link"
 # A login past this capacity is refused rather than queued: a queued one would outlive its
 # polled state while holding the user's credentials in memory.
 _link_pool = core_local_pool.BoundedPool(
-    "garmin-link", workers=garmin_constants.MAX_CONCURRENT_LINKS, max_pending=garmin_constants.MAX_CONCURRENT_LINKS
+    "garmin-link", workers=core_sync_runner.MAX_CONCURRENT_LINKS, max_pending=core_sync_runner.MAX_CONCURRENT_LINKS
 )
 
 
@@ -145,6 +146,11 @@ def link_garminconnect(
     mfa_prompted = False
 
     def prompt_mfa() -> str | None:
+        """Mark the login as prompted and wait for the user's MFA code.
+
+        Returns:
+            The submitted code, or ``None`` when none arrived in time.
+        """
         nonlocal mfa_prompted
         mfa_prompted = True
         return wait_for_mfa_code(user_id, mfa_codes, link_states)

@@ -110,6 +110,16 @@ def _keep_other_source(
     """
 
     def keep(user_id: int, date: str, db: Session) -> bool:
+        """Tell whether the owner's record for a date came from another source.
+
+        Args:
+            user_id: The record's owner.
+            date: The record's date.
+            db: Database session.
+
+        Returns:
+            True when a record exists and was not written by this Garmin Connect source.
+        """
         existing = get_by_date(user_id, date, db)
         return existing is not None and existing.source != garmin_source.value
 

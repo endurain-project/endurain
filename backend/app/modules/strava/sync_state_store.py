@@ -14,17 +14,15 @@ Interface::
 from jasil.providers import StateProvider
 
 import core.attempt_state as core_attempt_state
-import modules.strava.constants as strava_constants
 
 
 class StravaSyncStateStore(core_attempt_state.SyncStateStore):
     """Strava sync state backed by the platform ``StateProvider``."""
 
-    def __init__(self, state: StateProvider, ttl_seconds: int = strava_constants.SYNC_TTL_SECONDS) -> None:
+    def __init__(self, state: StateProvider) -> None:
         """Initialize the sync state store.
 
         Args:
             state: The platform state provider.
-            ttl_seconds: How long a sync's claim and state last.
         """
-        super().__init__(state, "strava", ttl_seconds)
+        super().__init__(state, "strava")

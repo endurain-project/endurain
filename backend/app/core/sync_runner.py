@@ -18,6 +18,15 @@ logger = core_logger.get_logger(__name__)
 
 _Status = core_attempt_state.SyncStatus
 
+#: Link logins or account links one process runs at once, running or queued.
+MAX_CONCURRENT_LINKS = 4
+
+#: Syncs the in-process pool may hold, running or queued, when durable jobs are off.
+MAX_PENDING_LOCAL_SYNCS = 50
+
+#: Longest activity range one request may ask for; a longer history is fetched in several requests.
+MAX_ACTIVITIES_RANGE_DAYS = 366
+
 
 def run_recorded(
     states: core_attempt_state.SyncStateStore,

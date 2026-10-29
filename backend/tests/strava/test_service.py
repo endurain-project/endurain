@@ -7,6 +7,7 @@ import jasil.runtime as platform_runtime
 import pytest
 
 import core.exceptions as core_exceptions
+import core.sync_runner as core_sync_runner
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
@@ -103,7 +104,7 @@ class TestRequestActivitiesSync:
 
     def test_a_range_longer_than_the_cap_is_refused(self):
         start = date(2025, 1, 1)
-        too_long = start + timedelta(days=strava_constants.MAX_ACTIVITIES_RANGE_DAYS)
+        too_long = start + timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS)
         with (
             patch.object(strava_service.activity_ingestion_integration, "request_provider_sync") as request,
             pytest.raises(core_exceptions.InvalidInputError),
@@ -114,7 +115,7 @@ class TestRequestActivitiesSync:
 
     def test_a_range_at_the_cap_is_queued(self):
         start = date(2025, 1, 1)
-        last = start + timedelta(days=strava_constants.MAX_ACTIVITIES_RANGE_DAYS - 1)
+        last = start + timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS - 1)
         with patch.object(
             strava_service.activity_ingestion_integration, "request_provider_sync", return_value="job"
         ) as request:

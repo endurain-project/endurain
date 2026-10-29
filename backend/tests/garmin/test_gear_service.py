@@ -100,3 +100,27 @@ def test_only_gear_not_stored_yet_is_counted():
 
     assert count == 1
     assert create.call_args.args[0] == [new_gear]
+
+
+def _ref(activity_id, gear_id):
+    return garmin_gear_service.activity_contracts.ActivityGarminGearRef(id=activity_id, garminconnect_gear_id=gear_id)
+
+
+def test_activities_are_matched_page_by_page_and_each_page_is_committed():
+    gears = [MagicMock(id=10, garminconnect_gear_id="g1"), MagicMock(id=11, garminconnect_gear_id="g2")]
+    pages = [[_ref(1, "g1"), _ref(2, "other")], [_ref(3, "g2")], []]
+    db = MagicMock()
+
+    with (
+        patch.object(garmin_gear_service.gears_integration, "get_gear_user", return_value=gears),
+        patch.object(
+            garmin_gear_service.activity_integration, "list_garminconnect_gear_activity_refs", side_effect=pages
+        ) as list_refs,
+        patch.object(garmin_gear_service.activity_integration, "bulk_set_activities_gear") as bulk_set,
+    ):
+        assigned = garmin_gear_service.set_activities_gear(1, db)
+
+    assert assigned == 2
+    assert [call.kwargs["after_id"] for call in list_refs.call_args_list] == [0, 2, 3]
+    assert [call.args[1] for call in bulk_set.call_args_list] == [{1: 10}, {3: 11}]
+    assert db.commit.call_count == 2
