@@ -34,6 +34,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.file_uploads": "The only path an ``UploadFile`` may take.",
     "core.geocoding": "The reverse-geocoding configuration shape the settings store and the substrate is fed.",
     "core.hashing": "Content digests for upload and media deduplication.",
+    "core.http_cache": "The browser cache lifetime of a signed photo, thumbnail or media URL.",
     "core.i18n": "Localises the test email.",
     "core.local_pool": "The bounded in-process pool background work runs on when no durable worker does.",
     "core.logger": "Structured logging.",

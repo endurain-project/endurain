@@ -14,6 +14,7 @@ import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.public_router as auth_router
+import modules.auth.authentication.schema as auth_schema
 import modules.auth.credentials.integration_service as auth_credentials_crud
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.lockout.contracts as lockout_contracts
@@ -177,14 +178,16 @@ class TestLoginEndpoint:
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
-        mock_complete_login.return_value = {
-            "session_id": "sid-1",
-            "access_token": "at-1",
-            "csrf_token": "csrf-1",
-            "token_type": "bearer",
-            "expires_in": 900,
-            "refresh_token_expires_in": 604800,
-        }
+        mock_complete_login.return_value = auth_schema.AuthOutcome(
+            {
+                "session_id": "sid-1",
+                "access_token": "at-1",
+                "csrf_token": "csrf-1",
+                "token_type": "bearer",
+                "expires_in": 900,
+                "refresh_token_expires_in": 604800,
+            }
+        )
 
         response = auth_client.post(
             "/auth/login",
@@ -217,14 +220,16 @@ class TestLoginEndpoint:
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
-        mock_complete_login.return_value = {
-            "session_id": "sid-1",
-            "access_token": "at-1",
-            "refresh_token": "rt-1",
-            "token_type": "bearer",
-            "expires_in": 900,
-            "refresh_token_expires_in": 604800,
-        }
+        mock_complete_login.return_value = auth_schema.AuthOutcome(
+            {
+                "session_id": "sid-1",
+                "access_token": "at-1",
+                "refresh_token": "rt-1",
+                "token_type": "bearer",
+                "expires_in": 900,
+                "refresh_token_expires_in": 604800,
+            }
+        )
 
         response = auth_client.post(
             "/auth/login",
@@ -543,14 +548,16 @@ class TestMFAVerifyEndpoint:
         mock_user.id = 1
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
-        mock_complete_login.return_value = {
-            "session_id": "sid-mfa",
-            "access_token": "at-mfa",
-            "csrf_token": "csrf-mfa",
-            "token_type": "bearer",
-            "expires_in": 900,
-            "refresh_token_expires_in": 604800,
-        }
+        mock_complete_login.return_value = auth_schema.AuthOutcome(
+            {
+                "session_id": "sid-mfa",
+                "access_token": "at-mfa",
+                "csrf_token": "csrf-mfa",
+                "token_type": "bearer",
+                "expires_in": 900,
+                "refresh_token_expires_in": 604800,
+            }
+        )
 
         response = auth_client.post(
             "/auth/mfa/verify",
@@ -612,14 +619,16 @@ class TestMFAVerifyEndpoint:
         mock_get_user.return_value = mock_user
         mock_require_user.return_value = mock_user
         mock_check_active.return_value = None
-        mock_complete_login.return_value = {
-            "session_id": "sid-backup",
-            "access_token": "at-backup",
-            "csrf_token": "csrf-backup",
-            "token_type": "bearer",
-            "expires_in": 900,
-            "refresh_token_expires_in": 604800,
-        }
+        mock_complete_login.return_value = auth_schema.AuthOutcome(
+            {
+                "session_id": "sid-backup",
+                "access_token": "at-backup",
+                "csrf_token": "csrf-backup",
+                "token_type": "bearer",
+                "expires_in": 900,
+                "refresh_token_expires_in": 604800,
+            }
+        )
 
         with (
             patch(
@@ -877,7 +886,7 @@ class TestRefreshEndpoint:
     @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
-    @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
+    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.store_rotated_token")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.check_token_reuse")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
@@ -1036,7 +1045,7 @@ class TestRefreshEndpoint:
     @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
-    @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
+    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.store_rotated_token")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.check_token_reuse")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
@@ -1184,7 +1193,7 @@ class TestRefreshEndpoint:
     @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
-    @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
+    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.store_rotated_token")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.check_token_reuse")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
@@ -1274,7 +1283,7 @@ class TestRefreshEndpoint:
     @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
-    @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
+    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.store_rotated_token")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.check_token_reuse")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
@@ -1536,7 +1545,7 @@ class TestRefreshEndpoint:
     @patch("modules.auth.authentication.service.identity_providers_integration.request_idp_token_refresh")
     @patch("modules.auth.authentication.service.sessions_integration.edit_session")
     @patch("modules.auth.authentication.service.create_tokens")
-    @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
+    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.store_rotated_token")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.check_token_reuse")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
@@ -1755,7 +1764,7 @@ class TestRefreshEndpoint:
         mock_edit_session.assert_not_called()
 
     @patch("modules.auth.authentication.service.sessions_integration.update_session_csrf_token")
-    @patch("modules.auth.authentication.service.authentication_dependencies.set_refresh_token_cookie")
+    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
     @patch("modules.auth.authentication.service.mint_access_token")
     @patch("modules.auth.authentication.service.rotated_refresh_tokens_integration.get_grace_replay_token")
     @patch("modules.auth.authentication.service.create_tokens")
@@ -1942,7 +1951,7 @@ class TestLogoutEndpoint:
         assert response.status_code == 401
         assert "Invalid refresh token" in response.json()["detail"]
 
-    @patch("modules.auth.authentication.service.authentication_dependencies.clear_refresh_token_cookies")
+    @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
     def test_logout_missing_session_is_idempotent_success(
@@ -2019,7 +2028,7 @@ class TestLogoutEndpoint:
         assert response.status_code == 401
         assert "PKCE" in response.json()["detail"]
 
-    @patch("modules.auth.authentication.service.authentication_dependencies.clear_refresh_token_cookies")
+    @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
     @patch("modules.auth.authentication.service.identity_providers_integration.clear_all_idp_tokens")
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
@@ -2069,7 +2078,7 @@ class TestLogoutEndpoint:
         assert response.status_code == 200
         mock_clear_cookies.assert_called_once()
 
-    @patch("modules.auth.authentication.service.authentication_dependencies.clear_refresh_token_cookies")
+    @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
     @patch("modules.auth.authentication.service.identity_providers_integration.clear_all_idp_tokens")
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
@@ -2155,7 +2164,7 @@ class TestLogoutEndpoint:
         assert response.status_code == 403
         assert "client type" in response.json()["detail"].lower()
 
-    @patch("modules.auth.authentication.service.authentication_dependencies.clear_refresh_token_cookies")
+    @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
     def test_logout_missing_session_is_idempotent_success_mobile(

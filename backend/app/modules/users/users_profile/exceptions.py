@@ -7,7 +7,8 @@ This module defines custom exceptions for profile operations:
 - Conversion of these exceptions to ``core.exceptions`` errors
 """
 
-from fastapi import status
+from http import HTTPStatus
+
 from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
@@ -133,7 +134,7 @@ class SchemaValidationError(ProfileImportError):
 class TransferTimeoutError(core_exceptions.DomainError):
     """An export or import ran past its time limit."""
 
-    status_code = status.HTTP_408_REQUEST_TIMEOUT
+    status_code = HTTPStatus.REQUEST_TIMEOUT.value
     code = "transfer-timeout"
     title = "Request Timeout"
     default_detail = "The operation timed out"
@@ -142,7 +143,7 @@ class TransferTimeoutError(core_exceptions.DomainError):
 class TransferUnprocessableError(core_exceptions.DomainError):
     """An export or import could not be completed with the data it was given."""
 
-    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    status_code = HTTPStatus.UNPROCESSABLE_CONTENT.value
     code = "transfer-unprocessable"
     title = "Unprocessable Content"
     default_detail = "The data could not be processed"
@@ -151,7 +152,7 @@ class TransferUnprocessableError(core_exceptions.DomainError):
 class InsufficientStorageError(core_exceptions.DomainError):
     """The server ran out of disk space or memory for an export or import."""
 
-    status_code = status.HTTP_507_INSUFFICIENT_STORAGE
+    status_code = HTTPStatus.INSUFFICIENT_STORAGE.value
     code = "insufficient-storage"
     title = "Insufficient Storage"
     default_detail = "The server does not have enough storage"

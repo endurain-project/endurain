@@ -13,6 +13,9 @@ from jasil.providers import StateBackendUnavailableError, StateProvider
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
+import core.logger as core_logger
+
+logger = core_logger.get_logger(__name__)
 
 _MFA_SECRET_KEY_PREFIX = "endurain:auth:mfa:setup_secret"  # noqa: S105 - storage key prefix, not a credential
 _DEFAULT_TTL_SECONDS: int = 300
@@ -83,14 +86,15 @@ def _decrypt_secret(encrypted_secret: str) -> str | None:
         encrypted_secret: Fernet-encrypted MFA setup secret.
 
     Returns:
-        Decrypted MFA setup secret, or None on failure.
+        Decrypted MFA setup secret, or None when it cannot be decrypted.
 
     Raises:
         None.
     """
     try:
         return core_cryptography.decrypt_token_fernet(encrypted_secret)
-    except Exception:
+    except core_exceptions.CryptographyError:
+        logger.warning("Could not decrypt the stored MFA setup secret", exc_info=True)
         return None
 
 

@@ -11,7 +11,9 @@ from fastapi import HTTPException
 import core.config as core_config
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.auth.mfa.schema as mfa_schema
+import modules.auth.sessions.schema as auth_sessions_schema
 import modules.users.users.schema as users_schema
 
 PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
@@ -246,23 +248,33 @@ class TestReadSessionsMe:
 
     def test_success(self, profile_client, mock_auth_services):
         """Happy path: returns sessions."""
-        mock_auth_services.get_user_sessions.return_value = [_make_session_mock()]
+        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UsersSessionsPage.build(
+            [auth_sessions_schema.UsersSessionsRead.model_validate(_make_session_mock())], 3, 2, 1
+        )
 
-        response = profile_client.get(PREFIX + "/sessions")
+        response = profile_client.get(PREFIX + "/sessions?page_number=2&num_records=1")
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["id"] == "session-1"
+        assert [item["id"] for item in data["items"]] == ["session-1"]
+        assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
+        assert mock_auth_services.list_user_sessions.call_args.args == (1, core_pagination.PageParams(2, 1))
+
+    def test_rejects_an_oversized_page(self, profile_client):
+        """A page size above the cap is a validation error."""
+        response = profile_client.get(PREFIX + "/sessions?num_records=201")
+
+        assert response.status_code == 422
 
     def test_demo_environment(self, profile_client, mock_auth_services):
         """Demo environment returns empty list."""
-        mock_auth_services.get_user_sessions.return_value = []
+        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UsersSessionsPage.build([], 0, 1, 25)
 
         response = profile_client.get(PREFIX + "/sessions")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []
+        assert mock_auth_services.list_user_sessions.call_args.args == (1, core_pagination.PageParams(1, 25))
 
 
 # ===================================================================

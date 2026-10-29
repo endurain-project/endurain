@@ -47,7 +47,8 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
         allowed = allowed_schemes
         if scheme not in allowed:
             raise core_exceptions.InvalidInputError(
-                f"Redirect scheme '{scheme}' is not allowed. Configure ALLOWED_REDIRECT_SCHEMES to permit custom URI schemes."
+                f"Redirect scheme '{scheme}' is not allowed. "
+                "Configure ALLOWED_REDIRECT_SCHEMES to permit custom URI schemes."
             )
         # Custom scheme is allowed — no further checks needed
         return
@@ -137,7 +138,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name"],
         },
         "description": "Authelia - Open-source authentication and authorization server",
-        "configuration_notes": "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). Configure an OIDC client in your Authelia configuration file.",
+        "configuration_notes": (
+            "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). "
+            "Configure an OIDC client in your Authelia configuration file."
+        ),
     },
     "authentik": {
         "name": "Authentik",
@@ -151,7 +155,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name", "display_name"],
         },
         "description": "Authentik - Open-source Identity Provider",
-        "configuration_notes": "Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik.",
+        "configuration_notes": (
+            "Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) "
+            "and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik."
+        ),
     },
     "casdoor": {
         "name": "Casdoor",
@@ -165,7 +172,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name", "displayName"],
         },
         "description": "Casdoor - Open-source Identity and Access Management (IAM) / Single-Sign-On (SSO) platform",
-        "configuration_notes": "Replace {your-casdoor-domain} with your Casdoor server domain (e.g., casdoor.example.com). Create an OAuth2/OIDC application in Casdoor admin console.",
+        "configuration_notes": (
+            "Replace {your-casdoor-domain} with your Casdoor server domain (e.g., casdoor.example.com). "
+            "Create an OAuth2/OIDC application in Casdoor admin console."
+        ),
     },
     "keycloak": {
         "name": "Keycloak",
@@ -179,7 +189,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name", "display_name", "full_name"],
         },
         "description": "Keycloak - Open Source Identity and Access Management",
-        "configuration_notes": "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) and {realm} with your realm name. Create an OIDC client in Keycloak admin console.",
+        "configuration_notes": (
+            "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) "
+            "and {realm} with your realm name. Create an OIDC client in Keycloak admin console."
+        ),
     },
     "pocketid": {
         "name": "Pocket ID",
@@ -193,7 +206,11 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name"],
         },
         "description": "Pocket ID - Simple OIDC provider for passwordless passkey authentication",
-        "configuration_notes": "Replace {your-pocketid-domain} with your Pocket ID server domain (e.g., auth.example.com). Create a new OIDC client in Pocket ID admin panel and copy the Client ID, Client Secret, and OIDC Discovery URL.",
+        "configuration_notes": (
+            "Replace {your-pocketid-domain} with your Pocket ID server domain (e.g., auth.example.com). "
+            "Create a new OIDC client in Pocket ID admin panel and copy the Client ID, Client Secret, and "
+            "OIDC Discovery URL."
+        ),
     },
 }
 

@@ -16,11 +16,9 @@ def _start(*, redirect=None, provider=_UNSET, claim=None):
         provider = MagicMock(enabled=True, id=1, name="Test IdP")
     claim = claim or MagicMock(return_value=7)
     db = MagicMock()
-    request = MagicMock()
     service = idp_service.IdentityProviderService(MagicMock(), "https://app.example", "test")
     service.initiate_link = MagicMock(return_value="https://idp.example.com/auth")
     with (
-        patch.object(integration_service.core_network, "get_ip_address", return_value="10.0.0.1"),
         patch.object(idp_service.idp_crud, "get_identity_provider", return_value=provider),
         patch.object(integration_service, "_service", return_value=service),
         patch.object(
@@ -30,7 +28,7 @@ def _start(*, redirect=None, provider=_UNSET, claim=None):
         ),
         patch.object(idp_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
-        url = integration_service.start_browser_link("token", 1, redirect, request, claim, db)
+        url = integration_service.start_browser_link("token", 1, redirect, "10.0.0.1", claim, db)
     return url, claim, service, create_state
 
 

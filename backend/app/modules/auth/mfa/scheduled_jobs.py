@@ -4,6 +4,8 @@ import core.dependencies as core_dependencies
 import core.scheduler as core_scheduler
 import modules.auth.mfa.pending_login_store as pending_login_store
 
+CLEANUP_LOCK_NAME = "auth_mfa_pending_cleanup"
+
 
 def cleanup_expired_pending_mfa_logins() -> int:
     """Run the pending-MFA cleanup entrypoint; pending entries expire through the provider TTL."""
@@ -17,5 +19,6 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             cleanup_expired_pending_mfa_logins,
             5,
             "evict expired pending MFA login entries",
+            lock_name=CLEANUP_LOCK_NAME,
         ),
     )

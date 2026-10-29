@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import status
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -129,9 +128,10 @@ def enable_mfa(
             extra=core_logger.context(token_user_id=token_user_id),
         )
         return mfa_schema.MFAEnableRead(message="MFA enabled successfully", backup_codes=backup_codes)
-    except core_exceptions.DomainError as exc:
-        if not (exc.status_code == status.HTTP_400_BAD_REQUEST and exc.detail == "Invalid MFA code"):
-            mfa_secret_store.delete_secret(token_user_id)
+    except core_exceptions.InvalidMfaCodeError:
+        raise
+    except core_exceptions.DomainError:
+        mfa_secret_store.delete_secret(token_user_id)
         raise
 
 
@@ -165,7 +165,7 @@ def verify_mfa(
 ) -> mfa_schema.MFAVerifyRead:
     """Verify an MFA code for the authenticated user; a TOTP step is accepted once."""
     if not step_up_service.verify_mfa_code(token_user_id, request.mfa_code, step_up_store, db):
-        raise core_exceptions.InvalidInputError("Invalid MFA code")
+        raise core_exceptions.InvalidMfaCodeError()
 
     db.commit()
     logger.info("MFA code verified", extra=core_logger.context(user_id=token_user_id))

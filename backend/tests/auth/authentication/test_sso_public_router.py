@@ -85,6 +85,7 @@ class TestTokenExchange:
     ):
         mock_get_session.return_value = _session_and_state()
         user = MagicMock()
+        user.username = "testuser"
         mock_require_user.return_value = user
         mock_create_tokens.return_value = (
             None,

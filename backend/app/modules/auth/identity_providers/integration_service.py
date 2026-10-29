@@ -3,11 +3,9 @@
 from collections.abc import Callable
 
 import jasil.runtime as platform_runtime
-from fastapi import Request
 from sqlalchemy.orm import Session
 
 import core.config as core_config
-import core.network as core_network
 import modules.auth.identity_provider_links.contracts as identity_links_contracts
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_provider_links.schema as identity_links_schema
@@ -44,12 +42,11 @@ def start_browser_link(
     link_token: str,
     idp_id: int,
     redirect: str | None,
-    request: Request,
+    client_ip: str | None,
     claim_link_token: Callable[..., int],
     db: Session,
 ) -> str:
     """Claim a browser link token and prepare its identity-provider redirect."""
-    client_ip = core_network.get_ip_address(request)
     return _service().start_browser_link(
         link_token,
         idp_id,

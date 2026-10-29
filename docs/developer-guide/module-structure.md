@@ -792,10 +792,17 @@ These constraints remain visible until a coordinated design change resolves them
   durable handlers, nets, recurring jobs and startup tasks. Routers (`api.py`) and models (`model_registry.py`)
   remain separate composition surfaces for the HTTP app and Alembic.
 
-- **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`) and
-  `computation.py` (pure date and SQL helpers and `upsert_for_day`, the same-day upsert the weight, steps and sleep services share), and nothing else. `health_fasting.crud` and `health_poop.crud` import
-  `computation.local_date_expression` through `_LAYER_EXCEPTIONS`, because day bucketing must be
-  written once.
+- **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`),
+  `computation.py` (pure date helpers, the unexecuted `select` builders for a user's records by id, existence,
+  count and list, the generic `to_read_schema`/`to_read_schemas` that replace a per-package `serializers.py`,
+  and `upsert_for_day`, the same-day upsert the weight, steps and sleep services share) and `record_crud.py`
+  (the persistence steps every per-user record runs identically: load by id and owner, count, page, create,
+  edit under `If-Match`, delete). A package describes its record once with a `RecordSpec` (model, read schema,
+  error labels) and its `crud` delegates to `record_crud`, keeping only what is specific to the record.
+  Persistence may import a namespace's `computation` like a data shape (`_PERSISTENCE_SHARED_ROLES`) and the
+  `crud`-role file directly under its own namespace (`_PERSISTENCE_NAMESPACE_ROLES`): neither declares a table.
+  Anything that resolves a value through another module, such as the user's "today", stays in the
+  package `service` that calls these helpers.
 - **`users` ⇄ `health`.** `health` services read the user's height, timezone and "today" through
   `users.integration_service`, and `users` creates default targets, recalculates BMI and exports and
   imports health records through the `health_targets` and `health_weight` surfaces. Only the
@@ -818,8 +825,7 @@ These constraints remain visible until a coordinated design change resolves them
   contributions declared by each module; ORM relationships remain replaced by
   scalar foreign keys with database `ON DELETE` behaviour.
 
-- **Auth collections are not paginated.** `GET /sessions/user/{user_id}`,
-  `GET /profile/sessions`, `GET /profile/api-keys`, `GET /identity-providers` and
+- **Auth collections are not paginated.** `GET /profile/api-keys`, `GET /identity-providers` and
   `GET /profile/identity-providers` return bare arrays, against the convention that a list a
   client receives is a `core.pagination.Page`. Changing these shapes breaks
   existing API clients, including the mobile app, so it waits for a coordinated

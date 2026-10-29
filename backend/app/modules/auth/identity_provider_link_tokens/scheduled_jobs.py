@@ -7,6 +7,8 @@ import modules.auth.identity_provider_link_tokens.service as idp_link_token_serv
 
 logger = core_logger.get_logger(__name__)
 
+PURGE_LOCK_NAME = "auth_identity_provider_link_tokens_purge"
+
 
 def delete_expired_tokens_from_db() -> None:
     """Delete expired one-time link tokens in a short-lived transaction."""
@@ -24,5 +26,6 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             delete_expired_tokens_from_db,
             5,
             "delete expired IdP link tokens from the database",
+            lock_name=PURGE_LOCK_NAME,
         ),
     )

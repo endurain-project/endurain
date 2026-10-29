@@ -7,21 +7,12 @@ from datetime import UTC, datetime
 from typing import NoReturn
 from uuid import uuid4
 
-from fastapi import (
-    Request,
-    Response,
-    status,
-)
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
-import core.network as core_network
 import modules.auth.access_tokens.integration_service as access_tokens_integration
-import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.computation as auth_computation
@@ -200,7 +191,6 @@ def mint_access_token(
 
 
 def build_token_response(
-    response: Response,
     client_type: str,
     session_id: str,
     access_token: str,
@@ -208,14 +198,14 @@ def build_token_response(
     refresh_token: str,
     refresh_token_exp: datetime,
     csrf_token: str,
-) -> dict:
+) -> auth_schema.AuthOutcome:
     """Build the OAuth 2.1 token-response body for login and refresh.
 
     Single source of truth for token delivery, shared by the password
     login, SSO login, and ``/refresh`` flows so they cannot drift:
 
     - Web clients receive the refresh token as an ``HttpOnly`` cookie
-      (set here via :func:`set_refresh_token_cookie`) and the CSRF token
+      (set by the router from the returned outcome) and the CSRF token
       in the body.
     - Mobile clients receive the refresh token in the body and no CSRF
       token.
@@ -224,7 +214,6 @@ def build_token_response(
     per RFC 6749 §5.1.
 
     Args:
-        response: HTTP response used to set the web refresh cookie.
         client_type: ``"web"`` or any other value (treated as mobile).
         session_id: Session identifier.
         access_token: Newly minted access token.
@@ -234,10 +223,7 @@ def build_token_response(
         csrf_token: CSRF token (only returned to web clients).
 
     Returns:
-        dict: Response body for the client type.
-
-    Raises:
-        None.
+        The response body and, for a web client, the refresh cookie the router sets.
     """
     now = datetime.now(UTC)
     body = {
@@ -250,32 +236,26 @@ def build_token_response(
 
     if client_type == "web":
         # Web: Refresh token as httpOnly cookie (XSS protection); CSRF
-        # token in body for in-memory storage. Cookie attributes are
-        # centralised in set_refresh_token_cookie so login, /refresh, and
-        # SSO token exchange stay in lockstep.
-        authentication_dependencies.set_refresh_token_cookie(
-            response,
-            refresh_token,
-            refresh_token_exp,
-            environment=core_config.settings.ENVIRONMENT,
-        )
+        # token in body for in-memory storage. The router sets the cookie
+        # through deliver_auth_outcome so login, /refresh, and SSO token
+        # exchange stay in lockstep.
         body["csrf_token"] = csrf_token
-    else:
-        # Mobile: All tokens in JSON body for secure platform storage.
-        body["refresh_token"] = refresh_token
+        return auth_schema.AuthOutcome(body, auth_schema.RefreshCookie(refresh_token, refresh_token_exp))
 
-    return body
+    # Mobile: All tokens in JSON body for secure platform storage.
+    body["refresh_token"] = refresh_token
+    return auth_schema.AuthOutcome(body)
 
 
 def complete_login(
-    response: Response,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     user: users_schema.UsersRead,
     client_type: str,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
-) -> dict:
+) -> auth_schema.AuthOutcome:
     """Handles the completion of the login process by generating session and authentication tokens,.
 
     storing the session in the database, and returning tokens in response body.
@@ -287,8 +267,8 @@ def complete_login(
     This unified model works for both username/password and SSO login flows.
 
     Args:
-        response (Response): The HTTP response object to set refresh cookie.
-        request (Request): The HTTP request object containing client information.
+        ip_address (str): Client address, recorded on the session.
+        user_agent (str): Client user agent, recorded on the session.
         user (users_schema.UsersRead): The authenticated user object.
         client_type (str): The type of client ("web" or "mobile").
         password_hasher (credentials_integration.PasswordHasher): Utility for password hashing.
@@ -296,7 +276,8 @@ def complete_login(
         db (Session): Database session for storing session information.
 
     Returns:
-        dict: Contains session_id, access_token, csrf_token, token_type, expires_in, and refresh_token_expires_in.
+        The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and,
+        for web clients, the refresh cookie.
 
     Raises:
         PermissionDeniedError: If the client type is invalid.
@@ -323,7 +304,8 @@ def complete_login(
     sessions_integration.create_session(
         session_id,
         user,
-        request,
+        ip_address,
+        user_agent,
         refresh_token,
         password_hasher,
         refresh_token_exp,
@@ -335,7 +317,6 @@ def complete_login(
     # centralised in build_token_response so login, /refresh, and SSO
     # token exchange share one delivery contract.
     return build_token_response(
-        response,
         client_type,
         session_id,
         access_token,
@@ -347,8 +328,8 @@ def complete_login(
 
 
 def create_mobile_pkce_session_response(
-    response: Response,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     user: users_schema.UsersRead,
     code_challenge: str,
     code_challenge_method: str,
@@ -365,8 +346,8 @@ def create_mobile_pkce_session_response(
     POST /public/idp/session/{session_id}/tokens with code_verifier.
 
     Args:
-        response: FastAPI response object
-        request: FastAPI request object
+        ip_address: Client address, recorded on the session
+        user_agent: Client user agent, recorded on the session
         user: Authenticated user object
         code_challenge: PKCE code challenge (base64url-encoded SHA256)
         code_challenge_method: PKCE method (must be S256)
@@ -397,14 +378,13 @@ def create_mobile_pkce_session_response(
 
     # Create OAuth state record for PKCE (reuse SSO infrastructure)
     state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
-    client_ip = core_network.get_ip_address(request)
 
     oauth_state_integration.create_oauth_state(
         db=db,
         state_id=state_id,
         nonce=nonce,
         client_type="mobile",  # This function is mobile-only
-        ip_address=client_ip,
+        ip_address=ip_address,
         redirect_path=None,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
@@ -414,7 +394,8 @@ def create_mobile_pkce_session_response(
     sessions_integration.create_session(
         session_id,
         user,
-        request,
+        ip_address,
+        user_agent,
         None,  # No refresh token yet
         password_hasher,
         datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
@@ -478,10 +459,52 @@ def _raise_auth_security_store_unavailable(
     raise core_exceptions.ServiceUnavailableError("Authentication temporarily unavailable")
 
 
+def _finish_login(
+    ip_address: str,
+    user_agent: str,
+    user: users_schema.UsersRead,
+    client_type: str,
+    code_challenge: str | None,
+    code_challenge_method: str | None,
+    password_hasher: credentials_integration.PasswordHasher,
+    token_manager: access_tokens_integration.TokenManager,
+    db: Session,
+) -> auth_schema.AuthOutcome:
+    """Complete a verified login with tokens or, for a mobile PKCE client, a session to exchange.
+
+    Args:
+        ip_address: Client address, recorded on the session.
+        user_agent: Client user agent, recorded on the session.
+        user: The authenticated user.
+        client_type: ``"web"`` or ``"mobile"``.
+        code_challenge: PKCE code challenge, if the client sent one.
+        code_challenge_method: PKCE challenge method, if the client sent one.
+        password_hasher: Hasher for the stored refresh token.
+        token_manager: Token manager that signs the tokens.
+        db: Database session.
+
+    Returns:
+        The outcome of :func:`complete_login`, or the PKCE session body for a mobile PKCE client.
+    """
+    # Mobile clients with PKCE use secure token exchange flow
+    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
+    if client_type == "mobile" and code_challenge and code_challenge_method:
+        # Use PKCE exchange flow through the public IdP token exchange endpoint
+        return auth_schema.AuthOutcome(
+            create_mobile_pkce_session_response(
+                ip_address, user_agent, user, code_challenge, code_challenge_method, password_hasher, db
+            )
+        )
+
+    # Web clients and mobile without PKCE get tokens directly
+    return complete_login(ip_address, user_agent, user, client_type, password_hasher, token_manager, db)
+
+
 def login_for_access_token(
-    response: Response,
-    request: Request,
-    form_data: OAuth2PasswordRequestForm,
+    ip_address: str,
+    user_agent: str,
+    username: str,
+    password: str,
     client_type: str,
     failed_attempts: failed_login_store.FailedLoginStore,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
@@ -490,7 +513,7 @@ def login_for_access_token(
     db: Session,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
-):
+) -> auth_schema.AuthOutcome:
     """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
     Protection Mechanisms:
@@ -512,9 +535,10 @@ def login_for_access_token(
             /public/idp/session/{session_id}/tokens
 
     Args:
-        response: The HTTP response object
-        request: The HTTP request object
-        form_data: Form data containing username and password
+        ip_address: Client address, recorded on the session
+        user_agent: Client user agent, recorded on the session
+        username: Username presented by the client
+        password: Password presented by the client
         client_type: The type of client making the request ("web" or "mobile")
         failed_attempts: Failed login attempts tracker for progressive lockout
         pending_mfa_store: Store for pending MFA logins
@@ -525,10 +549,10 @@ def login_for_access_token(
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Union[auth_schema.MFARequiredRead, dict, str]:
-            - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
-            - If MFA is not required and mobile client with PKCE, returns session_id for token exchange
-            - If MFA is not required and no PKCE, proceeds with normal login via complete_login()
+        The outcome whose body is:
+            - If MFA is required, an MFA-required response (schema or dict depending on client type)
+            - If MFA is not required and mobile client with PKCE, the session_id for token exchange
+            - If MFA is not required and no PKCE, the tokens from complete_login(), with the refresh cookie for web
 
     Raises:
         DomainError: If authentication fails, user is inactive, or account is locked
@@ -541,8 +565,8 @@ def login_for_access_token(
 
     # Check if username is locked out from too many failed login attempts
     try:
-        if failed_attempts.is_locked_out(form_data.username):
-            lockout_until = failed_attempts.get_lockout_time(form_data.username)
+        if failed_attempts.is_locked_out(username):
+            lockout_until = failed_attempts.get_lockout_time(username)
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
                 raise core_exceptions.TooManyRequestsError(
@@ -553,16 +577,16 @@ def login_for_access_token(
 
     # Authenticate user
     try:
-        user = authenticate_user(form_data.username, form_data.password, password_hasher, db)
+        user = authenticate_user(username, password, password_hasher, db)
     except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:
             try:
-                login_failures = failed_attempts.record_failed_attempt(form_data.username)
+                login_failures = failed_attempts.record_failed_attempt(username)
             except lockout_contracts.AuthSecurityStoreUnavailableError as store_err:
                 _raise_auth_security_store_unavailable(store_err)
             lockout_integration.report_lockout_applied(
-                "login", lockout_contracts.LOGIN_LOCKOUT_TIERS, login_failures, username=form_data.username
+                "login", lockout_contracts.LOGIN_LOCKOUT_TIERS, login_failures, username=username
             )
         raise err
 
@@ -573,7 +597,7 @@ def login_for_access_token(
     if mfa_integration.is_mfa_enabled_for_user(user.id, db):
         # Store the user for pending MFA verification
         try:
-            pending_mfa_store.add_pending_login(form_data.username, user.id)
+            pending_mfa_store.add_pending_login(username, user.id)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             _raise_auth_security_store_unavailable(err)
 
@@ -582,47 +606,45 @@ def login_for_access_token(
 
         # Return MFA required response
         if client_type == "web":
-            response.status_code = status.HTTP_202_ACCEPTED
-            return auth_schema.MFARequiredRead(
-                mfa_required=True,
-                username=form_data.username,
-                message="MFA verification required",
+            return auth_schema.AuthOutcome(
+                auth_schema.MFARequiredRead(
+                    mfa_required=True,
+                    username=username,
+                    message="MFA verification required",
+                )
             )
         if client_type == "mobile":
-            return {
-                "mfa_required": True,
-                "username": form_data.username,
-                "message": "MFA verification required",
-            }
+            return auth_schema.AuthOutcome(
+                {
+                    "mfa_required": True,
+                    "username": username,
+                    "message": "MFA verification required",
+                }
+            )
 
     # Password authentication successful and no MFA required
     # Reset failed login attempts counter
     try:
-        failed_attempts.reset_attempts(form_data.username)
+        failed_attempts.reset_attempts(username)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
 
-    # Mobile clients with PKCE use secure token exchange flow
-    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
-    if client_type == "mobile" and code_challenge and code_challenge_method:
-        # Use PKCE exchange flow through the public IdP token exchange endpoint
-        return create_mobile_pkce_session_response(
-            response,
-            request,
-            user,
-            code_challenge,
-            code_challenge_method,
-            password_hasher,
-            db,
-        )
-
-    # Web clients and mobile without PKCE get tokens directly
-    return complete_login(response, request, user, client_type, password_hasher, token_manager, db)
+    return _finish_login(
+        ip_address,
+        user_agent,
+        user,
+        client_type,
+        code_challenge,
+        code_challenge_method,
+        password_hasher,
+        token_manager,
+        db,
+    )
 
 
 def verify_mfa_and_login(
-    response: Response,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     mfa_request: auth_schema.MFALoginRequest,
     client_type: str,
     failed_attempts: failed_login_store.FailedLoginStore,
@@ -632,7 +654,7 @@ def verify_mfa_and_login(
     db: Session,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
-):
+) -> auth_schema.AuthOutcome:
     """Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
@@ -645,8 +667,8 @@ def verify_mfa_and_login(
             /public/idp/session/{session_id}/tokens
 
     Args:
-        response: The HTTP response object
-        request: The HTTP request object
+        ip_address: Client address, recorded on the session
+        user_agent: Client user agent, recorded on the session
         failed_attempts: Failed login attempts tracker for progressive lockout
         mfa_request: MFA login request containing username and MFA code
         client_type: The type of client making the request ("web" or "mobile")
@@ -658,7 +680,7 @@ def verify_mfa_and_login(
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Result from complete_login() or PKCE session response
+        The outcome of complete_login() or the PKCE session response
 
     Raises:
         DomainError: If no pending login found, MFA code is invalid, or user not found
@@ -750,26 +772,20 @@ def verify_mfa_and_login(
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
 
-    # Mobile clients with PKCE use secure token exchange flow
-    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
-    if client_type == "mobile" and code_challenge and code_challenge_method:
-        # Use PKCE exchange flow through the public IdP token exchange endpoint
-        return create_mobile_pkce_session_response(
-            response,
-            request,
-            user,
-            code_challenge,
-            code_challenge_method,
-            password_hasher,
-            db,
-        )
-
-    # Web clients and mobile without PKCE get tokens directly
-    return complete_login(response, request, user, client_type, password_hasher, token_manager, db)
+    return _finish_login(
+        ip_address,
+        user_agent,
+        user,
+        client_type,
+        code_challenge,
+        code_challenge_method,
+        password_hasher,
+        token_manager,
+        db,
+    )
 
 
 def _replay_rotation(
-    response: Response,
     client_type: str,
     session: sessions_contracts.SessionRead,
     refresh_token_value: str,
@@ -777,14 +793,13 @@ def _replay_rotation(
     token_manager: access_tokens_integration.TokenManager,
     policy: server_settings_contracts.SessionPolicy,
     db: Session,
-):
+) -> auth_schema.AuthOutcome:
     """Answer a refresh whose token was already rotated with the replacement minted by that rotation.
 
     The session is not rotated again (no new rotated record, no ``rotation_count`` bump), so duplicate
     and concurrent refreshes converge on one live refresh token.
 
     Args:
-        response: The HTTP response object.
         client_type: Client type (``"web"`` or ``"mobile"``).
         session: The session the token belongs to.
         refresh_token_value: The raw refresh token that was already rotated.
@@ -794,7 +809,7 @@ def _replay_rotation(
         db: Database session.
 
     Returns:
-        The token response carrying the replacement refresh token.
+        The outcome carrying the replacement refresh token.
 
     Raises:
         UnauthenticatedError: If the replacement is gone or the user cannot authenticate.
@@ -833,7 +848,6 @@ def _replay_rotation(
         db.commit()
 
     return build_token_response(
-        response,
         client_type,
         session.id,
         replay_access_token,
@@ -845,8 +859,8 @@ def _replay_rotation(
 
 
 def refresh_token(
-    response: Response,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     _validate_refresh_token: Callable,
     token_user_id: int,
     token_session_id: str,
@@ -856,7 +870,7 @@ def refresh_token(
     client_type: str,
     db: Session,
     x_csrf_token: str | None = None,
-):
+) -> auth_schema.AuthOutcome:
     r"""Handles the refresh token process for user sessions.
 
     This endpoint validates the provided refresh token, checks session status,
@@ -870,8 +884,8 @@ def refresh_token(
         - CSRF validation adds defense-in-depth but is not the primary protection
 
     Args:
-        response: The HTTP response object.
-        request: The HTTP request object.
+        ip_address: Client address, recorded on the session.
+        user_agent: Client user agent, recorded on the session.
         _validate_refresh_token: Dependency to validate the refresh token.
         token_user_id: User ID extracted from the refresh token.
         token_session_id: Session ID extracted from the refresh token.
@@ -884,7 +898,8 @@ def refresh_token(
 
 
     Returns:
-        dict: Contains session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in.
+        The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and,
+        for web clients, the refresh cookie.
 
     Raises:
         DomainError: If session not found, refresh token invalid,
@@ -958,9 +973,7 @@ def refresh_token(
     if is_reused and in_grace:
         # A retry inside the grace window (a lost rotation response, or a duplicate refresh) is answered
         # with the replacement minted on the original rotation; the session is not rotated again.
-        return _replay_rotation(
-            response, client_type, session, refresh_token_value, token_user_id, token_manager, policy, db
-        )
+        return _replay_rotation(client_type, session, refresh_token_value, token_user_id, token_manager, policy, db)
 
     is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
 
@@ -1008,16 +1021,15 @@ def refresh_token(
         # A concurrent request presenting the same token recorded its rotation first and wins; this one
         # answers with the winner's replacement instead of rotating the session a second time.
         db.rollback()
-        return _replay_rotation(
-            response, client_type, session, refresh_token_value, token_user_id, token_manager, policy, db
-        )
+        return _replay_rotation(client_type, session, refresh_token_value, token_user_id, token_manager, policy, db)
 
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
     # and updates last_rotation_at
     sessions_integration.edit_session(
         session,
-        request,
+        ip_address,
+        user_agent,
         new_refresh_token,
         password_hasher,
         new_refresh_token_exp,
@@ -1035,7 +1047,6 @@ def refresh_token(
     # centralised in build_token_response so login, /refresh, and
     # SSO token exchange share one delivery contract.
     return build_token_response(
-        response,
         client_type,
         session_id,
         new_access_token,
@@ -1047,8 +1058,6 @@ def refresh_token(
 
 
 def logout(
-    response: Response,
-    request: Request,
     _validate_refresh_token: Callable,
     token_session_id: str,
     refresh_token_value: str,
@@ -1060,8 +1069,6 @@ def logout(
     """Log out a user by validating and deleting their session.
 
     Args:
-        response: The HTTP response object to modify cookies.
-        request: The HTTP request object.
         _validate_refresh_token: Dependency to validate the refresh token.
         token_session_id: The session ID extracted from the refresh token.
         refresh_token_value: The refresh token value from the request.
@@ -1103,10 +1110,7 @@ def logout(
         identity_providers_integration.clear_all_idp_tokens(token_user_id, db)
         db.commit()
 
-    if client_type == "web":
-        authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
-        return {"message": "Logout successful"}
-    if client_type == "mobile":
+    if client_type in ("web", "mobile"):
         return {"message": "Logout successful"}
     logger.warning("Logout refused for an unsupported client type")
     raise core_exceptions.PermissionDeniedError("Invalid client type")
@@ -1116,11 +1120,10 @@ def exchange_tokens_for_session(
     session_id: str,
     code_verifier: str,
     header_client_type: str | None,
-    response: Response,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
-) -> auth_schema.TokenExchangeRead:
+) -> auth_schema.AuthOutcome:
     """Exchange a PKCE code verifier for the tokens of an SSO session.
 
     The session was created by the identity-provider callback and holds no tokens yet. The caller proves it holds the
@@ -1130,13 +1133,12 @@ def exchange_tokens_for_session(
         session_id: Session created by the identity-provider callback.
         code_verifier: PKCE verifier sent by the client.
         header_client_type: ``X-Client-Type`` header of the exchange request, if any.
-        response: Response that receives the refresh cookie for web clients.
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
 
     Returns:
-        The tokens; web clients get the refresh token in a cookie, mobile clients in the body.
+        The tokens; web clients get the refresh token as a cookie in the outcome, mobile clients in the body.
 
     Raises:
         NotFoundError: If the session does not exist or has no OAuth state.
@@ -1225,30 +1227,34 @@ def exchange_tokens_for_session(
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
     db.commit()
 
-    if client_type == "web":
-        authentication_dependencies.set_refresh_token_cookie(
-            response, refresh_token, refresh_token_exp, environment=core_config.settings.ENVIRONMENT
-        )
-
     logger.info(
-        "Token exchange successful for session <value_1> (user=<username>, client_type=<client_type>)",
-        extra=core_logger.context(value_1=fingerprint, username=user.username, client_type=client_type),
+        "Token exchange successful for session <value_1> (user=<username_log_id>, client_type=<client_type>)",
+        extra=core_logger.context(
+            value_1=fingerprint,
+            username_log_id=lockout_integration.username_log_identifier(user.username),
+            client_type=client_type,
+        ),
     )
 
     if client_type == "web":
-        return auth_schema.TokenExchangeRead(
+        return auth_schema.AuthOutcome(
+            auth_schema.TokenExchangeRead(
+                session_id=session_id,
+                access_token=access_token,
+                csrf_token=csrf_token,
+                expires_in=expires_in,
+                refresh_token_expires_in=refresh_token_expires_in,
+                token_type="Bearer",
+            ),
+            auth_schema.RefreshCookie(refresh_token, refresh_token_exp),
+        )
+    return auth_schema.AuthOutcome(
+        auth_schema.TokenExchangeRead(
             session_id=session_id,
             access_token=access_token,
-            csrf_token=csrf_token,
+            refresh_token=refresh_token,
             expires_in=expires_in,
             refresh_token_expires_in=refresh_token_expires_in,
             token_type="Bearer",
         )
-    return auth_schema.TokenExchangeRead(
-        session_id=session_id,
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=expires_in,
-        refresh_token_expires_in=refresh_token_expires_in,
-        token_type="Bearer",
     )

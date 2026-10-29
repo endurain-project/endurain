@@ -158,12 +158,13 @@ class TestPrepareCallback:
 
 class TestCompleteCallback:
     def _complete(self, service, result, oauth_state, *, session_id="session-1", error=None):
-        request = MagicMock()
         with (
             patch.object(service, "handle_callback", side_effect=error, return_value=result),
             patch.object(service, "create_callback_session", return_value=session_id) as create_session,
         ):
-            url = service.complete_callback(_idp(), "code", "state", oauth_state, request, MagicMock(), MagicMock())
+            url = service.complete_callback(
+                _idp(), "code", "state", oauth_state, "10.0.0.1", "agent", MagicMock(), MagicMock()
+            )
         return url, create_session
 
     def _state(self, **overrides):
@@ -185,7 +186,7 @@ class TestCompleteCallback:
         url, create_session = self._complete(service, {"user": SimpleNamespace(username="a")}, self._state())
 
         assert url == f"{HOST}/login?sso=success&session_id=session-1"
-        assert create_session.call_args.args[3] == "state-id"
+        assert create_session.call_args.args[4] == "state-id"
 
     def test_a_login_carries_a_relative_return_path(self, service):
         url, _ = self._complete(

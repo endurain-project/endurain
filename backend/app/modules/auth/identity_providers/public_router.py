@@ -37,7 +37,8 @@ def get_enabled_identity_providers(
         service: Identity provider service.
 
     Returns:
-        List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
+        List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an
+        IdentityProviderPublic schema.
     """
     return service.get_enabled_identity_providers(db)
 
@@ -52,7 +53,9 @@ def initiate_login(
     code_challenge: Annotated[
         str,
         Query(
-            description="PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED for OAuth 2.1 compliance.",
+            description=(
+                "PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED for OAuth 2.1 compliance."
+            ),
         ),
     ],
     code_challenge_method: Annotated[
@@ -150,5 +153,14 @@ def handle_callback(
         - All redirects use HTTP 307 (Temporary Redirect) status code
     """
     idp, oauth_state = service.prepare_callback(idp_slug, state, db)
-    redirect_url = service.complete_callback(idp, code, state, oauth_state, request, password_hasher, db)
+    redirect_url = service.complete_callback(
+        idp,
+        code,
+        state,
+        oauth_state,
+        core_network.get_ip_address(request),
+        core_network.get_user_agent(request),
+        password_hasher,
+        db,
+    )
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)

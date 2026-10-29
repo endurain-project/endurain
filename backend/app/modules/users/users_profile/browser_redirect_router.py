@@ -17,6 +17,7 @@ from fastapi import APIRouter, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 import core.dependencies as core_dependencies
+import core.network as core_network
 import modules.users.users_profile.service as profile_service
 
 # Define the API router
@@ -63,7 +64,9 @@ def link_identity_provider(
             with HTTP 307 status code.
 
     """
-    authorization_url = profile_service.start_identity_provider_link(link_token, idp_id, redirect, request, db)
+    authorization_url = profile_service.start_identity_provider_link(
+        link_token, idp_id, redirect, core_network.get_ip_address(request), db
+    )
 
     return RedirectResponse(
         url=authorization_url,

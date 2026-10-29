@@ -160,8 +160,8 @@ def profile_app(
     )
     monkeypatch.setattr(
         account_security_service,
-        "get_user_sessions",
-        lambda user_id, db: mock_auth_services.get_user_sessions(user_id),
+        "list_user_sessions",
+        lambda user_id, page, db: mock_auth_services.list_user_sessions(user_id, page),
     )
     monkeypatch.setattr(
         account_security_service,

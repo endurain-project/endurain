@@ -1,6 +1,5 @@
 """Account-security operations used by the users module."""
 
-from fastapi import Request
 from sqlalchemy.orm import Session
 
 import core.dependencies as core_dependencies
@@ -93,13 +92,13 @@ def admin_delete_identity_provider_link(user_id: int, idp_id: int, db: Session) 
     identity_link_service.admin_delete_identity_provider_link(user_id, idp_id, db)
 
 
-def start_browser_idp_link(link_token: str, idp_id: int, redirect: str | None, request: Request, db: Session) -> str:
+def start_browser_idp_link(link_token: str, idp_id: int, redirect: str | None, client_ip: str, db: Session) -> str:
     """Stage the claim of a one-time IdP link token and build the provider authorization URL."""
     return identity_providers_integration.start_browser_link(
         link_token,
         idp_id,
         redirect,
-        request,
+        client_ip,
         lambda *, link_token, idp_id, client_ip: identity_link_service.validate_and_claim_browser_link_token(
             link_token, idp_id, client_ip, db
         ),

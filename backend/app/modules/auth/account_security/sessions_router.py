@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Request, Security, status
 
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.dependencies as auth_dependencies
@@ -18,23 +19,25 @@ SessionId = Annotated[str, Path(min_length=1)]
 
 @router.get(
     "",
-    response_model=list[auth_sessions_schema.UsersSessionsRead],
+    response_model=auth_sessions_schema.UsersSessionsPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     db: core_dependencies.DbSession,
-) -> list[auth_sessions_schema.UsersSessionsRead]:
-    """Retrieve all sessions for authenticated user.
+) -> auth_sessions_schema.UsersSessionsPage:
+    """Retrieve one page of the authenticated user's sessions.
 
     Args:
         token_user_id: User ID from access token.
+        page: The requested window.
         db: Database session.
 
     Returns:
-        List of session objects for the user.
+        The page of session objects for the user.
     """
-    return account_security_service.get_user_sessions(token_user_id, db)
+    return account_security_service.list_user_sessions(token_user_id, page, db)
 
 
 @router.delete(

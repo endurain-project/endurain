@@ -159,7 +159,7 @@ def enable_user_mfa(
         raise core_exceptions.InvalidInputError("MFA is already enabled for this user")
 
     if not verify_totp(secret, mfa_code):
-        raise core_exceptions.InvalidInputError("Invalid MFA code")
+        raise core_exceptions.InvalidMfaCodeError()
 
     encrypted_secret = core_cryptography.encrypt_token_fernet(secret)
 

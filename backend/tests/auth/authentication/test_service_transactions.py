@@ -33,7 +33,7 @@ def test_a_reused_refresh_token_keeps_the_family_invalidated_although_the_reques
         pytest.raises(core_exceptions.UnauthenticatedError),
     ):
         authentication_service.refresh_token(
-            MagicMock(), MagicMock(), lambda: None, 1, "sid", "old", MagicMock(), MagicMock(), "mobile", mock_db
+            "127.0.0.1", "agent", lambda: None, 1, "sid", "old", MagicMock(), MagicMock(), "mobile", mock_db
         )
 
     invalidate.assert_called_once_with("family", mock_db)
@@ -48,7 +48,7 @@ def test_logout_commits_the_session_deletion(mock_db):
         patch(f"{_SERVICE}.sessions_integration.delete_session") as delete_session,
         patch(f"{_SERVICE}.identity_providers_integration.clear_all_idp_tokens"),
     ):
-        authentication_service.logout(MagicMock(), MagicMock(), lambda: None, "sid", "rt", "mobile", 1, hasher, mock_db)
+        authentication_service.logout(lambda: None, "sid", "rt", "mobile", 1, hasher, mock_db)
 
     delete_session.assert_called_once_with("sid", 1, mock_db)
     assert mock_db.commit.call_count == 2

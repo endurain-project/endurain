@@ -7,6 +7,8 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 
 logger = core_logger.get_logger(__name__)
 
+PURGE_LOCK_NAME = "auth_sign_up_tokens_purge"
+
 
 def delete_expired_tokens_from_db() -> None:
     """Delete expired sign-up tokens in a short-lived transaction."""
@@ -24,5 +26,6 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             delete_expired_tokens_from_db,
             60,
             "delete invalid sign-up tokens from the database",
+            lock_name=PURGE_LOCK_NAME,
         ),
     )

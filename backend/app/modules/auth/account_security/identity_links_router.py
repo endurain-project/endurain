@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Security, status
 
 import core.dependencies as core_dependencies
+import core.network as core_network
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.dependencies as auth_dependencies
@@ -69,7 +70,9 @@ def generate_link_token(
             - 409 CONFLICT: If the identity provider is already linked.
             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
     """
-    return identity_link_service.generate_link_token(idp_id, link_request, request, token_user_id, step_up_store, db)
+    return identity_link_service.generate_link_token(
+        idp_id, link_request, core_network.get_ip_address(request), token_user_id, step_up_store, db
+    )
 
 
 # Identity Provider Management Endpoints

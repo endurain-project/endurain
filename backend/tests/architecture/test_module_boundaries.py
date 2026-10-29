@@ -263,6 +263,15 @@ _TRANSPORT_FORBIDDEN = frozenset({"crud", "models", "query", "event_publishers"}
 #: behaviour.
 _DATA_ROLES = frozenset({"schema", "contracts", "constants"})
 
+#: Roles of another package that persistence may also name: namespace-level pure helpers
+#: (``computation``), which own no table, run no statement and call no module.
+_PERSISTENCE_SHARED_ROLES = _DATA_ROLES | {"computation"}
+
+#: Role of a namespace-level file (directly under a module with sub-packages) that the packages' persistence may
+#: also import: the persistence steps they run identically, parametrised by the model and schema the package
+#: passes in (``health/record_crud.py``). Such a file declares no table.
+_PERSISTENCE_NAMESPACE_ROLES = frozenset({"crud"})
+
 #: Roles of another top-level module that a converted module may import: its
 #: published surface; no service implementation is an outbound surface.
 _OUTBOUND_ROLES = frozenset({"integration_service", "schema", "contracts", "constants", "events", "dependencies"})
@@ -291,48 +300,6 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
         "The activities packages restore their own section of a profile import through the contributors "
         "installed in this registry, so the profile does not enumerate or import them. The registry holds "
         "typed callbacks only: it owns no table and runs no query."
-    ),
-    (
-        "modules.health.health_fasting.crud",
-        "modules.health.computation",
-    ): (
-        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
-        "is written once. It owns no table or session and asks no module."
-    ),
-    (
-        "modules.health.health_poop.crud",
-        "modules.health.computation",
-    ): (
-        "Day bucketing must match across the health packages, so the timestamptz-to-local-date SQL fragment "
-        "is written once. It owns no table or session and asks no module."
-    ),
-    (
-        "modules.health.health_sleep.crud",
-        "modules.health.computation",
-    ): (
-        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
-        "is written once. It owns no table or session and asks no module."
-    ),
-    (
-        "modules.health.health_steps.crud",
-        "modules.health.computation",
-    ): (
-        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
-        "is written once. It owns no table or session and asks no module."
-    ),
-    (
-        "modules.health.health_water.crud",
-        "modules.health.computation",
-    ): (
-        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
-        "is written once. It owns no table or session and asks no module."
-    ),
-    (
-        "modules.health.health_weight.crud",
-        "modules.health.computation",
-    ): (
-        "Chart bucketing must match across the health packages, so the day/week/month truncation SQL fragment "
-        "is written once. It owns no table or session and asks no module."
     ),
 }
 
@@ -373,6 +340,26 @@ def _package_of(dotted: str) -> str:
     return ".".join(parts[:2])
 
 
+def _is_namespace_helper(importer: str, imported: str) -> bool:
+    """
+    Return whether an import reaches a persistence file the importer's namespace shares.
+
+    Args:
+        importer: The importing module's dotted path.
+        imported: The imported module's dotted path.
+
+    Returns:
+        True when ``imported`` sits directly under the namespace ``importer`` belongs to and plays a role in
+        ``_PERSISTENCE_NAMESPACE_ROLES``.
+    """
+    namespace = _package_of(imported)
+    return (
+        imported.count(".") == namespace.count(".") + 1
+        and importer.startswith(f"{namespace}.")
+        and _role(imported.rsplit(".", 1)[-1]) in _PERSISTENCE_NAMESPACE_ROLES
+    )
+
+
 def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pathlib.Path, str, str, str]]:
     """
     Return every ``modules.*`` import made by a converted-module file.
@@ -393,6 +380,23 @@ def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pa
                 if target.startswith("modules.") and target.count(".") >= 2:
                     found.append((path, _module_dotted(path), target, role))
     return found
+
+
+#: Services that still import FastAPI, as ``{"<dotted module>": reason}``.
+_SERVICE_FASTAPI_EXCEPTIONS: dict[str, str] = {
+    "modules.server_settings.login_photo_service": (
+        "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
+    ),
+    "modules.strava.gear_service": (
+        "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
+    ),
+    "modules.users.users.photo_service": (
+        "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
+    ),
+    "modules.websocket.service": (
+        "The service is the WebSocket connection manager, so the socket and its close codes are its subject."
+    ),
+}
 
 
 def _excepted(importer: str, imported: str) -> bool:
@@ -974,6 +978,29 @@ class TestLayerRules:
             sorted(offenders)
         )
 
+    def test_services_do_not_import_fastapi(self):
+        """A service takes plain values and raises domain errors; the router owns the transport.
+
+        Request headers, client addresses, cookies and status codes are read and set in the router, so a service
+        runs unchanged from a job, a subscriber or a test with no request.
+        """
+        offenders: list[str] = []
+        used: set[str] = set()
+        for module_name in _CONVERTED:
+            for path in _python_files(_MODULES_ROOT / module_name):
+                if _role(path.stem) != "service":
+                    continue
+                dotted = _module_dotted(path)
+                if not any(target == "fastapi" or target.startswith("fastapi.") for target in _imported_modules(path)):
+                    continue
+                if dotted in _SERVICE_FASTAPI_EXCEPTIONS:
+                    used.add(dotted)
+                else:
+                    offenders.append(dotted)
+        assert not offenders, "A service takes plain values, not FastAPI objects:\n  " + "\n  ".join(sorted(offenders))
+        stale = sorted(set(_SERVICE_FASTAPI_EXCEPTIONS) - used)
+        assert not stale, "Remove from _SERVICE_FASTAPI_EXCEPTIONS:\n  " + "\n  ".join(stale)
+
     def test_persistence_asks_no_other_package(self):
         """A query that must ask another bounded context first is a service decision.
 
@@ -986,7 +1013,8 @@ class TestLayerRules:
             f"{importer} -> {imported}"
             for _path, importer, imported, _role_ in _layer_imports(only_roles=_PERSISTENCE_ROLES)
             if _package_of(imported) != _package_of(importer)
-            and _role(imported.rsplit(".", 1)[-1]) not in _DATA_ROLES
+            and _role(imported.rsplit(".", 1)[-1]) not in _PERSISTENCE_SHARED_ROLES
+            and not _is_namespace_helper(importer, imported)
             and not _excepted(importer, imported)
         )
         assert not offenders, (

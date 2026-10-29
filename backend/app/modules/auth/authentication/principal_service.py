@@ -5,12 +5,10 @@ from __future__ import annotations
 import hmac
 from datetime import UTC, datetime
 
-from fastapi import Request
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import core.network as core_network
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.event_publishers as authentication_event_publishers
@@ -147,7 +145,8 @@ def resolve_from_access_token(
 
 def resolve_from_api_key(
     raw_key: str,
-    request: Request,
+    endpoint: str,
+    ip_address: str,
     db: Session,
 ) -> Principal:
     """Validate a raw API key and return a Principal.
@@ -156,8 +155,8 @@ def resolve_from_api_key(
         raw_key: The plain-text API key from the
             ``X-API-Key`` header or ``?api_key=``
             query parameter.
-        request: The current HTTP request (used for
-            audit logging).
+        endpoint: Path of the request, recorded in the audit log.
+        ip_address: Client address of the request, recorded in the audit log.
         db: Database session.
 
     Returns:
@@ -196,8 +195,8 @@ def resolve_from_api_key(
         extra=core_logger.context(
             key_prefix=db_key.key_prefix,
             user_id=db_key.user_id,
-            endpoint=request.url.path,
-            ip=core_network.get_ip_address(request),
+            endpoint=endpoint,
+            ip=ip_address,
         ),
     )
 

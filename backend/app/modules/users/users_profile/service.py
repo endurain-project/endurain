@@ -9,7 +9,6 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import jasil.providers as platform_providers
-from fastapi import Request
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -370,7 +369,7 @@ def start_identity_provider_link(
     link_token: str,
     idp_id: int,
     redirect: str | None,
-    request: Request,
+    client_ip: str,
     db: Session,
 ) -> str:
     """Claim a one-time link token and return the identity provider's authorization URL.
@@ -379,13 +378,13 @@ def start_identity_provider_link(
         link_token: One-time token minted for the link.
         idp_id: ID of the identity provider to link.
         redirect: Frontend return path after linking.
-        request: Incoming request, read for the client address.
+        client_ip: Client address of the request, checked against the address the token was issued to.
         db: Database session.
 
     Returns:
         The provider's authorization URL.
     """
-    authorization_url = account_security_integration.start_browser_idp_link(link_token, idp_id, redirect, request, db)
+    authorization_url = account_security_integration.start_browser_idp_link(link_token, idp_id, redirect, client_ip, db)
     db.commit()
     logger.debug("Identity provider link started", extra=core_logger.context(idp_id=idp_id))
     return authorization_url

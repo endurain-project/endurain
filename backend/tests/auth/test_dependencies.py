@@ -3,6 +3,7 @@
 Covers all public functions and async dependencies defined in the module.
 """
 
+import inspect
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -84,7 +85,10 @@ class TestCheckScopes:
 class TestValidateAccessTokenOrApiKey:
     """Tests for validate_access_token_or_api_key."""
 
-    async def test_cached_principal_api_key_returns_auth_context(self):
+    def test_is_sync_so_blocking_lookups_run_in_the_threadpool(self):
+        assert not inspect.iscoroutinefunction(validate_access_token_or_api_key)
+
+    def test_cached_principal_api_key_returns_auth_context(self):
         request = MagicMock()
         request.state = SimpleNamespace()
         request.state.principal = Principal(
@@ -96,12 +100,12 @@ class TestValidateAccessTokenOrApiKey:
             scopes=frozenset({"read"}),
             credential=ApiKeyCred(api_key_id=1, key_prefix="test"),
         )
-        result = await validate_access_token_or_api_key(request, MagicMock())
+        result = validate_access_token_or_api_key(request, MagicMock())
         assert isinstance(result, AuthContext)
         assert result.user_id == 3
         assert result.auth_type == "api_key"
 
-    async def test_cached_principal_jwt_returns_auth_context(self):
+    def test_cached_principal_jwt_returns_auth_context(self):
         request = MagicMock()
         request.state = SimpleNamespace()
         request.state.principal = Principal(
@@ -113,11 +117,11 @@ class TestValidateAccessTokenOrApiKey:
             scopes=frozenset({"profile"}),
             credential=PasswordCred(username="jwtuser"),
         )
-        result = await validate_access_token_or_api_key(request, MagicMock())
+        result = validate_access_token_or_api_key(request, MagicMock())
         assert result.auth_type == "jwt"
 
     @patch("modules.auth.dependencies.authentication_integration.resolve_from_access_token")
-    async def test_access_token_provided_resolves_via_integration(self, mock_resolve):
+    def test_access_token_provided_resolves_via_integration(self, mock_resolve):
         request = MagicMock()
         request.state = SimpleNamespace()
         db = MagicMock()
@@ -130,13 +134,13 @@ class TestValidateAccessTokenOrApiKey:
             scopes=frozenset({"admin"}),
             credential=PasswordCred(username="tokenuser"),
         )
-        result = await validate_access_token_or_api_key(request, db, access_token="bearer-token")
+        result = validate_access_token_or_api_key(request, db, access_token="bearer-token")
         assert result.user_id == 7
         assert result.auth_type == "jwt"
         mock_resolve.assert_called_once_with("bearer-token", db)
 
     @patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key")
-    async def test_api_key_header_provided_resolves_via_integration(self, mock_resolve):
+    def test_api_key_header_provided_resolves_via_integration(self, mock_resolve):
         request = MagicMock()
         request.state = SimpleNamespace()
         db = MagicMock()
@@ -149,12 +153,12 @@ class TestValidateAccessTokenOrApiKey:
             scopes=frozenset({"read"}),
             credential=ApiKeyCred(api_key_id=2, key_prefix="sk"),
         )
-        result = await validate_access_token_or_api_key(request, db, access_token=None, api_key_header="sk-123")
+        result = validate_access_token_or_api_key(request, db, access_token=None, api_key_header="sk-123")
         assert result.user_id == 8
         assert result.auth_type == "api_key"
         mock_resolve.assert_called_once_with("sk-123", request, db)
 
-    async def test_api_key_query_string_ignored_when_disabled(self):
+    def test_api_key_query_string_ignored_when_disabled(self):
         request = MagicMock()
         request.state = SimpleNamespace()
         db = MagicMock()
@@ -165,14 +169,14 @@ class TestValidateAccessTokenOrApiKey:
             patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key") as mock_resolve,
             pytest.raises(core_exceptions.UnauthenticatedError) as exc_info,
         ):
-            await validate_access_token_or_api_key(
+            validate_access_token_or_api_key(
                 request, db, access_token=None, api_key_header=None, api_key_query="qk-456"
             )
         assert exc_info.value.status_code == 401
         mock_resolve.assert_not_called()
 
     @patch("modules.auth.dependencies.authentication_integration.resolve_from_api_key")
-    async def test_api_key_query_string_accepted_when_enabled(self, mock_resolve):
+    def test_api_key_query_string_accepted_when_enabled(self, mock_resolve):
         request = MagicMock()
         request.state = SimpleNamespace()
         db = MagicMock()
@@ -188,14 +192,14 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
         with patch("modules.auth.dependencies.core_config.settings", mock_settings):
-            result = await validate_access_token_or_api_key(
+            result = validate_access_token_or_api_key(
                 request, db, access_token=None, api_key_header=None, api_key_query="qk-456"
             )
         assert result.user_id == 9
         assert result.auth_type == "api_key"
         mock_resolve.assert_called_once_with("qk-456", request, db)
 
-    async def test_no_credentials_raises_401(self):
+    def test_no_credentials_raises_401(self):
         request = MagicMock()
         request.state = SimpleNamespace()
         mock_settings = MagicMock()
@@ -204,7 +208,7 @@ class TestValidateAccessTokenOrApiKey:
             patch("modules.auth.dependencies.core_config.settings", mock_settings),
             pytest.raises(core_exceptions.UnauthenticatedError) as exc_info,
         ):
-            await validate_access_token_or_api_key(
+            validate_access_token_or_api_key(
                 request,
                 MagicMock(),
                 access_token=None,

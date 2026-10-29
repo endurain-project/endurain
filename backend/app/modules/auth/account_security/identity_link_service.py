@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import Request
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import core.network as core_network
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.credentials.integration_service as credentials_integration
@@ -24,12 +22,28 @@ logger = core_logger.get_logger(__name__)
 def generate_link_token(
     idp_id: int,
     link_request: idp_link_token_schema.IdpLinkTokenRequest,
-    request: Request,
+    ip_address: str,
     token_user_id: int,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
-    """Generate a one-time IdP link token after step-up verification."""
+    """Generate a one-time IdP link token after step-up verification.
+
+    Args:
+        idp_id: The identity provider to link.
+        link_request: Step-up credentials.
+        ip_address: Client address the token is bound to.
+        token_user_id: The authenticated user's ID.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Returns:
+        The one-time link token and its expiry.
+
+    Raises:
+        NotFoundError: If the identity provider is missing or disabled.
+        ConflictError: If the provider is already linked.
+    """
     step_up_service.verify_step_up_credentials(
         token_user_id,
         link_request.current_password,
@@ -50,7 +64,6 @@ def generate_link_token(
     if existing_link:
         raise core_exceptions.ConflictError(f"Identity provider {idp.name} is already linked to your account")
 
-    ip_address = core_network.get_ip_address(request)
     link_token = identity_provider_link_tokens_integration.generate_idp_link_token(
         user_id=token_user_id,
         idp_id=idp_id,

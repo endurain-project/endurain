@@ -230,6 +230,11 @@ MODULES: tuple[RuntimeModule, ...] = (
         recurring_jobs=activity_ingestion_scheduled_jobs.recurring_jobs,
         startup_tasks=(
             StartupTask(
+                "fail_orphaned_local_refreshes",
+                "Failing provider refreshes lost with the previous process",
+                activity_ingestion_scheduled_jobs.fail_orphaned_local_refreshes,
+            ),
+            StartupTask(
                 "queue_provider_refreshes",
                 "Queueing a provider activity refresh for every linked user",
                 activity_ingestion_scheduled_jobs.schedule_provider_refresh,

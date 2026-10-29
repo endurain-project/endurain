@@ -622,7 +622,7 @@ class TestHandleCallback:
         token_response = {"access_token": "at"}
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = token_response
-        user = MagicMock(id=1)
+        user = MagicMock(id=1, username="alice")
         userinfo = {"sub": "user-1", "email": "a@example.com"}
 
         with (
@@ -658,7 +658,7 @@ class TestHandleCallback:
             patch.object(service, "_resolve_token_endpoint", return_value="https://idp.example.com/token"),
             patch.object(service, "_create_oauth_client", return_value=oauth_client),
             patch.object(service, "_get_userinfo", return_value={"sub": "user-1"}) as get_userinfo,
-            patch.object(service, "_find_or_create_user", return_value=MagicMock(id=1)),
+            patch.object(service, "_find_or_create_user", return_value=MagicMock(id=1, username="alice")),
             patch.object(service, "_store_idp_tokens"),
         ):
             order.attach_mock(get_userinfo, "userinfo")
@@ -667,3 +667,30 @@ class TestHandleCallback:
         names = [call[0] for call in order.mock_calls]
         last_network_call = max(names.index("token_exchange"), names.index("userinfo"))
         assert not any(name.startswith("db") for name in names[: last_network_call + 1])
+
+
+class TestDiscoveryErrorLogging:
+    """An IdP error body is never written to the log."""
+
+    def test_http_status_error_logs_status_code_only(self):
+        service = IdentityProviderService(MagicMock(), "https://app.example", "test")
+        idp = MagicMock()
+        idp.id = 1
+        idp.name = "TestIdP"
+        idp.issuer_url = "https://idp.example"
+        response = MagicMock(status_code=500, text="secret-body")
+        client = MagicMock()
+        client.__enter__.return_value.get.return_value.raise_for_status.side_effect = httpx2.HTTPStatusError(
+            "boom", request=MagicMock(), response=response
+        )
+        with (
+            patch.object(service, "_read_cache", return_value=None),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
+            patch.object(service, "_http_client", MagicMock(return_value=client)),
+            patch("modules.auth.identity_providers.service.logger") as mock_logger,
+        ):
+            assert service.get_oidc_configuration(idp) is None
+
+        extra = mock_logger.warning.call_args.kwargs["extra"]
+        assert extra["status_code"] == 500
+        assert "secret-body" not in str(extra)

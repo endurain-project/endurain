@@ -9,11 +9,14 @@ from fastapi import (
     Query,
     Request,
     Response,
+    status,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 
+import core.config as core_config
 import core.dependencies as core_dependencies
 import core.logger as core_logger
+import core.network as core_network
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
@@ -106,10 +109,11 @@ def login_for_access_token(
     Raises:
         HTTPException: If authentication fails, user is inactive, or account is locked
     """
-    return auth_service.login_for_access_token(
-        response,
-        request,
-        form_data,
+    outcome = auth_service.login_for_access_token(
+        core_network.get_ip_address(request),
+        core_network.get_user_agent(request),
+        form_data.username,
+        form_data.password,
         client_type,
         failed_attempts,
         pending_mfa_store,
@@ -119,6 +123,9 @@ def login_for_access_token(
         code_challenge,
         code_challenge_method,
     )
+    if isinstance(outcome.body, auth_schema.MFARequiredRead):
+        response.status_code = status.HTTP_202_ACCEPTED
+    return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 
 @router.post(
@@ -181,9 +188,9 @@ def verify_mfa_and_login(
     Raises:
         HTTPException: If no pending login found, MFA code is invalid, or user not found
     """
-    return auth_service.verify_mfa_and_login(
-        response,
-        request,
+    outcome = auth_service.verify_mfa_and_login(
+        core_network.get_ip_address(request),
+        core_network.get_user_agent(request),
         mfa_request,
         client_type,
         failed_attempts,
@@ -194,6 +201,7 @@ def verify_mfa_and_login(
         code_challenge,
         code_challenge_method,
     )
+    return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 
 @router.post(
@@ -261,9 +269,9 @@ def refresh_token(
         HTTPException: If session not found, refresh token invalid,
                        user is inactive, or CSRF token is invalid (when provided).
     """
-    return auth_service.refresh_token(
-        response,
-        request,
+    outcome = auth_service.refresh_token(
+        core_network.get_ip_address(request),
+        core_network.get_user_agent(request),
         _validate_refresh_token,
         token_user_id,
         token_session_id,
@@ -274,6 +282,7 @@ def refresh_token(
         db,
         x_csrf_token,
     )
+    return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 
 @router.post("/logout", response_model=auth_schema.LogoutRead)
@@ -305,7 +314,7 @@ def logout(
 
     Args:
         response: The HTTP response object to modify cookies.
-        request: The HTTP request object.
+        request: The HTTP request object, read by the rate limiter.
         _validate_refresh_token: Dependency to validate the refresh token.
         token_session_id: The session ID extracted from the refresh token.
         refresh_token_value: The refresh token value from the request.
@@ -321,9 +330,7 @@ def logout(
         HTTPException: If refresh token is invalid (401 Unauthorized).
         HTTPException: If client type is invalid (403 Forbidden).
     """
-    return auth_service.logout(
-        response,
-        request,
+    message = auth_service.logout(
         _validate_refresh_token,
         token_session_id,
         refresh_token_value,
@@ -332,3 +339,6 @@ def logout(
         password_hasher,
         db,
     )
+    if client_type == "web":
+        authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
+    return message

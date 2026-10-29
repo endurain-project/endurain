@@ -241,15 +241,16 @@ class TestCompleteLogin:
 
         with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
-            result = auth_utils.complete_login(
-                response,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
 
         # Assert
         assert "session_id" in result
@@ -274,15 +275,16 @@ class TestCompleteLogin:
 
         with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
-            result = auth_utils.complete_login(
-                response,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
 
         # Assert
         assert "session_id" in result
@@ -302,15 +304,16 @@ class TestCompleteLogin:
 
         with patch("modules.auth.authentication.service.sessions_integration.create_session") as mock_create_session:
             # Act
-            result = auth_utils.complete_login(
-                response,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
 
         # Assert
         mock_create_session.assert_called_once()
@@ -320,8 +323,9 @@ class TestCompleteLogin:
         assert call_args[0][0] == result["session_id"]
         # Verify user was passed
         assert call_args[0][1] == sample_user_read
-        # Verify request was passed
-        assert call_args[0][2] == mock_request
+        # Verify the client address and user agent were passed
+        assert call_args[0][2] == "127.0.0.1"
+        assert call_args[0][3] == "pytest-agent"
 
     def test_complete_login_uses_the_policy_lifetimes_for_tokens_cookie_and_session(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request, session_policy
@@ -339,13 +343,14 @@ class TestCompleteLogin:
             ),
             patch("modules.auth.authentication.service.sessions_integration.create_session") as mock_create_session,
         ):
-            result = auth_utils.complete_login(
-                response, mock_request, sample_user_read, "web", password_hasher, token_manager, mock_db
+            outcome = auth_utils.complete_login(
+                "127.0.0.1", "pytest-agent", sample_user_read, "web", password_hasher, token_manager, mock_db
             )
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
 
         assert result["expires_in"] == pytest.approx(300, abs=2)
         assert result["refresh_token_expires_in"] == pytest.approx(3 * 86400, abs=2)
-        session_expiry = mock_create_session.call_args.args[5]
+        session_expiry = mock_create_session.call_args.args[6]
         assert session_expiry - datetime.now(UTC) == pytest.approx(timedelta(days=3), abs=timedelta(seconds=2))
         cookie = _set_cookie_headers(response)[-1].lower()
         assert f"{session_expiry:%d %b %Y}".lower() in cookie
@@ -369,15 +374,16 @@ class TestCompleteLogin:
 
         # Act & Assert
         with pytest.raises(core_exceptions.DomainError) as exc_info:
-            auth_utils.complete_login(
-                response,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 invalid_client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            authentication_dependencies.deliver_auth_outcome(response, outcome)
         assert exc_info.value.status_code == 403
         assert "Invalid client type" in exc_info.value.detail
 
@@ -391,18 +397,19 @@ class TestCompleteLogin:
 
         with (
             patch("modules.auth.authentication.service.sessions_integration.create_session"),
-            patch("modules.auth.authentication.service.core_config.settings.ENVIRONMENT", "production"),
+            patch("modules.auth.authentication.dependencies.core_config.settings.ENVIRONMENT", "production"),
         ):
             # Act
-            auth_utils.complete_login(
-                response,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            authentication_dependencies.deliver_auth_outcome(response, outcome)
 
         # Assert
         set_cookie_header = response.headers.get("set-cookie", "")
@@ -418,18 +425,19 @@ class TestCompleteLogin:
 
         with (
             patch("modules.auth.authentication.service.sessions_integration.create_session"),
-            patch("modules.auth.authentication.service.core_config.settings.ENVIRONMENT", "development"),
+            patch("modules.auth.authentication.dependencies.core_config.settings.ENVIRONMENT", "development"),
         ):
             # Act
-            auth_utils.complete_login(
-                response,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            authentication_dependencies.deliver_auth_outcome(response, outcome)
 
         # Assert
         set_cookie_header = response.headers.get("set-cookie", "")
@@ -445,15 +453,16 @@ class TestCompleteLogin:
 
         with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
-            auth_utils.complete_login(
-                response,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            authentication_dependencies.deliver_auth_outcome(response, outcome)
 
         # Assert
         set_cookie_header = _set_cookie_headers(response)[-1]
@@ -512,25 +521,27 @@ class TestCompleteLogin:
 
         with patch("modules.auth.authentication.service.sessions_integration.create_session"):
             # Act
-            result1 = auth_utils.complete_login(
-                response1,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            result1 = authentication_dependencies.deliver_auth_outcome(response1, outcome)
 
-            result2 = auth_utils.complete_login(
-                response2,
-                mock_request,
+            outcome = auth_utils.complete_login(
+                "127.0.0.1",
+                "pytest-agent",
                 sample_user_read,
                 client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
             )
+            result2 = authentication_dependencies.deliver_auth_outcome(response2, outcome)
 
         # Assert
         assert result1["session_id"] != result2["session_id"]
@@ -592,8 +603,8 @@ class TestCreateMobilePkceSessionResponse:
     def test_invalid_code_challenge_method_raises_400(self, password_hasher, mock_db):
         with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_utils.create_mobile_pkce_session_response(
-                response=Response(),
-                request=MagicMock(),
+                ip_address="127.0.0.1",
+                user_agent="pytest-agent",
                 user=MagicMock(),
                 code_challenge="abc",
                 code_challenge_method="plain",
@@ -603,9 +614,6 @@ class TestCreateMobilePkceSessionResponse:
         assert exc_info.value.status_code == 400
 
     def test_valid_code_challenge_creates_session(self, password_hasher, mock_db):
-        response = Response()
-        mock_request = MagicMock()
-        mock_request.client.host = "127.0.0.1"
         mock_user = MagicMock()
         mock_user.id = 1
 
@@ -615,8 +623,8 @@ class TestCreateMobilePkceSessionResponse:
             patch("modules.auth.authentication.service.sessions_integration.create_session"),
         ):
             result = auth_utils.create_mobile_pkce_session_response(
-                response=response,
-                request=mock_request,
+                ip_address="127.0.0.1",
+                user_agent="pytest-agent",
                 user=mock_user,
                 code_challenge="E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
                 code_challenge_method="S256",

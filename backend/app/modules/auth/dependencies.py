@@ -118,14 +118,7 @@ def get_sid_from_access_token(
     return principal.credential.session_id
 
 
-async def validate_api_key(raw_key: str, request: Request, db: Session) -> AuthContext:
-    """Resolve an API key and return its user and granted scopes."""
-    principal = authentication_integration.resolve_from_api_key(raw_key, request, db)
-    request.state.principal = principal
-    return AuthContext(user_id=principal.user_id, scopes=list(principal.scopes), auth_type="api_key")
-
-
-async def validate_access_token_or_api_key(
+def validate_access_token_or_api_key(
     request: Request,
     db: core_dependencies.DbSession,
     access_token: str | None = Depends(oauth2_scheme),

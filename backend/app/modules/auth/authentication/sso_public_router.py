@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request, Response
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as authentication_service
 import modules.auth.credentials.integration_service as credentials_integration
@@ -52,12 +53,12 @@ def exchange_tokens_for_session(
     Returns:
         The access token and, per client type, the CSRF token or the refresh token.
     """
-    return authentication_service.exchange_tokens_for_session(
+    outcome = authentication_service.exchange_tokens_for_session(
         session_id,
         token_exchange.code_verifier,
         request.headers.get("X-Client-Type"),
-        response,
         password_hasher,
         token_manager,
         db,
     )
+    return authentication_dependencies.deliver_auth_outcome(response, outcome)

@@ -6,6 +6,7 @@ import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
+import core.exceptions as core_exceptions
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.mfa.setup_store as auth_mfa_setup_store
 
@@ -61,7 +62,10 @@ class TestMFASecretStore:
     def test_get_secret_returns_none_when_decrypt_fails(self):
         store = self._make_store()
         store.add_secret(1, "secret")
-        with patch("modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet", side_effect=Exception("bad")):
+        with patch(
+            "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet",
+            side_effect=core_exceptions.UndecryptableError(),
+        ):
             assert store.get_secret(1) is None
 
 
@@ -77,7 +81,8 @@ class TestEncryptionHelpers:
 
     def test_decrypt_secret_returns_none_on_error(self):
         with patch(
-            "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet", side_effect=Exception("bad decrypt")
+            "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet",
+            side_effect=core_exceptions.UndecryptableError(),
         ):
             assert auth_mfa_setup_store._decrypt_secret("bad-encrypted-data") is None
 
@@ -119,3 +124,17 @@ class TestGetMFASecretStore:
         store = auth_mfa_dependencies.get_mfa_secret_store(state)
         assert isinstance(store, auth_mfa_setup_store.MFASecretStore)
         assert store._state is state
+
+
+class TestDecryptSecretFailure:
+    """A secret that cannot be decrypted is reported and treated as absent."""
+
+    def test_undecryptable_secret_logs_warning_and_returns_none(self):
+        state = MemoryState()
+        store = auth_mfa_setup_store.MFASecretStore(state=state)
+        state.set(store._key(5), b"not-a-fernet-token", ttl_seconds=60)
+        with patch.object(auth_mfa_setup_store, "logger") as mock_logger:
+            assert store.get_secret(5) is None
+        mock_logger.warning.assert_called_once()
+        assert mock_logger.warning.call_args.kwargs["exc_info"] is not None
+        assert "not-a-fernet-token" not in str(mock_logger.warning.call_args)

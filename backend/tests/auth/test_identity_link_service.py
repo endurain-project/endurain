@@ -75,8 +75,6 @@ class TestGenerateLinkToken:
         link_request = MagicMock()
         link_request.current_password = "pass"
         link_request.mfa_code = None
-        request = MagicMock()
-        request.client.host = "127.0.0.1"
 
         with (
             patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
@@ -91,11 +89,12 @@ class TestGenerateLinkToken:
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_link_tokens_integration.generate_idp_link_token",
                 return_value=mock_token,
-            ),
+            ) as mock_generate,
         ):
-            result = identity_link_service.generate_link_token(1, link_request, request, 10, step_up_store, mock_db)
+            result = identity_link_service.generate_link_token(1, link_request, "127.0.0.1", 10, step_up_store, mock_db)
 
         assert result is mock_token
+        assert mock_generate.call_args.kwargs["ip_address"] == "127.0.0.1"
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
@@ -106,7 +105,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
 
@@ -119,7 +118,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 404
 
@@ -137,7 +136,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 409
 
@@ -150,7 +149,7 @@ class TestGenerateLinkToken:
             ),
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(1, MagicMock(), MagicMock(), 10, MagicMock(), mock_db)
+            identity_link_service.generate_link_token(1, MagicMock(), "127.0.0.1", 10, MagicMock(), mock_db)
 
         assert exc.value.status_code == 401
 

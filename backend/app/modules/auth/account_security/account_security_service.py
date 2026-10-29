@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
@@ -22,12 +23,13 @@ if TYPE_CHECKING:
     import modules.auth.account_security.step_up_store as account_security_step_up_store
 
 
-def get_user_sessions(
+def list_user_sessions(
     token_user_id: int,
+    page: core_pagination.PageParams,
     db: Session,
-) -> list[auth_sessions_schema.UsersSessionsRead]:
-    """Retrieve active sessions for the authenticated user."""
-    return sessions_integration.get_user_sessions(token_user_id, db)
+) -> auth_sessions_schema.UsersSessionsPage:
+    """Retrieve one page of the authenticated user's sessions."""
+    return sessions_integration.list_user_sessions(token_user_id, page, db)
 
 
 def delete_user_session(

@@ -1,7 +1,9 @@
 """Pydantic schemas for the authentication module."""
 
 import re
-from typing import Literal
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -196,3 +198,30 @@ class TokenExchangeRead(BaseModel):
     expires_in: StrictInt = Field(default=900, description="Access token lifetime in seconds")
     refresh_token_expires_in: StrictInt = Field(default=604800, description="Refresh token lifetime in seconds")
     token_type: StrictStr = Field(default="Bearer", description="Token type")
+
+
+@dataclass(frozen=True)
+class RefreshCookie:
+    """Refresh token a web client receives as an ``HttpOnly`` cookie.
+
+    Attributes:
+        value: The refresh token.
+        expires_at: When the cookie and the token expire.
+    """
+
+    value: str
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
+class AuthOutcome:
+    """Result of an authentication workflow, before the transport delivers it.
+
+    Attributes:
+        body: Response body for the client.
+        refresh_cookie: Cookie the router sets for a web client; ``None`` when the refresh token is not delivered
+            as a cookie.
+    """
+
+    body: Any
+    refresh_cookie: RefreshCookie | None = None

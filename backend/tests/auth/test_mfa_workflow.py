@@ -220,7 +220,7 @@ class TestEnableMfa:
             patch("modules.auth.account_security.mfa_workflow_service.step_up_service.verify_step_up_credentials"),
             patch(
                 "modules.auth.account_security.mfa_workflow_service.mfa_integration.enable_user_mfa",
-                side_effect=core_exceptions.InvalidInputError("Invalid MFA code"),
+                side_effect=core_exceptions.InvalidMfaCodeError(),
             ),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
@@ -257,14 +257,14 @@ class TestEnableMfa:
         assert exc_info.value.status_code == status.HTTP_409_CONFLICT
         mfa_secret_store.delete_secret.assert_called_once_with(7)
 
-    def test_invalid_mfa_code_with_non_400_status_discards_secret(self, mock_db, step_up_store, mfa_secret_store):
-        """Same detail but a non-400 status still discards the pending secret."""
+    def test_same_detail_without_the_mfa_code_type_discards_secret(self, mock_db, step_up_store, mfa_secret_store):
+        """Only the dedicated wrong-code type keeps the pending secret, not a matching message."""
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
             patch("modules.auth.account_security.mfa_workflow_service.step_up_service.verify_step_up_credentials"),
             patch(
                 "modules.auth.account_security.mfa_workflow_service.mfa_integration.enable_user_mfa",
-                side_effect=core_exceptions.UnauthenticatedError("Invalid MFA code"),
+                side_effect=core_exceptions.InvalidInputError("Invalid MFA code"),
             ),
             pytest.raises(core_exceptions.DomainError),
         ):

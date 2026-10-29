@@ -1,7 +1,7 @@
 """Authentication transport dependencies and refresh-cookie helpers."""
 
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse
@@ -12,6 +12,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.authentication.schema as auth_schema
 import modules.auth.constants as auth_constants
 
 REFRESH_TOKEN_COOKIE_NAME = "endurain" + "_refresh_token"
@@ -49,6 +50,26 @@ def set_refresh_token_cookie(
         secure=_secure_cookie(environment),
         samesite="strict",
     )
+
+
+def deliver_auth_outcome(response: Response, outcome: auth_schema.AuthOutcome) -> Any:
+    """Set the outcome's refresh cookie on the response and return its body.
+
+    Args:
+        response: Response that receives the refresh cookie.
+        outcome: Result of an authentication workflow.
+
+    Returns:
+        The outcome's response body.
+    """
+    if outcome.refresh_cookie is not None:
+        set_refresh_token_cookie(
+            response,
+            outcome.refresh_cookie.value,
+            outcome.refresh_cookie.expires_at,
+            environment=core_config.settings.ENVIRONMENT,
+        )
+    return outcome.body
 
 
 def clear_refresh_token_cookies(

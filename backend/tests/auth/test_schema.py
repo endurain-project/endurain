@@ -111,7 +111,7 @@ class TestAuthRouterErrors:
         with pytest.raises(core_exceptions.DomainError) as exc_info:
             await endpoint(
                 response=None,
-                request=None,
+                request=SimpleNamespace(client=None, headers={}),
                 form_data=SimpleNamespace(
                     username="testuser",
                     password="Password1!",
@@ -141,7 +141,7 @@ class TestAuthRouterErrors:
         with pytest.raises(core_exceptions.DomainError) as exc_info:
             await endpoint(
                 response=None,
-                request=None,
+                request=SimpleNamespace(client=None, headers={}),
                 mfa_request=auth_schema.MFALoginRequest(
                     username="testuser",
                     mfa_code="123456",
@@ -204,8 +204,8 @@ class TestAuthRouterErrors:
 
         with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_service.verify_mfa_and_login(
-                response=None,
-                request=None,
+                ip_address="127.0.0.1",
+                user_agent="pytest-agent",
                 mfa_request=auth_schema.MFALoginRequest(
                     username=raw_username,
                     mfa_code="123456",
@@ -254,8 +254,8 @@ class TestAuthRouterErrors:
 
         with pytest.raises(core_exceptions.DomainError) as exc_info:
             auth_service.verify_mfa_and_login(
-                response=None,
-                request=None,
+                ip_address="127.0.0.1",
+                user_agent="pytest-agent",
                 mfa_request=auth_schema.MFALoginRequest(
                     username="testuser",
                     mfa_code="123456",

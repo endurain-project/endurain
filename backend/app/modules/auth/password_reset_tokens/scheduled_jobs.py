@@ -7,6 +7,8 @@ import modules.auth.password_reset_tokens.service as password_reset_service
 
 logger = core_logger.get_logger(__name__)
 
+PURGE_LOCK_NAME = "auth_password_reset_tokens_purge"
+
 
 def delete_expired_tokens_from_db() -> None:
     """Delete expired reset tokens in a short-lived transaction."""
@@ -24,5 +26,6 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             delete_expired_tokens_from_db,
             60,
             "delete invalid password reset tokens from the database",
+            lock_name=PURGE_LOCK_NAME,
         ),
     )
