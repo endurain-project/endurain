@@ -25,7 +25,7 @@ def create_fernet_cipher() -> Fernet:
             raise ValueError("FERNET_KEY not found in environment or secrets file")
         return Fernet(key.encode())
     except Exception as err:
-        logger.error("Error in create_fernet_cipher", exc_info=err)
+        logger.debug("Error in create_fernet_cipher", exc_info=err)
 
         raise core_exceptions.CryptographyError() from err
 
@@ -56,7 +56,7 @@ def encrypt_token_fernet(token: object | None) -> str | None:
     except core_exceptions.CryptographyError:
         raise
     except Exception as err:
-        logger.error("Error in encrypt_token_fernet", exc_info=err)
+        logger.debug("Error in encrypt_token_fernet", exc_info=err)
 
         raise core_exceptions.CryptographyError() from err
 
@@ -85,10 +85,10 @@ def decrypt_token_fernet(encrypted_token: str | None) -> str | None:
     except core_exceptions.CryptographyError:
         raise
     except InvalidToken as err:
-        logger.error("Error in decrypt_token_fernet", exc_info=err)
+        logger.debug("Error in decrypt_token_fernet", exc_info=err)
 
         raise core_exceptions.UndecryptableError() from err
     except Exception as err:
-        logger.error("Error in decrypt_token_fernet", exc_info=err)
+        logger.debug("Error in decrypt_token_fernet", exc_info=err)
 
         raise core_exceptions.CryptographyError() from err

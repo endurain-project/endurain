@@ -138,3 +138,21 @@ class TestMailProblems:
 
         assert problems
         assert all("secret" not in p and "bad address" not in p and "me@example.com" not in p for p in problems)
+
+
+class TestRefusalLevels:
+    """A refused message is a recipient or data problem the operator sees, not a fault of this server."""
+
+    @pytest.mark.parametrize(
+        "error",
+        [platform_providers.MailError("refused", status=550), ValueError("bad address")],
+        ids=["550", "invalid"],
+    )
+    def test_a_refused_message_is_a_warning(self, error, caplog):
+        mail = MagicMock()
+        mail.send.side_effect = error
+
+        with caplog.at_level("DEBUG", logger=core_mail.logger.name):
+            _send(mail)
+
+        assert [record.levelname for record in caplog.records] == ["WARNING"]

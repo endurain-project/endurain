@@ -227,5 +227,5 @@ def verify_id_token(
         # Re-raise domain errors from _fetch_jwks or our own validations
         raise
     except Exception as err:
-        logger.error("Unexpected error verifying ID token: <err>", exc_info=err, extra=core_logger.context(err=err))
+        logger.debug("Unexpected error verifying ID token: <err>", exc_info=err, extra=core_logger.context(err=err))
         raise core_exceptions.ProcessingError("Failed to verify ID token") from err

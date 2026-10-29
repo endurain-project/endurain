@@ -29,13 +29,16 @@ class TestStageEdit:
 class TestCreateHealthWater:
     @patch(f"{_PREFIX}.health_water_crud.create_health_water")
     @patch(f"{_PREFIX}.health_water_crud.get_health_water_by_date_and_user_id", return_value=None)
-    def test_creates_and_commits_when_the_date_is_free(self, _get_by_date, mock_create, mock_db):
+    def test_creates_and_commits_when_the_date_is_free(self, _get_by_date, mock_create, mock_db, caplog):
         record = health_water_schema.HealthWaterCreate(date=datetime_date(2024, 1, 15), amount_ml=500.0)
 
-        result = health_water_service.create_health_water(1, record, mock_db)
+        with caplog.at_level("DEBUG", logger=health_water_service.logger.name):
+            result = health_water_service.create_health_water(1, record, mock_db)
 
         assert result is mock_create.return_value
         mock_db.commit.assert_called_once()
+        # A completed state change, reported as the other modules report theirs.
+        assert [record.levelname for record in caplog.records] == ["INFO"]
 
     @patch(f"{_PREFIX}.health_water_crud.add_health_water_amount")
     @patch(f"{_PREFIX}.health_water_crud.get_health_water_by_date_and_user_id")

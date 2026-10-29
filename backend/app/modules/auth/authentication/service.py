@@ -1256,7 +1256,7 @@ def exchange_tokens_for_session(
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
 
     if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
-        logger.error(
+        logger.warning(
             "Token exchange failed: OAuth state <value_1> missing PKCE data",
             extra=core_logger.context(value_1=core_hashing.log_fingerprint(oauth_state.id)),
         )

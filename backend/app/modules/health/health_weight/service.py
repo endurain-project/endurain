@@ -181,7 +181,7 @@ def create_health_weight(
         health_weight.date = users_integration.local_today(user_id, db)
     created = stage_create_health_weight(user_id, health_weight, db)
     db.commit()
-    logger.debug("Stored a weight record", extra=core_logger.context(user_id=user_id))
+    logger.info("Stored a weight record", extra=core_logger.context(user_id=user_id))
     return created
 
 
@@ -217,7 +217,7 @@ def edit_health_weight(
     ):
         updated = stage_edit_health_weight(user_id, health_weight_id, health_weight, db, if_match=if_match)
         db.commit()
-    logger.debug("Edited a weight record", extra=core_logger.context(user_id=user_id))
+    logger.info("Edited a weight record", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -242,7 +242,7 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session, *, if
     ):
         health_weight_crud.delete_health_weight(user_id, health_weight_id, db, if_match=if_match)
         db.commit()
-    logger.debug(
+    logger.info(
         "Deleted a weight record", extra=core_logger.context(user_id=user_id, health_weight_id=health_weight_id)
     )
 

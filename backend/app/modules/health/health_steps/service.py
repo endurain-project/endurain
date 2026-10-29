@@ -126,7 +126,7 @@ def create_health_steps(
         health_steps.date = users_integration.local_today(user_id, db)
     created = health_steps_crud.create_health_steps(user_id, health_steps, db)
     db.commit()
-    logger.debug("Stored a steps record", extra=core_logger.context(user_id=user_id))
+    logger.info("Stored a steps record", extra=core_logger.context(user_id=user_id))
     return created
 
 
@@ -162,7 +162,7 @@ def edit_health_steps(
     ):
         updated = stage_edit_health_steps(user_id, health_steps_id, health_steps, db, if_match=if_match)
         db.commit()
-    logger.debug("Edited a steps record", extra=core_logger.context(user_id=user_id))
+    logger.info("Edited a steps record", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -187,7 +187,7 @@ def delete_health_steps(user_id: int, health_steps_id: int, db: Session, *, if_m
     ):
         health_steps_crud.delete_health_steps(user_id, health_steps_id, db, if_match=if_match)
         db.commit()
-    logger.debug("Deleted a steps record", extra=core_logger.context(user_id=user_id, health_steps_id=health_steps_id))
+    logger.info("Deleted a steps record", extra=core_logger.context(user_id=user_id, health_steps_id=health_steps_id))
 
 
 def get_health_steps_chart(

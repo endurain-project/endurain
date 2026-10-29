@@ -160,6 +160,32 @@ class TestUndecryptableToken:
         assert client is None
         unlink.assert_not_called()
 
+    def test_an_unusable_session_is_reported_even_though_it_is_swallowed(self, caplog):
+        """Nothing above sees the decryption failure, so this is where it is logged."""
+        with (
+            patch.object(
+                garmin_service,
+                "get_user_garminconnect_session",
+                side_effect=core_exceptions.UndecryptableError(),
+            ),
+            caplog.at_level("WARNING", logger=garmin_service.logger.name),
+        ):
+            assert garmin_service.get_user_garminconnect_client(1, MagicMock()) is None
+
+        assert [record.levelname for record in caplog.records] == ["WARNING"]
+
+    def test_a_user_without_integrations_is_simply_not_linked(self, caplog):
+        """The same "not linked" event Strava reports, at the same level."""
+        with (
+            patch.object(
+                garmin_service, "get_linked_user_integrations", side_effect=core_exceptions.NotFoundError("missing")
+            ),
+            caplog.at_level("DEBUG", logger=garmin_service.logger.name),
+        ):
+            assert garmin_service.get_user_garminconnect_session(1, MagicMock()) is None
+
+        assert {record.levelname for record in caplog.records} == {"DEBUG"}
+
 
 class TestLinkedSession:
     def test_an_unlinked_user_yields_no_session_and_stores_nothing(self):

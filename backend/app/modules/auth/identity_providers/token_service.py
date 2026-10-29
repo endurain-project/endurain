@@ -303,7 +303,7 @@ class IdpTokenService:
             if not refresh_token:
                 raise ValueError("Decryption returned empty value")
         except Exception as err:
-            logger.error(
+            logger.warning(
                 "Failed to decrypt refresh token for user <user_id>, idp <idp_id>: <err>",
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),

@@ -98,7 +98,7 @@ def unlink_account(user_id: int) -> bool:
         user_integrations = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
 
     if user_integrations is None:
-        logger.info("Strava not linked, nothing to unlink", extra=core_logger.context(user_id=user_id))
+        logger.debug("Strava not linked, nothing to unlink", extra=core_logger.context(user_id=user_id))
         return False
 
     try:

@@ -135,7 +135,7 @@ def create_health_fasting(
 
     created = health_fasting_crud.create_health_fasting(user_id, health_fasting, db)
     db.commit()
-    logger.debug("Stored a fasting session", extra=core_logger.context(user_id=user_id))
+    logger.info("Stored a fasting session", extra=core_logger.context(user_id=user_id))
     return created
 
 
@@ -199,7 +199,7 @@ def edit_health_fasting(
             user_id, health_fasting_id, health_fasting, db, if_match=if_match
         )
         db.commit()
-    logger.debug("Edited a fasting session", extra=core_logger.context(user_id=user_id))
+    logger.info("Edited a fasting session", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -255,7 +255,7 @@ def complete_health_fasting(
             if_match=if_match,
         )
         db.commit()
-    logger.debug(
+    logger.info(
         "Completed a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
     )
     return ended
@@ -282,6 +282,6 @@ def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, 
     ):
         health_fasting_crud.delete_health_fasting(user_id, health_fasting_id, db, if_match=if_match)
         db.commit()
-    logger.debug(
+    logger.info(
         "Deleted a fasting session", extra=core_logger.context(user_id=user_id, health_fasting_id=health_fasting_id)
     )

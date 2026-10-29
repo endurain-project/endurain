@@ -140,7 +140,7 @@ class OidcClientService:
 
             # Validate JWKS structure
             if not isinstance(jwks, dict) or "keys" not in jwks:
-                logger.error(
+                logger.debug(
                     "Invalid JWKS format from <jwks_uri>: missing 'keys' array",
                     extra=core_logger.context(jwks_uri=jwks_uri),
                 )
@@ -156,14 +156,14 @@ class OidcClientService:
             return jwks
 
         except httpx2.TimeoutException as err:
-            logger.error(
+            logger.debug(
                 "Timeout fetching JWKS from <jwks_uri>: <err>",
                 exc_info=err,
                 extra=core_logger.context(jwks_uri=jwks_uri, err=err),
             )
             raise UpstreamTimeoutError("Timeout retrieving signing keys from identity provider") from err
         except httpx2.HTTPStatusError as err:
-            logger.error(
+            logger.debug(
                 "HTTP error fetching JWKS from <jwks_uri>: <status_code>",
                 exc_info=err,
                 extra=core_logger.context(jwks_uri=jwks_uri, status_code=err.response.status_code),
@@ -172,7 +172,7 @@ class OidcClientService:
                 f"Identity provider JWKS endpoint returned error: {err.response.status_code}"
             ) from err
         except json.JSONDecodeError as err:
-            logger.error(
+            logger.debug(
                 "Invalid JSON in JWKS response from <jwks_uri>: <err>",
                 exc_info=err,
                 extra=core_logger.context(jwks_uri=jwks_uri, err=err),
@@ -181,7 +181,7 @@ class OidcClientService:
         except core_exceptions.DomainError:
             raise
         except Exception as err:
-            logger.error(
+            logger.debug(
                 "Unexpected error fetching JWKS from <jwks_uri>: <err>",
                 exc_info=err,
                 extra=core_logger.context(jwks_uri=jwks_uri, err=err),
@@ -239,7 +239,7 @@ class OidcClientService:
             )
             return None
         except httpx2.ConnectError as err:
-            logger.error(
+            logger.warning(
                 "Connection error fetching OIDC discovery for <name>. URL: <discovery_url>. Error: <err>. "
                 "Check if the service is reachable and not using 'localhost' in Docker.",
                 extra=core_logger.context(name=idp.name, discovery_url=discovery_url, err=err),
@@ -312,7 +312,7 @@ class OidcClientService:
                 raise ValueError("Decryption returned empty value")
             return client_id
         except Exception as err:
-            logger.error(
+            logger.debug(
                 "Failed to decrypt client ID for IdP <name>: <err>",
                 exc_info=err,
                 extra=core_logger.context(name=idp.name, err=err),
@@ -346,7 +346,7 @@ class OidcClientService:
                 raise ValueError("Decryption returned empty value")
             return client_secret
         except Exception as err:
-            logger.error(
+            logger.debug(
                 "Failed to decrypt client secret for IdP <name>: <err>",
                 exc_info=err,
                 extra=core_logger.context(name=idp.name, err=err),
@@ -563,7 +563,7 @@ class OidcClientService:
                 # These are security-critical and should not be ignored
                 raise
             except Exception as err:
-                logger.error(
+                logger.debug(
                     "Unexpected error verifying ID token: <err>", exc_info=err, extra=core_logger.context(err=err)
                 )
                 raise core_exceptions.ProcessingError("Failed to verify ID token") from err
@@ -580,7 +580,7 @@ class OidcClientService:
             )
 
         # If we get here, we couldn't retrieve or verify any user information
-        logger.error("Failed to retrieve user information from userinfo endpoint or ID token")
+        logger.debug("Failed to retrieve user information from userinfo endpoint or ID token")
         raise core_exceptions.ProcessingError(
             "Unable to retrieve user information from identity provider. Please contact administrator."
         )

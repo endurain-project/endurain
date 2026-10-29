@@ -93,7 +93,7 @@ def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession |
     try:
         user_integrations = get_linked_user_integrations(user_id, db)
     except core_exceptions.NotFoundError:
-        logger.warning("Garmin Connect user has no integrations record", extra=core_logger.context(user_id=user_id))
+        logger.debug("Garmin Connect user has no integrations record", extra=core_logger.context(user_id=user_id))
         return None
 
     if user_integrations is None:
@@ -153,7 +153,13 @@ def get_user_garminconnect_client(user_id: int, db: Session) -> garminconnect.Ga
     """
     try:
         session = get_user_garminconnect_session(user_id, db)
-    except core_exceptions.UndecryptableError:
+    except core_exceptions.UndecryptableError as err:
+        # Swallowed here, so this is the only place the unusable session is reported.
+        logger.warning(
+            "Garmin Connect session could not be decrypted; treating the account as unusable",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
         return None
     return session.client if session is not None else None
 

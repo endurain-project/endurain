@@ -157,10 +157,10 @@ def send_email(
         return False
     except platform_providers.MailError as err:
         if err.permanent:
-            logger.error("Email not sent, the mail server refused it permanently", exc_info=err)
+            logger.warning("Email not sent, the mail server refused it permanently", exc_info=err)
             return False
         raise
     except ValueError:
-        logger.error("Email not sent: the message or recipient address is invalid")
+        logger.warning("Email not sent: the message or recipient address is invalid")
         return False
     return True

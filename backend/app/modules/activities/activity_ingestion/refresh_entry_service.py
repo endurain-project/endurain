@@ -85,7 +85,7 @@ def sync_linked_providers(
     if provider is not None:
         selected = activity_ingestion_provider_registry.get(provider)
         if selected is None:
-            logger.error(
+            logger.debug(
                 "Refresh asked for a provider that is not registered in this process",
                 extra=core_logger.context(user_id=user_id, provider=provider),
             )

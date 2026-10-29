@@ -415,7 +415,7 @@ async def save_file(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error("Error in save_file", exc_info=err)
+        logger.debug("Error in save_file", exc_info=err)
 
         # Remove the file if it was created
         if file_path and await aiofiles.os.path.exists(file_path):
@@ -584,7 +584,7 @@ async def save_validated_upload(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error("Error in save_validated_upload", exc_info=err)
+        logger.debug("Error in save_validated_upload", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
@@ -671,7 +671,7 @@ def save_validated_upload_sync(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error("Error in save_validated_upload_sync", exc_info=err)
+        logger.debug("Error in save_validated_upload_sync", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
@@ -818,7 +818,7 @@ async def save_validated_bytes(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error("save_validated_bytes failed", exc_info=err)
+        logger.debug("save_validated_bytes failed", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
@@ -1109,7 +1109,7 @@ async def extract_validated_zip(
     except core_exceptions.DomainError:
         raise
     except (zipfile.BadZipFile, OSError) as err:
-        logger.error("extract_validated_zip failed", exc_info=err)
+        logger.warning("extract_validated_zip failed", exc_info=err)
         raise core_exceptions.InvalidInputError("Failed to extract archive") from err
 
     try:
@@ -1142,7 +1142,7 @@ async def extract_validated_zip(
         except core_exceptions.DomainError:
             raise
         except OSError as err:
-            logger.error("extract_validated_zip promotion failed", exc_info=err)
+            logger.debug("extract_validated_zip promotion failed", exc_info=err)
             raise core_exceptions.ProcessingError("Failed to promote extracted files") from err
     finally:
         if staging_dir is not None:
@@ -1248,7 +1248,7 @@ def move_within(
     except core_exceptions.DomainError:
         raise
     except (OSError, shutil.Error) as err:
-        logger.error("move_within failed", exc_info=err)
+        logger.debug("move_within failed", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to move file") from err
 
 

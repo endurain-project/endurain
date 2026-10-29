@@ -392,7 +392,7 @@ class CallbackService:
                     f"Unable to connect to identity provider {idp.name}. Please check your network connection."
                 ) from err
             except Exception as err:
-                logger.error(
+                logger.debug(
                     "Unexpected error during token exchange with IdP <name>: <err>",
                     exc_info=err,
                     extra=core_logger.context(name=idp.name, err=err),
@@ -413,7 +413,7 @@ class CallbackService:
             # Extract subject (unique user identifier)
             subject = userinfo.get("sub") or userinfo.get("id")
             if not subject:
-                logger.error(
+                logger.debug(
                     "IdP <name> did not provide 'sub' or 'id' claim in userinfo: <value_2>",
                     extra=core_logger.context(name=idp.name, value_2=list(userinfo.keys())),
                 )
@@ -506,7 +506,7 @@ class CallbackService:
             raise
         except Exception as err:
             # Catch-all for unexpected errors
-            logger.error(
+            logger.debug(
                 "Unexpected error handling OAuth callback for IdP <name>: <err>",
                 exc_info=err,
                 extra=core_logger.context(name=idp.name, err=err),

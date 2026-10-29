@@ -113,7 +113,7 @@ def mark_notification_as_read(notification_id: int, user_id: int, db: Session) -
     if notifications_crud.mark_notification_as_read(notification_id, user_id, db) is None:
         raise core_exceptions.NotFoundError("Notification not found")
     db.commit()
-    logger.debug(
+    logger.info(
         "Marked notification as read",
         extra=core_logger.context(notification_id=notification_id, user_id=user_id),
     )
@@ -128,7 +128,7 @@ def mark_all_notifications_as_read(user_id: int, db: Session) -> None:
     """
     notifications_crud.mark_all_notifications_as_read(user_id, db)
     db.commit()
-    logger.debug("Marked all notifications as read", extra=core_logger.context(user_id=user_id))
+    logger.info("Marked all notifications as read", extra=core_logger.context(user_id=user_id))
 
 
 def delete_read_notifications(db: Session) -> int:

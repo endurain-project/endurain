@@ -45,11 +45,14 @@ class TestReadGearDetail:
 
 
 class TestCreateGear:
-    def test_create_commits_and_returns_the_gear(self, db, commit_spy):
-        created = service.create_gear(gear_create(), 1, db)
+    def test_create_commits_and_returns_the_gear(self, db, commit_spy, caplog):
+        with caplog.at_level("DEBUG", logger=service.logger.name):
+            created = service.create_gear(gear_create(), 1, db)
 
         commit_spy.assert_called_once_with()
         assert created.nickname == "Road Bike"
+        # A completed state change, reported as the other modules report theirs.
+        assert [record.levelname for record in caplog.records] == ["INFO"]
 
     def test_a_repeated_nickname_is_a_conflict_and_nothing_is_committed(self, db, commit_spy):
         crud.create_gear(gear_create("Road Bike"), 1, db)

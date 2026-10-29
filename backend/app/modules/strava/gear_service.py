@@ -142,7 +142,7 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
     with core_database.SessionLocal() as db:
         user_integrations = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
     if user_integrations is None:
-        logger.info("Strava not linked, skipping the gear sync", extra=core_logger.context(user_id=user_id))
+        logger.debug("Strava not linked, skipping the gear sync", extra=core_logger.context(user_id=user_id))
         return False
 
     logger.info("Started Strava gear processing", extra=core_logger.context(user_id=user_id))

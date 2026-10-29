@@ -56,7 +56,7 @@ def _import_mail_env(db: Session) -> list[str]:
         )
     )
     if problems:
-        logger.error(
+        logger.warning(
             "The SMTP environment variables are invalid, so the stored mail settings were left unchanged: "
             + "; ".join(problems),
             extra=core_logger.context(console=True),
@@ -112,7 +112,7 @@ def _import_geocoding_env(db: Session) -> list[str]:
     try:
         service = core_geocoding.GeocodingService(settings.REVERSE_GEO_PROVIDER)
     except ValueError:
-        logger.error(
+        logger.warning(
             "REVERSE_GEO_PROVIDER is not nominatim, photon or geocode, so the stored geocoding settings were left "
             "unchanged",
             extra=core_logger.context(console=True),
@@ -130,7 +130,7 @@ def _import_geocoding_env(db: Session) -> list[str]:
         try:
             host = server_settings_schema.ServerSettingsGeocoding.validate_geocoding_host(host)
         except ValueError:
-            logger.error(
+            logger.warning(
                 "The geocoding host variable is not a hostname or IP address with an optional port, so the stored "
                 "geocoding settings were left unchanged",
                 extra=core_logger.context(console=True),

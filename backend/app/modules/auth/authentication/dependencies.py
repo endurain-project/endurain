@@ -181,7 +181,7 @@ def validate_refresh_token(
             raise ClearRefreshTokenCookieError(http_err.detail) from http_err
         raise
     except Exception as err:
-        logger.error(
+        logger.debug(
             "Unexpected error during refresh token validation: <__name__>",
             exc_info=err,
             extra=dict(

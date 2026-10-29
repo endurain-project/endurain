@@ -150,7 +150,7 @@ def parse_activity(
         # stravalib types start_date as optional; without it there is nothing to
         # anchor the activity to, and every downstream consumer (dedup by start
         # time, end-time derivation) requires it.
-        logger.error(
+        logger.warning(
             "Strava activity has no start date, skipping",
             extra=core_logger.context(user_id=user_id, strava_activity_id=activity.id),
         )

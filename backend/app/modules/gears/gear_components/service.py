@@ -171,7 +171,7 @@ def create_gear_component(
 
     created = gear_components_crud.create_gear_component(gear_component, user_id, db)
     db.commit()
-    logger.debug("Created a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=created.id))
+    logger.info("Created a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=created.id))
     return created
 
 
@@ -226,7 +226,7 @@ def edit_gear_component(
             gear_component_id, gear_component, user_id, db, if_match=if_match
         )
         db.commit()
-    logger.debug("Edited a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=updated.id))
+    logger.info("Edited a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=updated.id))
     return updated
 
 
@@ -251,6 +251,6 @@ def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, 
     ):
         gear_components_crud.delete_gear_component(user_id, gear_component_id, db, if_match=if_match)
         db.commit()
-    logger.debug(
+    logger.info(
         "Deleted a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=gear_component_id)
     )

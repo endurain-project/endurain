@@ -1,6 +1,7 @@
 """Tests for FIT activity file import utilities."""
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -859,3 +860,14 @@ class TestMalformedFitFile:
     def test_a_file_that_cannot_be_opened_stays_a_processing_error(self, tmp_path):
         with pytest.raises(core_exceptions.ProcessingError):
             fit_utils.parse_fit_file(str(tmp_path / "missing.fit"))
+
+    def test_a_file_the_parser_chokes_on_is_rejected_as_invalid_input(self, tmp_path):
+        """The same bytes fail the same way every time, so retrying such a file is wasted work."""
+        path = tmp_path / "odd.fit"
+        path.write_bytes(b"\x00" * 40)
+
+        with (
+            patch.object(fit_utils.fitdecode, "FitReader", side_effect=KeyError("field")),
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            fit_utils.parse_fit_file(str(path))

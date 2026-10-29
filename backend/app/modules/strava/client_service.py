@@ -365,7 +365,7 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
             exc_info=err,
         )
         return
-    logger.info("Strava tokens refreshed", extra=core_logger.context(user_id=user_id))
+    logger.debug("Strava tokens refreshed", extra=core_logger.context(user_id=user_id))
 
 
 def fetch_user_integrations_and_validate_token(

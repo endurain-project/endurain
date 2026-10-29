@@ -130,7 +130,7 @@ def create_health_sleep(
     health_sleep_sleep_scoring.calculate_and_set_sleep_scores(health_sleep)
     created = health_sleep_crud.create_health_sleep(user_id, health_sleep, db)
     db.commit()
-    logger.debug("Stored a sleep record", extra=core_logger.context(user_id=user_id))
+    logger.info("Stored a sleep record", extra=core_logger.context(user_id=user_id))
     return created
 
 
@@ -167,7 +167,7 @@ def edit_health_sleep(
     ):
         updated = stage_edit_health_sleep(user_id, health_sleep_id, health_sleep, db, if_match=if_match)
         db.commit()
-    logger.debug("Edited a sleep record", extra=core_logger.context(user_id=user_id))
+    logger.info("Edited a sleep record", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -192,7 +192,7 @@ def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session, *, if_m
     ):
         health_sleep_crud.delete_health_sleep(user_id, health_sleep_id, db, if_match=if_match)
         db.commit()
-    logger.debug("Deleted a sleep record", extra=core_logger.context(user_id=user_id, health_sleep_id=health_sleep_id))
+    logger.info("Deleted a sleep record", extra=core_logger.context(user_id=user_id, health_sleep_id=health_sleep_id))
 
 
 def get_health_sleep_chart(

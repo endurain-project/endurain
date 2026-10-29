@@ -699,5 +699,5 @@ def parse_gpx_file(
         logger.debug("Rejected a malformed GPX file", exc_info=err, extra=core_logger.context(user_id=user_id))
         raise core_exceptions.InvalidInputError("Failed to parse GPX file") from err
     except OSError as err:
-        logger.error("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        logger.debug("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
         raise core_exceptions.ProcessingError("Failed to read GPX file") from err

@@ -142,7 +142,7 @@ class TestRefreshUserStravaToken:
         create_client.assert_not_called()
 
     def test_an_expiring_token_is_refreshed_and_stored_with_no_session_open_for_the_call(
-        self, monkeypatch, rate_limits
+        self, monkeypatch, rate_limits, caplog
     ):
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
@@ -175,9 +175,13 @@ class TestRefreshUserStravaToken:
             strava_utils.user_integrations_integration, "replace_strava_tokens_if_refresh_token", replace
         )
 
-        strava_utils.refresh_user_strava_token(1, rate_limits)
+        with caplog.at_level("DEBUG", logger=strava_utils.logger.name):
+            strava_utils.refresh_user_strava_token(1, rate_limits)
 
         assert during_call == [0]
+        # A routine refresh, logged as Garmin Connect logs its own.
+        refreshed = [record for record in caplog.records if record.getMessage() == "Strava tokens refreshed"]
+        assert [record.levelname for record in refreshed] == ["DEBUG"]
         replace.assert_called_once()
         assert replace.call_args.args[:3] == (1, "r", {"access_token": "n"})
 

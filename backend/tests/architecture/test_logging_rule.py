@@ -12,6 +12,8 @@ import re
 
 from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role, role_of
 
+import core.exceptions as core_exceptions
+
 #: Modules the logging rule has been applied to — the shared
 #: ``CONVERTED_MODULES`` list in ``tests/_helpers/module_roles.py``, so
 #: converting a module is a single edit there.
@@ -332,6 +334,45 @@ class TestLoggingRule:
                 )
 
         assert offenders == [], "Pass exc_info=err so the traceback is kept:\n  " + "\n  ".join(offenders)
+
+    def test_a_server_failure_raised_onwards_is_logged_once(self):
+        """A block that raises a 5xx domain error leaves the ERROR log to the boundary that answers for it.
+
+        The HTTP error handler, the durable job runner and the in-process pool each log a failure that reaches
+        them with its traceback, so an ERROR at the raising site writes the same fault twice. The site may
+        still add its context at DEBUG.
+        """
+        server_errors = {
+            name
+            for name, value in vars(core_exceptions).items()
+            if isinstance(value, type) and issubclass(value, core_exceptions.DomainError) and value.status_code >= 500
+        }
+
+        def raised_name(node: ast.Raise) -> str | None:
+            target = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
+            if isinstance(target, ast.Attribute):
+                return target.attr
+            return target.id if isinstance(target, ast.Name) else None
+
+        offenders: list[str] = []
+        for path in _app_files():
+            if "alembic" in path.parts or "migrations" in path.parts:
+                continue
+            for block in ast.walk(ast.parse(path.read_text())):
+                if not isinstance(block, (ast.ExceptHandler, ast.If)):
+                    continue
+                raises = [node for node in block.body if isinstance(node, ast.Raise) and node.exc is not None]
+                if not any(raised_name(node) in server_errors for node in raises):
+                    continue
+                offenders.extend(
+                    f"{path}:{node.value.lineno}"
+                    for node in block.body
+                    if isinstance(node, ast.Expr)
+                    and _is_logger_call(node.value)
+                    and node.value.func.attr in {"error", "exception", "critical"}
+                )
+
+        assert offenders == [], "Log the context at DEBUG; the boundary logs the failure:\n  " + "\n  ".join(offenders)
 
     def test_a_loop_logs_its_items_at_debug_and_one_summary_at_info(self):
         """``logger.info`` inside a loop writes one line per item; the item is DEBUG and the summary follows the loop."""

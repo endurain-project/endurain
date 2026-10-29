@@ -67,7 +67,8 @@ def parse_file(
 
     Raises:
         UnsupportedFormatError: When no parser is registered for the extension.
-        ProcessingError: On a parse failure.
+        InvalidInputError: When the file's content cannot be parsed.
+        ProcessingError: When the file cannot be read.
     """
     try:
         if filename.lower() == "bulk_import/__init__.py":
@@ -91,19 +92,19 @@ def parse_file(
         return parser(filename, token_user_id, activity_name, default_timezone or core_config.settings.TZ)
     except core_exceptions.DomainError:
         raise
-    except (
-        OSError,
-        EOFError,
-        gzip.BadGzipFile,
-        ValueError,
-        RuntimeError,
-        KeyError,
-        TypeError,
-    ) as err:
-        # Log the exception with full traceback but return a generic
-        # error message to the caller to avoid internal info disclosure.
-        logger.error(
-            "Error in parse_file",
+    except (EOFError, gzip.BadGzipFile, ValueError, KeyError, TypeError) as err:
+        # The file's content broke the parser: every retry reaches the same verdict, so the upload ends as
+        # an invalid file. The traceback is kept at WARNING in case the parser itself is at fault.
+        logger.warning(
+            "Could not parse an activity file",
+            exc_info=err,
+            extra=core_logger.context(file=Path(filename).name, user_id=token_user_id),
+        )
+        raise core_exceptions.InvalidInputError("The activity file could not be read") from err
+    except (OSError, RuntimeError) as err:
+        # Server-side and possibly transient; the job runner logs it with this context's traceback.
+        logger.debug(
+            "Failed to read an activity file",
             exc_info=err,
             extra=core_logger.context(file=Path(filename).name, user_id=token_user_id),
         )
@@ -236,7 +237,7 @@ def store_activities_from_file(
             continue
         contributor = activities_contributor_registry.get_file_ingestion_contributor(key)
         if contributor is None:
-            logger.error(
+            logger.debug(
                 "No file ingestion contributor is registered for a parsed component",
                 extra=core_logger.context(component=key),
             )

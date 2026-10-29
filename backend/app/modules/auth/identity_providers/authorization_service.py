@@ -192,7 +192,7 @@ class AuthorizationService:
         except core_exceptions.DomainError:
             raise
         except Exception as err:
-            logger.error(
+            logger.debug(
                 "Error initiating OAuth login for IdP <name>: <err>",
                 exc_info=err,
                 extra=core_logger.context(name=idp.name, err=err),
@@ -287,7 +287,7 @@ class AuthorizationService:
         except core_exceptions.DomainError:
             raise
         except Exception as err:
-            logger.error(
+            logger.debug(
                 "Error initiating OAuth link for IdP <name>, user <user_id>: <err>",
                 exc_info=err,
                 extra=core_logger.context(name=idp.name, user_id=user_id, err=err),
