@@ -5664,7 +5664,8 @@ export interface components {
          *     Attributes:
          *         id: Lap primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Lap start as a timezone-aware UTC instant.
+         *         start_time: Lap start as a timezone-aware UTC instant, or None when the
+         *             parent hides its start time from this viewer.
          */
         ActivityLapsRead: {
             /** Activity Id */
@@ -5723,11 +5724,8 @@ export interface components {
             start_position_lat?: number | null;
             /** Start Position Long */
             start_position_long?: number | null;
-            /**
-             * Start Time
-             * Format: date-time
-             */
-            start_time: string;
+            /** Start Time */
+            start_time: string | null;
             /** Sub Sport */
             sub_sport?: string | null;
             /** Total Ascent */

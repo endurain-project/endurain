@@ -969,50 +969,6 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activity_s
     return schema
 
 
-def get_public_activity_for_child_read(
-    activity_id: int,
-    db: Session,
-    *,
-    hide_attr: str,
-) -> activity_schema.ActivityRead | None:
-    """Return a publicly readable activity for an unauthenticated child-resource read.
-
-    The single public gate for activity sub-resources (laps / sets / workout
-    steps / streams). It composes the two checks that must *both* hold before any
-    child rows are served anonymously:
-
-    1. The activity itself is publicly shareable — delegated to
-       :func:`get_activity_by_id_if_is_public`, which enforces ``visibility == 0``
-       **and** ``is_hidden is False``. The server-wide ``public_shareable_links``
-       setting is checked by the caller, before this is reached.
-    2. The per-activity privacy flag guarding this particular child resource
-       (e.g. ``hide_laps``, ``hide_workout_sets_steps``) is not set.
-
-    The ``is_hidden`` check is part of step 1 so a hidden (duplicate-start-time)
-    activity does not serve its laps, sets and workout steps to anonymous callers
-    (OWASP A01: broken access control). Routing every child through this one
-    function keeps that rule from diverging by copy-paste.
-
-    Args:
-        activity_id: Activity ID being read.
-        db: Database session.
-        hide_attr: Name of the boolean ``hide_*`` attribute on the activity
-            schema that gates this child resource.
-
-    Returns:
-        The public activity schema when the child rows may be served anonymously,
-        otherwise ``None``.
-    """
-    activity = get_activity_by_id_if_is_public(activity_id, db)
-    if activity is None:
-        return None
-
-    if getattr(activity, hide_attr):
-        return None
-
-    return activity
-
-
 def get_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> set[int]:
     """Return which of the given activity IDs still have a row.
 

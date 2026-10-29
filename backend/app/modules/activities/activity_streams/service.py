@@ -83,6 +83,36 @@ def _filter_visible_streams(
     return [stream for stream in streams if not _is_stream_hidden(activity, stream.stream_type)]
 
 
+def _without_sample_times(
+    streams: list[activity_streams_schema.ActivityStreamsRead],
+    activity: activity_schema.ActivityRead,
+) -> list[activity_streams_schema.ActivityStreamsRead]:
+    """Drop each sample's absolute ``time`` when the activity hides its start from other viewers.
+
+    The first sample's instant is the start, so ``hide_start_time`` covers every sample's.
+
+    Args:
+        streams: The streams a non-owner is about to be served.
+        activity: The parent activity.
+
+    Returns:
+        The streams, their waypoints without ``time`` when the start is hidden.
+    """
+    if not activity.hide_start_time:
+        return streams
+    return [
+        stream.model_copy(
+            update={
+                "stream_waypoints": [
+                    {key: value for key, value in waypoint.items() if key != "time"}
+                    for waypoint in stream.stream_waypoints
+                ]
+            }
+        )
+        for stream in streams
+    ]
+
+
 def _page_of(
     streams: list[activity_streams_schema.ActivityStreamsRead],
     page_number: int,
@@ -202,7 +232,7 @@ def list_activity_streams(
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
     if requester_user_id != activity.user_id:
-        streams = _filter_visible_streams(streams, activity)
+        streams = _without_sample_times(_filter_visible_streams(streams, activity), activity)
 
     return _page_of(_with_zones(streams, activity, db), page_number, num_records)
 
@@ -237,8 +267,10 @@ def get_activity_stream(
     if stream is None:
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    if requester_user_id != activity.user_id and _is_stream_hidden(activity, stream.stream_type):
-        raise core_exceptions.NotFoundError("Activity stream not found")
+    if requester_user_id != activity.user_id:
+        if _is_stream_hidden(activity, stream.stream_type):
+            raise core_exceptions.NotFoundError("Activity stream not found")
+        [stream] = _without_sample_times([stream], activity)
 
     return _with_zones([stream], activity, db)[0]
 
@@ -271,7 +303,7 @@ def list_public_activity_streams(
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
     return _page_of(
-        _with_zones(_filter_visible_streams(streams, activity), activity, db),
+        _with_zones(_without_sample_times(_filter_visible_streams(streams, activity), activity), activity, db),
         page_number,
         num_records,
     )
@@ -308,4 +340,4 @@ def get_public_activity_stream(
     if _is_stream_hidden(activity, stream.stream_type):
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    return _with_zones([stream], activity, db)[0]
+    return _with_zones(_without_sample_times([stream], activity), activity, db)[0]

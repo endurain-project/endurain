@@ -9,22 +9,17 @@ The rule lives here once, not in each child CRUD, so a fix cannot land in three
 of the four places and the child modules follow the same router -> service ->
 crud layering the activities core does.
 
-Both gates answer a plain boolean rather than returning the activity: a caller
-that receives the parent row is a caller that can accidentally serve fields from
-it, and most child reads need nothing but permission. Streams are the exception —
-their masking is per stream *type* rather than one flag — so they resolve the
-parent and pass it to their own filter.
+Each gate resolves the parent as the caller may see it, because a child that repeats
+the parent's data (a lap's start time and position, a stream's samples) has to be
+masked by the parent's other ``hide_*`` flags too, not only by the one guarding it.
 """
 
 from sqlalchemy.orm import Session
 
-import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.schema as activity_schema
 import modules.followers.integration_service as followers_integration
 import modules.server_settings.integration_service as server_settings_integration
-
-logger = core_logger.get_logger(__name__)
 
 
 def resolve_readable_parent(
@@ -85,57 +80,3 @@ def is_hidden_from(activity: activity_schema.ActivityRead, requester_user_id: in
         True when the child must be withheld from this viewer.
     """
     return requester_user_id != activity.user_id and bool(getattr(activity, hide_attr))
-
-
-def may_read_child(activity_id: int, requester_user_id: int, db: Session, *, hide_attr: str) -> bool:
-    """Return whether an authenticated caller may read one of an activity's child resources.
-
-    Args:
-        activity_id: The parent activity.
-        requester_user_id: The authenticated caller.
-        db: Database session.
-        hide_attr: Name of the parent's boolean ``hide_*`` flag guarding this
-            child resource (e.g. ``"hide_laps"``).
-
-    Returns:
-        True when the caller may see the parent activity **and** either owns it or
-        the guarding flag is unset.
-    """
-    activity = resolve_readable_parent(activity_id, requester_user_id, db)
-    if activity is None:
-        logger.debug(
-            "Child read denied: the activity is not visible to the caller",
-            extra=core_logger.context(
-                activity_id=activity_id, requester_user_id=requester_user_id, hide_attr=hide_attr
-            ),
-        )
-        return False
-
-    if is_hidden_from(activity, requester_user_id, hide_attr=hide_attr):
-        logger.debug(
-            "Child read denied: the hide flag is set for a non-owner",
-            extra=core_logger.context(
-                activity_id=activity_id, requester_user_id=requester_user_id, hide_attr=hide_attr
-            ),
-        )
-        return False
-
-    return True
-
-
-def may_read_public_child(activity_id: int, db: Session, *, hide_attr: str) -> bool:
-    """Return whether an anonymous caller may read one of an activity's child resources.
-
-    Args:
-        activity_id: The parent activity.
-        db: Database session.
-        hide_attr: Name of the parent's boolean ``hide_*`` flag guarding this
-            child resource.
-
-    Returns:
-        True when the activity is publicly shareable (server setting on,
-        ``visibility == 0``, not hidden) and the guarding flag is unset.
-    """
-    if not server_settings_integration.public_shareable_links_enabled(db):
-        return False
-    return activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr=hide_attr) is not None

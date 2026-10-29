@@ -1,7 +1,8 @@
 """Application-layer orchestration for activity laps.
 
-Declares *what* an activity's laps are — the parent flag that hides them and the
-two CRUD calls that read them — and delegates *how* the paged read runs to the
+Declares *what* an activity's laps are — the parent flag that hides them, the
+two CRUD calls that read them and the mask that withholds what the parent's other
+flags hide — and delegates *how* the paged read runs to the
 shared :mod:`modules.activities.activity.child_collection_service` seam, which owns the
 access gate and the rule that a refusal and an empty collection answer alike.
 
@@ -18,6 +19,48 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
 
+#: The lap fields each parent ``hide_*`` flag withholds from a non-owner, matching what the flag
+#: clears on the activity itself.
+_FIELDS_BY_HIDE_FLAG: dict[str, tuple[str, ...]] = {
+    "hide_start_time": ("start_time",),
+    "hide_map": ("start_position_lat", "start_position_long", "end_position_lat", "end_position_long"),
+    "hide_hr": ("avg_heart_rate", "max_heart_rate"),
+    "hide_power": ("avg_power", "max_power", "normalized_power", "total_work"),
+    "hide_cadence": (
+        "avg_cadence",
+        "max_cadence",
+        "avg_fractional_cadence",
+        "max_fractional_cadence",
+        "total_cycles",
+    ),
+    "hide_speed": ("enhanced_avg_speed", "enhanced_max_speed"),
+    "hide_pace": ("enhanced_avg_pace", "enhanced_max_pace"),
+    "hide_elevation": ("total_ascent", "total_descent", "enhanced_min_altitude", "enhanced_max_altitude"),
+}
+
+
+def _mask_for_viewer(
+    laps: list[activity_laps_schema.ActivityLapsRead],
+    activity: activity_schema.ActivityRead,
+) -> list[activity_laps_schema.ActivityLapsRead]:
+    """Clear what the parent's ``hide_*`` flags withhold from a viewer who is not the owner.
+
+    A lap repeats the activity's data (its start, position, heart rate, power and so on), so
+    serving it whole would undo the flags the activity's own fields obey.
+
+    Args:
+        laps: The laps about to be served.
+        activity: The parent activity, carrying its ``hide_*`` flags.
+
+    Returns:
+        The laps, with every field a set flag covers cleared.
+    """
+    hidden = [field for flag, fields in _FIELDS_BY_HIDE_FLAG.items() if getattr(activity, flag) for field in fields]
+    if not hidden:
+        return laps
+    return [lap.model_copy(update=dict.fromkeys(hidden)) for lap in laps]
+
+
 _COLLECTION: activity_integration.ChildCollection[activity_laps_schema.ActivityLapsPage] = (
     activity_integration.ChildCollection(
         name="laps",
@@ -25,6 +68,7 @@ _COLLECTION: activity_integration.ChildCollection[activity_laps_schema.ActivityL
         fetch=activity_laps_crud.get_activity_laps,
         count=activity_laps_crud.count_activity_laps,
         build=activity_laps_schema.ActivityLapsPage.build,
+        mask=_mask_for_viewer,
     )
 )
 
