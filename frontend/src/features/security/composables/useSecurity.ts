@@ -286,8 +286,8 @@ export function useDeleteAccountMutation() {
 }
 
 /**
- * Change-email mutation, run after step-up. The address is shown by the profile and the app
- * shell, so both are refetched.
+ * Change-email mutation, run after step-up. The address and its verified state are shown by the
+ * profile, the app shell and an admin's users views, so all of them are refetched.
  *
  * @returns The TanStack Query mutation for changing the account email.
  */
@@ -305,6 +305,7 @@ export function useChangeEmailMutation() {
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
       void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
+      void client.invalidateQueries({ queryKey: queryKeys.users.all() })
     },
   })
 }
