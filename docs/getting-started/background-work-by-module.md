@@ -308,6 +308,7 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_sign_up_verification_email` | `auth.sign_up_verification_requested` | Bus | The user signs up again, or an administrator helps | Nothing |
 | `auth.send_sign_up_approval_request_email` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user and a notification | Nothing |
 | `auth.send_sign_up_approved_email` | `auth.sign_up_approved` | Bus | Nothing: the email is a courtesy | Nothing |
+| `auth.send_sign_up_existing_account_email` | `auth.sign_up_existing_account` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_password_reset_email` | `auth.password_reset_requested` | Bus | The user requests another reset | Nothing |
 | `users.profile_import_requested` | `users.profile_import_requested` | Bus, then the profile transfer pool | The user starts again | Import state closed as failed |
 | `users.profile_export_requested` | `users.profile_export_requested` | Bus, then the profile transfer pool | The user starts again | Export state closed as failed |

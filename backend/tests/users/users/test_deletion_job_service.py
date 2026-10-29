@@ -135,6 +135,22 @@ class TestRequestDeletion:
         assert states.get(1, _Kind) is None
 
 
+class TestRequestDeletionByAdministrator:
+    def test_an_administrator_cannot_delete_their_own_account_without_step_up(self, states, mock_db):
+        with patch(f"{_MODULE}.request_deletion") as request, pytest.raises(core_exceptions.PermissionDeniedError):
+            job_service.request_deletion_by_administrator(1, 1, states, MagicMock(), mock_db)
+
+        request.assert_not_called()
+
+    def test_another_users_account_is_queued(self, states, mock_db):
+        storage = MagicMock()
+        with patch(f"{_MODULE}.request_deletion") as request:
+            result = job_service.request_deletion_by_administrator(1, 9, states, storage, mock_db)
+
+        request.assert_called_once_with(1, states, storage, mock_db)
+        assert result is request.return_value
+
+
 class TestRunDeletion:
     def _run(self, states, *, batches, row_exists=True, delete_error=None, will_retry=False, cancelled=(False,)):
         erasers = MagicMock()

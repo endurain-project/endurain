@@ -133,20 +133,26 @@ def read_users_username(
     return user
 
 
-@router.get(
-    "/email/{email}",
+@router.post(
+    "/email/lookup",
     response_model=users_schema.UsersRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
-def read_users_email(
-    email: users_dependencies.Email,
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def lookup_user_by_email(
+    request: Request,
+    lookup: users_schema.UsersEmailLookup,
     db: core_dependencies.DbSession,
     response: Response,
 ) -> users_schema.UsersRead:
-    """Get user by email address.
+    """Get a user by email address.
+
+    The address travels in the request body, so it never reaches access logs or proxy caches
+    through the URL.
 
     Args:
-        email: Email address to search for.
+        request: The incoming request, read by the rate limiter.
+        lookup: The email address to search for.
         db: Database session dependency.
         response: The response, which carries the user's ETag.
 
@@ -156,7 +162,7 @@ def read_users_email(
     Raises:
         NotFoundError: If there is no such user.
     """
-    user = users_service.require_user_by_email(email, db)
+    user = users_service.require_user_by_email(lookup.email, db)
     response.headers["ETag"] = core_etag.format_etag(user.version)
     return user
 
@@ -337,17 +343,19 @@ def edit_user_password(
     request: Request,
     user_id: core_dependencies.PositiveId,
     user_attributes: users_schema.UsersAdminEditPassword,
+    token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Update user password.
+    """Update another user's password.
 
     Args:
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to update password for.
         user_attributes: New password data.
+        token_user_id: ID of the administrator making the change.
         db: Database session dependency.
     """
-    users_service.change_user_password(user_id, user_attributes.password, db)
+    users_service.change_user_password(user_id, user_attributes.password, token_user_id, db)
 
 
 @router.delete(
@@ -387,11 +395,12 @@ def delete_user_photo(
 def delete_user(
     request: Request,
     user_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
     states: users_dependencies.UserDeletionStateStoreDep,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
 ) -> users_schema.UserDeletionStatus:
-    """Queue the deletion of a user account.
+    """Queue the deletion of another user's account.
 
     The user is signed out and deactivated at once and a background job erases their data. Poll
     ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
@@ -399,6 +408,7 @@ def delete_user(
     Args:
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to delete.
+        token_user_id: ID of the administrator making the request.
         states: Shared store of the deletion's state.
         storage: The platform storage provider.
         db: Database session dependency.
@@ -407,10 +417,11 @@ def delete_user(
         The deletion's initial status.
 
     Raises:
+        PermissionDeniedError: If the administrator targets their own account.
         NotFoundError: If the user does not exist.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    return users_deletion_job_service.request_deletion(user_id, states, storage, db)
+    return users_deletion_job_service.request_deletion_by_administrator(user_id, token_user_id, states, storage, db)
 
 
 @router.get(
@@ -469,17 +480,19 @@ def delete_user_identity_provider(
     request: Request,
     user_id: core_dependencies.PositiveId,
     idp_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Unlink an identity provider from a specific user (admin).
+    """Unlink an identity provider from another user (admin).
 
     Args:
         request: The incoming request, read by the rate limiter.
         user_id: ID of the user to unlink the identity provider from.
         idp_id: ID of the identity provider to unlink.
+        token_user_id: ID of the administrator making the change.
         db: Database session.
 
     Returns:
         None
     """
-    users_service.unlink_identity_provider(user_id, idp_id, db)
+    users_service.unlink_identity_provider(user_id, idp_id, token_user_id, db)

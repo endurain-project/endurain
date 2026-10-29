@@ -28,6 +28,10 @@ Some edits end the user's sessions, so a session issued under the old values can
 
 Endurain always keeps at least one active administrator. You cannot delete, deactivate or demote the only active administrator; make someone else an administrator first.
 
+## Your own account
+
+The administrative actions that change how an account is secured, resetting the password, unlinking an identity provider, deleting the account and changing the email, are refused for your own account (`403`). Use your own account settings instead, which ask for your current password and MFA code first.
+
 ## Approving sign-ups
 
 When [admin approval](server-settings.md#registration) is required, a new user stays inactive and shows the **Pending approval** badge. Every administrator gets a [notification](notifications.md) (and an email, if mail is configured) when a user is waiting.

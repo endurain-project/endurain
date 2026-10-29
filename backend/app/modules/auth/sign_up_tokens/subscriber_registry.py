@@ -39,4 +39,9 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         None,
         exempt_reason="The approved user row is the source of truth; the email is a courtesy notice.",
     ),
+    DurableSubscriberNet(
+        sign_up_tokens_subscribers.SIGN_UP_EXISTING_ACCOUNT_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason="The notice is a courtesy to the address owner; the account is unchanged.",
+    ),
 )

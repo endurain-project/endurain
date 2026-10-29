@@ -546,11 +546,14 @@ def edit_user(
         The updated user, with its identity provider count and MFA status.
 
     Raises:
+        PermissionDeniedError: If the administrator changes their own email, which needs step-up.
         NotFoundError: If the user does not exist.
         ConflictError: If the username or email is already taken.
         PreconditionFailedError: If the user changed since the client read them.
     """
     existing = require_user(user_id, db)
+    if existing.email != user.email.lower():
+        require_other_user(user_id, actor_id, "change your email")
     with core_etag.refuse_stale_write(
         db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
     ):
@@ -746,35 +749,63 @@ def user_local_today(user_id: int, db: Session) -> datetime_date:
     return core_timezone.today_in(resolve_user_timezone(user_id, db))
 
 
-def change_user_password(user_id: int, new_password: str, db: Session) -> None:
-    """Change a user's password as an administrator, ending their sessions.
+def require_other_user(user_id: int, actor_id: int, action: str) -> None:
+    """Refuse an administrative action that an administrator aims at their own account.
+
+    The self-service endpoints verify the caller's password and MFA code before the same change, so
+    the administrative route must not offer a way around that check.
+
+    Args:
+        user_id: ID of the user the action targets.
+        actor_id: ID of the administrator making the request.
+        action: What the action does, completing "Use your account settings to ...".
+
+    Raises:
+        PermissionDeniedError: If the administrator targets their own account.
+    """
+    if user_id == actor_id:
+        logger.warning(
+            "Refused an administrative action on the administrator's own account",
+            extra=core_logger.context(user_id=user_id, action=action),
+        )
+        raise core_exceptions.PermissionDeniedError(f"Use your account settings to {action}")
+
+
+def change_user_password(user_id: int, new_password: str, actor_id: int, db: Session) -> None:
+    """Change another user's password as an administrator, ending their sessions.
 
     Args:
         user_id: ID of the user whose password changes.
         new_password: New plaintext password; it must satisfy the configured policy.
+        actor_id: ID of the administrator making the change.
         db: Database session.
 
     Raises:
+        PermissionDeniedError: If the administrator targets their own account.
         NotFoundError: If the user does not exist.
         InvalidInputError: If the password fails the configured policy.
     """
+    require_other_user(user_id, actor_id, "change your password")
     account_security_integration.change_managed_user_password(user_id, new_password, db)
     db.commit()
     logger.info("Password changed by an administrator", extra=core_logger.context(user_id=user_id))
 
 
-def unlink_identity_provider(user_id: int, idp_id: int, db: Session) -> None:
-    """Unlink an identity provider from a user as an administrator.
+def unlink_identity_provider(user_id: int, idp_id: int, actor_id: int, db: Session) -> None:
+    """Unlink an identity provider from another user as an administrator.
 
     Args:
         user_id: ID of the user to unlink the provider from.
         idp_id: ID of the identity provider.
+        actor_id: ID of the administrator making the change.
         db: Database session.
 
     Raises:
+        PermissionDeniedError: If the administrator targets their own account.
         NotFoundError: If the provider or the link does not exist.
         InvalidInputError: If unlinking would remove the user's last way to sign in.
     """
+    require_other_user(user_id, actor_id, "unlink an identity provider")
     account_security_integration.admin_delete_identity_provider_link(user_id, idp_id, db)
     db.commit()
     logger.info(

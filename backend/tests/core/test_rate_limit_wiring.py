@@ -19,6 +19,7 @@ So this module asserts three things:
 
 import ast
 import pathlib
+import time
 from collections.abc import Iterator
 
 import pytest
@@ -159,6 +160,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(users_router.edit_user, core_rate_limit.WRITE, id="user-edit"),
     pytest.param(users_router.approve_user, core_rate_limit.WRITE, id="user-approve"),
     pytest.param(users_router.edit_user_password, core_rate_limit.SENSITIVE, id="user-password-reset"),
+    pytest.param(users_router.lookup_user_by_email, core_rate_limit.SENSITIVE, id="user-email-lookup"),
     pytest.param(users_router.delete_user_photo, core_rate_limit.WRITE, id="user-photo-delete"),
     pytest.param(users_router.delete_user, core_rate_limit.SENSITIVE, id="user-delete"),
     pytest.param(users_router.delete_user_identity_provider, core_rate_limit.WRITE, id="user-idp-unlink"),
@@ -468,7 +470,10 @@ def test_buckets_are_per_caller_not_global(enabled_limiter, monkeypatch):
     """
     key = OctKey.import_key("rate-limit-test-secret-key-min-32-chars")
     monkeypatch.setattr(core_rate_limit, "_jwt_verification_key", lambda: key)
-    noisy, quiet = (jwt.encode({"alg": "HS256"}, {"sub": sub}, key) for sub in ("noisy", "quiet"))
+    noisy, quiet = (
+        jwt.encode({"alg": "HS256"}, {"sub": sub, "typ": "access", "exp": int(time.time()) + 300}, key)
+        for sub in ("noisy", "quiet")
+    )
     client = TestClient(_app_with(core_rate_limit.PROVIDER_SYNC, "probe_per_caller"))
 
     assert _burst(client, noisy, 7)[-1] == 429

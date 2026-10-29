@@ -98,9 +98,14 @@ class TestReadUsers:
     def test_email_found(self, mock_get, client):
         mock_get.return_value = _user(1, email="test@example.com")
 
-        response = client.get("/users/email/test@example.com")
+        response = client.post("/users/email/lookup", json={"email": "test@example.com"})
 
         assert response.json()["email"] == "test@example.com"
+        mock_get.assert_called_once()
+        assert mock_get.call_args.args[0] == "test@example.com"
+
+    def test_the_email_is_not_a_path_segment(self, client):
+        assert client.get("/users/email/test@example.com").status_code in (404, 405)
 
     @patch(f"{_SERVICE}.require_user")
     def test_full_record_by_id_is_served_on_the_admin_route(self, mock_get, client):
@@ -271,7 +276,7 @@ class TestDeleteUserPhoto:
 
 
 class TestDeleteUser:
-    @patch("modules.users.users.router.users_deletion_job_service.request_deletion")
+    @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_queues_the_deletion(self, mock_request, client, mock_db):
         mock_request.return_value = users_schema.UserDeletionStatus(status="queued")
 
@@ -279,17 +284,17 @@ class TestDeleteUser:
 
         assert response.status_code == 202
         assert response.json() == {"status": "queued"}
-        assert mock_request.call_args.args[0] == 1
-        assert mock_request.call_args.args[1] is not None
-        assert mock_request.call_args.args[3] == mock_db
+        assert mock_request.call_args.args[:2] == (1, 9)
+        assert mock_request.call_args.args[2] is not None
+        assert mock_request.call_args.args[4] == mock_db
 
-    @patch("modules.users.users.router.users_deletion_job_service.request_deletion")
+    @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_unknown_user_is_not_found(self, mock_request, client):
         mock_request.side_effect = core_exceptions.NotFoundError("User not found")
 
         assert client.delete("/users/1").status_code == 404
 
-    @patch("modules.users.users.router.users_deletion_job_service.request_deletion")
+    @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_the_only_administrator_is_refused(self, mock_request, client):
         mock_request.side_effect = core_exceptions.ConflictError("The only administrator cannot be deleted")
 
@@ -316,17 +321,20 @@ class TestReadUserDeletionStatus:
 class TestLookupPathParametersAreBounded:
     """A lookup key longer than the column can hold is refused before it reaches the database."""
 
-    @pytest.mark.parametrize("path", ["/users/username/{}", "/users/email/{}", "/users/username/contains/{}"])
+    @pytest.mark.parametrize("path", ["/users/username/{}", "/users/username/contains/{}"])
     def test_a_value_longer_than_the_column_is_refused(self, client, path):
         assert client.get(path.format("a" * 251)).status_code == 422
 
-    @pytest.mark.parametrize("path", ["/users/username/{}", "/users/email/{}"])
-    def test_a_value_at_the_limit_reaches_the_service(self, client, path):
+    def test_an_email_longer_than_the_column_is_refused(self, client):
+        assert client.post("/users/email/lookup", json={"email": "a" * 251}).status_code == 422
+
+    def test_a_value_at_the_limit_reaches_the_service(self, client):
         with (
             patch(f"{_SERVICE}.require_user_by_username", return_value=_user(1)),
             patch(f"{_SERVICE}.require_user_by_email", return_value=_user(1)),
         ):
-            assert client.get(path.format("a" * 250)).status_code == 200
+            assert client.get("/users/username/" + "a" * 250).status_code == 200
+            assert client.post("/users/email/lookup", json={"email": "a" * 250}).status_code == 200
 
 
 class TestReadScopes:
@@ -341,10 +349,17 @@ class TestReadScopes:
 
     @pytest.mark.parametrize(
         "path",
-        ["", "/email/{email}", "/username/{username}", "/{user_id}", "/{user_id}/identity-providers"],
+        ["", "/username/{username}", "/{user_id}", "/{user_id}/identity-providers"],
     )
     def test_full_records_need_the_admin_read_scope(self, path):
         assert self._scopes(path) == {"users:read_all"}
+
+    def test_the_email_lookup_needs_the_admin_read_scope(self):
+        from modules.users.users.router import router
+
+        route = next(r for r in router.routes if r.path == "/email/lookup" and "POST" in r.methods)
+        scopes = {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
+        assert scopes == {"users:read_all"}
 
     @pytest.mark.parametrize("path", ["/id/{user_id}", "/username/contains/{username}"])
     def test_public_projections_need_only_the_regular_read_scope(self, path):
@@ -385,7 +400,6 @@ class TestReadScopeEnforcement:
         "path",
         [
             "/users",
-            "/users/email/admin@example.com",
             "/users/username/admin",
             "/users/1",
             "/users/1/identity-providers",
@@ -397,11 +411,18 @@ class TestReadScopeEnforcement:
         assert response.status_code == 403
         assert "users:read_all" in response.json()["detail"]
 
+    def test_regular_token_cannot_look_up_an_email(self):
+        response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).post(
+            "/users/email/lookup", json={"email": "admin@example.com"}
+        )
+
+        assert response.status_code == 403
+        assert "users:read_all" in response.json()["detail"]
+
     @pytest.mark.parametrize(
         ("path", "target"),
         [
             ("/users", "list_users"),
-            ("/users/email/admin@example.com", "require_user_by_email"),
             ("/users/username/admin", "require_user_by_username"),
             ("/users/1", "require_user"),
         ],
@@ -412,6 +433,15 @@ class TestReadScopeEnforcement:
 
         assert response.status_code != 403
         mock_target.assert_called_once()
+
+    def test_admin_token_passes_the_email_lookup_scope_check(self):
+        with patch(f"{_SERVICE}.require_user_by_email", side_effect=core_exceptions.NotFoundError("stop")) as target:
+            response = self._client(auth_constants.ADMIN_ACCESS_SCOPE).post(
+                "/users/email/lookup", json={"email": "admin@example.com"}
+            )
+
+        assert response.status_code == 404
+        target.assert_called_once()
 
     @patch(f"{_SERVICE}.get_public_profile")
     def test_regular_token_reads_only_the_public_projection(self, mock_get):
@@ -429,11 +459,16 @@ class TestReadSendsTheETag:
         [
             ("/users/42", "require_user"),
             ("/users/username/someone", "require_user_by_username"),
-            ("/users/email/someone@example.com", "require_user_by_email"),
         ],
     )
     def test_a_full_record_carries_its_version(self, path, service, client):
         with patch(f"{_SERVICE}.{service}", return_value=_user(42, version=7)):
             response = client.get(path)
+
+        assert response.headers["ETag"] == '"7"'
+
+    def test_an_email_lookup_carries_the_version(self, client):
+        with patch(f"{_SERVICE}.require_user_by_email", return_value=_user(42, version=7)):
+            response = client.post("/users/email/lookup", json={"email": "someone@example.com"})
 
         assert response.headers["ETag"] == '"7"'

@@ -50,6 +50,26 @@ class TestHandlers:
             sign_up_subscribers.send_approved_email_for_event(_event(sign_up_events.SIGN_UP_APPROVED, {"user_id": 4}))
 
 
+class TestExistingAccountHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_sign_up_existing_account_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_notice_is_prepared_in_a_session_and_sent_afterward(
+        self, _session_local, get_platform, prepare, send_email
+    ):
+        prepare.return_value = ("owner@example.com", "subject", "<p>html</p>", "text")
+
+        sign_up_subscribers.send_existing_account_email_for_event(
+            _event(sign_up_events.SIGN_UP_EXISTING_ACCOUNT, {"user_id": 4})
+        )
+
+        assert prepare.call_args.args[0] == 4
+        send_email.assert_called_once_with(
+            get_platform.return_value.mail, "owner@example.com", "subject", "<p>html</p>", "text"
+        )
+
+
 class TestPublishers:
     @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish")
     def test_payloads_carry_ids_only(self, mock_publish):
@@ -57,10 +77,12 @@ class TestPublishers:
 
         sign_up_publishers.publish_sign_up_verification_requested(4, db)
         sign_up_publishers.publish_sign_up_approval_requested(4, 9, db)
+        sign_up_publishers.publish_sign_up_existing_account(5, db)
 
         assert [call.args[1] for call in mock_publish.call_args_list] == [
             {"user_id": 4},
             {"user_id": 4, "admin_user_id": 9},
+            {"user_id": 5},
         ]
         assert all(call.kwargs["db"] is db for call in mock_publish.call_args_list)
 

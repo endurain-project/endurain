@@ -61,3 +61,21 @@ def publish_sign_up_approved(user_id: int, db: Session) -> None:
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_sign_up_existing_account(user_id: int, db: Session) -> None:
+    """Publish ``auth.sign_up_existing_account`` for the owner of a reused email address.
+
+    Args:
+        user_id: The existing user whose email address a sign-up used.
+        db: The producer's DB session (see :func:`publish_sign_up_verification_requested`).
+    """
+    payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
+    platform_publisher.publish(
+        sign_up_tokens_events.SIGN_UP_EXISTING_ACCOUNT,
+        payload.model_dump(),
+        source="api:sign_up",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )

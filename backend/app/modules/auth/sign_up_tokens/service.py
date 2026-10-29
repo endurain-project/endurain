@@ -15,6 +15,7 @@ import modules.auth.sign_up_tokens.event_publishers as sign_up_event_publishers
 import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.notifications.integration_service as notifications_integration
 import modules.server_settings.integration_service as server_settings_integration
+import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
@@ -65,6 +66,13 @@ def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:
     admins = users_integration.require_admin_users(db)
     for admin in admins:
         sign_up_event_publishers.publish_sign_up_approval_requested(user_id, admin.id, db)
+
+
+def request_sign_up_existing_account_notice(user_id: int, db: Session) -> None:
+    """Stage a notice event for the owner of an email address a sign-up reused, when mail is configured."""
+    if not server_settings_integration.is_mail_configured(db):
+        return
+    sign_up_event_publishers.publish_sign_up_existing_account(user_id, db)
 
 
 def request_sign_up_approved_email(user_id: int, db: Session) -> bool:
@@ -136,6 +144,22 @@ def prepare_sign_up_approved_email(
     )
 
 
+def prepare_sign_up_existing_account_email(
+    user_id: int,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the existing-account notice for delivery after the database session closes."""
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        return None
+    locale = core_i18n.normalize_locale(user.preferred_language)
+    return (
+        user.email,
+        *sign_up_email_messages.get_existing_account_email(user.name, frontend_host, locale),
+    )
+
+
 def revoke_user_tokens(user_id: int, db: Session) -> None:
     """Stage invalidation of a user's unused verification tokens, so an old link cannot activate the account."""
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
@@ -149,24 +173,13 @@ def verify_sign_up_token(token: str, db: Session) -> int:
     return user_id
 
 
-def signup(
-    user: users_schema.UsersSignup,
-    db: Session,
-) -> sign_up_schema.SignUpRead:
-    """Create a user and stage the configured verification event."""
-    server_settings = server_settings_integration.get_server_settings(db)
-    if not server_settings.signup_enabled:
-        logger.warning("Sign-up refused because registration is disabled")
-        raise core_exceptions.PermissionDeniedError("User sign-up is not enabled on this server")
-
-    created_user = users_integration.create_signup_user(user, server_settings, db)
-    message = "User created successfully."
+def _signup_response(server_settings: server_settings_schema.ServerSettingsRead) -> sign_up_schema.SignUpRead:
+    """Describe a sign-up from the server's policy alone, so every outcome reads the same."""
+    message = "Sign-up request received."
     email_verification_required: bool | None = None
     admin_approval_required: bool | None = None
     if server_settings.signup_require_email_verification:
-        request_sign_up_verification_email(created_user.id, db)
-        db.commit()
-        message += " Email sent with verification instructions."
+        message += " Check your email for verification instructions."
         email_verification_required = True
     if server_settings.signup_require_admin_approval:
         message += " Account is pending admin approval."
@@ -178,6 +191,51 @@ def signup(
         email_verification_required=email_verification_required,
         admin_approval_required=admin_approval_required,
     )
+
+
+def signup(
+    user: users_schema.UsersSignup,
+    db: Session,
+) -> sign_up_schema.SignUpRead:
+    """Create a user and stage the configured verification event.
+
+    A sign-up with an email address that already has an account answers exactly like a new
+    account, so the endpoint does not reveal which addresses are registered; the address's owner
+    is told by email instead. A taken username with a new address is refused, because usernames
+    are already visible to every signed-in user.
+
+    Args:
+        user: The sign-up details.
+        db: Database session.
+
+    Returns:
+        The policy-derived description of what happens next.
+
+    Raises:
+        PermissionDeniedError: If registration is disabled.
+        ConflictError: If the username is taken.
+        InvalidInputError: If the password fails the configured policy.
+    """
+    server_settings = server_settings_integration.get_server_settings(db)
+    if not server_settings.signup_enabled:
+        logger.warning("Sign-up refused because registration is disabled")
+        raise core_exceptions.PermissionDeniedError("User sign-up is not enabled on this server")
+
+    try:
+        created_user = users_integration.create_signup_user(user, server_settings, db)
+    except core_exceptions.ConflictError:
+        existing = users_integration.get_user_by_email(user.email, db)
+        if existing is None:
+            raise core_exceptions.ConflictError("That username is already taken") from None
+        request_sign_up_existing_account_notice(existing.id, db)
+        db.commit()
+        logger.info("Sign-up used an existing email address", extra=core_logger.context(user_id=existing.id))
+        return _signup_response(server_settings)
+
+    if server_settings.signup_require_email_verification:
+        request_sign_up_verification_email(created_user.id, db)
+        db.commit()
+    return _signup_response(server_settings)
 
 
 def verify_email(token: str, db: Session) -> sign_up_schema.SignUpRead:

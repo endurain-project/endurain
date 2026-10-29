@@ -18,9 +18,12 @@ SIGN_UP_APPROVAL_REQUESTED = "auth.sign_up_approval_requested"
 # Published after an admin approved a pending sign-up.
 SIGN_UP_APPROVED = "auth.sign_up_approved"
 
+# Published when a sign-up used the email address of an existing account.
+SIGN_UP_EXISTING_ACCOUNT = "auth.sign_up_existing_account"
+
 
 class SignUpUserPayload(VersionedPayload):
-    """Validated payload for the sign-up verification and approved events.
+    """Validated payload for the sign-up verification, approved and existing-account events.
 
     Attributes:
         user_id: The user who receives the email.

@@ -4936,19 +4936,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/email/{email}": {
+    "/api/v1/users/email/lookup": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
-         * Read Users Email
-         * @description Get user by email address.
+         * Lookup User By Email
+         * @description Get a user by email address.
+         *
+         *     The address travels in the request body, so it never reaches access logs or proxy caches
+         *     through the URL.
          *
          *     Args:
-         *         email: Email address to search for.
+         *         request: The incoming request, read by the rate limiter.
+         *         lookup: The email address to search for.
          *         db: Database session dependency.
          *         response: The response, which carries the user's ETag.
          *
@@ -4958,9 +4964,7 @@ export interface paths {
          *     Raises:
          *         NotFoundError: If there is no such user.
          */
-        get: operations["read_users_email_api_v1_users_email__email__get"];
-        put?: never;
-        post?: never;
+        post: operations["lookup_user_by_email_api_v1_users_email_lookup_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5121,7 +5125,7 @@ export interface paths {
         post?: never;
         /**
          * Delete User
-         * @description Queue the deletion of a user account.
+         * @description Queue the deletion of another user's account.
          *
          *     The user is signed out and deactivated at once and a background job erases their data. Poll
          *     ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
@@ -5129,6 +5133,7 @@ export interface paths {
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to delete.
+         *         token_user_id: ID of the administrator making the request.
          *         states: Shared store of the deletion's state.
          *         storage: The platform storage provider.
          *         db: Database session dependency.
@@ -5137,6 +5142,7 @@ export interface paths {
          *         The deletion's initial status.
          *
          *     Raises:
+         *         PermissionDeniedError: If the administrator targets their own account.
          *         NotFoundError: If the user does not exist.
          *         ConflictError: If the user is the only administrator, or a deletion is already pending.
          */
@@ -5240,12 +5246,13 @@ export interface paths {
         post?: never;
         /**
          * Delete User Identity Provider
-         * @description Unlink an identity provider from a specific user (admin).
+         * @description Unlink an identity provider from another user (admin).
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of the user to unlink the identity provider from.
          *         idp_id: ID of the identity provider to unlink.
+         *         token_user_id: ID of the administrator making the change.
          *         db: Database session.
          *
          *     Returns:
@@ -5298,12 +5305,13 @@ export interface paths {
         put?: never;
         /**
          * Edit User Password
-         * @description Update user password.
+         * @description Update another user's password.
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to update password for.
          *         user_attributes: New password data.
+         *         token_user_id: ID of the administrator making the change.
          *         db: Database session dependency.
          */
         post: operations["edit_user_password_api_v1_users__user_id__password_change_post"];
@@ -11906,6 +11914,20 @@ export interface components {
              * @default false
              */
             revoke_other_sessions: boolean;
+        };
+        /**
+         * UsersEmailLookup
+         * @description Schema for looking a user up by email address.
+         *
+         *     Attributes:
+         *         email: Email address to search for, case-insensitive.
+         */
+        UsersEmailLookup: {
+            /**
+             * Email
+             * @description Email address to search for
+             */
+            email: string;
         };
         /**
          * UsersGoalCreate
@@ -20680,16 +20702,18 @@ export interface operations {
             };
         };
     };
-    read_users_email_api_v1_users_email__email__get: {
+    lookup_user_by_email_api_v1_users_email_lookup_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                email: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsersEmailLookup"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

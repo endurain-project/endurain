@@ -7,7 +7,7 @@ import { apiFetch } from '@/services/http'
  *
  * @param request - The new account's details.
  * @returns The backend response, including verification/approval flags.
- * @throws {HttpError} When sign-up is disabled (403), the username/email is
+ * @throws {HttpError} When sign-up is disabled (403), the username is
  *   already taken (409), validation fails (400/422), or the request fails.
  */
 export function requestSignUp(request: SignUpRequest): Promise<SignUpResponse> {

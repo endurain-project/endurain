@@ -1,6 +1,9 @@
 """Tests for core.rate_limit — rate-limit bucket key and 429 handler."""
 
+import time
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestRateLimitConstants:
@@ -41,6 +44,13 @@ class TestRateLimitConstants:
         assert SENSITIVE == "10/minute"
 
 
+def _claims(*, sub="1", typ="access", exp_delta=300, **extra):
+    claims = {"typ": typ, "exp": int(time.time()) + exp_delta, **extra}
+    if sub is not None:
+        claims["sub"] = sub
+    return claims
+
+
 class TestGetRateLimitKey:
     """Tests for _get_rate_limit_key."""
 
@@ -62,8 +72,8 @@ class TestGetRateLimitKey:
         import core.rate_limit as rl
 
         key = OctKey.import_key("k" * 32)
-        first = jwt.encode({"alg": "HS256"}, {"sub": "7", "jti": "a"}, key)
-        second = jwt.encode({"alg": "HS256"}, {"sub": "7", "jti": "b"}, key)
+        first = jwt.encode({"alg": "HS256"}, _claims(sub="7", jti="a"), key)
+        second = jwt.encode({"alg": "HS256"}, _claims(sub="7", jti="b"), key)
         keys = []
         with patch("core.rate_limit._jwt_verification_key", return_value=key):
             for token in (first, second):
@@ -80,7 +90,7 @@ class TestGetRateLimitKey:
         import core.rate_limit as rl
 
         key = OctKey.import_key("k" * 32)
-        token = jwt.encode({"alg": "HS256"}, {"scope": []}, key)
+        token = jwt.encode({"alg": "HS256"}, _claims(sub=None), key)
         request = MagicMock()
         request.headers = {"authorization": f"Bearer {token}"}
 
@@ -108,11 +118,32 @@ class TestGetRateLimitKey:
         import core.rate_limit as rl
 
         key = OctKey.import_key("k" * 32)
-        token = jwt.encode({"alg": "HS256"}, {"sub": "1"}, key)
+        token = jwt.encode({"alg": "HS256"}, _claims(sub="1"), key)
         with patch("core.rate_limit._jwt_verification_key", return_value=key):
             assert rl._verified_subject(token) == "1"
             assert rl._verified_subject(token[:-2] + "xx") is None
             assert rl._verified_subject("not-a-jwt") is None
+
+    @pytest.mark.parametrize(
+        "claims",
+        [
+            _claims(exp_delta=-60),
+            _claims(typ="refresh"),
+            {"sub": "1", "typ": "access"},
+            {"sub": "1", "exp": int(time.time()) + 300},
+        ],
+        ids=["expired", "refresh-token", "no-expiry", "no-type"],
+    )
+    def test_a_token_that_is_not_a_live_access_token_gets_no_user_bucket(self, claims):
+        from joserfc import jwt
+        from joserfc.jwk import OctKey
+
+        import core.rate_limit as rl
+
+        key = OctKey.import_key("k" * 32)
+        token = jwt.encode({"alg": "HS256"}, claims, key)
+        with patch("core.rate_limit._jwt_verification_key", return_value=key):
+            assert rl._verified_subject(token) is None
 
     def test_no_auth_header_returns_ip(self):
         from core.rate_limit import _get_rate_limit_key

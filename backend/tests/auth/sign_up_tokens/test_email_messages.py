@@ -259,3 +259,25 @@ class TestGetUserSignupApprovedEmail:
             locale="es",
         )
         assert 'lang="es-ES"' in html_body
+
+
+class TestGetExistingAccountEmail:
+    """Tests for get_existing_account_email."""
+
+    def test_returns_three_tuple(self):
+        result = email_messages.get_existing_account_email("Alice", _make_service(), locale="en")
+        assert len(result) == 3
+
+    def test_links_to_the_login_page(self):
+        service = _make_service()
+        _, html_body, text_body = email_messages.get_existing_account_email("Alice", service, locale="en")
+        assert f"{service}/login" in html_body
+        assert f"{service}/login" in text_body
+
+    def test_html_escapes_the_name(self):
+        _, html_body, _ = email_messages.get_existing_account_email("<script>x</script>", _make_service(), locale="en")
+        assert "<script>x</script>" not in html_body
+
+    def test_the_subject_is_localized_in_english(self):
+        subject, _, _ = email_messages.get_existing_account_email("Alice", _make_service(), locale="en")
+        assert subject == "Endurain - Sign-up attempt with your email"

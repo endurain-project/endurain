@@ -552,6 +552,18 @@ class UsersEditPassword(BaseModel):
     )
 
 
+class UsersEmailLookup(BaseModel):
+    """Schema for looking a user up by email address.
+
+    Attributes:
+        email: Email address to search for, case-insensitive.
+    """
+
+    email: StrictStr = Field(..., min_length=1, max_length=250, description="Email address to search for")
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class UsersAdminEditPassword(BaseModel):
     """Schema for admin password reset operations.
 

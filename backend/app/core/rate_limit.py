@@ -6,10 +6,10 @@ router, named tier constants for different endpoint
 classes, and a JSON-aware 429 error handler.
 
 The limiter key function uses the user a Bearer token names
-when its signature verifies, so a user keeps one bucket across
-token refreshes and users behind one NAT stay apart, and falls
-back to the proxy-aware client IP for unauthenticated callers
-and unverifiable tokens.
+when it is a signed, unexpired access token, so a user keeps one
+bucket across token refreshes and users behind one NAT stay apart,
+and falls back to the proxy-aware client IP for unauthenticated
+callers and any other token.
 
 Architecture
 ------------
@@ -89,6 +89,11 @@ PROVIDER_SYNC: str = "6/minute"
 STORE_TIMEOUT_SECONDS: float = 2.0
 
 
+#: Expiry and type a token must carry to name a bucket; a refresh or expired token would let one
+#: client mint buckets from tokens it can no longer use.
+_ACCESS_TOKEN_CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True}, typ={"essential": True, "value": "access"})
+
+
 @functools.cache
 def _jwt_verification_key() -> OctKey | None:
     """Return the key used to check Bearer token signatures, or None if unset."""
@@ -97,12 +102,13 @@ def _jwt_verification_key() -> OctKey | None:
 
 
 def _verified_subject(token: str) -> str | None:
-    """Return the ``sub`` claim of a Bearer token whose signature verifies, or None otherwise."""
+    """Return the ``sub`` claim of a signed, unexpired access token, or None otherwise."""
     key = _jwt_verification_key()
     if key is None:
         return None
     try:
         claims = jwt.decode(token, key, algorithms=[os.environ.get("ALGORITHM", "HS256")]).claims
+        _ACCESS_TOKEN_CLAIMS.validate(claims)
     except (JoseError, ValueError):
         return None
     subject = claims.get("sub")
@@ -116,10 +122,11 @@ def _get_rate_limit_key(request: Request) -> str:
     Authenticated callers are identified by the user their
     Bearer token names, so users behind the same NAT are
     rate-limited independently and a token refresh does not
-    reset the bucket.  The token must carry a valid signature,
-    otherwise a client could mint a fresh bucket per request
-    with a random value.  Falls back to the proxy-aware client
-    IP for unauthenticated callers and unverifiable tokens.
+    reset the bucket.  The token must be a signed, unexpired
+    access token, otherwise a client could mint a fresh bucket
+    per request with a random or refresh token.  Falls back to
+    the proxy-aware client IP for unauthenticated callers and
+    any other token.
 
     Args:
         request: Incoming Starlette/FastAPI request.

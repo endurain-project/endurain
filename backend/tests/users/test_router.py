@@ -26,6 +26,7 @@ class TestEditUserPassword:
                 request=MagicMock(),
                 user_id=user_id,
                 user_attributes=user_attributes,
+                token_user_id=7,
                 db=db,
             )
 

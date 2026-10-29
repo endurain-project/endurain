@@ -565,13 +565,22 @@ class TestEdits:
         _delete_all_sessions_mock.assert_not_called()
 
     def test_an_administrator_editing_themselves_keeps_their_own_sessions(self, mock_crud, mock_weight, mock_db):
-        mock_crud.get_user_by_id.return_value = _user(1)
-        mock_crud.update_user.return_value = _user(1, email="other@example.com")
+        mock_crud.get_user_by_id.return_value = _user(1, access_type="admin")
+        mock_crud.update_user.return_value = _user(1, access_type="regular")
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
 
-        with patch("modules.users.users.service.sign_up_tokens_integration.request_email_reverification"):
-            users_service.edit_user(1, _edit(1, email="other@example.com"), 1, mock_db, if_match="*")
+        users_service.edit_user(1, _edit(1, access_type="regular"), 1, mock_db, if_match="*")
 
         _delete_all_sessions_mock.assert_not_called()
+
+    def test_an_administrator_cannot_change_their_own_email_without_step_up(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1)
+
+        with pytest.raises(core_exceptions.PermissionDeniedError):
+            users_service.edit_user(1, _edit(1, email="other@example.com"), 1, mock_db, if_match="*")
+
+        mock_crud.update_user.assert_not_called()
+        mock_db.commit.assert_not_called()
 
     def test_edit_user_conflict_rolls_back(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)

@@ -109,6 +109,35 @@ def request_deletion(
     return users_schema.UserDeletionStatus(status=_Status.QUEUED)
 
 
+def request_deletion_by_administrator(
+    user_id: int,
+    actor_id: int,
+    states: users_deletion_state_store.UserDeletionStateStore,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> users_schema.UserDeletionStatus:
+    """Queue the erasure of another user's account on an administrator's request.
+
+    Args:
+        user_id: The user to delete.
+        actor_id: ID of the administrator making the request.
+        states: Shared store of the deletion's state.
+        storage: The platform storage provider, for the in-process pool.
+        db: Database session.
+
+    Returns:
+        The deletion's initial status.
+
+    Raises:
+        PermissionDeniedError: If the administrator targets their own account, which needs step-up.
+        NotFoundError: If the user does not exist.
+        ConflictError: If the user is the only administrator, or a deletion is already pending.
+        PoolFullError: When there is no durable worker and the in-process pool is full.
+    """
+    users_service.require_other_user(user_id, actor_id, "delete your account")
+    return request_deletion(user_id, states, storage, db)
+
+
 def _dispatch(
     user_id: int,
     states: users_deletion_state_store.UserDeletionStateStore,

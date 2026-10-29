@@ -260,3 +260,75 @@ def get_user_signup_approved_email(
     )
 
     return subject, html_content, text_content
+
+
+def get_existing_account_email(
+    user_name: str,
+    frontend_host: str,
+    locale: str | None = None,
+) -> tuple[str, str, str]:
+    """Build a localized notice that someone signed up with an existing account's email.
+
+    Args:
+        user_name: Display name of the existing account's owner.
+        frontend_host: Base URL of the frontend, used in links and the footer.
+        locale: Preferred locale code for the owner.
+
+    Returns:
+        A 3-tuple of (subject, html_content, text_content).
+    """
+    safe_name = html.escape(user_name)
+
+    def tr(key: str, **kwargs: str) -> str:
+        return core_i18n.t(key, locale, **kwargs)
+
+    subject = tr("signup_existing_account.subject")
+    heading = tr("signup_existing_account.heading")
+    intro = tr("signup_existing_account.intro")
+    login_intro = tr("signup_existing_account.login_intro")
+    cta = tr("signup_existing_account.cta")
+    ignore = tr("signup_existing_account.ignore")
+    copy_link = tr("common.copy_link")
+
+    color = core_email_templates.LINK_COLOR_SUCCESS
+    login_link = f"{frontend_host}/login"
+    safe_login_link = html.escape(login_link, quote=True)
+
+    body_inner = f"""
+            <p>{tr("signup_existing_account.greeting", name=safe_name)}</p>
+            <p>{intro}</p>
+            <p>{login_intro}</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a
+                    href="{safe_login_link}"
+                    style="background-color: {color}; color: #ffffff;
+                    padding: 12px 30px; text-decoration: none;
+                    border-radius: 8px; display: inline-block;
+                    font-weight: 600;"
+                >{cta}</a>
+            </div>
+            <p>{ignore}</p>
+            <p>{copy_link}</p>
+            <p style="word-break: break-all; color: {color};">{safe_login_link}</p>"""
+
+    html_content = core_email_templates.wrap_email(
+        locale=locale,
+        subject=subject,
+        heading=heading,
+        body_inner=body_inner,
+        frontend_host=frontend_host,
+        link_color=color,
+    )
+
+    labels = core_i18n.common_labels(locale)
+    text_content = (
+        f"{tr('signup_existing_account.greeting', name=user_name)}\n\n"
+        f"{intro}\n"
+        f"{login_intro}\n"
+        f"{login_link}\n\n"
+        f"{ignore}\n\n"
+        f"{labels['best_regards']}\n"
+        f"{labels['team']}"
+    )
+
+    return subject, html_content, text_content
