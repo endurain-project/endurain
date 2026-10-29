@@ -26,6 +26,24 @@ def publish_sign_up_verification_requested(user_id: int, db: Session) -> None:
     )
 
 
+def publish_email_change_verification_requested(user_id: int, db: Session) -> None:
+    """Publish ``auth.email_change_verification_requested`` for a user whose address changed.
+
+    Args:
+        user_id: The user who must verify their new email address.
+        db: The producer's DB session (see :func:`publish_sign_up_verification_requested`).
+    """
+    payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
+    platform_publisher.publish(
+        sign_up_tokens_events.EMAIL_CHANGE_VERIFICATION_REQUESTED,
+        payload.model_dump(),
+        source="api:change_email",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )
+
+
 def publish_sign_up_approval_requested(user_id: int, admin_user_id: int, db: Session) -> None:
     """Publish ``auth.sign_up_approval_requested`` for one admin.
 

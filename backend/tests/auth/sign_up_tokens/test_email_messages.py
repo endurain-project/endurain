@@ -95,6 +95,37 @@ class TestGetSignupConfirmationEmail:
         assert subject_xx == subject_us
 
 
+class TestGetEmailChangeConfirmationEmail:
+    """Tests for get_email_change_confirmation_email."""
+
+    def test_asks_to_confirm_the_new_address_not_a_new_account(self):
+        """The email is about a changed address, not a sign-up."""
+        subject, html_body, text_body = email_messages.get_email_change_confirmation_email(
+            "Alice", "https://example.com/verify-email?token=xyz", _make_service(), locale="en"
+        )
+        assert subject == "Endurain - Confirm your new email address"
+        assert "signing up" not in html_body
+        assert "signing up" not in text_body
+
+    def test_html_and_text_contain_the_link(self):
+        """Both bodies carry the verification link."""
+        link = "https://example.com/verify-email?token=xyz"
+        _, html_body, text_body = email_messages.get_email_change_confirmation_email(
+            "Alice", link, _make_service(), locale="en"
+        )
+        assert link in html_body
+        assert link in text_body
+
+    def test_html_escapes_user_name(self):
+        """HTML body escapes special characters in user names."""
+        _, html_body, _ = email_messages.get_email_change_confirmation_email(
+            "<img src=x>", "https://example.com/verify-email", _make_service(), locale="en"
+        )
+        greeting_section = html_body.split("<h3")[1]
+        assert "<img src=x>" not in greeting_section
+        assert "&lt;img src=x&gt;" in greeting_section
+
+
 class TestGetAdminSignupNotificationEmail:
     """Tests for get_admin_signup_notification_email."""
 

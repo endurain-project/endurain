@@ -7,6 +7,91 @@ import core.email_templates as core_email_templates
 import core.i18n as core_i18n
 
 
+def _verification_email(
+    key_prefix: str,
+    user_name: str,
+    verification_link: str,
+    frontend_host: str,
+    locale: str | None,
+) -> tuple[str, str, str]:
+    """Build a localized email that asks the recipient to confirm their address through a link.
+
+    Args:
+        key_prefix: The catalog prefix holding the email's texts.
+        user_name: The recipient's display name.
+        verification_link: The URL that confirms the address.
+        frontend_host: Base URL of the frontend, used in links and the footer.
+        locale: Preferred locale code for the recipient.
+
+    Returns:
+        A 3-tuple of (subject, html_content, text_content).
+    """
+    safe_name = html.escape(user_name)
+
+    def tr(key: str, **kwargs: str) -> str:
+        return core_i18n.t(f"{key_prefix}.{key}", locale, **kwargs)
+
+    subject = tr("subject")
+    heading = tr("heading")
+    intro = tr("intro")
+    cta = tr("cta")
+    security_label = tr("security_label")
+    security_notice = tr("security_notice")
+    ignore = tr("ignore")
+    copy_link = core_i18n.t("common.copy_link", locale)
+
+    color = core_email_templates.LINK_COLOR_SUCCESS
+    # Defense in depth: percent-encode then HTML-escape the link
+    # before it lands in href and visible-text contexts.
+    safe_verification_link = html.escape(url_quote(verification_link, safe=":/?=&%#@"), quote=True)
+
+    body_inner = f"""
+            <p>{tr("greeting", name=safe_name)}</p>
+            <p>{intro}</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a
+                    href="{safe_verification_link}"
+                    style="background-color: {color}; color: #ffffff;
+                    padding: 12px 30px; text-decoration: none;
+                    border-radius: 8px; display: inline-block;
+                    font-weight: 600;"
+                >{cta}</a>
+            </div>
+            <div
+                style="background-color: {core_email_templates.WARNING_BG};
+                border: 1px solid {core_email_templates.WARNING_BORDER};
+                color: {core_email_templates.WARNING_TEXT};
+                padding: 15px; border-radius: 8px; margin: 20px 0;"
+            >
+                <strong>{security_label}</strong> {security_notice}
+            </div>
+            <p>{ignore}</p>
+            <p>{copy_link}</p>
+            <p style="word-break: break-all; color: {color};">{safe_verification_link}</p>"""
+
+    html_content = core_email_templates.wrap_email(
+        locale=locale,
+        subject=subject,
+        heading=heading,
+        body_inner=body_inner,
+        frontend_host=frontend_host,
+        link_color=color,
+    )
+
+    labels = core_i18n.common_labels(locale)
+    text_content = (
+        f"{tr('greeting', name=user_name)}\n\n"
+        f"{intro}\n"
+        f"{verification_link}\n\n"
+        f"{security_notice}\n\n"
+        f"{ignore}\n\n"
+        f"{labels['best_regards']}\n"
+        f"{labels['team']}"
+    )
+
+    return subject, html_content, text_content
+
+
 def get_signup_confirmation_email(
     user_name: str,
     signup_link: str,
@@ -24,70 +109,27 @@ def get_signup_confirmation_email(
     Returns:
         A 3-tuple of (subject, html_content, text_content).
     """
-    safe_name = html.escape(user_name)
+    return _verification_email("signup_confirmation", user_name, signup_link, frontend_host, locale)
 
-    def tr(key: str, **kwargs: str) -> str:
-        return core_i18n.t(key, locale, **kwargs)
 
-    subject = tr("signup_confirmation.subject")
-    heading = tr("signup_confirmation.heading")
-    intro = tr("signup_confirmation.intro")
-    cta = tr("signup_confirmation.cta")
-    security_label = tr("signup_confirmation.security_label")
-    security_notice = tr("signup_confirmation.security_notice")
-    ignore = tr("signup_confirmation.ignore")
-    copy_link = tr("common.copy_link")
+def get_email_change_confirmation_email(
+    user_name: str,
+    verification_link: str,
+    frontend_host: str,
+    locale: str | None = None,
+) -> tuple[str, str, str]:
+    """Build a localized email asking the recipient to confirm their changed email address.
 
-    color = core_email_templates.LINK_COLOR_SUCCESS
-    # Defense in depth: percent-encode then HTML-escape the link
-    # before it lands in href and visible-text contexts.
-    safe_signup_link = html.escape(url_quote(signup_link, safe=":/?=&%#@"), quote=True)
+    Args:
+        user_name: The recipient's display name.
+        verification_link: The URL that confirms the new address.
+        frontend_host: Base URL of the frontend, used in links and the footer.
+        locale: Preferred locale code for the recipient.
 
-    body_inner = f"""
-            <p>{tr("signup_confirmation.greeting", name=safe_name)}</p>
-            <p>{intro}</p>
-            <div style="text-align: center; margin: 30px 0;">
-                <a
-                    href="{safe_signup_link}"
-                    style="background-color: {color}; color: #ffffff;
-                    padding: 12px 30px; text-decoration: none;
-                    border-radius: 8px; display: inline-block;
-                    font-weight: 600;"
-                >{cta}</a>
-            </div>
-            <div
-                style="background-color: {core_email_templates.WARNING_BG};
-                border: 1px solid {core_email_templates.WARNING_BORDER};
-                color: {core_email_templates.WARNING_TEXT};
-                padding: 15px; border-radius: 8px; margin: 20px 0;"
-            >
-                <strong>{security_label}</strong> {security_notice}
-            </div>
-            <p>{ignore}</p>
-            <p>{copy_link}</p>
-            <p style="word-break: break-all; color: {color};">{safe_signup_link}</p>"""
-
-    html_content = core_email_templates.wrap_email(
-        locale=locale,
-        subject=subject,
-        heading=heading,
-        body_inner=body_inner,
-        frontend_host=frontend_host,
-        link_color=color,
-    )
-
-    labels = core_i18n.common_labels(locale)
-    text_content = (
-        f"{tr('signup_confirmation.greeting', name=user_name)}\n\n"
-        f"{intro}\n"
-        f"{signup_link}\n\n"
-        f"{security_notice}\n\n"
-        f"{ignore}\n\n"
-        f"{labels['best_regards']}\n"
-        f"{labels['team']}"
-    )
-
-    return subject, html_content, text_content
+    Returns:
+        A 3-tuple of (subject, html_content, text_content).
+    """
+    return _verification_email("email_change_confirmation", user_name, verification_link, frontend_host, locale)
 
 
 def get_admin_signup_notification_email(

@@ -1,5 +1,6 @@
 """Sign-up token workflows and email preparation."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -61,7 +62,7 @@ def request_email_reverification(user_id: int, db: Session) -> bool:
     """Stage a verification-email event after an email change, when mail is configured."""
     if not server_settings_integration.is_mail_configured(db):
         return False
-    sign_up_event_publishers.publish_sign_up_verification_requested(user_id, db)
+    sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
     return True
 
 
@@ -101,25 +102,41 @@ def request_sign_up_approved_email(user_id: int, db: Session) -> bool:
     return True
 
 
-def prepare_sign_up_verification_email(
+def _prepare_verification_email(
     user_id: int,
     frontend_host: str,
+    build_email: Callable[[str, str, str, str], tuple[str, str, str]],
     db: Session,
 ) -> tuple[str, str, str, str] | None:
-    """Create a verification link and return its email content for delivery after the session closes."""
+    """Create a verification link and return the email ``build_email`` makes of it."""
     user = users_integration.get_user(user_id, db)
     if user is None:
         return None
     token = create_sign_up_token(user.id, db)
     link = f"{frontend_host}/verify-email?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
-    subject, html_content, text_content = sign_up_email_messages.get_signup_confirmation_email(
-        user.name,
-        link,
-        frontend_host,
-        locale,
-    )
+    subject, html_content, text_content = build_email(user.name, link, frontend_host, locale)
     return user.email, subject, html_content, text_content
+
+
+def prepare_sign_up_verification_email(
+    user_id: int,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Create a verification link and return its sign-up email for delivery after the session closes."""
+    return _prepare_verification_email(user_id, frontend_host, sign_up_email_messages.get_signup_confirmation_email, db)
+
+
+def prepare_email_change_verification_email(
+    user_id: int,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Create a verification link and return its email-change email for delivery after the session closes."""
+    return _prepare_verification_email(
+        user_id, frontend_host, sign_up_email_messages.get_email_change_confirmation_email, db
+    )
 
 
 def prepare_sign_up_approval_request_email(

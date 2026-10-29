@@ -306,6 +306,7 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `followers.notify_accepted` | `follower.accepted` | Bus | Nothing, by design | Nothing |
 | `followers.clear_request_notification` | `follower.request_removed` | Bus | Nothing, by design | Nothing |
 | `auth.send_sign_up_verification_email` | `auth.sign_up_verification_requested` | Bus | The user signs up again, or an administrator helps | Nothing |
+| `auth.send_email_change_verification_email` | `auth.email_change_verification_requested` | Bus | The user changes the address again, or an administrator helps | Nothing |
 | `auth.send_sign_up_approval_request_email` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user and a notification | Nothing |
 | `auth.send_sign_up_approved_email` | `auth.sign_up_approved` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_sign_up_existing_account_email` | `auth.sign_up_existing_account` | Bus | Nothing: the email is a courtesy | Nothing |

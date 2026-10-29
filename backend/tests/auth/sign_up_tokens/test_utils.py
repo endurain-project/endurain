@@ -65,7 +65,7 @@ class TestEmailRequests:
         sign_up_service.request_sign_up_admin_approval_emails(5, mock_db)
         assert [call.args for call in publish.call_args_list] == [(5, 10, mock_db), (5, 11, mock_db)]
 
-    @patch("modules.auth.sign_up_tokens.service.sign_up_event_publishers.publish_sign_up_verification_requested")
+    @patch("modules.auth.sign_up_tokens.service.sign_up_event_publishers.publish_email_change_verification_requested")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.is_mail_configured", return_value=True)
     def test_reverification_stages_only_when_mail_is_configured(self, _configured, publish, mock_db):
         assert sign_up_service.request_email_reverification(5, mock_db) is True
@@ -89,6 +89,7 @@ class TestEmailPreparation:
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user", return_value=None)
     def test_missing_records_are_skipped(self, _get_user, mock_db):
         assert sign_up_service.prepare_sign_up_verification_email(1, "https://example.test", mock_db) is None
+        assert sign_up_service.prepare_email_change_verification_email(1, "https://example.test", mock_db) is None
         assert sign_up_service.prepare_sign_up_approved_email(1, "https://example.test", mock_db) is None
 
     @patch("modules.auth.sign_up_tokens.service.sign_up_email_messages.get_signup_confirmation_email")
@@ -103,6 +104,20 @@ class TestEmailPreparation:
         result = sign_up_service.prepare_sign_up_verification_email(1, "https://example.test", mock_db)
 
         assert result == ("test@example.test", "subject", "html", "text")
+        assert "verify-email?token=plain-token" in build_email.call_args.args[1]
+
+    @patch("modules.auth.sign_up_tokens.service.sign_up_email_messages.get_email_change_confirmation_email")
+    @patch("modules.auth.sign_up_tokens.service.create_sign_up_token", return_value="plain-token")
+    @patch(
+        "modules.auth.sign_up_tokens.service.users_integration.get_user",
+        return_value=MagicMock(id=1, name="Test", email="new@example.test", preferred_language="en"),
+    )
+    def test_email_change_verification_prepares_its_own_message(self, _get_user, _create_token, build_email, mock_db):
+        build_email.return_value = ("subject", "html", "text")
+
+        result = sign_up_service.prepare_email_change_verification_email(1, "https://example.test", mock_db)
+
+        assert result == ("new@example.test", "subject", "html", "text")
         assert "verify-email?token=plain-token" in build_email.call_args.args[1]
 
     @patch("modules.auth.sign_up_tokens.service.sign_up_email_messages.get_admin_signup_notification_email")
