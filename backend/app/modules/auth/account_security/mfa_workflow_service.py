@@ -118,7 +118,7 @@ def enable_mfa(
             token_user_id,
             secret,
             request.mfa_code,
-            credentials_integration,
+            credentials_integration.get_password_hasher(),
             db,
         )
         db.commit()
@@ -197,7 +197,7 @@ def generate_backup_codes(
 
     codes = mfa_backup_codes_integration.create_backup_codes(
         token_user_id,
-        credentials_integration,
+        credentials_integration.get_password_hasher(),
         db,
     )
     db.commit()

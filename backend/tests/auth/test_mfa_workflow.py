@@ -167,7 +167,9 @@ class TestEnableMfa:
             step_up_store,
             mock_db,
         )
-        mock_enable.assert_called_once_with(7, "pending-secret", "123456", credentials_integration, mock_db)
+        mock_enable.assert_called_once_with(
+            7, "pending-secret", "123456", credentials_integration.get_password_hasher(), mock_db
+        )
         mfa_secret_store.delete_secret.assert_called_once_with(7)
         assert len(mock_log.method_calls) == 1
         assert isinstance(result, mfa_schema.MFAEnableRead)
@@ -436,7 +438,7 @@ class TestGenerateBackupCodes:
             step_up_store,
             mock_db,
         )
-        mock_create.assert_called_once_with(7, credentials_integration, mock_db)
+        mock_create.assert_called_once_with(7, credentials_integration.get_password_hasher(), mock_db)
         assert result.codes == ["a", "b", "c"]
         assert result.created_at is not None
 
