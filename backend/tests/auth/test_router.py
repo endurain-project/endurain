@@ -169,6 +169,15 @@ def auth_client(auth_app):
 class TestLoginEndpoint:
     """Tests for POST /auth/login endpoint."""
 
+    @pytest.fixture(autouse=True)
+    def _local_login_enabled(self):
+        """Serve server settings that allow password sign-in instead of reading them from the database."""
+        with patch(
+            "modules.auth.authentication.service.server_settings_integration.get_server_settings",
+            return_value=MagicMock(local_login_enabled=True),
+        ):
+            yield
+
     @patch("modules.auth.authentication.service.complete_login")
     @patch("modules.auth.authentication.service.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")

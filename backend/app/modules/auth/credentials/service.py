@@ -15,6 +15,22 @@ def resolve_password_min_length(server_settings: server_settings_schema.ServerSe
     return server_settings.password_length_regular_users
 
 
+def allows_password_sign_in(server_settings: server_settings_schema.ServerSettingsRead, access_type: str) -> bool:
+    """Return whether an account type may sign in with a local password under the server's settings.
+
+    With local sign-in turned off, administrators keep it: they are the way back in when the identity provider
+    is down, which is what the login page's ``forceLocalLogin`` escape is for.
+
+    Args:
+        server_settings: The server settings.
+        access_type: The account's normalised access type.
+
+    Returns:
+        True when the account may sign in, or reset its password, with a local password.
+    """
+    return server_settings.local_login_enabled or access_type == "admin"
+
+
 def get_credential(user_id: int, db: Session):
     """Return a user's local credential, if present."""
     return credentials_crud.get_credential(user_id, db)

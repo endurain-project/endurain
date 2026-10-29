@@ -666,6 +666,16 @@ def login_for_access_token(
             # Answered and counted exactly like a wrong password, so the response never confirms that the
             # password of a deactivated or pending account is right.
             _refuse_credentials(username)
+        if not credentials_integration.allows_password_sign_in(
+            server_settings_integration.get_server_settings(db), users_schema.normalize_access_type(user.access_type)
+        ):
+            # Local sign-in is turned off and the account is not an administrator's. Answered like a wrong
+            # password for the same reason.
+            logger.warning(
+                "Password sign-in refused for user <user_id>: local sign-in is disabled",
+                extra=core_logger.context(user_id=user.id),
+            )
+            _refuse_credentials(username)
     except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:

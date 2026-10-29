@@ -21,7 +21,7 @@ class TestUsePasswordResetToken:
         self, claim, set_password, mark_tokens, delete_sessions, clear_pending, mock_db
     ):
         user = MagicMock(access_type="regular")
-        settings = MagicMock()
+        settings = MagicMock(local_login_enabled=True)
         claim.return_value = 42
         order = MagicMock()
         order.attach_mock(set_password, "password")
@@ -35,6 +35,10 @@ class TestUsePasswordResetToken:
                 return_value=settings,
             ),
             patch("modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=user),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.has_local_password",
+                return_value=True,
+            ),
             patch(
                 "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",
                 return_value="hashed",
@@ -64,9 +68,17 @@ class TestUsePasswordResetToken:
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=42)
     def test_password_policy_error_preserves_422(self, _claim, mock_db):
         with (
-            patch("modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings"),
             patch(
-                "modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=MagicMock()
+                "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
+                return_value=MagicMock(local_login_enabled=True),
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.users_integration.require_user",
+                return_value=MagicMock(access_type="regular"),
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.has_local_password",
+                return_value=True,
             ),
             patch(
                 "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",
@@ -122,14 +134,19 @@ class TestRequestPasswordReset:
     @patch(
         "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
     )
+    @patch("modules.auth.password_reset_tokens.service.credentials_integration.has_local_password", return_value=True)
+    @patch(
+        "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
+        return_value=MagicMock(local_login_enabled=True),
+    )
     @patch(
         "modules.auth.password_reset_tokens.service.users_integration.get_user_by_email",
-        return_value=MagicMock(id=9, active=True),
+        return_value=MagicMock(id=9, active=True, access_type="regular"),
     )
     @patch(
         "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=True
     )
-    def test_active_user_event_is_committed(self, _configured, _user, publish, mock_db):
+    def test_active_user_event_is_committed(self, _configured, _user, _settings, _local, publish, mock_db):
         password_reset_service.request_password_reset_email("user@example.com", MemoryState(), mock_db)
         publish.assert_called_once_with(9, mock_db)
         mock_db.commit.assert_called_once()
@@ -145,7 +162,17 @@ class TestPasswordResetCooldown:
             ),
             patch(
                 "modules.auth.password_reset_tokens.service.users_integration.get_user_by_email",
-                side_effect=lambda email, db: MagicMock(id=9 if email == "a@example.com" else 10, active=True),
+                side_effect=lambda email, db: MagicMock(
+                    id=9 if email == "a@example.com" else 10, active=True, access_type="regular"
+                ),
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.has_local_password",
+                return_value=True,
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
+                return_value=MagicMock(local_login_enabled=True),
             ),
             patch(
                 "modules.auth.password_reset_tokens.service.password_reset_event_publishers"

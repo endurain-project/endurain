@@ -46,6 +46,11 @@ def validate_and_hash_password_for_user(
     return credentials_service.validate_and_hash_password_for_user(server_settings, access_type, password)
 
 
+def allows_password_sign_in(server_settings: server_settings_schema.ServerSettingsRead, access_type: str) -> bool:
+    """Return whether an account type may sign in with a local password under the server's settings."""
+    return credentials_service.allows_password_sign_in(server_settings, access_type)
+
+
 def get_password_hasher() -> credentials_password_hasher.PasswordHasher:
     """Return the configured password hasher."""
     return credentials_password_hasher.get_password_hasher()

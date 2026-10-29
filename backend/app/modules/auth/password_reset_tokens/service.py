@@ -56,12 +56,30 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
     return token
 
 
+def _may_reset_password(user: users_schema.UsersRead, db: Session) -> bool:
+    """Tell whether an account may set its password through a reset link.
+
+    Args:
+        user: The account.
+        db: Database session.
+
+    Returns:
+        True when the account has a local password and may sign in with it under the server's settings.
+    """
+    return credentials_integration.has_local_password(user.id, db) and credentials_integration.allows_password_sign_in(
+        server_settings_integration.get_server_settings(db), users_schema.normalize_access_type(user.access_type)
+    )
+
+
 def request_password_reset_email(email: str, state: StateProvider, db: Session) -> None:
     """Stage and commit a reset-email request without revealing account existence.
 
     An account is mailed at most once per cooldown, so the endpoint cannot flood an inbox. A request inside
     the cooldown, or one the cooldown store cannot answer, sends nothing and still gets the same answer: the
-    reply must not tell a registered address from an unregistered one.
+    reply must not tell a registered address from an unregistered one. Nor is anything sent to an account that
+    signs in through an identity provider and has no local password (a reset would give it one, so whoever
+    controls its address would bypass the provider), or, while local sign-in is turned off, to an account that
+    is not an administrator's.
 
     Args:
         email: The address the reset was requested for.
@@ -75,6 +93,12 @@ def request_password_reset_email(email: str, state: StateProvider, db: Session) 
         raise core_exceptions.ServiceUnavailableError("Email service is not configured")
     user = users_integration.get_user_by_email(email, db)
     if not (user and user.active):
+        return
+    if not _may_reset_password(user, db):
+        logger.warning(
+            "Password-reset email not sent to user <user_id>: the account may not use a local password",
+            extra=core_logger.context(user_id=user.id),
+        )
         return
     try:
         if not core_email_cooldown.claim_email(state, "password_reset", user.id, RESET_EMAIL_COOLDOWN_SECONDS):
@@ -117,6 +141,12 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
 
     server_settings = server_settings_integration.get_server_settings(db)
     user = users_integration.require_user(token_user_id, db)
+    if not _may_reset_password(user, db):
+        logger.warning(
+            "Password reset refused for user <user_id>: the account may not use a local password",
+            extra=core_logger.context(user_id=token_user_id),
+        )
+        raise core_exceptions.InvalidInputError("Invalid or expired password reset token")
     try:
         hashed_password = credentials_integration.validate_and_hash_password_for_user(
             server_settings,
