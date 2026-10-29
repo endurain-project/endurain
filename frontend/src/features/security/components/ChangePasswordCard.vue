@@ -131,11 +131,7 @@ async function submit(): Promise<void> {
         :aria-invalid="showInvalid"
         aria-describedby="security-new-password-hint"
       />
-      <p
-        id="security-new-password-hint"
-        class="text-hint"
-        :class="showInvalid ? 'text-field-error' : ''"
-      >
+      <p id="security-new-password-hint" :class="showInvalid ? 'text-field-error' : 'text-hint'">
         {{ requirementsHint }}
       </p>
     </div>
