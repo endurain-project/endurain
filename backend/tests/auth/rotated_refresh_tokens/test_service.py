@@ -255,13 +255,14 @@ class TestCleanupExpiredRotatedTokens:
 
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")
-    def test_cleanup_commits_staged_deletions(self, mock_delete, mock_session_local):
+    def test_cleanup_hands_its_session_to_the_purge(self, mock_delete, mock_session_local):
+        """The purge commits one batch at a time, so the job only opens the session."""
         db = MagicMock()
         mock_session_local.return_value.__enter__.return_value = db
         mock_delete.return_value = 10
         rotated_token_jobs.delete_expired_rotated_tokens()
-        mock_delete.assert_called_once()
-        db.commit.assert_called_once()
+        assert mock_delete.call_args.args[1] is db
+        db.commit.assert_not_called()
 
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.core_database.SessionLocal")
     @patch("modules.auth.rotated_refresh_tokens.scheduled_jobs.rotated_token_service.delete_expired_tokens")

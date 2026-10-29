@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import CursorResult, delete, func, select, update
+from sqlalchemy import CursorResult, Select, delete, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -199,11 +199,34 @@ def delete_session(session_id: str, user_id: int, db: Session) -> sessions_contr
         raise core_exceptions.ProcessingError("Database error occurred") from err
 
 
-def delete_idle_sessions(cutoff_time: datetime, db: Session) -> int:
-    """Stage deletion of sessions older than an idle cutoff."""
+def delete_expired_sessions(now: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` sessions that expired before ``now``."""
+    model = sessions_models.UsersSessions
+    return _delete_sessions(select(model.id).where(model.expires_at < now).limit(limit), db)
+
+
+def delete_idle_sessions(cutoff_time: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` sessions last active before an idle cutoff."""
+    model = sessions_models.UsersSessions
+    return _delete_sessions(select(model.id).where(model.last_activity_at < cutoff_time).limit(limit), db)
+
+
+def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> int:
+    """Stage deletion of the sessions a query selects.
+
+    Args:
+        session_ids: Selects the ids of the sessions to delete.
+        db: Database session.
+
+    Returns:
+        The number of sessions staged for deletion.
+
+    Raises:
+        ProcessingError: When the database refuses the delete.
+    """
     try:
         result: CursorResult[object] = db.execute(
-            delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.last_activity_at < cutoff_time)
+            delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id.in_(session_ids))
         )
         return result.rowcount or 0
     except SQLAlchemyError as err:

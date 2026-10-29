@@ -58,5 +58,5 @@ def test_mark_token_as_used_stages_conditional_update(mock_db):
 
 def test_delete_expired_tokens_stages_and_returns_count(mock_db):
     mock_db.execute.return_value.rowcount = 2
-    assert idp_link_token_crud.delete_expired_tokens(mock_db) == 2
+    assert idp_link_token_crud.delete_expired_tokens(datetime.now(UTC), 100, mock_db) == 2
     mock_db.commit.assert_not_called()

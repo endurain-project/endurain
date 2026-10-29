@@ -87,9 +87,9 @@ def delete_oauth_state(oauth_state_id: str, db: Session) -> int:
     return result.rowcount or 0
 
 
-def delete_expired_oauth_states(db: Session) -> int:
-    """Stage deletion of expired OAuth states."""
-    result: CursorResult[Any] = db.execute(
-        delete(oauth_state_models.OAuthState).where(oauth_state_models.OAuthState.expires_at < datetime.now(UTC))
-    )
+def delete_expired_oauth_states(now: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` OAuth states that expired before ``now``."""
+    model = oauth_state_models.OAuthState
+    expired = select(model.id).where(model.expires_at < now).limit(limit)
+    result: CursorResult[Any] = db.execute(delete(model).where(model.id.in_(expired)))
     return result.rowcount or 0

@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.logger as core_logger
 import modules.auth.computation as token_hashing
 import modules.auth.identity_provider_link_tokens.crud as idp_link_token_crud
@@ -72,5 +73,6 @@ def generate_idp_link_token(
 
 
 def delete_expired_tokens(db: Session) -> int:
-    """Stage deletion of expired one-time link tokens."""
-    return idp_link_token_crud.delete_expired_tokens(db)
+    """Delete expired one-time link tokens, one batch per commit."""
+    now = datetime.now(UTC)
+    return core_database.delete_in_batches(lambda limit: idp_link_token_crud.delete_expired_tokens(now, limit, db), db)

@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import delete as sa_delete
+from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
@@ -70,9 +71,10 @@ def mark_user_sign_up_tokens_used(user_id: int, db: Session) -> int:
     return result.rowcount or 0
 
 
-def delete_expired_sign_up_tokens(db: Session) -> int:
-    """Stage deletion of expired sign-up tokens and return the affected row count."""
-    stmt = sa_delete(sign_up_models.SignUpToken).where(sign_up_models.SignUpToken.expires_at < datetime.now(UTC))
-    result = db.execute(stmt)
+def delete_expired_sign_up_tokens(now: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` sign-up tokens that expired before ``now`` and return the row count."""
+    model = sign_up_models.SignUpToken
+    expired = select(model.id).where(model.expires_at < now).limit(limit)
+    result = db.execute(sa_delete(model).where(model.id.in_(expired)))
     db.flush()
     return result.rowcount or 0

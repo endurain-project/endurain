@@ -13,16 +13,17 @@ def test_create_state_id_and_nonce_returns_distinct_random_values():
     assert state_id != nonce
 
 
-def test_cleanup_job_commits_staged_deletions():
+def test_cleanup_job_hands_its_session_to_the_purge():
+    """The purge commits one batch at a time, so the job only opens the session."""
     with (
         patch("modules.auth.oauth_state.scheduled_jobs.SessionLocal") as session_local,
         patch(
             "modules.auth.oauth_state.scheduled_jobs.oauth_state_service.delete_expired_oauth_states", return_value=2
-        ),
+        ) as purge,
     ):
         db = session_local.return_value.__enter__.return_value
         oauth_state_jobs.delete_expired_oauth_states_from_db()
-    db.commit.assert_called_once()
+    purge.assert_called_once_with(db)
 
 
 def test_oauth_state_cleanup_runs_every_five_minutes():

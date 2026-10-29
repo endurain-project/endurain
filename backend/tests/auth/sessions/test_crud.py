@@ -132,7 +132,8 @@ def test_delete_session_hides_missing_or_unowned_row(mock_db):
 @pytest.mark.parametrize(
     "operation,args",
     [
-        (sessions_crud.delete_idle_sessions, (datetime.now(UTC),)),
+        (sessions_crud.delete_idle_sessions, (datetime.now(UTC), 100)),
+        (sessions_crud.delete_expired_sessions, (datetime.now(UTC), 100)),
         (sessions_crud.delete_sessions_by_family, ("family-id",)),
         (sessions_crud.delete_sessions_by_user, (7,)),
     ],

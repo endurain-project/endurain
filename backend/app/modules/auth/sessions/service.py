@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.database as core_database
 import core.hashing as core_hashing
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -229,13 +230,23 @@ def delete_sessions_by_user_and_commit(user_id: int, db: Session, exclude_sessio
     return deleted_count
 
 
+def delete_expired_sessions(db: Session) -> int:
+    """Delete sessions past their expiry, one batch per commit.
+
+    An expired session can no longer be read or refreshed, whatever the idle policy, so it is always
+    removed; its rotated refresh-token records go with it.
+    """
+    now = datetime.now(UTC)
+    return core_database.delete_in_batches(lambda limit: sessions_crud.delete_expired_sessions(now, limit, db), db)
+
+
 def delete_idle_sessions(db: Session) -> int:
-    """Stage sessions that exceed the configured idle timeout for deletion."""
+    """Delete sessions that exceed the configured idle timeout, one batch per commit."""
     policy: server_settings_contracts.SessionPolicy = server_settings_integration.get_session_policy(db)
     if policy.idle_timeout is None:
         return 0
     cutoff_time = datetime.now(UTC) - policy.idle_timeout
-    return sessions_crud.delete_idle_sessions(cutoff_time, db)
+    return core_database.delete_in_batches(lambda limit: sessions_crud.delete_idle_sessions(cutoff_time, limit, db), db)
 
 
 def validate_session_timeout(

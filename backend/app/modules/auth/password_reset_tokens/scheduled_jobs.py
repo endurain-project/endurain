@@ -11,10 +11,9 @@ PURGE_LOCK_NAME = "auth_password_reset_tokens_purge"
 
 
 def delete_expired_tokens_from_db() -> None:
-    """Delete expired reset tokens in a short-lived transaction."""
+    """Delete expired reset tokens, one bounded batch per transaction."""
     with core_database.SessionLocal() as db:
         deleted_count = password_reset_service.delete_expired_password_reset_tokens(db)
-        db.commit()
     if deleted_count:
         logger.info("Deleted expired password reset tokens", extra=core_logger.context(count=deleted_count))
 

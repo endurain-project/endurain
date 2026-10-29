@@ -42,6 +42,7 @@ class PasswordResetToken(Base):
     expires_at: Mapped[datetime_type] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Token expiration date (datetime)",
     )
     used: Mapped[bool] = mapped_column(

@@ -11,10 +11,9 @@ PURGE_LOCK_NAME = "auth_sign_up_tokens_purge"
 
 
 def delete_expired_tokens_from_db() -> None:
-    """Delete expired sign-up tokens in a short-lived transaction."""
+    """Delete expired sign-up tokens, one bounded batch per transaction."""
     with core_database.SessionLocal() as db:
         deleted_count = sign_up_service.delete_expired_sign_up_tokens(db)
-        db.commit()
     if deleted_count:
         logger.info("Deleted expired sign-up tokens", extra=core_logger.context(count=deleted_count))
 

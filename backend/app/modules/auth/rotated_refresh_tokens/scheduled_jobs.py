@@ -13,7 +13,7 @@ CLEANUP_LOCK_NAME = "auth_rotated_refresh_tokens_cleanup"
 
 
 def delete_expired_rotated_tokens() -> None:
-    """Delete rotated-token rows whose refresh token has expired, in a short-lived transaction.
+    """Delete rotated-token rows whose refresh token has expired, one bounded batch per transaction.
 
     A rotated token stays recorded until it could no longer be presented, so a replay after the grace
     window is still recognised as reuse. Each row carries its own token's expiry, so a change to the
@@ -21,7 +21,6 @@ def delete_expired_rotated_tokens() -> None:
     """
     with core_database.SessionLocal() as db:
         deleted_count = rotated_token_service.delete_expired_tokens(datetime.now(UTC), db)
-        db.commit()
     if deleted_count:
         logger.info("Cleaned up expired rotated refresh-token records", extra=core_logger.context(count=deleted_count))
 

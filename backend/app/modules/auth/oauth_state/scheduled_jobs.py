@@ -11,10 +11,9 @@ PURGE_LOCK_NAME = "auth_oauth_state_purge"
 
 
 def delete_expired_oauth_states_from_db() -> None:
-    """Delete expired OAuth states in a short-lived session."""
+    """Delete expired OAuth states, one bounded batch per transaction."""
     with SessionLocal() as db:
         deleted_count = oauth_state_service.delete_expired_oauth_states(db)
-        db.commit()
     if deleted_count:
         logger.info("Deleted expired OAuth states", extra=core_logger.context(count=deleted_count))
 

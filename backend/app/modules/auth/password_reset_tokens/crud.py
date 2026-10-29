@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import delete as sa_delete
+from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
@@ -62,11 +63,10 @@ def mark_user_password_reset_tokens_used(user_id: int, db: Session) -> int:
     return result.rowcount or 0
 
 
-def delete_expired_password_reset_tokens(db: Session) -> int:
-    """Stage deletion of expired reset tokens and return the affected row count."""
-    stmt = sa_delete(password_reset_models.PasswordResetToken).where(
-        password_reset_models.PasswordResetToken.expires_at < datetime.now(UTC)
-    )
-    result = db.execute(stmt)
+def delete_expired_password_reset_tokens(now: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` reset tokens that expired before ``now`` and return the row count."""
+    model = password_reset_models.PasswordResetToken
+    expired = select(model.id).where(model.expires_at < now).limit(limit)
+    result = db.execute(sa_delete(model).where(model.id.in_(expired)))
     db.flush()
     return result.rowcount or 0

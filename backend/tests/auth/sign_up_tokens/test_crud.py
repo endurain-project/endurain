@@ -32,7 +32,7 @@ def test_create_token_stages_row_without_committing(mock_db):
 def test_delete_expired_tokens_stages_delete_without_committing(mock_db):
     mock_db.execute.return_value.rowcount = 3
 
-    deleted = sign_up_crud.delete_expired_sign_up_tokens(mock_db)
+    deleted = sign_up_crud.delete_expired_sign_up_tokens(datetime.now(UTC), 100, mock_db)
 
     assert deleted == 3
     mock_db.flush.assert_called_once()

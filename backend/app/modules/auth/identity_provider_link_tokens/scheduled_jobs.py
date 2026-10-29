@@ -11,10 +11,9 @@ PURGE_LOCK_NAME = "auth_identity_provider_link_tokens_purge"
 
 
 def delete_expired_tokens_from_db() -> None:
-    """Delete expired one-time link tokens in a short-lived transaction."""
+    """Delete expired one-time link tokens, one bounded batch per transaction."""
     with core_database.SessionLocal() as db:
         deleted_count = idp_link_token_service.delete_expired_tokens(db)
-        db.commit()
     if deleted_count:
         logger.info("Deleted expired identity-provider link tokens", extra=core_logger.context(count=deleted_count))
 

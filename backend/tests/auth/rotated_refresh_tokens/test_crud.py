@@ -65,7 +65,7 @@ def test_rotating_the_same_token_twice_is_a_conflict():
 
 def test_delete_operations_stage_and_return_row_counts(mock_db):
     mock_db.execute.return_value.rowcount = 2
-    assert rotated_token_crud.delete_expired_tokens(datetime.now(UTC), mock_db) == 2
+    assert rotated_token_crud.delete_expired_tokens(datetime.now(UTC), 100, mock_db) == 2
     assert rotated_token_crud.delete_by_family("f" * 36, mock_db) == 2
     assert mock_db.flush.call_count == 2
     mock_db.commit.assert_not_called()
@@ -88,7 +88,7 @@ def test_a_record_is_kept_until_its_refresh_token_expires():
     _stage(db, "a" * 64, rotated_at=now - timedelta(days=8), refresh_token_exp=now + timedelta(days=22))
     _stage(db, "b" * 64, rotated_at=now - timedelta(minutes=5), refresh_token_exp=now - timedelta(minutes=1))
 
-    assert rotated_token_crud.delete_expired_tokens(now, db) == 1
+    assert rotated_token_crud.delete_expired_tokens(now, 100, db) == 1
     assert rotated_token_crud.get_rotated_token_by_hash("a" * 64, db) is not None
     assert rotated_token_crud.get_rotated_token_by_hash("b" * 64, db) is None
 

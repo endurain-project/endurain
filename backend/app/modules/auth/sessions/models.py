@@ -93,11 +93,13 @@ class UsersSessions(Base):
     last_activity_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Last activity timestamp for idle timeout",
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Session expiration date (datetime)",
     )
     oauth_state_id: Mapped[str | None] = mapped_column(

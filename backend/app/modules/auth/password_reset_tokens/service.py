@@ -6,6 +6,7 @@ from uuid import uuid4
 from jasil.providers import StateBackendUnavailableError, StateProvider
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.email_cooldown as core_email_cooldown
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
@@ -135,5 +136,8 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
 
 
 def delete_expired_password_reset_tokens(db: Session) -> int:
-    """Stage deletion of expired reset tokens."""
-    return password_reset_crud.delete_expired_password_reset_tokens(db)
+    """Delete expired reset tokens, one batch per commit."""
+    now = datetime.now(UTC)
+    return core_database.delete_in_batches(
+        lambda limit: password_reset_crud.delete_expired_password_reset_tokens(now, limit, db), db
+    )

@@ -6,6 +6,7 @@ from uuid import uuid4
 from jasil.providers import StateBackendUnavailableError, StateProvider
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.email_cooldown as core_email_cooldown
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
@@ -296,5 +297,6 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpRead:
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:
-    """Stage deletion of expired verification tokens."""
-    return sign_up_crud.delete_expired_sign_up_tokens(db)
+    """Delete expired verification tokens, one batch per commit."""
+    now = datetime.now(UTC)
+    return core_database.delete_in_batches(lambda limit: sign_up_crud.delete_expired_sign_up_tokens(now, limit, db), db)

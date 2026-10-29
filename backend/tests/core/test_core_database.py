@@ -1,6 +1,6 @@
 """Tests for core.database module — get_db generator coverage."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -151,3 +151,35 @@ class TestConnectionBudgetWarning:
             core_database.check_connection_budget(2)
 
         assert caplog.text == ""
+
+
+class TestDeleteInBatches:
+    """A maintenance purge runs one bounded batch per transaction, so it never holds a long lock."""
+
+    def test_full_batches_continue_and_a_short_one_ends_the_purge(self):
+        db = MagicMock()
+        size = core_database.PURGE_BATCH_SIZE
+        stage_batch = MagicMock(side_effect=[size, size, 3])
+
+        assert core_database.delete_in_batches(stage_batch, db) == 2 * size + 3
+        assert stage_batch.call_args_list == [call(size)] * 3
+        assert db.commit.call_count == 3
+
+    def test_nothing_to_delete_still_ends_the_transaction(self):
+        db = MagicMock()
+
+        assert core_database.delete_in_batches(MagicMock(return_value=0), db) == 0
+        db.commit.assert_called_once()
+
+    def test_each_batch_is_committed_before_the_next_is_staged(self):
+        db = MagicMock()
+        order: list[str] = []
+        db.commit.side_effect = lambda: order.append("commit")
+
+        def stage_batch(limit):
+            order.append("stage")
+            return limit if len(order) < 2 else 0
+
+        core_database.delete_in_batches(stage_batch, db)
+
+        assert order == ["stage", "commit", "stage", "commit"]

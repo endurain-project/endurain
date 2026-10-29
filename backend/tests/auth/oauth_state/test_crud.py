@@ -64,5 +64,5 @@ def test_mark_state_used_is_conditional_and_staged(mock_db):
 
 def test_delete_expired_states_stages_and_returns_count(mock_db):
     mock_db.execute.return_value.rowcount = 3
-    assert oauth_state_crud.delete_expired_oauth_states(mock_db) == 3
+    assert oauth_state_crud.delete_expired_oauth_states(datetime.now(UTC), 100, mock_db) == 3
     mock_db.commit.assert_not_called()

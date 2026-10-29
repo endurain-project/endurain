@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -143,15 +144,9 @@ def delete_read_notifications(db: Session) -> int:
     if retention_days <= 0:
         return 0
     cutoff = datetime.now(UTC) - timedelta(days=retention_days)
-    total = 0
-    while True:
-        deleted = notifications_crud.delete_read_notifications_before(
-            cutoff, notifications_constants.PURGE_BATCH_SIZE, db
-        )
-        db.commit()
-        total += deleted
-        if deleted < notifications_constants.PURGE_BATCH_SIZE:
-            break
+    total = core_database.delete_in_batches(
+        lambda limit: notifications_crud.delete_read_notifications_before(cutoff, limit, db), db
+    )
     logger.info("Purged read notifications", extra=core_logger.context(deleted=total))
     return total
 

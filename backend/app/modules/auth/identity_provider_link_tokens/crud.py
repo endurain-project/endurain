@@ -50,11 +50,9 @@ def mark_token_as_used(token_hash: str, db: Session) -> bool:
     return result.rowcount == 1
 
 
-def delete_expired_tokens(db: Session) -> int:
-    """Stage deletion of expired tokens."""
-    result: CursorResult[object] = db.execute(
-        delete(idp_link_token_models.IdpLinkToken).where(
-            idp_link_token_models.IdpLinkToken.expires_at < datetime.now(UTC)
-        )
-    )
+def delete_expired_tokens(now: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` tokens that expired before ``now``."""
+    model = idp_link_token_models.IdpLinkToken
+    expired = select(model.id).where(model.expires_at < now).limit(limit)
+    result: CursorResult[object] = db.execute(delete(model).where(model.id.in_(expired)))
     return result.rowcount or 0

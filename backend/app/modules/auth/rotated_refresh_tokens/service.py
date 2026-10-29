@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
+import core.database as core_database
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
@@ -187,5 +188,5 @@ def delete_by_family(token_family_id: str, db: Session) -> int:
 
 
 def delete_expired_tokens(now: datetime, db: Session) -> int:
-    """Stage deletion of rotated-token records whose refresh token expired before ``now``."""
-    return rotated_token_crud.delete_expired_tokens(now, db)
+    """Delete rotated-token records whose refresh token expired before ``now``, one batch per commit."""
+    return core_database.delete_in_batches(lambda limit: rotated_token_crud.delete_expired_tokens(now, limit, db), db)
