@@ -11,6 +11,8 @@ from pydantic import (
     StrictStr,
 )
 
+import core.pagination as core_pagination
+
 
 class UsersSessionsBase(BaseModel):
     """Base user session schema with safe fields.
@@ -50,6 +52,10 @@ class UsersSessionsRead(UsersSessionsBase):
     """
 
     user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
+
+
+#: One page of a user's sessions.
+UsersSessionsPage = core_pagination.Page[UsersSessionsRead]
 
 
 class UsersSessionsInternal(UsersSessionsBase):

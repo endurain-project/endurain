@@ -185,11 +185,19 @@ describe('security service requests', () => {
   })
 
   it('fetchSessions reads the sessions path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([sessionDto])
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [sessionDto], next: 2 })
+      .mockResolvedValueOnce({ items: [sessionDto], next: null })
 
-    expect(await fetchSessions()).toEqual([mappedSession])
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/sessions',
+    expect(await fetchSessions()).toEqual([mappedSession, mappedSession])
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      1,
+      '/profile/sessions?page_number=1',
+      expect.objectContaining({ signal: undefined }),
+    )
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/profile/sessions?page_number=2',
       expect.objectContaining({ signal: undefined }),
     )
   })

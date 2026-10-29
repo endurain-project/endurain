@@ -7,8 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.service as sessions_service
+
+_FIREFOX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
 
 
 def _session(**updates):
@@ -37,42 +40,47 @@ def _session(**updates):
 
 
 def test_create_session_hashes_secrets_and_stages(mock_db):
-    request = MagicMock()
-    request.headers = {"user-agent": "Firefox"}
     user = SimpleNamespace(id=7)
     hasher = MagicMock()
     hasher.hash_password.return_value = "hashed-refresh"
     with (
-        patch("modules.auth.sessions.service.core_network.get_ip_address", return_value="127.0.0.1"),
         patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
     ):
         result = sessions_service.create_session(
-            "session-id", user, request, "plain-refresh", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
+            "session-id",
+            user,
+            "127.0.0.1",
+            _FIREFOX_UA,
+            "plain-refresh",
+            hasher,
+            datetime.now(UTC) + timedelta(days=1),
+            mock_db,
         )
     assert result.id == "session-id"
     hasher.hash_password.assert_called_once_with("plain-refresh")
     assert create.call_args.args[0].refresh_token == "hashed-refresh"
+    assert create.call_args.args[0].ip_address == "127.0.0.1"
+    assert create.call_args.args[0].browser == "Firefox"
+    assert create.call_args.args[0].device_type == "PC"
     mock_db.commit.assert_not_called()
 
 
 def test_edit_session_stages_rotation(mock_db):
-    request = MagicMock()
-    request.headers = {"user-agent": "Firefox"}
     session = _session()
     hasher = MagicMock()
     hasher.hash_password.return_value = "replacement-hash"
     with (
-        patch("modules.auth.sessions.service.core_network.get_ip_address", return_value="127.0.0.2"),
         patch(
             "modules.auth.sessions.service.sessions_crud.edit_session", return_value=_session(rotation_count=1)
         ) as edit,
     ):
         result = sessions_service.edit_session(
-            session, request, "replacement", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
+            session, "127.0.0.2", _FIREFOX_UA, "replacement", hasher, datetime.now(UTC) + timedelta(days=1), mock_db
         )
     assert result.rotation_count == 1
     assert edit.call_args.args[0].refresh_token == "replacement-hash"
     assert edit.call_args.args[0].rotation_count == 1
+    assert edit.call_args.args[0].ip_address == "127.0.0.2"
     mock_db.commit.assert_not_called()
 
 
@@ -176,3 +184,41 @@ def test_missing_session_deletion_propagates_domain_not_found(mock_db):
     ):
         sessions_service.delete_session("missing", 7, mock_db)
     mock_db.commit.assert_not_called()
+
+
+def test_list_user_sessions_builds_a_page_from_the_window_and_count(mock_db):
+    page = core_pagination.PageParams(2, 1)
+    with (
+        patch("modules.auth.sessions.service.core_config.settings") as settings,
+        patch("modules.auth.sessions.service.sessions_crud.get_user_sessions_page", return_value=[_session()]) as rows,
+        patch("modules.auth.sessions.service.sessions_crud.count_user_sessions", return_value=3) as count,
+    ):
+        settings.ENVIRONMENT = "production"
+        result = sessions_service.list_user_sessions(7, page, mock_db)
+    rows.assert_called_once_with(7, mock_db, limit=1, offset=1)
+    count.assert_called_once_with(7, mock_db)
+    assert [item.id for item in result.items] == ["session-id"]
+    assert (result.total, result.page, result.next) == (3, 2, 3)
+    assert not hasattr(result.items[0], "refresh_token")
+
+
+def test_list_user_sessions_is_empty_in_demo(mock_db):
+    with (
+        patch("modules.auth.sessions.service.core_config.settings") as settings,
+        patch("modules.auth.sessions.service.sessions_crud.get_user_sessions_page") as rows,
+    ):
+        settings.ENVIRONMENT = "demo"
+        result = sessions_service.list_user_sessions(7, core_pagination.PageParams(1, 25), mock_db)
+    rows.assert_not_called()
+    assert result.items == [] and result.total == 0
+
+
+def test_session_logs_carry_a_fingerprint_not_the_session_id(mock_db, caplog):
+    with (
+        caplog.at_level("INFO"),
+        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
+    ):
+        sessions_service.delete_session("secret-session-id", 7, mock_db)
+    assert "secret-session-id" not in caplog.text
+    assert "secret-session-id" not in str([record.__dict__ for record in caplog.records])

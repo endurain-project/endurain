@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import core.calendar as core_calendar
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import core.timezone as core_timezone
 import modules.activities.activity.integration_service as activity_integration
 import modules.users.users.integration_service as users_integration
@@ -42,19 +43,21 @@ def calculate_user_goals(
     user_id: int,
     date: str | None,
     first_day_of_week: core_calendar.WeekdayValue,
+    page: core_pagination.PageParams,
     db: Session,
-) -> list[user_goals_schema.UsersGoalProgress]:
-    """Calculate progress for all user goals on a specified date.
+) -> user_goals_schema.UsersGoalProgressPage:
+    """Calculate progress for one page of a user's goals on a specified date.
 
     Args:
         user_id: The ID of the user.
         date: Date in YYYY-MM-DD format. If None, uses
             current date.
-        db: SQLAlchemy database session.
         first_day_of_week: User's configured first weekday.
+        page: The requested window.
+        db: SQLAlchemy database session.
 
     Returns:
-        List of UsersGoalProgress objects, empty if no goals found.
+        The page of UsersGoalProgress objects, empty if no goals found.
 
     Raises:
         InvalidInputError: If the date or interval is malformed.
@@ -66,9 +69,14 @@ def calculate_user_goals(
         # progress bars visibly reset at the wrong time for anyone off UTC.
         date = users_integration.local_today(user_id, db).strftime("%Y-%m-%d")
     try:
-        goals: list[user_goals_schema.UsersGoalRead] = user_goals_crud.get_user_goals_by_user_id(user_id, db)
-
-        return [
+        goals = user_goals_crud.get_user_goals_page(
+            user_id,
+            db,
+            limit=page.num_records,
+            offset=(page.page_number - 1) * page.num_records,
+        )
+        total = user_goals_crud.count_user_goals(user_id, db)
+        progress = [
             calculate_goal_progress_by_activity_type(
                 goal,
                 date,
@@ -77,6 +85,7 @@ def calculate_user_goals(
             )
             for goal in goals
         ]
+        return user_goals_schema.UsersGoalProgressPage.build(progress, total, page.page_number, page.num_records)
     except (ValueError, TypeError) as err:
         logger.error(
             "Invalid data while calculating user goals", exc_info=err, extra=core_logger.context(user_id=user_id)
@@ -185,15 +194,18 @@ def calculate_goal_progress_by_activity_type(
         raise core_exceptions.InvalidInputError("Invalid data provided") from err
 
 
-def get_goals_progress(user_id: int, db: Session) -> list[user_goals_schema.UsersGoalProgress]:
-    """Calculate goal progress for a user as of their own calendar day.
+def get_goals_progress(
+    user_id: int, page: core_pagination.PageParams, db: Session
+) -> user_goals_schema.UsersGoalProgressPage:
+    """Calculate goal progress for one page of a user's goals as of their own calendar day.
 
     Args:
         user_id: The user whose goals to evaluate.
+        page: The requested window.
         db: Database session.
 
     Returns:
-        The progress of each goal, empty if the user has no goals.
+        The page of goal progress, empty if the user has no goals.
 
     Raises:
         NotFoundError: If the user does not exist.
@@ -203,4 +215,4 @@ def get_goals_progress(user_id: int, db: Session) -> list[user_goals_schema.User
         raise core_exceptions.NotFoundError("User not found")
 
     today = core_timezone.today_in(users_integration.timezone_or_default(user.timezone))
-    return calculate_user_goals(user_id, today.strftime("%Y-%m-%d"), user.first_day_of_week, db)
+    return calculate_user_goals(user_id, today.strftime("%Y-%m-%d"), user.first_day_of_week, page, db)

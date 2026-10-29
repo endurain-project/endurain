@@ -1,6 +1,7 @@
 import type { UserSession, UserSessionDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 
 /**
  * Maps a raw `UsersSessionsRead` payload to the clean {@link UserSession} model
@@ -37,8 +38,8 @@ export async function fetchUserSessions(
   userId: number,
   signal?: AbortSignal,
 ): Promise<UserSession[]> {
-  const dtos = await apiFetch<UserSessionDto[] | null>(`/sessions/user/${userId}`, { signal })
-  return (dtos ?? []).map(mapUserSession)
+  const dtos = await fetchAllPages<UserSessionDto>(`/sessions/user/${userId}`, undefined, signal)
+  return dtos.map(mapUserSession)
 }
 
 /**

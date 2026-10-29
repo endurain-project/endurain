@@ -7,6 +7,8 @@ from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
+CLEANUP_LOCK_NAME = "auth_sessions_idle_cleanup"
+
 
 def cleanup_idle_sessions() -> None:
     """Delete idle sessions in a short-lived database session."""
@@ -19,4 +21,11 @@ def cleanup_idle_sessions() -> None:
 
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
     """Return recurring session maintenance work."""
-    return (core_scheduler.ScheduledJob(cleanup_idle_sessions, 15, "clean up idle auth sessions"),)
+    return (
+        core_scheduler.ScheduledJob(
+            cleanup_idle_sessions,
+            15,
+            "clean up idle auth sessions",
+            lock_name=CLEANUP_LOCK_NAME,
+        ),
+    )

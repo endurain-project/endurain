@@ -25,6 +25,7 @@ import type {
 } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 
 /** The scopes an API key can be granted (mirrors the backend allow-list). */
 export const API_KEY_SCOPES = ['activities:upload'] as const
@@ -236,8 +237,8 @@ export async function regenerateBackupCodes(input: StepUpInput): Promise<BackupC
  * @throws {HttpError} When the request fails.
  */
 export async function fetchSessions(signal?: AbortSignal): Promise<SecuritySession[]> {
-  const dtos = await apiFetch<SecuritySessionDto[] | null>('/profile/sessions', { signal })
-  return (dtos ?? []).map(mapSecuritySession)
+  const dtos = await fetchAllPages<SecuritySessionDto>('/profile/sessions', undefined, signal)
+  return dtos.map(mapSecuritySession)
 }
 
 /**

@@ -750,7 +750,7 @@ export interface paths {
          *
          *     Args:
          *         response: The HTTP response object to modify cookies.
-         *         request: The HTTP request object.
+         *         request: The HTTP request object, read by the rate limiter.
          *         _validate_refresh_token: Dependency to validate the refresh token.
          *         token_session_id: The session ID extracted from the refresh token.
          *         refresh_token_value: The refresh token value from the request.
@@ -3053,15 +3053,16 @@ export interface paths {
         };
         /**
          * Get User Goals Results
-         * @description Calculate and retrieve goal progress for authenticated user.
+         * @description Calculate and retrieve one page of goal progress for the authenticated user.
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         token_user_id: User ID from access token.
+         *         page: The requested window.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         List of goal progress objects, empty if no goals.
+         *         The page of goal progress objects, empty if no goals.
          */
         get: operations["get_user_goals_results_api_v1_profile_goals_results_get"];
         put?: never;
@@ -3743,14 +3744,15 @@ export interface paths {
         };
         /**
          * Read Sessions Me
-         * @description Retrieve all sessions for authenticated user.
+         * @description Retrieve one page of the authenticated user's sessions.
          *
          *     Args:
          *         token_user_id: User ID from access token.
+         *         page: The requested window.
          *         db: Database session.
          *
          *     Returns:
-         *         List of session objects for the user.
+         *         The page of session objects for the user.
          */
         get: operations["read_sessions_me_api_v1_profile_sessions_get"];
         put?: never;
@@ -4004,7 +4006,8 @@ export interface paths {
          *         service: Identity provider service.
          *
          *     Returns:
-         *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
+         *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an
+         *         IdentityProviderPublic schema.
          */
         get: operations["get_enabled_identity_providers_api_v1_public_idp_get"];
         put?: never;
@@ -4030,15 +4033,13 @@ export interface paths {
          *     It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
          *
          *     Args:
-         *         idp_slug (str): The slug identifier of the identity provider.
-         *         password_hasher (credentials_integration.PasswordHasher): Password hasher dependency for session management.
-         *         token_manager (access_tokens_integration.TokenManager): Token manager dependency for creating session tokens.
-         *         db (Session): Database session dependency.
-         *         code (str): Authorization code received from the identity provider.
-         *         state (str): State parameter used for CSRF protection (database state ID).
-         *         request (Request): The incoming HTTP request.
-         *         response: Response that receives the cookies.
+         *         request: The incoming HTTP request.
+         *         idp_slug: The slug identifier of the identity provider.
+         *         password_hasher: Password hasher dependency for session management.
+         *         db: Database session dependency.
          *         service: Identity provider service.
+         *         code: Authorization code received from the identity provider.
+         *         state: State parameter used for CSRF protection (database state ID).
          *
          *     Returns:
          *         RedirectResponse: A redirect response to either:
@@ -4047,7 +4048,9 @@ export interface paths {
          *             - Error page: /login with error parameter if callback fails
          *
          *     Raises:
-         *         HTTPException: If the identity provider is not found, disabled, or if callback processing fails.
+         *         NotFoundError: If the identity provider is not found or disabled.
+         *         InvalidInputError: If the state is unknown, expired, bound to another provider or already used.
+         *             Any failure after the state is claimed redirects instead, so the browser never ends on a JSON error.
          *
          *     Notes:
          *         - In link mode: Redirects to settings without creating a new session
@@ -4092,7 +4095,8 @@ export interface paths {
          *         RedirectResponse: A redirect response to the identity provider's authorization URL.
          *
          *     Raises:
-         *         HTTPException: If the identity provider is not found, disabled, or PKCE validation fails.
+         *         NotFoundError: If the identity provider is not found or disabled.
+         *         InvalidInputError: If PKCE validation or the redirect check fails.
          */
         get: operations["initiate_login_api_v1_public_idp_login__idp_slug__get"];
         put?: never;
@@ -4583,15 +4587,16 @@ export interface paths {
         };
         /**
          * Read Sessions User
-         * @description Retrieve all sessions associated with a specific user.
+         * @description Retrieve one page of the sessions associated with a specific user.
          *
          *     Args:
          *         user_id: The ID of the user whose sessions to retrieve.
+         *         page: The requested window.
          *         db: Database session dependency.
          *         request: Incoming request.
          *
          *     Returns:
-         *         List of session objects for the specified user.
+         *         The page of session objects for the specified user.
          */
         get: operations["read_sessions_user_api_v1_sessions_user__user_id__get"];
         put?: never;
@@ -10022,6 +10027,19 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Page[UsersGoalProgress] */
+        Page_UsersGoalProgress_: {
+            /** Items */
+            items: components["schemas"]["UsersGoalProgress"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /** Page[UsersGoalRead] */
         Page_UsersGoalRead_: {
             /** Items */
@@ -10039,6 +10057,19 @@ export interface components {
         Page_UsersRead_: {
             /** Items */
             items: components["schemas"]["UsersRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UsersSessionsRead] */
+        Page_UsersSessionsRead_: {
+            /** Items */
+            items: components["schemas"]["UsersSessionsRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -18088,7 +18119,10 @@ export interface operations {
     };
     get_user_goals_results_api_v1_profile_goals_results_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -18101,7 +18135,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersGoalProgress"][];
+                    "application/json": components["schemas"]["Page_UsersGoalProgress_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -18835,7 +18878,10 @@ export interface operations {
     };
     read_sessions_me_api_v1_profile_sessions_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -18848,7 +18894,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersSessionsRead"][];
+                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -19960,7 +20015,10 @@ export interface operations {
     };
     read_sessions_user_api_v1_sessions_user__user_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 user_id: number;
@@ -19975,7 +20033,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersSessionsRead"][];
+                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
                 };
             };
             /** @description Validation Error */

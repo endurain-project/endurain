@@ -2,12 +2,12 @@
 
 from datetime import UTC, datetime
 
-from fastapi import Request
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.hashing as core_hashing
 import core.logger as core_logger
-import core.network as core_network
+import core.pagination as core_pagination
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.integration_service as oauth_state_integration
@@ -24,12 +24,28 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
-def get_user_sessions(user_id: int, db: Session) -> list[sessions_contracts.SessionRead]:
-    """Return a user's sessions, hiding them in the demo environment."""
+def list_user_sessions(
+    user_id: int,
+    page: core_pagination.PageParams,
+    db: Session,
+) -> sessions_schema.UsersSessionsPage:
+    """Return one page of a user's sessions, hiding them in the demo environment."""
     if core_config.settings.ENVIRONMENT == "demo":
         logger.info("Session retrieval in demo environment", extra=core_logger.context(user_id=user_id))
-        return []
-    return sessions_crud.get_user_sessions(user_id, db)
+        return sessions_schema.UsersSessionsPage.build([], 0, page.page_number, page.num_records)
+    sessions = sessions_crud.get_user_sessions_page(
+        user_id,
+        db,
+        limit=page.num_records,
+        offset=(page.page_number - 1) * page.num_records,
+    )
+    total = sessions_crud.count_user_sessions(user_id, db)
+    return sessions_schema.UsersSessionsPage.build(
+        [sessions_schema.UsersSessionsRead.model_validate(session) for session in sessions],
+        total,
+        page.page_number,
+        page.num_records,
+    )
 
 
 def get_session_with_oauth_state(
@@ -51,7 +67,8 @@ def get_session_with_oauth_state(
 def create_session(
     session_id: str,
     user: users_schema.UsersRead,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     refresh_token: str | None,
     password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
@@ -59,15 +76,15 @@ def create_session(
     oauth_state_id: str | None = None,
     csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Stage a session with hashed tokens and request metadata; the caller commits."""
-    device = sessions_utils.parse_user_agent(sessions_utils.get_user_agent(request.headers))
+    """Stage a session with hashed tokens and the client's IP address and user agent; the caller commits."""
+    device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
     now = datetime.now(UTC)
     session_data = sessions_schema.UsersSessionsInternal(
         id=session_id,
         user_id=user.id,
         refresh_token=password_hasher.hash_password(refresh_token) if refresh_token else None,
-        ip_address=core_network.get_ip_address(request),
+        ip_address=ip_address,
         device_type=device.device_type.value,
         operating_system=device.operating_system,
         operating_system_version=device.operating_system_version,
@@ -84,27 +101,31 @@ def create_session(
         csrf_token_hash=csrf_hash,
     )
     session = sessions_crud.create_session(session_data, db)
-    logger.info("Session created", extra=core_logger.context(user_id=user.id, session_id=session_id))
+    logger.info(
+        "Session created",
+        extra=core_logger.context(user_id=user.id, session_id=core_hashing.log_fingerprint(session_id)),
+    )
     return session
 
 
 def edit_session(
     session: sessions_contracts.SessionRead,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     new_refresh_token: str,
     password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
     db: Session,
     new_csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Stage a refresh-token rotation and request metadata update; the caller commits."""
-    device = sessions_utils.parse_user_agent(sessions_utils.get_user_agent(request.headers))
+    """Stage a refresh-token rotation and client metadata update; the caller commits."""
+    device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(new_csrf_token) if new_csrf_token else None
     session_data = sessions_schema.UsersSessionsInternal.model_validate(session)
     session_data = session_data.model_copy(
         update={
             "refresh_token": password_hasher.hash_password(new_refresh_token),
-            "ip_address": core_network.get_ip_address(request),
+            "ip_address": ip_address,
             "device_type": device.device_type.value,
             "operating_system": device.operating_system,
             "operating_system_version": device.operating_system_version,
@@ -118,14 +139,18 @@ def edit_session(
         }
     )
     updated = sessions_crud.edit_session(session_data, db)
-    logger.debug("Session refresh token rotated", extra=core_logger.context(session_id=session.id))
+    logger.debug(
+        "Session refresh token rotated", extra=core_logger.context(session_id=core_hashing.log_fingerprint(session.id))
+    )
     return updated
 
 
 def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session) -> None:
     """Stage the binding of a newly issued CSRF token to a session; the caller commits."""
     sessions_crud.update_session_csrf_hash(session_id, _hash_csrf_token(new_csrf_token), db)
-    logger.debug("Session CSRF token updated", extra=core_logger.context(session_id=session_id))
+    logger.debug(
+        "Session CSRF token updated", extra=core_logger.context(session_id=core_hashing.log_fingerprint(session_id))
+    )
 
 
 def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
@@ -140,17 +165,25 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
     """Delete a session with its token and OAuth state records and commit."""
     stage_delete_session(session_id, user_id, db)
     db.commit()
-    logger.info("Session deleted", extra=core_logger.context(user_id=user_id, session_id=session_id))
+    logger.info(
+        "Session deleted",
+        extra=core_logger.context(user_id=user_id, session_id=core_hashing.log_fingerprint(session_id)),
+    )
 
 
 def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
     """Atomically claim a session for its one-shot token exchange; the caller commits."""
     session = sessions_crud.get_session_by_id(session_id, db)
     if not sessions_crud.claim_session_for_token_exchange(session_id, hashed_refresh_token, db):
-        logger.warning("Session token exchange claim lost", extra=core_logger.context(session_id=session_id))
+        logger.warning(
+            "Session token exchange claim lost",
+            extra=core_logger.context(session_id=core_hashing.log_fingerprint(session_id)),
+        )
         return False
     _clear_oauth_state(session, db)
-    logger.info("Session token exchange claimed", extra=core_logger.context(session_id=session_id))
+    logger.info(
+        "Session token exchange claimed", extra=core_logger.context(session_id=core_hashing.log_fingerprint(session_id))
+    )
     return True
 
 
@@ -187,7 +220,11 @@ def delete_sessions_by_user_and_commit(user_id: int, db: Session, exclude_sessio
     db.commit()
     logger.info(
         "User sessions deleted",
-        extra=core_logger.context(user_id=user_id, count=deleted_count, excluded_session_id=exclude_session_id),
+        extra=core_logger.context(
+            user_id=user_id,
+            count=deleted_count,
+            excluded_session_id=core_hashing.log_fingerprint(exclude_session_id) if exclude_session_id else None,
+        ),
     )
     return deleted_count
 

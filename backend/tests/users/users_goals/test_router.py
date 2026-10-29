@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
 
@@ -69,58 +70,54 @@ class TestGetUserGoalsResults:
 
     @patch("modules.users.users_goals.router.user_goals_progress_service.get_goals_progress")
     def test_get_user_goals_results_success(self, mock_calculate, fast_api_client, fast_api_app):
-        """Test successful calculation of goal progress."""
-        # Arrange
-        mock_progress = MagicMock(spec=user_goals_schema.UsersGoalProgress)
-        mock_progress.goal_id = 1
-        mock_progress.interval = "weekly"
-        mock_progress.activity_type = "run"
-        mock_progress.goal_type = "calories"
-        mock_progress.start_date = "2024-01-15"
-        mock_progress.end_date = "2024-01-21"
-        mock_progress.percentage_completed = 75
-        mock_progress.total_calories = 3750
-        mock_progress.total_activities_number = None
-        mock_progress.total_distance = None
-        mock_progress.total_elevation = None
-        mock_progress.total_duration = None
-        mock_progress.goal_calories = 5000
-        mock_progress.goal_activities_number = None
-        mock_progress.goal_distance = None
-        mock_progress.goal_elevation = None
-        mock_progress.goal_duration = None
+        """Returns the page of goal progress and forwards the window."""
+        progress = user_goals_schema.UsersGoalProgress(
+            goal_id=1,
+            interval="weekly",
+            activity_type="run",
+            goal_type="calories",
+            start_date="2024-01-15",
+            end_date="2024-01-21",
+            percentage_completed=75,
+            total_calories=3750,
+            goal_calories=5000,
+        )
+        mock_calculate.return_value = user_goals_schema.UsersGoalProgressPage.build([progress], 3, 2, 1)
 
-        mock_calculate.return_value = [mock_progress]
-
-        # Act
         response = fast_api_client.get(
-            "/user_goals/results",
+            "/user_goals/results?page_number=2&num_records=1",
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        # Assert
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
-        mock_calculate.assert_called_once()
+        assert [item["goal_id"] for item in data["items"]] == [1]
+        assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
         assert mock_calculate.call_args.args[0] == 1
+        assert mock_calculate.call_args.args[1] == core_pagination.PageParams(2, 1)
 
     @patch("modules.users.users_goals.router.user_goals_progress_service.get_goals_progress")
     def test_get_user_goals_results_none(self, mock_calculate, fast_api_client, fast_api_app):
-        """Test calculation returns an empty list when no goals."""
-        # Arrange
-        mock_calculate.return_value = []
+        """Returns an empty page when there are no goals."""
+        mock_calculate.return_value = user_goals_schema.UsersGoalProgressPage.build([], 0, 1, 25)
 
-        # Act
         response = fast_api_client.get(
             "/user_goals/results",
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        # Assert
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []
+        assert mock_calculate.call_args.args[1] == core_pagination.PageParams(1, 25)
+
+    def test_get_user_goals_results_rejects_oversized_page(self, fast_api_client, fast_api_app):
+        """A page size above the cap is a validation error."""
+        response = fast_api_client.get(
+            "/user_goals/results?num_records=201",
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.status_code == 422
 
 
 class TestCreateUserGoal:

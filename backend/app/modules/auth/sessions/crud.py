@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import CursorResult, delete, select, update
+from sqlalchemy import CursorResult, delete, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -13,15 +13,33 @@ import modules.auth.sessions.schema as sessions_schema
 import modules.auth.sessions.serializers as sessions_serializers
 
 
-def get_user_sessions(user_id: int, db: Session) -> list[sessions_contracts.SessionRead]:
-    """Return a user's sessions ordered from newest to oldest."""
+def get_user_sessions_page(
+    user_id: int,
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+) -> list[sessions_contracts.SessionRead]:
+    """Return one window of a user's sessions, newest first with the id as tiebreak."""
     try:
         rows = db.execute(
             select(sessions_models.UsersSessions)
             .where(sessions_models.UsersSessions.user_id == user_id)
-            .order_by(sessions_models.UsersSessions.created_at.desc())
+            .order_by(sessions_models.UsersSessions.created_at.desc(), sessions_models.UsersSessions.id)
+            .limit(limit)
+            .offset(offset)
         ).scalars()
         return [sessions_serializers.to_read_schema(row) for row in rows]
+    except SQLAlchemyError as err:
+        raise core_exceptions.ProcessingError("Database error occurred") from err
+
+
+def count_user_sessions(user_id: int, db: Session) -> int:
+    """Return how many sessions a user has."""
+    try:
+        return db.execute(
+            select(func.count(sessions_models.UsersSessions.id)).where(sessions_models.UsersSessions.user_id == user_id)
+        ).scalar_one()
     except SQLAlchemyError as err:
         raise core_exceptions.ProcessingError("Database error occurred") from err
 

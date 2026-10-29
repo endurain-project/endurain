@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.pagination as core_pagination
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.sessions.router as users_sessions_router
 import modules.auth.sessions.schema as users_session_schema
@@ -77,90 +78,67 @@ def sessions_client(sessions_app: FastAPI) -> TestClient:
 class TestReadSessionsUser:
     """Tests for GET /sessions/user/{user_id}."""
 
-    @patch("modules.auth.sessions.router.sessions_service.get_user_sessions")
-    @patch("modules.auth.sessions.service.core_config.settings")
-    def test_returns_sessions_list_for_user(
-        self,
-        mock_settings,
-        mock_get_sessions,
-        sessions_client,
-    ) -> None:
-        """
-        Returns 200 with list of sessions for the specified user.
-        """
-        mock_settings.ENVIRONMENT = "production"
+    @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
+    def test_returns_a_page_of_sessions_for_user(self, mock_list, sessions_client) -> None:
+        """Returns the page envelope and forwards the window."""
         from datetime import datetime, timedelta
 
         now = datetime.now(UTC)
-        mock_session = MagicMock(spec=users_session_schema.UsersSessionsRead)
-        mock_session.id = "sess-1"
-        mock_session.user_id = 5
-        mock_session.ip_address = "127.0.0.1"
-        mock_session.device_type = "PC"
-        mock_session.operating_system = "Linux"
-        mock_session.operating_system_version = "5.15"
-        mock_session.browser = "Firefox"
-        mock_session.browser_version = "120"
-        mock_session.created_at = now
-        mock_session.last_activity_at = now
-        mock_session.expires_at = now + timedelta(days=7)
-        mock_get_sessions.return_value = [mock_session]
+        session = users_session_schema.UsersSessionsRead(
+            id="sess-1",
+            user_id=5,
+            ip_address="127.0.0.1",
+            device_type="PC",
+            operating_system="Linux",
+            operating_system_version="5.15",
+            browser="Firefox",
+            browser_version="120",
+            created_at=now,
+            last_activity_at=now,
+            expires_at=now + timedelta(days=7),
+        )
+        mock_list.return_value = users_session_schema.UsersSessionsPage.build([session], 3, 2, 1)
 
-        response = sessions_client.get("/sessions/user/5")
+        response = sessions_client.get("/sessions/user/5?page_number=2&num_records=1")
 
         assert response.status_code == status.HTTP_200_OK
-        assert isinstance(response.json(), list)
-        mock_get_sessions.assert_called_once()
+        body = response.json()
+        assert [item["id"] for item in body["items"]] == ["sess-1"]
+        assert (body["total"], body["page"], body["num_records"], body["next"]) == (3, 2, 1, 3)
+        assert mock_list.call_args.args[:2] == (5, core_pagination.PageParams(2, 1))
 
-    @patch("modules.auth.sessions.router.sessions_service.get_user_sessions")
-    @patch("modules.auth.sessions.service.core_config.settings")
-    def test_returns_empty_list_when_user_has_no_sessions(
-        self,
-        mock_settings,
-        mock_get_sessions,
-        sessions_client,
-    ) -> None:
-        """
-        Returns 200 with an empty list when the user has no sessions.
-        """
-        mock_settings.ENVIRONMENT = "production"
-        mock_get_sessions.return_value = []
+    @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
+    def test_defaults_the_window_and_returns_an_empty_page(self, mock_list, sessions_client) -> None:
+        """Omitted paging parameters resolve to the default window."""
+        mock_list.return_value = users_session_schema.UsersSessionsPage.build([], 0, 1, 25)
 
         response = sessions_client.get("/sessions/user/42")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == []
+        assert response.json()["items"] == []
+        assert mock_list.call_args.args[:2] == (42, core_pagination.PageParams(1, 25))
+
+    def test_rejects_an_oversized_page(self, sessions_client) -> None:
+        """A page size above the cap is a validation error."""
+        response = sessions_client.get("/sessions/user/1?num_records=201")
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @patch("modules.auth.sessions.service.core_config.settings")
-    def test_returns_empty_list_in_demo_environment(
-        self,
-        mock_settings,
-        sessions_client,
-    ) -> None:
-        """
-        Returns 200 with an empty list in demo environment without
-        querying the database.
-        """
+    def test_returns_an_empty_page_in_demo_environment(self, mock_settings, sessions_client) -> None:
+        """Demo hides sessions without querying the database."""
         mock_settings.ENVIRONMENT = "demo"
 
         response = sessions_client.get("/sessions/user/1")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == []
+        assert response.json()["items"] == []
+        assert response.json()["total"] == 0
 
-    @patch("modules.auth.sessions.router.sessions_service.get_user_sessions")
-    @patch("modules.auth.sessions.service.core_config.settings")
-    def test_propagates_database_error_as_500(
-        self,
-        mock_settings,
-        mock_get_sessions,
-        sessions_client,
-    ) -> None:
-        """
-        Propagates HTTPException raised by the CRUD layer.
-        """
-        mock_settings.ENVIRONMENT = "production"
-        mock_get_sessions.side_effect = HTTPException(
+    @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
+    def test_propagates_database_error_as_500(self, mock_list, sessions_client) -> None:
+        """Propagates the error raised below the router."""
+        mock_list.side_effect = HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred",
         )

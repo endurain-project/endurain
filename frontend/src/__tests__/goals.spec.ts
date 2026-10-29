@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { GoalDto, GoalInput } from '@/features/goals/types'
+import type { GoalDto, GoalInput, GoalProgressDto } from '@/features/goals/types'
 
 import { apiFetch } from '@/services/http'
 import {
   createGoal,
   deleteGoal,
+  fetchGoalResults,
   fetchGoals,
   mapGoal,
   updateGoal,
@@ -155,6 +156,38 @@ describe('goal service requests', () => {
 
     expect(apiFetch).toHaveBeenNthCalledWith(2, '/profile/goals?page_number=2', expect.anything())
     expect(result).toHaveLength(2)
+  })
+
+  it('reads every page of the goal results and maps them', async () => {
+    const progressDto: GoalProgressDto = {
+      goal_id: 1,
+      interval: 'weekly',
+      activity_type: 'run',
+      goal_type: 'calories',
+      start_date: '2026-03-02',
+      end_date: '2026-03-08',
+      percentage_completed: 50,
+      total_calories: 250,
+      goal_calories: 500,
+    }
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [progressDto], next: 2 })
+      .mockResolvedValueOnce({ items: [{ ...progressDto, goal_id: 2 }], next: null })
+
+    const result = await fetchGoalResults()
+
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      1,
+      '/profile/goals/results?page_number=1',
+      expect.anything(),
+    )
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/profile/goals/results?page_number=2',
+      expect.anything(),
+    )
+    expect(result.map((progress) => progress.goalId)).toEqual([1, 2])
+    expect(result[0]).toMatchObject({ total: 250, target: 500, percentageCompleted: 50 })
   })
 
   it('creates a goal via a POST with the snake-cased payload', async () => {

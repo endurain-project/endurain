@@ -7,10 +7,25 @@ import pytest
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.activities.activity.contracts as activity_contracts
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.progress_service as user_goals_progress_service
 import modules.users.users_goals.schema as user_goals_schema
+
+_PAGE = core_pagination.PageParams(1, 25)
+
+
+def _progress(goal_id: int) -> user_goals_schema.UsersGoalProgress:
+    return user_goals_schema.UsersGoalProgress(
+        goal_id=goal_id,
+        interval="weekly",
+        activity_type="run",
+        goal_type="calories",
+        start_date="2024-01-15",
+        end_date="2024-01-21",
+        percentage_completed=0,
+    )
 
 
 class TestCalculateUserGoals:
@@ -18,9 +33,10 @@ class TestCalculateUserGoals:
     Test suite for calculate_user_goals function.
     """
 
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_by_user_id")
+    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
+    @patch("modules.users.users_goals.progress_service.user_goals_crud.count_user_goals", return_value=5)
     @patch("modules.users.users_goals.progress_service.calculate_goal_progress_by_activity_type")
-    def test_calculate_user_goals_success(self, mock_calc_progress, mock_get_goals):
+    def test_calculate_user_goals_success(self, mock_calc_progress, mock_count, mock_get_goals):
         """Test successful calculation of user goals."""
         # Arrange
         user_id = 1
@@ -31,23 +47,27 @@ class TestCalculateUserGoals:
         mock_goal2 = MagicMock(spec=user_goals_models.UsersGoal)
         mock_get_goals.return_value = [mock_goal1, mock_goal2]
 
-        mock_progress1 = MagicMock(spec=user_goals_schema.UsersGoalProgress)
-        mock_progress2 = MagicMock(spec=user_goals_schema.UsersGoalProgress)
+        mock_progress1 = _progress(1)
+        mock_progress2 = _progress(2)
         mock_calc_progress.side_effect = [mock_progress1, mock_progress2]
 
         # Act
-        result = user_goals_progress_service.calculate_user_goals(user_id, date, "sunday", mock_db)
+        page = core_pagination.PageParams(2, 2)
+        result = user_goals_progress_service.calculate_user_goals(user_id, date, "sunday", page, mock_db)
 
         # Assert
-        assert result == [mock_progress1, mock_progress2]
-        mock_get_goals.assert_called_once_with(user_id, mock_db)
+        assert result.items == [mock_progress1, mock_progress2]
+        assert (result.total, result.page, result.num_records, result.next) == (5, 2, 2, 3)
+        mock_get_goals.assert_called_once_with(user_id, mock_db, limit=2, offset=2)
+        mock_count.assert_called_once_with(user_id, mock_db)
         assert mock_calc_progress.call_args_list == [
             ((mock_goal1, date, "sunday", mock_db),),
             ((mock_goal2, date, "sunday", mock_db),),
         ]
 
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_by_user_id")
-    def test_calculate_user_goals_no_goals(self, mock_get_goals):
+    @patch("modules.users.users_goals.progress_service.user_goals_crud.count_user_goals", return_value=0)
+    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
+    def test_calculate_user_goals_no_goals(self, mock_get_goals, mock_count):
         """Test calculation returns an empty list when no goals exist."""
         # Arrange
         user_id = 1
@@ -56,14 +76,16 @@ class TestCalculateUserGoals:
         mock_get_goals.return_value = []
 
         # Act
-        result = user_goals_progress_service.calculate_user_goals(user_id, date, "monday", mock_db)
+        result = user_goals_progress_service.calculate_user_goals(user_id, date, "monday", _PAGE, mock_db)
 
         # Assert
-        assert result == []
+        assert result.items == []
+        assert result.total == 0 and result.next is None
 
     @patch("modules.users.users_goals.progress_service.users_integration.local_today")
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_by_user_id")
-    def test_calculate_user_goals_no_date(self, mock_get_goals, mock_today):
+    @patch("modules.users.users_goals.progress_service.user_goals_crud.count_user_goals", return_value=0)
+    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
+    def test_calculate_user_goals_no_date(self, mock_get_goals, mock_count, mock_today):
         """Omitting the date anchors the period on the athlete's own calendar day."""
         # Arrange
         from datetime import date as date_type
@@ -74,15 +96,15 @@ class TestCalculateUserGoals:
         mock_today.return_value = date_type(2024, 1, 15)
 
         # Act
-        result = user_goals_progress_service.calculate_user_goals(user_id, None, "monday", mock_db)
+        result = user_goals_progress_service.calculate_user_goals(user_id, None, "monday", _PAGE, mock_db)
 
         # Assert
-        assert result == []
+        assert result.items == []
         mock_get_goals.assert_called_once()
         # Resolved from the user's timezone, not the server's UTC clock.
         mock_today.assert_called_once_with(user_id, mock_db)
 
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_by_user_id")
+    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
     def test_calculate_user_goals_value_error(self, mock_get_goals):
         """Test ValueError handling."""
         # Arrange
@@ -93,7 +115,7 @@ class TestCalculateUserGoals:
 
         # Act & Assert
         with pytest.raises(core_exceptions.InvalidInputError):
-            user_goals_progress_service.calculate_user_goals(user_id, date, "monday", mock_db)
+            user_goals_progress_service.calculate_user_goals(user_id, date, "monday", _PAGE, mock_db)
 
 
 class TestCalculateGoalProgressByActivityType:
@@ -416,14 +438,14 @@ class TestGetGoalsProgress:
         mock_users.get_user.return_value.first_day_of_week = "sunday"
         mock_today.return_value = date_type(2026, 3, 12)
 
-        result = user_goals_progress_service.get_goals_progress(1, mock_db)
+        result = user_goals_progress_service.get_goals_progress(1, _PAGE, mock_db)
 
         assert result == mock_calculate.return_value
-        mock_calculate.assert_called_once_with(1, "2026-03-12", "sunday", mock_db)
+        mock_calculate.assert_called_once_with(1, "2026-03-12", "sunday", _PAGE, mock_db)
 
     @patch("modules.users.users_goals.progress_service.users_integration")
     def test_unknown_user_is_not_found(self, mock_users):
         mock_users.get_user.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_goals_progress_service.get_goals_progress(1, MagicMock(spec=Session))
+            user_goals_progress_service.get_goals_progress(1, _PAGE, MagicMock(spec=Session))

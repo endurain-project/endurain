@@ -231,3 +231,7 @@ class UsersGoalProgress(BaseModel):
         validate_assignment=True,
         use_enum_values=True,
     )
+
+
+#: One page of a user's goal progress.
+UsersGoalProgressPage = core_pagination.Page[UsersGoalProgress]

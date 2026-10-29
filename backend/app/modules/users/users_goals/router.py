@@ -64,26 +64,28 @@ def get_user_goals(
 
 @router.get(
     "/results",
-    response_model=list[user_goals_schema.UsersGoalProgress],
+    response_model=user_goals_schema.UsersGoalProgressPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
 def get_user_goals_results(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     db: core_dependencies.DbSession,
-) -> list[user_goals_schema.UsersGoalProgress]:
-    """Calculate and retrieve goal progress for authenticated user.
+) -> user_goals_schema.UsersGoalProgressPage:
+    """Calculate and retrieve one page of goal progress for the authenticated user.
 
     Args:
         request: The incoming request, read by the rate limiter.
         token_user_id: User ID from access token.
+        page: The requested window.
         db: Database session dependency.
 
     Returns:
-        List of goal progress objects, empty if no goals.
+        The page of goal progress objects, empty if no goals.
     """
-    return user_goals_progress_service.get_goals_progress(token_user_id, db)
+    return user_goals_progress_service.get_goals_progress(token_user_id, page, db)
 
 
 @router.post(

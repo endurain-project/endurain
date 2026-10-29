@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Request, Security, status
+from fastapi import APIRouter, Depends, Path, Query, Request, Security, status
 from starlette.responses import Response
 
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.sessions.schema as sessions_schema
@@ -18,26 +19,28 @@ SessionId = Annotated[str, Path()]
 
 @router.get(
     "/user/{user_id}",
-    response_model=list[sessions_schema.UsersSessionsRead],
+    response_model=sessions_schema.UsersSessionsPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:read"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
 def read_sessions_user(
     request: Request,
     user_id: UserId,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     db: core_dependencies.DbSession,
-) -> list[sessions_schema.UsersSessionsRead]:
-    """Retrieve all sessions associated with a specific user.
+) -> sessions_schema.UsersSessionsPage:
+    """Retrieve one page of the sessions associated with a specific user.
 
     Args:
         user_id: The ID of the user whose sessions to retrieve.
+        page: The requested window.
         db: Database session dependency.
         request: Incoming request.
 
     Returns:
-        List of session objects for the specified user.
+        The page of session objects for the specified user.
     """
-    return sessions_service.get_user_sessions(user_id, db)
+    return sessions_service.list_user_sessions(user_id, page, db)
 
 
 @router.delete(

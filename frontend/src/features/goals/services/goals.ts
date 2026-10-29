@@ -4,7 +4,6 @@ import type {
   GoalDto,
   GoalFilters,
   GoalInput,
-  GoalPageDto,
   GoalProgress,
   GoalProgressDto,
   GoalUpdateDto,
@@ -12,6 +11,7 @@ import type {
 
 import { apiFetch } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { fetchAllPages } from '@/services/pagination'
 
 /**
  * Maps a raw goal payload to the clean {@link Goal} model — the single boundary
@@ -78,7 +78,7 @@ export function mapGoalProgress(dto: GoalProgressDto): GoalProgress {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGoalResults(signal?: AbortSignal): Promise<GoalProgress[]> {
-  const dtos = await apiFetch<GoalProgressDto[]>('/profile/goals/results', { signal })
+  const dtos = await fetchAllPages<GoalProgressDto>('/profile/goals/results', undefined, signal)
   return dtos.map(mapGoalProgress)
 }
 
@@ -127,17 +127,7 @@ export async function fetchGoals(
   if (filters.goalType) {
     params.set('goal_type', filters.goalType)
   }
-  const dtos: GoalDto[] = []
-  let page: number | null = 1
-  while (page !== null) {
-    params.set('page_number', String(page))
-    const result: GoalPageDto | null = await apiFetch<GoalPageDto | null>(
-      `/profile/goals?${params.toString()}`,
-      { signal },
-    )
-    dtos.push(...(result?.items ?? []))
-    page = result?.next ?? null
-  }
+  const dtos = await fetchAllPages<GoalDto>('/profile/goals', params, signal)
   return dtos.map(mapGoal)
 }
 

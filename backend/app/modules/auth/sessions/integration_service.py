@@ -2,21 +2,26 @@
 
 from datetime import datetime
 
-from fastapi import Request
 from sqlalchemy.orm import Session
 
+import core.pagination as core_pagination
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
+import modules.auth.sessions.schema as sessions_schema
 import modules.auth.sessions.service as sessions_service
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as users_schema
 
 
-def get_user_sessions(user_id: int, db: Session) -> list[sessions_contracts.SessionRead]:
-    """Return a user's sessions."""
-    return sessions_service.get_user_sessions(user_id, db)
+def list_user_sessions(
+    user_id: int,
+    page: core_pagination.PageParams,
+    db: Session,
+) -> sessions_schema.UsersSessionsPage:
+    """Return one page of a user's sessions."""
+    return sessions_service.list_user_sessions(user_id, page, db)
 
 
 def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:
@@ -35,7 +40,8 @@ def get_session_with_oauth_state(
 def create_session(
     session_id: str,
     user: users_schema.UsersRead,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     refresh_token: str | None,
     password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
@@ -47,7 +53,8 @@ def create_session(
     return sessions_service.create_session(
         session_id,
         user,
-        request,
+        ip_address,
+        user_agent,
         refresh_token,
         password_hasher,
         expires_at,
@@ -59,7 +66,8 @@ def create_session(
 
 def edit_session(
     session: sessions_contracts.SessionRead,
-    request: Request,
+    ip_address: str,
+    user_agent: str,
     new_refresh_token: str,
     password_hasher: credentials_contracts.SupportsHashPassword,
     expires_at: datetime,
@@ -69,7 +77,8 @@ def edit_session(
     """Stage a rotation of a session's refresh token."""
     return sessions_service.edit_session(
         session,
-        request,
+        ip_address,
+        user_agent,
         new_refresh_token,
         password_hasher,
         expires_at,

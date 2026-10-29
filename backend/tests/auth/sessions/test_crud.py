@@ -46,11 +46,19 @@ def _result(value=None, *, rowcount=1):
     return result
 
 
-def test_get_user_sessions_returns_internal_dtos(mock_db):
-    rows = [_row(id="one"), _row(id="two")]
-    mock_db.execute.return_value.scalars.return_value = rows
-    result = sessions_crud.get_user_sessions(7, mock_db)
-    assert [row.id for row in result] == ["one", "two"]
+def test_get_user_sessions_page_pushes_the_window_into_the_query(mock_db):
+    mock_db.execute.return_value.scalars.return_value = [_row(id="one")]
+    result = sessions_crud.get_user_sessions_page(7, mock_db, limit=5, offset=10)
+    assert [row.id for row in result] == ["one"]
+    compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+    assert "ORDER BY users_sessions.created_at DESC, users_sessions.id" in compiled
+    assert "LIMIT 5" in compiled and "OFFSET 10" in compiled
+
+
+def test_count_user_sessions_counts_the_users_rows(mock_db):
+    mock_db.execute.return_value.scalar_one.return_value = 4
+    assert sessions_crud.count_user_sessions(7, mock_db) == 4
+    assert "count" in str(mock_db.execute.call_args.args[0]).lower()
 
 
 @pytest.mark.parametrize("lookup", [sessions_crud.get_session_by_id, sessions_crud.get_session_by_id_not_expired])
