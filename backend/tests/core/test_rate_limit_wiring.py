@@ -28,7 +28,6 @@ from joserfc import jwt
 from joserfc.jwk import OctKey
 from limits import parse as parse_limit
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.public_router as activity_public_router
@@ -414,7 +413,7 @@ def _app_with(tier: str, probe_name: str) -> FastAPI:
         RateLimitExceeded,
         core_rate_limit.rate_limit_exceeded_handler,  # type: ignore[arg-type]
     )
-    app.add_middleware(SlowAPIMiddleware)
+    app.add_middleware(core_rate_limit.RateLimitMiddleware)
 
     def probe(request: Request) -> dict[str, bool]:
         return {"ok": True}

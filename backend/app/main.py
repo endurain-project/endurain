@@ -19,7 +19,6 @@ import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 import core.async_bridge as core_async_bridge
@@ -438,7 +437,7 @@ def create_app() -> FastAPI:
     # Keep the generated schema describing the problem documents those handlers
     # emit, rather than FastAPI's defaults.
     core_problem_details.install_problem_schema(fastapi_app)
-    fastapi_app.add_middleware(SlowAPIMiddleware)
+    fastapi_app.add_middleware(core_rate_limit.RateLimitMiddleware)
 
     # RequestIdMiddleware is added last so it executes
     # first in the request chain, ensuring every log

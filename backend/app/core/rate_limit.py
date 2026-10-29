@@ -13,9 +13,11 @@ and unverifiable tokens.
 
 Architecture
 ------------
-1. ``SlowAPIMiddleware`` applies :data:`DEFAULT` limits
+1. :class:`RateLimitMiddleware` applies :data:`DEFAULT` limits
    to every route automatically (no endpoint code
-   changes needed).
+   changes needed). The counter store is synchronous, so the
+   check runs in the threadpool, as the checks of decorated
+   sync routes already do.
 2. Routers import a tier constant (e.g. :data:`WRITE`)
    and decorate individual endpoints with
    ``@limiter.limit(...)`` for tighter caps.
@@ -32,6 +34,9 @@ from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware, _find_route_handler, _should_exempt, sync_check_limits
+from starlette.concurrency import run_in_threadpool
+from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 
 import core.config as core_config
@@ -78,6 +83,10 @@ EXPENSIVE_PUBLIC_READ: str = "30/minute"
 #: server's shared provider quota (or have the server
 #: throttled/banned) with almost no local cost.
 PROVIDER_SYNC: str = "6/minute"
+
+#: Seconds a connect or a read on the shared counter store may take before the limiter treats the
+#: store as down and counts in memory instead.
+STORE_TIMEOUT_SECONDS: float = 2.0
 
 
 @functools.cache
@@ -147,7 +156,48 @@ def build_limiter(*, storage_uri: str, enabled: bool) -> Limiter:
         enabled=enabled,
         storage_uri=storage_uri,
         in_memory_fallback_enabled=True,
+        storage_options={"socket_connect_timeout": STORE_TIMEOUT_SECONDS, "socket_timeout": STORE_TIMEOUT_SECONDS},
     )
+
+
+class RateLimitMiddleware(SlowAPIMiddleware):
+    """
+    Apply the default limits without blocking the event loop.
+
+    slowapi's own middleware calls its synchronous limit check straight from ``dispatch``, so a
+    slow shared store would stall every request. This runs that same check in the threadpool.
+    """
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        """
+        Check the default limits off the event loop, then pass the request on.
+
+        Args:
+            request: Incoming request.
+            call_next: The rest of the application.
+
+        Returns:
+            The 429 response when a limit is breached, otherwise the application's response.
+        """
+        app = request.app
+        limiter: Limiter = app.state.limiter
+        if not limiter.enabled:
+            return await call_next(request)
+
+        handler = _find_route_handler(app.routes, request.scope)
+        if _should_exempt(limiter, handler):
+            return await call_next(request)
+
+        error_response, should_inject_headers = await run_in_threadpool(
+            sync_check_limits, limiter, request, handler, app
+        )
+        if error_response is not None:
+            return error_response
+
+        response = await call_next(request)
+        if should_inject_headers:
+            response = limiter._inject_headers(response, request.state.view_rate_limit)
+        return response
 
 
 limiter: Limiter = build_limiter(

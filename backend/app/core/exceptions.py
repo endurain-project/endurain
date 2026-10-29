@@ -136,6 +136,16 @@ class InvalidInputError(DomainError):
     default_detail = "Bad Request"
 
 
+class InvalidMfaCodeError(InvalidInputError):
+    """A submitted MFA code did not verify.
+
+    Renders as the same ``400`` and ``invalid-input`` problem as :class:`InvalidInputError`; callers branch on the
+    type to tell a wrong code from other input failures.
+    """
+
+    default_detail = "Invalid MFA code"
+
+
 class ConflictError(DomainError):
     """The action conflicts with the resource's current state."""
 

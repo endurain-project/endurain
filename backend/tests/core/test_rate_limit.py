@@ -211,15 +211,14 @@ class TestStorageOutageFallback:
         from fastapi import FastAPI, Request
         from fastapi.testclient import TestClient
         from slowapi.errors import RateLimitExceeded
-        from slowapi.middleware import SlowAPIMiddleware
 
-        from core.rate_limit import build_limiter, rate_limit_exceeded_handler
+        from core.rate_limit import RateLimitMiddleware, build_limiter, rate_limit_exceeded_handler
 
         limiter = build_limiter(storage_uri="memory://", enabled=True)
         app = FastAPI()
         app.state.limiter = limiter
         app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-        app.add_middleware(SlowAPIMiddleware)
+        app.add_middleware(RateLimitMiddleware)
 
         @app.get("/limited")
         @limiter.limit(limit)
@@ -245,3 +244,81 @@ class TestStorageOutageFallback:
             statuses = [client.get("/limited").status_code for _ in range(4)]
 
         assert statuses == [200, 200, 429, 429]
+
+
+class TestRateLimitMiddleware:
+    """The default-limit check runs off the event loop, with unchanged limiting behaviour."""
+
+    @staticmethod
+    def _app(monkeypatch, default: str = "2/minute"):
+        import threading
+
+        from fastapi import FastAPI
+        from slowapi.errors import RateLimitExceeded
+
+        import core.rate_limit as core_rate_limit
+
+        monkeypatch.setattr(core_rate_limit, "DEFAULT", default)
+        limiter = core_rate_limit.build_limiter(storage_uri="memory://", enabled=True)
+        threads: dict[str, set[int]] = {"check": set(), "loop": set()}
+        original = limiter._check_request_limit
+
+        def recording_check(*args, **kwargs):
+            threads["check"].add(threading.get_ident())
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(limiter, "_check_request_limit", recording_check)
+
+        app = FastAPI()
+        app.state.limiter = limiter
+        app.add_exception_handler(RateLimitExceeded, core_rate_limit.rate_limit_exceeded_handler)
+        app.add_middleware(core_rate_limit.RateLimitMiddleware)
+
+        @app.get("/open")
+        async def open_route() -> dict[str, str]:
+            threads["loop"].add(threading.get_ident())
+            return {"ok": "yes"}
+
+        return app, limiter, threads
+
+    def test_the_check_does_not_run_on_the_event_loop_thread(self, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        app, _, threads = self._app(monkeypatch)
+        assert TestClient(app).get("/open").status_code == 200
+
+        assert threads["check"]
+        assert threads["loop"]
+        assert threads["check"].isdisjoint(threads["loop"])
+
+    def test_the_default_limit_still_answers_429_with_retry_after(self, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        app, _, _ = self._app(monkeypatch)
+        client = TestClient(app)
+        responses = [client.get("/open") for _ in range(3)]
+
+        assert [r.status_code for r in responses] == [200, 200, 429]
+        assert responses[2].headers["Retry-After"]
+        assert responses[2].json()["title"] == "Too Many Requests"
+
+    def test_a_failing_store_falls_back_to_memory_and_keeps_limiting(self, monkeypatch):
+        from unittest.mock import patch
+
+        from fastapi.testclient import TestClient
+
+        app, limiter, _ = self._app(monkeypatch)
+        client = TestClient(app)
+        with patch.object(limiter._limiter, "hit", side_effect=ConnectionError("redis down")):
+            statuses = [client.get("/open").status_code for _ in range(3)]
+
+        assert statuses == [200, 200, 429]
+
+    def test_a_redis_store_fails_fast_instead_of_waiting_forever(self):
+        import core.rate_limit as core_rate_limit
+
+        limiter = core_rate_limit.build_limiter(storage_uri="redis://localhost:6399/0", enabled=True)
+        kwargs = limiter._storage.storage.connection_pool.connection_kwargs
+
+        assert kwargs["socket_connect_timeout"] == core_rate_limit.STORE_TIMEOUT_SECONDS
+        assert kwargs["socket_timeout"] == core_rate_limit.STORE_TIMEOUT_SECONDS
