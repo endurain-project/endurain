@@ -25,6 +25,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as file_uploads
 import core.logger as core_logger
@@ -36,7 +37,6 @@ import modules.activities.activity_ingestion.integration_service as activity_ing
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.gears.gear.integration_service as gears_integration
 import modules.strava.constants as strava_constants
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
@@ -161,7 +161,7 @@ def build_metadata_dict(
         # In a Strava import but with no data on the file: just the basic import record.
         strava_activity_metadata["metadata_found_in_csv"] = False
         strava_activity_metadata["import_dict"] = build_import_dictionary(file_base_name, import_initiated_time, False)
-        logger.info(
+        logger.debug(
             "Bulk file import: no data in activities.csv for activity",
             extra=core_logger.context(console=True, file_name=file_base_name),
         )
@@ -181,7 +181,7 @@ def build_metadata_dict(
     gear_ids = (users_existing_gear_nickname_to_id or {}).get(activity_gear) if activity_gear else None
     strava_activity_metadata["gear_id"] = gear_ids[0] if gear_ids else None
     if activity_gear and not gear_ids:
-        logger.info(
+        logger.debug(
             "Bulk file import: gear named in activities.csv not found, not adding gear to activity",
             extra=core_logger.context(console=True, file_name=file_base_name, gear=activity_gear),
         )
@@ -190,7 +190,7 @@ def build_metadata_dict(
         file_base_name, import_initiated_time, True, strava_activities
     )
     strava_activity_metadata["metadata_found_in_csv"] = True
-    logger.info(
+    logger.debug(
         "Bulk file import: activities.csv metadata extracted",
         extra=core_logger.context(console=True, file_name=file_base_name),
     )
@@ -299,7 +299,7 @@ def import_media_from_strava_bulk_export(
         return
     media_string = (row.get("Media") or "").strip()
     if not media_string:
-        logger.info(
+        logger.debug(
             "Bulk file import: no media list in activities.csv",
             extra=core_logger.context(console=True, file_name=file_base_name),
         )
@@ -356,7 +356,7 @@ def create_activity_media_from_strava_bulk_import(
         # validated bytes, which keeps the photo reachable on object storage and
         # only through the token-gated route.
         activity_media_integration.attach_media_bytes(activity_id, media_strava_filename, data, db)
-        logger.info(
+        logger.debug(
             "Bulk file import: media file imported",
             extra=core_logger.context(console=True, file_name=media_strava_filename),
         )
@@ -539,7 +539,7 @@ def _build_source(
     if strava_activities is None:
         raise core_exceptions.InvalidInputError("The export's activities.csv could not be read")
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         gear = create_gear_dictionary_for_bulk_import(user_id, db)
 
     return StravaBulkImportSource(

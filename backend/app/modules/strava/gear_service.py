@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from stravalib.client import Client
 
 import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
@@ -19,7 +20,6 @@ import modules.gears.gear.schema as gears_schema
 import modules.strava.client_service as strava_client_service
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
@@ -139,7 +139,7 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
     """
     strava_client_service.refresh_user_strava_token(user_id, rate_limits)
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         user_integrations = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
     if user_integrations is None:
         logger.info("Strava not linked, skipping the gear sync", extra=core_logger.context(user_id=user_id))
@@ -156,7 +156,7 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
         (gears_schema.GearType.SHOES, gear) for gear in athlete.shoes or []
     ]
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         new_summaries = [
             (gear_type, gear)
             for gear_type, gear in summaries
@@ -185,7 +185,7 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
             )
         )
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         gears_integration.create_multiple_gears(new_gear, user_id, db)
         user_integrations_integration.set_strava_sync_gear(user_id, True, db)
         assigned = set_activities_gear(user_id, db)
@@ -214,12 +214,12 @@ def parse_gear_csv(path: str, gear_type: gears_schema.GearType) -> list[dict[str
     try:
         rows = list(core_text_imports.read_bounded_csv(path))
     except (csv.Error, UnicodeDecodeError) as err:
-        logger.warning("Unreadable Strava gear CSV", extra=core_logger.context(gear_type=gear_type), exc_info=err)
+        logger.debug("Unreadable Strava gear CSV", extra=core_logger.context(gear_type=gear_type), exc_info=err)
         raise core_exceptions.InvalidInputError("The Strava gear CSV could not be parsed") from err
 
     required = _CSV_COLUMNS[gear_type]
     if rows and not set(required) <= rows[0].keys():
-        logger.warning(
+        logger.debug(
             "Strava gear import refused: required columns missing",
             extra=core_logger.context(gear_type=gear_type, required=required),
         )
@@ -287,6 +287,7 @@ def transform_csv_shoe_gear_to_schema_gear(
     name_column, brand_column, model_column = _CSV_COLUMNS[gears_schema.GearType.SHOES]
     taken = {gear.nickname for gear in gears_integration.get_gear_user(user_id, db)}
     next_number = 1
+    renamed = 0
     shoes = []
     for row in rows:
         raw_name = row[name_column] or ""
@@ -296,7 +297,8 @@ def transform_csv_shoe_gear_to_schema_gear(
                 next_number += 1
             name = f"{core_config.STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE}{next_number}"
             taken.add(name)
-            logger.info("Shoe name was blank, it has been renamed", extra=core_logger.context(nickname=name))
+            renamed += 1
+            logger.debug("Shoe name was blank, it has been renamed", extra=core_logger.context(nickname=name))
         shoes.append(
             gears_schema.GearCreate(
                 user_id=user_id,
@@ -308,6 +310,8 @@ def transform_csv_shoe_gear_to_schema_gear(
                 strava_gear_id=None,
             )
         )
+    if renamed:
+        logger.info("Nameless Strava shoes were renamed", extra=core_logger.context(count=renamed))
     return shoes
 
 

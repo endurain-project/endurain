@@ -126,7 +126,7 @@ class TestRefreshUserStravaToken:
 
     @pytest.fixture(autouse=True)
     def _session(self, monkeypatch):
-        monkeypatch.setattr(strava_utils, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
 
     def test_a_token_far_from_expiry_is_left_alone(self, monkeypatch, rate_limits):
         monkeypatch.setattr(
@@ -164,7 +164,7 @@ class TestRefreshUserStravaToken:
                 open_sessions -= 1
                 return False
 
-        monkeypatch.setattr(strava_utils, "SessionLocal", _Session)
+        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", _Session)
         client = Mock()
         client.refresh_access_token.side_effect = lambda **_k: (
             during_call.append(open_sessions) or {"access_token": "n"}
@@ -193,7 +193,9 @@ class TestRefreshUserStravaToken:
         monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
         db = MagicMock()
         monkeypatch.setattr(
-            strava_utils, "SessionLocal", lambda: MagicMock(__enter__=lambda s: db, __exit__=lambda *a: False)
+            strava_utils.core_database,
+            "SessionLocal",
+            lambda: MagicMock(__enter__=lambda s: db, __exit__=lambda *a: False),
         )
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
@@ -287,7 +289,9 @@ class TestRefreshUserStravaToken:
         monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
         db = MagicMock()
         monkeypatch.setattr(
-            strava_utils, "SessionLocal", lambda: MagicMock(__enter__=lambda s, db=db: db, __exit__=lambda *a: False)
+            strava_utils.core_database,
+            "SessionLocal",
+            lambda: MagicMock(__enter__=lambda s, db=db: db, __exit__=lambda *a: False),
         )
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
@@ -412,7 +416,7 @@ class TestHandleRejectedToken:
         with (
             pytest.MonkeyPatch.context() as patch,
         ):
-            patch.setattr(strava_utils, "SessionLocal", sessions)
+            patch.setattr(strava_utils.core_database, "SessionLocal", sessions)
             unlink = Mock(return_value=unlinked)
             patch.setattr(strava_utils.user_integrations_integration, "unlink_strava_tokens_if_refresh_token", unlink)
             note = Mock(return_value=("n", "ws"))
@@ -462,7 +466,7 @@ class TestRaiseIfUnauthorized:
 class TestTokenRefreshClaim:
     @pytest.fixture(autouse=True)
     def _session(self, monkeypatch):
-        monkeypatch.setattr(strava_utils, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
         monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
 
     def _due(self):

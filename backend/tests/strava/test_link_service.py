@@ -49,7 +49,7 @@ def _start(oauth_states, states, *, user_id=1, stored_state=_STATE, sent_state=_
         strava_client_secret="stored" if has_credentials else None,
     )
     with (
-        patch.object(strava_link_service, "SessionLocal"),
+        patch.object(strava_link_service.core_database, "SessionLocal"),
         patch.object(
             strava_link_service.user_integrations_integration, "get_user_integrations", return_value=integrations
         ),
@@ -57,7 +57,7 @@ def _start(oauth_states, states, *, user_id=1, stored_state=_STATE, sent_state=_
         try:
             return (
                 strava_link_service.start_link(
-                    strava_schema.StravaLinkRequest(state=sent_state, code="c"), user_id, oauth_states, states
+                    user_id, strava_schema.StravaLinkRequest(state=sent_state, code="c"), oauth_states, states
                 ),
                 None,
             )
@@ -143,7 +143,7 @@ def _run(states, *, exchange_error=None):
     sessions = MagicMock()
     sessions.return_value.__enter__.return_value = db
     with (
-        patch.object(strava_link_service, "SessionLocal", sessions),
+        patch.object(strava_link_service.core_database, "SessionLocal", sessions),
         patch.object(
             strava_link_service.user_integrations_integration, "get_user_integrations", return_value=integrations
         ),

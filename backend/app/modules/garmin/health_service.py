@@ -384,7 +384,7 @@ def fetch_and_process_sleep_by_dates(
         sleep_dto = garmin_sleep.get("dailySleepDTO") if garmin_sleep else None
         # For a date without sleep Garmin still returns a DTO whose fields are all null
         if not sleep_dto or not sleep_dto.get("id") or not sleep_dto.get("sleepTimeSeconds"):
-            logger.info(
+            logger.debug(
                 "No Garmin Connect sleep data found",
                 extra=core_logger.context(user_id=user_id, date=day),
             )
@@ -433,17 +433,22 @@ def get_user_garminconnect_health_by_dates(
             "Started Garmin Connect health processing for date range",
             extra=core_logger.context(user_id=user_id, start_date=start_date.date(), end_date=end_date.date()),
         )
+        counts: dict[str, int] = {}
         try:
             for what, fetch in (
-                ("body composition", fetch_and_process_bc_by_dates),
-                ("daily steps", fetch_and_process_ds_by_dates),
-                ("sleep data", fetch_and_process_sleep_by_dates),
+                ("body_composition", fetch_and_process_bc_by_dates),
+                ("daily_steps", fetch_and_process_ds_by_dates),
+                ("sleep_data", fetch_and_process_sleep_by_dates),
             ):
-                count = fetch(session.client, start_date, end_date, user_id)
-                logger.info(
+                counts[what] = fetch(session.client, start_date, end_date, user_id)
+                logger.debug(
                     "Garmin Connect health data processed",
-                    extra=core_logger.context(user_id=user_id, what=what, count=count),
+                    extra=core_logger.context(user_id=user_id, what=what, count=counts[what]),
                 )
+            logger.info(
+                "Garmin Connect health processing finished",
+                extra=core_logger.context(user_id=user_id, **counts),
+            )
         except garminconnect.GarminConnectAuthenticationError as err:
             garmin_service.handle_rejected_token(user_id, session, err)
             return False

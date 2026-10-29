@@ -36,10 +36,10 @@ def push_to_user(user_id: int, message: dict) -> None:
         return
     try:
         platform_runtime.get_active_platform().realtime.notify(websocket_keys.user_key(user_id), message)
-    except ValueError:
+    except ValueError as err:
         logger.error(
             "The realtime channel refused a push; the durable record is unaffected",
-            exc_info=True,
+            exc_info=err,
             extra=core_logger.context(user_id=user_id),
         )
 

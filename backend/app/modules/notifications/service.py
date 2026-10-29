@@ -130,7 +130,7 @@ def mark_all_notifications_as_read(user_id: int, db: Session) -> None:
     logger.debug("Marked all notifications as read", extra=core_logger.context(user_id=user_id))
 
 
-def purge_read_notifications(db: Session) -> int:
+def delete_read_notifications(db: Session) -> int:
     """Delete read notifications past the retention period, one batch per commit.
 
     Args:
@@ -151,8 +151,9 @@ def purge_read_notifications(db: Session) -> int:
         db.commit()
         total += deleted
         if deleted < notifications_constants.PURGE_BATCH_SIZE:
-            logger.info("Purged read notifications", extra=core_logger.context(deleted=total))
-            return total
+            break
+    logger.info("Purged read notifications", extra=core_logger.context(deleted=total))
+    return total
 
 
 def _record_event_notification(

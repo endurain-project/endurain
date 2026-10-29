@@ -1,6 +1,7 @@
 """Strava account linking: the OAuth state is checked on the request, the code exchange runs off it."""
 
 import core.cryptography as core_cryptography
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
@@ -12,7 +13,6 @@ import modules.strava.schema as strava_schema
 import modules.strava.sync_state_store as strava_sync_state_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.websocket.integration_service as websocket_integration
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
@@ -35,8 +35,8 @@ def shutdown_link_pool(*, wait: bool = False) -> None:
 
 
 def start_link(
-    link: strava_schema.StravaLinkRequest,
     user_id: int,
+    link: strava_schema.StravaLinkRequest,
     oauth_states: strava_oauth_state_store.StravaOAuthStateStore,
     states: strava_sync_state_store.StravaSyncStateStore,
 ) -> strava_schema.StravaSyncStatus:
@@ -47,8 +47,8 @@ def start_link(
     entering them again. Poll ``GET /strava/sync/link`` for the outcome.
 
     Args:
-        link: The state and authorization code Strava returned.
         user_id: The authenticated user.
+        link: The state and authorization code Strava returned.
         oauth_states: The one-time OAuth state store.
         states: Shared store of the link's state.
 
@@ -65,7 +65,7 @@ def start_link(
     if not oauth_states.consume(user_id, link.state):
         logger.warning("Strava link refused: unknown or expired state", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.InvalidInputError("The Strava link state is invalid or has expired")
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
     if (
         user_integrations is None
@@ -102,14 +102,14 @@ def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSync
     kind = strava_constants.SyncKind.LINK
     states.set_status(user_id, kind, strava_constants.SyncStatus.RUNNING)
     try:
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
         tokens = strava_client_service.create_strava_client(user_integrations).exchange_code_for_token(
             client_id=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id),
             client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
             code=code,
         )
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             user_integrations_integration.link_strava_account(user_id, tokens, db)
             db.commit()
     except Exception as err:

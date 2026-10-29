@@ -13,7 +13,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     Args:
         events: The event bus to subscribe on.
     """
-    notification_subscribers.register_notification_subscribers(events)
+    notification_subscribers.register_bus_subscribers(events)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -22,7 +22,7 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     Args:
         registry: The durable-handler registry to register on.
     """
-    notification_subscribers.register_notification_durable_handlers(registry)
+    notification_subscribers.register_durable_handlers(registry)
 
 
 DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (

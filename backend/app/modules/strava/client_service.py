@@ -10,6 +10,7 @@ from stravalib.exc import AccessUnauthorized, ObjectNotFound, RateLimitExceeded
 from stravalib.exc import Fault as StravaFault
 
 import core.cryptography as core_cryptography
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.notifications.integration_service as notifications_integration
@@ -17,7 +18,6 @@ import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_integrations.schema as user_integrations_schema
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
@@ -121,7 +121,7 @@ def handle_rejected_token(user_id: int, refresh_token: str | None, err: Exceptio
     )
     if refresh_token is None:
         return
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         if not user_integrations_integration.unlink_strava_tokens_if_refresh_token(user_id, refresh_token, db):
             db.rollback()
             logger.info(
@@ -301,7 +301,7 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
             is deferred until that refresh has finished.
         DependencyFailedError: When the token has expired and Strava could not refresh it.
     """
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
 
     if not _token_refresh_due(user_integrations):
@@ -322,7 +322,7 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
             )
         return
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
     if not _token_refresh_due(user_integrations):
         return
@@ -345,7 +345,7 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
         return
 
     try:
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             if not user_integrations_integration.replace_strava_tokens_if_refresh_token(
                 user_id, user_integrations.strava_refresh_token, tokens, db
             ):

@@ -165,7 +165,7 @@ class TestBuildSource:
             "create_gear_dictionary_for_bulk_import",
             lambda user_id, db: {"Bike": [3]},
         )
-        monkeypatch.setattr(strava_bulk_import_source, "SessionLocal", MagicMock())
+        monkeypatch.setattr(strava_bulk_import_source.core_database, "SessionLocal", MagicMock())
 
         source = strava_bulk_import_source._build_source(7, "2026-10-15T00:00:00", read)
 

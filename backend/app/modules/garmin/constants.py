@@ -6,6 +6,9 @@ import core.attempt_state as core_attempt_state
 
 PROVIDER_NAME = "garminconnect"
 
+#: The job name the link's realtime hints carry.
+LINK_JOB = "garmin-link"
+
 # A login waits this long for the user's MFA code. The stores' lifetimes must exceed it so a live
 # attempt never expires under the poller.
 MFA_WAIT_SECONDS = 60

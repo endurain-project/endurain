@@ -23,10 +23,6 @@ import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
-#: The job name the link's realtime hints carry.
-_LINK_JOB = "garmin-link"
-
-
 # Logins run here, not on the request threadpool: one waits up to MFA_WAIT_SECONDS for the
 # user's code, and a few users linking at once must not leave the API without worker threads.
 # A login past this capacity is refused rather than queued: a queued one would outlive its
@@ -65,7 +61,7 @@ def wait_for_mfa_code(
         The code, or None when none arrived within ``MFA_WAIT_SECONDS``.
     """
     link_states.set_status(user_id, garmin_constants.LinkStatus.MFA_REQUIRED)
-    websocket_integration.push_job_changed(user_id, _LINK_JOB)
+    websocket_integration.push_job_changed(user_id, garmin_constants.LINK_JOB)
     for _ in range(garmin_constants.MFA_WAIT_SECONDS):
         code = mfa_codes.get_code(user_id)
         if code is not None:
@@ -199,7 +195,7 @@ def link_garminconnect(
     finally:
         mfa_codes.delete_code(user_id)
         # Whatever the outcome was, it is recorded by now.
-        websocket_integration.push_job_changed(user_id, _LINK_JOB)
+        websocket_integration.push_job_changed(user_id, garmin_constants.LINK_JOB)
 
 
 def get_link_status(

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from stravalib.client import Client
 
 import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
@@ -27,12 +28,11 @@ import modules.users.users_default_gear.integration_service as users_default_gea
 import modules.users.users_integrations.schema as user_integrations_schema
 import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
-from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
 
 
-def fetch_and_process_activities(
+def fetch_and_process_activities_by_dates(
     strava_client: Client,
     start_date: datetime,
     end_date: datetime,
@@ -81,7 +81,7 @@ def fetch_and_process_activities(
         )
         return None
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         user = users_integration.get_user(user_id, db)
         if user is None:
             raise core_exceptions.NotFoundError("User not found")
@@ -268,7 +268,7 @@ def parse_activity(
 
     if user_integrations.strava_sync_gear:
         # set the gear id for the activity
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             gear = gears_integration.get_gear_by_strava_id(detailed_activity.gear_id, user_id, db)
 
         # set the gear id for the activity
@@ -279,7 +279,7 @@ def parse_activity(
     activity_type = activity_constants.define_activity_type(detailed_activity.sport_type.root)
 
     if gear_id is None:
-        with SessionLocal() as db:
+        with core_database.SessionLocal() as db:
             gear_id = users_default_gear_integration.get_default_gear_for_activity_type(user_id, activity_type, db)
 
     if activity_type != 3 and activity_type != 7 and is_lat_lon_set:
@@ -443,16 +443,16 @@ def process_activity(
     Returns:
         The stored activity, or ``None`` when it was already stored.
     """
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         already_stored = activity_integration.get_activity_by_strava_id(activity.id, user_id, db) is not None
     if already_stored:
-        logger.info(
+        logger.debug(
             "Strava activity already exists, skipping",
             extra=core_logger.context(user_id=user_id, strava_activity_id=activity.id),
         )
         return None
 
-    logger.info(
+    logger.debug(
         "Strava activity will be processed", extra=core_logger.context(user_id=user_id, strava_activity_id=activity.id)
     )
 
@@ -460,7 +460,7 @@ def process_activity(
         activity, user_id, user_privacy_settings, timezone, strava_client, user_integrations, rate_limits
     )
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         return save_activity_streams_laps(
             parsed_activity["activity_to_store"],
             parsed_activity["stream_data"],
@@ -515,7 +515,7 @@ def fetch_and_process_activity_streams(
         # Streams simply don't exist for some activities (e.g. manually added ones from
         # Apple Health have no GPS/sensor streams); import the activity without them.
         if strava_client_service.is_strava_not_found_error(err):
-            logger.info(
+            logger.debug(
                 "No streams found for Strava activity (no sensor data), continuing without streams",
                 extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             )
@@ -719,7 +719,7 @@ def get_user_strava_activities_by_dates(
     """
     strava_client_service.refresh_user_strava_token(user_id, rate_limits)
 
-    with SessionLocal() as db:
+    with core_database.SessionLocal() as db:
         user_integrations = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
 
     if user_integrations is None:
@@ -728,7 +728,7 @@ def get_user_strava_activities_by_dates(
 
     logger.info("Started Strava activities processing", extra=core_logger.context(user_id=user_id))
     strava_client = strava_client_service.create_strava_client(user_integrations)
-    processed = fetch_and_process_activities(
+    processed = fetch_and_process_activities_by_dates(
         strava_client, start_date, end_date, user_id, user_integrations, rate_limits
     )
 

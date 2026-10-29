@@ -105,17 +105,17 @@ class TestNotifyActivityCreatedForEvent:
 
 class TestRegisterActivityNotificationConsumers:
     def test_subscribes_to_created(self):
-        from modules.notifications.subscribers import on_activity_created_notify, register_notification_subscribers
+        from modules.notifications.subscribers import on_activity_created_notify, register_bus_subscribers
 
         events = MagicMock()
-        register_notification_subscribers(events)
+        register_bus_subscribers(events)
         events.subscribe.assert_any_call("activity.created", on_activity_created_notify)
 
     def test_registers_durable_handler(self):
         from modules.notifications import subscribers
 
         registry = MagicMock()
-        subscribers.register_notification_durable_handlers(registry)
+        subscribers.register_durable_handlers(registry)
         registry.register.assert_any_call(
             "activity.created",
             subscribers.ACTIVITY_NOTIFICATION_SUBSCRIBER_ID,

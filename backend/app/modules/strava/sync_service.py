@@ -6,6 +6,9 @@ pool that is not the request threadpool. Either way the sync is recorded in the 
 state, which the client polls and which stops a user queueing the same sync twice.
 """
 
+from datetime import UTC, date, datetime
+
+import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -13,6 +16,8 @@ import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
+import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
+import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.strava.constants as strava_constants
 import modules.strava.event_publishers as strava_event_publishers
 import modules.strava.events as strava_events
@@ -21,6 +26,7 @@ import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
 import modules.strava.sync_state_store as strava_sync_state_store
+import modules.users.users.integration_service as users_integration
 import modules.websocket.constants as websocket_constants
 import modules.websocket.integration_service as websocket_integration
 
@@ -213,3 +219,48 @@ def get_sync_status(
     """
     state = core_sync_runner.read_state(states, user_id, kind, "Strava")
     return strava_schema.StravaSyncStatus(kind=kind, status=state.status)
+
+
+def request_activities_sync(
+    user_id: int,
+    start_date: date,
+    end_date: date,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> activity_ingestion_schema.ActivityIngestionJobRead:
+    """Queue a Strava sync of an explicit date range.
+
+    The range is fetched by a background job, never on the request or an API
+    worker thread.
+
+    Args:
+        user_id: The authenticated user.
+        start_date: First day of the range.
+        end_date: Last day of the range, inclusive.
+        storage: The blob-storage provider.
+        db: Database session.
+
+    Returns:
+        The accepted refresh job, whose outcome is polled on the ingestion-jobs route.
+
+    Raises:
+        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or
+            the range is longer than ``MAX_ACTIVITIES_RANGE_DAYS``.
+    """
+    core_sync_runner.validate_range(
+        start_date,
+        end_date,
+        core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS,
+        users_integration.local_today(user_id, db),
+    )
+
+    job = activity_ingestion_integration.request_provider_sync(
+        user_id,
+        strava_constants.PROVIDER_NAME,
+        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
+        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
+        storage,
+        db,
+    )
+    logger.info("Strava activities queued", extra=core_logger.context(user_id=user_id))
+    return job

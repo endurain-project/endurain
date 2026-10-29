@@ -204,7 +204,7 @@ def _linked_sync(athlete, *, existing_ids=(), gear_error=None):
     sessions = MagicMock()
     integrations = SimpleNamespace(strava_client_id="enc", strava_refresh_token="enc-refresh")
     with (
-        patch.object(gear_utils, "SessionLocal", sessions),
+        patch.object(gear_utils.core_database, "SessionLocal", sessions),
         patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
         patch.object(
             gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=integrations
@@ -256,7 +256,7 @@ class TestGetUserGear:
 
     def test_an_unlinked_user_is_reported_not_crashed(self):
         with (
-            patch.object(gear_utils, "SessionLocal"),
+            patch.object(gear_utils.core_database, "SessionLocal"),
             patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
             patch.object(
                 gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=None
@@ -290,7 +290,7 @@ class TestGetUserGear:
         rate_limits = MagicMock()
         rate_limits.is_rate_limited.return_value = True
         with (
-            patch.object(gear_utils, "SessionLocal"),
+            patch.object(gear_utils.core_database, "SessionLocal"),
             patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
             patch.object(
                 gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=object()

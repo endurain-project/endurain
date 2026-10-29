@@ -41,7 +41,7 @@ def strava_link(
     Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
     pending is answered 409.
     """
-    return strava_link_service.start_link(link, token_user_id, oauth_states, sync_states)
+    return strava_link_service.start_link(token_user_id, link, oauth_states, sync_states)
 
 
 @router.post(
@@ -65,7 +65,7 @@ def strava_retrieve_activities_days(
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
-    return strava_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
+    return strava_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
 
 
 @router.post(

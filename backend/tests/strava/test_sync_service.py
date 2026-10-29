@@ -1,11 +1,13 @@
-"""Queued Strava gear syncs and unlinks run off the request, once per user, and record their outcome."""
+"""Queued Strava gear syncs, unlinks and activity ranges run off the request, once per user, and record their outcome."""
 
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
 import jasil.runtime as platform_runtime
 import pytest
 
 import core.exceptions as core_exceptions
+import core.sync_runner as core_sync_runner
 import modules.strava.constants as strava_constants
 import modules.strava.events as strava_events
 import modules.strava.rate_limit_store as strava_rate_limit_store
@@ -216,3 +218,60 @@ class TestStatus:
 
         with pytest.raises(core_exceptions.NotFoundError):
             strava_sync_service.get_sync_status(8, GEAR, states)
+
+
+@pytest.fixture(autouse=False)
+def _local_today(monkeypatch):
+    monkeypatch.setattr(strava_sync_service.users_integration, "local_today", lambda _user_id, _db: date(2026, 10, 26))
+
+
+@pytest.mark.usefixtures("_local_today")
+class TestRequestActivitiesSync:
+    def test_a_range_ending_in_the_future_is_refused(self):
+        with (
+            patch.object(strava_sync_service.activity_ingestion_integration, "request_provider_sync") as request,
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            strava_sync_service.request_activities_sync(
+                1, date(2026, 10, 1), date(2026, 10, 27), MagicMock(), MagicMock()
+            )
+
+        request.assert_not_called()
+
+    def test_a_range_ending_before_it_starts_is_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            strava_sync_service.request_activities_sync(1, date(2026, 2, 1), date(2026, 1, 1), MagicMock(), MagicMock())
+
+    def test_a_range_longer_than_the_cap_is_refused(self):
+        start = date(2025, 1, 1)
+        too_long = start + timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS)
+        with (
+            patch.object(strava_sync_service.activity_ingestion_integration, "request_provider_sync") as request,
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            strava_sync_service.request_activities_sync(1, start, too_long, MagicMock(), MagicMock())
+
+        request.assert_not_called()
+
+    def test_a_range_at_the_cap_is_queued(self):
+        start = date(2025, 1, 1)
+        last = start + timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS - 1)
+        with patch.object(
+            strava_sync_service.activity_ingestion_integration, "request_provider_sync", return_value="job"
+        ) as request:
+            strava_sync_service.request_activities_sync(1, start, last, MagicMock(), MagicMock())
+
+        request.assert_called_once()
+
+    def test_the_whole_last_day_is_requested(self):
+        with patch.object(
+            strava_sync_service.activity_ingestion_integration, "request_provider_sync", return_value="job"
+        ) as request:
+            job = strava_sync_service.request_activities_sync(
+                1, date(2026, 1, 1), date(2026, 1, 2), MagicMock(), MagicMock()
+            )
+
+        assert job == "job"
+        _user, provider, start, end, *_ = request.call_args.args
+        assert provider == "strava"
+        assert (start.hour, end.hour, end.minute) == (0, 23, 59)

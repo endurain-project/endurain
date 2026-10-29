@@ -127,7 +127,7 @@ class TestRegisterFollowerNotificationConsumers:
         from modules.notifications import subscribers
 
         events = MagicMock()
-        subscribers.register_notification_subscribers(events)
+        subscribers.register_bus_subscribers(events)
         subscribed = {call.args[0]: call.args[1] for call in events.subscribe.call_args_list}
         assert subscribed[follower_events.FOLLOWER_REQUESTED] is subscribers.on_follower_requested_notify
         assert subscribed[follower_events.FOLLOWER_ACCEPTED] is subscribers.on_follower_accepted_notify
@@ -137,7 +137,7 @@ class TestRegisterFollowerNotificationConsumers:
         from modules.notifications import subscribers
 
         registry = MagicMock()
-        subscribers.register_notification_durable_handlers(registry)
+        subscribers.register_durable_handlers(registry)
         registry.register.assert_any_call(
             follower_events.FOLLOWER_REQUESTED,
             subscribers.FOLLOWER_REQUESTED_NOTIFICATION_SUBSCRIBER_ID,

@@ -43,15 +43,15 @@ def _fetch_window(
     )
 
 
-def shutdown_pools() -> None:
-    """Stop the Strava link and sync pools."""
-    strava_link_service.shutdown_link_pool()
-    strava_sync_service.shutdown_sync_pool()
-
-
 def register_activity_provider() -> None:
     """Register Strava, and its export format, on the activities provider registry."""
     activity_ingestion_integration.register_activity_provider(
         strava_constants.PROVIDER_NAME, _fetch_window, strava_service.linked_user_ids
     )
     strava_bulk_import_service.register_bulk_import_format()
+
+
+def shutdown_pools() -> None:
+    """Stop the Strava link and sync pools."""
+    strava_link_service.shutdown_link_pool()
+    strava_sync_service.shutdown_sync_pool()

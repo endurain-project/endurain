@@ -162,7 +162,7 @@ on_follower_accepted_notify = best_effort(notify_follower_accepted_for_event)
 on_follower_request_removed_clear = best_effort(clear_follower_request_notification_for_event)
 
 
-def register_notification_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register every notification event consumer on the running bus."""
     events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_notify)
     events.subscribe(followers_events.FOLLOWER_REQUESTED, on_follower_requested_notify)
@@ -170,7 +170,7 @@ def register_notification_subscribers(events: EventBusProvider) -> None:
     events.subscribe(followers_events.FOLLOWER_REQUEST_REMOVED, on_follower_request_removed_clear)
 
 
-def register_notification_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register every retryable notification event consumer."""
     registry.register(
         activity_events.ACTIVITY_CREATED,

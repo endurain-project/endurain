@@ -184,7 +184,7 @@ class TestPurgeReadNotifications:
             ) as delete,
         ):
             before = datetime.now(UTC)
-            removed = notifications_service.purge_read_notifications(mock_db)
+            removed = notifications_service.delete_read_notifications(mock_db)
         retention.assert_called_once_with(mock_db)
         assert removed == batch + 4
         assert delete.call_count == 2
@@ -197,6 +197,6 @@ class TestPurgeReadNotifications:
             self._retention(0),
             patch("modules.notifications.service.notifications_crud.delete_read_notifications_before") as delete,
         ):
-            assert notifications_service.purge_read_notifications(mock_db) == 0
+            assert notifications_service.delete_read_notifications(mock_db) == 0
         delete.assert_not_called()
         mock_db.commit.assert_not_called()

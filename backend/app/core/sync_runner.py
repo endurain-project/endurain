@@ -8,6 +8,7 @@ made once.
 """
 
 from collections.abc import Callable
+from datetime import date, timedelta
 from enum import StrEnum
 
 import core.attempt_state as core_attempt_state
@@ -26,6 +27,27 @@ MAX_PENDING_LOCAL_SYNCS = 50
 
 #: Longest activity range one request may ask for; a longer history is fetched in several requests.
 MAX_ACTIVITIES_RANGE_DAYS = 366
+
+
+def validate_range(start_date: date, end_date: date, max_days: int, today: date) -> None:
+    """Refuse a reversed date range, a future one, or one longer than ``max_days``.
+
+    Args:
+        start_date: First day of the range.
+        end_date: Last day of the range.
+        max_days: Longest range allowed.
+        today: The user's current calendar date.
+
+    Raises:
+        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or
+            the range is too long.
+    """
+    if start_date > end_date:
+        raise core_exceptions.InvalidInputError("start_date must not be after end_date")
+    if end_date > today:
+        raise core_exceptions.InvalidInputError("end_date must not be in the future")
+    if end_date - start_date >= timedelta(days=max_days):
+        raise core_exceptions.InvalidInputError(f"The date range must not exceed {max_days} days")
 
 
 def run_recorded(
@@ -150,4 +172,6 @@ def close_dead_lettered(states: core_attempt_state.SyncStateStore, user_id: int,
         label: The provider's name, for the log.
     """
     if states.close_pending(user_id, kind):
-        logger.error(f"A {label} sync was dead-lettered", extra=core_logger.context(user_id=user_id, kind=kind))
+        logger.error(
+            "A <label> sync was dead-lettered", extra=core_logger.context(label=label, user_id=user_id, kind=kind)
+        )

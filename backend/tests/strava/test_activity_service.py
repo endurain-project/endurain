@@ -255,7 +255,7 @@ class TestProcessActivity:
 
         _TrackingSession.open_count = 0
         seen: dict[str, int] = {}
-        monkeypatch.setattr(activity_utils, "SessionLocal", _TrackingSession)
+        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", _TrackingSession)
         monkeypatch.setattr(
             activity_utils.activity_integration,
             "get_activity_by_strava_id",
@@ -407,7 +407,7 @@ class TestFetchAndProcessActivitiesIsolation:
     def _run(self, monkeypatch, rate_limits, process):
         monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
         monkeypatch.setattr(activity_utils, "logger", Mock())
-        monkeypatch.setattr(activity_utils, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", lambda: MagicMock())
         monkeypatch.setattr(
             activity_utils.users_integration, "get_user", lambda *_a: Mock(id=1, timezone="Europe/Lisbon")
         )
@@ -417,7 +417,7 @@ class TestFetchAndProcessActivitiesIsolation:
         monkeypatch.setattr(activity_utils, "process_activity", process)
         client = Mock()
         client.get_activities.return_value = [Mock(id=1), Mock(id=2), Mock(id=3)]
-        return activity_utils.fetch_and_process_activities(
+        return activity_utils.fetch_and_process_activities_by_dates(
             client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, _integrations(), rate_limits
         )
 
@@ -460,7 +460,7 @@ class TestARejectedTokenUnlinksTheAccount:
     def handle(self, monkeypatch):
         handle = Mock()
         monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
-        monkeypatch.setattr(activity_utils, "SessionLocal", MagicMock())
+        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", MagicMock())
         monkeypatch.setattr(activity_utils.activity_integration, "get_activity_by_strava_id", lambda *a, **k: None)
         return handle
 
@@ -472,7 +472,7 @@ class TestARejectedTokenUnlinksTheAccount:
         client.get_activities.side_effect = AccessUnauthorized()
 
         with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.fetch_and_process_activities(
+            activity_utils.fetch_and_process_activities_by_dates(
                 client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, self._integrations(), rate_limits
             )
 
@@ -514,12 +514,12 @@ class TestARejectedTokenUnlinksTheAccount:
             activity_utils.users_integration, "get_user", Mock(return_value=Mock(id=1, timezone="UTC", spec_set=None))
         )
         monkeypatch.setattr(activity_utils.users_privacy_settings_integration, "get_privacy_settings", Mock())
-        monkeypatch.setattr(activity_utils, "SessionLocal", MagicMock())
+        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", MagicMock())
         client = Mock()
         client.get_activities.return_value = [Mock(id=1), Mock(id=2)]
 
         with pytest.raises(strava_utils.StravaTokenRejectedError):
-            activity_utils.fetch_and_process_activities(
+            activity_utils.fetch_and_process_activities_by_dates(
                 client, datetime(2026, 1, 1), datetime(2026, 1, 2), 1, self._integrations(), rate_limits
             )
 

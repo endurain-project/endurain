@@ -79,9 +79,9 @@ class WebSocketManager:
         for stale in evicted:
             try:
                 await asyncio.wait_for(stale.close(code=EVICTED_CLOSE_CODE), timeout=SEND_TIMEOUT_SECONDS)
-            except Exception:
+            except Exception as err:
                 logger.debug(
-                    "WebSocket eviction close failed", exc_info=True, extra=core_logger.context(user_id=user_id)
+                    "WebSocket eviction close failed", exc_info=err, extra=core_logger.context(user_id=user_id)
                 )
         logger.debug("WebSocket connected", extra=core_logger.context(user_id=user_id))
 

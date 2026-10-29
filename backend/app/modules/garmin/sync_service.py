@@ -50,27 +50,6 @@ def shutdown_sync_pool(*, wait: bool = False) -> None:
     _sync_pool.shutdown(wait=wait)
 
 
-def _validate_range(start_date: date, end_date: date, max_days: int, today: date) -> None:
-    """Refuse a reversed date range, a future one, or one longer than ``max_days``.
-
-    Args:
-        start_date: First day of the range.
-        end_date: Last day of the range.
-        max_days: Longest range allowed.
-        today: The user's current calendar date.
-
-    Raises:
-        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or
-            the range is too long.
-    """
-    if start_date > end_date:
-        raise core_exceptions.InvalidInputError("start_date must not be after end_date")
-    if end_date > today:
-        raise core_exceptions.InvalidInputError("end_date must not be in the future")
-    if end_date - start_date >= timedelta(days=max_days):
-        raise core_exceptions.InvalidInputError(f"The date range must not exceed {max_days} days")
-
-
 def run_sync(
     payload: garmin_events.SyncRequestedPayload,
     states: garmin_sync_state_store.GarminSyncStateStore,
@@ -260,7 +239,7 @@ def request_health_sync(
         InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or the
             range is longer than ``MAX_HEALTH_RANGE_DAYS``.
     """
-    _validate_range(
+    core_sync_runner.validate_range(
         start_date,
         end_date,
         garmin_constants.MAX_HEALTH_RANGE_DAYS,
@@ -315,7 +294,7 @@ def request_activities_sync(
         InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or the
             range is longer than ``MAX_ACTIVITIES_RANGE_DAYS``.
     """
-    _validate_range(
+    core_sync_runner.validate_range(
         start_date,
         end_date,
         core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS,
