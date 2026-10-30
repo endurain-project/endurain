@@ -27,6 +27,7 @@ from cryptography.fernet import Fernet
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+import core.environment as core_environment
 import core.logger as core_logger
 import core.network as core_network
 
@@ -38,6 +39,10 @@ LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
+
+#: The shortest ``SECRET_KEY`` accepted; ``openssl rand -hex 32``, which the docs prescribe, gives 64.
+MIN_SECRET_KEY_LENGTH = 32
+
 
 SERVER_IMAGES_URL_PATH = "server_images"
 
@@ -69,7 +74,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "info"
     # Websocket PING/PONG keepalive frames are logged at DEBUG; hidden unless enabled.
     LOG_WEBSOCKET_FRAMES: bool = False
-    ENVIRONMENT: str = "production"
+    ENVIRONMENT: core_environment.Environment = "production"
     TZ: str = "UTC"
 
     # --- Deployment shape ---
@@ -1044,6 +1049,14 @@ def check_required_env_vars():
             message = "FERNET_KEY validation failed. Please check the key format and regenerate if necessary."
             logger.warning(message, extra=core_logger.context(console=True))
             raise ValueError(message)
+
+    secret_key = read_secret("SECRET_KEY")
+    if secret_key is not None and len(secret_key) < MIN_SECRET_KEY_LENGTH:
+        message = (
+            f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters. Generate one with 'openssl rand -hex 32'."
+        )
+        logger.error(message, extra=core_logger.context(console=True))
+        raise ValueError(message)
 
     validate_log_level(settings.LOG_LEVEL)
 

@@ -10,7 +10,7 @@ The following environment variables control authentication behavior:
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
-| `SECRET_KEY` | Secret key for JWT signing (min 32 characters recommended) | - | Yes |
+| `SECRET_KEY` | Secret key for JWT signing (min 32 characters required) | - | Yes |
 | `ALGORITHM` | JWT signing algorithm | `HS256` | No |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Access token lifetime in minutes | `15` | No |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Refresh token lifetime in days | `7` | No |

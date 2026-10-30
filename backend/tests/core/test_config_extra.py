@@ -671,7 +671,7 @@ class TestCheckRequiredEnvVars:
     def _minimal_env(self, **overrides):
         env = {
             "DB_PASSWORD": "dbpass",
-            "SECRET_KEY": "secretkey",
+            "SECRET_KEY": "x" * 32,
             "FERNET_KEY": Fernet.generate_key().decode(),
             "ENDURAIN_HOST": "http://localhost:8080",
         }
@@ -962,3 +962,42 @@ class TestSessionPolicySettings:
         assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
         assert s.SESSION_IDLE_TIMEOUT_ENABLED is True
         assert {"ACCESS_TOKEN_EXPIRE_MINUTES", "SESSION_IDLE_TIMEOUT_ENABLED"} <= s.model_fields_set
+
+
+class TestEnvironmentValidation:
+    """ENVIRONMENT is one of the documented values; a typo must not silently disable production hardening."""
+
+    def test_a_typo_is_rejected_at_settings_load(self):
+        from pydantic import ValidationError
+
+        from core.config import Settings
+
+        with pytest.raises(ValidationError, match="ENVIRONMENT"):
+            Settings(_env_file=None, ENVIRONMENT="prod")
+
+    @pytest.mark.parametrize("value", ["production", "demo", "development"])
+    def test_documented_values_are_accepted(self, value):
+        from core.config import Settings
+
+        assert value == Settings(_env_file=None, ENVIRONMENT=value).ENVIRONMENT
+
+    @pytest.mark.parametrize(("value", "deployed"), [("production", True), ("demo", True), ("development", False)])
+    def test_the_deployed_check_is_defined_once(self, value, deployed):
+        from core.environment import is_deployed_environment
+
+        assert is_deployed_environment(value) is deployed
+
+
+class TestSecretKeyLength:
+    """SECRET_KEY must be at least 32 characters, as the docs require."""
+
+    def test_a_short_key_stops_startup(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY="short")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
+        ):
+            check_required_env_vars()

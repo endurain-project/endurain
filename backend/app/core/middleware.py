@@ -14,11 +14,11 @@ from starlette.responses import Response
 from starlette.types import ASGIApp
 
 import core.config as core_config
+import core.environment as core_environment
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
 
-_DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 #: gzip level. The moderate level: the library default, 9, spends several times the CPU for a few percent
@@ -132,7 +132,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Disable unnecessary browser features
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
-        if core_config.settings.ENVIRONMENT in _DEPLOYED_ENVIRONMENTS:
+        if core_environment.is_deployed_environment(core_config.settings.ENVIRONMENT):
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         # Only HTML receives CSP to avoid surprising JSON API clients.

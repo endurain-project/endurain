@@ -62,6 +62,7 @@ from typing import Any
 # ``logger`` is the lower-level module: it must not depend on ``config`` at
 # import time. The two functions below that genuinely need ``settings``
 # import it locally, after both modules have finished initializing.
+import core.environment as core_environment
 import core.middleware_request_id as core_middleware_request_id
 
 # The single configured application logger. Every logger handed out by
@@ -410,7 +411,7 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
 
     # Treat both "production" and "demo" as deployed
     # environments where stdout JSON is preferred.
-    is_deployed = core_config.settings.ENVIRONMENT in ("production", "demo")
+    is_deployed = core_environment.is_deployed_environment(core_config.settings.ENVIRONMENT)
     if is_deployed:
         handlers: list[logging.Handler] = [_configure(logging.StreamHandler(sys.stdout), JsonFormatter())]
         # Also write to file when LOGS_DIR is configured so that Docker

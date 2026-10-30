@@ -23,6 +23,7 @@ import hmac
 import re
 import secrets
 
+import core.environment as core_environment
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 
@@ -143,4 +144,4 @@ def secure_cookie(environment: str) -> bool:
     Returns:
         True when auth cookies must only travel over HTTPS.
     """
-    return environment in {"production", "demo"}
+    return core_environment.is_deployed_environment(environment)

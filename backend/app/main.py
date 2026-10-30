@@ -24,6 +24,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import core.async_bridge as core_async_bridge
 import core.config as core_config
 import core.database as core_database
+import core.environment as core_environment
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
@@ -45,8 +46,6 @@ from core.database import SessionLocal
 from core.database import engine as core_db_engine
 
 logger = core_logger.get_logger(__name__)
-
-_DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 
 
 def _safe_run[T, **P](
@@ -341,7 +340,7 @@ def create_app() -> FastAPI:
 
     is_development = core_config.settings.ENVIRONMENT == "development"
     is_development_or_demo = core_config.settings.ENVIRONMENT in {"development", "demo"}
-    is_deployed = core_config.settings.ENVIRONMENT in _DEPLOYED_ENVIRONMENTS
+    is_deployed = core_environment.is_deployed_environment(core_config.settings.ENVIRONMENT)
     docs_url = f"{core_config.ROOT_PATH}/docs" if is_development_or_demo else None
     redoc_url = f"{core_config.ROOT_PATH}/redoc" if is_development_or_demo else None
 

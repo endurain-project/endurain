@@ -18,7 +18,7 @@ Endurain refuses to start on an inconsistent configuration and names the setting
 - `distributed` with local storage.
 - A job worker with `JOBS_LEASE_SECONDS` below 45.
 
-A missing `SECRET_KEY` or `FERNET_KEY`, or a non-positive token lifetime, also stops the start.
+A missing `SECRET_KEY` or `FERNET_KEY`, a `SECRET_KEY` shorter than 32 characters, an `ENVIRONMENT` other than `production`, `demo` or `development`, or a non-positive token lifetime, also stops the start.
 
 ## You cannot sign in
 

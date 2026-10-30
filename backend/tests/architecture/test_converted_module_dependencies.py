@@ -30,6 +30,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.cryptography": "Encrypts and decrypts the tile-provider API key at rest.",
     "core.email_cooldown": "The per-account cooldown on emails anyone can trigger without signing in.",
     "core.email_templates": "The shared layout the test email is wrapped in.",
+    "core.environment": "The set of deployed environments, asked by the cookie policy.",
     "core.etag": "Conditional-response helpers for activity routes.",
     "core.event_metadata": "Event envelope metadata shared by every publisher.",
     "core.exceptions": "The domain error vocabulary raised by crud and service.",
