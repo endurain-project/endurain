@@ -375,7 +375,8 @@ def parse_frame_exercise_title(frame):
         frame: The decoded FIT data message.
 
     Returns:
-        The exercise title.
+        The exercise title, or None when the frame has no step name (missing or
+        blank) or lacks its exercise category or exercise name code.
     """
     keys_value = [
         "wkt_step_name",
@@ -389,9 +390,14 @@ def parse_frame_exercise_title(frame):
     exercise_title_data = [get_value_from_frame(frame, key) for key in keys_value]
     exercise_title_data.extend(get_raw_value_from_frame(frame, key) for key in keys_raw)
 
+    if exercise_title_data[0] is None or not str(exercise_title_data[0]).strip():
+        return None
+    if exercise_title_data[1] is None or exercise_title_data[2] is None:
+        return None
+
     return activity_exercise_titles_contracts.ActivityExerciseTitlesCreate(
-        exercise_category=exercise_title_data[1] if exercise_title_data[1] else 0,
-        exercise_name=exercise_title_data[2] if exercise_title_data[2] else 0,
+        exercise_category=exercise_title_data[1],
+        exercise_name=exercise_title_data[2],
         wkt_step_name=str(exercise_title_data[0]),
     )
 
@@ -602,7 +608,8 @@ def get_raw_value_from_frame(frame, key, default=None):
     """
     try:
         raw_value = frame.get_raw_value(key)
-        return raw_value if raw_value else default
+        # Same explicit None check as get_value_from_frame, so a genuine 0 (FIT exercise category 0) survives.
+        return raw_value if raw_value is not None else default
     except KeyError:
         return default
 

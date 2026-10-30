@@ -871,3 +871,67 @@ class TestMalformedFitFile:
             pytest.raises(core_exceptions.InvalidInputError),
         ):
             fit_utils.parse_fit_file(str(path))
+
+
+class _ExerciseTitleFrame:
+    """Frame exposing both get_value and get_raw_value over one field dict, like fitdecode."""
+
+    name = "exercise_title"
+
+    def __init__(self, **values):
+        self._values = values
+
+    def get_value(self, key):
+        return self._values.get(key)
+
+    def get_raw_value(self, key):
+        return self._values.get(key)
+
+
+class TestParseFrameExerciseTitle:
+    """parse_frame_exercise_title returns a title only when the step name and both codes are present."""
+
+    def test_normal_frame_returns_title(self):
+        frame = _ExerciseTitleFrame(wkt_step_name="Bench Press", exercise_category=0, exercise_name=5)
+        title = fit_frames.parse_frame_exercise_title(frame)
+        assert title.wkt_step_name == "Bench Press"
+        assert title.exercise_category == 0
+        assert title.exercise_name == 5
+
+    def test_missing_name_returns_none(self):
+        frame = _ExerciseTitleFrame(exercise_category=1, exercise_name=2)
+        assert fit_frames.parse_frame_exercise_title(frame) is None
+
+    def test_blank_name_returns_none(self):
+        frame = _ExerciseTitleFrame(wkt_step_name="   ", exercise_category=1, exercise_name=2)
+        assert fit_frames.parse_frame_exercise_title(frame) is None
+
+    def test_missing_category_returns_none(self):
+        frame = _ExerciseTitleFrame(wkt_step_name="Press", exercise_name=2)
+        assert fit_frames.parse_frame_exercise_title(frame) is None
+
+    def test_missing_exercise_name_returns_none(self):
+        frame = _ExerciseTitleFrame(wkt_step_name="Press", exercise_category=1)
+        assert fit_frames.parse_frame_exercise_title(frame) is None
+
+    def test_category_zero_with_name_keeps_zero(self):
+        frame = _ExerciseTitleFrame(wkt_step_name="Press", exercise_category=0, exercise_name=7)
+        title = fit_frames.parse_frame_exercise_title(frame)
+        assert title.exercise_category == 0
+        assert title.exercise_name == 7
+
+
+class TestExerciseTitleDispatch:
+    """_dispatch_data_message keeps only the exercise titles that parse to a value."""
+
+    def test_unnamed_title_frame_is_not_appended(self):
+        state = fit_utils.FitParseState()
+        fit_utils._dispatch_data_message(_ExerciseTitleFrame(exercise_category=1, exercise_name=2), state, None)
+        assert state.exercises_titles == []
+
+    def test_named_title_frame_is_appended(self):
+        state = fit_utils.FitParseState()
+        frame = _ExerciseTitleFrame(wkt_step_name="Press", exercise_category=1, exercise_name=2)
+        fit_utils._dispatch_data_message(frame, state, None)
+        assert len(state.exercises_titles) == 1
+        assert state.exercises_titles[0].wkt_step_name == "Press"

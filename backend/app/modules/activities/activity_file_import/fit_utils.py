@@ -828,7 +828,9 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
     elif name == "workout_step":
         state.workout_steps.append(activity_file_import_fit_frames.parse_frame_workout_step(frame))
     elif name == "exercise_title":
-        state.exercises_titles.append(activity_file_import_fit_frames.parse_frame_exercise_title(frame))
+        exercise_title = activity_file_import_fit_frames.parse_frame_exercise_title(frame)
+        if exercise_title is not None:
+            state.exercises_titles.append(exercise_title)
     elif name == "record":
         _handle_record_frame(frame, state)
     elif name == "device_settings":
