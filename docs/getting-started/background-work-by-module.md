@@ -240,10 +240,10 @@ Each section says what triggers the work, what happens locally and when distribu
 
 | | |
 | --- | --- |
-| Triggers | A sign-up verification, an approval request to administrators, an approved notice, a password reset request |
+| Triggers | A sign-up verification, an approval request to administrators, an approved notice, a password reset request, an email-change confirmation, a notice to the previous address after an email change |
 | Local | The email is sent from the subscriber pool. A failed send is logged and not retried |
 | Distributed | Durable job. A failed send is retried with backoff, which is why [email retries](advanced-setup.md#supported-environment-variables) need `JOBS_ENABLED=true` |
-| If dropped | Nothing repairs it. A lost reset email is recovered by requesting another, a lost verification email by signing up again or an administrator. The user and token rows stay the source of truth |
+| If dropped | Nothing repairs it. A lost reset email is recovered by requesting another, a lost verification email by signing up again or an administrator, a lost email-change confirmation by resending it from Settings. The user and token rows stay the source of truth |
 
 ### Activity uploads, provider refreshes and bulk imports
 
@@ -306,7 +306,8 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `followers.notify_accepted` | `follower.accepted` | Bus | Nothing, by design | Nothing |
 | `followers.clear_request_notification` | `follower.request_removed` | Bus | Nothing, by design | Nothing |
 | `auth.send_sign_up_verification_email` | `auth.sign_up_verification_requested` | Bus | The user signs up again, or an administrator helps | Nothing |
-| `auth.send_email_change_verification_email` | `auth.email_change_verification_requested` | Bus | The user changes the address again, or an administrator helps | Nothing |
+| `auth.send_email_change_verification_email` | `auth.email_change_verification_requested` | Bus | The user resends the confirmation from Settings, or an administrator helps | Nothing |
+| `auth.send_email_changed_email` | `auth.email_changed` | Bus | Nothing: the notice is a courtesy | Nothing |
 | `auth.send_sign_up_approval_request_email` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user and a notification | Nothing |
 | `auth.send_sign_up_approved_email` | `auth.sign_up_approved` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_sign_up_existing_account_email` | `auth.sign_up_existing_account` | Bus | Nothing: the email is a courtesy | Nothing |

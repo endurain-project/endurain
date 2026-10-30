@@ -94,6 +94,17 @@ The response also includes a `Retry-After` header indicating how many seconds re
 
 The counter resets automatically on a successful step-up verification.
 
+## Email Change
+
+`POST /profile/email/change` (step-up required) does not replace the account's address. It creates a pending change, which answers `204`, and a later request replaces an earlier one. Entering the current address cancels the pending change. The request answers `409` when another account already uses the address. The address switches when the link emailed to the new address is confirmed through `POST /sign-up/confirm` (valid 24 hours). Confirmation answers `409` when another account has taken the address in the meantime, and then nothing changes. Until the change is confirmed, sign-in and password reset keep using the current address.
+
+| What | URL | Method | Description |
+| ---- | --- | ------ | ----------- |
+| **Resend Confirmation** | `/profile/email/change/resend` | POST | Sends the confirmation for the pending address, at most once an hour. Requires scope `profile`, no step-up. Answers `204` whether or not an email was sent |
+| **Cancel Pending Change** | `/profile/email/change` | DELETE | Cancels the pending change, so its confirmation link stops working. Requires scope `profile`, no step-up. Answers `204` |
+
+The profile (`GET /profile`) and the admin user reads (`GET /users/{user_id}`) include `pending_email`, the address awaiting confirmation, and `pending_email_expires_at`, when its link expires. Both are `null` when no change is pending.
+
 ## Progressive Account Lockout
 
 Endurain implements progressive brute-force protection to prevent credential stuffing attacks. Password login failures use this policy:

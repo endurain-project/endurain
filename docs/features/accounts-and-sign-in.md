@@ -38,7 +38,7 @@ Details that matter:
 
 ## Signing in
 
-You sign in with your username (or email) and password. If your account has two-step verification, Endurain asks for a code as a second step. If an administrator has enabled single sign-on, the login page also shows a button per identity provider; see [Single Sign-On](single-sign-on.md).
+You sign in with your username (or email) and password. Sign-in uses the address the account currently has, even while a change to a new address is waiting for confirmation. If your account has two-step verification, Endurain asks for a code as a second step. If an administrator has enabled single sign-on, the login page also shows a button per identity provider; see [Single Sign-On](single-sign-on.md).
 
 After repeated wrong passwords the account is locked for a while, with longer locks for more failures. The limits are in [Account security](../integrate/account-security.md#progressive-account-lockout).
 
@@ -58,7 +58,7 @@ sequenceDiagram
     S-->>U: Password changed
 ```
 
-- The reset link is valid for one hour and works once.
+- The reset link is valid for one hour and works once. It is sent to the address the account currently has, not to a new address still waiting for confirmation.
 - The answer on the page is always the same. This stops anyone from using the form to find out which emails have accounts.
 - Inactive accounts (not yet verified or approved, or deactivated) get no email.
 - Accounts without a local password (they sign in through an identity provider) get no email, and an already-issued reset link no longer works for them. An administrator can [set a password](user-management.md#resetting-a-password).
@@ -80,7 +80,7 @@ An administrator chooses one of two policies and a minimum length for regular us
 
 Under **Settings → Security** you can:
 
-- change your password and email. Both ask you to confirm with your current password, and with a code if two-step verification is on. A changed email must be verified again;
+- change your password and email. Both ask you to confirm with your current password, and with a code if two-step verification is on. A new email takes effect when you follow the link sent to it, valid for 24 hours. Until then your current address stays in place, and Settings shows the pending address with buttons to resend the link or cancel the change. Once the change is confirmed, the previous address gets a notice. If the server has no mail configured, a new email takes effect at once, unverified;
 - turn two-step verification (a TOTP authenticator app) on or off, and regenerate its ten one-time backup codes. Each code has the form `XXXX-XXXX` and works once, and generating new ones invalidates the old;
 - see your signed-in sessions and sign out of any of them or all the others;
 - link or unlink identity providers;
