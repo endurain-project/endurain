@@ -7,11 +7,14 @@ version-race guard, and charting a metric over an interval. A package passes the
 
 from collections.abc import Callable
 from datetime import date
+from typing import Protocol
 
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.record_crud as health_record_crud
@@ -19,6 +22,13 @@ import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
+
+
+class _DatedRecord(Protocol):
+    """A record that is stored once per day."""
+
+    id: int
+    date: date | None
 
 
 def commit_write[ResultT](
@@ -76,3 +86,73 @@ def chart(
     since = health_computation.get_start_date_for_interval(interval.value, users_integration.local_today(user_id, db))
     bucket, points = health_computation.chart_points(lambda bucket: fetch(since, bucket))
     return health_schema.HealthChartSeries(bucket=bucket, points=points)
+
+
+def list_page[RecordT](
+    user_id: int,
+    interval: health_constants.Interval | None,
+    page_number: int,
+    num_records: int,
+    count: Callable[[date | None], int],
+    fetch: Callable[[date | None], list[RecordT]],
+    db: Session,
+) -> core_pagination.Page[RecordT]:
+    """List one page of a user's records within an interval, with their total.
+
+    Args:
+        user_id: The records' owner.
+        interval: Return only records within this interval; ``None`` returns them all.
+        page_number: 1-based page.
+        num_records: Records per page.
+        count: Counts the records on or after the given first day (``None`` for no bound).
+        fetch: Reads the page's records on or after the given first day (``None`` for no bound).
+        db: Database session.
+
+    Returns:
+        The page of records; ``total`` counts every record within the interval.
+    """
+    since = health_computation.interval_start(interval, lambda: users_integration.local_today(user_id, db))
+    return core_pagination.Page.build(fetch(since), count(since), page_number, num_records)
+
+
+def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedRecord, UpdateT: BaseModel](
+    user_id: int,
+    record: CreateT,
+    to_update: type[UpdateT],
+    find: Callable[[str], RecordT | None],
+    create: Callable[[CreateT], RecordT],
+    edit: Callable[[int, UpdateT], RecordT],
+    db: Session,
+) -> RecordT:
+    """Stage a day's record, or an update to the record the user already has for that day.
+
+    A record without a date is stored for the user's own local today. A writer that creates the day first,
+    on this replica or another, is not an error: the record it created is updated instead.
+
+    Args:
+        user_id: The record's owner.
+        record: The record to store; a missing date is set to the user's local today.
+        to_update: The update schema the record is converted to when the day already has a record.
+        find: Reads the user's record for the given ISO date, or ``None``.
+        create: Stages a new record.
+        edit: Stages an update to the record with the given id, overwriting whatever version it holds.
+        db: Database session.
+
+    Returns:
+        The staged record.
+
+    Raises:
+        ConflictError: If the day's record cannot be created or found.
+    """
+    if record.date is None:
+        # The request carries no timezone, so the day is the athlete's own.
+        record.date = users_integration.local_today(user_id, db)
+
+    day = record.date.isoformat()
+    update = to_update(**record.model_dump())
+    return health_computation.upsert_for_day(
+        find=lambda: find(day),
+        create=lambda: create(record),
+        edit=lambda record_id: edit(record_id, update),
+        db=db,
+    )

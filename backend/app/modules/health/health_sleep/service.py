@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import core.pagination as core_pagination
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.schema as health_sleep_schema
@@ -41,10 +40,15 @@ def list_health_sleep(
     Returns:
         The page of records; ``total`` counts every record within the interval.
     """
-    since = health_computation.interval_start(interval, lambda: users_integration.local_today(user_id, db))
-    total = health_sleep_crud.get_health_sleep_number_by_user_id(user_id, db, since)
-    records = health_sleep_crud.get_health_sleep_by_user_id(user_id, db, page_number, num_records, since)
-    return core_pagination.Page.build(records, total, page_number, num_records)
+    return health_record_service.list_page(
+        user_id,
+        interval,
+        page_number,
+        num_records,
+        lambda since: health_sleep_crud.get_health_sleep_number_by_user_id(user_id, db, since),
+        lambda since: health_sleep_crud.get_health_sleep_by_user_id(user_id, db, page_number, num_records, since),
+        db,
+    )
 
 
 def stage_edit_health_sleep(
@@ -95,17 +99,14 @@ def stage_upsert_health_sleep(
     Raises:
         ConflictError: If the date's record cannot be created or found.
     """
-    if health_sleep.date is None:
-        # The request carries no timezone, so the day is the athlete's own.
-        health_sleep.date = users_integration.local_today(user_id, db)
-
-    day = health_sleep.date.isoformat()
-    update = health_sleep_schema.HealthSleepUpdate(**health_sleep.model_dump())
-    return health_computation.upsert_for_day(
-        find=lambda: health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, day, db),
-        create=lambda: health_sleep_crud.create_health_sleep(user_id, health_sleep, db),
-        edit=lambda record_id: stage_edit_health_sleep(user_id, record_id, update, db, if_match="*"),
-        db=db,
+    return health_record_service.upsert_dated(
+        user_id,
+        health_sleep,
+        health_sleep_schema.HealthSleepUpdate,
+        lambda day: health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, day, db),
+        lambda record: health_sleep_crud.create_health_sleep(user_id, record, db),
+        lambda record_id, update: stage_edit_health_sleep(user_id, record_id, update, db, if_match="*"),
+        db,
     )
 
 

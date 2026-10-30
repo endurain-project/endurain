@@ -12,7 +12,6 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.schema as health_fasting_schema
@@ -43,10 +42,15 @@ def list_health_fasting(
     Returns:
         The page of records; ``total`` counts every record within the interval.
     """
-    since = health_computation.interval_start(interval, lambda: users_integration.local_today(user_id, db))
-    total = health_fasting_crud.get_health_fasting_number_by_user_id(user_id, db, since)
-    records = health_fasting_crud.get_health_fasting_by_user_id(user_id, db, page_number, num_records, since)
-    return core_pagination.Page.build(records, total, page_number, num_records)
+    return health_record_service.list_page(
+        user_id,
+        interval,
+        page_number,
+        num_records,
+        lambda since: health_fasting_crud.get_health_fasting_number_by_user_id(user_id, db, since),
+        lambda since: health_fasting_crud.get_health_fasting_by_user_id(user_id, db, page_number, num_records, since),
+        db,
+    )
 
 
 def get_health_fasting(user_id: int, health_fasting_id: int, db: Session) -> health_fasting_schema.HealthFastingRead:
