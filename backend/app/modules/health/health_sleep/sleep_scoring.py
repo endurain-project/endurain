@@ -4,6 +4,36 @@ from datetime import datetime
 
 import modules.health.health_sleep.schema as health_sleep_schema
 
+#: The record fields the scores are computed from.
+SCORING_INPUT_FIELDS = frozenset(
+    {
+        "sleep_start_time_local",
+        "sleep_end_time_local",
+        "total_sleep_seconds",
+        "deep_sleep_seconds",
+        "light_sleep_seconds",
+        "rem_sleep_seconds",
+        "awake_sleep_seconds",
+        "awake_count",
+        "restless_moments_count",
+        "avg_sleep_stress",
+    }
+)
+
+#: The record fields :func:`calculate_and_set_sleep_scores` writes.
+SCORE_FIELDS = frozenset(
+    {
+        "sleep_score_overall",
+        "sleep_score_duration",
+        "sleep_score_quality",
+        "awake_count_score",
+        "rem_percentage_score",
+        "deep_percentage_score",
+        "light_percentage_score",
+        "sleep_stress_score",
+    }
+)
+
 
 def _calculate_sleep_duration_hours(
     total_sleep_seconds: int | None,

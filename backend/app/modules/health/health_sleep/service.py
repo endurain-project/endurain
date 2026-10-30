@@ -134,6 +134,34 @@ def create_health_sleep(
     return created
 
 
+def _score_edit(
+    user_id: int, health_sleep_id: int, health_sleep: health_sleep_schema.HealthSleepUpdate, db: Session
+) -> None:
+    """Set the scores of an update from the record the update produces.
+
+    The scores follow the stored record with the update's fields laid over it. An update that sends no
+    scoring input keeps the stored scores, and scores the client sends never reach the record.
+
+    Args:
+        user_id: The record's owner.
+        health_sleep_id: The record the update changes.
+        health_sleep: The update; its score fields are set in place.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    stored = health_sleep_crud.get_health_sleep_by_id(user_id, health_sleep_id, db)
+    health_sleep.model_fields_set.difference_update(health_sleep_sleep_scoring.SCORE_FIELDS)
+    sent = health_sleep.model_dump(exclude_unset=True)
+    if not health_sleep_sleep_scoring.SCORING_INPUT_FIELDS & sent.keys():
+        return
+    merged = stored.model_copy(update=sent)
+    health_sleep_sleep_scoring.calculate_and_set_sleep_scores(merged)
+    for field in health_sleep_sleep_scoring.SCORE_FIELDS:
+        setattr(health_sleep, field, getattr(merged, field))
+
+
 def edit_health_sleep(
     user_id: int,
     health_sleep_id: int,
@@ -158,12 +186,16 @@ def edit_health_sleep(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    health_sleep_sleep_scoring.calculate_and_set_sleep_scores(health_sleep)
+
+    def stage() -> health_sleep_schema.HealthSleepRead:
+        _score_edit(user_id, health_sleep_id, health_sleep, db)
+        return stage_edit_health_sleep(user_id, health_sleep_id, health_sleep, db, if_match=if_match)
+
     updated = health_record_service.commit_write(
         health_sleep_crud.SPEC,
         health_sleep_id,
         user_id,
-        lambda: stage_edit_health_sleep(user_id, health_sleep_id, health_sleep, db, if_match=if_match),
+        stage,
         db,
         log_message="Edited a sleep record",
     )

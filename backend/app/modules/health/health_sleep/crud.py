@@ -65,6 +65,24 @@ def get_health_sleep_by_user_id(
     )
 
 
+def get_health_sleep_by_id(user_id: int, health_sleep_id: int, db: Session) -> health_sleep_schema.HealthSleepRead:
+    """Retrieve a user's sleep record by id.
+
+    Args:
+        user_id: The record's owner.
+        health_sleep_id: The record to fetch.
+        db: Database session.
+
+    Returns:
+        The record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    row = health_record_crud.get_owned(SPEC, health_sleep_id, user_id, db)
+    return health_computation.to_read_schema(SPEC.read_schema, row)
+
+
 def get_health_sleep_by_date_and_user_id(
     user_id: int, date: str, db: Session
 ) -> health_sleep_schema.HealthSleepRead | None:

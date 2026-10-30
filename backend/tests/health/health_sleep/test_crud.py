@@ -130,3 +130,16 @@ class TestDeleteHealthSleep:
         with pytest.raises(core_exceptions.NotFoundError):
             health_sleep_crud.delete_health_sleep(1, 9, mock_db, if_match="*")
         mock_db.delete.assert_not_called()
+
+
+class TestById:
+    def test_found(self, mock_db):
+        _returns_one(mock_db, _row())
+
+        assert health_sleep_crud.get_health_sleep_by_id(1, 1, mock_db).id == 1
+
+    def test_missing_is_not_found(self, mock_db):
+        _returns_one(mock_db, None)
+
+        with pytest.raises(core_exceptions.NotFoundError, match="Health sleep not found"):
+            health_sleep_crud.get_health_sleep_by_id(1, 99, mock_db)
