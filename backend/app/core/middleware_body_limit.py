@@ -9,7 +9,10 @@ The limits are the ceiling of what any route accepts, not a route's own limit; t
 their files. A reverse proxy in front of the application should enforce a cap as well.
 """
 
+from fastapi import params
+from fastapi.routing import APIRoute
 from starlette.requests import Request
+from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 import core.exceptions as core_exceptions
@@ -20,12 +23,49 @@ MAX_UPLOAD_BODY_BYTES = 520 * 1024 * 1024
 MAX_BODY_BYTES = 10 * 1024 * 1024
 
 
-class _BodyTooLargeError(Exception):
-    """The body being read went over the limit."""
+class _BodyTooLargeError(BaseException):
+    """The body being read went over the limit.
+
+    A ``BaseException`` so that FastAPI's form parsing, which turns any ``Exception`` into a 400, cannot swallow it.
+    """
+
+
+def _upload_routes(app: ASGIApp) -> list[APIRoute]:
+    """List the routes of an application that declare a form or file body.
+
+    Args:
+        app: The application whose routes are inspected.
+
+    Returns:
+        The upload routes, in registration order.
+    """
+    return [
+        route
+        for route in getattr(app, "routes", [])
+        if isinstance(route, APIRoute)
+        and route.body_field is not None
+        and isinstance(route.body_field.field_info, params.Form)
+    ]
+
+
+def _is_multipart(scope: Scope) -> bool:
+    """Tell whether a request declares a multipart body.
+
+    Args:
+        scope: The ASGI connection scope.
+
+    Returns:
+        True when the ``Content-Type`` is ``multipart/*``.
+    """
+    return any(name == b"content-type" and value.lower().startswith(b"multipart/") for name, value in scope["headers"])
 
 
 def _limit_for(scope: Scope) -> int:
-    """Pick the limit that applies to a request by its content type.
+    """Pick the limit that applies to a request.
+
+    The large limit is for a multipart request to a route that declares a form or file body. Every other request,
+    including a multipart one to a route that takes no upload or to no route at all, gets the small one. The routes
+    are read from the application on the first request, after every router has been included.
 
     Args:
         scope: The ASGI connection scope.
@@ -33,9 +73,14 @@ def _limit_for(scope: Scope) -> int:
     Returns:
         The largest body, in bytes, the request may carry.
     """
-    for name, value in scope["headers"]:
-        if name == b"content-type" and value.lower().startswith(b"multipart/"):
-            return MAX_UPLOAD_BODY_BYTES
+    if not _is_multipart(scope):
+        return MAX_BODY_BYTES
+    app = scope["app"]
+    routes = getattr(app.state, "upload_routes", None)
+    if routes is None:
+        routes = app.state.upload_routes = _upload_routes(app)
+    if any(route.matches(scope)[0] == Match.FULL for route in routes):
+        return MAX_UPLOAD_BODY_BYTES
     return MAX_BODY_BYTES
 
 
