@@ -128,3 +128,20 @@ class TestNoSessionAcrossStorageCalls:
 
         assert blob_sweep.sweep_unreferenced_blobs(storage, "area", referenced) == 1
         assert sessions.opened == 1
+
+
+class TestSweepAgedBlobs:
+    def test_removes_only_blobs_older_than_the_age(self):
+        storage = MagicMock()
+        storage.iter_objects.return_value = iter([("old", time() - 7200), ("new", time())])
+
+        assert blob_sweep.sweep_aged_blobs(storage, "area", 3600) == 1
+        storage.delete.assert_called_once_with("area", "old")
+
+    def test_a_failing_delete_does_not_stop_the_sweep(self):
+        storage = MagicMock()
+        storage.iter_objects.return_value = iter([("a", time() - 7200), ("b", time() - 7200)])
+        storage.delete.side_effect = [OSError("busy"), None]
+
+        assert blob_sweep.sweep_aged_blobs(storage, "area", 3600) == 1
+        assert storage.delete.call_count == 2

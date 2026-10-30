@@ -12,7 +12,6 @@ from then on is final.
 
 import asyncio
 import tempfile
-import time
 from collections.abc import Callable
 from typing import Protocol
 from uuid import uuid4
@@ -21,6 +20,7 @@ import jasil.providers as platform_providers
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -351,16 +351,7 @@ def sweep_staged_imports(storage: platform_providers.StorageProvider, older_than
     Returns:
         How many archives were removed.
     """
-    cutoff = time.time() - older_than_seconds
-    stale = [key for key, modified in storage.iter_objects(profile_constants.IMPORT_STAGING_AREA) if modified < cutoff]
-    removed = 0
-    for key in stale:
-        try:
-            storage.delete(profile_constants.IMPORT_STAGING_AREA, key)
-        except Exception as err:
-            logger.warning("Could not delete a stale staged profile import", exc_info=err)
-        else:
-            removed += 1
+    removed = core_blob_sweep.sweep_aged_blobs(storage, profile_constants.IMPORT_STAGING_AREA, older_than_seconds)
     if removed:
         logger.info("Removed stale staged profile imports", extra=core_logger.context(removed=removed))
     return removed

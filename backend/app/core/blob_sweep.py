@@ -4,7 +4,8 @@ A cleanup subscriber or a best-effort delete can miss a blob: a dropped event, o
 after the row changed, leaves nothing that names it. These walk a storage area instead and delete
 what is left, as the reconciliation net of the area's owner.
 
-The first sweep deletes keys whose owning row is gone; the second deletes keys no row names.
+The first sweep deletes keys whose owning row is gone; the second deletes keys no row names; the
+third deletes keys past an age, for an area whose blobs expire on their own.
 
 The helpers import no module: the caller supplies the key parser and the lookup. Each opens one
 short session per batch for that lookup and closes it before any storage call, so no connection
@@ -19,6 +20,9 @@ import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.logger as core_logger
+
+logger = core_logger.get_logger(__name__)
 
 #: A blob younger than this is never swept, so a blob written moments before its
 #: row commits is not mistaken for an orphan.
@@ -135,4 +139,30 @@ def sweep_unreferenced_blobs(
             if key not in named:
                 storage.delete(area, key)
                 removed += 1
+    return removed
+
+
+def sweep_aged_blobs(storage: platform_providers.StorageProvider, area: str, older_than_seconds: float) -> int:
+    """Delete blobs in ``area`` last modified more than ``older_than_seconds`` ago.
+
+    A blob that cannot be deleted is logged and left for the next run; it does not stop the sweep.
+
+    Args:
+        storage: The blob-storage provider.
+        area: The storage area to scan.
+        older_than_seconds: A blob older than this is removed.
+
+    Returns:
+        The number of blobs deleted.
+    """
+    cutoff = time() - older_than_seconds
+    stale = [key for key, modified in storage.iter_objects(area) if modified < cutoff]
+    removed = 0
+    for key in stale:
+        try:
+            storage.delete(area, key)
+        except Exception as err:
+            logger.warning("Could not delete a stale blob", exc_info=err, extra=core_logger.context(area=area))
+        else:
+            removed += 1
     return removed
