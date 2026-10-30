@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { useUpdateFastingTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -55,8 +56,8 @@ async function submitForm(formValues: TargetFormValues): Promise<void> {
     })
     emit('success', t('health.fasting.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.fasting.target.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.fasting.target.saveError'))
   }
 }
 

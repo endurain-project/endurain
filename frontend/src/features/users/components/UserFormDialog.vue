@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
 import {
@@ -178,7 +179,9 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (isStaleWrite(error)) {
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.users.form.conflict'))
     } else if (!props.user && error instanceof HttpError && error.status === 400) {
       // Create-only: the backend's own password-policy check is the only

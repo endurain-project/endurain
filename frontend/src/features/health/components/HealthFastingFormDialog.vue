@@ -13,6 +13,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   dateTimeLocalToIso,
   nowDateTimeLocalInput,
@@ -162,8 +163,8 @@ async function submitForm(formValues: FastingFormValues): Promise<void> {
       emit('success', t('health.fasting.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.fasting.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.fasting.form.saveError'))
   }
 }
 

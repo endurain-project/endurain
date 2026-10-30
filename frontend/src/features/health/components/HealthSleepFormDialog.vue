@@ -10,6 +10,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { required } from '@/utils/validators'
@@ -216,8 +217,8 @@ async function submitForm(values: SleepFormValues): Promise<void> {
       emit('success', t('health.sleep.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.sleep.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.sleep.form.saveError'))
   }
 }
 

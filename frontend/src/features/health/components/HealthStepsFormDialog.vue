@@ -9,6 +9,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { compose, required } from '@/utils/validators'
@@ -94,8 +95,8 @@ async function submitForm(values: StepsFormValues): Promise<void> {
       emit('success', t('health.steps.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.steps.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.steps.form.saveError'))
   }
 }
 

@@ -13,6 +13,7 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
 import { compose, maxLength, pattern, required } from '@/utils/validators'
@@ -116,7 +117,9 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     emit('success', t('settings.profile.edit.success'))
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (isStaleWrite(error)) {
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.profile.edit.conflict'))
     } else {
       emit('error', t('settings.profile.edit.error'))

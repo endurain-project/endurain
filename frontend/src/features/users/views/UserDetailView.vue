@@ -17,6 +17,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { formatMediumDateTime } from '@/utils/datetime'
 import {
   useApproveUserMutation,
@@ -88,7 +89,8 @@ function confirmDelete(): void {
         toasts.success(t('settings.users.delete.success'))
         void router.push({ name: 'settings-users' })
       },
-      onError: () => toasts.error(t('settings.users.delete.error')),
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error')),
     },
   )
 }
@@ -173,7 +175,10 @@ function reject(): void {
         toasts.success(t('settings.users.approval.rejectSuccess'))
         void router.push({ name: 'settings-users' })
       },
-      onError: () => toasts.error(t('settings.users.approval.rejectError')),
+      onError: (error) =>
+        toasts.error(
+          isStaleWrite(error) ? t('app.staleError') : t('settings.users.approval.rejectError'),
+        ),
     },
   )
 }

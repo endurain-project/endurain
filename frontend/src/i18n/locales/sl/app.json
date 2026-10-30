@@ -18,6 +18,7 @@
     "help": "Preverite, ali ENDURAIN_HOST kaže na URL, kjer je vaša instanca Endurain dosegljiva (na primer https://endurain.example.com), in ali zaledje deluje, nato pa znova naložite stran.",
     "reload": "Znova naloži"
   },
+  "staleError": "To je bilo spremenjeno drugje, medtem ko ste si to ogledovali, zato ničesar ni bilo shranjeno. Naložena je trenutna različica. Preglejte jo in poskusite znova.",
   "dismiss": "Zapri",
   "language": "Jezik",
   "theme": {

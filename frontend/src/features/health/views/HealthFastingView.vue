@@ -18,6 +18,7 @@ import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import {
   useActiveFastingQuery,
@@ -86,7 +87,10 @@ function onComplete(status: FastingStatus): void {
     { id: active.id, fastEndTime: new Date().toISOString(), status, version: active.version },
     {
       onSuccess: () => toasts.success(t('health.fasting.complete.success')),
-      onError: () => toasts.error(t('health.fasting.complete.error')),
+      onError: (error) =>
+        toasts.error(
+          isStaleWrite(error) ? t('app.staleError') : t('health.fasting.complete.error'),
+        ),
     },
   )
 }
@@ -142,9 +146,8 @@ function confirmDelete(): void {
         isDeleteOpen.value = false
         toasts.success(t('health.fasting.delete.success'))
       },
-      onError: () => {
-        toasts.error(t('health.fasting.delete.error'))
-      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.fasting.delete.error')),
     },
   )
 }

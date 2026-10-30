@@ -18,6 +18,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { presentGearType } from '@/features/gears/utils/gearType'
 import { useDeleteGearMutation, useGearQuery } from '@/features/gears/composables/useGears'
 
@@ -78,9 +79,8 @@ function confirmDelete(): void {
         toasts.success(t('gears.delete.success'))
         void router.push({ name: 'gears' })
       },
-      onError: () => {
-        toasts.error(t('gears.delete.error'))
-      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error')),
     },
   )
 }

@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { required } from '@/utils/validators'
 import {
   useCreatePoopEntryMutation,
@@ -111,8 +112,8 @@ async function submitForm(values: PoopFormValues): Promise<void> {
       emit('success', t('health.poop.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.poop.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.poop.form.saveError'))
   }
 }
 

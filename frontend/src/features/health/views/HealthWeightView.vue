@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useChartProvider } from '@/composables/useChartProvider'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import {
@@ -133,9 +134,8 @@ function confirmDelete(): void {
         isDeleteOpen.value = false
         toasts.success(t('health.weight.delete.success'))
       },
-      onError: () => {
-        toasts.error(t('health.weight.delete.error'))
-      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.weight.delete.error')),
     },
   )
 }

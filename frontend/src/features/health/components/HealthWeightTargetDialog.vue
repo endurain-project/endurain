@@ -9,6 +9,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { kgToLbs, lbsToKg } from '@/utils/units'
 import { useUpdateWeightTargetMutation } from '@/features/health/composables/useHealth'
@@ -69,8 +70,8 @@ async function submitForm(values: TargetFormValues): Promise<void> {
     })
     emit('success', t('health.weight.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.weight.target.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.weight.target.saveError'))
   }
 }
 

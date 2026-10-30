@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useDeleteUserMutation, useUsersQuery } from '@/features/users/composables/useUsers'
 
 const { t } = useI18n()
@@ -202,9 +203,8 @@ function confirmDelete(): void {
         isDeleteOpen.value = false
         toasts.success(t('settings.users.delete.success'))
       },
-      onError: () => {
-        toasts.error(t('settings.users.delete.error'))
-      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error')),
     },
   )
 }

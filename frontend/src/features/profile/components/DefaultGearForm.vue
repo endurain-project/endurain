@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
 import { useUpdateDefaultGearMutation } from '@/features/profile/composables/useDefaultGear'
 import { DEFAULT_GEAR_GROUPS } from '@/features/profile/utils/defaultGearFields'
@@ -60,8 +61,10 @@ async function submitForm(values: DefaultGearValues): Promise<void> {
   try {
     await updateMutation.mutateAsync({ ...props.defaultGear, ...values })
     toasts.success(t('settings.profile.defaultGear.saveSuccess'))
-  } catch {
-    toasts.error(t('settings.profile.defaultGear.saveError'))
+  } catch (error) {
+    toasts.error(
+      isStaleWrite(error) ? t('app.staleError') : t('settings.profile.defaultGear.saveError'),
+    )
   }
 }
 

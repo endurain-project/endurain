@@ -16,6 +16,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Select } from '@/components/ui/select'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import {
   ACTIVITY_TYPE_LABEL_KEYS,
@@ -152,8 +153,8 @@ async function submitForm(values: GoalFormValues): Promise<void> {
       emit('success', t('settings.goals.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('settings.goals.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('settings.goals.form.saveError'))
   }
 }
 

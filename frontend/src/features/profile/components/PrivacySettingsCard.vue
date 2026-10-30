@@ -12,6 +12,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
 import {
   useUpdateExistingActivitiesVisibilityMutation,
@@ -62,8 +63,10 @@ async function submitPrivacy(values: PrivacySettings): Promise<void> {
   try {
     await updateMutation.mutateAsync(values)
     toasts.success(t('settings.profile.privacy.saveSuccess'))
-  } catch {
-    toasts.error(t('settings.profile.privacy.saveError'))
+  } catch (error) {
+    toasts.error(
+      isStaleWrite(error) ? t('app.staleError') : t('settings.profile.privacy.saveError'),
+    )
   }
 }
 

@@ -18,6 +18,7 @@
     "help": "Zkontrolujte, že ENDURAIN_HOST odkazuje na URL, kde je vaše instance Endurain dostupná (například https://endurain.example.com), a že backend běží, poté stránku znovu načtěte.",
     "reload": "Znovu načíst"
   },
+  "staleError": "Toto bylo změněno jinde, zatímco jste na to koukali, takže nic nebylo uloženo. Byla načtena aktuální verze. Zkontrolujte ji a zkuste to znovu.",
   "dismiss": "Zavřít",
   "language": "Jazyk",
   "theme": {

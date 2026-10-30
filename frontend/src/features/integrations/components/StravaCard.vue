@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown } from '@lucide/vue'
 
@@ -20,6 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
+import { queryKeys } from '@/services/queryKeys'
 import {
   useRetrieveStravaActivitiesMutation,
   useRetrieveStravaGearMutation,
@@ -41,6 +44,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const toasts = useToasts()
+const queryClient = useQueryClient()
 
 const activitiesMutation = useRetrieveStravaActivitiesMutation()
 const gearMutation = useRetrieveStravaGearMutation()
@@ -62,9 +66,16 @@ async function connectStrava(input: StravaClientInput): Promise<void> {
     const state = await beginStravaState()
     await setStravaClient(input, props.integrationsVersion)
     window.location.assign(buildStravaAuthUrl(state, input.clientId))
-  } catch {
+  } catch (error) {
     isConnecting.value = false
-    toasts.error(t('settings.integrations.strava.connectError'))
+    if (isStaleWrite(error)) {
+      // The integrations row changed since the profile was read; reload it so the retry carries the
+      // current version.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
+      toasts.error(t('app.staleError'))
+    } else {
+      toasts.error(t('settings.integrations.strava.connectError'))
+    }
     // Best-effort: clear the half-set state so a retry starts clean.
     void clearStravaState().catch(() => undefined)
   }
