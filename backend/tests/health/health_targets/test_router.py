@@ -287,3 +287,65 @@ class TestReadSendsTheETag:
         response = fast_api_client.get("/health/targets/", headers={"Authorization": "Bearer mock_token"})
 
         assert response.headers["ETag"] == '"4"'
+
+
+class TestTargetsScopes:
+    """The targets routes require the health targets scopes, not the generic health ones."""
+
+    @staticmethod
+    def _client(mock_db, scopes: set[str]):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        import core.database as core_db
+        import modules.auth.dependencies as auth_deps
+        import modules.health.health_targets.router as targets_router
+
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+        app.include_router(targets_router.router, prefix="/health/targets")
+        app.dependency_overrides[auth_deps.get_access_token] = lambda: "token"
+        app.dependency_overrides[core_db.get_db] = lambda: mock_db
+        principal = MagicMock(user_id=1, scopes=frozenset(scopes))
+        return TestClient(app), patch.object(auth_deps, "_resolve_and_cache_principal", return_value=principal)
+
+    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets", return_value=None)
+    def test_read_with_only_health_read_is_refused(self, _get, mock_db):
+        client, principal = self._client(mock_db, {"health:read", "health:write"})
+
+        with principal:
+            response = client.get("/health/targets")
+
+        assert response.status_code == 403
+
+    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets", return_value=None)
+    def test_read_with_health_targets_read_is_allowed(self, _get, mock_db):
+        client, principal = self._client(mock_db, {"health_targets:read"})
+
+        with principal:
+            response = client.get("/health/targets")
+
+        assert response.status_code == 200
+
+    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
+    def test_write_with_only_health_write_is_refused(self, mock_update, mock_db):
+        client, principal = self._client(mock_db, {"health:read", "health:write", "health_targets:read"})
+
+        with principal:
+            response = client.patch("/health/targets", json={"steps": 1}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 403
+        mock_update.assert_not_called()
+
+    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
+    def test_write_with_health_targets_write_is_allowed(self, mock_update, mock_db):
+        import modules.health.health_targets.schema as health_targets_schema
+
+        mock_update.return_value = health_targets_schema.HealthTargetsRead(id=1, user_id=1, version=2, steps=1)
+        client, principal = self._client(mock_db, {"health_targets:write"})
+
+        with principal:
+            response = client.patch("/health/targets", json={"steps": 1}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 200
+        mock_update.assert_called_once()

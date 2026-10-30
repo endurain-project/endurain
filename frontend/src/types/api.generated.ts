@@ -1958,7 +1958,7 @@ export interface paths {
          * @description Retrieve all health targets for the authenticated user.
          *
          *     This endpoint fetches all health targets associated with the user identified by the
-         *     access token. It requires the 'health:read' scope for authorization.
+         *     access token. It requires the 'health_targets:read' scope for authorization.
          *
          *     Args:
          *         token_user_id (int): The user ID extracted from the JWT access token, automatically

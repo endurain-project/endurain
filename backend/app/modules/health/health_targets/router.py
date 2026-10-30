@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=health_targets_schema.HealthTargetsRead | None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health_targets:read"])],
 )
 def read_health_targets_all(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -26,7 +26,7 @@ def read_health_targets_all(
     """Retrieve all health targets for the authenticated user.
 
     This endpoint fetches all health targets associated with the user identified by the
-    access token. It requires the 'health:read' scope for authorization.
+    access token. It requires the 'health_targets:read' scope for authorization.
 
     Args:
         token_user_id (int): The user ID extracted from the JWT access token, automatically
@@ -48,7 +48,7 @@ def read_health_targets_all(
 @router.patch(
     "",
     response_model=health_targets_schema.HealthTargetsRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health_targets:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_health_targets(
