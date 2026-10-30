@@ -54,6 +54,7 @@ def send_verification_email_for_event(event: Event) -> None:
     with core_database.SessionLocal() as db:
         message = sign_up_service.prepare_sign_up_verification_email(
             payload.user_id,
+            event.event_id,
             core_config.settings.ENDURAIN_HOST,
             db,
         )
@@ -68,6 +69,7 @@ def send_email_change_verification_email_for_event(event: Event) -> None:
     with core_database.SessionLocal() as db:
         message = sign_up_service.prepare_email_change_verification_email(
             payload.user_id,
+            event.event_id,
             core_config.settings.ENDURAIN_HOST,
             db,
         )

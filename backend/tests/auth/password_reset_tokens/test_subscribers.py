@@ -29,9 +29,10 @@ class TestHandler:
         prepare.return_value = ("person@example.test", "subject", "<p>body</p>", "body")
         get_platform.return_value.mail = MagicMock()
 
-        password_reset_subscribers.send_password_reset_email_for_event(_event())
+        event = _event()
+        password_reset_subscribers.send_password_reset_email_for_event(event)
 
-        prepare.assert_called_once_with(4, "https://example.test", db)
+        prepare.assert_called_once_with(4, event.event_id, "https://example.test", db)
         session_local.return_value.__exit__.assert_called_once()
         send_email.assert_called_once_with(
             get_platform.return_value.mail,

@@ -12,6 +12,7 @@ import core.email_cooldown as core_email_cooldown
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.computation as token_hashing
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.crud as sign_up_crud
@@ -30,9 +31,25 @@ EXISTING_ACCOUNT_NOTICE_COOLDOWN_SECONDS = 3600
 EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS = 3600
 
 
-def _stage_sign_up_token(user_id: int, email: str, previous_email: str | None, db: Session) -> str:
-    """Stage a user's new verification token, using up their earlier ones, and return its raw value."""
-    token, token_hash = token_hashing.generate_token_and_hash()
+def _stage_sign_up_token(
+    user_id: int, email: str, previous_email: str | None, db: Session, *, token: str | None = None
+) -> str:
+    """Stage a user's new verification token, using up their earlier ones, and return its raw value.
+
+    Args:
+        user_id: The user the token belongs to.
+        email: The address the token proves.
+        previous_email: The account's address when an email change was requested.
+        db: Database session.
+        token: The raw token to store the hash of; a random one is generated when omitted.
+
+    Returns:
+        The raw token.
+    """
+    if token is None:
+        token, token_hash = token_hashing.generate_token_and_hash()
+    else:
+        token_hash = token_hashing.sha256_hex(token)
     now = datetime.now(UTC)
     sign_up_token = sign_up_schema.SignUpToken(
         id=str(uuid4()),
@@ -49,12 +66,18 @@ def _stage_sign_up_token(user_id: int, email: str, previous_email: str | None, d
     return token
 
 
-def create_sign_up_token(user_id: int, email: str, db: Session, previous_email: str | None = None) -> str:
-    """Replace a user's verification tokens and commit the new token.
+def create_sign_up_token(
+    user_id: int, email: str, event_id: str, db: Session, previous_email: str | None = None
+) -> str:
+    """Return the verification token for a mail event, replacing the user's earlier tokens and committing it.
+
+    The token is derived from the event id with the server secret, so redelivering the event yields the
+    same token and leaves the link already mailed working; a later request is a new event and replaces it.
 
     Args:
         user_id: The user the token belongs to.
         email: The address the token proves.
+        event_id: The id of the event the mail is sent for, stable across its retries.
         db: Database session.
         previous_email: The account's address when an email change was requested; set only on an email-change
             token, which replaces that address with ``email`` once confirmed.
@@ -62,7 +85,10 @@ def create_sign_up_token(user_id: int, email: str, db: Session, previous_email: 
     Returns:
         The raw token, which is not stored.
     """
-    token = _stage_sign_up_token(user_id, email, previous_email, db)
+    token = access_tokens_integration.hmac_sha256(f"sign-up:{event_id}")
+    if sign_up_crud.sign_up_token_exists(token_hashing.sha256_hex(token), db):
+        return token
+    _stage_sign_up_token(user_id, email, previous_email, db, token=token)
     db.commit()
     logger.info("Sign-up verification token created", extra=core_logger.context(user_id=user_id))
     return token
@@ -196,12 +222,13 @@ def _issue_verification_email(
     user: users_schema.UsersRead,
     email: str,
     previous_email: str | None,
+    event_id: str,
     frontend_host: str,
     build_email: Callable[[str, str, str, str], tuple[str, str, str]],
     db: Session,
 ) -> tuple[str, str, str, str]:
     """Create a verification link for ``email`` and return the email ``build_email`` makes of it."""
-    token = create_sign_up_token(user.id, email, db, previous_email=previous_email)
+    token = create_sign_up_token(user.id, email, event_id, db, previous_email=previous_email)
     link = f"{frontend_host}/verify-email?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = build_email(user.name, link, frontend_host, locale)
@@ -210,6 +237,7 @@ def _issue_verification_email(
 
 def prepare_sign_up_verification_email(
     user_id: int,
+    event_id: str,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
@@ -218,19 +246,20 @@ def prepare_sign_up_verification_email(
     if user is None:
         return None
     return _issue_verification_email(
-        user, user.email, None, frontend_host, sign_up_email_messages.get_signup_confirmation_email, db
+        user, user.email, None, event_id, frontend_host, sign_up_email_messages.get_signup_confirmation_email, db
     )
 
 
 def prepare_email_change_verification_email(
     user_id: int,
+    event_id: str,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
     """Re-issue the user's pending email-change token and return its email for delivery after the session closes.
 
-    Only a token's hash is stored, so the link is made anew from the pending change and mailed to the pending
-    address.
+    Only a token's hash is stored, so the link is made from the pending change and the event id and mailed to the
+    pending address; a retry of the event gets the same link.
 
     Returns:
         The recipient, subject, HTML and text, or None when the user or a pending change is missing.
@@ -245,6 +274,7 @@ def prepare_email_change_verification_email(
         user,
         pending.email,
         pending.previous_email,
+        event_id,
         frontend_host,
         sign_up_email_messages.get_email_change_confirmation_email,
         db,

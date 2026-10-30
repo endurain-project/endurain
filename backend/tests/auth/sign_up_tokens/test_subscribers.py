@@ -27,11 +27,10 @@ class TestHandlers:
         get_platform.return_value.mail = MagicMock()
         prepare.return_value = ("person@example.test", "subject", "html", "text")
 
-        sign_up_subscribers.send_verification_email_for_event(
-            _event(sign_up_events.SIGN_UP_VERIFICATION_REQUESTED, {"user_id": 4})
-        )
+        event = _event(sign_up_events.SIGN_UP_VERIFICATION_REQUESTED, {"user_id": 4})
+        sign_up_subscribers.send_verification_email_for_event(event)
 
-        prepare.assert_called_once_with(4, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        prepare.assert_called_once_with(4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
         session_local.return_value.__exit__.assert_called_once()
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
@@ -61,11 +60,10 @@ class TestEmailChangeVerificationHandler:
         db = session_local.return_value.__enter__.return_value
         prepare.return_value = ("new@example.test", "subject", "html", "text")
 
-        sign_up_subscribers.send_email_change_verification_email_for_event(
-            _event(sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": 4})
-        )
+        event = _event(sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": 4})
+        sign_up_subscribers.send_email_change_verification_email_for_event(event)
 
-        prepare.assert_called_once_with(4, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        prepare.assert_called_once_with(4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
     def test_both_registration_paths_route_the_event_to_its_handler(self):

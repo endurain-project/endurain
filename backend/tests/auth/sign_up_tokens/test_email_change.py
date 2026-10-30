@@ -67,7 +67,9 @@ class TestCreateSignUpTokenStoresAddresses:
     def test_a_pending_change_stores_both_addresses_and_uses_up_earlier_tokens(self, db):
         _add_token(db, token_id="old", token="old", email="user7@example.com", previous_email=None)
 
-        token = sign_up_service.create_sign_up_token(7, "new@example.com", db, previous_email="user7@example.com")
+        token = sign_up_service.create_sign_up_token(
+            7, "new@example.com", "event-1", db, previous_email="user7@example.com"
+        )
 
         rows = {row.id: row for row in _tokens(db)}
         assert rows["old"].used is True
@@ -77,7 +79,7 @@ class TestCreateSignUpTokenStoresAddresses:
         assert fresh.token_hash == token_hashing.sha256_hex(token)
 
     def test_a_sign_up_token_records_only_the_address_it_proves(self, db):
-        sign_up_service.create_sign_up_token(7, "user7@example.com", db)
+        sign_up_service.create_sign_up_token(7, "user7@example.com", "event-1", db)
 
         row = _tokens(db).one()
         assert (row.email, row.previous_email) == ("user7@example.com", None)
@@ -121,16 +123,16 @@ class TestRequestEmailChange:
 
 class TestPrepareEmailChangeVerificationEmail:
     def test_nothing_pending_returns_none_and_issues_no_token(self, db):
-        assert sign_up_service.prepare_email_change_verification_email(7, _HOST, db) is None
+        assert sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db) is None
         assert _tokens(db).count() == 0
 
     def test_an_unknown_user_returns_none(self, db):
-        assert sign_up_service.prepare_email_change_verification_email(99, _HOST, db) is None
+        assert sign_up_service.prepare_email_change_verification_email(99, "event-1", _HOST, db) is None
 
     def test_the_pending_token_is_reissued_to_the_pending_address(self, db):
         _add_token(db, token_id="pending", token="p", email="new@example.com", previous_email="user7@example.com")
 
-        message = sign_up_service.prepare_email_change_verification_email(7, _HOST, db)
+        message = sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db)
 
         assert message is not None
         recipient, _subject, html_content, _text = message
@@ -152,7 +154,52 @@ class TestPrepareEmailChangeVerificationEmail:
             expires_in=timedelta(hours=-1),
         )
 
-        assert sign_up_service.prepare_email_change_verification_email(7, _HOST, db) is None
+        assert sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db) is None
+
+
+def _link_token(message) -> str:
+    return message[2].split("verify-email?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+
+
+class TestRetriedMailEvent:
+    """The event is delivered at least once, so preparing it again must not break the link already mailed."""
+
+    def _claim(self, db, token: str):
+        claimed = sign_up_crud.claim_sign_up_token(token_hashing.sha256_hex(token), db)
+        db.commit()
+        return claimed
+
+    def test_a_retried_email_change_mails_the_same_link_and_it_still_works(self, db):
+        _add_token(db, token_id="pending", token="p", email="new@example.com", previous_email="user7@example.com")
+
+        first = _link_token(sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db))
+        second = _link_token(sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db))
+
+        assert second == first
+        assert self._claim(db, first) is not None
+
+    def test_a_retried_sign_up_verification_mails_the_same_link_and_it_still_works(self, db):
+        first = _link_token(sign_up_service.prepare_sign_up_verification_email(7, "event-1", _HOST, db))
+        second = _link_token(sign_up_service.prepare_sign_up_verification_email(7, "event-1", _HOST, db))
+
+        assert second == first
+        assert self._claim(db, first) is not None
+
+    def test_a_new_request_replaces_the_earlier_link(self, db):
+        first = _link_token(sign_up_service.prepare_sign_up_verification_email(7, "event-1", _HOST, db))
+        second = _link_token(sign_up_service.prepare_sign_up_verification_email(7, "event-2", _HOST, db))
+
+        assert second != first
+        assert self._claim(db, first) is None
+        assert self._claim(db, second) is not None
+
+    def test_a_retry_of_an_older_request_does_not_revoke_the_newer_link(self, db):
+        sign_up_service.prepare_sign_up_verification_email(7, "event-1", _HOST, db)
+        newer = _link_token(sign_up_service.prepare_sign_up_verification_email(7, "event-2", _HOST, db))
+
+        sign_up_service.prepare_sign_up_verification_email(7, "event-1", _HOST, db)
+
+        assert self._claim(db, newer) is not None
 
 
 class TestVerifyEmailOfAPendingChange:

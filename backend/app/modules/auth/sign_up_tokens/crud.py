@@ -72,6 +72,12 @@ def get_sign_up_token_by_id(token_id: str, db: Session) -> sign_up_contracts.Sig
     return sign_up_serializers.to_state(row) if row is not None else None
 
 
+def sign_up_token_exists(token_hash: str, db: Session) -> bool:
+    """Return whether a token with this hash was ever stored, used or not."""
+    stmt = select(sign_up_models.SignUpToken.id).where(sign_up_models.SignUpToken.token_hash == token_hash)
+    return db.execute(stmt).first() is not None
+
+
 def create_sign_up_token(
     token: sign_up_schema.SignUpToken,
     db: Session,

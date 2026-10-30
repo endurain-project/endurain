@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.computation as token_hashing
 import modules.auth.sign_up_tokens.integration_service as sign_up_integration
 import modules.auth.sign_up_tokens.service as sign_up_service
 
@@ -12,21 +13,22 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 class TestCreateSignUpToken:
     @patch("modules.auth.sign_up_tokens.service.sign_up_crud.create_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.sign_up_crud.mark_user_sign_up_tokens_used")
-    @patch(
-        "modules.auth.sign_up_tokens.service.token_hashing.generate_token_and_hash", return_value=("plain", "hashed")
-    )
-    def test_invalidates_old_tokens_then_stages_new_one(self, _generate, invalidate, create, mock_db):
+    @patch("modules.auth.sign_up_tokens.service.sign_up_crud.sign_up_token_exists", return_value=False)
+    @patch("modules.auth.sign_up_tokens.service.access_tokens_integration.hmac_sha256", return_value="plain")
+    def test_invalidates_old_tokens_then_stages_new_one(self, _derive, _exists, invalidate, create, mock_db):
         order = MagicMock()
         order.attach_mock(invalidate, "invalidate")
         order.attach_mock(create, "create")
 
         assert (
-            sign_up_service.create_sign_up_token(7, "a@example.test", mock_db, previous_email="b@example.test")
+            sign_up_service.create_sign_up_token(
+                7, "a@example.test", "event-1", mock_db, previous_email="b@example.test"
+            )
             == "plain"
         )
 
         assert [call[0] for call in order.mock_calls] == ["invalidate", "create"]
-        assert create.call_args.args[0].token_hash == "hashed"
+        assert create.call_args.args[0].token_hash == token_hashing.sha256_hex("plain")
         assert create.call_args.args[0].email == "a@example.test"
         assert create.call_args.args[0].previous_email == "b@example.test"
         invalidate.assert_called_once_with(7, mock_db)
@@ -80,8 +82,11 @@ class TestEmailRequests:
 class TestEmailPreparation:
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user", return_value=None)
     def test_missing_records_are_skipped(self, _get_user, mock_db):
-        assert sign_up_service.prepare_sign_up_verification_email(1, "https://example.test", mock_db) is None
-        assert sign_up_service.prepare_email_change_verification_email(1, "https://example.test", mock_db) is None
+        assert sign_up_service.prepare_sign_up_verification_email(1, "event-1", "https://example.test", mock_db) is None
+        assert (
+            sign_up_service.prepare_email_change_verification_email(1, "event-1", "https://example.test", mock_db)
+            is None
+        )
         assert sign_up_service.prepare_sign_up_approved_email(1, "https://example.test", mock_db) is None
 
     @patch("modules.auth.sign_up_tokens.service.sign_up_email_messages.get_signup_confirmation_email")
@@ -93,7 +98,7 @@ class TestEmailPreparation:
     def test_verification_prepares_message(self, _get_user, _create_token, build_email, mock_db):
         build_email.return_value = ("subject", "html", "text")
 
-        result = sign_up_service.prepare_sign_up_verification_email(1, "https://example.test", mock_db)
+        result = sign_up_service.prepare_sign_up_verification_email(1, "event-1", "https://example.test", mock_db)
 
         assert result == ("test@example.test", "subject", "html", "text")
         assert "verify-email?token=plain-token" in build_email.call_args.args[1]
@@ -111,7 +116,9 @@ class TestEmailPreparation:
         pending.return_value = [MagicMock(email="new@example.test", previous_email="old@example.test")]
         build_email.return_value = ("subject", "html", "text")
 
-        result = sign_up_service.prepare_email_change_verification_email(1, "https://example.test", mock_db)
+        result = sign_up_service.prepare_email_change_verification_email(1, "event-1", "https://example.test", mock_db)
 
         assert result == ("new@example.test", "subject", "html", "text")
-        create_token.assert_called_once_with(1, "new@example.test", mock_db, previous_email="old@example.test")
+        create_token.assert_called_once_with(
+            1, "new@example.test", "event-1", mock_db, previous_email="old@example.test"
+        )

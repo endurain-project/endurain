@@ -11,6 +11,7 @@ import core.email_cooldown as core_email_cooldown
 import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
@@ -29,9 +30,24 @@ logger = core_logger.get_logger(__name__)
 RESET_EMAIL_COOLDOWN_SECONDS = 300
 
 
-def create_password_reset_token(user_id: int, db: Session) -> str:
-    """Replace a user's reset tokens and commit the new token."""
-    token, token_hash = token_hashing.generate_token_and_hash()
+def create_password_reset_token(user_id: int, event_id: str, db: Session) -> str:
+    """Return the reset token for a reset-request event, minting and committing it on first use.
+
+    The token is derived from the event id with the server secret, so redelivering the event yields the
+    same token and leaves the link already mailed working; a later request is a new event and replaces it.
+
+    Args:
+        user_id: The user the token belongs to.
+        event_id: The id of the ``auth.password_reset_requested`` event, stable across its retries.
+        db: Database session.
+
+    Returns:
+        The raw token, which is not stored.
+    """
+    token = access_tokens_integration.hmac_sha256(f"password-reset:{event_id}")
+    token_hash = token_hashing.sha256_hex(token)
+    if password_reset_crud.password_reset_token_exists(token_hash, db):
+        return token
     now = datetime.now(UTC)
     reset_token = password_reset_schema.PasswordResetToken(
         id=str(uuid4()),
@@ -105,15 +121,26 @@ def request_password_reset_email(email: str, state: StateProvider, db: Session) 
 
 def prepare_password_reset_email(
     user_id: int,
+    event_id: str,
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
-    """Create a durable reset link and return its email content for delivery after the session closes."""
+    """Create a durable reset link and return its email content for delivery after the session closes.
+
+    Args:
+        user_id: The user who asked for the reset.
+        event_id: The id of the request event; a retry of the event gets the same link.
+        frontend_host: Base URL the link points at.
+        db: Database session.
+
+    Returns:
+        The recipient, subject, HTML and text, or None when the user is missing or inactive.
+    """
     user = users_integration.get_user(user_id, db)
     if not user or not user.active:
         return None
 
-    token = create_password_reset_token(user.id, db)
+    token = create_password_reset_token(user.id, event_id, db)
     reset_link = f"{frontend_host}/reset-password?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = password_reset_email_messages.get_password_reset_email(

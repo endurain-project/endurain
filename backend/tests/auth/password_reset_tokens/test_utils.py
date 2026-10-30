@@ -8,8 +8,11 @@ from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
+import modules.auth.computation as token_hashing
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.password_reset_tokens.crud as password_reset_crud
 import modules.auth.password_reset_tokens.service as password_reset_service
+from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 
 class TestUsePasswordResetToken:
@@ -96,16 +99,18 @@ class TestUsePasswordResetToken:
 class TestCreatePasswordResetToken:
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.create_password_reset_token")
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.mark_user_password_reset_tokens_used")
-    @patch("modules.auth.password_reset_tokens.service.token_hashing.generate_token_and_hash")
-    def test_stages_replacement_and_commits(self, generate, invalidate, create, mock_db):
-        generate.return_value = ("plain", "hashed")
+    @patch(
+        "modules.auth.password_reset_tokens.service.password_reset_crud.password_reset_token_exists", return_value=False
+    )
+    @patch("modules.auth.password_reset_tokens.service.access_tokens_integration.hmac_sha256", return_value="plain")
+    def test_stages_replacement_and_commits(self, _derive, _exists, invalidate, create, mock_db):
 
-        assert password_reset_service.create_password_reset_token(7, mock_db) == "plain"
+        assert password_reset_service.create_password_reset_token(7, "event-1", mock_db) == "plain"
 
         invalidate.assert_called_once_with(7, mock_db)
         token = create.call_args.args[0]
         assert token.user_id == 7
-        assert token.token_hash == "hashed"
+        assert token.token_hash == token_hashing.sha256_hex("plain")
         mock_db.commit.assert_called_once()
 
 
@@ -211,7 +216,9 @@ class TestPasswordResetCooldown:
 class TestPreparePasswordResetEmail:
     @patch("modules.auth.password_reset_tokens.service.users_integration.get_user", return_value=None)
     def test_missing_user_is_skipped(self, _user, mock_db):
-        assert password_reset_service.prepare_password_reset_email(5, "https://example.test", mock_db) is None
+        assert (
+            password_reset_service.prepare_password_reset_email(5, "event-1", "https://example.test", mock_db) is None
+        )
 
     @patch("modules.auth.password_reset_tokens.service.password_reset_email_messages.get_password_reset_email")
     @patch("modules.auth.password_reset_tokens.service.create_password_reset_token", return_value="plain-token")
@@ -222,7 +229,60 @@ class TestPreparePasswordResetEmail:
     def test_prepares_localized_content_with_reset_link(self, _user, _token, build_email, mock_db):
         build_email.return_value = ("subject", "html", "text")
 
-        result = password_reset_service.prepare_password_reset_email(5, "https://example.test", mock_db)
+        result = password_reset_service.prepare_password_reset_email(5, "event-1", "https://example.test", mock_db)
 
         assert result == ("test@example.test", "subject", "html", "text")
         assert "reset-password?token=plain-token" in build_email.call_args.args[1]
+
+
+class TestRetriedResetEvent:
+    """The event is delivered at least once, so preparing it again must not break the link already mailed."""
+
+    @pytest.fixture
+    def factory(self):
+        session_factory = create_sqlite_session_factory()
+        ensure_user(session_factory, 5)
+        yield session_factory
+        session_factory.kw["bind"].dispose()
+
+    def _prepare(self, factory, event_id: str) -> str:
+        user = MagicMock(id=5, active=True, preferred_language="en", email="test@example.test")
+        with (
+            patch("modules.auth.password_reset_tokens.service.users_integration.get_user", return_value=user),
+            patch(
+                "modules.auth.password_reset_tokens.service.password_reset_email_messages.get_password_reset_email",
+                return_value=("subject", "html", "text"),
+            ) as build_email,
+            factory() as db,
+        ):
+            password_reset_service.prepare_password_reset_email(5, event_id, "https://example.test", db)
+        return build_email.call_args.args[1].split("token=")[1]
+
+    def _claim(self, factory, token: str) -> int | None:
+        with factory() as db:
+            claimed = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
+            db.commit()
+        return claimed
+
+    def test_a_retry_mails_the_same_link_and_it_still_works(self, factory):
+        first = self._prepare(factory, "event-1")
+        second = self._prepare(factory, "event-1")
+
+        assert second == first
+        assert self._claim(factory, first) == 5
+
+    def test_a_new_request_replaces_the_earlier_link(self, factory):
+        first = self._prepare(factory, "event-1")
+        second = self._prepare(factory, "event-2")
+
+        assert second != first
+        assert self._claim(factory, first) is None
+        assert self._claim(factory, second) == 5
+
+    def test_a_retry_of_an_older_request_does_not_revoke_the_newer_link(self, factory):
+        self._prepare(factory, "event-1")
+        newer = self._prepare(factory, "event-2")
+
+        self._prepare(factory, "event-1")
+
+        assert self._claim(factory, newer) == 5

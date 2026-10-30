@@ -31,6 +31,14 @@ def create_password_reset_token(
     return password_reset_serializers.to_state(row)
 
 
+def password_reset_token_exists(token_hash: str, db: Session) -> bool:
+    """Return whether a token with this hash was ever stored, used or not."""
+    stmt = select(password_reset_models.PasswordResetToken.id).where(
+        password_reset_models.PasswordResetToken.token_hash == token_hash
+    )
+    return db.execute(stmt).first() is not None
+
+
 def claim_password_reset_token(token_hash: str, db: Session) -> int | None:
     """Stage an atomic claim and return the owning user id when the token is valid."""
     stmt = (
