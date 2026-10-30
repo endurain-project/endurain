@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx2
+from authlib.integrations.base_client import OAuthError
 from authlib.integrations.httpx_client import OAuth2Client
 from sqlalchemy.orm import Session
 
@@ -357,24 +358,13 @@ class IdpTokenService:
             return None
 
         except httpx2.HTTPStatusError as err:
-            # Check if this is a token revocation (400) or auth failure (401)
-            if err.response.status_code in (400, 401):
-                logger.warning(
-                    "IdP refresh token invalid/revoked for user <user_id>, idp <idp_id>: <status_code>",
-                    exc_info=err,
-                    extra=core_logger.context(user_id=user_id, idp_id=idp_id, status_code=err.response.status_code),
-                )
-                # Clear the rejected token, unless another refresh has replaced it meanwhile
-                self._clear_refresh_token(user_id, idp_id, encrypted_refresh_token)
-                return None
-            else:
-                # Other HTTP errors (5xx) - don't clear token
-                logger.warning(
-                    "HTTP error refreshing IdP session for user <user_id>, idp <idp_id>: <status_code>",
-                    exc_info=err,
-                    extra=core_logger.context(user_id=user_id, idp_id=idp_id, status_code=err.response.status_code),
-                )
-                return None
+            # authlib raises this only for a 5xx answer: the provider is failing, so the token is kept.
+            logger.warning(
+                "HTTP error refreshing IdP session for user <user_id>, idp <idp_id>: <status_code>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, status_code=err.response.status_code),
+            )
+            return None
 
         except httpx2.RequestError as err:
             logger.warning(
@@ -383,6 +373,21 @@ class IdpTokenService:
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
             )
             # Don't clear token - network issue, not token issue
+            return None
+
+        except OAuthError as err:
+            if err.error == "invalid_grant":
+                logger.warning(
+                    "IdP refresh token invalid/revoked for user <user_id>, idp <idp_id>: <error>",
+                    extra=core_logger.context(user_id=user_id, idp_id=idp_id, error=err.error),
+                )
+                # Clear the rejected token, unless another refresh has replaced it meanwhile
+                self._clear_refresh_token(user_id, idp_id, encrypted_refresh_token)
+                return None
+            logger.warning(
+                "IdP refused the session refresh for user <user_id>, idp <idp_id>: <error>",
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id, error=err.error),
+            )
             return None
 
         except Exception as err:

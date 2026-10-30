@@ -186,28 +186,45 @@ class TestRefreshIdpSession:
         client.close.assert_called_once()
         self.claims.release.assert_called_once_with(7, 3)
 
-    @pytest.mark.parametrize("status_code", [400, 401])
-    def test_a_token_the_provider_rejects_is_cleared_and_committed(self, status_code):
+    def test_a_token_the_provider_revoked_is_cleared_and_committed(self, caplog):
+        import logging
+
+        from authlib.integrations.base_client import OAuthError
+
         service = _service()
-        response = MagicMock(status_code=status_code, text="invalid_grant")
-        error = httpx2.HTTPStatusError("rejected", request=MagicMock(), response=response)
 
         def reject(*_a, **_k):
-            raise error
+            raise OAuthError("invalid_grant", "revoked")
 
         _, events, _, patches = self._setup(service, fetch=reject)
 
-        assert self._refresh(service, patches) is None
+        with caplog.at_level(logging.DEBUG):
+            assert self._refresh(service, patches) is None
+
         assert events == ["clear", "commit"]
+        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
         self.claims.release.assert_called_once_with(7, 3)
+
+    def test_a_server_error_from_the_provider_keeps_the_token(self):
+        service = _service()
+        response = MagicMock(status_code=503, text="unavailable")
+
+        def fail(*_a, **_k):
+            raise httpx2.HTTPStatusError("unavailable", request=MagicMock(), response=response)
+
+        _, events, _, patches = self._setup(service, fetch=fail)
+
+        assert self._refresh(service, patches) is None
+        assert events == []
 
     def test_a_rejection_clears_only_the_token_this_refresh_read(self):
         """A slower refresh's invalid_grant must not wipe the token a faster one just stored."""
+        from authlib.integrations.base_client import OAuthError
+
         service = _service()
-        response = MagicMock(status_code=400, text="invalid_grant")
 
         def reject(*_a, **_k):
-            raise httpx2.HTTPStatusError("rejected", request=MagicMock(), response=response)
+            raise OAuthError("invalid_grant", "revoked")
 
         _, _, _, patches = self._setup(service, fetch=reject)
         with patch.object(
@@ -249,6 +266,41 @@ class TestRefreshIdpSession:
         assert self._refresh(service, patches) is None
         assert events == []
         self.claims.release.assert_called_once_with(7, 3)
+
+    def test_another_provider_error_response_keeps_the_token_with_a_warning(self, caplog):
+        import logging
+
+        from authlib.integrations.base_client import OAuthError
+
+        service = _service()
+
+        def refuse(*_a, **_k):
+            raise OAuthError("invalid_client", "bad secret")
+
+        _, events, _, patches = self._setup(service, fetch=refuse)
+
+        with caplog.at_level(logging.DEBUG):
+            assert self._refresh(service, patches) is None
+
+        assert events == []
+        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
+        assert all(record.exc_info is None for record in caplog.records if record.levelno >= logging.WARNING)
+        self.claims.release.assert_called_once_with(7, 3)
+
+    def test_an_unexpected_failure_is_still_an_error(self, caplog):
+        import logging
+
+        service = _service()
+
+        def explode(*_a, **_k):
+            raise RuntimeError("bug")
+
+        _, _, _, patches = self._setup(service, fetch=explode)
+
+        with caplog.at_level(logging.DEBUG):
+            assert self._refresh(service, patches) is None
+
+        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.ERROR]
 
     def test_a_disabled_provider_is_refused(self):
         service = _service()
