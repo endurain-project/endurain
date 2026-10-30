@@ -337,6 +337,11 @@ class TestSignupEndpoint:
 class TestVerifyEmailEndpoint:
     """Tests for POST /sign-up/sign-up/confirm."""
 
+    @pytest.fixture(autouse=True)
+    def not_deactivated(self):
+        with patch("modules.auth.sign_up_tokens.service.users_integration.is_deactivated", return_value=False):
+            yield
+
     @patch("modules.auth.sign_up_tokens.service.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
@@ -631,7 +636,7 @@ class TestVerifyEmailEndpoint:
         """
         mock_settings.return_value = MagicMock(
             signup_require_email_verification=True,
-            signup_require_admin_approval=False,
+            signup_require_admin_approval=True,
         )
         mock_use_token.return_value = MagicMock(user_id=30, previous_email=None)
         mock_verify_email.return_value = None
@@ -675,7 +680,7 @@ class TestVerifyEmailEndpoint:
         """
         mock_settings.return_value = MagicMock(
             signup_require_email_verification=True,
-            signup_require_admin_approval=False,
+            signup_require_admin_approval=True,
         )
         mock_use_token.return_value = MagicMock(user_id=31, previous_email=None)
         mock_verify_email.return_value = None

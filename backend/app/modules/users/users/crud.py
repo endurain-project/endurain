@@ -403,6 +403,7 @@ def update_user(
     if if_match is not None:
         core_etag.require_if_match(if_match, db_user.version, "user")
 
+    was_active = db_user.active
     for key, value in changes.items():
         # Response-only fields are excluded by the caller; this guards any computed
         # property added to the model later.
@@ -414,6 +415,9 @@ def update_user(
         # Reactivating an account cancels a deletion queued for it, or the sweep would carry it out.
         db_user.deletion_requested_at = None
         db_user.deletion_attempts = 0
+        db_user.deactivated_at = None
+    elif changes.get("active") is False and was_active:
+        db_user.deactivated_at = func.now()
 
     try:
         db.flush()
@@ -422,6 +426,23 @@ def update_user(
         raise core_exceptions.ConflictError(_DUPLICATE_DETAIL) from err
 
     return users_serializers.to_read_schema(db_user)
+
+
+def is_deactivated(user_id: int, db: Session) -> bool:
+    """Tell whether an administrator or a deletion request deactivated a user.
+
+    Args:
+        user_id: ID of the user.
+        db: Database session.
+
+    Returns:
+        True when the account carries a deactivation time. False for an active account and for a sign-up
+        that is not yet verified or approved.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    return _get_user_model_by_id(user_id, db).deactivated_at is not None
 
 
 def stage_deletion_request(user_id: int, db: Session) -> None:
@@ -436,6 +457,7 @@ def stage_deletion_request(user_id: int, db: Session) -> None:
     """
     db_user = _get_user_model_by_id(user_id, db)
     db_user.active = False
+    db_user.deactivated_at = func.now()
     db_user.deletion_requested_at = func.now()
     db_user.deletion_attempts = 0
     db.flush()

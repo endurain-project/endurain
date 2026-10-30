@@ -849,6 +849,7 @@ class TestApproveAndVerify:
         mock_db.commit.assert_called_once()
 
     def test_verification_activates_without_approval_policy(self, mock_crud, mock_db):
+        mock_crud.is_deactivated.return_value = False
         users_service.stage_email_verification(1, MagicMock(signup_require_admin_approval=False), mock_db)
 
         assert mock_crud.update_user.call_args.args[1] == {

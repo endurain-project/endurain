@@ -182,6 +182,23 @@ def create_sso_user(
     return users_service.create_sso_user(user, server_settings, db, email_verified=email_verified)
 
 
+def is_deactivated(user_id: int, db: Session) -> bool:
+    """Tell whether an administrator or a deletion request deactivated a user.
+
+    Args:
+        user_id: The user to check.
+        db: Database session.
+
+    Returns:
+        True for a deactivated account, False for an active one and for a sign-up awaiting verification
+        or approval.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    return users_service.is_deactivated(user_id, db)
+
+
 def stage_email_verification(
     user_id: int,
     server_settings: server_settings_schema.ServerSettingsRead,

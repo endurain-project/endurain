@@ -225,6 +225,107 @@ class TestVerifyEmailOfAPendingChange:
         publish.assert_not_called()
 
 
+class TestVerifyEmailOnAnInactiveAccount:
+    """A link never activates an account an administrator deactivated, and never takes the sign-up path."""
+
+    @staticmethod
+    def _settings(*, verification, approval):
+        return patch(
+            f"{_SERVICE}.server_settings_integration.get_server_settings",
+            return_value=MagicMock(
+                signup_require_email_verification=verification, signup_require_admin_approval=approval
+            ),
+        )
+
+    @staticmethod
+    def _make_inactive(db, *, deactivated, email_verified=False, pending_approval=False):
+        user = db.get(users_models.Users, 7)
+        user.active = False
+        user.email_verified = email_verified
+        user.pending_admin_approval = pending_approval
+        user.deactivated_at = datetime.now(UTC) if deactivated else None
+        db.commit()
+
+    @pytest.mark.parametrize(("verification", "approval"), [(False, False), (True, False), (True, True)])
+    def test_an_email_change_link_switches_the_address_and_keeps_a_deactivated_account_inactive(
+        self, db, mail_configured, verification, approval
+    ):
+        self._make_inactive(db, deactivated=True, email_verified=True)
+        _add_token(db, token_id="t1", token="plain", email="New@Example.com", previous_email="user7@example.com")
+
+        with (
+            self._settings(verification=verification, approval=approval),
+            patch(_PUBLISH) as publish,
+            patch(f"{_SERVICE}.notifications_integration") as notifications,
+        ):
+            result = sign_up_service.verify_email("plain", db)
+
+        assert result.message == "Email verified successfully."
+        assert result.admin_approval_required is None
+        db.expire_all()
+        user = db.get(users_models.Users, 7)
+        assert (user.email, user.email_verified, user.active) == ("new@example.com", True, False)
+        assert user.deactivated_at is not None
+        assert [call.args[0] for call in publish.call_args_list] == ["auth.email_changed"]
+        notifications.create_admin_sign_up_approval_notifications.assert_not_called()
+        notifications.push_notification.assert_not_called()
+
+    def test_a_verification_link_marks_a_deactivated_account_verified_without_activating_it(self, db, mail_configured):
+        self._make_inactive(db, deactivated=True)
+        _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
+
+        with (
+            self._settings(verification=False, approval=False),
+            patch(_PUBLISH) as publish,
+            patch(f"{_SERVICE}.notifications_integration") as notifications,
+        ):
+            result = sign_up_service.verify_email("plain", db)
+
+        assert result.message == "Email verified successfully."
+        db.expire_all()
+        user = db.get(users_models.Users, 7)
+        assert (user.email_verified, user.active) == (True, False)
+        publish.assert_not_called()
+        notifications.create_admin_sign_up_approval_notifications.assert_not_called()
+
+    def test_a_sign_up_awaiting_verification_is_activated_without_admin_approval(self, db, mail_configured):
+        self._make_inactive(db, deactivated=False)
+        _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
+
+        with (
+            self._settings(verification=True, approval=False),
+            patch(_PUBLISH) as publish,
+            patch(f"{_SERVICE}.notifications_integration") as notifications,
+        ):
+            result = sign_up_service.verify_email("plain", db)
+
+        assert result.message == "Email verified successfully. You can now log in."
+        db.expire_all()
+        user = db.get(users_models.Users, 7)
+        assert (user.active, user.email_verified, user.pending_admin_approval) == (True, True, False)
+        publish.assert_not_called()
+        notifications.create_admin_sign_up_approval_notifications.assert_not_called()
+
+    def test_a_sign_up_awaiting_verification_goes_to_admin_approval_when_required(self, db, mail_configured):
+        self._make_inactive(db, deactivated=False, pending_approval=True)
+        _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
+
+        with (
+            self._settings(verification=True, approval=True),
+            patch(f"{_SERVICE}.request_sign_up_admin_approval_emails") as approval_emails,
+            patch(f"{_SERVICE}.notifications_integration") as notifications,
+        ):
+            notifications.create_admin_sign_up_approval_notifications.return_value = []
+            result = sign_up_service.verify_email("plain", db)
+
+        assert result.admin_approval_required is True
+        db.expire_all()
+        user = db.get(users_models.Users, 7)
+        assert (user.active, user.email_verified, user.pending_admin_approval) == (False, True, True)
+        approval_emails.assert_called_once_with(7, db)
+        notifications.create_admin_sign_up_approval_notifications.assert_called_once()
+
+
 class TestGetPendingEmailChanges:
     def test_returns_each_users_unexpired_pending_address(self, db):
         _add_token(db, token_id="a", token="a", user_id=7, email="n7@example.com", previous_email="user7@example.com")

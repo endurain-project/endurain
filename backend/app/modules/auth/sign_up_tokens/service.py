@@ -421,6 +421,10 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpRead:
     A token that replaces the account's address (an email-change token) first switches the account to the
     confirmed address and stages the notice to the previous one; a conflict or any later failure rolls the
     claim back with the rest of the transaction.
+
+    The address is marked verified in every case. Only a sign-up (an inactive account that no administrator
+    deactivated) is activated, and only a sign-up goes on to the administrators' approval when the server
+    requires it; an active or deactivated account keeps its state.
     """
     server_settings = server_settings_integration.get_server_settings(db)
     claim = verify_sign_up_token(token, db)
@@ -432,14 +436,22 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpRead:
     if user is None:
         raise core_exceptions.NotFoundError("User not found")
 
-    if not user.active and not server_settings.signup_require_email_verification:
+    # An inactive account is a sign-up awaiting verification unless it was deactivated: a link verifies the
+    # address of a deactivated account but never activates it or asks the administrators to approve it.
+    is_sign_up = not user.active and not users_integration.is_deactivated(user_id, db)
+    if is_sign_up and not server_settings.signup_require_email_verification:
         raise core_exceptions.PreconditionFailedError("Email verification is not enabled")
 
     users_integration.stage_email_verification(user_id, server_settings, db)
-    if user.active:
+    if not is_sign_up:
         db.commit()
         logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
         return sign_up_schema.SignUpRead(message="Email verified successfully.")
+
+    if not server_settings.signup_require_admin_approval:
+        db.commit()
+        logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
+        return sign_up_schema.SignUpRead(message="Email verified successfully. You can now log in.")
 
     if server_settings_integration.is_mail_configured(db):
         request_sign_up_admin_approval_emails(user.id, db)
@@ -451,15 +463,10 @@ def verify_email(token: str, db: Session) -> sign_up_schema.SignUpRead:
         db.commit()
 
     logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
-
-    message = "Email verified successfully."
-    admin_approval_required: bool | None = None
-    if server_settings.signup_require_admin_approval:
-        message += " Your account is now pending admin approval."
-        admin_approval_required = True
-    else:
-        message += " You can now log in."
-    return sign_up_schema.SignUpRead(message=message, admin_approval_required=admin_approval_required)
+    return sign_up_schema.SignUpRead(
+        message="Email verified successfully. Your account is now pending admin approval.",
+        admin_approval_required=True,
+    )
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:

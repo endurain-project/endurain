@@ -34,6 +34,9 @@ class Users(Base):
             been verified.
         pending_admin_approval: Whether the user is pending
             admin approval for activation.
+        deactivated_at: When the account was deactivated by an
+            administrator or by a deletion request, or None. A
+            sign-up that is not yet verified or approved has none.
         deletion_requested_at: When the account was queued for
             deletion, or None.
         deletion_attempts: How many times the sweep queued the
@@ -149,6 +152,14 @@ class Users(Base):
         comment=("Whether the user is pending admin approval for activation (true - yes, false - no)"),
     )
 
+    deactivated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment=(
+            "When the account was deactivated by an administrator or a deletion request; "
+            "null for an active account and for a sign-up not yet verified or approved"
+        ),
+    )
     deletion_requested_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

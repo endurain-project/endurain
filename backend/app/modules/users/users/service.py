@@ -7,6 +7,7 @@ may consume lives in :mod:`modules.users.users.integration_service`.
 """
 
 from collections.abc import Collection
+from datetime import UTC, datetime
 from datetime import date as datetime_date
 
 from sqlalchemy.orm import Session
@@ -350,6 +351,8 @@ def create_user(
 
     fields = user.model_dump(exclude={"password", "access_type", "mfa_enabled"})
     fields.update(username=user.username.lower(), email=user.email.lower(), access_type=access_type)
+    if not user.active:
+        fields["deactivated_at"] = datetime.now(UTC)
     try:
         created = users_crud.create_user(fields, db)
     except core_exceptions.ConflictError:
@@ -814,12 +817,31 @@ def approve_user(user_id: int, db: Session) -> None:
     logger.info("User approved", extra=core_logger.context(user_id=user_id, notified=notified))
 
 
+def is_deactivated(user_id: int, db: Session) -> bool:
+    """Tell whether an administrator or a deletion request deactivated a user.
+
+    Args:
+        user_id: ID of the user.
+        db: Database session.
+
+    Returns:
+        True for a deactivated account, False for an active one and for a sign-up awaiting verification
+        or approval.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    return users_crud.is_deactivated(user_id, db)
+
+
 def stage_email_verification(
     user_id: int,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
 ) -> None:
-    """Stage a user's email as verified, activating them unless admin approval is pending.
+    """Stage a user's email as verified, activating a sign-up unless admin approval is pending.
+
+    A deactivated account is only marked verified: a link must not undo an administrator's decision.
 
     Args:
         user_id: ID of the user to verify.
@@ -830,7 +852,7 @@ def stage_email_verification(
         NotFoundError: If the user does not exist.
     """
     changes: dict[str, bool] = {"email_verified": True}
-    if not server_settings.signup_require_admin_approval:
+    if not server_settings.signup_require_admin_approval and not users_crud.is_deactivated(user_id, db):
         changes.update(pending_admin_approval=False, active=True)
 
     users_crud.update_user(user_id, changes, db)

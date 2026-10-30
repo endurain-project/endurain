@@ -20,7 +20,7 @@ Search by username, and filter the list by:
 
 Edit a user's profile fields, access type and whether the account is active. You can also upload or remove their photo.
 
-Changing a user's email sends a confirmation link to the new address. The address changes when the user follows the link, which is valid for 24 hours. Until then the user keeps signing in and resetting their password with the current address, and the user's detail page shows the pending address and when its link expires. To apply the new address at once, switch on **Mark the new address as verified** in the edit form. The address is then marked verified and no link is sent. If the server has no mail configured, the address changes at once and stays unverified.
+Changing a user's email sends a confirmation link to the new address. The address changes when the user follows the link, which is valid for 24 hours. Until then the user keeps signing in and resetting their password with the current address, and the user's detail page shows the pending address and when its link expires. To apply the new address at once, switch on **Mark the new address as verified** in the edit form. The address is then marked verified and no link is sent. If the server has no mail configured, the address changes at once and stays unverified. A deactivated account stays deactivated when its user follows a confirmation link: the link changes and verifies the address, and only an administrator reactivates the account.
 
 Some edits end the user's sessions, so a session issued under the old values cannot outlive the change. The user is signed out of every device when you save a change to their:
 
