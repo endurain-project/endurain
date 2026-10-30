@@ -150,7 +150,9 @@ def test_the_longest_allowed_range_is_accepted(rate_limits, local, states, users
 
 def test_an_activities_range_beyond_the_cap_is_refused():
     with (
-        patch.object(garmin_sync_service.activity_ingestion_integration, "request_provider_sync") as request,
+        patch.object(
+            garmin_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
+        ) as request,
         pytest.raises(core_exceptions.InvalidInputError, match="must not exceed"),
     ):
         garmin_sync_service.request_activities_sync(1, date(2010, 1, 1), DAY, MagicMock(), MagicMock())
@@ -160,7 +162,9 @@ def test_an_activities_range_beyond_the_cap_is_refused():
 
 def test_the_longest_allowed_activities_range_is_accepted():
     first = DAY - timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS - 1)
-    with patch.object(garmin_sync_service.activity_ingestion_integration, "request_provider_sync") as request:
+    with patch.object(
+        garmin_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
+    ) as request:
         garmin_sync_service.request_activities_sync(1, first, DAY, MagicMock(), MagicMock())
 
     request.assert_called_once()
@@ -169,7 +173,9 @@ def test_the_longest_allowed_activities_range_is_accepted():
 def test_a_range_ending_after_the_users_today_is_refused(rate_limits, local, states):
     tomorrow = DAY + timedelta(days=1)
     with (
-        patch.object(garmin_sync_service.activity_ingestion_integration, "request_provider_sync") as request,
+        patch.object(
+            garmin_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
+        ) as request,
         pytest.raises(core_exceptions.InvalidInputError, match="future"),
     ):
         garmin_sync_service.request_activities_sync(1, DAY, tomorrow, MagicMock(), MagicMock())

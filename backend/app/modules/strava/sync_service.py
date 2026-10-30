@@ -6,7 +6,7 @@ pool that is not the request threadpool. Either way the sync is recorded in the 
 state, which the client polls and which stops a user queueing the same sync twice.
 """
 
-from datetime import UTC, date, datetime
+from datetime import date
 
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
@@ -25,7 +25,6 @@ import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
 import modules.strava.sync_state_store as strava_sync_state_store
-import modules.users.users.integration_service as users_integration
 import modules.websocket.constants as websocket_constants
 import modules.websocket.integration_service as websocket_integration
 
@@ -245,20 +244,6 @@ def request_activities_sync(
         InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or
             the range is longer than ``MAX_ACTIVITIES_RANGE_DAYS``.
     """
-    core_sync_runner.validate_range(
-        start_date,
-        end_date,
-        core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS,
-        users_integration.local_today(user_id, db),
+    return activity_ingestion_integration.request_range_sync(
+        strava_constants.PROVIDER_NAME, user_id, start_date, end_date, storage, db
     )
-
-    job = activity_ingestion_integration.request_provider_sync(
-        user_id,
-        strava_constants.PROVIDER_NAME,
-        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
-        storage,
-        db,
-    )
-    logger.info("Strava activities queued", extra=core_logger.context(user_id=user_id))
-    return job

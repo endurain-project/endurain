@@ -52,11 +52,16 @@ def _call(route, **overrides):
 class TestRetrieveActivitiesRoutes:
     def test_queues_a_job_for_that_provider_and_returns_its_handle(self, route, module, provider):
         job = MagicMock()
-        with patch.object(module.activity_ingestion_integration, "request_provider_sync", return_value=job) as request:
+        with patch.object(
+            module.activity_ingestion_integration.activity_ingestion_service, "accept_refresh", return_value=job
+        ) as request:
             result = _call(route)
 
         assert result is job
-        user_id, name, window_start, window_end, storage, _db = request.call_args.args
+        user_id, storage, _db = request.call_args.args
+        name, window_start, window_end = (
+            request.call_args.kwargs[k] for k in ("provider", "window_start", "window_end")
+        )
         assert (user_id, name, storage) == (7, provider, "storage")
         # The whole of both end days, in UTC.
         assert window_start == datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
@@ -64,7 +69,7 @@ class TestRetrieveActivitiesRoutes:
 
     def test_a_reversed_range_is_rejected_before_anything_is_queued(self, route, module, provider):
         with (
-            patch.object(module.activity_ingestion_integration, "request_provider_sync") as request,
+            patch.object(module.activity_ingestion_integration.activity_ingestion_service, "accept_refresh") as request,
             pytest.raises(core_exceptions.InvalidInputError),
         ):
             _call(route, start_date=date(2026, 2, 1), end_date=date(2026, 1, 1))

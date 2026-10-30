@@ -222,14 +222,20 @@ class TestStatus:
 
 @pytest.fixture(autouse=False)
 def _local_today(monkeypatch):
-    monkeypatch.setattr(strava_sync_service.users_integration, "local_today", lambda _user_id, _db: date(2026, 10, 26))
+    monkeypatch.setattr(
+        strava_sync_service.activity_ingestion_integration.users_integration,
+        "local_today",
+        lambda _user_id, _db: date(2026, 10, 26),
+    )
 
 
 @pytest.mark.usefixtures("_local_today")
 class TestRequestActivitiesSync:
     def test_a_range_ending_in_the_future_is_refused(self):
         with (
-            patch.object(strava_sync_service.activity_ingestion_integration, "request_provider_sync") as request,
+            patch.object(
+                strava_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
+            ) as request,
             pytest.raises(core_exceptions.InvalidInputError),
         ):
             strava_sync_service.request_activities_sync(
@@ -246,7 +252,9 @@ class TestRequestActivitiesSync:
         start = date(2025, 1, 1)
         too_long = start + timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS)
         with (
-            patch.object(strava_sync_service.activity_ingestion_integration, "request_provider_sync") as request,
+            patch.object(
+                strava_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
+            ) as request,
             pytest.raises(core_exceptions.InvalidInputError),
         ):
             strava_sync_service.request_activities_sync(1, start, too_long, MagicMock(), MagicMock())
@@ -257,7 +265,9 @@ class TestRequestActivitiesSync:
         start = date(2025, 1, 1)
         last = start + timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS - 1)
         with patch.object(
-            strava_sync_service.activity_ingestion_integration, "request_provider_sync", return_value="job"
+            strava_sync_service.activity_ingestion_integration.activity_ingestion_service,
+            "accept_refresh",
+            return_value="job",
         ) as request:
             strava_sync_service.request_activities_sync(1, start, last, MagicMock(), MagicMock())
 
@@ -265,13 +275,15 @@ class TestRequestActivitiesSync:
 
     def test_the_whole_last_day_is_requested(self):
         with patch.object(
-            strava_sync_service.activity_ingestion_integration, "request_provider_sync", return_value="job"
+            strava_sync_service.activity_ingestion_integration.activity_ingestion_service,
+            "accept_refresh",
+            return_value="job",
         ) as request:
             job = strava_sync_service.request_activities_sync(
                 1, date(2026, 1, 1), date(2026, 1, 2), MagicMock(), MagicMock()
             )
 
         assert job == "job"
-        _user, provider, start, end, *_ = request.call_args.args
+        provider, start, end = (request.call_args.kwargs[k] for k in ("provider", "window_start", "window_end"))
         assert provider == "strava"
         assert (start.hour, end.hour, end.minute) == (0, 23, 59)

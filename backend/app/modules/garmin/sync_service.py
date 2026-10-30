@@ -6,7 +6,7 @@ pool that is not the request threadpool. Either way a gear or health sync is rec
 shared sync state, which the client polls and which stops a user queueing the same sync twice.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
 import garminconnect
 import jasil.providers as platform_providers
@@ -293,26 +293,9 @@ def request_activities_sync(
         InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or the
             range is longer than ``MAX_ACTIVITIES_RANGE_DAYS``.
     """
-    core_sync_runner.validate_range(
-        start_date,
-        end_date,
-        core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS,
-        users_integration.local_today(user_id, db),
+    return activity_ingestion_integration.request_range_sync(
+        garmin_constants.PROVIDER_NAME, user_id, start_date, end_date, storage, db
     )
-
-    job = activity_ingestion_integration.request_provider_sync(
-        user_id,
-        garmin_constants.PROVIDER_NAME,
-        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
-        storage,
-        db,
-    )
-    logger.info(
-        "Garmin Connect activities queued",
-        extra=core_logger.context(user_id=user_id),
-    )
-    return job
 
 
 def _sync_recent_health_for_user(

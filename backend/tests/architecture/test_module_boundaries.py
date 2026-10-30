@@ -451,7 +451,7 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
         "The background ingestion entry for provider syncs: it commits each activity and rolls back "
         "a failed file so the rest of the batch continues on the same session."
     ),
-    "activity_ingestion.integration_service.request_provider_sync": (
+    "activity_ingestion.integration_service.request_range_sync": (
         "Creates the refresh job row and publishes its work event in one commit, so the job and the "
         "outbox event are atomic; the caller is a provider's own route with nothing else to commit."
     ),
