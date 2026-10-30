@@ -161,3 +161,40 @@ class TestCatchAll(_FileResponseTestMixin):
             mock.assert_called_once_with("index.html")
             assert response.status_code == 404
             assert response.json()["detail"] == "Frontend index not found"
+
+
+class TestUnknownApiPath(_FileResponseTestMixin):
+    """An unknown path under the API prefix is a 404 problem document, never the SPA shell."""
+
+    @staticmethod
+    def _client() -> TestClient:
+        import core.exceptions as core_exceptions
+
+        problem_app = FastAPI()
+        core_exceptions.register_exception_handlers(problem_app)
+        problem_app.include_router(router)
+        return TestClient(problem_app)
+
+    def test_an_unknown_api_path_is_a_404_problem_document(self, tmp_path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = self._client().get("/api/v1/does/not/exist")
+
+        mock.assert_not_called()
+        assert response.status_code == 404
+        assert response.headers["content-type"].startswith("application/problem+json")
+        assert response.json()["type"] == "urn:endurain:error:not-found"
+
+    def test_the_bare_api_prefix_is_a_404_too(self, tmp_path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = self._client().get("/api/v1")
+
+        assert response.status_code == 404
+
+    def test_a_frontend_route_that_only_starts_like_the_prefix_still_gets_the_app(self, tmp_path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = self._client().get("/api/v10/x")
+
+        assert response.status_code == 200

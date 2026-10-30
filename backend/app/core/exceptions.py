@@ -33,7 +33,8 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import core.logger as core_logger
@@ -408,14 +409,40 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     )
 
 
+#: PostgreSQL SQLSTATEs for a lock wait (``lock_timeout``) and a cancelled statement (``statement_timeout``).
+_TRANSIENT_DB_SQLSTATES = frozenset({"55P03", "57014"})
+#: Seconds a client is told to wait before retrying a request the database could not serve.
+_DB_RETRY_AFTER_SECONDS = 5
+
+
+def _is_database_unavailable(exc: SQLAlchemyError) -> bool:
+    """Tell whether a database error means the database could not take the request right now.
+
+    Args:
+        exc: The database error.
+
+    Returns:
+        True for an exhausted connection pool, a lock timeout or a statement timeout.
+    """
+    if isinstance(exc, SQLAlchemyTimeoutError):
+        return True
+    if isinstance(exc, OperationalError):
+        return getattr(exc.orig, "sqlstate", None) in _TRANSIENT_DB_SQLSTATES
+    return False
+
+
 async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
-    """Render a database error that reached the boundary as an opaque 500.
+    """Render a database error that reached the boundary as a problem document.
 
     The one place a database failure raised outside ``crud`` is translated. A
     ``service`` owns the commit, so a failed commit reaches this boundary;
     wrapping every ``db.commit()`` in its own ``try`` would repeat this in each
     service.
     The session has already been rolled back by ``core.database.get_db``.
+
+    An exhausted connection pool, a lock timeout and a statement timeout are transient, so they answer 503 with
+    ``Retry-After``; an ``IntegrityError`` is a unique or foreign-key conflict that only surfaced at commit, so it
+    answers 409. Both are logged as warnings. Anything else is an opaque 500 logged as an error.
 
     Only the exception class goes in the log message: SQLAlchemy error strings
     embed the SQL statement and its parameters (OWASP A09), so they are never
@@ -426,19 +453,28 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
         exc: The database error raised by the application layer.
 
     Returns:
-        The same problem document a :class:`ProcessingError` produces.
+        The problem document for the failure.
     """
-    logger.error(
-        f"Database error on {request.method} {request.url.path}: {type(exc).__name__}",
-        exc_info=exc,
-        extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
-    )
+    log_context = core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__)
+    message = f"Database error on {request.method} {request.url.path}: {type(exc).__name__}"
+    headers: dict[str, str] | None = None
+    if _is_database_unavailable(exc):
+        logger.warning(message, extra=log_context)
+        error: type[DomainError] = ServiceUnavailableError
+        headers = {"Retry-After": str(_DB_RETRY_AFTER_SECONDS)}
+    elif isinstance(exc, IntegrityError):
+        logger.warning(message, extra=log_context)
+        error = ConflictError
+    else:
+        logger.error(message, exc_info=exc, extra=log_context)
+        error = ProcessingError
     return build_problem_response(
         request=request,
-        status_code=ProcessingError.status_code,
-        code=ProcessingError.code,
-        title=ProcessingError.title,
-        detail=ProcessingError.default_detail,
+        status_code=error.status_code,
+        code=error.code,
+        title=error.title,
+        detail=error.default_detail,
+        headers=headers,
     )
 
 
@@ -460,12 +496,15 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
         exc_info=exc,
         extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
     )
+    # This handler runs outside the request-id middleware, so the response header is set here.
+    request_id = core_middleware_request_id.get_request_id()
     return build_problem_response(
         request=request,
         status_code=ProcessingError.status_code,
         code=ProcessingError.code,
         title=ProcessingError.title,
         detail=ProcessingError.default_detail,
+        headers={"X-Request-ID": request_id} if request_id else None,
     )
 
 

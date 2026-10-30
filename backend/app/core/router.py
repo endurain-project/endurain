@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 import core.config as core_config
 import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.utils as core_utils
 
@@ -155,8 +156,13 @@ def frontend_not_found(
         Response: The frontend index file or the requested resource if found.
 
     Raises:
+        NotFoundError: If the path is under the API prefix, since no API route matched it.
         HTTPException: If the requested resource is not found.
     """
+    api_prefix = core_config.ROOT_PATH.strip("/")
+    if path == api_prefix or path.startswith(f"{api_prefix}/"):
+        raise core_exceptions.NotFoundError("Resource not found")
+
     if "." in path.split("/")[-1]:
         result = core_utils.return_frontend_index(path)
         if result is None:
