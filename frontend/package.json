@@ -45,7 +45,7 @@
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "@intlify/unplugin-vue-i18n": "^11.2.7",
+    "@intlify/unplugin-vue-i18n": "^11.2.8",
     "@tsconfig/node24": "^24.0.5",
     "@types/jsdom": "^30.0.0",
     "@types/leaflet": "^1.9.22",
