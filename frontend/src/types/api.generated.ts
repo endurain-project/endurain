@@ -4117,6 +4117,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Onboarding Status
+         * @description Tell whether the installation has no account yet and needs its first administrator.
+         */
+        get: operations["read_onboarding_status_api_v1_public_onboarding_get"];
+        put?: never;
+        /**
+         * Complete Onboarding
+         * @description Create the first administrator with the setup token printed in the server log.
+         */
+        post: operations["complete_onboarding_api_v1_public_onboarding_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/server-settings": {
         parameters: {
             query?: never;
@@ -9968,6 +9992,57 @@ export interface components {
              * @description FK to user
              */
             user_id: number;
+        };
+        /**
+         * OnboardingCreate
+         * @description Request to create the first administrator.
+         *
+         *     Carries only what the owner chooses; the access level and account state are never accepted.
+         *
+         *     Attributes:
+         *         token: The setup token printed in the server log.
+         */
+        OnboardingCreate: {
+            /**
+             * Email
+             * Format: email
+             * @description User's email address
+             */
+            email: string;
+            /**
+             * Name
+             * @description User's full name
+             */
+            name: string;
+            /**
+             * Password
+             * @description User's password
+             */
+            password: string;
+            /**
+             * Token
+             * @description Setup token printed in the server log
+             */
+            token: string;
+            /**
+             * Username
+             * @description Unique username (alphanumeric, dots, hyphen, underscore)
+             */
+            username: string;
+        };
+        /**
+         * OnboardingStatusRead
+         * @description Whether the installation still needs its first administrator.
+         *
+         *     Attributes:
+         *         onboarding_required: True while no account exists.
+         */
+        OnboardingStatusRead: {
+            /**
+             * Onboarding Required
+             * @description Whether no account exists yet
+             */
+            onboarding_required: boolean;
         };
         /** Page[ActivityExerciseTitlesRead] */
         Page_ActivityExerciseTitlesRead_: {
@@ -19675,6 +19750,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenExchangeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_onboarding_status_api_v1_public_onboarding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusRead"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    complete_onboarding_api_v1_public_onboarding_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersRead"];
                 };
             };
             /** @description Validation Error */

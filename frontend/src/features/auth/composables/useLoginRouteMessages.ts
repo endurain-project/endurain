@@ -17,6 +17,7 @@ const STATUS_FLAG_ALERTS: ReadonlyArray<{ query: string; kind: Severity; key: st
   { query: 'sessionExpired', kind: 'warning', key: 'login.sessionExpired' },
   { query: 'passwordResetSuccess', kind: 'success', key: 'login.passwordResetSuccess' },
   { query: 'passwordResetInvalidLink', kind: 'error', key: 'login.passwordResetInvalidLink' },
+  { query: 'onboardingComplete', kind: 'success', key: 'login.onboardingComplete' },
   { query: 'emailVerificationSent', kind: 'info', key: 'login.emailVerificationSent' },
   { query: 'adminApprovalRequired', kind: 'info', key: 'login.adminApprovalRequired' },
   { query: 'verifyEmailInvalidLink', kind: 'error', key: 'login.verifyEmailInvalidLink' },

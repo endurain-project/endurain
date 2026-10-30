@@ -9,6 +9,7 @@ import { isAdminUser } from '@/features/auth/composables/useCurrentUser'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { accessibleSettingsZones } from '@/features/settings/settingsNav'
 import { queryClient } from '@/plugins/vueQuery'
+import { fetchOnboardingStatus } from '@/features/auth/services/onboarding'
 import { queryKeys } from '@/services/queryKeys'
 
 declare module 'vue-router' {
@@ -45,6 +46,12 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/features/auth/views/LoginView.vue'),
+      meta: { requiresAuth: false, guestOnly: true, bare: true },
+    },
+    {
+      path: '/onboarding',
+      name: 'onboarding',
+      component: () => import('@/features/auth/views/OnboardingView.vue'),
       meta: { requiresAuth: false, guestOnly: true, bare: true },
     },
     {
@@ -273,7 +280,31 @@ const router = createRouter({
 })
 
 /**
- * Global navigation guard. Restores the session on first navigation, enforces
+ * Tells whether the installation still needs its first administrator. The
+ * status only ever goes from required to done, so a cached `false` is final
+ * and never refetched, while a cached `true` is re-checked on every call.
+ * A failed request counts as "not required": an outage must neither trap users
+ * on the onboarding screen nor show it to an existing installation.
+ *
+ * @returns `true` only when the backend confirms no account exists yet.
+ */
+async function isOnboardingRequired(): Promise<boolean> {
+  try {
+    const status = await queryClient.fetchQuery({
+      queryKey: queryKeys.public.onboarding(),
+      queryFn: fetchOnboardingStatus,
+      staleTime: (query) => (query.state.data?.onboardingRequired === false ? Infinity : 0),
+      retry: false,
+    })
+    return status.onboardingRequired
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Global navigation guard. Restores the session on first navigation, sends visitors to
+ * first-run onboarding while no account exists, enforces
  * feature-flag gating, and applies auth/guest-only access rules.
  *
  * @param to - The target route being navigated to.
@@ -285,6 +316,17 @@ export async function authGuard(to: RouteLocationNormalized) {
 
   if (!auth.isReady) {
     await auth.restoreSession()
+  }
+
+  // An authenticated session proves an account exists, so only visitors are checked.
+  if (!auth.isAuthenticated) {
+    const onboardingRequired = await isOnboardingRequired()
+    if (onboardingRequired && to.name !== 'onboarding') {
+      return { name: 'onboarding' }
+    }
+    if (!onboardingRequired && to.name === 'onboarding') {
+      return { name: 'login' }
+    }
   }
 
   if (to.meta.feature && !isEnabled(to.meta.feature)) {

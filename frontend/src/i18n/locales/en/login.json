@@ -14,6 +14,7 @@
   "forceLocalLogin": "Local login is enabled for this attempt. Use your username and password to sign in.",
   "passwordResetSuccess": "Your password was reset. Sign in with the new password.",
   "passwordResetInvalidLink": "That password reset link is invalid or expired",
+  "onboardingComplete": "Your administrator account is ready. Sign in to get started.",
   "emailVerificationSent": "Verification email sent. Check your inbox to continue.",
   "adminApprovalRequired": "Your account is waiting for administrator approval",
   "verifyEmailInvalidLink": "That email verification link is invalid or expired",
@@ -56,5 +57,29 @@
     "title": "Sorry to see you go",
     "body": "You have been signed out, and your account and all of your data are being permanently deleted.",
     "backToLogin": "Back to sign in"
+  },
+  "onboarding": {
+    "title": "Set up Endurain",
+    "subtitle": "Create the first administrator account. Copy the setup token from the server log: look for the line containing setup_token.",
+    "token": "Setup token",
+    "name": "Name",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "passwordHintLength": "Use at least {min} characters.",
+    "passwordHintStrict": "Use at least {min} characters with uppercase and lowercase letters, a digit and a special character.",
+    "passwordInvalid": "Password does not meet the requirements",
+    "passwordMismatch": "Passwords do not match",
+    "emailInvalid": "Enter a valid email address",
+    "requiredField": "This field is required",
+    "submitButton": "Create administrator",
+    "submitting": "Creating administrator",
+    "errorInvalidToken": "The setup token is invalid, expired or already used. Copy the latest one from the server log.",
+    "errorAlreadyDone": "Setup is already complete. Sign in with your account.",
+    "errorValidation": "The details were rejected. Check them and use a password that meets the administrator requirements.",
+    "errorTooManyAttempts": "Too many attempts. Wait a moment and try again.",
+    "errorUnavailable": "Setup is temporarily unavailable. Try again shortly.",
+    "errorGeneral": "Could not create the administrator. Please try again."
   }
 }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { confirmPasswordReset, requestPasswordReset } from '@/features/auth/services/passwordReset'
+import { completeOnboarding, fetchOnboardingStatus } from '@/features/auth/services/onboarding'
 import { confirmSignUp } from '@/features/auth/services/signUp'
 
 vi.mock('@/services/runtime', () => ({
@@ -73,5 +74,31 @@ describe('signUp service', () => {
     expect(call?.[1].method).toBe('POST')
     expect(call?.[1].body).toBe(JSON.stringify({ token: 'verify-tok' }))
     expect(result.admin_approval_required).toBe(true)
+  })
+})
+
+describe('onboarding service', () => {
+  it('reads the status without auth and maps it to the clean model', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ onboarding_required: true }))
+    const status = await fetchOnboardingStatus()
+    const call = fetchMock.mock.calls[0]
+    expect(call?.[0]).toContain('/public/onboarding')
+    expect(status).toEqual({ onboardingRequired: true })
+  })
+
+  it('posts the setup token and the administrator details', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 1 }, 201))
+    const request = {
+      token: 'tok',
+      name: 'Ada',
+      username: 'ada',
+      email: 'ada@example.com',
+      password: 'Sup3r-secret!',
+    }
+    await completeOnboarding(request)
+    const call = fetchMock.mock.calls[0]
+    expect(call?.[0]).toContain('/public/onboarding')
+    expect(call?.[1].method).toBe('POST')
+    expect(call?.[1].body).toBe(JSON.stringify(request))
   })
 })

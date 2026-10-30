@@ -103,3 +103,15 @@ export type SignUpRequest = Schemas['UsersSignup']
  * account still needs email verification and/or admin approval before login.
  */
 export type SignUpResponse = Schemas['SignUpRead']
+
+/**
+ * Whether the installation still needs its first administrator.
+ *
+ * @property onboardingRequired - `true` only while no account exists.
+ */
+export interface OnboardingStatus {
+  onboardingRequired: boolean
+}
+
+/** Body of `POST /public/onboarding`, derived from the generated `OnboardingCreate` schema. */
+export type OnboardingRequest = Schemas['OnboardingCreate']

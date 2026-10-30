@@ -36,6 +36,8 @@ export const queryKeys = {
   public: {
     serverSettings: () => ['public-server-settings'] as const,
     identityProviders: () => ['public-identity-providers'] as const,
+    /** Whether the installation still needs its first administrator. */
+    onboarding: () => ['public-onboarding'] as const,
   },
 
   /**
