@@ -6,6 +6,7 @@ import { getAccessToken } from '@/services/authTokens'
 import { apiFetch } from '@/services/http'
 import { ACTIVITY_ROW_INDEPENDENT_KEYS, queryKeys } from '@/services/queryKeys'
 import { getWebSocketUrl } from '@/services/runtime'
+import type { Schemas } from '@/types'
 
 import { useTelemetry } from './useTelemetry'
 
@@ -179,7 +180,7 @@ function scheduleReconnect(): void {
  * @returns The opaque ticket string.
  */
 async function fetchTicket(): Promise<string> {
-  const { ticket } = await apiFetch<{ ticket: string }>('/ws/ticket', { method: 'POST' })
+  const { ticket } = await apiFetch<Schemas['WsTicketRead']>('/ws/ticket', { method: 'POST' })
   return ticket
 }
 
@@ -246,6 +247,10 @@ async function openSocket(): Promise<void> {
     void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() })
   }
   next.onmessage = (event: MessageEvent) => {
+    // A socket that was disconnected or superseded no longer feeds the channel.
+    if (socket !== next) {
+      return
+    }
     try {
       const data = JSON.parse(String(event.data)) as RealtimeEvent
       if (data && typeof data.message === 'string') {
@@ -256,6 +261,10 @@ async function openSocket(): Promise<void> {
     }
   }
   next.onclose = (event: CloseEvent) => {
+    // A superseded socket closing must not clear or reconnect the current connection.
+    if (socket !== next) {
+      return
+    }
     socket = null
     status.value = 'closed'
     if (event.code === EVICTED_CLOSE_CODE) {

@@ -401,6 +401,41 @@ describe('useRealtime', () => {
     expect(invalidateQueries).not.toHaveBeenCalled()
   })
 
+  it('ignores a superseded socket closing, so the current connection keeps its status', async () => {
+    vi.useFakeTimers()
+    const realtime = useRealtime()
+    realtime.connect()
+    await flushPromises()
+    const stale = latestSocket()
+    // The server's close is in progress: the socket is closing but its close event has not fired.
+    stale.readyState = MockWebSocket.CLOSING
+    realtime.connect()
+    await flushPromises()
+    latestSocket().open()
+
+    stale.onclose?.({ code: 1006 })
+    vi.advanceTimersByTime(60_000)
+    await flushPromises()
+
+    expect(realtime.status.value).toBe('open')
+    expect(MockWebSocket.instances).toHaveLength(2)
+  })
+
+  it('ignores frames from a socket that was disconnected', async () => {
+    const realtime = useRealtime()
+    const handler = vi.fn<(event: unknown) => void>()
+    realtime.connect()
+    await flushPromises()
+    const socket = latestSocket()
+    socket.open()
+    realtime.on('NEW_ACTIVITY_NOTIFICATION', handler)
+
+    realtime.disconnect()
+    socket.onmessage?.({ data: JSON.stringify({ message: 'NEW_ACTIVITY_NOTIFICATION' }) })
+
+    expect(handler).not.toHaveBeenCalled()
+  })
+
   it('reconnects with backoff after an unexpected close', async () => {
     vi.useFakeTimers()
     const realtime = useRealtime()
