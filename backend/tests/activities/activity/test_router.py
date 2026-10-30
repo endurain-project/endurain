@@ -582,3 +582,42 @@ class TestActivityConcurrency:
             )
 
         assert resp.status_code == 412
+
+
+class TestDateWindowBounds:
+    """A ``date`` whose window arithmetic leaves the representable range is a 422, not a 500."""
+
+    @pytest.fixture(autouse=True)
+    def _stub_requester(self):
+        with patch(
+            "modules.activities.activity.service.users_integration.get_user",
+            return_value=SimpleNamespace(first_day_of_week="monday", timezone="UTC"),
+        ):
+            yield
+
+    @pytest.mark.parametrize("period", ["week", "month"])
+    @pytest.mark.parametrize("anchor", ["9999-12-31", "0001-01-01"])
+    def test_stats_rejects_an_anchor_outside_the_supported_range(self, mock_db, period, anchor):
+        resp = TestClient(_build_app(mock_db)).get(
+            f"/users/1/activities/stats?period={period}&date={anchor}", headers={"Authorization": "Bearer x"}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.parametrize("param", ["start_date", "end_date"])
+    @pytest.mark.parametrize("value", ["9999-12-31", "0001-01-01"])
+    def test_user_list_rejects_a_bound_outside_the_supported_range(self, mock_db, param, value):
+        resp = TestClient(_build_app(mock_db)).get(
+            f"/users/2/activities?{param}={value}", headers={"Authorization": "Bearer x"}
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.parametrize("period", ["week", "month"])
+    def test_stats_accepts_the_last_supported_day(self, mock_db, period):
+        with patch(
+            "modules.activities.activity.service.activity_crud.sum_user_activities_per_timeframe_by_type",
+            return_value=[],
+        ):
+            resp = TestClient(_build_app(mock_db)).get(
+                f"/users/1/activities/stats?period={period}&date=9998-12-31", headers={"Authorization": "Bearer x"}
+            )
+        assert resp.status_code == 200

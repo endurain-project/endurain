@@ -195,3 +195,12 @@ class TestSourceEnum:
             health_steps_schema.HealthStepsBase(source="invalid")
 
         assert "source" in str(exc_info.value)
+
+
+def test_steps_beyond_the_integer_column_are_rejected():
+    with pytest.raises(ValidationError):
+        health_steps_schema.HealthStepsCreate(steps=2_147_483_648)
+
+
+def test_steps_at_the_integer_column_maximum_are_accepted():
+    assert health_steps_schema.HealthStepsCreate(steps=2_147_483_647).steps == 2_147_483_647

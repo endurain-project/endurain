@@ -8,7 +8,7 @@ stays exactly what the API serializes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
 from pydantic import (
     BaseModel,
@@ -18,6 +18,7 @@ from pydantic import (
     StrictInt,
     StrictStr,
     field_validator,
+    model_validator,
 )
 
 import core.pagination as core_pagination
@@ -29,6 +30,25 @@ PositiveInt = Annotated[StrictInt, Field(ge=1)]
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
 LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = Annotated[StrictStr, Field(max_length=250)]
+
+#: Edit fields whose column is NOT NULL: a partial update may omit them but not clear them.
+_NOT_CLEARABLE_FIELDS: tuple[str, ...] = (
+    "activity_type",
+    "visibility",
+    "is_hidden",
+    "hide_start_time",
+    "hide_location",
+    "hide_map",
+    "hide_hr",
+    "hide_power",
+    "hide_cadence",
+    "hide_elevation",
+    "hide_speed",
+    "hide_pace",
+    "hide_laps",
+    "hide_workout_sets_steps",
+    "hide_gear",
+)
 
 
 class ActivityBase(BaseModel):
@@ -377,3 +397,20 @@ class ActivityEdit(BaseModel):
     hide_laps: StrictBool | None = None
     hide_workout_sets_steps: StrictBool | None = None
     hide_gear: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def _reject_clearing_required_fields(self) -> Self:
+        """Reject an explicit null for a field the activity must always have.
+
+        Returns:
+            The validated edit.
+
+        Raises:
+            ValueError: If a required field is sent as null.
+        """
+        cleared = [
+            name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
+        ]
+        if cleared:
+            raise ValueError(f"{', '.join(cleared)} cannot be null")
+        return self

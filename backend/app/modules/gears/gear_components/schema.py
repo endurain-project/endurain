@@ -14,6 +14,12 @@ from pydantic import (
     model_validator,
 )
 
+#: The largest value of the ``purchase_value`` column, a ``Numeric(11, 2)``.
+MAX_PURCHASE_VALUE = 999_999_999.99
+
+#: The largest value of the ``expected_kms`` column, a 32-bit integer.
+MAX_EXPECTED_KMS = 2_147_483_647
+
 #: Update fields whose column is NOT NULL: a partial update may omit them but not clear them.
 _NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("type", "brand", "model", "purchase_date", "active")
 
@@ -75,11 +81,13 @@ class GearComponentBase(BaseModel):
     expected_kms: StrictInt | None = Field(
         default=None,
         ge=0,
+        le=MAX_EXPECTED_KMS,
         description=("Expected kilometers"),
     )
     purchase_value: StrictFloat | None = Field(
         default=None,
         ge=0,
+        le=MAX_PURCHASE_VALUE,
         description="Purchase value",
     )
 

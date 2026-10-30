@@ -41,6 +41,9 @@ class GearType(IntEnum):
     WATER_SPORTS_BOARD = 8
 
 
+#: The largest value of a ``Numeric(11, 2)`` column (``initial_kms``, ``purchase_value``).
+MAX_AMOUNT = 999_999_999.99
+
 #: Update fields whose column is NOT NULL: a partial update may omit them but not clear them.
 _NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("nickname", "gear_type", "created_at", "active", "initial_kms")
 
@@ -123,11 +126,13 @@ class GearBase(BaseModel):
     initial_kms: StrictFloat | None = Field(
         default=None,
         ge=0,
+        le=MAX_AMOUNT,
         description="Initial kilometers",
     )
     purchase_value: StrictFloat | None = Field(
         default=None,
         ge=0,
+        le=MAX_AMOUNT,
         description="Purchase value",
     )
 

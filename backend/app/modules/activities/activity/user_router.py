@@ -1,6 +1,5 @@
 """FastAPI routes for a user's activities (authenticated), served under ``/users``."""
 
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Security
@@ -26,7 +25,7 @@ def read_user_activity_stats(
     db: core_dependencies.DbSession,
     period: Annotated[str, Query(pattern="^(week|month)$")] = "week",
     anchor_date: Annotated[
-        date | None,
+        activity_dependencies.WindowDate | None,
         Query(
             alias="date",
             description=(
@@ -51,8 +50,8 @@ def list_user_activities(
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
     activity_type: activity_dependencies.ActivityTypeFilter = None,
-    start_date: Annotated[date | None, Query()] = None,
-    end_date: Annotated[date | None, Query()] = None,
+    start_date: Annotated[activity_dependencies.WindowDate | None, Query()] = None,
+    end_date: Annotated[activity_dependencies.WindowDate | None, Query()] = None,
     name_search: Annotated[str | None, Query(alias="name")] = None,
     sort_by: activity_dependencies.SortBy = None,
     sort_order: activity_dependencies.SortOrder = None,

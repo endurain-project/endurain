@@ -7,13 +7,13 @@ of activities, and the period is a query parameter, not a path segment, because
 ``year``/``lifetime`` are four views of one resource, not four resources.
 """
 
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Security
 
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
+import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.summary_schema as activity_summary_schema
 import modules.activities.activity.summary_service as activity_summary_service
 import modules.auth.dependencies as auth_dependencies
@@ -33,7 +33,7 @@ def read_activity_summary(
     db: core_dependencies.DbSession,
     period: Annotated[str, Query(pattern="^(week|month|year|lifetime)$")] = "week",
     anchor_date: Annotated[
-        date | None,
+        activity_dependencies.WindowDate | None,
         Query(
             alias="date",
             description=(

@@ -8,7 +8,6 @@ Literal paths are declared before ``/{activity_id}`` so FastAPI matches them
 first.
 """
 
-from datetime import date
 from typing import Annotated
 
 from fastapi import (
@@ -45,8 +44,8 @@ def list_own_activities(
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
     activity_type: activity_dependencies.ActivityTypeFilter = None,
-    start_date: Annotated[date | None, Query()] = None,
-    end_date: Annotated[date | None, Query()] = None,
+    start_date: Annotated[activity_dependencies.WindowDate | None, Query()] = None,
+    end_date: Annotated[activity_dependencies.WindowDate | None, Query()] = None,
     name_search: Annotated[str | None, Query(alias="name")] = None,
     sort_by: activity_dependencies.SortBy = None,
     sort_order: activity_dependencies.SortOrder = None,

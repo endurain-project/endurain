@@ -5,6 +5,9 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
+#: The largest value of the ``steps`` column, a 32-bit integer.
+MAX_STEPS = 2_147_483_647
+
 
 class Source(Enum):
     """An enumeration representing supported sources for the application.
@@ -35,7 +38,7 @@ class HealthStepsBase(BaseModel):
     """
 
     date: datetime_date | None = Field(default=None, description="Calendar date of the steps")
-    steps: StrictInt | None = Field(default=None, ge=0, description="Number of steps taken")
+    steps: StrictInt | None = Field(default=None, ge=0, le=MAX_STEPS, description="Number of steps taken")
     source: Source | None = Field(default=None, description="Source of the steps data")
 
     model_config = ConfigDict(
@@ -52,7 +55,7 @@ class HealthStepsCreate(HealthStepsBase):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
-    steps: StrictInt = Field(..., ge=0, description="Number of steps taken")
+    steps: StrictInt = Field(..., ge=0, le=MAX_STEPS, description="Number of steps taken")
 
 
 class HealthStepsRead(HealthStepsBase):
