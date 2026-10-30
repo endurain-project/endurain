@@ -7,7 +7,9 @@ what is counted, where a batch stops, and what survives a crash.
 
 import logging
 import os
+import time
 import zipfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -20,8 +22,10 @@ import core.local_pool as core_local_pool
 import modules.activities.activity_ingestion.bulk_import_service as bulk
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.contracts as ingestion_contracts
+import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as ingestion_models
 import modules.activities.activity_ingestion.provider_registry as provider_registry
+import modules.activities.activity_ingestion.service as ingestion_service
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
 _USER = 7
@@ -468,6 +472,85 @@ class TestFromFolder:
             bulk.start_from_directory(_USER, "generic", storage, factory())
             with pytest.raises(core_exceptions.ConflictError):
                 bulk.start_from_directory(_USER, "generic", storage, factory())
+
+
+class TestLostFolderPack:
+    """A folder import whose packing was lost mid-way frees the user's slot soon, not after a day."""
+
+    def _folder_job(self, factory, storage, tmp_path, *, idle_minutes: int) -> str:
+        folder = tmp_path / "drop" / str(_USER)
+        folder.mkdir(parents=True)
+        (folder / "a.fit").write_bytes(b"1")
+        with patch.object(bulk.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"):
+            job = bulk.start_from_directory(_USER, "generic", storage, factory())
+        stamp = datetime.now(UTC) - timedelta(minutes=idle_minutes)
+        with factory() as db:
+            db.get(ingestion_models.ActivityIngestionJob, job.id).updated_at = stamp
+            db.commit()
+        return job.id
+
+    def _reap(self, factory, storage) -> None:
+        platform = MagicMock()
+        platform.clock.now.return_value = datetime.now(UTC)
+        with patch.object(ingestion_service.core_database, "SessionLocal", factory):
+            ingestion_service.fail_stale_ingestion_jobs(platform.clock, storage)
+
+    def test_a_pack_that_stopped_beating_is_failed_so_the_user_can_import_again(self, tmp_path, factory, storage):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=60)
+
+        self._reap(factory, storage)
+
+        assert _job(factory, job_id).status == "failed"
+        with factory() as db:
+            assert ingestion_crud.get_active_bulk_import_job_id(_USER, db) is None
+
+    def test_a_pack_that_is_still_beating_is_left_running(self, tmp_path, factory, storage):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=1)
+
+        self._reap(factory, storage)
+
+        assert _job(factory, job_id).status == "pending"
+
+    def test_a_staged_import_waiting_in_the_queue_is_not_failed_early(self, tmp_path, factory, storage):
+        archive = _zip(tmp_path, {"a.fit": b"1"})
+        with patch.object(bulk.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"):
+            job = bulk.accept_archive(_USER, "x.zip", _saver(archive), "generic", storage, factory())
+        with factory() as db:
+            db.get(ingestion_models.ActivityIngestionJob, job.id).updated_at = datetime.now(UTC) - timedelta(hours=2)
+            db.commit()
+
+        self._reap(factory, storage)
+
+        assert _job(factory, job.id).status == "pending"
+
+    def test_packing_keeps_the_job_beating(self, tmp_path, factory, storage):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=60)
+        before = _job(factory, job_id).updated_at
+
+        with patch.object(bulk, "_HEARTBEAT_SECONDS", 0.01), bulk._heartbeat(job_id):
+            deadline = time.monotonic() + 5
+            while _job(factory, job_id).updated_at == before and time.monotonic() < deadline:
+                time.sleep(0.02)
+
+        assert _job(factory, job_id).updated_at != before
+
+    def test_a_pack_finishing_after_the_job_was_failed_neither_imports_nor_consumes_the_files(
+        self, tmp_path, factory, storage, pipeline
+    ):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=60)
+        self._reap(factory, storage)
+        folder = tmp_path / "drop" / str(_USER)
+
+        with patch.object(bulk.core_config.settings, "JOBS_ENABLED", False):
+            bulk.feed_archive_from_directory(job_id, _USER, "generic", str(folder), storage)
+
+        assert (folder / "a.fit").exists()
+        assert pipeline == []
+        assert _job(factory, job_id).status == "failed"
+        assert not storage.exists(
+            upload_entry_service.UPLOAD_STAGING_STORAGE_AREA,
+            upload_entry_service.upload_staging_storage_key(f"bulk-{job_id}.zip"),
+        )
 
 
 class TestNoConnectionHeldWhileStoring:

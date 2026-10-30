@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, delete, func, or_, select, update
+from sqlalchemy import CursorResult, and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -316,7 +316,7 @@ def get_bulk_import_state(job_id: str, db: Session) -> activity_ingestion_contra
     )
 
 
-def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Session) -> None:
+def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Session) -> bool:
     """Stage recording the archive a bulk import will read (not committed).
 
     Args:
@@ -324,14 +324,32 @@ def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Sess
         staged_key: Storage key of the staged archive.
         files_total: Importable files it holds.
         db: Database session.
+
+    Returns:
+        True when the archive was attached; False when the job is gone or already terminal (the
+        stale-job reaper closed it while its folder was being packed), so nothing will read the archive.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
+    orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
-        return
+        return False
     orm_job.staged_key = staged_key
     orm_job.files_total = files_total
     orm_job.updated_at = func.now()
     db.flush()
+    return True
+
+
+def touch_job(job_id: str, db: Session) -> None:
+    """Stage a sign of life on a job that has not finished (not committed).
+
+    Args:
+        job_id: The job identifier.
+        db: Database session.
+    """
+    orm_job = _get_open_job_for_update(job_id, db)
+    if orm_job is not None:
+        orm_job.updated_at = func.now()
+        db.flush()
 
 
 def record_bulk_progress(
@@ -584,6 +602,8 @@ def fail_jobs_idle_since(
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     limit: int,
     db: Session,
+    *,
+    unstaged_bulk_cutoff: datetime | None = None,
 ) -> list[tuple[str, str | None]]:
     """Stage the failure of up to ``limit`` non-terminal jobs that have not changed state since a cutoff.
 
@@ -593,6 +613,9 @@ def fail_jobs_idle_since(
         limit: The most jobs to fail in one call; a failed job no longer matches, so the caller repeats
             until fewer than ``limit`` come back.
         db: Database session.
+        unstaged_bulk_cutoff: A bulk import still packing its folder (no staged archive yet) is failed
+            when last updated before this, which may be later than ``cutoff``: the packing node
+            touches the job while it works, so a quiet one has been lost.
 
     Returns:
         ``(job id, staged key)`` for each failed job; the key is the staged upload
@@ -603,8 +626,19 @@ def fail_jobs_idle_since(
         activity_ingestion_models.ActivityIngestionJob.completed_at.is_(None),
         activity_ingestion_models.ActivityIngestionJob.status
         != activity_ingestion_constants.IngestionJobStatus.DEFERRED.value,
-        activity_ingestion_models.ActivityIngestionJob.updated_at < cutoff,
     )
+    idle = activity_ingestion_models.ActivityIngestionJob.updated_at < cutoff
+    if unstaged_bulk_cutoff is not None:
+        idle = or_(
+            idle,
+            and_(
+                activity_ingestion_models.ActivityIngestionJob.kind
+                == activity_ingestion_constants.IngestionJobKind.BULK_IMPORT.value,
+                activity_ingestion_models.ActivityIngestionJob.staged_key.is_(None),
+                activity_ingestion_models.ActivityIngestionJob.updated_at < unstaged_bulk_cutoff,
+            ),
+        )
+    stmt = stmt.where(idle)
     # Rows a worker is writing right now are skipped: they are not idle, and
     # failing them would overwrite the outcome the worker is about to commit.
     stmt = stmt.limit(limit).with_for_update(skip_locked=True)

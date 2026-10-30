@@ -817,6 +817,11 @@ def prune_expired_ingestion_jobs(
 # was in fact still queued and runs later overwrites this outcome with its own.
 _STALE_JOB_AGE = timedelta(hours=24)
 
+# A folder import is packed on one node's in-process pool, which a restart discards, and holds the
+# user's one import slot until it is closed. The packing node touches the job while it works, so a job
+# quiet for this long was lost and does not need to wait out ``_STALE_JOB_AGE``.
+_STALE_UNSTAGED_BULK_AGE = timedelta(minutes=15)
+
 #: Stale jobs failed per transaction, so one pass over a long backlog never holds them all at once.
 _STALE_JOB_BATCH_SIZE = 200
 
@@ -840,7 +845,9 @@ def fail_stale_ingestion_jobs(
     """
     failed_count = 0
     failed_ids: list[str] = []
-    cutoff = clock.now() - _STALE_JOB_AGE
+    now = clock.now()
+    cutoff = now - _STALE_JOB_AGE
+    unstaged_bulk_cutoff = now - _STALE_UNSTAGED_BULK_AGE
     while True:
         with core_database.SessionLocal() as db:
             failed = activity_ingestion_crud.fail_jobs_idle_since(
@@ -848,6 +855,7 @@ def fail_stale_ingestion_jobs(
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
                 _STALE_JOB_BATCH_SIZE,
                 db,
+                unstaged_bulk_cutoff=unstaged_bulk_cutoff,
             )
             db.commit()
 
