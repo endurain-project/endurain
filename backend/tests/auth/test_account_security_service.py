@@ -202,3 +202,24 @@ class TestDeleteOtherUserSessions:
             exclude_session_id="session-1",
         )
         assert len(mock_log.method_calls) == 1
+
+
+class TestDeleteUserSessionLogging:
+    """Deleting a session logs a fingerprint of its id, never the id itself."""
+
+    @patch("modules.auth.account_security.account_security_service.sessions_integration.delete_session")
+    def test_the_raw_session_id_is_not_logged(self, mock_delete, mock_db, caplog):
+        import logging
+
+        import core.hashing as core_hashing
+
+        session_id = "9f2c1d7e-session-handle-0001"
+
+        with caplog.at_level(logging.DEBUG):
+            account_security_service.delete_user_session(session_id, 42, mock_db)
+
+        assert caplog.records
+        for record in caplog.records:
+            assert session_id not in record.getMessage()
+            assert session_id not in str(record.__dict__)
+        assert any(core_hashing.log_fingerprint(session_id) in str(record.__dict__) for record in caplog.records)

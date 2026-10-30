@@ -15,6 +15,7 @@ Activities knows nothing about Strava: this module registers a
 drops them, and how to build the source that answers those three questions.
 """
 
+import csv
 import os
 import tempfile
 from collections.abc import Callable
@@ -78,7 +79,7 @@ def parse_activities_manifest(manifest_path: str) -> dict | None:
             # Check to see if file has headers that will be used during parsing of the file.
             missing_headers = _STRAVA_ACTIVITIES_HEADERS - row.keys()
             if missing_headers:
-                logger.error(
+                logger.warning(
                     "Aborting Strava bulk activities import: required headers missing",
                     extra=core_logger.context(
                         console=True, file_name=strava_activities_file_name, missing=sorted(missing_headers)
@@ -92,9 +93,15 @@ def parse_activities_manifest(manifest_path: str) -> dict | None:
             extra=core_logger.context(console=True, row_count=len(strava_activities_dict)),
         )
         return strava_activities_dict
+    except (core_exceptions.PayloadTooLargeError, csv.Error, UnicodeDecodeError) as err:
+        # An oversized, malformed or non-text manifest is the user's file, not a server failure.
+        logger.warning(
+            "Strava activities CSV parsing aborted",
+            extra=core_logger.context(console=True, file_name=strava_activities_file_name, detail=str(err)),
+        )
+        return None
     except core_exceptions.DomainError as err:
-        # ``read_bounded_csv`` raises 413/424 for oversized files or stat/open
-        # failures; surface the structured detail instead of a bare ``None``.
+        # ``read_bounded_csv`` raises 424 when the file cannot be stat'd or opened.
         logger.error(
             "Strava activities CSV parsing aborted", extra=core_logger.context(console=True, detail=err.detail)
         )

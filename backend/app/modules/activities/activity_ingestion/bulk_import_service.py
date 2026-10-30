@@ -25,6 +25,7 @@ import tempfile
 import time
 import uuid
 import zipfile
+from typing import Any
 
 import jasil.providers as platform_providers
 from sqlalchemy.exc import IntegrityError
@@ -51,6 +52,14 @@ import modules.activities.activity_ingestion.upload_entry_service as activity_in
 logger = core_logger.get_logger(__name__)
 
 GENERIC_FORMAT_NAME = "generic"
+
+#: Domain errors that mean the server, not the user's file, failed.
+_OPERATOR_ERRORS = (
+    core_exceptions.ProcessingError,
+    core_exceptions.ServiceUnavailableError,
+    core_exceptions.DependencyFailedError,
+    core_exceptions.UpstreamError,
+)
 
 _ARCHIVE_KEY_PREFIX = "bulk-"
 
@@ -362,11 +371,7 @@ def feed_archive_from_directory(
                 ),
             )
     except Exception as err:
-        logger.error(
-            "Could not stage the bulk import folder",
-            exc_info=err,
-            extra=core_logger.context(console=True, user_id=user_id, job_id=job_id),
-        )
+        _log_bulk_failure("Could not stage the bulk import folder", err, user_id=user_id, job_id=job_id)
         activity_ingestion_service.fail_ingestion_job(
             job_id,
             activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
@@ -624,6 +629,23 @@ def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.Arc
     return read
 
 
+def _log_bulk_failure(message: str, err: Exception, **fields: Any) -> None:
+    """Log why a bulk import step failed, at the level its cause calls for.
+
+    A file the pipeline or the archive checks refuse is the user's input and is a warning without a
+    traceback; a processing, storage or dependency failure, or a bug, needs an operator and is an error.
+
+    Args:
+        message: The log message.
+        err: The failure.
+        **fields: Context fields for the record.
+    """
+    if isinstance(err, core_exceptions.DomainError) and not isinstance(err, _OPERATOR_ERRORS):
+        logger.warning(message, extra=core_logger.context(console=True, detail=err.detail, **fields))
+        return
+    logger.error(message, exc_info=err, extra=core_logger.context(console=True, **fields))
+
+
 def _import_member(
     archive: zipfile.ZipFile,
     member_name: str,
@@ -658,10 +680,8 @@ def _import_member(
                     user_id, path, db, source=source, storage=storage
                 )
         except Exception as err:
-            logger.error(
-                "Bulk import: a file could not be imported",
-                exc_info=err,
-                extra=core_logger.context(console=True, user_id=user_id, job_id=job_id, file=base_name),
+            _log_bulk_failure(
+                "Bulk import: a file could not be imported", err, user_id=user_id, job_id=job_id, file=base_name
             )
             _keep_failed_member(archive, member_name, user_id, job_id, storage)
             return False

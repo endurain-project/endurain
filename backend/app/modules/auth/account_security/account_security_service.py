@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.auth.account_security.step_up_service as step_up_service
@@ -41,7 +42,11 @@ def delete_user_session(
     """Delete one authenticated user's session."""
     sessions_integration.delete_session(session_id, token_user_id, db)
     db.commit()
-    logger.info("Deleted a user's session", extra=core_logger.context(user_id=token_user_id, session_id=session_id))
+    # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.
+    logger.info(
+        "Deleted a user's session",
+        extra=core_logger.context(user_id=token_user_id, session=core_hashing.log_fingerprint(session_id)),
+    )
 
 
 def delete_all_user_sessions(user_id: int, db: Session) -> int:

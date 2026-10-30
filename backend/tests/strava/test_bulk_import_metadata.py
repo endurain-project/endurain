@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import Mock
+import logging
+from unittest.mock import Mock, patch
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
@@ -146,6 +147,43 @@ class TestParseActivitiesManifest:
         path = self._write(tmp_path, "Activity ID,Filename\n1,activities/1.fit\n")
 
         assert bulk_import_utils.parse_activities_manifest(path) is None
+
+    def _parse(self, path, caplog):
+        with caplog.at_level(logging.DEBUG, logger=bulk_import_utils.logger.name):
+            assert bulk_import_utils.parse_activities_manifest(path) is None
+        return [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+    def test_missing_headers_are_a_warning(self, tmp_path, caplog):
+        path = self._write(tmp_path, "Activity ID,Filename\n1,activities/1.fit\n")
+
+        records = self._parse(path, caplog)
+
+        assert [record.levelno for record in records] == [logging.WARNING]
+
+    def test_a_manifest_over_the_size_cap_is_a_warning(self, tmp_path, caplog):
+        path = self._write(tmp_path, self.HEADER)
+        with patch.object(
+            bulk_import_utils.core_text_imports,
+            "read_bounded_csv",
+            side_effect=core_exceptions.PayloadTooLargeError("big"),
+        ):
+            records = self._parse(path, caplog)
+
+        assert [record.levelno for record in records] == [logging.WARNING]
+        assert records[0].exc_info is None
+
+    def test_a_manifest_that_is_not_text_is_a_warning(self, tmp_path, caplog):
+        path = tmp_path / "activities.csv"
+        path.write_bytes(b"\xff\xfe\x00\x81 not utf-8\n")
+
+        records = self._parse(str(path), caplog)
+
+        assert [record.levelno for record in records] == [logging.WARNING]
+
+    def test_a_manifest_that_cannot_be_opened_is_an_error(self, tmp_path, caplog):
+        records = self._parse(str(tmp_path / "missing.csv"), caplog)
+
+        assert logging.ERROR in [record.levelno for record in records]
 
     def test_an_unreadable_manifest_is_refused_not_raised(self, tmp_path):
         assert bulk_import_utils.parse_activities_manifest(str(tmp_path / "missing.csv")) is None

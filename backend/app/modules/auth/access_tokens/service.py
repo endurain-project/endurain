@@ -12,12 +12,12 @@ from typing import Final
 
 from joserfc import jwt
 from joserfc.errors import (
-    DecodeError,
     ExpiredTokenError,
     InsecureClaimError,
     InvalidClaimError,
     InvalidPayloadError,
     InvalidTokenError,
+    JoseError,
     MissingClaimError,
 )
 from joserfc.jwk import OctKey
@@ -155,7 +155,8 @@ class TokenManager:
                 extra=core_logger.context(credential="token"),
             )
             raise core_exceptions.UnauthenticatedError("Invalid token payload") from payload_err
-        except DecodeError as decode_err:
+        except JoseError as decode_err:
+            # A malformed, forged or unsupported token (bad signature, algorithm or header) is client input.
             logger.warning(
                 "Error decoding token",
                 extra=core_logger.context(credential="token"),

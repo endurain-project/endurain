@@ -164,6 +164,36 @@ class TestCompleteCallback:
         # An identity provider's configuration problem, not a failure of this server.
         assert [record.levelno for record in caplog.records] == [logging.WARNING]
 
+    @pytest.mark.parametrize(
+        "error",
+        [
+            core_exceptions.UpstreamError("down"),
+            core_exceptions.NotFoundError("User not found"),
+            core_exceptions.ConflictError("already linked"),
+            core_exceptions.UnauthenticatedError("ID token names no subject"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_an_expected_refusal_is_a_warning_without_a_traceback(self, service, caplog, error):
+        with caplog.at_level(logging.DEBUG, logger=callback_service.logger.name):
+            url, _ = self._complete(service, None, self._state(), error=error)
+
+        assert url == f"{HOST}/login?error=sso_failed"
+        assert [record.levelno for record in caplog.records] == [logging.WARNING]
+        assert caplog.records[0].exc_info is None
+
+    @pytest.mark.parametrize(
+        "error",
+        [core_exceptions.ProcessingError("internal"), RuntimeError("boom")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_an_internal_failure_is_an_error_with_a_traceback(self, service, caplog, error):
+        with caplog.at_level(logging.DEBUG, logger=callback_service.logger.name):
+            self._complete(service, None, self._state(), error=error)
+
+        assert [record.levelno for record in caplog.records] == [logging.ERROR]
+        assert caplog.records[0].exc_info is not None
+
     def test_a_failed_login_returns_to_the_login_page_with_an_error(self, service):
         url, _ = self._complete(service, None, self._state(), error=core_exceptions.UpstreamError("down"))
 
@@ -240,6 +270,29 @@ class TestHandleCallback:
         names = [call[0] for call in order.mock_calls]
         last_network_call = max(names.index("token_exchange"), names.index("userinfo"))
         assert not any(name.startswith("db") for name in names[: last_network_call + 1])
+
+
+class TestTokenExchangeRefusal:
+    def test_a_provider_error_response_is_a_warning_and_an_upstream_error(self, service, caplog):
+        from authlib.integrations.base_client import OAuthError
+
+        idp = MagicMock(issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp")
+        idp.name = "Pocket ID"
+        oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.side_effect = OAuthError("invalid_grant", "code expired")
+
+        with (
+            caplog.at_level(logging.DEBUG, logger=callback_service.logger.name),
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            pytest.raises(core_exceptions.UpstreamError),
+        ):
+            service.handle_callback(idp, "code", "state", MagicMock(), oauth_state, MagicMock())
+
+        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
 
 
 def test_a_claim_is_committed_even_when_another_callback_won(mock_db, service):

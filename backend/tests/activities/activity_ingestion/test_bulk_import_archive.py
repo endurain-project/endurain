@@ -5,6 +5,7 @@ replaced, because what is under test is the orchestration around it: what is sta
 what is counted, where a batch stops, and what survives a crash.
 """
 
+import logging
 import os
 import zipfile
 from pathlib import Path
@@ -487,3 +488,74 @@ class TestNoConnectionHeldWhileStoring:
             bulk.accept_archive(_USER, "export.zip", save_upload, "generic", MagicMock(), db)
 
         assert [call[0] for call in order.mock_calls] == ["commit", "save_upload"]
+
+
+class TestFailureLogLevels:
+    """A user's bad file is a warning; a failure the operator must act on is an error."""
+
+    @staticmethod
+    def _member(tmp_path):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("a.fit", b"x")
+        return zipfile.ZipFile(path)
+
+    def _import(self, tmp_path, caplog, error):
+        with (
+            caplog.at_level(logging.DEBUG, logger=bulk.logger.name),
+            self._member(tmp_path) as archive,
+            patch.object(
+                bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=error
+            ),
+            patch.object(bulk, "_keep_failed_member"),
+        ):
+            assert bulk._import_member(archive, "a.fit", _USER, MagicMock(), "job-1", MagicMock()) is False
+        return [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            core_exceptions.InvalidInputError("not a fit file"),
+            core_exceptions.UnsupportedFormatError("format"),
+            core_exceptions.PayloadTooLargeError("big"),
+            core_exceptions.ConflictError("duplicate"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_file_the_pipeline_refuses_is_a_warning_without_a_traceback(self, tmp_path, caplog, error):
+        records = self._import(tmp_path, caplog, error)
+
+        assert [record.levelno for record in records] == [logging.WARNING]
+        assert records[0].exc_info is None
+
+    @pytest.mark.parametrize(
+        "error",
+        [RuntimeError("storage down"), core_exceptions.ProcessingError("failed to save")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_an_internal_failure_is_an_error_with_a_traceback(self, tmp_path, caplog, error):
+        records = self._import(tmp_path, caplog, error)
+
+        assert [record.levelno for record in records] == [logging.ERROR]
+        assert records[0].exc_info is not None
+
+    def _feed(self, caplog, error):
+        with (
+            caplog.at_level(logging.DEBUG, logger=bulk.logger.name),
+            patch.object(bulk, "resolve_format", return_value=MagicMock()),
+            patch.object(bulk, "_pack_directory", side_effect=error),
+            patch.object(bulk.activity_ingestion_service, "fail_ingestion_job"),
+        ):
+            bulk.feed_archive_from_directory("job-1", _USER, "strava", "/nowhere", MagicMock())
+        return [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+    def test_a_folder_the_user_filled_wrongly_is_a_warning(self, caplog):
+        records = self._feed(caplog, core_exceptions.InvalidInputError("Invalid ZIP archive"))
+
+        assert [record.levelno for record in records] == [logging.WARNING]
+        assert records[0].exc_info is None
+
+    def test_a_staging_failure_is_an_error(self, caplog):
+        records = self._feed(caplog, OSError("disk full"))
+
+        assert [record.levelno for record in records] == [logging.ERROR]

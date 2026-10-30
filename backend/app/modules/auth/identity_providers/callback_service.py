@@ -7,6 +7,7 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import httpx2
+from authlib.integrations.base_client import OAuthError
 from authlib.integrations.httpx_client import OAuth2Client
 from sqlalchemy.orm import Session
 
@@ -243,6 +244,16 @@ class CallbackService:
                 extra=core_logger.context(name=idp.name, detail=err.detail),
             )
             return f"{self._frontend_host}/login?error={err.login_error}"
+        except core_exceptions.ProcessingError as err:
+            logger.error("Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err))
+            return self._failure_url(oauth_state)
+        except core_exceptions.DomainError as err:
+            # The provider failed or refused, or the account cannot be linked: an expected outcome, not a bug.
+            logger.warning(
+                "SSO callback for IdP <name> refused: <err>",
+                extra=core_logger.context(name=idp.name, err=err),
+            )
+            return self._failure_url(oauth_state)
         except Exception as err:
             logger.error("Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err))
             return self._failure_url(oauth_state)
@@ -428,6 +439,15 @@ class CallbackService:
                 )
                 raise core_exceptions.UpstreamError(
                     f"Unable to connect to identity provider {idp.name}. Please check your network connection."
+                ) from err
+            except OAuthError as err:
+                # The provider answered with an OAuth error body (invalid_grant, invalid_client, ...).
+                logger.warning(
+                    "IdP <name> refused the token exchange: <error>",
+                    extra=core_logger.context(name=idp.name, error=err.error),
+                )
+                raise core_exceptions.UpstreamError(
+                    f"Identity provider {idp.name} rejected the authentication request. Please try logging in again."
                 ) from err
             except Exception as err:
                 logger.debug(

@@ -18,6 +18,51 @@ def test_a_token_that_cannot_be_decoded_logs_a_warning_without_a_traceback(token
     assert all(record.exc_info is None for record in caplog.records if record.levelno >= logging.WARNING)
 
 
+def _forged_tokens(token_manager, sample_user_read):
+    import base64
+
+    from joserfc import jwt
+    from joserfc.jwk import OctKey
+
+    def segment(raw):
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    _, genuine = token_manager.create_token(
+        "session-1", sample_user_read, access_tokens_integration.TokenType.ACCESS, timedelta(minutes=5)
+    )
+    other_key = OctKey.import_key("another-secret-key-of-enough-length-0123456789")
+    return {
+        "wrong-signature": jwt.encode({"alg": "HS256"}, {"sub": "1"}, other_key),
+        "tampered-signature": genuine[:-4] + "AAAA",
+        "alg-none": f"{segment(b'{"alg":"none"}')}.{segment(b'{"sub":"1"}')}.",
+        "unsupported-alg": f"{segment(b'{"alg":"RS256"}')}.{segment(b'{"sub":"1"}')}.{segment(b'x')}",
+        "missing-alg": f"{segment(b'{}')}.{segment(b'{"sub":"1"}')}.{segment(b'x')}",
+    }
+
+
+@pytest.mark.parametrize(
+    "kind", ["wrong-signature", "tampered-signature", "alg-none", "unsupported-alg", "missing-alg"]
+)
+def test_a_forged_token_is_a_warning_without_a_traceback(token_manager, sample_user_read, caplog, kind):
+    token = _forged_tokens(token_manager, sample_user_read)[kind]
+
+    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.UnauthenticatedError):
+        token_manager.validate_token_expiration(token, access_tokens_integration.TokenType.ACCESS)
+
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert any(record.levelno == logging.WARNING for record in caplog.records)
+    assert all(record.exc_info is None for record in caplog.records if record.levelno >= logging.WARNING)
+
+
+def test_a_forged_token_claim_lookup_is_not_an_error(token_manager, sample_user_read, caplog):
+    token = _forged_tokens(token_manager, sample_user_read)["wrong-signature"]
+
+    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.UnauthenticatedError):
+        token_manager.get_token_claim(token, "sid")
+
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
+
+
 def test_a_missing_claim_is_a_warning_without_a_traceback(token_manager, sample_user_read, caplog):
     _, token = token_manager.create_token(
         "session-1", sample_user_read, access_tokens_integration.TokenType.ACCESS, timedelta(minutes=5)
