@@ -9,7 +9,6 @@ import {
   formatPaceClock,
   formatSpeed,
   paceToDisplaySeconds,
-  presentCadence,
   speedToDisplay,
 } from '@/features/activities/utils/format'
 
@@ -120,12 +119,7 @@ describe('formatElevation', () => {
   })
 })
 
-describe('presentCadence', () => {
-  it('doubles running cadence to SPM but leaves cycling RPM unchanged', () => {
-    expect(presentCadence(85, RUN)).toBe(170)
-    expect(presentCadence(90, CYCLE)).toBe(90)
-  })
-
+describe('cadenceUnitLabel', () => {
   it('labels cadence as spm for running and rpm otherwise', () => {
     expect(cadenceUnitLabel(RUN)).toBe('spm')
     expect(cadenceUnitLabel(CYCLE)).toBe('rpm')

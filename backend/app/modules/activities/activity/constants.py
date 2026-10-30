@@ -161,6 +161,23 @@ ACTIVITY_TYPES_BY_SPORT: dict[str, tuple[int, ...]] = {
     "inline_skating": (45,),
 }
 
+#: Running/foot activity types whose cadence may be reported as a single-leg rate
+#: (revolutions per minute) rather than steps per minute (spm). Mirrors the
+#: frontend ``RUNNING_TYPES`` set (``activityType.ts``).
+RUNNING_CADENCE_TYPE_IDS = frozenset(ACTIVITY_TYPES_BY_SPORT["run"])
+
+
+def is_running_cadence_type(activity_type_id: int | None) -> bool:
+    """Return whether cadence for this activity type may be per-leg (rpm).
+
+    Args:
+        activity_type_id: Numeric activity type, or ``None``.
+
+    Returns:
+        ``True`` for running/foot activity types.
+    """
+    return activity_type_id in RUNNING_CADENCE_TYPE_IDS
+
 
 class ActivitySortField(StrEnum):
     """Sort keys the activity list endpoints accept, in the order they appear in the UI.

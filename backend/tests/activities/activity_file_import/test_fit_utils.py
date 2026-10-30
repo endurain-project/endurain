@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import modules.activities.activity_file_import.fit_frames as fit_frames
 import modules.activities.activity_file_import.fit_utils as fit_utils
+import modules.activities.computation as activities_computation
 
 _SERVER_TZ = "UTC"
 
@@ -211,6 +212,116 @@ class TestUtilsFit:
         activity = activities_list[0]["activity"]
         assert activity.average_cad == 88
         assert activity.max_cad == 95
+
+    def test_create_activity_objects_normalizes_running_cadence_to_spm(self):
+        """Running FIT cadence (rpm + fractional) is doubled to spm across the
+        activity, the per-record stream, and the laps."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "running"
+        record["session"]["avg_cadence"] = 85
+        record["session"]["max_cadence"] = 93
+        record["session"]["avg_fractional_cadence"] = 0.328125
+        record["session"]["max_fractional_cadence"] = 0.0
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 84},
+            {"time": "2026-06-20T08:20:10", "cad": 90},
+        ]
+        record["laps"] = [
+            {
+                "start_time": datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC),
+                "avg_cadence": 84,
+                "max_cadence": 88,
+                "avg_fractional_cadence": 0.5,
+                "max_fractional_cadence": 0.0,
+            }
+        ]
+
+        activities_list = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        payload = activities_list[0]
+        # (85 + 0.328125) * 2 = 170.66 -> 171 ; (93 + 0) * 2 = 186.
+        assert payload["activity"].average_cad == 171
+        assert payload["activity"].max_cad == 186
+        assert [wp["cad"] for wp in payload["cad_waypoints"]] == [168, 180]
+        # (84 + 0.5) * 2 = 169 ; (88 + 0) * 2 = 176.
+        assert payload["laps"][0]["avg_cadence"] == 169
+        assert payload["laps"][0]["max_cadence"] == 176
+        # The fraction is folded into avg/max_cadence above.
+        assert payload["laps"][0]["avg_fractional_cadence"] is None
+        assert payload["laps"][0]["max_fractional_cadence"] is None
+
+    def test_create_activity_objects_running_zero_cadence_falls_back_to_waypoints(self):
+        """A zero session cadence counts as missing, so the stream is used before doubling."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "running"
+        record["session"]["avg_cadence"] = 0
+        record["session"]["max_cadence"] = 0
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 84},
+            {"time": "2026-06-20T08:20:10", "cad": 90},
+        ]
+
+        payload = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]
+
+        # mean([84, 90]) * 2 = 174 ; 90 * 2 = 180.
+        assert payload["activity"].average_cad == 174
+        assert payload["activity"].max_cad == 180
+
+    def test_create_activity_objects_doubles_running_cadence_whatever_its_value(self):
+        """FIT running cadence is per-leg by format, so every running type is doubled."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "treadmill"
+        record["session"]["avg_cadence"] = 130
+        record["session"]["max_cadence"] = 140
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 128},
+            {"time": "2026-06-20T08:20:10", "cad": None},
+        ]
+
+        payload = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]
+
+        assert payload["activity"].activity_type == 40
+        assert payload["activity"].average_cad == 260
+        assert payload["activity"].max_cad == 280
+        assert [wp["cad"] for wp in payload["cad_waypoints"]] == [256, None]
+
+    def test_create_activity_objects_doubles_running_max_without_avg(self):
+        """A session with only max_cadence still has it doubled."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "running"
+        record["session"]["max_cadence"] = 93
+
+        activity = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]["activity"]
+
+        assert activity.average_cad is None
+        assert activity.max_cad == 186
+
+    def test_create_activity_objects_rounds_stream_fallback_cadence(self):
+        """Avg/max taken from the stream are rounded to integers for every sport."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "cycling"
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 80},
+            {"time": "2026-06-20T08:20:10", "cad": 85},
+        ]
+
+        activity = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)[0]["activity"]
+
+        assert activity.average_cad == 82
+        assert activity.max_cad == 85
+
+    def test_create_activity_objects_keeps_cycling_cadence_as_rpm(self):
+        """Non-running cadence is stored verbatim (rpm), never doubled."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "cycling"
+        record["session"]["avg_cadence"] = 88
+        record["session"]["max_cadence"] = 110
+
+        activities_list = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
+
+        activity = activities_list[0]["activity"]
+        assert activity.average_cad == 88
+        assert activity.max_cad == 110
 
     def test_create_activity_objects_computes_elevation_from_waypoints(self):
         """Elevation gain/loss fall back to ele_waypoints when omitted."""
@@ -684,6 +795,29 @@ class TestGetValueFromFrame:
     def test_keyerror_falls_back_to_default(self):
         """An unknown field (KeyError) falls back to the default."""
         assert fit_frames.get_value_from_frame(_RaisingFrame(), "missing", "d") == "d"
+
+
+class TestParseFrameRecordCadence:
+    """parse_frame_record folds fractional_cadence into the record cadence."""
+
+    @staticmethod
+    def _cadence(**values):
+        return fit_frames.parse_frame_record(_MockFrame(**values))[5]
+
+    def test_folds_the_fraction(self):
+        assert self._cadence(cadence=85, fractional_cadence=0.5) == 85.5
+
+    def test_keeps_cadence_without_a_fraction(self):
+        assert self._cadence(cadence=85) == 85
+
+    def test_missing_cadence_stays_none(self):
+        assert self._cadence(fractional_cadence=0.5) is None
+
+    def test_running_stream_doubles_the_folded_fraction(self):
+        waypoints = activities_computation.double_cadence_waypoints(
+            [{"time": "t0", "cad": self._cadence(cadence=85, fractional_cadence=0.5)}]
+        )
+        assert waypoints == [{"time": "t0", "cad": 171}]
 
 
 class TestParseFrameLap:

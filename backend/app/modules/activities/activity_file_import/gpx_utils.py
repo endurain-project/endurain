@@ -479,6 +479,15 @@ def _compute_derived_metrics(
             "cad",
         )
 
+        # GPX cadence extensions (Garmin TrackPointExtension ``cad``) carry
+        # no unit marker and report running cadence as a single-leg rate (rpm),
+        # so running types are converted to steps per minute (spm). GPX has no
+        # fractional cadence.
+        if activity_constants.is_running_cadence_type(state.activity_type):
+            state.avg_cadence = activities_computation.double_running_cadence(state.avg_cadence)
+            state.max_cadence = activities_computation.double_running_cadence(state.max_cadence)
+            state.cad_waypoints = activities_computation.double_cadence_waypoints(state.cad_waypoints)
+
     if state.vel_waypoints:
         state.avg_speed, state.max_speed = activities_computation.calculate_avg_and_max(
             state.vel_waypoints,

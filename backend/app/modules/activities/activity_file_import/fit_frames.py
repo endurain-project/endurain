@@ -76,6 +76,8 @@ def parse_frame_session(frame):
         get_value_from_frame(frame, "max_heart_rate"),
         get_value_from_frame(frame, "avg_cadence"),
         get_value_from_frame(frame, "max_cadence"),
+        get_value_from_frame(frame, "avg_fractional_cadence"),
+        get_value_from_frame(frame, "max_fractional_cadence"),
         get_value_from_frame(frame, "avg_power"),
         get_value_from_frame(frame, "max_power"),
         get_value_from_frame(frame, "total_ascent"),
@@ -121,6 +123,10 @@ def parse_frame_record(frame):
     time = get_value_from_frame(frame, "timestamp")
     heart_rate = get_value_from_frame(frame, "heart_rate")
     cadence = get_value_from_frame(frame, "cadence")
+    # FIT splits cadence into an integer part and a fractional_cadence part.
+    fractional_cadence = get_value_from_frame(frame, "fractional_cadence")
+    if cadence is not None and fractional_cadence:
+        cadence = cadence + fractional_cadence
     power = get_value_from_frame(frame, "power")
     temperature = get_value_from_frame(frame, "temperature")
 

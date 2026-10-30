@@ -30,7 +30,7 @@ target_metadata = Base.metadata
 
 
 def include_object(obj, name, type_, reflected, compare_to) -> bool:
-    """Keep this history off the tables JASIL owns.
+    """Keep this history off the tables JASIL owns and migration bookkeeping tables.
 
     ``jasil.orm.map_models`` maps ``event_log``, ``event_outbox`` and
     ``processing_jobs`` into the same registry as the application's own models,
@@ -46,10 +46,12 @@ def include_object(obj, name, type_, reflected, compare_to) -> bool:
         compare_to: The object it is being compared against, if any.
 
     Returns:
-        False for a JASIL-owned table, True otherwise.
+        False for a JASIL-owned or migration bookkeeping table, True otherwise.
     """
     if type_ == "table":
-        return name not in jasil_orm.jasil_table_names()
+        # Migration 28 keeps cadence_spm_migration_rows for its downgrade(); it
+        # has no ORM model, so autogenerate would otherwise propose dropping it.
+        return name not in jasil_orm.jasil_table_names() and name != "cadence_spm_migration_rows"
     return True
 
 
