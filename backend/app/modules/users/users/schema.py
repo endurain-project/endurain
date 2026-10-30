@@ -500,6 +500,8 @@ class UsersSignup(UsersBase):
 
     password: UserPassword
 
+    model_config = ConfigDict(use_enum_values=True, validate_default=True, extra="forbid")
+
 
 class UsersCreate(Users):
     """Users schema for admin user creation.

@@ -1,6 +1,6 @@
 """Garmin Connect request and response shapes."""
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 import modules.garmin.constants as garmin_constants
 
@@ -12,11 +12,15 @@ class GarminLogin(BaseModel):
     password: SecretStr = Field(min_length=1, max_length=250)
     is_cn: bool = False
 
+    model_config = ConfigDict(extra="forbid")
+
 
 class MFARequest(BaseModel):
     """The MFA code a user submits to finish a link attempt."""
 
     mfa_code: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9]+$")
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class GarminLinkStatus(BaseModel):

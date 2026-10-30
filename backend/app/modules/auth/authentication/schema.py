@@ -151,7 +151,7 @@ class TokenExchangeRequest(BaseModel):
             came from an identity provider and the account has MFA enabled.
     """
 
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     code_verifier: StrictStr = Field(
         ...,

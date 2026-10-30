@@ -96,7 +96,7 @@ class UsersApiKeyCreate(BaseModel):
         description="Fresh identity-provider sign-in, required when the account has no local password",
     )
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class UsersApiKeyRead(BaseModel):

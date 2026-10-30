@@ -116,6 +116,8 @@ class IdentityProviderCreate(IdentityProviderBase):
 
     client_secret: StrictStr = Field(..., min_length=1, max_length=512, description="OAuth2/OIDC client secret")
 
+    model_config = ConfigDict(extra="forbid")
+
 
 class IdentityProviderUpdate(IdentityProviderBase):
     """Schema for updating an existing Identity Provider.
@@ -128,6 +130,8 @@ class IdentityProviderUpdate(IdentityProviderBase):
     """
 
     client_secret: StrictStr | None = Field(default=None, min_length=1, max_length=512)
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class IdentityProviderRead(IdentityProviderBase):

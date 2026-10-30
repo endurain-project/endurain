@@ -93,7 +93,7 @@ class IdpLinkTokenRequest(BaseModel):
         description="Fresh identity-provider sign-in, required when the account has no local password",
     )
 
-    model_config = ConfigDict(strict=True)
+    model_config = ConfigDict(strict=True, extra="forbid")
 
 
 class IdentityProviderLinkTokenRead(BaseModel):
