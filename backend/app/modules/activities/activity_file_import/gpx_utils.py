@@ -580,7 +580,7 @@ def parse_gpx_file(
 
     Raises:
         InvalidInputError: If the content is not valid GPX, or has no tracks, no segments, or no valid
-            timed trackpoints.
+            timed trackpoints, or the parser fails on it in any other way.
         ProcessingError: If the file cannot be read.
     """
     try:
@@ -701,3 +701,9 @@ def parse_gpx_file(
     except OSError as err:
         logger.debug("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
         raise core_exceptions.ProcessingError("Failed to read GPX file") from err
+    except Exception as err:
+        # Any other failure on these bytes recurs on every retry, so the file is refused rather than retried;
+        # the traceback is kept at WARNING in case the parser itself is at fault.
+        # The exception text can carry file paths / parser internals, so it is logged but never returned (OWASP A09).
+        logger.warning("Could not parse a GPX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("Can't parse GPX file") from err

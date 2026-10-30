@@ -1180,3 +1180,32 @@ class TestMalformedGpxFile:
     def test_a_file_that_cannot_be_opened_stays_a_processing_error(self, tmp_path):
         with pytest.raises(core_exceptions.ProcessingError):
             gpx_utils.parse_gpx_file(str(tmp_path / "missing.gpx"), user_id=1, default_timezone=_SERVER_TZ)
+
+    @pytest.mark.parametrize(
+        ("first_extension", "second_time"),
+        [
+            ("", "2025-01-01T00:00:10"),
+            (
+                "<extensions><gpxtpx:TrackPointExtension xmlns:gpxtpx='x'><gpxtpx:hr>1e999</gpxtpx:hr>"
+                "</gpxtpx:TrackPointExtension></extensions>",
+                "2025-01-01T00:00:10Z",
+            ),
+        ],
+        ids=["mixed_naive_and_aware_times", "heart_rate_beyond_int_range"],
+    )
+    def test_a_failure_outside_the_expected_parse_errors_is_rejected_as_invalid_input(
+        self, tmp_path, first_extension, second_time
+    ):
+        """Like the TCX and FIT parsers, any other failure on the file's bytes is a 422, not a 500."""
+        path = _write_gpx(
+            tmp_path,
+            f"""
+            <gpx version="1.1"><trk><trkseg>
+              <trkpt lat="0.0" lon="0.0"><time>2025-01-01T00:00:00Z</time>{first_extension}</trkpt>
+              <trkpt lat="0.0" lon="0.001"><time>{second_time}</time></trkpt>
+            </trkseg></trk></gpx>
+            """,
+        )
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="Can't parse GPX file"):
+            gpx_utils.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
