@@ -9,10 +9,12 @@ import worker
 
 
 class TestRunWorkerProcess:
-    def test_noop_when_jobs_disabled(self):
+    def test_refuses_to_start_when_jobs_disabled(self):
+        """A worker without the durable queue is a misconfiguration; exiting 0 would hide it behind restarts."""
         with patch("worker.core_config") as cfg, patch("worker.platform_container") as container:
             cfg.settings.JOBS_ENABLED = False
-            worker.run_worker_process(stop=threading.Event())
+            with pytest.raises(OSError, match="JOBS_ENABLED"):
+                worker.run_worker_process(stop=threading.Event())
         container.build_platform.assert_not_called()
 
     def test_builds_platform_and_drains(self):

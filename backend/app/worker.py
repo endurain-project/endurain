@@ -50,16 +50,18 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
 
     Returns:
         None.
+
+    Raises:
+        OSError: When ``JOBS_ENABLED`` is false, since a worker has no queue to drain without it.
     """
     logger.info(
         "Durable job worker starting",
         extra=core_logger.context(console=True, version=core_config.API_VERSION),
     )
     if not core_config.settings.JOBS_ENABLED:
-        logger.info(
-            "JOBS_ENABLED is false; the worker has nothing to do. Exiting.", extra=core_logger.context(console=True)
-        )
-        return
+        message = "APP_ROLE=worker requires JOBS_ENABLED=true; without durable jobs there is no queue to drain"
+        logger.error(message, extra=core_logger.context(console=True))
+        raise OSError(message)
     # Unlike the API, this process does not import the whole module tree, so
     # the ORM registry would be missing every model a job never touches
     # directly - and a string-target relationship on one that it does touch
