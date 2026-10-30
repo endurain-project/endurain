@@ -153,7 +153,7 @@ class TestExistingAccountHandler:
 
 
 class TestPublishers:
-    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish")
+    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit")
     def test_payloads_carry_ids_only(self, mock_publish):
         db = MagicMock()
 

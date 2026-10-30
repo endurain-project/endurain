@@ -60,7 +60,7 @@ class TestHandler:
 
 
 class TestPublisher:
-    @patch("modules.auth.password_reset_tokens.event_publishers.platform_publisher.publish")
+    @patch("modules.auth.password_reset_tokens.event_publishers.platform_publisher.publish_on_commit")
     def test_payload_carries_user_id_only(self, mock_publish):
         db = MagicMock()
 
@@ -68,3 +68,14 @@ class TestPublisher:
 
         assert mock_publish.call_args.args[1] == {"user_id": 4}
         assert mock_publish.call_args.kwargs["db"] is db
+
+    @patch("modules.auth.password_reset_tokens.event_publishers.platform_publisher.publish")
+    @patch("modules.auth.password_reset_tokens.event_publishers.platform_publisher.publish_on_commit")
+    def test_stages_in_the_callers_transaction_without_committing(self, mock_staged, mock_bare):
+        db = MagicMock()
+
+        password_reset_publishers.publish_password_reset_requested(4, db)
+
+        mock_bare.assert_not_called()
+        mock_staged.assert_called_once()
+        db.commit.assert_not_called()

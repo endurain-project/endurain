@@ -8,15 +8,14 @@ import modules.auth.sign_up_tokens.events as sign_up_tokens_events
 
 
 def publish_sign_up_verification_requested(user_id: int, db: Session) -> None:
-    """Publish ``auth.sign_up_verification_requested`` for a new user.
+    """Stage ``auth.sign_up_verification_requested`` in the caller's transaction.
 
     Args:
         user_id: The user who must verify their email.
-        db: The producer's DB session, used for durable outbox delivery when durable
-            jobs are enabled.
+        db: The producer's DB session; the caller commits it.
     """
     payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
-    platform_publisher.publish(
+    platform_publisher.publish_on_commit(
         sign_up_tokens_events.SIGN_UP_VERIFICATION_REQUESTED,
         payload.model_dump(),
         source="api:sign_up",
@@ -64,7 +63,7 @@ def publish_email_changed(user_id: int, token_id: str, db: Session) -> None:
 
 
 def publish_sign_up_approval_requested(user_id: int, admin_user_id: int, db: Session) -> None:
-    """Publish ``auth.sign_up_approval_requested`` for one admin.
+    """Stage ``auth.sign_up_approval_requested`` for one admin in the caller's transaction.
 
     Args:
         user_id: The user who signed up and awaits approval.
@@ -72,7 +71,7 @@ def publish_sign_up_approval_requested(user_id: int, admin_user_id: int, db: Ses
         db: The producer's DB session (see :func:`publish_sign_up_verification_requested`).
     """
     payload = sign_up_tokens_events.SignUpApprovalRequestedPayload(user_id=user_id, admin_user_id=admin_user_id)
-    platform_publisher.publish(
+    platform_publisher.publish_on_commit(
         sign_up_tokens_events.SIGN_UP_APPROVAL_REQUESTED,
         payload.model_dump(),
         source="api:verify_email",
@@ -101,14 +100,14 @@ def publish_sign_up_approved(user_id: int, db: Session) -> None:
 
 
 def publish_sign_up_existing_account(user_id: int, db: Session) -> None:
-    """Publish ``auth.sign_up_existing_account`` for the owner of a reused email address.
+    """Stage ``auth.sign_up_existing_account`` for the owner of a reused email address.
 
     Args:
         user_id: The existing user whose email address a sign-up used.
         db: The producer's DB session (see :func:`publish_sign_up_verification_requested`).
     """
     payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
-    platform_publisher.publish(
+    platform_publisher.publish_on_commit(
         sign_up_tokens_events.SIGN_UP_EXISTING_ACCOUNT,
         payload.model_dump(),
         source="api:sign_up",

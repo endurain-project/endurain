@@ -8,15 +8,14 @@ import modules.auth.password_reset_tokens.events as password_reset_tokens_events
 
 
 def publish_password_reset_requested(user_id: int, db: Session) -> None:
-    """Publish ``auth.password_reset_requested`` for a user.
+    """Stage ``auth.password_reset_requested`` in the caller's transaction.
 
     Args:
         user_id: The user who should receive the reset email.
-        db: The producer's DB session, used for durable outbox delivery when durable
-            jobs are enabled.
+        db: The producer's DB session; the caller commits it.
     """
     payload = password_reset_tokens_events.PasswordResetRequestedPayload(user_id=user_id)
-    platform_publisher.publish(
+    platform_publisher.publish_on_commit(
         password_reset_tokens_events.PASSWORD_RESET_REQUESTED,
         payload.model_dump(),
         source="api:request_password_reset",
