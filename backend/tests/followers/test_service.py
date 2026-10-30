@@ -407,3 +407,27 @@ class TestListAcceptedFolloweeIds:
         import modules.followers.service as followers_service
 
         assert not hasattr(followers_service, "list_accepted_followee_ids")
+
+
+class TestStateChangesLogAtInfo:
+    @pytest.mark.parametrize(
+        ("call", "message"),
+        [
+            (lambda s, db: s.follow_user(1, 2, db), "Follow requested"),
+            (lambda s, db: s.accept_follow_request(1, 2, db), "Follow request accepted"),
+            (lambda s, db: s.reject_follow_request(1, 2, db), "Follow request rejected"),
+            (lambda s, db: s.delete_relationship(2, 1, 1, db), "Deleted a follow relationship"),
+        ],
+    )
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_completed_change_is_logged_once_at_info(self, mock_crud, _mock_pub, call, message, caplog):
+        from modules.followers import service
+
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
+        mock_crud.count_following_by_user_id.return_value = 0
+
+        with caplog.at_level("DEBUG", logger=service.logger.name):
+            call(service, MagicMock())
+
+        assert [(record.levelname, record.getMessage()) for record in caplog.records] == [("INFO", message)]

@@ -60,3 +60,23 @@ class TestUserGoalsService:
             user_goals_service.delete_goal(1, 5, mock_db, if_match='"2"')
 
         mock_db.commit.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("call", "message"),
+        [
+            (lambda db: user_goals_service.create_goal(1, _goal_create(), db), "User goal created"),
+            (lambda db: user_goals_service.update_goal(1, 7, _goal_create(), db, if_match="*"), "User goal updated"),
+            (lambda db: user_goals_service.delete_goal(1, 5, db, if_match='"2"'), "User goal deleted"),
+        ],
+    )
+    def test_a_completed_change_is_logged_once_at_info(self, mock_crud, mock_db, call, message, caplog):
+        with caplog.at_level("DEBUG", logger=user_goals_service.logger.name):
+            call(mock_db)
+
+        assert [(record.levelname, record.getMessage()) for record in caplog.records] == [("INFO", message)]
+
+
+def _goal_create():
+    return user_goals_schema.UsersGoalCreate(
+        interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
+    )

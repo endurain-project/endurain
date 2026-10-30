@@ -288,3 +288,31 @@ class TestDeleteAccount:
             profile_service.delete_account(1, "sid-1", MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db)
 
         mock_users.request_user_deletion.assert_not_called()
+
+
+class TestStateChangesAreLoggedAtInfo:
+    @patch(f"{_MODULE}.users_integration")
+    def test_a_profile_edit_logs_at_info(self, mock_users, mock_db, caplog):
+        with (
+            patch(f"{_MODULE}.get_profile", return_value=MagicMock(version=4)),
+            caplog.at_level("DEBUG", logger=profile_service.logger.name),
+        ):
+            profile_service.edit_profile(1, MagicMock(), mock_db, if_match="*")
+
+        assert [record.levelname for record in caplog.records] == ["INFO"]
+
+    @patch(f"{_MODULE}.users_privacy_settings_integration")
+    def test_a_privacy_edit_logs_at_info(self, mock_privacy, mock_db, caplog):
+        with caplog.at_level("DEBUG", logger=profile_service.logger.name):
+            profile_service.edit_privacy_settings(1, MagicMock(), mock_db, if_match="*")
+
+        assert [record.levelname for record in caplog.records] == ["INFO"]
+
+    def test_starting_an_identity_provider_link_logs_at_info(self, mock_db, caplog):
+        with patch(f"{_MODULE}.account_security_integration") as account_security:
+            account_security.stage_browser_idp_link.return_value = MagicMock(browser_binding="binding")
+            account_security.browser_flow_authorization_url.return_value = "https://idp.example.com/auth"
+            with caplog.at_level("DEBUG", logger=profile_service.logger.name):
+                profile_service.start_identity_provider_link("token", 2, "/settings", "10.0.0.1", mock_db)
+
+        assert [record.levelname for record in caplog.records] == ["INFO"]

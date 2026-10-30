@@ -70,7 +70,7 @@ def create_goal(
     """
     created = user_goals_crud.create_user_goal(user_id, user_goal, db)
     db.commit()
-    logger.debug("User goal created", extra=core_logger.context(user_id=user_id, goal_id=created.id))
+    logger.info("User goal created", extra=core_logger.context(user_id=user_id, goal_id=created.id))
     return created
 
 
@@ -106,7 +106,7 @@ def update_goal(
     ):
         updated = user_goals_crud.update_user_goal(user_id, goal_id, user_goal, db, if_match=if_match)
         db.commit()
-    logger.debug("User goal updated", extra=core_logger.context(user_id=user_id, goal_id=updated.id))
+    logger.info("User goal updated", extra=core_logger.context(user_id=user_id, goal_id=updated.id))
     return updated
 
 
@@ -131,4 +131,4 @@ def delete_goal(user_id: int, goal_id: int, db: Session, *, if_match: str) -> No
     ):
         user_goals_crud.delete_user_goal(user_id, goal_id, db, if_match=if_match)
         db.commit()
-    logger.debug("User goal deleted", extra=core_logger.context(user_id=user_id, goal_id=goal_id))
+    logger.info("User goal deleted", extra=core_logger.context(user_id=user_id, goal_id=goal_id))

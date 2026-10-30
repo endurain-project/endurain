@@ -170,7 +170,7 @@ def edit_profile(
     ):
         users_integration.edit_profile(user_id, profile, db, if_match=if_match)
         db.commit()
-    logger.debug("Profile updated", extra=core_logger.context(user_id=user_id))
+    logger.info("Profile updated", extra=core_logger.context(user_id=user_id))
     return get_profile(user_id, db)
 
 
@@ -302,7 +302,7 @@ def edit_privacy_settings(
             user_id, privacy_settings, db, if_match=if_match
         )
         db.commit()
-    logger.debug("Privacy settings updated", extra=core_logger.context(user_id=user_id))
+    logger.info("Privacy settings updated", extra=core_logger.context(user_id=user_id))
     return updated
 
 
@@ -446,7 +446,7 @@ def start_identity_provider_link(
     # transaction may span.
     db.commit()
     authorization_url = account_security_integration.browser_flow_authorization_url(staged)
-    logger.debug("Identity provider link started", extra=core_logger.context(idp_id=idp_id))
+    logger.info("Identity provider link started", extra=core_logger.context(idp_id=idp_id))
     return identity_provider_contracts.BrowserFlowStart(
         authorization_url=authorization_url, browser_binding=staged.browser_binding
     )

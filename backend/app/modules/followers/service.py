@@ -295,7 +295,7 @@ def reject_follow_request(requester_user_id: int, follower_id: int, db: Session)
     followers_event_publishers.publish_follower_request_removed(
         follower_id, requester_user_id, db, commit=db.commit, source="api:reject_follow_request"
     )
-    logger.debug(
+    logger.info(
         "Follow request rejected",
         extra=core_logger.context(requester_user_id=requester_user_id, follower_id=follower_id),
     )
@@ -336,7 +336,7 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
         )
     else:
         db.commit()
-    logger.debug(
+    logger.info(
         "Deleted a follow relationship",
         extra=core_logger.context(
             requester_user_id=requester_user_id, followee_id=followee_id, follower_id=follower_id
@@ -403,7 +403,7 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
         raise core_exceptions.ConflictError("This user has too many pending follow requests")
     follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
     followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db, commit=db.commit)
-    logger.debug(
+    logger.info(
         "Follow requested",
         extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
     )
@@ -441,7 +441,7 @@ def accept_follow_request(
         raise core_exceptions.ConflictError("This user already follows the maximum number of users")
     relationship = followers_crud.accept_follower(requester_user_id, follower_id, db)
     followers_event_publishers.publish_follower_accepted(requester_user_id, follower_id, db, commit=db.commit)
-    logger.debug(
+    logger.info(
         "Follow request accepted",
         extra=core_logger.context(requester_user_id=requester_user_id, follower_id=follower_id),
     )
