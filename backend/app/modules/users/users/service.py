@@ -222,6 +222,38 @@ def require_user_by_email(email: str, db: Session) -> users_schema.UsersRead:
     return user
 
 
+def _set_pending_email_changes(users: Collection[users_schema.UsersRead], db: Session) -> None:
+    """Set each user's unconfirmed email change, in one query for all of them.
+
+    Args:
+        users: The users to fill in.
+        db: Database session.
+    """
+    pending = sign_up_tokens_integration.get_pending_email_changes([user.id for user in users], db)
+    for user in users:
+        change = pending.get(user.id)
+        user.pending_email = change.email if change else None
+        user.pending_email_expires_at = change.expires_at if change else None
+
+
+def require_user_with_pending_email(user_id: int, db: Session) -> users_schema.UsersRead:
+    """Return a user by id with their unconfirmed email change, who must exist.
+
+    Args:
+        user_id: The user to look up.
+        db: Database session.
+
+    Returns:
+        The user, with ``pending_email`` and ``pending_email_expires_at`` set when a change awaits confirmation.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    user = require_user(user_id, db)
+    _set_pending_email_changes([user], db)
+    return user
+
+
 def list_users(
     db: Session,
     *,
@@ -261,6 +293,7 @@ def list_users(
     user_ids = [user.id for user in users]
     idp_counts = identity_provider_links_integration.get_identity_link_counts_for_users(user_ids, db)
     mfa_enabled_map = mfa_integration.get_mfa_enabled_for_users(user_ids, db)
+    _set_pending_email_changes(users, db)
 
     records: list[users_schema.UsersRead] = []
     for user in users:
@@ -526,23 +559,61 @@ def stage_user_edit(
     return updated
 
 
-def _edit_ends_sessions(before: users_schema.UsersRead, after: users_schema.UsersRead) -> bool:
+def _edit_ends_sessions(before: users_schema.UsersRead, requested: users_schema.UsersEdit) -> bool:
     """Whether an administrative edit changes who the user is or what they may do.
 
     Args:
         before: The user before the edit.
-        after: The user after the edit.
+        requested: The edit as the administrator submitted it.
 
     Returns:
-        True when the email, the access type or the active flag changed, so sessions issued
-        under the old values must not outlive the edit.
+        True when the requested email, access type or active flag differs from the stored one, so
+        sessions issued under the old values must not outlive the edit.
     """
     return (
-        before.email != after.email
+        before.email != requested.email.lower()
         or users_schema.normalize_access_type(before.access_type)
-        != users_schema.normalize_access_type(after.access_type)
-        or before.active != after.active
+        != users_schema.normalize_access_type(requested.access_type)
+        or before.active != requested.active
     )
+
+
+def _stage_edit_with_email_change(
+    existing: users_schema.UsersRead, user: users_schema.UsersEdit, db: Session, *, if_match: str
+) -> tuple[users_schema.UsersRead, bool]:
+    """Stage an edit that changes the user's email, applying the address now or only requesting it.
+
+    An address the administrator marks verified is applied now. Any other address is requested: the
+    edit keeps the stored ``email`` and ``email_verified`` and a confirmation link goes to the new
+    address, which replaces the stored one once confirmed. Without outgoing mail nothing can be
+    confirmed, so the address is applied now, unverified.
+
+    Args:
+        existing: The user as stored.
+        user: The edit, whose email differs from the stored one.
+        db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Returns:
+        The edited user and whether the address was applied without being verifiable.
+
+    Raises:
+        ConflictError: If another account uses the address, or the edit would demote or deactivate the
+            only administrator.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
+    """
+    if not user.email_verified:
+        requested = user.email.lower()
+        require_email_available(existing.id, requested, db)
+        # Staged before the edit, so an edit that also deactivates the user revokes the new link with the old ones.
+        if sign_up_tokens_integration.request_email_change(existing.id, requested, existing.email, db):
+            kept = user.model_copy(update={"email": existing.email, "email_verified": existing.email_verified})
+            return stage_user_edit(existing.id, kept, db, if_match=if_match), False
+
+    updated = stage_user_edit(existing.id, user, db, if_match=if_match)
+    # A link issued for the old address or a pending one must not confirm over the address just applied.
+    sign_up_tokens_integration.revoke_pending_tokens(existing.id, db)
+    return updated, not user.email_verified
 
 
 def edit_user(
@@ -557,8 +628,11 @@ def edit_user(
 
     A change of email, access type or active flag signs the edited user out everywhere, so a
     demoted, deactivated or re-addressed account does not keep working sessions. An administrator
-    editing their own account stays signed in. A changed email that is left unverified queues a
-    verification email in the same transaction as the edit.
+    editing their own account stays signed in. A changed email that the administrator does not mark
+    verified is requested, not applied: the user keeps the stored address, a confirmation link is queued
+    for the new one in the same transaction as the edit, and the response carries it as ``pending_email``.
+    A changed email marked verified is applied at once, and one that cannot be confirmed because outgoing
+    email is not configured is applied unverified.
 
     Args:
         user_id: ID of the user to update.
@@ -568,7 +642,7 @@ def edit_user(
         if_match: The ``If-Match`` precondition.
 
     Returns:
-        The updated user, with its identity provider count and MFA status.
+        The updated user, with its pending email change, identity provider count and MFA status.
 
     Raises:
         PermissionDeniedError: If the administrator changes their own email, which needs step-up.
@@ -577,30 +651,33 @@ def edit_user(
         PreconditionFailedError: If the user changed since the client read them.
     """
     existing = require_user(user_id, db)
-    if existing.email != user.email.lower():
+    email_changed = existing.email != user.email.lower()
+    if email_changed:
         require_other_user(user_id, actor_id, "change your email")
+    applied_unverified = False
     with core_etag.refuse_stale_write(
         db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
     ):
         try:
-            updated = stage_user_edit(user_id, user, db, if_match=if_match)
+            if email_changed:
+                updated, applied_unverified = _stage_edit_with_email_change(existing, user, db, if_match=if_match)
+            else:
+                updated = stage_user_edit(user_id, user, db, if_match=if_match)
         except core_exceptions.ConflictError:
             db.rollback()
             raise
-        verification_queued = True
-        if existing.email != updated.email and not updated.email_verified:
-            verification_queued = sign_up_tokens_integration.request_email_reverification(user_id, db)
-        if user_id != actor_id and _edit_ends_sessions(existing, updated):
+        if user_id != actor_id and _edit_ends_sessions(existing, user):
             # Revoked in the edit's own transaction, so a user whose role or address changed cannot keep a session.
             account_security_integration.delete_all_user_sessions(user_id, db)
         db.commit()
-    if not verification_queued:
+    if applied_unverified:
         logger.warning(
             "Email changed but cannot be verified: outgoing email is not configured",
             extra=core_logger.context(user_id=user_id),
         )
     logger.info("User edited by an administrator", extra=core_logger.context(user_id=user_id))
 
+    _set_pending_email_changes([updated], db)
     updated.external_auth_count = identity_provider_links_integration.get_identity_link_counts_for_users(
         [updated.id], db
     ).get(updated.id, 0)
@@ -668,7 +745,45 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
         return False
 
     users_crud.update_user(user_id, {"email": normalized, "email_verified": False}, db)
+    # A link issued for the old address or a pending one must not confirm over the address just applied.
+    sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
     return True
+
+
+def require_email_available(user_id: int, email: str, db: Session) -> None:
+    """Refuse an address that another account uses.
+
+    A write to the user's own row trips the unique index on its own; this is for a path that stores the
+    address elsewhere first, such as a pending email change.
+
+    Args:
+        user_id: ID of the user who wants the address.
+        email: The address, in any case.
+        db: Database session.
+
+    Raises:
+        ConflictError: If another account uses the address.
+    """
+    holder = users_crud.get_user_by_email(email.lower(), db)
+    if holder is not None and holder.id != user_id:
+        raise core_exceptions.ConflictError("Email is already in use.")
+
+
+def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
+    """Stage a confirmed email address for a user and mark it verified.
+
+    Args:
+        user_id: ID of the user whose email changes.
+        email: The confirmed email address.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the email.
+    """
+    normalized = email.lower()
+    require_email_available(user_id, normalized, db)
+    users_crud.update_user(user_id, {"email": normalized, "email_verified": True}, db)
 
 
 def approve_user(user_id: int, db: Session) -> None:

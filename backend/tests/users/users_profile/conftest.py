@@ -22,6 +22,7 @@ import modules.auth.account_security.sessions_router as auth_sessions_profile_ro
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
+import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_state_store as profile_export_state_store
@@ -124,6 +125,7 @@ def profile_app(
     app.dependency_overrides[profile_dependencies.get_profile_import_state_store] = lambda: import_states
     app.dependency_overrides[profile_dependencies.get_profile_export_state_store] = lambda: export_states
 
+    monkeypatch.setattr(sign_up_tokens_integration, "get_pending_email_changes", lambda user_ids, db: {})
     monkeypatch.setattr(
         credentials_integration,
         "has_local_password",

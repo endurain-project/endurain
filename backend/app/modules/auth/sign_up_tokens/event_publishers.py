@@ -27,17 +27,36 @@ def publish_sign_up_verification_requested(user_id: int, db: Session) -> None:
 
 
 def publish_email_change_verification_requested(user_id: int, db: Session) -> None:
-    """Publish ``auth.email_change_verification_requested`` for a user whose address changed.
+    """Stage ``auth.email_change_verification_requested`` in the caller's transaction.
 
     Args:
-        user_id: The user who must verify their new email address.
-        db: The producer's DB session (see :func:`publish_sign_up_verification_requested`).
+        user_id: The user whose pending email address must be verified.
+        db: The producer's DB session, holding the uncommitted pending change.
     """
     payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
-    platform_publisher.publish(
+    platform_publisher.publish_on_commit(
         sign_up_tokens_events.EMAIL_CHANGE_VERIFICATION_REQUESTED,
         payload.model_dump(),
         source="api:change_email",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )
+
+
+def publish_email_changed(user_id: int, token_id: str, db: Session) -> None:
+    """Stage ``auth.email_changed`` in the caller's transaction.
+
+    Args:
+        user_id: The user whose email address changed.
+        token_id: The confirmed token, which records the previous and the new address.
+        db: The producer's DB session, holding the uncommitted change.
+    """
+    payload = sign_up_tokens_events.EmailChangedPayload(user_id=user_id, token_id=token_id)
+    platform_publisher.publish_on_commit(
+        sign_up_tokens_events.EMAIL_CHANGED,
+        payload.model_dump(),
+        source="api:verify_email",
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
         schema_version=payload.SCHEMA_VERSION,

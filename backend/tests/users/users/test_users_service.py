@@ -1,5 +1,6 @@
 """Tests for users.users.service module."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,6 +11,7 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
@@ -50,6 +52,15 @@ def _identity() -> MagicMock:
     _auth_service_mock.get_identity_link_counts_for_users.return_value = {}
     _auth_service_mock.get_mfa_enabled_for_users.return_value = {}
     return _auth_service_mock
+
+
+@pytest.fixture(autouse=True)
+def sign_up():
+    """Replace the sign-up-token boundary: no pending change, and mail configured."""
+    with patch("modules.users.users.service.sign_up_tokens_integration") as integration:
+        integration.get_pending_email_changes.return_value = {}
+        integration.request_email_change.return_value = True
+        yield integration
 
 
 @pytest.fixture(autouse=True)
@@ -268,6 +279,70 @@ class TestListUsers:
         result = users_service.list_users(mock_db, show_local_auth=False)
 
         assert [u.name for u in result.items] == ["Alice"]
+
+
+class TestPendingEmailChanges:
+    @patch(_CRUD)
+    def test_the_list_carries_each_users_pending_change_from_one_lookup(self, mock_crud, mock_db, sign_up):
+        expires = datetime(2030, 1, 1, tzinfo=UTC)
+        mock_crud.get_users_number.return_value = 2
+        mock_crud.get_users_with_pagination.return_value = [_user(1), _user(2)]
+        sign_up.get_pending_email_changes.return_value = {
+            2: sign_up_contracts.PendingEmailChange(email="next@example.com", expires_at=expires)
+        }
+
+        result = users_service.list_users(mock_db)
+
+        sign_up.get_pending_email_changes.assert_called_once_with([1, 2], mock_db)
+        assert [(u.pending_email, u.pending_email_expires_at) for u in result.items] == [
+            (None, None),
+            ("next@example.com", expires),
+        ]
+
+    @patch(_CRUD)
+    def test_an_admin_read_carries_the_pending_change(self, mock_crud, mock_db, sign_up):
+        expires = datetime(2030, 1, 1, tzinfo=UTC)
+        mock_crud.get_user_by_id.return_value = _user(4)
+        sign_up.get_pending_email_changes.return_value = {
+            4: sign_up_contracts.PendingEmailChange(email="next@example.com", expires_at=expires)
+        }
+
+        user = users_service.require_user_with_pending_email(4, mock_db)
+
+        assert (user.pending_email, user.pending_email_expires_at) == ("next@example.com", expires)
+
+    @patch(_CRUD)
+    def test_an_admin_read_of_a_missing_user_is_not_found(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = None
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            users_service.require_user_with_pending_email(4, mock_db)
+
+    def test_an_edit_built_from_a_read_leaves_the_pending_change_out(self):
+        read = _user(1, pending_email="next@example.com", pending_email_expires_at=datetime(2030, 1, 1, tzinfo=UTC))
+
+        edit = users_schema.UsersEdit.from_read(read)
+
+        assert "pending_email" not in edit.model_dump()
+        assert "pending_email_expires_at" not in edit.model_dump()
+
+
+class TestRequireEmailAvailable:
+    @patch(_CRUD)
+    def test_another_accounts_address_is_a_conflict(self, mock_crud, mock_db):
+        mock_crud.get_user_by_email.return_value = _user(2)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            users_service.require_email_available(1, "User2@Example.com", mock_db)
+
+        mock_crud.get_user_by_email.assert_called_once_with("user2@example.com", mock_db)
+
+    @patch(_CRUD)
+    @pytest.mark.parametrize("holder", [None, 1])
+    def test_a_free_address_or_the_users_own_passes(self, mock_crud, mock_db, holder):
+        mock_crud.get_user_by_email.return_value = _user(holder) if holder else None
+
+        users_service.require_email_available(1, "a@example.com", mock_db)
 
 
 class TestCreateUser:
@@ -527,6 +602,7 @@ class TestEdits:
         self, mock_crud, mock_weight, mock_db, before, after
     ):
         mock_crud.get_user_by_id.return_value = _user(1, **before)
+        mock_crud.get_user_by_email.return_value = None
         mock_crud.update_user.return_value = _user(1, **{**before, **after})
         mock_crud.lock_active_admin_ids.return_value = [1, 2]
         identity = _identity()
@@ -534,44 +610,104 @@ class TestEdits:
         order.attach_mock(mock_db.commit, "commit")
         order.attach_mock(identity.delete_all_user_sessions, "revoke")
 
-        with patch("modules.users.users.service.sign_up_tokens_integration.request_email_reverification"):
-            users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
+        users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
 
         assert [call[0] for call in order.mock_calls] == ["revoke", "commit"]
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
 
-    def test_an_email_change_that_leaves_the_user_unverified_queues_a_verification_email_before_the_commit(
-        self, mock_crud, mock_weight, mock_db
+    def test_a_requested_email_is_pending_and_the_stored_address_and_verified_flag_are_kept(
+        self, mock_crud, mock_weight, mock_db, sign_up
     ):
-        mock_crud.get_user_by_id.return_value = _user(1)
-        mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=False)
+        mock_crud.get_user_by_id.return_value = _user(1, email_verified=True)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1, email_verified=True)
         _identity()
         order = MagicMock()
+        order.attach_mock(mock_crud.update_user, "edit")
+        order.attach_mock(sign_up.request_email_change, "request")
         order.attach_mock(mock_db.commit, "commit")
-        with patch(
-            "modules.users.users.service.sign_up_tokens_integration.request_email_reverification", return_value=True
-        ) as verify:
-            order.attach_mock(verify, "verify")
 
+        users_service.edit_user(1, _edit(1, email="Other@example.com", email_verified=False), 9, mock_db, if_match="*")
+
+        assert [call[0] for call in order.mock_calls] == ["request", "edit", "commit"]
+        changes = mock_crud.update_user.call_args.args[1]
+        assert (changes["email"], changes["email_verified"]) == ("user1@example.com", True)
+        sign_up.request_email_change.assert_called_once_with(1, "other@example.com", "user1@example.com", mock_db)
+        _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
+
+    def test_a_requested_email_is_checked_for_another_account_before_it_is_staged(
+        self, mock_crud, mock_weight, mock_db, sign_up
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.get_user_by_email.return_value = _user(2, email="other@example.com")
+        mock_crud.update_user.return_value = _user(1)
+
+        with pytest.raises(core_exceptions.ConflictError):
             users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
 
-        verify.assert_called_once_with(1, mock_db)
-        assert [call[0] for call in order.mock_calls][:2] == ["verify", "commit"]
+        sign_up.request_email_change.assert_not_called()
+        mock_db.rollback.assert_called_once()
+        mock_db.commit.assert_not_called()
 
-    @pytest.mark.parametrize(
-        ("after", "verified"),
-        [({"name": "Renamed"}, False), ({"email": "other@example.com"}, True)],
-    )
-    def test_an_edit_that_keeps_the_user_verified_or_the_email_queues_no_verification_email(
-        self, mock_crud, mock_weight, mock_db, after, verified
+    def test_an_email_marked_verified_is_applied_now_and_cancels_a_pending_change(
+        self, mock_crud, mock_weight, mock_db, sign_up
     ):
-        mock_crud.get_user_by_id.return_value = _user(1, email_verified=verified)
-        mock_crud.update_user.return_value = _user(1, email_verified=verified, **after)
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=True)
         _identity()
-        with patch("modules.users.users.service.sign_up_tokens_integration.request_email_reverification") as verify:
-            users_service.edit_user(1, _edit(1, email_verified=verified, **after), 9, mock_db, if_match="*")
 
-        verify.assert_not_called()
+        result = users_service.edit_user(
+            1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db, if_match="*"
+        )
+
+        changes = mock_crud.update_user.call_args.args[1]
+        assert (changes["email"], changes["email_verified"]) == ("other@example.com", True)
+        sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
+        sign_up.request_email_change.assert_not_called()
+        assert result.email == "other@example.com"
+        _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
+
+    def test_without_outgoing_mail_a_changed_email_is_applied_unverified(
+        self, mock_crud, mock_weight, mock_db, sign_up
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1, email_verified=True)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=False)
+        sign_up.request_email_change.return_value = False
+        _identity()
+
+        result = users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+
+        mock_crud.update_user.assert_called_once()
+        changes = mock_crud.update_user.call_args.args[1]
+        assert (changes["email"], changes["email_verified"]) == ("other@example.com", False)
+        sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
+        assert (result.email, result.email_verified) == ("other@example.com", False)
+        mock_db.commit.assert_called_once()
+        _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
+
+    def test_an_edit_that_keeps_the_email_never_touches_pending_changes(self, mock_crud, mock_weight, mock_db, sign_up):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, name="Renamed")
+
+        users_service.edit_user(1, _edit(1, name="Renamed"), 9, mock_db, if_match="*")
+
+        sign_up.request_email_change.assert_not_called()
+        sign_up.revoke_pending_tokens.assert_not_called()
+
+    def test_the_response_carries_the_pending_email_change(self, mock_crud, mock_weight, mock_db, sign_up):
+        expires = datetime(2030, 1, 1, tzinfo=UTC)
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1)
+        sign_up.get_pending_email_changes.return_value = {
+            1: sign_up_contracts.PendingEmailChange(email="other@example.com", expires_at=expires)
+        }
+        _identity()
+
+        result = users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+
+        assert (result.pending_email, result.pending_email_expires_at) == ("other@example.com", expires)
 
     def test_an_edit_of_other_fields_keeps_the_sessions(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
@@ -866,6 +1002,14 @@ class TestStageEmailChange:
         mock_crud.update_user.assert_called_once_with(1, {"email": "new@example.com", "email_verified": False}, mock_db)
 
     @patch(_CRUD)
+    def test_a_changed_address_revokes_the_users_unused_tokens(self, mock_crud, mock_db, sign_up):
+        mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
+
+        users_service.stage_email_change(1, "new@example.com", mock_db)
+
+        sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
+
+    @patch(_CRUD)
     def test_resubmitting_the_current_address_keeps_it_verified(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, email="same@example.com")
 
@@ -880,6 +1024,34 @@ class TestStageEmailChange:
 
         with pytest.raises(core_exceptions.NotFoundError):
             users_service.stage_email_change(1, "a@example.com", mock_db)
+
+
+class TestStageConfirmedEmailChange:
+    @patch(_CRUD)
+    def test_stores_the_lower_cased_address_as_verified(self, mock_crud, mock_db):
+        mock_crud.get_user_by_email.return_value = None
+
+        users_service.stage_confirmed_email_change(1, "New@Example.COM", mock_db)
+
+        mock_crud.get_user_by_email.assert_called_once_with("new@example.com", mock_db)
+        mock_crud.update_user.assert_called_once_with(1, {"email": "new@example.com", "email_verified": True}, mock_db)
+
+    @patch(_CRUD)
+    def test_the_users_own_address_is_not_a_conflict(self, mock_crud, mock_db):
+        mock_crud.get_user_by_email.return_value = _user(1, email="same@example.com")
+
+        users_service.stage_confirmed_email_change(1, "same@example.com", mock_db)
+
+        mock_crud.update_user.assert_called_once()
+
+    @patch(_CRUD)
+    def test_an_address_of_another_account_is_a_conflict(self, mock_crud, mock_db):
+        mock_crud.get_user_by_email.return_value = _user(2, email="taken@example.com")
+
+        with pytest.raises(core_exceptions.ConflictError):
+            users_service.stage_confirmed_email_change(1, "taken@example.com", mock_db)
+
+        mock_crud.update_user.assert_not_called()
 
 
 class TestAdminEditNormalizesIdentity:

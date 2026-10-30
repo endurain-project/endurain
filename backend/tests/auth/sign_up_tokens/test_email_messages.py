@@ -312,3 +312,27 @@ class TestGetExistingAccountEmail:
     def test_the_subject_is_localized_in_english(self):
         subject, _, _ = email_messages.get_existing_account_email("Alice", _make_service(), locale="en")
         assert subject == "Endurain - Sign-up attempt with your email"
+
+
+class TestGetEmailChangedEmail:
+    """Tests for get_email_changed_email."""
+
+    def test_shows_only_the_masked_new_address(self):
+        subject, html_body, text_body = email_messages.get_email_changed_email(
+            "Alice", "alice@example.org", "https://endurain.example.com", locale="en"
+        )
+
+        assert subject
+        assert "a***@example.org" in html_body
+        assert "a***@example.org" in text_body
+        assert "alice@example.org" not in html_body + text_body
+
+    def test_escapes_the_name(self):
+        _, html_body, _ = email_messages.get_email_changed_email(
+            "<b>Al</b>", "alice@example.org", "https://endurain.example.com", locale="en"
+        )
+
+        assert "<b>Al</b>" not in html_body
+
+    def test_mask_keeps_the_first_character_and_the_domain(self):
+        assert email_messages.mask_email("bob@mail.example.org") == "b***@mail.example.org"

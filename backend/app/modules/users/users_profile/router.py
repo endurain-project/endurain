@@ -154,11 +154,13 @@ def edit_profile_email(
     ],
     db: core_dependencies.DbSession,
 ) -> None:
-    """Change the authenticated user's email after step-up verification.
+    """Request a change of the authenticated user's email after step-up verification.
 
     The address is where password resets go, so the caller must re-prove identity with the
-    current password (and an MFA code when MFA is enabled). The new address starts unverified and
-    a verification link is emailed to it.
+    current password (and an MFA code when MFA is enabled). The current address stays in place
+    until the link emailed to the new one is followed, and the new address is shown as
+    ``pending_email`` meanwhile. A later request replaces an earlier one, and the current address
+    cancels a pending change. When the server cannot send mail the address changes at once, unverified.
     The user's other sessions are revoked when the request asks for it.
 
     Args:
@@ -168,9 +170,60 @@ def edit_profile_email(
         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
         step_up_store: Step-up lockout store.
         db: Database session.
-        db: Database session.
+
+    Raises:
+        HTTPException: 401 if step-up verification fails, 409 if another account uses the address.
     """
     profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, db)
+
+
+@router.post(
+    "/email/change/resend",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def resend_profile_email_change(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    state: core_dependencies.PlatformState,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Send the confirmation email of the pending email change again.
+
+    The answer is the same whether or not an email was queued: there may be no pending change,
+    the server may not send mail, or an email may already have gone out within the cooldown.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        token_user_id: User ID from access token.
+        state: The platform state provider, for the resend cooldown.
+        db: Database session.
+    """
+    profile_service.resend_email_change(token_user_id, state, db)
+
+
+@router.delete(
+    "/email/change",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def cancel_profile_email_change(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Cancel the pending email change, so its confirmation link stops working.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        token_user_id: User ID from access token.
+        db: Database session.
+    """
+    profile_service.cancel_email_change(token_user_id, db)
 
 
 @router.patch(

@@ -1,6 +1,6 @@
 """Sign-up token workflows and email preparation."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.computation as token_hashing
+import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.email_messages as sign_up_email_messages
 import modules.auth.sign_up_tokens.event_publishers as sign_up_event_publishers
@@ -26,10 +27,11 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 EXISTING_ACCOUNT_NOTICE_COOLDOWN_SECONDS = 3600
+EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS = 3600
 
 
-def create_sign_up_token(user_id: int, db: Session) -> str:
-    """Replace a user's verification tokens and commit the new token."""
+def _stage_sign_up_token(user_id: int, email: str, previous_email: str | None, db: Session) -> str:
+    """Stage a user's new verification token, using up their earlier ones, and return its raw value."""
     token, token_hash = token_hashing.generate_token_and_hash()
     now = datetime.now(UTC)
     sign_up_token = sign_up_schema.SignUpToken(
@@ -39,9 +41,28 @@ def create_sign_up_token(user_id: int, db: Session) -> str:
         created_at=now,
         expires_at=now + timedelta(hours=24),
         used=False,
+        email=email,
+        previous_email=previous_email,
     )
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
     sign_up_crud.create_sign_up_token(sign_up_token, db)
+    return token
+
+
+def create_sign_up_token(user_id: int, email: str, db: Session, previous_email: str | None = None) -> str:
+    """Replace a user's verification tokens and commit the new token.
+
+    Args:
+        user_id: The user the token belongs to.
+        email: The address the token proves.
+        db: Database session.
+        previous_email: The account's address when an email change was requested; set only on an email-change
+            token, which replaces that address with ``email`` once confirmed.
+
+    Returns:
+        The raw token, which is not stored.
+    """
+    token = _stage_sign_up_token(user_id, email, previous_email, db)
     db.commit()
     logger.info("Sign-up verification token created", extra=core_logger.context(user_id=user_id))
     return token
@@ -58,12 +79,81 @@ def request_sign_up_verification_email(user_id: int, db: Session) -> None:
     sign_up_event_publishers.publish_sign_up_verification_requested(user_id, db)
 
 
-def request_email_reverification(user_id: int, db: Session) -> bool:
-    """Stage a verification-email event after an email change, when mail is configured."""
+def request_email_change(user_id: int, email: str, previous_email: str, db: Session) -> bool:
+    """Stage a pending email change and its confirmation event, when mail is configured.
+
+    The token row records the pending address; its raw value is discarded, because the delivery subscriber
+    issues the token that is mailed. The caller owns the transaction, so the row and the event commit together.
+
+    Args:
+        user_id: The user whose address changes.
+        email: The pending address to confirm.
+        previous_email: The user's current address, which the confirmation replaces.
+        db: Database session.
+
+    Returns:
+        True when the change was staged, False when mail is not configured and nothing was staged.
+    """
     if not server_settings_integration.is_mail_configured(db):
         return False
+    _stage_sign_up_token(user_id, email, previous_email, db)
     sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
     return True
+
+
+def _find_pending_email_change(user_id: int, db: Session) -> sign_up_contracts.SignUpTokenState | None:
+    """Return a user's unused, unexpired email-change token, or None when no change is pending."""
+    pending = sign_up_crud.get_pending_email_change_tokens([user_id], datetime.now(UTC), db)
+    return pending[0] if pending else None
+
+
+def get_pending_email_changes(
+    user_ids: Collection[int], db: Session
+) -> dict[int, sign_up_contracts.PendingEmailChange]:
+    """Return the unconfirmed email change of each given user that has one.
+
+    Args:
+        user_ids: The users to look up.
+        db: Database session.
+
+    Returns:
+        The pending address and its expiry, keyed by user id.
+    """
+    if not user_ids:
+        return {}
+    tokens = sign_up_crud.get_pending_email_change_tokens(user_ids, datetime.now(UTC), db)
+    return {
+        token.user_id: sign_up_contracts.PendingEmailChange(email=token.email, expires_at=token.expires_at)
+        for token in tokens
+        if token.email is not None
+    }
+
+
+def request_email_change_resend(user_id: int, state: StateProvider, db: Session) -> None:
+    """Stage a new confirmation email for a user's pending email change.
+
+    Nothing is staged without mail configured, without a pending change, when an email went out within the
+    cooldown, or when the cooldown store is unreachable: the answer must not depend on the outcome, so an outage
+    skips the resend instead of failing the request. The caller commits.
+
+    Args:
+        user_id: The user whose pending change is resent.
+        state: The platform state provider, for the resend cooldown.
+        db: Database session.
+    """
+    if not server_settings_integration.is_mail_configured(db) or _find_pending_email_change(user_id, db) is None:
+        return
+    try:
+        if not core_email_cooldown.claim_email(
+            state, "email_change_verification", user_id, EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS
+        ):
+            return
+    except StateBackendUnavailableError as err:
+        logger.error(
+            "Email-change resend cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user_id)
+        )
+        return
+    sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
 
 
 def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:
@@ -102,21 +192,20 @@ def request_sign_up_approved_email(user_id: int, db: Session) -> bool:
     return True
 
 
-def _prepare_verification_email(
-    user_id: int,
+def _issue_verification_email(
+    user: users_schema.UsersRead,
+    email: str,
+    previous_email: str | None,
     frontend_host: str,
     build_email: Callable[[str, str, str, str], tuple[str, str, str]],
     db: Session,
-) -> tuple[str, str, str, str] | None:
-    """Create a verification link and return the email ``build_email`` makes of it."""
-    user = users_integration.get_user(user_id, db)
-    if user is None:
-        return None
-    token = create_sign_up_token(user.id, db)
+) -> tuple[str, str, str, str]:
+    """Create a verification link for ``email`` and return the email ``build_email`` makes of it."""
+    token = create_sign_up_token(user.id, email, db, previous_email=previous_email)
     link = f"{frontend_host}/verify-email?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = build_email(user.name, link, frontend_host, locale)
-    return user.email, subject, html_content, text_content
+    return email, subject, html_content, text_content
 
 
 def prepare_sign_up_verification_email(
@@ -125,7 +214,12 @@ def prepare_sign_up_verification_email(
     db: Session,
 ) -> tuple[str, str, str, str] | None:
     """Create a verification link and return its sign-up email for delivery after the session closes."""
-    return _prepare_verification_email(user_id, frontend_host, sign_up_email_messages.get_signup_confirmation_email, db)
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        return None
+    return _issue_verification_email(
+        user, user.email, None, frontend_host, sign_up_email_messages.get_signup_confirmation_email, db
+    )
 
 
 def prepare_email_change_verification_email(
@@ -133,9 +227,55 @@ def prepare_email_change_verification_email(
     frontend_host: str,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
-    """Create a verification link and return its email-change email for delivery after the session closes."""
-    return _prepare_verification_email(
-        user_id, frontend_host, sign_up_email_messages.get_email_change_confirmation_email, db
+    """Re-issue the user's pending email-change token and return its email for delivery after the session closes.
+
+    Only a token's hash is stored, so the link is made anew from the pending change and mailed to the pending
+    address.
+
+    Returns:
+        The recipient, subject, HTML and text, or None when the user or a pending change is missing.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        return None
+    pending = _find_pending_email_change(user_id, db)
+    if pending is None or pending.email is None:
+        return None
+    return _issue_verification_email(
+        user,
+        pending.email,
+        pending.previous_email,
+        frontend_host,
+        sign_up_email_messages.get_email_change_confirmation_email,
+        db,
+    )
+
+
+def prepare_email_changed_email(
+    user_id: int,
+    token_id: str,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the notice to a user's previous address that a confirmed email change took effect.
+
+    Args:
+        user_id: The user whose address changed.
+        token_id: The confirmed email-change token.
+        frontend_host: Base URL of the frontend.
+        db: Database session.
+
+    Returns:
+        The recipient (the previous address), subject, HTML and text, or None when the user or token is missing.
+    """
+    user = users_integration.get_user(user_id, db)
+    token = sign_up_crud.get_sign_up_token_by_id(token_id, db)
+    if user is None or token is None or token.user_id != user_id or token.email is None or token.previous_email is None:
+        return None
+    locale = core_i18n.normalize_locale(user.preferred_language)
+    return (
+        token.previous_email,
+        *sign_up_email_messages.get_email_changed_email(user.name, token.email, frontend_host, locale),
     )
 
 
@@ -200,12 +340,12 @@ def revoke_user_tokens(user_id: int, db: Session) -> None:
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
 
-def verify_sign_up_token(token: str, db: Session) -> int:
-    """Stage consumption of a valid verification token and return its user id."""
-    user_id = sign_up_crud.claim_sign_up_token(token_hashing.sha256_hex(token), db)
-    if user_id is None:
+def verify_sign_up_token(token: str, db: Session) -> sign_up_contracts.SignUpTokenClaim:
+    """Stage consumption of a valid verification token and return what it proves."""
+    claim = sign_up_crud.claim_sign_up_token(token_hashing.sha256_hex(token), db)
+    if claim is None:
         raise core_exceptions.InvalidInputError("Invalid or expired sign up token")
-    return user_id
+    return claim
 
 
 def _signup_response(server_settings: server_settings_schema.ServerSettingsRead) -> sign_up_schema.SignUpRead:
@@ -276,9 +416,18 @@ def signup(
 
 
 def verify_email(token: str, db: Session) -> sign_up_schema.SignUpRead:
-    """Consume a verification token and apply the server's email-verification policy."""
+    """Consume a verification token and apply the server's email-verification policy.
+
+    A token that replaces the account's address (an email-change token) first switches the account to the
+    confirmed address and stages the notice to the previous one; a conflict or any later failure rolls the
+    claim back with the rest of the transaction.
+    """
     server_settings = server_settings_integration.get_server_settings(db)
-    user_id = verify_sign_up_token(token, db)
+    claim = verify_sign_up_token(token, db)
+    user_id = claim.user_id
+    if claim.previous_email is not None:
+        users_integration.stage_confirmed_email_change(user_id, claim.email, db)
+        sign_up_event_publishers.publish_email_changed(user_id, claim.id, db)
     user = users_integration.get_user(user_id, db)
     if user is None:
         raise core_exceptions.NotFoundError("User not found")

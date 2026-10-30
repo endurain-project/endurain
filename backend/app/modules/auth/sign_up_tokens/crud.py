@@ -1,5 +1,6 @@
 """Persistence operations for sign-up tokens."""
 
+from collections.abc import Collection
 from datetime import UTC, datetime
 
 from sqlalchemy import delete as sa_delete
@@ -13,8 +14,8 @@ import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.serializers as sign_up_serializers
 
 
-def claim_sign_up_token(token_hash: str, db: Session) -> int | None:
-    """Stage an atomic claim of an unused, unexpired token and return its user id.
+def claim_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignUpTokenClaim | None:
+    """Stage an atomic claim of an unused, unexpired token and return what it proves.
 
     One conditional ``UPDATE`` flips ``used``, so of two requests presenting the same link only one
     matches a row.
@@ -24,21 +25,51 @@ def claim_sign_up_token(token_hash: str, db: Session) -> int | None:
         db: Database session.
 
     Returns:
-        The user the token belongs to, or None when it is unknown, used or expired.
+        The claimed token's id, user and addresses, or None when it is unknown, used or expired.
     """
+    model = sign_up_models.SignUpToken
     stmt = (
-        sa_update(sign_up_models.SignUpToken)
+        sa_update(model)
         .where(
-            sign_up_models.SignUpToken.token_hash == token_hash,
-            sign_up_models.SignUpToken.used.is_(False),
-            sign_up_models.SignUpToken.expires_at > datetime.now(UTC),
+            model.token_hash == token_hash,
+            model.used.is_(False),
+            model.expires_at > datetime.now(UTC),
         )
         .values(used=True)
-        .returning(sign_up_models.SignUpToken.user_id)
+        .returning(model.id, model.user_id, model.email, model.previous_email)
     )
-    user_id = db.execute(stmt).scalar_one_or_none()
+    row = db.execute(stmt).one_or_none()
     db.flush()
-    return user_id
+    return sign_up_serializers.to_claim(row) if row is not None else None
+
+
+def get_pending_email_change_tokens(
+    user_ids: Collection[int], now: datetime, db: Session
+) -> list[sign_up_contracts.SignUpTokenState]:
+    """Return the unused, unexpired email-change tokens of the given users.
+
+    Args:
+        user_ids: The users to look up.
+        now: The instant a token must still be valid at.
+        db: Database session.
+
+    Returns:
+        The users' pending email-change tokens.
+    """
+    model = sign_up_models.SignUpToken
+    stmt = select(model).where(
+        model.user_id.in_(user_ids),
+        model.used.is_(False),
+        model.expires_at > now,
+        model.previous_email.is_not(None),
+    )
+    return [sign_up_serializers.to_state(row) for row in db.execute(stmt).scalars().all()]
+
+
+def get_sign_up_token_by_id(token_id: str, db: Session) -> sign_up_contracts.SignUpTokenState | None:
+    """Return a token by id, whether or not it has been used, or None when there is none."""
+    row = db.get(sign_up_models.SignUpToken, token_id)
+    return sign_up_serializers.to_state(row) if row is not None else None
 
 
 def create_sign_up_token(
@@ -53,6 +84,8 @@ def create_sign_up_token(
         created_at=token.created_at,
         expires_at=token.expires_at,
         used=token.used,
+        email=token.email,
+        previous_email=token.previous_email,
     )
     db.add(row)
     db.flush()

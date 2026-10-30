@@ -1,5 +1,7 @@
 """Convert sign-up token ORM rows into internal contracts."""
 
+from sqlalchemy import Row
+
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.models as sign_up_models
 
@@ -7,3 +9,8 @@ import modules.auth.sign_up_tokens.models as sign_up_models
 def to_state(row: sign_up_models.SignUpToken) -> sign_up_contracts.SignUpTokenState:
     """Return the internal state contract for a token row."""
     return sign_up_contracts.SignUpTokenState.model_validate(row)
+
+
+def to_claim(row: Row) -> sign_up_contracts.SignUpTokenClaim:
+    """Return the claim contract for the columns a token claim returned."""
+    return sign_up_contracts.SignUpTokenClaim.model_validate(row, from_attributes=True)

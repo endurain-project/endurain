@@ -429,13 +429,14 @@ class TestEditUser:
 class TestEditProfileEmail:
     """Tests for POST /profile/email/change — edit_profile_email."""
 
-    @patch(
-        "modules.users.users_profile.service.sign_up_tokens_integration.request_email_reverification", return_value=True
-    )
-    @patch("modules.users.users_profile.service.users_integration.stage_email_change")
-    def test_success_runs_the_step_up_and_asks_for_verification(
-        self, _stage, mock_reverification, profile_client, mock_auth_services
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change", return_value=True)
+    @patch("modules.users.users_profile.service.users_integration.require_email_available")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_success_runs_the_step_up_and_requests_the_change(
+        self, mock_require, _available, mock_request, profile_client, mock_auth_services
     ):
+        mock_require.return_value = _make_user_mock()
+
         response = profile_client.post(
             PREFIX + "/email/change",
             json={"email": "new@example.com", "current_password": "pw", "mfa_code": None},
@@ -443,10 +444,10 @@ class TestEditProfileEmail:
 
         assert response.status_code == 204
         mock_auth_services.verify_step_up.assert_called_once()
-        mock_reverification.assert_called_once()
+        assert mock_request.call_args.args[:3] == (1, "new@example.com", "test@example.com")
 
-    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_reverification")
-    def test_step_up_fails(self, mock_reverification, profile_client, mock_auth_services):
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change")
+    def test_step_up_fails(self, mock_request, profile_client, mock_auth_services):
         mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
 
         response = profile_client.post(
@@ -455,7 +456,23 @@ class TestEditProfileEmail:
         )
 
         assert response.status_code == 401
-        mock_reverification.assert_not_called()
+        mock_request.assert_not_called()
+
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change")
+    @patch(
+        "modules.users.users_profile.service.users_integration.require_email_available",
+        side_effect=core_exceptions.ConflictError("taken"),
+    )
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_an_address_of_another_account_is_a_conflict(self, mock_require, _available, mock_request, profile_client):
+        mock_require.return_value = _make_user_mock()
+
+        response = profile_client.post(
+            PREFIX + "/email/change", json={"email": "taken@example.com", "current_password": "pw"}
+        )
+
+        assert response.status_code == 409
+        mock_request.assert_not_called()
 
     def test_the_address_must_be_valid(self, profile_client):
         response = profile_client.post(
@@ -468,6 +485,30 @@ class TestEditProfileEmail:
         response = profile_client.patch(PREFIX, json={"email": "new@example.com"}, headers={"If-Match": '"1"'})
 
         assert response.status_code == 422
+
+
+class TestResendProfileEmailChange:
+    """Tests for POST /profile/email/change/resend — resend_profile_email_change."""
+
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change_resend")
+    def test_answers_204_and_asks_for_a_resend(self, mock_resend, profile_client, local_mock_db):
+        response = profile_client.post(PREFIX + "/email/change/resend")
+
+        assert response.status_code == 204
+        assert mock_resend.call_args.args[0] == 1
+        local_mock_db.commit.assert_called_once()
+
+
+class TestCancelProfileEmailChange:
+    """Tests for DELETE /profile/email/change — cancel_profile_email_change."""
+
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.revoke_pending_tokens")
+    def test_answers_204_and_revokes_the_pending_tokens(self, mock_revoke, profile_client, local_mock_db):
+        response = profile_client.delete(PREFIX + "/email/change")
+
+        assert response.status_code == 204
+        mock_revoke.assert_called_once_with(1, local_mock_db)
+        local_mock_db.commit.assert_called_once()
 
 
 class TestEditProfilePrivacySettings:

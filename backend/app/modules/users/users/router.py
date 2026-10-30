@@ -214,7 +214,7 @@ def read_users_full(
     Raises:
         NotFoundError: If the user does not exist.
     """
-    user = users_service.require_user(user_id, db)
+    user = users_service.require_user_with_pending_email(user_id, db)
     core_etag.set_etag(response, user.version)
     return user
 

@@ -1,6 +1,7 @@
 """User schema definitions for request and response models."""
 
 from datetime import date as datetime_date
+from datetime import datetime
 from enum import Enum
 from zoneinfo import available_timezones
 
@@ -347,6 +348,8 @@ class UsersRead(Users):
     Attributes:
         id: User ID.
         external_auth_count: Number of external auth providers.
+        pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
+        pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
     """
 
     id: StrictInt = Field(
@@ -360,6 +363,12 @@ class UsersRead(Users):
         description="Number of external auth providers linked",
     )
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    pending_email: EmailStr | None = Field(
+        default=None, description="Email address awaiting confirmation, which replaces the current one once confirmed"
+    )
+    pending_email_expires_at: datetime | None = Field(
+        default=None, description="When the confirmation link for the pending email address expires"
+    )
 
 
 class UserPublicRead(BaseModel):
@@ -393,7 +402,7 @@ class UsersEdit(Users):
     """Users schema for an administrative edit.
 
     The stored columns of a user and nothing a read adds: ``id`` is the path, and
-    ``external_auth_count`` is derived. ``photo_path`` and ``mfa_enabled`` are read-only
+    ``external_auth_count`` and the pending email change are derived. ``photo_path`` and ``mfa_enabled`` are read-only
     projections, so a write ignores them.
     """
 
@@ -407,7 +416,11 @@ class UsersEdit(Users):
         Returns:
             The same user as an edit.
         """
-        return cls.model_validate(user.model_dump(exclude={"id", "external_auth_count", "version"}))
+        return cls.model_validate(
+            user.model_dump(
+                exclude={"id", "external_auth_count", "version", "pending_email", "pending_email_expires_at"}
+            )
+        )
 
 
 class UsersMe(UsersRead):

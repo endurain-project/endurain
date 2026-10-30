@@ -15,6 +15,8 @@ class SignUpToken(BaseModel):
         created_at: Timestamp when token was created.
         expires_at: Timestamp when the token expires.
         used: Whether the token has been used.
+        email: Email address the token proves.
+        previous_email: Account email address a pending email change replaces.
     """
 
     id: StrictStr = Field(
@@ -42,6 +44,16 @@ class SignUpToken(BaseModel):
     used: StrictBool = Field(
         ...,
         description="Whether the token has been used",
+    )
+    email: StrictStr | None = Field(
+        default=None,
+        description="Email address the token proves",
+        max_length=250,
+    )
+    previous_email: StrictStr | None = Field(
+        default=None,
+        description="Account email address a pending email change replaces",
+        max_length=250,
     )
 
     model_config = ConfigDict(

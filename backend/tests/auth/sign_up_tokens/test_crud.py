@@ -43,7 +43,13 @@ class TestClaimSignUpToken:
     """A link works once even when two requests present it together, so the claim is one UPDATE."""
 
     @staticmethod
-    def _db_with_token(*, expires_in: timedelta = timedelta(hours=1), used: bool = False):
+    def _db_with_token(
+        *,
+        expires_in: timedelta = timedelta(hours=1),
+        used: bool = False,
+        email: str | None = None,
+        previous_email: str | None = None,
+    ):
         db = create_sqlite_session()
         ensure_user(sessionmaker(bind=db.get_bind()), 7)
         now = datetime.now(UTC)
@@ -55,6 +61,8 @@ class TestClaimSignUpToken:
                 created_at=now,
                 expires_at=now + expires_in,
                 used=used,
+                email=email,
+                previous_email=previous_email,
             ),
             db,
         )
@@ -63,8 +71,18 @@ class TestClaimSignUpToken:
     def test_a_valid_token_is_claimed_once(self):
         db = self._db_with_token()
 
-        assert sign_up_crud.claim_sign_up_token("hash", db) == 7
+        claim = sign_up_crud.claim_sign_up_token("hash", db)
+
+        assert claim is not None
+        assert (claim.id, claim.user_id) == ("token-1", 7)
         assert sign_up_crud.claim_sign_up_token("hash", db) is None
+
+    def test_the_claim_carries_the_tokens_addresses(self):
+        db = self._db_with_token(email="new@example.com", previous_email="old@example.com")
+
+        claim = sign_up_crud.claim_sign_up_token("hash", db)
+
+        assert (claim.email, claim.previous_email) == ("new@example.com", "old@example.com")
 
     def test_an_expired_token_is_not_claimed(self):
         db = self._db_with_token(expires_in=timedelta(hours=-1))

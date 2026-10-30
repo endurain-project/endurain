@@ -30,9 +30,15 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         sign_up_tokens_subscribers.EMAIL_CHANGE_VERIFICATION_EMAIL_SUBSCRIBER_ID,
         None,
         exempt_reason=(
-            "A verification email is a transient reaction to an email change; the user row is the source "
-            "of truth and a lost email is recovered by changing the address again or by an admin."
+            "A verification email is a transient reaction to an email change; the pending token row is the "
+            "source of truth and a lost email is recovered by resending it, changing the address again or by "
+            "an admin."
         ),
+    ),
+    DurableSubscriberNet(
+        sign_up_tokens_subscribers.EMAIL_CHANGED_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason="The notice is a courtesy to the previous address; the confirmed change is already applied.",
     ),
     DurableSubscriberNet(
         sign_up_tokens_subscribers.SIGN_UP_APPROVAL_REQUEST_EMAIL_SUBSCRIBER_ID,

@@ -77,9 +77,13 @@ def get_profile(
     if privacy_settings is None:
         raise core_exceptions.NotFoundError("User privacy settings not found")
 
+    pending_email = sign_up_tokens_integration.get_pending_email_changes([user_id], db).get(user_id)
+
     return users_schema.UsersMe.model_validate(
         {
             **user.model_dump(),
+            "pending_email": pending_email.email if pending_email else None,
+            "pending_email_expires_at": pending_email.expires_at if pending_email else None,
             "integrations_version": user_integrations.version,
             "is_strava_linked": 1 if user_integrations.strava_token else 0,
             "is_garminconnect_linked": 1 if user_integrations.garminconnect_token else 0,
@@ -177,12 +181,14 @@ def change_email(
     step_up_store: "auth_dependencies.StepUpStore",
     db: Session,
 ) -> None:
-    """Change the authenticated user's email after step-up verification, and ask them to verify it.
+    """Request an email change after step-up verification, to take effect once the new address is confirmed.
 
     The address is where password resets go, so a stolen access token alone must not be able to
-    redirect it. The new address starts unverified; a verification link is emailed to it when the
-    server can send mail. When the request asks for it, the user's other sessions are revoked, so a
-    session an attacker holds does not outlive the change.
+    redirect it. The user keeps their current address until the link emailed to the new one is
+    followed; a later request replaces an earlier one, and re-submitting the current address cancels
+    a pending change. When the server cannot send mail nothing can be confirmed, so the address is
+    changed at once and left unverified. When the request asks for it, the user's other sessions are
+    revoked, so a session an attacker holds does not outlive the change.
 
     Args:
         user_id: The authenticated user.
@@ -194,7 +200,7 @@ def change_email(
     Raises:
         UnauthenticatedError: If step-up verification fails.
         NotFoundError: If the user does not exist.
-        ConflictError: If the email is already taken.
+        ConflictError: If another account uses the email.
     """
     account_security_integration.verify_step_up(
         users_schema.StepUpVerification(**change.model_dump(exclude={"email", "revoke_other_sessions"})),
@@ -204,25 +210,59 @@ def change_email(
         step_up_store,
         db,
     )
+    new_email = change.email.lower()
+    current_email = users_integration.require_user(user_id, db).email
+    if new_email == current_email:
+        sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
+        db.commit()
+        return
+
+    verification_queued = True
     try:
-        changed = users_integration.stage_email_change(user_id, change.email, db)
+        users_integration.require_email_available(user_id, new_email, db)
+        verification_queued = sign_up_tokens_integration.request_email_change(user_id, new_email, current_email, db)
+        if not verification_queued:
+            users_integration.stage_email_change(user_id, new_email, db)
     except core_exceptions.ConflictError:
         db.rollback()
         raise
-    if not changed:
-        return
-    db.commit()
-    logger.info("Email changed", extra=core_logger.context(user_id=user_id))
-
     if change.revoke_other_sessions:
         account_security_integration.delete_other_user_sessions(user_id, session_id, db)
-    verification_queued = sign_up_tokens_integration.request_email_reverification(user_id, db)
     db.commit()
+    logger.info("Email change requested", extra=core_logger.context(user_id=user_id))
     if not verification_queued:
         logger.warning(
             "Email changed but cannot be verified: outgoing email is not configured",
             extra=core_logger.context(user_id=user_id),
         )
+
+
+def resend_email_change(user_id: int, state: platform_providers.StateProvider, db: Session) -> None:
+    """Send the confirmation email of the user's pending email change again, at most once per cooldown.
+
+    Nothing tells the caller whether an email was queued: the answer is the same with no pending
+    change, no mail configured or a resend inside the cooldown.
+
+    Args:
+        user_id: The authenticated user.
+        state: The platform state provider, for the resend cooldown.
+        db: Database session.
+    """
+    sign_up_tokens_integration.request_email_change_resend(user_id, state, db)
+    db.commit()
+    logger.debug("Email change resend handled", extra=core_logger.context(user_id=user_id))
+
+
+def cancel_email_change(user_id: int, db: Session) -> None:
+    """Cancel the user's pending email change, so its confirmation link stops working.
+
+    Args:
+        user_id: The authenticated user.
+        db: Database session.
+    """
+    sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
+    db.commit()
+    logger.info("Pending email change cancelled", extra=core_logger.context(user_id=user_id))
 
 
 def edit_privacy_settings(
