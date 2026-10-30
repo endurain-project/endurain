@@ -71,3 +71,20 @@ def test_decisions_reach_the_service():
     verify.assert_called_once_with(1, "settings", db)
     confirmed.assert_called_once_with(1, "new@example.com", db)
     signup.assert_called_once_with("signup", "settings", db, False)
+
+
+def test_any_user_exists_reaches_the_crud():
+    db = MagicMock()
+    with patch.object(users_integration.users_crud, "any_user_exists", return_value=True) as exists:
+        assert users_integration.any_user_exists(db) is True
+
+    exists.assert_called_once_with(db)
+
+
+def test_stage_first_admin_reaches_the_service():
+    db = MagicMock()
+    admin = MagicMock()
+    with patch.object(users_integration.users_service, "stage_first_admin", return_value="admin") as stage:
+        assert users_integration.stage_first_admin(admin, db) == "admin"
+
+    stage.assert_called_once_with(admin, db)

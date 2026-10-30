@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from tests._helpers.db import create_sqlite_session
 
 import core.exceptions as core_exceptions
+import migrations.startup as migrations_startup
 import model_registry
 import modules.users.users.crud as users_crud
 import modules.users.users.models as users_models
@@ -106,6 +107,26 @@ class TestReads:
         assert "FOR UPDATE" in sql
         assert "ORDER BY users.id" in sql
         assert "active IS true" in sql
+
+    @pytest.mark.parametrize("exists", [True, False])
+    def test_any_user_exists_asks_for_a_row_not_a_count(self, mock_db, exists):
+        mock_db.execute.return_value.scalar_one.return_value = exists
+
+        assert users_crud.any_user_exists(mock_db) is exists
+
+        sql = _sql(mock_db)
+        assert "EXISTS" in sql
+        assert "count" not in sql.lower()
+
+    def test_lock_first_admin_creation_takes_a_transaction_scoped_advisory_lock(self, mock_db):
+        users_crud.lock_first_admin_creation(mock_db)
+
+        statement, params = mock_db.execute.call_args.args
+        assert "pg_advisory_xact_lock" in str(statement)
+        assert params == {"key": 7_203_419_002}
+
+    def test_the_first_admin_lock_key_differs_from_the_migration_lock_key(self):
+        assert users_crud._FIRST_ADMIN_LOCK_KEY != migrations_startup._MIGRATION_LOCK_KEY
 
     def test_get_stored_photo_keys_returns_scalars(self, mock_db):
         mock_db.execute.return_value.all.return_value = [(1, "1.png"), (2, None)]

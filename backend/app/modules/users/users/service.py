@@ -326,6 +326,37 @@ def _stage_default_data(user_id: int, db: Session) -> None:
     mfa_integration.create_users_mfa_row(user_id, db)
 
 
+def _stage_user(user: users_schema.UsersCreate, db: Session) -> users_schema.UsersRead:
+    """Stage a user with their password and default data (flushed, not committed).
+
+    Args:
+        user: User creation data with a plain text password.
+        db: Database session.
+
+    Returns:
+        The staged user.
+
+    Raises:
+        ConflictError: If the username or email is already taken.
+        InvalidInputError: If the password fails the configured policy.
+    """
+    server_settings = server_settings_integration.get_server_settings(db)
+    access_type = users_schema.normalize_access_type(user.access_type)
+    hashed_password = credentials_integration.validate_and_hash_password_for_user(
+        server_settings, access_type, user.password, db
+    )
+
+    fields = user.model_dump(exclude={"password", "access_type", "mfa_enabled"})
+    fields.update(username=user.username.lower(), email=user.email.lower(), access_type=access_type)
+    if not user.active:
+        fields["deactivated_at"] = datetime.now(UTC)
+    created = users_crud.create_user(fields, db)
+
+    credentials_integration.set_local_password_hash(created.id, hashed_password, db)
+    _stage_default_data(created.id, db)
+    return created
+
+
 def create_user(
     user: users_schema.UsersCreate,
     db: Session,
@@ -343,27 +374,52 @@ def create_user(
         ConflictError: If the username or email is already taken.
         InvalidInputError: If the password fails the configured policy.
     """
-    server_settings = server_settings_integration.get_server_settings(db)
-    access_type = users_schema.normalize_access_type(user.access_type)
-    hashed_password = credentials_integration.validate_and_hash_password_for_user(
-        server_settings, access_type, user.password, db
-    )
-
-    fields = user.model_dump(exclude={"password", "access_type", "mfa_enabled"})
-    fields.update(username=user.username.lower(), email=user.email.lower(), access_type=access_type)
-    if not user.active:
-        fields["deactivated_at"] = datetime.now(UTC)
     try:
-        created = users_crud.create_user(fields, db)
+        created = _stage_user(user, db)
     except core_exceptions.ConflictError:
         db.rollback()
         raise
 
-    credentials_integration.set_local_password_hash(created.id, hashed_password, db)
-    _stage_default_data(created.id, db)
     db.commit()
     logger.info("User created", extra=core_logger.context(user_id=created.id))
     return created
+
+
+def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> users_schema.UsersRead:
+    """Stage the first administrator of a fresh installation (flushed, not committed).
+
+    The account is an active administrator with a verified address, whatever the caller sent. The advisory lock
+    is held until the caller's transaction ends, and the zero-user check runs under it, so concurrent
+    callers cannot both create a user.
+
+    Args:
+        admin: The administrator's name, username, email and plain text password.
+        db: Database session.
+
+    Returns:
+        The staged administrator.
+
+    Raises:
+        ConflictError: If a user already exists, or the username or email is already taken.
+        InvalidInputError: If the password fails the administrator policy.
+    """
+    users_crud.lock_first_admin_creation(db)
+    if users_crud.any_user_exists(db):
+        raise core_exceptions.ConflictError("An account already exists")
+
+    return _stage_user(
+        users_schema.UsersCreate(
+            name=admin.name,
+            username=admin.username,
+            email=admin.email,
+            password=admin.password,
+            access_type=users_schema.UserAccessType.ADMIN,
+            active=True,
+            email_verified=True,
+            pending_admin_approval=False,
+        ),
+        db,
+    )
 
 
 def _stage_signup_user(

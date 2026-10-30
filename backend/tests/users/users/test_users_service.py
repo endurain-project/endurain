@@ -388,6 +388,94 @@ class TestCreateUser:
         identity.set_local_password_hash.assert_not_called()
 
 
+class TestStageFirstAdmin:
+    def _admin(self, **overrides) -> users_schema.FirstAdminCreate:
+        fields = {"name": "Owner", "username": "Owner", "email": "Owner@Example.com", "password": "SecurePass1!"}
+        fields.update(overrides)
+        return users_schema.FirstAdminCreate(**fields)
+
+    @patch(_CRUD)
+    def test_refuses_when_a_user_exists_under_the_lock_and_stages_nothing(self, mock_crud, mock_db):
+        identity = _identity()
+        mock_crud.any_user_exists.return_value = True
+
+        with pytest.raises(core_exceptions.ConflictError):
+            users_service.stage_first_admin(self._admin(), mock_db)
+
+        mock_crud.lock_first_admin_creation.assert_called_once_with(mock_db)
+        mock_crud.create_user.assert_not_called()
+        identity.set_local_password_hash.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_locks_before_it_checks_and_checks_before_it_inserts(
+        self, mock_crud, mock_settings, mock_defaults, mock_db
+    ):
+        _identity().validate_and_hash_password_for_user.return_value = "hash"
+        mock_crud.any_user_exists.return_value = False
+        mock_crud.create_user.return_value = _user(1, access_type="admin")
+        order = MagicMock()
+        order.attach_mock(mock_crud.lock_first_admin_creation, "lock")
+        order.attach_mock(mock_crud.any_user_exists, "check")
+        order.attach_mock(mock_crud.create_user, "insert")
+
+        users_service.stage_first_admin(self._admin(), mock_db)
+
+        assert [call[0] for call in order.mock_calls] == ["lock", "check", "insert"]
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_stages_an_active_verified_admin_with_the_admin_password_policy_and_does_not_commit(
+        self, mock_crud, mock_settings, mock_defaults, mock_db
+    ):
+        identity = _identity()
+        identity.validate_and_hash_password_for_user.return_value = "hash"
+        mock_crud.any_user_exists.return_value = False
+        mock_crud.create_user.return_value = _user(1, access_type="admin")
+
+        created = users_service.stage_first_admin(self._admin(), mock_db)
+
+        fields = mock_crud.create_user.call_args.args[0]
+        assert fields["access_type"] == "admin"
+        assert fields["active"] is True
+        assert fields["email_verified"] is True
+        assert fields["pending_admin_approval"] is False
+        assert "deactivated_at" not in fields
+        assert (fields["preferred_language"], fields["gender"], fields["units"]) == ("en", "unspecified", "metric")
+        assert fields["username"] == "owner" and fields["email"] == "owner@example.com"
+        assert "password" not in fields
+        assert identity.validate_and_hash_password_for_user.call_args.args[1] == "admin"
+        identity.set_local_password_hash.assert_called_once_with(1, "hash")
+        mock_defaults.assert_called_once_with(1, mock_db)
+        mock_db.commit.assert_not_called()
+        mock_db.rollback.assert_not_called()
+        assert created.id == 1
+
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_a_weak_password_surfaces_the_credentials_error_and_inserts_nothing(
+        self, mock_crud, mock_settings, mock_db
+    ):
+        identity = _identity()
+        identity.validate_and_hash_password_for_user.side_effect = core_exceptions.InvalidInputError("too short")
+        mock_crud.any_user_exists.return_value = False
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            users_service.stage_first_admin(self._admin(), mock_db)
+
+        mock_crud.create_user.assert_not_called()
+
+    def test_the_request_shape_carries_no_access_type_or_account_state(self):
+        for field in ("access_type", "active", "email_verified", "pending_admin_approval"):
+            with pytest.raises(ValueError):
+                users_schema.FirstAdminCreate(
+                    name="O", username="o", email="o@example.com", password="SecurePass1!", **{field: True}
+                )
+
+
 class TestAccountCreationIsOneUnit:
     """The user row, credential, MFA row and default rows commit together, once, last."""
 

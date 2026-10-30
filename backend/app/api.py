@@ -29,6 +29,7 @@ import modules.auth.account_security.sessions_router as auth_sessions_profile_ro
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.router as identity_providers_router
+import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.password_reset_tokens.public_router as password_reset_tokens_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
@@ -467,6 +468,11 @@ router.include_router(
     authentication_sso_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/idp",
     tags=["identity_providers_public"],
+)
+router.include_router(
+    onboarding_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/onboarding",
+    tags=["public_onboarding"],
 )
 router.include_router(
     server_settings_public_router.router,

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from urllib.parse import unquote
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,11 @@ import modules.users.users.schema as users_schema
 import modules.users.users.serializers as users_serializers
 
 _DUPLICATE_DETAIL = "Duplicate entry error. Check if email and username are unique"
+
+#: Advisory-lock key serializing the creation of the first administrator. It differs from the migration lock key
+#: (``_MIGRATION_LOCK_KEY`` in ``migrations/startup.py``), and the single-key form lives apart from the two-key
+#: namespaces the followers use.
+_FIRST_ADMIN_LOCK_KEY = 7_203_419_002
 
 
 def _get_user_model_by_id(user_id: int, db: Session) -> users_models.Users:
@@ -308,6 +313,31 @@ def replace_photo_key(user_id: int, photo_key: str | None, db: Session) -> str |
     db_user.photo_path = photo_key
     db.flush()
     return previous
+
+
+def any_user_exists(db: Session) -> bool:
+    """Tell whether at least one user exists.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        True when the users table holds a row.
+    """
+    return bool(db.execute(select(exists().select_from(users_models.Users))).scalar_one())
+
+
+def lock_first_admin_creation(db: Session) -> None:
+    """Serialize the creation of the first administrator until the transaction ends.
+
+    An empty users table has no row to lock, so concurrent onboarding requests would each see no user and each
+    insert one. The transaction-scoped advisory lock makes the second wait for the first to commit or roll back,
+    and it then sees the user.
+
+    Args:
+        db: Database session.
+    """
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _FIRST_ADMIN_LOCK_KEY})
 
 
 def lock_active_admin_ids(db: Session) -> list[int]:

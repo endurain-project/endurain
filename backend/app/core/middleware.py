@@ -191,6 +191,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             "/api/v1/password-reset/confirm",
             "/api/v1/sign-up/request",
             "/api/v1/sign-up/confirm",
+            "/api/v1/public/onboarding",
         ]
         self.exempt_path_prefixes = [
             "/api/v1/public/idp/session/",

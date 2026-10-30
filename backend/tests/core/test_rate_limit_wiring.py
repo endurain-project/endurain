@@ -53,6 +53,7 @@ import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.sso_public_router as sso_public_router
 import modules.auth.identity_providers.public_router as idp_public_router
 import modules.auth.identity_providers.router as identity_providers_router
+import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.password_reset_tokens.public_router as password_reset_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
@@ -110,6 +111,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(auth_router.verify_mfa_and_login, core_rate_limit.SENSITIVE, id="mfa-verify"),
     pytest.param(auth_router.refresh_token, core_rate_limit.WRITE, id="token-refresh"),
     pytest.param(auth_router.logout, core_rate_limit.WRITE, id="logout"),
+    pytest.param(onboarding_public_router.complete_onboarding, core_rate_limit.SENSITIVE, id="onboarding-complete"),
     pytest.param(sign_up_tokens_router.signup, core_rate_limit.SENSITIVE, id="signup"),
     pytest.param(sign_up_tokens_router.verify_email, core_rate_limit.SENSITIVE, id="verify-email"),
     pytest.param(
@@ -331,6 +333,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(
         activity_thumbnail_public_router.read_activity_thumbnail, core_rate_limit.PUBLIC_READ, id="public-thumbnail"
     ),
+    pytest.param(onboarding_public_router.read_onboarding_status, core_rate_limit.PUBLIC_READ, id="onboarding-status"),
     pytest.param(users_public_router.read_users_id, core_rate_limit.PUBLIC_READ, id="public-user"),
     pytest.param(users_photo_router.read_user_photo, core_rate_limit.PUBLIC_READ, id="user-photo"),
     pytest.param(

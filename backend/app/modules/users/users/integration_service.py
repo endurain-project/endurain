@@ -147,6 +147,37 @@ def require_admin_users(db: Session) -> list[users_schema.UsersRead]:
     return users_service.require_admin_users(db)
 
 
+def any_user_exists(db: Session) -> bool:
+    """Tell whether at least one user exists.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        True when the installation has an account.
+    """
+    return users_crud.any_user_exists(db)
+
+
+def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> users_schema.UsersRead:
+    """Stage the first administrator, with their password and default data; the caller commits.
+
+    Takes the first-administrator advisory lock for the caller's transaction and refuses when a user exists.
+
+    Args:
+        admin: The administrator's name, username, email and plain text password.
+        db: Database session.
+
+    Returns:
+        The staged administrator.
+
+    Raises:
+        ConflictError: If a user already exists, or the username or email is already taken.
+        InvalidInputError: If the password fails the administrator policy.
+    """
+    return users_service.stage_first_admin(admin, db)
+
+
 def create_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,

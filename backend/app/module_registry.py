@@ -47,6 +47,7 @@ import modules.auth.authentication.subscriber_registry as authentication_subscri
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_provider_link_tokens_scheduled_jobs
 import modules.auth.identity_providers.subscriber_registry as identity_providers_subscriber_registry
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
+import modules.auth.onboarding.scheduled_jobs as onboarding_scheduled_jobs
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_scheduled_jobs
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
 import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_refresh_tokens_scheduled_jobs
@@ -297,6 +298,16 @@ MODULES: tuple[RuntimeModule, ...] = (
                 "Purging expired identity-provider link tokens",
                 identity_provider_link_tokens_scheduled_jobs.delete_expired_tokens_from_db,
                 lock_name=identity_provider_link_tokens_scheduled_jobs.PURGE_LOCK_NAME,
+            ),
+        ),
+    ),
+    RuntimeModule(
+        name="onboarding",
+        startup_tasks=(
+            StartupTask(
+                "issue_onboarding_token",
+                "Checking whether first-run onboarding is required",
+                onboarding_scheduled_jobs.issue_onboarding_token_if_needed,
             ),
         ),
     ),

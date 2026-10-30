@@ -164,15 +164,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_activities_streams_activity_id"), "activities_streams", ["activity_id"], unique=False)
-    # Commands to insert a default user
-    op.execute("""
-    INSERT INTO users (name, username, email, password, preferred_language, gender, access_type, is_active) VALUES
-    ('Admin', 'admin', 'admin@endurain.com', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', 'en', 1, 2, 1);
-    """)
-    op.execute("""
-    INSERT INTO users_integrations (user_id, strava_sync_gear) VALUES
-    (1, false);
-    """)
     # ### end Alembic commands ###
 
 

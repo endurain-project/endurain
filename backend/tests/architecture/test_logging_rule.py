@@ -73,10 +73,11 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "websocket/ticket_store.py": "Reports a storage outage and an unreadable ticket value it cannot attribute to a request.",
 }
 
-#: Modules whose ``console=True`` records are operator-facing: bulk-import progress (including the Strava export and gear CSV imports), migrations and the boot
-#: import of deprecated settings.
+#: Modules whose ``console=True`` records are operator-facing: bulk-import progress (including the Strava export and gear CSV imports), migrations, the boot
+#: import of deprecated settings and the first-run onboarding setup token.
 _CONSOLE_ALLOWED_PREFIXES = (
     "activities/activity_ingestion/",
+    "auth/onboarding/scheduled_jobs.py",
     "server_settings/",
     "strava/bulk_import_service.py",
     "strava/gear_service.py",

@@ -3,6 +3,7 @@
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 from zoneinfo import available_timezones
 
 from pydantic import (
@@ -154,6 +155,21 @@ def normalize_access_type(access_type: "UserAccessType | str") -> str:
     return access_type.value if isinstance(access_type, UserAccessType) else access_type
 
 
+#: Field types shared by every shape that takes an account's name, username, email address or new password.
+UserName = Annotated[StrictStr, Field(min_length=1, max_length=250, description="User's full name")]
+UserUsername = Annotated[
+    StrictStr,
+    Field(
+        min_length=1,
+        max_length=250,
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        description="Unique username (alphanumeric, dots, hyphen, underscore)",
+    ),
+]
+UserEmail = Annotated[EmailStr, Field(max_length=250, description="User's email address")]
+UserPassword = Annotated[StrictStr, Field(min_length=8, max_length=250, description="User's password")]
+
+
 class UsersBase(BaseModel):
     """Base users schema with common fields.
 
@@ -174,24 +190,9 @@ class UsersBase(BaseModel):
         timezone: IANA timezone the athlete lives in.
     """
 
-    name: StrictStr = Field(
-        ...,
-        min_length=1,
-        max_length=250,
-        description="User's full name",
-    )
-    username: StrictStr = Field(
-        ...,
-        min_length=1,
-        max_length=250,
-        pattern=r"^[a-zA-Z0-9._-]+$",
-        description="Unique username (alphanumeric, dots, hyphen, underscore)",
-    )
-    email: EmailStr = Field(
-        ...,
-        max_length=250,
-        description="User's email address",
-    )
+    name: UserName
+    username: UserUsername
+    email: UserEmail
     city: StrictStr | None = Field(
         default=None,
         max_length=250,
@@ -243,7 +244,9 @@ class UsersBase(BaseModel):
         ),
     )
 
-    model_config = ConfigDict(use_enum_values=True)
+    # A default is validated too, so an enum default is stored as its value ("en"), not as the member a driver
+    # would write by name ("ENGLISH").
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
 
     @field_validator("timezone")
     @classmethod
@@ -495,12 +498,7 @@ class UsersSignup(UsersBase):
         password: User's password (min 8 chars).
     """
 
-    password: StrictStr = Field(
-        ...,
-        min_length=8,
-        max_length=250,
-        description="User's password",
-    )
+    password: UserPassword
 
 
 class UsersCreate(Users):
@@ -510,12 +508,27 @@ class UsersCreate(Users):
         password: User's password (min 8 chars).
     """
 
-    password: StrictStr = Field(
-        ...,
-        min_length=8,
-        max_length=250,
-        description="User's password",
-    )
+    password: UserPassword
+
+
+class FirstAdminCreate(BaseModel):
+    """The only fields a caller supplies when the first administrator is created.
+
+    The access level and account state are not here: the users service sets them.
+
+    Attributes:
+        name: User's full name.
+        username: Unique username.
+        email: User's email address.
+        password: User's password (min 8 chars; the administrator policy applies on top).
+    """
+
+    name: UserName
+    username: UserUsername
+    email: UserEmail
+    password: UserPassword
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class UsersEditPassword(BaseModel):

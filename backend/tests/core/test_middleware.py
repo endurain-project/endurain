@@ -62,6 +62,10 @@ def app_with_csrf():
     async def test_public():
         return {"message": "Public success"}
 
+    @app.post("/api/v1/public/onboarding")
+    async def test_onboarding():
+        return {"message": "Onboarding success"}
+
     return app
 
 
@@ -238,6 +242,18 @@ class TestCSRFMiddlewareExemptPaths:
         response = client.post("/api/v1/public/idp/session/test/callback", headers={"X-Client-Type": "web"})
         assert response.status_code == 200
         assert response.json() == {"message": "Public success"}
+
+    def test_onboarding_exempt_no_csrf_required(self, client):
+        """
+        Test that /api/v1/public/onboarding is exempt from CSRF checks.
+
+        Verifies:
+            - A web client creates the first administrator without X-CSRF-Token,
+              because it has no session yet and the setup token in the body is the secret
+        """
+        response = client.post("/api/v1/public/onboarding", headers={"X-Client-Type": "web"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "Onboarding success"}
 
 
 class TestCSRFMiddlewareInMemoryModel:
