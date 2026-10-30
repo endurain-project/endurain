@@ -58,6 +58,15 @@ describe('OnboardingView', () => {
     expect(submit.attributes('disabled')).toBeDefined()
   })
 
+  it('explains a password that misses the policy once the field is left', async () => {
+    const wrapper = await mountFilled()
+    const password = wrapper.get('input[name="new-password"]')
+    await password.setValue('short')
+    await password.trigger('blur')
+
+    expect(wrapper.text()).toContain(i18n.global.t('login.onboarding.passwordInvalid'))
+  })
+
   it('submits normalised values and redirects to login with the success flag', async () => {
     completeOnboarding.mockResolvedValue()
     const wrapper = await mountFilled()
