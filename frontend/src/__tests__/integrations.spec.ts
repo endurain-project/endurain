@@ -4,6 +4,7 @@ import type { DateRange } from '@/features/integrations/types'
 
 import { apiFetch } from '@/services/http'
 import {
+  GARMIN_LINK_TIMEOUT_MS,
   linkGarmin,
   retrieveGarminActivities,
   retrieveGarminGear,
@@ -128,6 +129,7 @@ describe('garmin service', () => {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: false }),
       responseType: 'void',
+      timeoutMs: GARMIN_LINK_TIMEOUT_MS,
     })
   })
 
@@ -137,6 +139,7 @@ describe('garmin service', () => {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: true }),
       responseType: 'void',
+      timeoutMs: GARMIN_LINK_TIMEOUT_MS,
     })
   })
 

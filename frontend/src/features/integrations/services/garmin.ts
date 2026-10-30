@@ -7,6 +7,9 @@ import type {
 
 import { apiFetch } from '@/services/http'
 
+/** Above the backend MFA wait of 185 s (modules/garmin/utils.py). */
+export const GARMIN_LINK_TIMEOUT_MS = 200_000
+
 /**
  * Begins linking a Garmin Connect account. When the account has MFA enabled the
  * backend signals `MFA_REQUIRED` over the realtime channel and this request
@@ -27,6 +30,9 @@ export async function linkGarmin(input: GarminLoginInput): Promise<void> {
     method: 'POST',
     body: JSON.stringify(payload),
     responseType: 'void',
+    // The request stays open while the backend waits up to 185 s for the MFA
+    // code, so the default 30 s timeout would abort it mid-login.
+    timeoutMs: GARMIN_LINK_TIMEOUT_MS,
   })
 }
 
