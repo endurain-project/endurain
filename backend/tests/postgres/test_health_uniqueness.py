@@ -11,9 +11,10 @@ import threading
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -151,16 +152,7 @@ def test_the_migration_merges_duplicates_before_enforcing_the_constraints(factor
         db.commit()
 
         migration = _load_migration()
-        with (
-            patch.object(migration.op, "execute", side_effect=lambda sql: db.execute(text(sql))),
-            patch.object(
-                migration.op,
-                "create_unique_constraint",
-                side_effect=lambda name, table, cols: db.execute(
-                    text(f"ALTER TABLE {table} ADD CONSTRAINT {name} UNIQUE ({', '.join(cols)})")
-                ),
-            ),
-        ):
+        with Operations.context(MigrationContext.configure(connection=db.connection())):
             migration.upgrade()
         db.commit()
 

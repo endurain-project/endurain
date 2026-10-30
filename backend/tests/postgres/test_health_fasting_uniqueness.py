@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import func, select, text
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.health.health_fasting.models as fasting_models
 import modules.health.health_fasting.schema as fasting_schema
@@ -75,6 +76,7 @@ def test_a_finished_fast_does_not_block_a_new_one(factory):
             first.id,
             fasting_schema.HealthFastingComplete(fast_end_time=datetime(2026, 10, 1, 20, 0, 0)),
             db,
+            if_match=core_etag.format_etag(first.version),
         )
         fasting_service.create_health_fasting(1, fasting_schema.HealthFastingCreate(fast_start_time=_START), db)
 

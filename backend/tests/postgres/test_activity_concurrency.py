@@ -83,7 +83,8 @@ def test_delete_all_waits_for_a_bulk_edit_that_holds_the_rows(pg_factory):
         finished.set()
 
     with pg_factory() as editor:
-        activity_crud.edit_user_activities_visibility_batch(1, 2, 100, editor)
+        # _add_activity stores visibility 2; the batch only locks rows whose value differs, so change it to 0.
+        activity_crud.edit_user_activities_visibility_batch(1, 0, 100, editor)
         worker = threading.Thread(target=delete_all)
         worker.start()
         assert not finished.wait(timeout=1)
