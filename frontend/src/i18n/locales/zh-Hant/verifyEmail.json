@@ -7,6 +7,7 @@
   "invalidTitle": "驗證失敗",
   "missingTokenBody": "此驗證連結缺少權杖。",
   "errorInvalidToken": "此驗證連結無效或已過期。",
+  "errorEmailTaken": "此信箱地址現已被其他帳號使用，因此無法確認。",
   "errorNotFound": "我們找不到此連結對應的帳號。",
   "errorGeneral": "無法驗證您的電子郵件，請再試一次。",
   "retry": "重試",

@@ -17,6 +17,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
+import { formatMediumDateTime } from '@/utils/datetime'
 import {
   useApproveUserMutation,
   useDeleteUserMutation,
@@ -32,7 +33,7 @@ import {
  */
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 const { data: currentUser } = useCurrentUser()
 
@@ -276,6 +277,14 @@ function reject(): void {
           <div class="min-w-0">
             <h1 class="truncate text-page-title">{{ user.name }}</h1>
             <p class="truncate text-body">@{{ user.username }} · {{ user.email }}</p>
+            <p v-if="user.pendingEmail && user.pendingEmailExpiresAt" class="text-hint">
+              {{
+                t('settings.users.detail.pendingEmail', {
+                  email: user.pendingEmail,
+                  date: formatMediumDateTime(user.pendingEmailExpiresAt, locale),
+                })
+              }}
+            </p>
             <UserStatusBadges :user="user" :is-self="isSelf" class="mt-2" />
           </div>
         </div>

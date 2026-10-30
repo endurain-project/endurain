@@ -31,6 +31,7 @@
       "admin": "Skrbnik",
       "inactive": "Neaktiven",
       "unverified": "Neverificirana e-pošta",
+      "pendingEmail": "Čakajoča sprememba e-pošte",
       "pending": "Čaka na odobritev",
       "externalAuth": "Zunanja avtentikacija"
     },
@@ -64,6 +65,7 @@
       "email": "E-pošta",
       "emailRequired": "E-pošta je obvezna",
       "emailInvalid": "Vnesi veljaven e-poštni naslov",
+      "emailChangeHint": "Na nov naslov se pošlje potrditvena povezava, ki po potrditvi nadomesti trenutnega. Uporabnik bo odjavljen iz vseh naprav. Če želite spremembo uveljaviti takoj, označite novi naslov kot preverjen.",
       "accessType": "Vrsta dostopa",
       "accessTypeRegular": "Navaden uporabnik",
       "accessTypeAdmin": "Skrbnik",
@@ -149,6 +151,8 @@
       "statusLegend": "Status računa",
       "active": "Aktiven",
       "emailVerified": "E-pošta verificirana",
+      "emailVerifiedCurrentHint": "To je stanje trenutnega naslova.",
+      "newEmailVerified": "Označi novi naslov kot preverjen",
       "pendingAdminApproval": "Čaka na odobritev skrbnika",
       "requiredField": "Obvezno polje",
       "create": "Dodaj uporabnika",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Nazaj na uporabnike",
+      "pendingEmail": "Čakajoča sprememba e-pošte na {email}, povezava poteče {date}",
       "notFoundTitle": "Uporabnik ni najden",
       "notFoundDescription": "Ta račun je morda bil izbrisan",
       "securityTitle": "Varnost",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Tvoje geslo ali koda je napačna.",
       "alreadyLinked": "Ta račun je že povezan.",
       "lastMethodError": "Ne moreš odvezati edine metode prijave. Najprej nastavi geslo."
+    },
+    "email": {
+      "subtitle": "Sem se pošiljajo ponastavitve gesla in obvestila. Pri spremembi moraš potrditi svojo identiteto, novi naslov pa začne veljati, ko ga potrdiš prek povezave, ki jo tja pošljemo.",
+      "sameAsCurrent": "To je že vaš e-poštni naslov.",
+      "success": "Potrditvena povezava je poslana na nov naslov. Vaš e-poštni naslov se bo spremenil, ko ga potrdite.",
+      "pending": "Čakajoča sprememba na {email}",
+      "pendingExpires": "Potrditvena povezava poteče {date}.",
+      "resend": "Ponovno pošlji povezavo",
+      "cancel": "Prekliči spremembo",
+      "resendSuccess": "Če je sprememba na čakanju, je nova povezava na poti na novi naslov.",
+      "resendError": "Povezave ni bilo mogoče ponovno poslati. Prosim, poskusi znova.",
+      "cancelSuccess": "Sprememba e-pošte je preklicana.",
+      "cancelError": "Spremembe ni bilo mogoče preklicati. Prosim, poskusi znova."
     },
     "apiKeys": {
       "title": "API ključi",

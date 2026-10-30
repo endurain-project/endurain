@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Neaktivno",
       "unverified": "Nepotvrđena e-pošta",
+      "pendingEmail": "Promjena e-pošte na čekanju",
       "pending": "Čeka odobrenje",
       "externalAuth": "Vanjska autentifikacija"
     },
@@ -64,6 +65,7 @@
       "email": "E-pošta",
       "emailRequired": "E-pošta je obavezna",
       "emailInvalid": "Unesite valjanu adresu e-pošte",
+      "emailChangeHint": "Na novu adresu šalje se poveznica za potvrdu i ona zamjenjuje trenutačnu nakon potvrde. Korisnik se odjavljuje sa svih uređaja. Za primjenu odmah označite novu adresu kao potvrđenu.",
       "accessType": "Vrsta pristupa",
       "accessTypeRegular": "Običan korisnik",
       "accessTypeAdmin": "Administrator",
@@ -149,6 +151,8 @@
       "statusLegend": "Status računa",
       "active": "Aktivno",
       "emailVerified": "E-pošta potvrđena",
+      "emailVerifiedCurrentHint": "Ovo je status trenutne adrese.",
+      "newEmailVerified": "Označi novu adresu kao potvrđenu",
       "pendingAdminApproval": "Čeka odobrenje administratora",
       "requiredField": "Obavezno polje",
       "create": "Dodaj korisnika",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Natrag na korisnike",
+      "pendingEmail": "Promjena e-pošte na {email} na čekanju, poveznica istječe {date}",
       "notFoundTitle": "Korisnik nije pronađen",
       "notFoundDescription": "Ovaj je račun možda izbrisan",
       "securityTitle": "Sigurnost",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Vaša lozinka ili kod su netočni.",
       "alreadyLinked": "Taj je račun već povezan.",
       "lastMethodError": "Ne možete prekinuti vezu svoje jedine metode prijave. Prvo postavite lozinku."
+    },
+    "email": {
+      "subtitle": "Ovdje se šalju poveznice za poništavanje lozinke i obavijesti. Za promjenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem poveznice koju na nju šaljemo.",
+      "sameAsCurrent": "Ovo je već vaša adresa e-pošte.",
+      "success": "Poveznica za potvrdu poslana je na novu adresu. Vaša e-pošta promijenit će se nakon potvrde.",
+      "pending": "Promjena na čekanju na {email}",
+      "pendingExpires": "Poveznica za potvrdu istječe {date}.",
+      "resend": "Ponovno pošalji poveznicu",
+      "cancel": "Otkaži promjenu",
+      "resendSuccess": "Ako je promjena na čekanju, nova poveznica stiže na novu adresu.",
+      "resendError": "Poveznicu nije bilo moguće ponovno poslati. Pokušajte ponovno.",
+      "cancelSuccess": "Promjena e-pošte je otkazana.",
+      "cancelError": "Promjenu nije bilo moguće otkazati. Pokušajte ponovno."
     },
     "apiKeys": {
       "title": "API ključevi",

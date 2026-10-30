@@ -7,6 +7,7 @@
   "invalidTitle": "Verificación fallida",
   "missingTokenBody": "A este enlace de verificación fáltalle o token.",
   "errorInvalidToken": "Este enlace de verificación non é válido ou expirou.",
+  "errorEmailTaken": "Este enderezo de correo xa o usa outra conta, polo que non se pode confirmar.",
   "errorNotFound": "Non puidemos atopar unha conta para este enlace.",
   "errorGeneral": "Non puidemos verificar o teu correo electrónico. Por favor, téntao de novo.",
   "retry": "Tentar de novo",

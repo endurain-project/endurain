@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Neaktivno",
       "unverified": "Neverifikovan email",
+      "pendingEmail": "Promena email adrese na čekanju",
       "pending": "Čeka odobrenje",
       "externalAuth": "Eksterna autentifikacija"
     },
@@ -64,6 +65,7 @@
       "email": "Email",
       "emailRequired": "Email je obavezan",
       "emailInvalid": "Unesite ispravnu email adresu",
+      "emailChangeHint": "Na novu adresu se šalje link za potvrdu, a on zamenjuje trenutnu nakon potvrde. Korisnik se odjavljuje sa svih uređaja. Da biste ga odmah primenili, označite novu adresu kao verifikovanu.",
       "accessType": "Tip pristupa",
       "accessTypeRegular": "Običan korisnik",
       "accessTypeAdmin": "Administrator",
@@ -149,6 +151,8 @@
       "statusLegend": "Status naloga",
       "active": "Aktivno",
       "emailVerified": "Email verifikovan",
+      "emailVerifiedCurrentHint": "Ovo je status trenutne adrese.",
+      "newEmailVerified": "Označi novu adresu kao verifikovanu",
       "pendingAdminApproval": "Čeka odobrenje administratora",
       "requiredField": "Obavezno polje",
       "create": "Dodaj korisnika",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Nazad na korisnike",
+      "pendingEmail": "Promena email adrese na {email} na čekanju, link ističe {date}",
       "notFoundTitle": "Korisnik nije pronađen",
       "notFoundDescription": "Ovaj nalog je možda obrisan",
       "securityTitle": "Bezbednost",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Vaša lozinka ili kod su netačni.",
       "alreadyLinked": "Taj nalog je već povezan.",
       "lastMethodError": "Ne možete prekinuti vezu svog jedinog načina prijave. Prvo postavite lozinku."
+    },
+    "email": {
+      "subtitle": "Ovde se šalju resetovanja lozinke i obaveštenja. Za promenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem linka koji šaljemo na nju.",
+      "sameAsCurrent": "Ovo je već vaša email adresa.",
+      "success": "Link za potvrdu je poslat na novu adresu. Vaš email se menja kada ga potvrdite.",
+      "pending": "Promena na {email} na čekanju",
+      "pendingExpires": "Link za potvrdu ističe {date}.",
+      "resend": "Ponovo pošalji link",
+      "cancel": "Otkaži promenu",
+      "resendSuccess": "Ako je promena na čekanju, novi link je na putu do nove adrese.",
+      "resendError": "Nije moguće ponovo poslati link. Pokušajte ponovo.",
+      "cancelSuccess": "Promena email adrese je otkazana.",
+      "cancelError": "Nije moguće otkazati promenu. Pokušajte ponovo."
     },
     "apiKeys": {
       "title": "API ključevi",

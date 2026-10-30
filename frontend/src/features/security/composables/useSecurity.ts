@@ -15,6 +15,7 @@ import type {
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
+  cancelEmailChange,
   changeEmail,
   changePassword,
   createApiKey,
@@ -27,6 +28,7 @@ import {
   fetchMfaStatus,
   fetchSessions,
   regenerateBackupCodes,
+  resendEmailChange,
   revokeApiKey,
   revokeOtherSessions,
   revokeSession,
@@ -299,7 +301,7 @@ export function useDeleteAccountMutation() {
  * @returns The TanStack Query mutation for changing the account email.
  */
 export function useChangeEmailMutation() {
-  const client = useQueryClient()
+  const invalidate = useInvalidateEmailViews()
 
   return useMutation<
     void,
@@ -309,10 +311,49 @@ export function useChangeEmailMutation() {
     mutationKey: queryKeys.security.all(),
     mutationFn: ({ email, stepUp, revokeOtherSessions }) =>
       changeEmail(email, stepUp, revokeOtherSessions),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
-      void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
-      void client.invalidateQueries({ queryKey: queryKeys.users.all() })
-    },
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Invalidates every view of the account email, so the pending change shows (or disappears)
+ * in the profile, the app shell and an admin's users views.
+ */
+function useInvalidateEmailViews(): () => void {
+  const client = useQueryClient()
+  return () => {
+    void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
+    void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
+    void client.invalidateQueries({ queryKey: queryKeys.users.all() })
+  }
+}
+
+/**
+ * Resend mutation for the pending email-change confirmation link.
+ *
+ * @returns The TanStack Query mutation for resending the link.
+ */
+export function useResendEmailChangeMutation() {
+  const invalidate = useInvalidateEmailViews()
+
+  return useMutation<void, Error, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => resendEmailChange(),
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Cancel mutation for the pending email change.
+ *
+ * @returns The TanStack Query mutation for cancelling the change.
+ */
+export function useCancelEmailChangeMutation() {
+  const invalidate = useInvalidateEmailViews()
+
+  return useMutation<void, Error, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => cancelEmailChange(),
+    onSettled: invalidate,
   })
 }

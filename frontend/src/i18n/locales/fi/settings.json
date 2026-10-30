@@ -31,6 +31,7 @@
       "admin": "Ylläpitäjä",
       "inactive": "Ei käytössä",
       "unverified": "Vahvistamaton sähköposti",
+      "pendingEmail": "Sähköpostin vaihto odottaa",
       "pending": "Odottaa hyväksyntää",
       "externalAuth": "Ulkoinen todennus"
     },
@@ -64,6 +65,7 @@
       "email": "Sähköposti",
       "emailRequired": "Sähköposti on pakollinen",
       "emailInvalid": "Anna kelvollinen sähköpostiosoite",
+      "emailChangeHint": "Uuteen osoitteeseen lähetetään vahvistuslinkki, ja se korvaa nykyisen osoitteen vahvistamisen jälkeen. Käyttäjä kirjataan ulos kaikilta laitteilta. Jos haluat ottaa osoitteen käyttöön heti, merkitse uusi osoite vahvistetuksi.",
       "accessType": "Käyttöoikeustyyppi",
       "accessTypeRegular": "Tavallinen käyttäjä",
       "accessTypeAdmin": "Ylläpitäjä",
@@ -149,6 +151,8 @@
       "statusLegend": "Tilin tila",
       "active": "Aktiivinen",
       "emailVerified": "Sähköposti vahvistettu",
+      "emailVerifiedCurrentHint": "Tämä on nykyisen osoitteen tila.",
+      "newEmailVerified": "Merkitse uusi osoite vahvistetuksi",
       "pendingAdminApproval": "Odottaa ylläpitäjän hyväksyntää",
       "requiredField": "Pakollinen kenttä",
       "create": "Lisää käyttäjä",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Takaisin käyttäjiin",
+      "pendingEmail": "Sähköpostin vaihto odottaa osoitteeseen {email}, linkki vanhenee {date}",
       "notFoundTitle": "Käyttäjää ei löytynyt",
       "notFoundDescription": "Tämä tili on saatettu poistaa",
       "securityTitle": "Tietoturva",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Salasanasi tai koodisi on virheellinen.",
       "alreadyLinked": "Kyseinen tili on jo linkitetty.",
       "lastMethodError": "Et voi poistaa ainoan kirjautumistapasi linkitystä. Aseta ensin salasana."
+    },
+    "email": {
+      "subtitle": "Tänne lähetetään salasanan palautukset ja ilmoitukset. Muutos edellyttää henkilöllisyyden vahvistamista, ja uusi osoite tulee voimaan, kun vahvistat sen linkistä, joka lähetetään sinne.",
+      "sameAsCurrent": "Tämä on jo sähköpostiosoitteesi.",
+      "success": "Vahvistuslinkki lähetettiin uuteen osoitteeseen. Sähköpostisi vaihtuu, kun vahvistat sen.",
+      "pending": "Odottava muutos osoitteeseen {email}",
+      "pendingExpires": "Vahvistuslinkki vanhenee {date}.",
+      "resend": "Lähetä linkki uudelleen",
+      "cancel": "Peruuta muutos",
+      "resendSuccess": "Jos muutos on vireillä, uusi linkki on matkalla uuteen osoitteeseen.",
+      "resendError": "Linkin lähettäminen uudelleen epäonnistui. Yritä uudelleen.",
+      "cancelSuccess": "Sähköpostin vaihto peruttiin.",
+      "cancelError": "Muutosta ei voitu peruuttaa. Yritä uudelleen."
     },
     "apiKeys": {
       "title": "API-avaimet",

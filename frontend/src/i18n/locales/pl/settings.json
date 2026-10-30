@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Nieaktywny",
       "unverified": "Niezweryfikowany e-mail",
+      "pendingEmail": "Oczekująca zmiana e-maila",
       "pending": "Oczekuje na zatwierdzenie",
       "externalAuth": "Uwierzytelnianie zewnętrzne"
     },
@@ -64,6 +65,7 @@
       "email": "E-mail",
       "emailRequired": "E-mail jest wymagany",
       "emailInvalid": "Wprowadź prawidłowy adres e-mail",
+      "emailChangeHint": "Link potwierdzający zostaje wysłany na nowy adres, który zastąpi obecny po potwierdzeniu. Użytkownik zostaje wylogowany ze wszystkich urządzeń. Aby zastosować zmianę od razu, oznacz nowy adres jako zweryfikowany.",
       "accessType": "Typ dostępu",
       "accessTypeRegular": "Zwykły użytkownik",
       "accessTypeAdmin": "Administrator",
@@ -149,6 +151,8 @@
       "statusLegend": "Status konta",
       "active": "Aktywne",
       "emailVerified": "E-mail zweryfikowany",
+      "emailVerifiedCurrentHint": "To jest status obecnego adresu.",
+      "newEmailVerified": "Oznacz nowy adres jako zweryfikowany",
       "pendingAdminApproval": "Oczekuje na zatwierdzenie administratora",
       "requiredField": "Pole wymagane",
       "create": "Dodaj użytkownika",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Powrót do użytkowników",
+      "pendingEmail": "Oczekująca zmiana e-maila na {email}, link wygasa {date}",
       "notFoundTitle": "Nie znaleziono użytkownika",
       "notFoundDescription": "To konto mogło zostać usunięte",
       "securityTitle": "Bezpieczeństwo",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Twoje hasło lub kod są nieprawidłowe.",
       "alreadyLinked": "To konto jest już powiązane.",
       "lastMethodError": "Nie możesz odłączyć swojej jedynej metody logowania. Najpierw ustaw hasło."
+    },
+    "email": {
+      "subtitle": "Tutaj wysyłane są resetowania hasła i powiadomienia. Zmiana wymaga potwierdzenia tożsamości, a nowy adres obowiązuje dopiero po potwierdzeniu go za pomocą linku, który na niego wysyłamy.",
+      "sameAsCurrent": "To jest już Twój adres e-mail.",
+      "success": "Link potwierdzający został wysłany na nowy adres. Twój e-mail zmieni się po jego potwierdzeniu.",
+      "pending": "Oczekująca zmiana na {email}",
+      "pendingExpires": "Link potwierdzający wygasa {date}.",
+      "resend": "Wyślij link ponownie",
+      "cancel": "Anuluj zmianę",
+      "resendSuccess": "Jeśli zmiana oczekuje, nowy link jest już w drodze na nowy adres.",
+      "resendError": "Nie udało się ponownie wysłać linku. Spróbuj ponownie.",
+      "cancelSuccess": "Anulowano zmianę e-maila.",
+      "cancelError": "Nie udało się anulować zmiany. Spróbuj ponownie."
     },
     "apiKeys": {
       "title": "Klucze API",

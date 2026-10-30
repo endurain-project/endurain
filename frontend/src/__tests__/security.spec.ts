@@ -4,6 +4,7 @@ import type { SecuritySessionDto } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
 import {
+  cancelEmailChange,
   changeEmail,
   changePassword,
   deleteAccount,
@@ -18,6 +19,7 @@ import {
   mapMfaStatus,
   mapSecuritySession,
   regenerateBackupCodes,
+  resendEmailChange,
   revokeOtherSessions,
   revokeSession,
   setupMfa,
@@ -304,6 +306,34 @@ describe('changeEmail', () => {
         mfa_code: '123456',
         revoke_other_sessions: true,
       }),
+      responseType: 'void',
+    })
+  })
+})
+
+describe('pending email change', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('POSTs the resend endpoint', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await resendEmailChange()
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/email/change/resend', {
+      method: 'POST',
+      responseType: 'void',
+    })
+  })
+
+  it('DELETEs the pending change', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await cancelEmailChange()
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/email/change', {
+      method: 'DELETE',
       responseType: 'void',
     })
   })

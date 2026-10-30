@@ -3,13 +3,23 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { useChangeEmailMutation } from '@/features/security/composables/useSecurity'
-import { changeEmail } from '@/features/security/services/security'
+import {
+  useCancelEmailChangeMutation,
+  useChangeEmailMutation,
+  useResendEmailChangeMutation,
+} from '@/features/security/composables/useSecurity'
+import {
+  cancelEmailChange,
+  changeEmail,
+  resendEmailChange,
+} from '@/features/security/services/security'
 import { queryKeys } from '@/services/queryKeys'
 
 vi.mock('@/features/security/services/security', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/security/services/security')>()),
   changeEmail: vi.fn<typeof changeEmail>(),
+  resendEmailChange: vi.fn<typeof resendEmailChange>(),
+  cancelEmailChange: vi.fn<typeof cancelEmailChange>(),
 }))
 
 let wrapper: ReturnType<typeof mount> | undefined
@@ -20,11 +30,11 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function mountMutation(queryClient: QueryClient): ReturnType<typeof useChangeEmailMutation> {
-  let mutation: ReturnType<typeof useChangeEmailMutation> | undefined
+function mountMutation<T>(queryClient: QueryClient, use: () => T): T {
+  let mutation: T | undefined
   const TestComponent = defineComponent({
     setup() {
-      mutation = useChangeEmailMutation()
+      mutation = use()
       return () => h('div')
     },
   })
@@ -46,7 +56,7 @@ describe('useChangeEmailMutation', () => {
     const queryClient = new QueryClient()
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
     vi.mocked(changeEmail).mockResolvedValue()
-    const mutation = mountMutation(queryClient)
+    const mutation = mountMutation(queryClient, useChangeEmailMutation)
 
     await mutation.mutateAsync({
       email: 'new@example.com',
@@ -55,6 +65,29 @@ describe('useChangeEmailMutation', () => {
     })
     await flushPromises()
 
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.users.all() })
+  })
+})
+
+describe.each([
+  ['useResendEmailChangeMutation', useResendEmailChangeMutation, resendEmailChange],
+  ['useCancelEmailChangeMutation', useCancelEmailChangeMutation, cancelEmailChange],
+])('%s', (_name, use, service) => {
+  it('calls its endpoint and refreshes profile, current user and users', async () => {
+    const queryClient = new QueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    vi.mocked(service).mockResolvedValue()
+    const mutation = mountMutation(
+      queryClient,
+      use as () => ReturnType<typeof useCancelEmailChangeMutation>,
+    )
+
+    await mutation.mutateAsync()
+    await flushPromises()
+
+    expect(service).toHaveBeenCalledTimes(1)
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all() })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.currentUser() })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.users.all() })
   })
 })

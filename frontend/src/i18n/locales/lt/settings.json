@@ -31,6 +31,7 @@
       "admin": "Administratorius",
       "inactive": "Neaktyvus",
       "unverified": "Nepatvirtintas el. paštas",
+      "pendingEmail": "Laukiama el. pašto keitimo",
       "pending": "Laukia patvirtinimo",
       "externalAuth": "Išorinis autentifikavimas"
     },
@@ -64,6 +65,7 @@
       "email": "El. paštas",
       "emailRequired": "El. paštas yra privalomas",
       "emailInvalid": "Įveskite galiojantį el. pašto adresą",
+      "emailChangeHint": "Naujas adresas gauna patvirtinimo nuorodą, ir jis pakeičia dabartinį, kai tik bus patvirtintas. Naudotojas atjungiamas nuo visų įrenginių. Jei norite taikyti iš karto, pažymėkite naują adresą kaip patvirtintą.",
       "accessType": "Prieigos tipas",
       "accessTypeRegular": "Įprastas naudotojas",
       "accessTypeAdmin": "Administratorius",
@@ -149,6 +151,8 @@
       "statusLegend": "Paskyros būsena",
       "active": "Aktyvus",
       "emailVerified": "El. paštas patvirtintas",
+      "emailVerifiedCurrentHint": "Tai dabartinio adreso būsena.",
+      "newEmailVerified": "Pažymėti naują adresą kaip patvirtintą",
       "pendingAdminApproval": "Laukia administratoriaus patvirtinimo",
       "requiredField": "Privalomas laukas",
       "create": "Pridėti naudotoją",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Atgal į naudotojus",
+      "pendingEmail": "Laukiama el. pašto keitimo į {email}, nuoroda galioja iki {date}",
       "notFoundTitle": "Naudotojas nerastas",
       "notFoundDescription": "Ši paskyra galėjo būti ištrinta",
       "securityTitle": "Saugumas",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Jūsų slaptažodis arba kodas neteisingas.",
       "alreadyLinked": "Ši paskyra jau susieta.",
       "lastMethodError": "Negalite atsieti vienintelio savo prisijungimo būdo. Pirmiausia nustatykite slaptažodį."
+    },
+    "email": {
+      "subtitle": "Čia siunčiami slaptažodžio atstatymo ir pranešimai. Keičiant reikia patvirtinti savo tapatybę, o naujas adresas įsigalioja tik patvirtinus jį per nuorodą, kuri į jį išsiunčiama.",
+      "sameAsCurrent": "Tai jau jūsų el. pašto adresas.",
+      "success": "Patvirtinimo nuoroda išsiųsta į naują adresą. Jūsų el. paštas pakeisis tik patvirtinus.",
+      "pending": "Laukiamas keitimas į {email}",
+      "pendingExpires": "Patvirtinimo nuoroda galioja iki {date}.",
+      "resend": "Siųsti nuorodą iš naujo",
+      "cancel": "Atšaukti keitimą",
+      "resendSuccess": "Jei keitimas laukia patvirtinimo, į naują adresą siunčiama nauja nuoroda.",
+      "resendError": "Nepavyko iš naujo išsiųsti nuorodos. Bandykite dar kartą.",
+      "cancelSuccess": "El. pašto keitimas atšauktas.",
+      "cancelError": "Nepavyko atšaukti keitimo. Bandykite dar kartą."
     },
     "apiKeys": {
       "title": "API raktai",

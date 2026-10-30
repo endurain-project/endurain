@@ -308,8 +308,9 @@ watch(
   },
   { immediate: true },
 )
-// A changed address is unverified until the admin says otherwise, so editing it clears the
-// flag (restoring the stored value when the address is put back). The admin can tick it again.
+// A changed address stays pending until confirmed unless the admin marks it verified, so editing it
+// clears the flag (restoring the stored value when the address is put back). The submitted flag
+// refers to the submitted address.
 const emailChanged = computed(
   () => props.user !== null && values.email.trim().toLowerCase() !== props.user.email,
 )
@@ -688,7 +689,17 @@ watch(open, (isOpen) => {
         <Switch v-model="values.active" :disabled="isSubmitting">
           {{ t('settings.users.form.active') }}
         </Switch>
-        <Switch v-model="values.emailVerified" :disabled="isSubmitting">
+        <template v-if="emailChanged && user">
+          <!-- The stored address keeps its status until the new one applies. -->
+          <Switch :model-value="user.emailVerified" disabled>
+            {{ t('settings.users.form.emailVerified') }}
+          </Switch>
+          <p class="text-hint">{{ t('settings.users.form.emailVerifiedCurrentHint') }}</p>
+          <Switch v-model="values.emailVerified" :disabled="isSubmitting">
+            {{ t('settings.users.form.newEmailVerified') }}
+          </Switch>
+        </template>
+        <Switch v-else v-model="values.emailVerified" :disabled="isSubmitting">
           {{ t('settings.users.form.emailVerified') }}
         </Switch>
         <Switch v-model="values.pendingAdminApproval" :disabled="isSubmitting">

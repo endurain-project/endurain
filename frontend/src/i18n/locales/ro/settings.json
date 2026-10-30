@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Inactiv",
       "unverified": "E-mail neverificat",
+      "pendingEmail": "Schimbare de e-mail în așteptare",
       "pending": "În așteptarea aprobării",
       "externalAuth": "Autentificare externă"
     },
@@ -64,6 +65,7 @@
       "email": "E-mail",
       "emailRequired": "E-mailul este obligatoriu",
       "emailInvalid": "Introdu o adresă de e-mail validă",
+      "emailChangeHint": "Un link de confirmare este trimis la noua adresă, iar aceasta înlocuiește adresa actuală după confirmare. Utilizatorul este deconectat de pe toate dispozitivele. Marchează noua adresă ca verificată pentru a o aplica imediat.",
       "accessType": "Tip de acces",
       "accessTypeRegular": "Utilizator obișnuit",
       "accessTypeAdmin": "Administrator",
@@ -149,6 +151,8 @@
       "statusLegend": "Stare cont",
       "active": "Activ",
       "emailVerified": "E-mail verificat",
+      "emailVerifiedCurrentHint": "Aceasta este starea adresei actuale.",
+      "newEmailVerified": "Marchează noua adresă ca verificată",
       "pendingAdminApproval": "În așteptarea aprobării administratorului",
       "requiredField": "Câmp obligatoriu",
       "create": "Adaugă utilizator",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Înapoi la utilizatori",
+      "pendingEmail": "Schimbare de e-mail în așteptare la {email}, linkul expiră {date}",
       "notFoundTitle": "Utilizatorul nu a fost găsit",
       "notFoundDescription": "Acest cont poate să fi fost șters",
       "securityTitle": "Securitate",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Parola sau codul tău este incorect.",
       "alreadyLinked": "Acel cont este deja asociat.",
       "lastMethodError": "Nu îți poți dezasocia singura metodă de autentificare. Setează mai întâi o parolă."
+    },
+    "email": {
+      "subtitle": "Aici sunt trimise resetările parolei și notificările. Pentru modificare trebuie să îți confirmi identitatea, iar noua adresă intră în vigoare după ce o confirmi printr-un link pe care îl trimitem acolo.",
+      "sameAsCurrent": "Aceasta este deja adresa ta de e-mail.",
+      "success": "Linkul de confirmare a fost trimis la noua adresă. E-mailul tău se va schimba după ce îl confirmi.",
+      "pending": "Schimbare în așteptare la {email}",
+      "pendingExpires": "Linkul de confirmare expiră la {date}.",
+      "resend": "Retrimite linkul",
+      "cancel": "Anulează schimbarea",
+      "resendSuccess": "Dacă există o schimbare în așteptare, un link nou este pe drum către noua adresă.",
+      "resendError": "Nu am putut retrimite linkul. Te rugăm să încerci din nou.",
+      "cancelSuccess": "Schimbarea adresei de e-mail a fost anulată.",
+      "cancelError": "Nu am putut anula schimbarea. Te rugăm să încerci din nou."
     },
     "apiKeys": {
       "title": "Chei API",

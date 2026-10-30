@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inattivo",
       "unverified": "Email non verificata",
+      "pendingEmail": "Modifica email in sospeso",
       "pending": "In attesa di approvazione",
       "externalAuth": "Autenticazione esterna"
     },
@@ -64,6 +65,7 @@
       "email": "Email",
       "emailRequired": "L'email è obbligatoria",
       "emailInvalid": "Inserisci un indirizzo email valido",
+      "emailChangeHint": "Un link di conferma viene inviato al nuovo indirizzo e sostituisce quello attuale una volta confermato. L'utente viene disconnesso da tutti i dispositivi. Contrassegna il nuovo indirizzo come verificato per applicarlo subito.",
       "accessType": "Tipo di accesso",
       "accessTypeRegular": "Utente normale",
       "accessTypeAdmin": "Amministratore",
@@ -149,6 +151,8 @@
       "statusLegend": "Stato account",
       "active": "Attivo",
       "emailVerified": "Email verificata",
+      "emailVerifiedCurrentHint": "Questo è lo stato dell'indirizzo attuale.",
+      "newEmailVerified": "Contrassegna il nuovo indirizzo come verificato",
       "pendingAdminApproval": "In attesa di approvazione admin",
       "requiredField": "Campo obbligatorio",
       "create": "Aggiungi utente",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Torna agli utenti",
+      "pendingEmail": "Modifica email in sospeso a {email}, il link scade il {date}",
       "notFoundTitle": "Utente non trovato",
       "notFoundDescription": "Questo account potrebbe essere stato eliminato",
       "securityTitle": "Sicurezza",
@@ -673,6 +678,19 @@
       "invalidCredentials": "La tua password o il codice non sono corretti.",
       "alreadyLinked": "Quell'account è già collegato.",
       "lastMethodError": "Non puoi scollegare il tuo unico metodo di accesso. Imposta prima una password."
+    },
+    "email": {
+      "subtitle": "Qui vengono inviati i ripristini della password e le notifiche. Per modificarla è necessario confermare la propria identità, e il nuovo indirizzo diventa effettivo solo dopo la conferma tramite un link che gli inviamo.",
+      "sameAsCurrent": "Questo è già il tuo indirizzo email.",
+      "success": "Link di conferma inviato al nuovo indirizzo. La tua email cambierà dopo la conferma.",
+      "pending": "Modifica in sospeso a {email}",
+      "pendingExpires": "Il link di conferma scade il {date}.",
+      "resend": "Invia di nuovo il link",
+      "cancel": "Annulla modifica",
+      "resendSuccess": "Se una modifica è in sospeso, un nuovo link è in arrivo al nuovo indirizzo.",
+      "resendError": "Impossibile inviare di nuovo il link. Riprova.",
+      "cancelSuccess": "Modifica dell'email annullata.",
+      "cancelError": "Impossibile annullare la modifica. Riprova."
     },
     "apiKeys": {
       "title": "Chiavi API",

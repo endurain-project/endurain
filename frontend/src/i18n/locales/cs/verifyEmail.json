@@ -7,6 +7,7 @@
   "invalidTitle": "Ověření selhalo",
   "missingTokenBody": "Tomuto ověřovacímu odkazu chybí token.",
   "errorInvalidToken": "Tento ověřovací odkaz je neplatný nebo vypršel.",
+  "errorEmailTaken": "Tato e-mailová adresa je nyní používána jiným účtem, a proto ji nelze potvrdit.",
   "errorNotFound": "Pro tento odkaz se nepodařilo najít účet.",
   "errorGeneral": "Váš e-mail se nepodařilo ověřit. Zkuste to prosím znovu.",
   "retry": "Zkusit znovu",

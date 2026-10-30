@@ -368,8 +368,9 @@ export async function deleteAccount(input: StepUpInput): Promise<void> {
 }
 
 /**
- * Changes the account email after step-up verification. The new address starts unverified and
- * the backend emails it a verification link when mail is configured.
+ * Requests an account email change after step-up verification. With mail configured the new
+ * address is held as pending and emailed a confirmation link; without mail it applies at once,
+ * unverified. Submitting the current address cancels a pending change.
  *
  * @param email - The new email address.
  * @param input - The step-up credentials (password and, with MFA, a code).
@@ -391,4 +392,23 @@ export async function changeEmail(
     body: JSON.stringify(payload),
     responseType: 'void',
   })
+}
+
+/**
+ * Asks for a new confirmation link for the pending email change. The backend always answers 204,
+ * including when the resend cooldown suppresses the email.
+ *
+ * @throws {HttpError} When the request fails.
+ */
+export async function resendEmailChange(): Promise<void> {
+  await apiFetch('/profile/email/change/resend', { method: 'POST', responseType: 'void' })
+}
+
+/**
+ * Cancels the pending email change; the current address stays as it is.
+ *
+ * @throws {HttpError} When the request fails.
+ */
+export async function cancelEmailChange(): Promise<void> {
+  await apiFetch('/profile/email/change', { method: 'DELETE', responseType: 'void' })
 }

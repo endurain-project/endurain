@@ -7,6 +7,7 @@
   "invalidTitle": "Kinnitamine ebaõnnestus",
   "missingTokenBody": "Sellel kinnituslingil puudub luba.",
   "errorInvalidToken": "See kinnituslink on kehtetu või aegunud.",
+  "errorEmailTaken": "See e-posti aadress on nüüd teise konto kasutuses, seetõttu ei saa seda kinnitada.",
   "errorNotFound": "Me ei leidnud sellele lingile vastavat kontot.",
   "errorGeneral": "Sinu e-posti ei õnnestunud kinnitada. Palun proovi uuesti.",
   "retry": "Proovi uuesti",

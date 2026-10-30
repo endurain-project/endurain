@@ -7,6 +7,7 @@
   "invalidTitle": "Potvrda nije uspjela",
   "missingTokenBody": "Ovom linku za potvrdu nedostaje token.",
   "errorInvalidToken": "Ovaj link za potvrdu nije valjan ili je istekao.",
+  "errorEmailTaken": "Ovu adresu e-pošte sada koristi drugi račun, pa se ne može potvrditi.",
   "errorNotFound": "Nismo mogli pronaći račun za ovaj link.",
   "errorGeneral": "Nismo mogli potvrditi vašu e-poštu. Pokušajte ponovno.",
   "retry": "Pokušaj ponovno",

@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inactif",
       "unverified": "E-mail non vérifié",
+      "pendingEmail": "Changement d'e-mail en attente",
       "pending": "En attente d'approbation",
       "externalAuth": "Auth. externe"
     },
@@ -64,6 +65,7 @@
       "email": "E-mail",
       "emailRequired": "L'e-mail est obligatoire",
       "emailInvalid": "Entrez une adresse e-mail valide",
+      "emailChangeHint": "Un lien de confirmation est envoyé à la nouvelle adresse, qui remplace l'actuelle une fois confirmée. L'utilisateur est déconnecté de tous les appareils. Marquez la nouvelle adresse comme vérifiée pour l'appliquer immédiatement.",
       "accessType": "Type d'accès",
       "accessTypeRegular": "Utilisateur régulier",
       "accessTypeAdmin": "Administrateur",
@@ -149,6 +151,8 @@
       "statusLegend": "Statut du compte",
       "active": "Actif",
       "emailVerified": "E-mail vérifié",
+      "emailVerifiedCurrentHint": "Ceci est l'état de l'adresse actuelle.",
+      "newEmailVerified": "Marquer la nouvelle adresse comme vérifiée",
       "pendingAdminApproval": "En attente d'approbation admin",
       "requiredField": "Champ obligatoire",
       "create": "Ajouter l'utilisateur",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Retour aux utilisateurs",
+      "pendingEmail": "Changement d'e-mail en attente vers {email}, le lien expire le {date}",
       "notFoundTitle": "Utilisateur introuvable",
       "notFoundDescription": "Ce compte a peut-être été supprimé",
       "securityTitle": "Sécurité",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Votre mot de passe ou code est incorrect.",
       "alreadyLinked": "Ce compte est déjà lié.",
       "lastMethodError": "Vous ne pouvez pas délier votre seule méthode de connexion. Définissez d'abord un mot de passe."
+    },
+    "email": {
+      "subtitle": "C'est là que sont envoyés les réinitialisations de mot de passe et les notifications. Pour la modifier, vous devez confirmer votre identité, et la nouvelle adresse prend effet une fois confirmée via un lien que nous y envoyons.",
+      "sameAsCurrent": "Il s'agit déjà de votre adresse e-mail.",
+      "success": "Lien de confirmation envoyé à la nouvelle adresse. Votre e-mail sera modifié une fois que vous l'aurez confirmé.",
+      "pending": "Changement en attente vers {email}",
+      "pendingExpires": "Le lien de confirmation expire le {date}.",
+      "resend": "Renvoyer le lien",
+      "cancel": "Annuler la modification",
+      "resendSuccess": "Si un changement est en attente, un nouveau lien est en route vers la nouvelle adresse.",
+      "resendError": "Impossible de renvoyer le lien. Veuillez réessayer.",
+      "cancelSuccess": "Modification de l'e-mail annulée.",
+      "cancelError": "Impossible d'annuler la modification. Veuillez réessayer."
     },
     "apiKeys": {
       "title": "Clés API",

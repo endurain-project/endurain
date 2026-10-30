@@ -31,6 +31,7 @@
       "admin": "Administrators",
       "inactive": "Neaktīvs",
       "unverified": "Neverificēts e-pasts",
+      "pendingEmail": "Gaida e-pasta maiņu",
       "pending": "Gaida apstiprinājumu",
       "externalAuth": "Ārējā autentifikācija"
     },
@@ -64,6 +65,7 @@
       "email": "E-pasts",
       "emailRequired": "E-pasts ir obligāts",
       "emailInvalid": "Ievadiet derīgu e-pasta adresi",
+      "emailChangeHint": "Uz jauno adresi tiek nosūtīta apstiprinājuma saite, un pēc apstiprināšanas tā aizstāj esošo. Lietotājs tiek izrakstīts no visām ierīcēm. Lai to piemērotu tūlīt, atzīmējiet jauno adresi kā verificētu.",
       "accessType": "Piekļuves veids",
       "accessTypeRegular": "Parasts lietotājs",
       "accessTypeAdmin": "Administrators",
@@ -149,6 +151,8 @@
       "statusLegend": "Konta statuss",
       "active": "Aktīvs",
       "emailVerified": "E-pasts verificēts",
+      "emailVerifiedCurrentHint": "Šī ir pašreizējās adreses statuss.",
+      "newEmailVerified": "Atzīmēt jauno adresi kā verificētu",
       "pendingAdminApproval": "Gaida administratora apstiprinājumu",
       "requiredField": "Obligāts lauks",
       "create": "Pievienot lietotāju",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Atpakaļ uz lietotājiem",
+      "pendingEmail": "Gaida e-pasta maiņu uz {email}, saite beigsies {date}",
       "notFoundTitle": "Lietotājs nav atrasts",
       "notFoundDescription": "Šis konts, iespējams, ir dzēsts",
       "securityTitle": "Drošība",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Jūsu parole vai kods ir nepareizs.",
       "alreadyLinked": "Šis konts jau ir saistīts.",
       "lastMethodError": "Jūs nevarat atsaistīt savu vienīgo pieteikšanās metodi. Vispirms iestatiet paroli."
+    },
+    "email": {
+      "subtitle": "Šeit tiek sūtītas paroles atjaunošanas saites un paziņojumi. Lai to mainītu, jāapstiprina sava identitāte, un jaunā adrese stāsies spēkā tikai pēc tam, kad to apstiprināsi, izmantojot uz to nosūtīto saiti.",
+      "sameAsCurrent": "Šī jau ir jūsu e-pasta adrese.",
+      "success": "Apstiprinājuma saite nosūtīta uz jauno adresi. Jūsu e-pasts mainīsies pēc apstiprināšanas.",
+      "pending": "Gaidāma maiņa uz {email}",
+      "pendingExpires": "Apstiprinājuma saite beigsies {date}.",
+      "resend": "Nosūtīt saiti atkārtoti",
+      "cancel": "Atcelt maiņu",
+      "resendSuccess": "Ja ir gaidāma maiņa, uz jauno adresi ir ceļā jauna saite.",
+      "resendError": "Nevarēja atkārtoti nosūtīt saiti. Lūdzu, mēģiniet vēlreiz.",
+      "cancelSuccess": "E-pasta maiņa atcelta.",
+      "cancelError": "Nevarēja atcelt maiņu. Lūdzu, mēģiniet vēlreiz."
     },
     "apiKeys": {
       "title": "API atslēgas",

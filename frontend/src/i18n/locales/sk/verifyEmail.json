@@ -7,6 +7,7 @@
   "invalidTitle": "Overenie zlyhalo",
   "missingTokenBody": "Tomuto overovaciemu odkazu chýba token.",
   "errorInvalidToken": "Tento overovací odkaz je neplatný alebo vypršal.",
+  "errorEmailTaken": "Táto e-mailová adresa je teraz používaná iným účtom, takže ju nie je možné potvrdiť.",
   "errorNotFound": "Pre tento odkaz sme nenašli žiadny účet.",
   "errorGeneral": "Váš e-mail sa nepodarilo overiť. Skúste to znova.",
   "retry": "Skúsiť znova",

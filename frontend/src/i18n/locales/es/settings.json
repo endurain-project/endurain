@@ -31,6 +31,7 @@
       "admin": "Administrador",
       "inactive": "Inactivo",
       "unverified": "Correo no verificado",
+      "pendingEmail": "Cambio de correo pendiente",
       "pending": "Pendiente de aprobación",
       "externalAuth": "Autenticación externa"
     },
@@ -64,6 +65,7 @@
       "email": "Correo electrónico",
       "emailRequired": "El correo electrónico es obligatorio",
       "emailInvalid": "Introduce una dirección de correo válida",
+      "emailChangeHint": "Se envía un enlace de confirmación a la nueva dirección, que reemplaza a la actual una vez confirmada. El usuario queda desconectado de todos los dispositivos. Marca la nueva dirección como verificada para aplicarla ahora.",
       "accessType": "Tipo de acceso",
       "accessTypeRegular": "Usuario regular",
       "accessTypeAdmin": "Administrador",
@@ -149,6 +151,8 @@
       "statusLegend": "Estado de la cuenta",
       "active": "Activo",
       "emailVerified": "Correo verificado",
+      "emailVerifiedCurrentHint": "Este es el estado de la dirección actual.",
+      "newEmailVerified": "Marcar la nueva dirección como verificada",
       "pendingAdminApproval": "Pendiente de aprobación de administrador",
       "requiredField": "Campo obligatorio",
       "create": "Añadir usuario",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Volver a usuarios",
+      "pendingEmail": "Cambio de correo pendiente a {email}, el enlace caduca el {date}",
       "notFoundTitle": "Usuario no encontrado",
       "notFoundDescription": "Es posible que esta cuenta haya sido eliminada",
       "securityTitle": "Seguridad",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Tu contraseña o código es incorrecto.",
       "alreadyLinked": "Esa cuenta ya está vinculada.",
       "lastMethodError": "No puedes desvincular tu único método de inicio de sesión. Establece una contraseña primero."
+    },
+    "email": {
+      "subtitle": "Aquí es donde se envían los restablecimientos de contraseña y los avisos. Para cambiarlo, debes confirmar tu identidad, y la nueva dirección surte efecto una vez que la confirmes desde un enlace que le enviamos.",
+      "sameAsCurrent": "Esta ya es tu dirección de correo.",
+      "success": "Se ha enviado un enlace de confirmación a la nueva dirección. Tu correo cambiará cuando lo confirmes.",
+      "pending": "Cambio pendiente a {email}",
+      "pendingExpires": "El enlace de confirmación caduca el {date}.",
+      "resend": "Reenviar enlace",
+      "cancel": "Cancelar cambio",
+      "resendSuccess": "Si hay un cambio pendiente, se está enviando un nuevo enlace a la nueva dirección.",
+      "resendError": "No se pudo reenviar el enlace. Inténtalo de nuevo.",
+      "cancelSuccess": "Cambio de correo cancelado.",
+      "cancelError": "No se pudo cancelar el cambio. Inténtalo de nuevo."
     },
     "apiKeys": {
       "title": "Claves API",

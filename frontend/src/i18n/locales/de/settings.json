@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inaktiv",
       "unverified": "E-Mail nicht bestätigt",
+      "pendingEmail": "Ausstehende E-Mail-Änderung",
       "pending": "Genehmigung ausstehend",
       "externalAuth": "Externe Auth"
     },
@@ -64,6 +65,7 @@
       "email": "E-Mail",
       "emailRequired": "E-Mail ist erforderlich",
       "emailInvalid": "Gib eine gültige E-Mail-Adresse ein",
+      "emailChangeHint": "An die neue Adresse wird ein Bestätigungslink gesendet; sie ersetzt die aktuelle, sobald sie bestätigt wurde. Der Benutzer wird auf allen Geräten abgemeldet. Markiere die neue Adresse als bestätigt, um sie stattdessen sofort zu übernehmen.",
       "accessType": "Zugriffstyp",
       "accessTypeRegular": "Normaler Benutzer",
       "accessTypeAdmin": "Administrator",
@@ -149,6 +151,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-Mail bestätigt",
+      "emailVerifiedCurrentHint": "Dies ist der Status der aktuellen Adresse.",
+      "newEmailVerified": "Neue Adresse als bestätigt markieren",
       "pendingAdminApproval": "Admin-Genehmigung ausstehend",
       "requiredField": "Pflichtfeld",
       "create": "Benutzer hinzufügen",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Zurück zu den Benutzern",
+      "pendingEmail": "Ausstehende E-Mail-Änderung zu {email}, Link läuft am {date} ab",
       "notFoundTitle": "Benutzer nicht gefunden",
       "notFoundDescription": "Dieses Konto wurde möglicherweise gelöscht",
       "securityTitle": "Sicherheit",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Dein Passwort oder Code ist falsch.",
       "alreadyLinked": "Dieses Konto ist bereits verknüpft.",
       "lastMethodError": "Du kannst deine einzige Anmeldemethode nicht trennen. Setze zuerst ein Passwort."
+    },
+    "email": {
+      "subtitle": "Hierhin werden Passwort-Zurücksetzungen und Benachrichtigungen gesendet. Für eine Änderung musst du deine Identität bestätigen, und die neue Adresse gilt erst, wenn du sie über einen Link bestätigst, den wir dorthin senden.",
+      "sameAsCurrent": "Das ist bereits deine E-Mail-Adresse.",
+      "success": "Bestätigungslink an die neue Adresse gesendet. Deine E-Mail-Adresse wird geändert, sobald du sie bestätigst.",
+      "pending": "Ausstehende Änderung zu {email}",
+      "pendingExpires": "Der Bestätigungslink läuft am {date} ab.",
+      "resend": "Link erneut senden",
+      "cancel": "Änderung abbrechen",
+      "resendSuccess": "Falls eine Änderung aussteht, ist ein neuer Link auf dem Weg zur neuen Adresse.",
+      "resendError": "Der Link konnte nicht erneut gesendet werden. Bitte versuche es erneut.",
+      "cancelSuccess": "E-Mail-Änderung abgebrochen.",
+      "cancelError": "Die Änderung konnte nicht abgebrochen werden. Bitte versuche es erneut."
     },
     "apiKeys": {
       "title": "API-Schlüssel",

@@ -7,6 +7,7 @@
   "invalidTitle": "Patvirtinimas nepavyko",
   "missingTokenBody": "Šiai patvirtinimo nuorodai trūksta žetono.",
   "errorInvalidToken": "Ši patvirtinimo nuoroda negalioja arba baigė galioti.",
+  "errorEmailTaken": "Šį el. pašto adresą dabar naudoja kita paskyra, todėl jo patvirtinti negalima.",
   "errorNotFound": "Nepavyko rasti paskyros pagal šią nuorodą.",
   "errorGeneral": "Nepavyko patvirtinti jūsų el. pašto. Bandykite dar kartą.",
   "retry": "Bandyti dar kartą",

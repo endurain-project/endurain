@@ -42,6 +42,8 @@ async function verify(): Promise<void> {
       errorMessage.value = t('verifyEmail.errorNotFound')
     } else if (error instanceof HttpError && error.status === 400) {
       errorMessage.value = t('verifyEmail.errorInvalidToken')
+    } else if (error instanceof HttpError && error.status === 409) {
+      errorMessage.value = t('verifyEmail.errorEmailTaken')
     } else {
       errorMessage.value = t('verifyEmail.errorGeneral')
     }

@@ -31,6 +31,7 @@
       "admin": "Administrátor",
       "inactive": "Neaktivní",
       "unverified": "Neověřený e-mail",
+      "pendingEmail": "Čeká na změnu e-mailu",
       "pending": "Čeká na schválení",
       "externalAuth": "Externí ověření"
     },
@@ -64,6 +65,7 @@
       "email": "E-mail",
       "emailRequired": "E-mail je povinný",
       "emailInvalid": "Zadejte platnou e-mailovou adresu",
+      "emailChangeHint": "Na novou adresu se odešle potvrzovací odkaz a po potvrzení nahradí stávající. Uživatel bude odhlášen ze všech zařízení. Chcete-li ji použít okamžitě, označte novou adresu jako ověřenou.",
       "accessType": "Typ přístupu",
       "accessTypeRegular": "Běžný uživatel",
       "accessTypeAdmin": "Administrátor",
@@ -149,6 +151,8 @@
       "statusLegend": "Stav účtu",
       "active": "Aktivní",
       "emailVerified": "E-mail ověřen",
+      "emailVerifiedCurrentHint": "Toto je stav aktuální adresy.",
+      "newEmailVerified": "Označit novou adresu jako ověřenou",
       "pendingAdminApproval": "Čeká na schválení administrátorem",
       "requiredField": "Povinné pole",
       "create": "Přidat uživatele",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Zpět na uživatele",
+      "pendingEmail": "Čeká se na změnu e-mailu na {email}, odkaz vyprší {date}",
       "notFoundTitle": "Uživatel nenalezen",
       "notFoundDescription": "Tento účet mohl být smazán",
       "securityTitle": "Zabezpečení",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Vaše heslo nebo kód je nesprávný.",
       "alreadyLinked": "Tento účet je již propojen.",
       "lastMethodError": "Nemůžete zrušit propojení své jediné metody přihlášení. Nejprve nastavte heslo."
+    },
+    "email": {
+      "subtitle": "Sem se posílají odkazy na obnovení hesla a upozornění. Při změně je třeba potvrdit svou totožnost a nová adresa začne platit, až ji potvrdíte pomocí odkazu, který na ni odešleme.",
+      "sameAsCurrent": "Toto je již vaše e-mailová adresa.",
+      "success": "Potvrzovací odkaz byl odeslán na novou adresu. Vaše e-mailová adresa se změní, jakmile ji potvrdíte.",
+      "pending": "Čekající změna na {email}",
+      "pendingExpires": "Potvrzovací odkaz vyprší {date}.",
+      "resend": "Odeslat odkaz znovu",
+      "cancel": "Zrušit změnu",
+      "resendSuccess": "Pokud čeká změna, na novou adresu míří nový odkaz.",
+      "resendError": "Odkaz se nepodařilo znovu odeslat. Zkuste to prosím znovu.",
+      "cancelSuccess": "Změna e-mailu byla zrušena.",
+      "cancelError": "Změnu se nepodařilo zrušit. Zkuste to prosím znovu."
     },
     "apiKeys": {
       "title": "API klíče",

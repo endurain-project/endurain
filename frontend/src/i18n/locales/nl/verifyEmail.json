@@ -7,6 +7,7 @@
   "invalidTitle": "Verificatie mislukt",
   "missingTokenBody": "Er ontbreekt een token in deze verificatielink.",
   "errorInvalidToken": "Deze verificatielink is ongeldig of verlopen.",
+  "errorEmailTaken": "Dit e-mailadres wordt nu door een ander account gebruikt, dus het kan niet worden bevestigd.",
   "errorNotFound": "We konden geen account vinden voor deze link.",
   "errorGeneral": "We konden je e-mailadres niet verifiëren. Probeer het opnieuw.",
   "retry": "Opnieuw proberen",

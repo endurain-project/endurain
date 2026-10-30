@@ -7,6 +7,7 @@
   "invalidTitle": "Échec de la vérification",
   "missingTokenBody": "Ce lien de vérification ne contient pas de jeton.",
   "errorInvalidToken": "Ce lien de vérification est invalide ou expiré.",
+  "errorEmailTaken": "Cette adresse e-mail est désormais utilisée par un autre compte, elle ne peut donc pas être confirmée.",
   "errorNotFound": "Impossible de trouver un compte pour ce lien.",
   "errorGeneral": "Impossible de vérifier votre e-mail. Veuillez réessayer.",
   "retry": "Réessayer",

@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inativo",
       "unverified": "Email não verificado",
+      "pendingEmail": "Alteração de email pendente",
       "pending": "Aprovação pendente",
       "externalAuth": "Autenticação externa"
     },
@@ -64,6 +65,7 @@
       "email": "Email",
       "emailRequired": "O email é obrigatório",
       "emailInvalid": "Introduz um endereço de email válido",
+      "emailChangeHint": "É enviada uma ligação de confirmação para o novo endereço, que substitui o atual depois de confirmado. O utilizador é desconectado de todos os dispositivos. Marque o novo endereço como verificado para o aplicar já.",
       "accessType": "Tipo de acesso",
       "accessTypeRegular": "Utilizador regular",
       "accessTypeAdmin": "Administrador",
@@ -149,6 +151,8 @@
       "statusLegend": "Estado da conta",
       "active": "Ativo",
       "emailVerified": "Email verificado",
+      "emailVerifiedCurrentHint": "Este é o estado do endereço atual.",
+      "newEmailVerified": "Marcar o novo endereço como verificado",
       "pendingAdminApproval": "Aprovação de admin pendente",
       "requiredField": "Campo obrigatório",
       "create": "Adicionar utilizador",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Voltar aos utilizadores",
+      "pendingEmail": "Alteração de email pendente para {email}, a ligação expira a {date}",
       "notFoundTitle": "Utilizador não encontrado",
       "notFoundDescription": "Esta conta pode ter sido eliminada",
       "securityTitle": "Segurança",
@@ -673,6 +678,19 @@
       "invalidCredentials": "A tua palavra-passe ou código está incorreto.",
       "alreadyLinked": "Essa conta já está associada.",
       "lastMethodError": "Não podes desassociar o único método de início de sessão. Define uma palavra-passe primeiro."
+    },
+    "email": {
+      "subtitle": "É para aqui que são enviadas as redefinições de palavra-passe e os avisos. Para o alterar, tens de confirmar a tua identidade, e o novo endereço só fica ativo depois de o confirmares através de uma ligação que lhe enviamos.",
+      "sameAsCurrent": "Este já é o teu endereço de email.",
+      "success": "Ligação de confirmação enviada para o novo endereço. O teu email muda quando a confirmares.",
+      "pending": "Alteração pendente para {email}",
+      "pendingExpires": "A ligação de confirmação expira a {date}.",
+      "resend": "Reenviar ligação",
+      "cancel": "Cancelar alteração",
+      "resendSuccess": "Se houver uma alteração pendente, está a caminho um novo link para o novo endereço.",
+      "resendError": "Não foi possível reenviar a ligação. Tenta novamente.",
+      "cancelSuccess": "Alteração de email cancelada.",
+      "cancelError": "Não foi possível cancelar a alteração. Tenta novamente."
     },
     "apiKeys": {
       "title": "Chaves de API",

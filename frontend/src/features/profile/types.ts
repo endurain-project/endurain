@@ -91,6 +91,8 @@ export interface PrivacySettings {
  * @property name - Display name.
  * @property username - Login handle.
  * @property email - Account email.
+ * @property pendingEmail - Address awaiting confirmation, or `null` when no change is pending.
+ * @property pendingEmailExpiresAt - When the pending address's confirmation link expires, or `null`.
  * @property city - City, or `null`.
  * @property birthdate - Birthdate (ISO date), or `null`.
  * @property gender - Gender.
@@ -117,6 +119,8 @@ export interface ProfileDetails {
   name: string
   username: string
   email: string
+  pendingEmail: string | null
+  pendingEmailExpiresAt: string | null
   city: string | null
   birthdate: string | null
   gender: Schemas['Gender']

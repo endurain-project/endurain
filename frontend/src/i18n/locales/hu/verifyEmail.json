@@ -7,6 +7,7 @@
   "invalidTitle": "Az ellenőrzés sikertelen",
   "missingTokenBody": "Erről az ellenőrző hivatkozásról hiányzik a token.",
   "errorInvalidToken": "Ez az ellenőrző hivatkozás érvénytelen vagy lejárt.",
+  "errorEmailTaken": "Ezt az e-mail-címet mostantól egy másik fiók használja, ezért nem lehet megerősíteni.",
   "errorNotFound": "Nem találtunk fiókot ehhez a hivatkozáshoz.",
   "errorGeneral": "Nem sikerült megerősíteni az e-mail-címedet. Kérjük, próbáld újra.",
   "retry": "Próbáld újra",

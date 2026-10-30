@@ -7,6 +7,7 @@
   "invalidTitle": "Verifizierung fehlgeschlagen",
   "missingTokenBody": "Diesem Bestätigungslink fehlt sein Token.",
   "errorInvalidToken": "Dieser Bestätigungslink ist ungültig oder abgelaufen.",
+  "errorEmailTaken": "Diese E-Mail-Adresse wird inzwischen von einem anderen Konto verwendet, daher kann sie nicht bestätigt werden.",
   "errorNotFound": "Für diesen Link konnte kein Konto gefunden werden.",
   "errorGeneral": "Deine E-Mail konnte nicht verifiziert werden. Bitte versuche es erneut.",
   "retry": "Erneut versuchen",

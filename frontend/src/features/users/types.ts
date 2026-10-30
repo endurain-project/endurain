@@ -29,6 +29,8 @@ export type UserAccessType = Schemas['UserAccessType']
  * @property accessType - Authorization tier.
  * @property active - Whether the account is enabled.
  * @property emailVerified - Whether the email has been verified.
+ * @property pendingEmail - Address awaiting confirmation, or `null` when no change is pending.
+ * @property pendingEmailExpiresAt - When the pending address's confirmation link expires, or `null`.
  * @property pendingAdminApproval - Whether the sign-up awaits admin approval.
  * @property mfaEnabled - Whether MFA is enabled.
  * @property externalAuthCount - Number of linked external identity providers.
@@ -54,6 +56,8 @@ export interface ManagedUser {
   accessType: UserAccessType
   active: boolean
   emailVerified: boolean
+  pendingEmail: string | null
+  pendingEmailExpiresAt: string | null
   pendingAdminApproval: boolean
   mfaEnabled: boolean
   externalAuthCount: number

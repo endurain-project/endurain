@@ -31,6 +31,7 @@
       "admin": "Administrador",
       "inactive": "Inactivo",
       "unverified": "Correo non verificado",
+      "pendingEmail": "Cambio de correo pendente",
       "pending": "Pendente de aprobación",
       "externalAuth": "Autenticación externa"
     },
@@ -64,6 +65,7 @@
       "email": "Correo electrónico",
       "emailRequired": "O correo electrónico é obrigatorio",
       "emailInvalid": "Introduce un enderezo de correo electrónico válido",
+      "emailChangeHint": "Envíase unha ligazón de confirmación ao novo enderezo e este substitúe o actual unha vez confirmado. O usuario é desconectado de todos os dispositivos. Marca o novo enderezo como verificado para aplicalo agora.",
       "accessType": "Tipo de acceso",
       "accessTypeRegular": "Usuario regular",
       "accessTypeAdmin": "Administrador",
@@ -149,6 +151,8 @@
       "statusLegend": "Estado da conta",
       "active": "Activo",
       "emailVerified": "Correo verificado",
+      "emailVerifiedCurrentHint": "Este é o estado do enderezo actual.",
+      "newEmailVerified": "Marcar o novo enderezo como verificado",
       "pendingAdminApproval": "Pendente de aprobación do administrador",
       "requiredField": "Campo obrigatorio",
       "create": "Engadir usuario",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Volver aos usuarios",
+      "pendingEmail": "Cambio de correo pendente a {email}, a ligazón caduca o {date}",
       "notFoundTitle": "Usuario non atopado",
       "notFoundDescription": "Esta conta pode ter sido eliminada",
       "securityTitle": "Seguridade",
@@ -673,6 +678,19 @@
       "invalidCredentials": "O teu contrasinal ou código é incorrecto.",
       "alreadyLinked": "Esa conta xa está vinculada.",
       "lastMethodError": "Non podes desvincular o teu único método de inicio de sesión. Establece un contrasinal primeiro."
+    },
+    "email": {
+      "subtitle": "Aquí envíanse os restablecementos de contrasinal e os avisos. Para cambialo tes que confirmar a túa identidade, e o novo enderezo xa é efectivo cando o confirmes desde unha ligazón que enviamos alí.",
+      "sameAsCurrent": "Esta xa é o teu enderezo de correo electrónico.",
+      "success": "Enviouse unha ligazón de confirmación ao novo enderezo. O teu correo cambiará cando o confirmes.",
+      "pending": "Cambio pendente a {email}",
+      "pendingExpires": "A ligazón de confirmación caduca o {date}.",
+      "resend": "Reenviar a ligazón",
+      "cancel": "Cancelar o cambio",
+      "resendSuccess": "Se hai un cambio pendente, hai unha nova ligazón de camiño ao novo enderezo.",
+      "resendError": "Non se puido reenviar a ligazón. Téntao de novo.",
+      "cancelSuccess": "Cancelouse o cambio de correo.",
+      "cancelError": "Non se puido cancelar o cambio. Téntao de novo."
     },
     "apiKeys": {
       "title": "Claves de API",

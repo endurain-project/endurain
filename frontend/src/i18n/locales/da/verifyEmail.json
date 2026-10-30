@@ -7,6 +7,7 @@
   "invalidTitle": "Bekræftelse mislykkedes",
   "missingTokenBody": "Dette bekræftelseslink mangler sit token.",
   "errorInvalidToken": "Dette bekræftelseslink er ugyldigt eller udløbet.",
+  "errorEmailTaken": "Denne e-mailadresse bruges nu af en anden konto, så den kan ikke bekræftes.",
   "errorNotFound": "Vi kunne ikke finde en konto til dette link.",
   "errorGeneral": "Vi kunne ikke bekræfte din e-mail. Prøv venligst igen.",
   "retry": "Prøv igen",

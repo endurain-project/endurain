@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inaktiv",
       "unverified": "Ubekræftet e-mail",
+      "pendingEmail": "Afventende ændring af e-mail",
       "pending": "Afventer godkendelse",
       "externalAuth": "Ekstern godkendelse"
     },
@@ -64,6 +65,7 @@
       "email": "E-mail",
       "emailRequired": "E-mail er påkrævet",
       "emailInvalid": "Indtast en gyldig e-mailadresse",
+      "emailChangeHint": "Et bekræftelseslink sendes til den nye adresse, og den erstatter den nuværende, når den er bekræftet. Brugeren logges ud af alle enheder. Markér i stedet den nye adresse som bekræftet for at anvende den med det samme.",
       "accessType": "Adgangstype",
       "accessTypeRegular": "Almindelig bruger",
       "accessTypeAdmin": "Administrator",
@@ -149,6 +151,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-mail bekræftet",
+      "emailVerifiedCurrentHint": "Dette er status for den nuværende adresse.",
+      "newEmailVerified": "Markér den nye adresse som bekræftet",
       "pendingAdminApproval": "Afventer administratorgodkendelse",
       "requiredField": "Påkrævet felt",
       "create": "Tilføj bruger",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Tilbage til brugere",
+      "pendingEmail": "Afventende ændring af e-mail til {email}, linket udløber {date}",
       "notFoundTitle": "Bruger ikke fundet",
       "notFoundDescription": "Denne konto er muligvis blevet slettet",
       "securityTitle": "Sikkerhed",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Din adgangskode eller kode er forkert.",
       "alreadyLinked": "Den konto er allerede tilknyttet.",
       "lastMethodError": "Du kan ikke fjerne tilknytningen af din eneste login-metode. Sæt en adgangskode først."
+    },
+    "email": {
+      "subtitle": "Det er her, nulstillinger af adgangskode og meddelelser sendes. Ved ændring skal du bekræfte din identitet, og den nye adresse træder i kraft, når du bekræfter den via et link, vi sender dertil.",
+      "sameAsCurrent": "Dette er allerede din e-mailadresse.",
+      "success": "Bekræftelseslink er sendt til den nye adresse. Din e-mail ændres, når du bekræfter den.",
+      "pending": "Afventende ændring til {email}",
+      "pendingExpires": "Bekræftelseslinket udløber {date}.",
+      "resend": "Send linket igen",
+      "cancel": "Annullér ændringen",
+      "resendSuccess": "Hvis en ændring afventer, er et nyt link på vej til den nye adresse.",
+      "resendError": "Linket kunne ikke sendes igen. Prøv venligst igen.",
+      "cancelSuccess": "Ændringen af e-mail er annulleret.",
+      "cancelError": "Ændringen kunne ikke annulleres. Prøv venligst igen."
     },
     "apiKeys": {
       "title": "API-nøgler",

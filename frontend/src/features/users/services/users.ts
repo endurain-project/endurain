@@ -32,6 +32,8 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
     accessType: dto.access_type,
     active: dto.active,
     emailVerified: dto.email_verified ?? false,
+    pendingEmail: dto.pending_email ?? null,
+    pendingEmailExpiresAt: dto.pending_email_expires_at ?? null,
     pendingAdminApproval: dto.pending_admin_approval ?? false,
     mfaEnabled: dto.mfa_enabled ?? false,
     externalAuthCount: dto.external_auth_count ?? 0,

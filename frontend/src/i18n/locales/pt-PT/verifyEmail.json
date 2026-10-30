@@ -7,6 +7,7 @@
   "invalidTitle": "Falha na verificação",
   "missingTokenBody": "Esta ligação de verificação não tem token.",
   "errorInvalidToken": "Esta ligação de verificação é inválida ou expirou.",
+  "errorEmailTaken": "Este endereço de email já é usado por outra conta, por isso não pode ser confirmado.",
   "errorNotFound": "Não encontrámos uma conta para esta ligação.",
   "errorGeneral": "Não foi possível verificar o teu email. Tenta novamente.",
   "retry": "Tentar novamente",

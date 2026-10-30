@@ -7,6 +7,7 @@
   "invalidTitle": "Bekreftelse mislyktes",
   "missingTokenBody": "Denne bekreftelseslenken mangler tokenet sitt.",
   "errorInvalidToken": "Denne bekreftelseslenken er ugyldig eller utløpt.",
+  "errorEmailTaken": "Denne e-postadressen brukes nå av en annen konto, så den kan ikke bekreftes.",
   "errorNotFound": "Vi fant ingen konto for denne lenken.",
   "errorGeneral": "Vi kunne ikke bekrefte e-posten din. Vennligst prøv igjen.",
   "retry": "Prøv igjen",

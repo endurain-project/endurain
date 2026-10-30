@@ -54,6 +54,8 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     name: dto.name,
     username: dto.username,
     email: dto.email,
+    pendingEmail: dto.pending_email ?? null,
+    pendingEmailExpiresAt: dto.pending_email_expires_at ?? null,
     city: dto.city ?? null,
     birthdate: dto.birthdate ?? null,
     gender: dto.gender,

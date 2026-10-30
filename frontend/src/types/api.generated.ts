@@ -2791,11 +2791,13 @@ export interface paths {
         put?: never;
         /**
          * Edit Profile Email
-         * @description Change the authenticated user's email after step-up verification.
+         * @description Request a change of the authenticated user's email after step-up verification.
          *
          *     The address is where password resets go, so the caller must re-prove identity with the
-         *     current password (and an MFA code when MFA is enabled). The new address starts unverified and
-         *     a verification link is emailed to it.
+         *     current password (and an MFA code when MFA is enabled). The current address stays in place
+         *     until the link emailed to the new one is followed, and the new address is shown as
+         *     ``pending_email`` meanwhile. A later request replaces an earlier one, and the current address
+         *     cancels a pending change. When the server cannot send mail the address changes at once, unverified.
          *     The user's other sessions are revoked when the request asks for it.
          *
          *     Args:
@@ -2805,9 +2807,49 @@ export interface paths {
          *         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
-         *         db: Database session.
+         *
+         *     Raises:
+         *         HTTPException: 401 if step-up verification fails, 409 if another account uses the address.
          */
         post: operations["edit_profile_email_api_v1_profile_email_change_post"];
+        /**
+         * Cancel Profile Email Change
+         * @description Cancel the pending email change, so its confirmation link stops working.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         token_user_id: User ID from access token.
+         *         db: Database session.
+         */
+        delete: operations["cancel_profile_email_change_api_v1_profile_email_change_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email/change/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Profile Email Change
+         * @description Send the confirmation email of the pending email change again.
+         *
+         *     The answer is the same whether or not an email was queued: there may be no pending change,
+         *     the server may not send mail, or an email may already have gone out within the cooldown.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         token_user_id: User ID from access token.
+         *         state: The platform state provider, for the resend cooldown.
+         *         db: Database session.
+         */
+        post: operations["resend_profile_email_change_api_v1_profile_email_change_resend_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11960,7 +12002,7 @@ export interface components {
          * @description Users schema for an administrative edit.
          *
          *     The stored columns of a user and nothing a read adds: ``id`` is the path, and
-         *     ``external_auth_count`` is derived. ``photo_path`` and ``mfa_enabled`` are read-only
+         *     ``external_auth_count`` and the pending email change are derived. ``photo_path`` and ``mfa_enabled`` are read-only
          *     projections, so a write ignores them.
          */
         UsersEdit: {
@@ -12548,6 +12590,16 @@ export interface components {
              */
             pending_admin_approval: boolean;
             /**
+             * Pending Email
+             * @description Email address awaiting confirmation, which replaces the current one once confirmed
+             */
+            pending_email?: string | null;
+            /**
+             * Pending Email Expires At
+             * @description When the confirmation link for the pending email address expires
+             */
+            pending_email_expires_at?: string | null;
+            /**
              * Photo Path
              * @description Servable URL of the user's photo (read-only)
              */
@@ -12780,6 +12832,8 @@ export interface components {
          *     Attributes:
          *         id: User ID.
          *         external_auth_count: Number of external auth providers.
+         *         pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
+         *         pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
          */
         UsersRead: {
             /** @description User access level */
@@ -12864,6 +12918,16 @@ export interface components {
              * @default false
              */
             pending_admin_approval: boolean;
+            /**
+             * Pending Email
+             * @description Email address awaiting confirmation, which replaces the current one once confirmed
+             */
+            pending_email?: string | null;
+            /**
+             * Pending Email Expires At
+             * @description When the confirmation link for the pending email address expires
+             */
+            pending_email_expires_at?: string | null;
             /**
              * Photo Path
              * @description Servable URL of the user's photo (read-only)
@@ -17976,6 +18040,60 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    cancel_profile_email_change_api_v1_profile_email_change_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    resend_profile_email_change_api_v1_profile_email_change_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {

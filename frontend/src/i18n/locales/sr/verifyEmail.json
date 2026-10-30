@@ -7,6 +7,7 @@
   "invalidTitle": "Verifikacija nije uspela",
   "missingTokenBody": "Ovom linku za verifikaciju nedostaje token.",
   "errorInvalidToken": "Ovaj link za verifikaciju je nevažeći ili je istekao.",
+  "errorEmailTaken": "Ovu email adresu sada koristi drugi nalog, pa se ne može potvrditi.",
   "errorNotFound": "Nismo mogli da pronađemo nalog za ovaj link.",
   "errorGeneral": "Nismo mogli da verifikujemo vaš email. Pokušajte ponovo.",
   "retry": "Pokušaj ponovo",

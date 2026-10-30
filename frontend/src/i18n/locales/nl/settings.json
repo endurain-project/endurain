@@ -31,6 +31,7 @@
       "admin": "Beheerder",
       "inactive": "Inactief",
       "unverified": "E-mail niet bevestigd",
+      "pendingEmail": "E-mailwijziging in behandeling",
       "pending": "Wacht op goedkeuring",
       "externalAuth": "Externe authenticatie"
     },
@@ -64,6 +65,7 @@
       "email": "E-mail",
       "emailRequired": "E-mail is verplicht",
       "emailInvalid": "Voer een geldig e-mailadres in",
+      "emailChangeHint": "Er wordt een bevestigingslink naar het nieuwe adres gestuurd en het vervangt het huidige adres zodra het is bevestigd. De gebruiker wordt op alle apparaten afgemeld. Markeer het nieuwe adres als geverifieerd om het nu direct toe te passen.",
       "accessType": "Toegangstype",
       "accessTypeRegular": "Gewone gebruiker",
       "accessTypeAdmin": "Beheerder",
@@ -149,6 +151,8 @@
       "statusLegend": "Accountstatus",
       "active": "Actief",
       "emailVerified": "E-mail bevestigd",
+      "emailVerifiedCurrentHint": "Dit is de status van het huidige adres.",
+      "newEmailVerified": "Markeer het nieuwe adres als geverifieerd",
       "pendingAdminApproval": "Wacht op beheerdergoedkeuring",
       "requiredField": "Verplicht veld",
       "create": "Gebruiker toevoegen",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Terug naar gebruikers",
+      "pendingEmail": "E-mailwijziging naar {email} in behandeling, link verloopt op {date}",
       "notFoundTitle": "Gebruiker niet gevonden",
       "notFoundDescription": "Dit account is mogelijk verwijderd",
       "securityTitle": "Beveiliging",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Je wachtwoord of code is onjuist.",
       "alreadyLinked": "Dat account is al gekoppeld.",
       "lastMethodError": "Je kunt je enige inlogmethode niet ontkoppelen. Stel eerst een wachtwoord in."
+    },
+    "email": {
+      "subtitle": "Hier worden wachtwoordherstellingen en meldingen naartoe gestuurd. Voor een wijziging moet je je identiteit bevestigen, en het nieuwe adres gaat pas in zodra je het bevestigt via een link die we ernaartoe sturen.",
+      "sameAsCurrent": "Dit is al je e-mailadres.",
+      "success": "Bevestigingslink verzonden naar het nieuwe adres. Je e-mailadres wijzigt zodra je het bevestigt.",
+      "pending": "Wijziging naar {email} in behandeling",
+      "pendingExpires": "De bevestigingslink verloopt op {date}.",
+      "resend": "Link opnieuw versturen",
+      "cancel": "Wijziging annuleren",
+      "resendSuccess": "Als er een wijziging in behandeling is, is er een nieuwe link onderweg naar het nieuwe adres.",
+      "resendError": "De link kon niet opnieuw worden verstuurd. Probeer het opnieuw.",
+      "cancelSuccess": "E-mailwijziging geannuleerd.",
+      "cancelError": "De wijziging kon niet worden geannuleerd. Probeer het opnieuw."
     },
     "apiKeys": {
       "title": "API-sleutels",

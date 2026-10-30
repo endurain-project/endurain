@@ -31,6 +31,7 @@
       "admin": "Yönetici",
       "inactive": "Pasif",
       "unverified": "Doğrulanmamış e-posta",
+      "pendingEmail": "Bekleyen e-posta değişikliği",
       "pending": "Onay bekliyor",
       "externalAuth": "Harici kimlik doğrulama"
     },
@@ -64,6 +65,7 @@
       "email": "E-posta",
       "emailRequired": "E-posta zorunludur",
       "emailInvalid": "Geçerli bir e-posta adresi girin",
+      "emailChangeHint": "Yeni adrese bir onay bağlantısı gönderilir ve onaylandığında mevcut adresin yerini alır. Kullanıcı tüm cihazlardan çıkış yapar. Yeni adresi hemen uygulamak için bunun yerine doğrulanmış olarak işaretleyin.",
       "accessType": "Erişim türü",
       "accessTypeRegular": "Normal kullanıcı",
       "accessTypeAdmin": "Yönetici",
@@ -149,6 +151,8 @@
       "statusLegend": "Hesap durumu",
       "active": "Aktif",
       "emailVerified": "E-posta doğrulandı",
+      "emailVerifiedCurrentHint": "Bu, mevcut adresin durumudur.",
+      "newEmailVerified": "Yeni adresi doğrulanmış olarak işaretle",
       "pendingAdminApproval": "Yönetici onayı bekliyor",
       "requiredField": "Zorunlu alan",
       "create": "Kullanıcı ekle",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Kullanıcılara geri dön",
+      "pendingEmail": "{email} adresine bekleyen e-posta değişikliği, bağlantının süresi {date} tarihinde doluyor",
       "notFoundTitle": "Kullanıcı bulunamadı",
       "notFoundDescription": "Bu hesap silinmiş olabilir",
       "securityTitle": "Güvenlik",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Parolanız veya kodunuz yanlış.",
       "alreadyLinked": "Bu hesap zaten bağlı.",
       "lastMethodError": "Tek giriş yönteminizin bağlantısını kaldıramazsınız. Önce bir parola belirleyin."
+    },
+    "email": {
+      "subtitle": "Parola sıfırlamaları ve bildirimler buraya gönderilir. Değiştirmek için kimliğinizi doğrulamanız gerekir; yeni adres, oraya gönderdiğimiz bağlantıyı onayladığınızda geçerli olur.",
+      "sameAsCurrent": "Bu zaten e-posta adresiniz.",
+      "success": "Onay bağlantısı yeni adrese gönderildi. E-posta adresiniz onayladığınızda değişecek.",
+      "pending": "{email} adresine bekleyen değişiklik",
+      "pendingExpires": "Onay bağlantısının süresi {date} tarihinde doluyor.",
+      "resend": "Bağlantıyı yeniden gönder",
+      "cancel": "Değişikliği iptal et",
+      "resendSuccess": "Bekleyen bir değişiklik varsa yeni adrese yeni bir bağlantı gönderiliyor.",
+      "resendError": "Bağlantı yeniden gönderilemedi. Lütfen tekrar deneyin.",
+      "cancelSuccess": "E-posta değişikliği iptal edildi.",
+      "cancelError": "Değişiklik iptal edilemedi. Lütfen tekrar deneyin."
     },
     "apiKeys": {
       "title": "API anahtarları",

@@ -7,6 +7,7 @@
   "invalidTitle": "Verifiering misslyckades",
   "missingTokenBody": "Den här verifieringslänken saknar sin token.",
   "errorInvalidToken": "Den här verifieringslänken är ogiltig eller har gått ut.",
+  "errorEmailTaken": "Den här e-postadressen används nu av ett annat konto, så den kan inte bekräftas.",
   "errorNotFound": "Vi kunde inte hitta ett konto för den här länken.",
   "errorGeneral": "Vi kunde inte verifiera din e-post. Försök igen.",
   "retry": "Försök igen",

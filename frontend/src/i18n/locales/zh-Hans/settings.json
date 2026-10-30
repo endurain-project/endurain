@@ -31,6 +31,7 @@
       "admin": "管理员",
       "inactive": "未激活",
       "unverified": "邮箱未验证",
+      "pendingEmail": "邮箱更改待处理",
       "pending": "待审核",
       "externalAuth": "外部认证"
     },
@@ -64,6 +65,7 @@
       "email": "邮箱",
       "emailRequired": "邮箱为必填项",
       "emailInvalid": "请输入有效的邮箱地址",
+      "emailChangeHint": "系统会向新邮箱发送确认链接，确认后将替换当前邮箱。该用户将在所有设备上退出登录。若要立即生效，请将新邮箱标记为已验证。",
       "accessType": "访问类型",
       "accessTypeRegular": "普通用户",
       "accessTypeAdmin": "管理员",
@@ -149,6 +151,8 @@
       "statusLegend": "账户状态",
       "active": "活跃",
       "emailVerified": "邮箱已验证",
+      "emailVerifiedCurrentHint": "这是当前邮箱的状态。",
+      "newEmailVerified": "将新邮箱标记为已验证",
       "pendingAdminApproval": "待管理员审核",
       "requiredField": "必填项",
       "create": "添加用户",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "返回用户列表",
+      "pendingEmail": "待处理的邮箱更改为 {email}，链接将于 {date} 过期",
       "notFoundTitle": "未找到用户",
       "notFoundDescription": "此账户可能已被删除",
       "securityTitle": "安全",
@@ -673,6 +678,19 @@
       "invalidCredentials": "密码或验证码不正确。",
       "alreadyLinked": "该账户已被关联。",
       "lastMethodError": "无法取消关联唯一的登录方式。请先设置密码。"
+    },
+    "email": {
+      "subtitle": "密码重置邮件和通知会发送到此邮箱。更改时需要验证您的身份，新邮箱只有在您通过我们发送到该邮箱的链接确认后才会生效。",
+      "sameAsCurrent": "这已是您的邮箱地址。",
+      "success": "确认链接已发送至新邮箱。确认后，您的邮箱将会更改。",
+      "pending": "待处理的更改：{email}",
+      "pendingExpires": "确认链接将于 {date} 过期。",
+      "resend": "重新发送链接",
+      "cancel": "取消更改",
+      "resendSuccess": "如果有待处理的更改，新链接将发送至新邮箱。",
+      "resendError": "无法重新发送链接，请重试。",
+      "cancelSuccess": "已取消邮箱更改。",
+      "cancelError": "无法取消更改，请重试。"
     },
     "apiKeys": {
       "title": "API 密钥",

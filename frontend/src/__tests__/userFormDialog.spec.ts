@@ -1,6 +1,6 @@
+import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
-import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 import type { ManagedUser } from '@/features/users/types'
@@ -23,6 +23,8 @@ const user: ManagedUser = {
   accessType: 'admin',
   active: true,
   emailVerified: true,
+  pendingEmail: null,
+  pendingEmailExpiresAt: null,
   pendingAdminApproval: false,
   mfaEnabled: false,
   externalAuthCount: 0,
@@ -80,5 +82,47 @@ describe('UserFormDialog email field', () => {
     expect(input.attributes('disabled')).toBeDefined()
     expect((input.element as HTMLInputElement).value).toBe('admin@example.com')
     expect(wrapper.find('a[data-to="settings-security"]').exists()).toBe(true)
+  })
+})
+
+describe('UserFormDialog email verification switches', () => {
+  const switches = (wrapper: Awaited<ReturnType<typeof mountDialog>>) =>
+    wrapper.findAll<HTMLInputElement>('input[role="switch"]')
+
+  it('shows a single editable verified switch while the email is unchanged', async () => {
+    const wrapper = await mountDialog(false)
+
+    expect(switches(wrapper)).toHaveLength(3)
+    expect(wrapper.text()).not.toContain('Mark the new address as verified')
+  })
+
+  it('locks the current status and adds a new-address switch once the email changes', async () => {
+    const wrapper = await mountDialog(false)
+    await wrapper.find('input[name="email"]').setValue('new@example.com')
+
+    const all = switches(wrapper)
+    expect(all).toHaveLength(4)
+    expect(all[1]!.element.disabled).toBe(true)
+    expect(all[1]!.element.checked).toBe(true)
+    expect(all[2]!.element.checked).toBe(false)
+    expect(wrapper.text()).toContain('Mark the new address as verified')
+
+    await wrapper.find('input[name="email"]').setValue('admin@example.com')
+    expect(switches(wrapper)).toHaveLength(3)
+  })
+
+  it('sends the new-address switch as the payload emailVerified', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountDialog(false)
+    await wrapper.find('input[name="email"]').setValue('new@example.com')
+    await switches(wrapper)[2]!.setValue(true)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      email: 'new@example.com',
+      email_verified: true,
+    })
   })
 })

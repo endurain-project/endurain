@@ -7,6 +7,7 @@
   "invalidTitle": "Vahvistus epäonnistui",
   "missingTokenBody": "Tästä vahvistuslinkistä puuttuu tunnus.",
   "errorInvalidToken": "Tämä vahvistuslinkki on virheellinen tai vanhentunut.",
+  "errorEmailTaken": "Tätä sähköpostiosoitetta käyttää nyt toinen tili, joten sitä ei voi vahvistaa.",
   "errorNotFound": "Tälle linkille ei löytynyt tiliä.",
   "errorGeneral": "Sähköpostiasi ei voitu vahvistaa. Yritä uudelleen.",
   "retry": "Yritä uudelleen",

@@ -31,6 +31,7 @@
       "admin": "Administraator",
       "inactive": "Mitteaktiivne",
       "unverified": "Kinnitamata e-post",
+      "pendingEmail": "E-posti muutmine ootel",
       "pending": "Ootab heakskiitu",
       "externalAuth": "Väline autentimine"
     },
@@ -64,6 +65,7 @@
       "email": "E-post",
       "emailRequired": "E-post on kohustuslik",
       "emailInvalid": "Sisesta kehtiv e-posti aadress",
+      "emailChangeHint": "Uuele aadressile saadetakse kinnituslink ning pärast kinnitamist asendab see praeguse aadressi. Kasutaja logitakse välja kõigist seadmetest. Selle kohe rakendamiseks märgi uus aadress kinnitatuks.",
       "accessType": "Juurdepääsu tüüp",
       "accessTypeRegular": "Tavakasutaja",
       "accessTypeAdmin": "Administraator",
@@ -149,6 +151,8 @@
       "statusLegend": "Konto olek",
       "active": "Aktiivne",
       "emailVerified": "E-post kinnitatud",
+      "emailVerifiedCurrentHint": "See on praeguse aadressi olek.",
+      "newEmailVerified": "Märgi uus aadress kinnitatuks",
       "pendingAdminApproval": "Ootab administraatori heakskiitu",
       "requiredField": "Kohustuslik väli",
       "create": "Lisa kasutaja",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Tagasi kasutajate juurde",
+      "pendingEmail": "Ootel e-posti muutmine aadressile {email}, link aegub {date}",
       "notFoundTitle": "Kasutajat ei leitud",
       "notFoundDescription": "See konto võib olla kustutatud",
       "securityTitle": "Turvalisus",
@@ -673,6 +678,19 @@
       "invalidCredentials": "Sinu parool või kood on vale.",
       "alreadyLinked": "See konto on juba seotud.",
       "lastMethodError": "Sa ei saa eemaldada oma ainsa sisselogimismeetodi seost. Sea esmalt parool."
+    },
+    "email": {
+      "subtitle": "Siia saadetakse parooli lähtestamise lingid ja teatised. Aadressi muutmiseks pead kinnitama oma isikut ning uus aadress jõustub alles pärast seda, kui kinnitad selle lingi kaudu, mis sinna saadetakse.",
+      "sameAsCurrent": "See on juba sinu e-posti aadress.",
+      "success": "Kinnituslink saadeti uuele aadressile. Sinu e-post muutub pärast kinnitamist.",
+      "pending": "Ootel muudatus aadressile {email}",
+      "pendingExpires": "Kinnituslink aegub {date}.",
+      "resend": "Saada link uuesti",
+      "cancel": "Tühista muudatus",
+      "resendSuccess": "Kui muudatus on ootel, on uus link teel uuele aadressile.",
+      "resendError": "Lingi uuesti saatmine ebaõnnestus. Palun proovi uuesti.",
+      "cancelSuccess": "E-posti muutmine tühistati.",
+      "cancelError": "Muudatust ei õnnestunud tühistada. Palun proovi uuesti."
     },
     "apiKeys": {
       "title": "API-võtmed",

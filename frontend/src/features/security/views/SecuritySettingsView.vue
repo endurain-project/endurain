@@ -101,6 +101,8 @@ const mfaEnabled = computed(() => mfaStatusQuery.data.value?.enabled ?? false)
     <template v-else-if="profile">
       <ChangeEmailCard
         :email="profile.email"
+        :pending-email="profile.pendingEmail"
+        :pending-email-expires-at="profile.pendingEmailExpiresAt"
         :has-local-password="profile.hasLocalPassword"
         :mfa-enabled="mfaEnabled"
         :resume="resume"

@@ -31,6 +31,7 @@
       "admin": "管理員",
       "inactive": "未啟用",
       "unverified": "電子郵件未驗證",
+      "pendingEmail": "電子郵件變更待處理",
       "pending": "待審核",
       "externalAuth": "外部驗證"
     },
@@ -64,6 +65,7 @@
       "email": "電子郵件",
       "emailRequired": "電子郵件為必填",
       "emailInvalid": "請輸入有效的電子郵件地址",
+      "emailChangeHint": "系統會向新信箱寄送確認連結，確認後將取代目前的信箱。該使用者將在所有裝置上登出。若要立即套用，請將新信箱標示為已驗證。",
       "accessType": "存取類型",
       "accessTypeRegular": "一般使用者",
       "accessTypeAdmin": "管理員",
@@ -149,6 +151,8 @@
       "statusLegend": "帳戶狀態",
       "active": "啟用",
       "emailVerified": "電子郵件已驗證",
+      "emailVerifiedCurrentHint": "這是目前信箱的狀態。",
+      "newEmailVerified": "將新信箱標示為已驗證",
       "pendingAdminApproval": "待管理員審核",
       "requiredField": "必填欄位",
       "create": "新增使用者",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "返回使用者列表",
+      "pendingEmail": "待處理的信箱變更為 {email}，連結將於 {date} 過期",
       "notFoundTitle": "找不到使用者",
       "notFoundDescription": "此帳戶可能已被刪除",
       "securityTitle": "安全性",
@@ -673,6 +678,19 @@
       "invalidCredentials": "您的密碼或驗證碼不正確。",
       "alreadyLinked": "該帳戶已連結。",
       "lastMethodError": "您無法取消連結唯一的登入方式，請先設定密碼。"
+    },
+    "email": {
+      "subtitle": "密碼重設與通知會寄送至此信箱。變更時需要驗證您的身分，新信箱必須透過我們寄送至該信箱的連結確認後才會生效。",
+      "sameAsCurrent": "這已經是您的信箱地址。",
+      "success": "確認連結已寄送至新信箱。確認後，您的信箱將會變更。",
+      "pending": "待處理的變更：{email}",
+      "pendingExpires": "確認連結將於 {date} 過期。",
+      "resend": "重新寄送連結",
+      "cancel": "取消變更",
+      "resendSuccess": "如果有待處理的變更，新連結將寄送至新信箱。",
+      "resendError": "無法重新寄送連結，請再試一次。",
+      "cancelSuccess": "已取消信箱變更。",
+      "cancelError": "無法取消變更，請再試一次。"
     },
     "apiKeys": {
       "title": "API 金鑰",

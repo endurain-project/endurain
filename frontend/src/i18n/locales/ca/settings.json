@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inactiu",
       "unverified": "Correu no verificat",
+      "pendingEmail": "Canvi de correu pendent",
       "pending": "Pendent d'aprovació",
       "externalAuth": "Auth externa"
     },
@@ -64,6 +65,7 @@
       "email": "Correu",
       "emailRequired": "El correu és obligatori",
       "emailInvalid": "Introdueix una adreça de correu vàlida",
+      "emailChangeHint": "S'envia un enllaç de confirmació a la nova adreça i aquesta substitueix l'actual quan es confirmi. L'usuari es desconnecta de tots els dispositius. Marca la nova adreça com a verificada per aplicar-la ara.",
       "accessType": "Tipus d'accés",
       "accessTypeRegular": "Usuari regular",
       "accessTypeAdmin": "Administrador",
@@ -149,6 +151,8 @@
       "statusLegend": "Estat del compte",
       "active": "Actiu",
       "emailVerified": "Correu verificat",
+      "emailVerifiedCurrentHint": "Aquest és l'estat de l'adreça actual.",
+      "newEmailVerified": "Marca la nova adreça com a verificada",
       "pendingAdminApproval": "Pendent d'aprovació de l'admin",
       "requiredField": "Camp obligatori",
       "create": "Afegeix usuari",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Torna als usuaris",
+      "pendingEmail": "Canvi de correu pendent a {email}; l'enllaç caduca el {date}",
       "notFoundTitle": "Usuari no trobat",
       "notFoundDescription": "Aquest compte pot haver estat eliminat",
       "securityTitle": "Seguretat",
@@ -673,6 +678,19 @@
       "invalidCredentials": "La teva contrasenya o codi no és correcte.",
       "alreadyLinked": "Aquest compte ja està vinculat.",
       "lastMethodError": "No pots desvincular el teu únic mètode d'inici de sessió. Estableix una contrasenya primer."
+    },
+    "email": {
+      "subtitle": "Aquí s'envien els restabliments de contrasenya i els avisos. Per canviar-la cal que confirmis la teva identitat, i la nova adreça entra en vigor en confirmar-la des de l'enllaç que s'hi envia.",
+      "sameAsCurrent": "Aquesta ja és la teva adreça de correu.",
+      "success": "S'ha enviat un enllaç de confirmació a la nova adreça. El teu correu canviarà quan el confirmis.",
+      "pending": "Canvi pendent a {email}",
+      "pendingExpires": "L'enllaç de confirmació caduca el {date}.",
+      "resend": "Torna a enviar l'enllaç",
+      "cancel": "Cancel·la el canvi",
+      "resendSuccess": "Si hi ha un canvi pendent, un enllaç nou està en camí cap a la nova adreça.",
+      "resendError": "No s'ha pogut tornar a enviar l'enllaç. Torna-ho a intentar.",
+      "cancelSuccess": "S'ha cancel·lat el canvi de correu.",
+      "cancelError": "No s'ha pogut cancel·lar el canvi. Torna-ho a intentar."
     },
     "apiKeys": {
       "title": "Claus API",
