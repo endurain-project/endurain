@@ -25,9 +25,6 @@ Architecture
    and document it in this module.
 """
 
-import functools
-import os
-
 from fastapi import Request
 from joserfc import jwt
 from joserfc.errors import JoseError
@@ -41,6 +38,7 @@ from starlette.responses import Response
 
 import core.config as core_config
 import core.exceptions as core_exceptions
+import core.jwt_keys as core_jwt_keys
 import core.logger as core_logger
 import core.network as core_network
 
@@ -94,11 +92,9 @@ STORE_TIMEOUT_SECONDS: float = 2.0
 _ACCESS_TOKEN_CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True}, typ={"essential": True, "value": "access"})
 
 
-@functools.cache
 def _jwt_verification_key() -> OctKey | None:
     """Return the key used to check Bearer token signatures, or None if unset."""
-    secret = core_config.read_secret("SECRET_KEY")
-    return OctKey.import_key(secret) if secret else None
+    return core_jwt_keys.verification_key()
 
 
 def _verified_subject(token: str) -> str | None:
@@ -107,7 +103,7 @@ def _verified_subject(token: str) -> str | None:
     if key is None:
         return None
     try:
-        claims = jwt.decode(token, key, algorithms=[os.environ.get("ALGORITHM", "HS256")]).claims
+        claims = core_jwt_keys.decode(token, key).claims
         _ACCESS_TOKEN_CLAIMS.validate(claims)
     except (JoseError, ValueError):
         return None

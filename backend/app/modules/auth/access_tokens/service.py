@@ -4,7 +4,6 @@ Defines :class:`TokenType`, :class:`TokenManager` (issue/decode/validate JWTs
 and mint CSRF tokens) and a singleton accessor used as a FastAPI dependency.
 """
 
-import os
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -25,6 +24,7 @@ from joserfc.jwt import Token
 
 import core.config as core_config
 import core.exceptions as core_exceptions
+import core.jwt_keys as core_jwt_keys
 import core.logger as core_logger
 import modules.auth.access_tokens.contracts as access_tokens_contracts
 import modules.auth.constants as auth_constants
@@ -35,11 +35,9 @@ logger = core_logger.get_logger(__name__)
 TokenType = access_tokens_contracts.TokenType
 
 
-JWT_ALLOWED_ALGORITHMS: Final[frozenset[str]] = frozenset({"HS256"})
-JWT_ALGORITHM: Final[str] = os.environ.get("ALGORITHM", "HS256")
-if JWT_ALGORITHM not in JWT_ALLOWED_ALGORITHMS:
-    raise ValueError(f"ALGORITHM={JWT_ALGORITHM!r} is not in the allow-list {sorted(JWT_ALLOWED_ALGORITHMS)}.")
-JWT_SECRET_KEY: Final[str | None] = core_config.read_secret("SECRET_KEY")
+JWT_ALLOWED_ALGORITHMS: Final[frozenset[str]] = core_jwt_keys.ALLOWED_ALGORITHMS
+JWT_ALGORITHM: Final[str] = core_jwt_keys.ALGORITHM
+JWT_SECRET_KEY: Final[str | None] = core_jwt_keys.SECRET_KEY
 
 if not JWT_SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is required")
@@ -143,12 +141,8 @@ class TokenManager:
                 Unauthorized exception.
         """
         try:
-            # Decode the token and return the payload. The ``algorithms``
-            # allow-list is mandatory: without it, joserfc would accept any
-            # algorithm the token header advertises (including ``none`` or
-            # asymmetric variants), which would let an attacker who controls
-            # the unauthenticated token bypass the HMAC signature check.
-            return jwt.decode(token, self._key, algorithms=[self.algorithm])
+            # The shared decoder pins the one allowed algorithm; see ``core.jwt_keys.decode``.
+            return core_jwt_keys.decode(token, self._key, self.algorithm)
         except InvalidPayloadError as payload_err:
             logger.warning(
                 "Invalid token payload",
