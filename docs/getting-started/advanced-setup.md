@@ -1,7 +1,6 @@
-## Default Credentials
+## First sign-in
 
-- **Username:** admin  
-- **Password:** admin
+A new installation has no default account. Complete the onboarding page with the setup token from the server log, as described in [Quick start](quick-start.md#first-sign-in).
 
 ## Docker Deployment
 

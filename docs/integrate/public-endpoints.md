@@ -76,8 +76,26 @@ These need no credentials because their job is to obtain them. They are document
 | `GET /public/idp`, `/public/idp/login/{slug}`, `/public/idp/callback/{slug}`, `POST /public/idp/session/{id}/tokens` | Single sign-on | [OAuth/SSO and PKCE](oauth-sso-pkce.md) |
 | `POST /sign-up/request`, `/sign-up/confirm` | Create an account and verify its email | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#signing-up) |
 | `POST /password-reset/request`, `/password-reset/confirm` | Reset a forgotten password | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#forgotten-password) |
+| `GET /public/onboarding`, `POST /public/onboarding` | Create the first administrator of a new installation | [First-run onboarding](#first-run-onboarding) |
 
-The sensitive ones (login, MFA, sign-up, reset) have a tighter 10 requests per minute limit.
+The sensitive ones (login, MFA, sign-up, reset, onboarding) have a tighter 10 requests per minute limit.
+
+### First-run onboarding
+
+A new installation has no account. These two endpoints create the first administrator, and only while the installation has no account at all. See [First sign-in](../getting-started/quick-start.md#first-sign-in).
+
+| Method and path | Returns |
+| --------------- | ------- |
+| `GET /public/onboarding` | `{"onboarding_required": true}` while no account exists, otherwise `false`. Once an account exists it never becomes `true` again |
+| `POST /public/onboarding` | Body `{"token", "name", "username", "email", "password"}`. Creates an active administrator with a verified email and answers `201` with the user |
+
+What to expect from `POST /public/onboarding`:
+
+- **The token comes from the server log.** While no account exists, every API worker logs a one-time setup token at startup (field `setup_token`). It is valid for 24 hours and works once; a restart prints a new one.
+- **`409` once any account exists.** The endpoint never creates a second account, whatever the token.
+- **`400`** for a token that is unknown, expired or already used.
+- **`422`** for a password that does not meet the administrator password policy, or for an unknown field. The role and account state are not accepted from the client.
+- **Two requests at the same time** still create one administrator: the other answers `409`.
 
 ## Not public
 

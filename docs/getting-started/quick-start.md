@@ -139,12 +139,26 @@ sudo docker compose up -d
 * Open `http://<IP-OF-YOUR-SERVER>:8080` (unencrypted).
 * You cannot log in yet, because `ENDURAIN_HOST` does not match this URL. Set up a [reverse proxy](reverse-proxy.md) next.
 
-## Default credentials
+## First sign-in
 
-After setup, log in with the credentials below and change the password right away.
+A new installation has no account and no default password. The first time you open Endurain in a browser, it shows an onboarding page where you create the first administrator:
 
-- **Username:** admin
-- **Password:** admin
+1. Get the setup token from the server log. The token is the `setup_token` field of the log entry "First-run onboarding required: no account exists yet. Open Endurain in a browser and enter the setup token":
+
+    ```bash
+    docker compose logs endurain | grep setup_token
+    ```
+
+2. Open Endurain at the address set in `ENDURAIN_HOST`.
+3. Enter the setup token, then the name, username, email and password of the first administrator. The password must meet the administrator password policy: by default at least 12 characters, with an upper-case letter, a lower-case letter, a digit and a special character.
+4. Submit the form. The administrator account is created and the onboarding page is closed for good. Sign in on the normal login page with the username and password you chose.
+
+The setup token is valid for 24 hours and can be used once. Restarting the container prints a new one. The log entry is a warning, so it is not printed when `LOG_LEVEL` is set to `error` or `critical`; keep the default (`info`) until onboarding is done. If you run several web workers or replicas, each one prints its own token and any of them works, but only one onboarding can succeed.
+
+Anyone who can reach a fresh instance before it is onboarded needs the setup token, so the token protects an exposed fresh install. Still, complete onboarding before you expose the instance publicly.
+
+!!! note "Existing installations"
+    Installations that already have accounts are not affected by this change. An `admin` account created by an older version may still use the default password `admin`. If you still use it, change the password now.
 
 ## Next steps
 
