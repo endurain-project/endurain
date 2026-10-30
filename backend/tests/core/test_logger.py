@@ -185,6 +185,17 @@ class TestBuildHandlers:
         assert isinstance(console_handler, logging.StreamHandler)
         assert any(isinstance(f, core_logger.ConsoleMirrorFilter) for f in console_handler.filters)
 
+    def test_development_console_mirror_shows_the_record_context(self, tmp_path):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+        ):
+            console_handler = core_logger._build_handlers(logging.DEBUG)[1]
+        record = logging.LogRecord("test", logging.WARNING, "/f.py", 1, "Onboarding required", (), None)
+        record.__dict__.update(core_logger.context(console=True, setup_token="abc"))
+
+        assert console_handler.format(record) == "WARNING:     Onboarding required | setup_token='abc'"
+
     def test_single_writer_rotates_the_log_file(self, tmp_path):
         with (
             patch("core.config.settings.ENVIRONMENT", "development"),

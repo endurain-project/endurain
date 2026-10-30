@@ -340,7 +340,7 @@ class JsonFormatter(logging.Formatter):
 
 class _DevFormatter(logging.Formatter):
     """
-    Human-readable formatter for development log files.
+    Human-readable formatter for the development log file and console mirror.
 
     Appends any caller-supplied ``extra`` fields as a
     space-separated ``key=value`` string after the message
@@ -349,8 +349,14 @@ class _DevFormatter(logging.Formatter):
 
     _BASE = "%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] - %(message)s"
 
-    def __init__(self) -> None:
-        super().__init__(self._BASE)
+    def __init__(self, fmt: str = _BASE) -> None:
+        """
+        Build the formatter.
+
+        Args:
+            fmt: The format of the line the context is appended to.
+        """
+        super().__init__(fmt)
 
     def format(self, record: logging.LogRecord) -> str:
         """
@@ -425,7 +431,7 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
         return handlers
 
     log_path = f"{core_config.settings.LOGS_DIR}/app.log"
-    console_mirror = _configure(logging.StreamHandler(sys.stdout), logging.Formatter(_CONSOLE_FORMAT))
+    console_mirror = _configure(logging.StreamHandler(sys.stdout), _DevFormatter(_CONSOLE_FORMAT))
     console_mirror.addFilter(ConsoleMirrorFilter())
     return [
         _configure(_file_handler(log_path), _DevFormatter()),
