@@ -36,5 +36,11 @@
     "edit": "Editează",
     "supported": "Markdown acceptat",
     "empty": "Nimic de previzualizat"
+  },
+  "password": {
+    "hintLength": "Cel puțin {min} caractere.",
+    "hintStrict": "Cel puțin {min} caractere, cu majusculă, minusculă, o cifră și un caracter special.",
+    "invalid": "Parola nu îndeplinește cerințele",
+    "mismatch": "Parolele nu coincid"
   }
 }

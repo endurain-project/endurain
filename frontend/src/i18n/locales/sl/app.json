@@ -36,5 +36,11 @@
     "edit": "Uredi",
     "supported": "Markdown podprt",
     "empty": "Ni ničesar za predogled"
+  },
+  "password": {
+    "hintLength": "Vsaj {min} znakov.",
+    "hintStrict": "Vsaj {min} znakov, z veliko in malo črko, številko in posebnim znakom.",
+    "invalid": "Geslo ne izpolnjuje zahtev",
+    "mismatch": "Gesli se ne ujemata"
   }
 }

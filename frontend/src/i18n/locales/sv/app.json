@@ -36,5 +36,11 @@
     "edit": "Redigera",
     "supported": "Markdown stöds",
     "empty": "Inget att förhandsgranska"
+  },
+  "password": {
+    "hintLength": "Minst {min} tecken.",
+    "hintStrict": "Minst {min} tecken, med versaler, gemener, en siffra och ett specialtecken.",
+    "invalid": "Lösenordet uppfyller inte kraven",
+    "mismatch": "Lösenorden matchar inte"
   }
 }

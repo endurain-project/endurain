@@ -36,5 +36,11 @@
     "edit": "Edit",
     "supported": "Markdown supported",
     "empty": "Nothing to preview"
+  },
+  "password": {
+    "hintLength": "At least {min} characters.",
+    "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character.",
+    "invalid": "Password does not meet the requirements",
+    "mismatch": "Passwords don't match"
   }
 }

@@ -36,5 +36,11 @@
     "edit": "Edita",
     "supported": "Markdown compatible",
     "empty": "Res per previsualitzar"
+  },
+  "password": {
+    "hintLength": "Almenys {min} caràcters.",
+    "hintStrict": "Almenys {min} caràcters, amb majúscules, minúscules, un número i un caràcter especial.",
+    "invalid": "La contrasenya no compleix els requisits",
+    "mismatch": "Les contrasenyes no coincideixen"
   }
 }

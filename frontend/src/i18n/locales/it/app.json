@@ -36,5 +36,11 @@
     "edit": "Modifica",
     "supported": "Markdown supportato",
     "empty": "Nessuna anteprima disponibile"
+  },
+  "password": {
+    "hintLength": "Almeno {min} caratteri.",
+    "hintStrict": "Almeno {min} caratteri, con lettere maiuscole, minuscole, un numero e un carattere speciale.",
+    "invalid": "La password non soddisfa i requisiti",
+    "mismatch": "Le password non corrispondono"
   }
 }

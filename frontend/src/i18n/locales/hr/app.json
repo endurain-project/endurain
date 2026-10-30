@@ -36,5 +36,11 @@
     "edit": "Uredi",
     "supported": "Markdown podržan",
     "empty": "Nema ničega za pregled"
+  },
+  "password": {
+    "hintLength": "Najmanje {min} znakova.",
+    "hintStrict": "Najmanje {min} znakova, s velikim slovom, malim slovom, brojem i posebnim znakom.",
+    "invalid": "Lozinka ne zadovoljava zahtjeve",
+    "mismatch": "Lozinke se ne podudaraju"
   }
 }

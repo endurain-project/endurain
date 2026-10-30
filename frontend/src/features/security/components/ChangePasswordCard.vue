@@ -10,14 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
-import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import { HttpError } from '@/services/http'
-import {
-  buildPasswordRequirements,
-  isValidPassword,
-  resolvePasswordMinLength,
-} from '@/utils/validation'
 import { useChangePasswordMutation } from '@/features/security/composables/useSecurity'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
 
 const props = defineProps<{
   /** Whether the account has MFA enabled (gates the MFA-code field). */
@@ -28,7 +26,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const toasts = useToasts()
-const { serverSettings } = usePublicServerSettings()
 const mutation = useChangePasswordMutation()
 
 const currentPassword = ref('')
@@ -37,36 +34,25 @@ const confirmPassword = ref('')
 const mfaCode = ref('')
 const revokeOtherSessions = ref(false)
 
-const requirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    resolvePasswordMinLength(
-      serverSettings.value.password_length_regular_users,
-      serverSettings.value.password_length_admin_users,
-      props.accessType,
-    ),
-  ),
+const { hint: requirementsHint, isValid: isValidPassword } = usePasswordPolicy(
+  () => props.accessType,
 )
-const requirementsHint = computed(() =>
-  requirements.value.requireUppercase
-    ? t('settings.security.password.requirementsStrict', { length: requirements.value.minLength })
-    : t('settings.security.password.requirementsLength', { length: requirements.value.minLength }),
+const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
+  newPassword,
+  confirmPassword,
 )
 
 // Only surface validation messages once the field has content (live, like the
 // reset-password screen) so the form doesn't shout before the user has typed.
 const showInvalid = computed(
-  () => newPassword.value.length > 0 && !isValidPassword(newPassword.value, requirements.value),
-)
-const showMismatch = computed(
-  () => confirmPassword.value.length > 0 && newPassword.value !== confirmPassword.value,
+  () => newPassword.value.length > 0 && !isValidPassword(newPassword.value),
 )
 
 const canSubmit = computed(
   () =>
     currentPassword.value.length > 0 &&
-    isValidPassword(newPassword.value, requirements.value) &&
-    newPassword.value === confirmPassword.value &&
+    isValidPassword(newPassword.value) &&
+    passwordsMatch.value &&
     (!props.mfaEnabled || mfaCode.value.trim().length > 0) &&
     !mutation.isPending.value,
 )
@@ -143,11 +129,11 @@ async function submit(): Promise<void> {
         v-model="confirmPassword"
         autocomplete="new-password"
         :disabled="mutation.isPending.value"
-        :aria-invalid="showMismatch"
+        :aria-invalid="confirmError !== undefined"
         aria-describedby="security-confirm-password-error"
       />
-      <p v-if="showMismatch" id="security-confirm-password-error" class="text-field-error">
-        {{ t('settings.security.password.mismatch') }}
+      <p v-if="confirmError" id="security-confirm-password-error" class="text-field-error">
+        {{ confirmError }}
       </p>
     </div>
 

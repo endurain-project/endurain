@@ -36,5 +36,11 @@
     "edit": "Muokkaa",
     "supported": "Markdown tuettu",
     "empty": "Ei mitään esikatseltavaa"
+  },
+  "password": {
+    "hintLength": "Vähintään {min} merkkiä.",
+    "hintStrict": "Vähintään {min} merkkiä, sisältäen ison kirjaimen, pienen kirjaimen, numeron ja erikoismerkin.",
+    "invalid": "Salasana ei täytä vaatimuksia",
+    "mismatch": "Salasanat eivät täsmää"
   }
 }

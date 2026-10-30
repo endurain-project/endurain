@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { useForm } from '@/composables/useForm'
-import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
-import { HttpError } from '@/services/http'
 import {
-  buildPasswordRequirements,
-  isValidPassword,
-  resolvePasswordMinLength,
-} from '@/utils/validation'
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
+import { HttpError } from '@/services/http'
 import { compose, required } from '@/utils/validators'
 import { useChangeUserPasswordMutation } from '@/features/users/composables/useUsers'
 
@@ -35,26 +33,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const mutation = useChangeUserPasswordMutation()
-const { serverSettings } = usePublicServerSettings()
-
-/** Password policy mirrored from the server (length-only or strict), scoped
- * to the target user's access tier. */
-const passwordRequirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    resolvePasswordMinLength(
-      serverSettings.value.password_length_regular_users,
-      serverSettings.value.password_length_admin_users,
-      props.accessType,
-    ),
-  ),
-)
-/** Human-readable hint describing the active password policy. */
-const passwordHint = computed(() =>
-  serverSettings.value.password_type === 'length_only'
-    ? t('settings.users.password.hintLength', { min: passwordRequirements.value.minLength })
-    : t('settings.users.password.hintStrict', { min: passwordRequirements.value.minLength }),
-)
+// The policy follows the target user's access tier.
+const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy(() => props.accessType)
 
 /** Form shape: the new password plus its confirmation. */
 interface PasswordFormValues {
@@ -80,7 +60,7 @@ async function submitForm(formValues: PasswordFormValues): Promise<void> {
     open.value = false
   } catch (error) {
     if (error instanceof HttpError && (error.status === 400 || error.status === 422)) {
-      emit('error', t('settings.users.password.invalid'))
+      emit('error', t('app.password.invalid'))
     } else {
       emit('error', t('settings.users.password.error'))
     }
@@ -91,24 +71,14 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
   useForm<PasswordFormValues>({
     initialValues: { password: '', confirm: '' },
     validators: {
-      password: compose(required<string>(t('settings.users.password.required')), (value) =>
-        isValidPassword(value, passwordRequirements.value)
-          ? null
-          : t('settings.users.password.invalid'),
-      ),
+      password: compose(required<string>(t('settings.users.password.required')), validatePassword),
     },
     onSubmit: submitForm,
   })
 
-/** Whether the confirmation matches a non-empty new password. */
-const passwordsMatch = computed(
-  () => values.confirm.length > 0 && values.confirm === values.password,
-)
-/** Inline confirmation error, shown once the user has typed a mismatch. */
-const confirmError = computed(() =>
-  values.confirm.length > 0 && values.confirm !== values.password
-    ? t('settings.users.password.mismatch')
-    : undefined,
+const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
+  () => values.password,
+  () => values.confirm,
 )
 
 // Reset to a clean form each time the dialog opens.

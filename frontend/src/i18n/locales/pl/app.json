@@ -36,5 +36,11 @@
     "edit": "Edytuj",
     "supported": "Obsługa Markdown",
     "empty": "Nie ma nic do podglądu"
+  },
+  "password": {
+    "hintLength": "Co najmniej {min} znaków.",
+    "hintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym.",
+    "invalid": "Hasło nie spełnia wymagań",
+    "mismatch": "Hasła nie są zgodne"
   }
 }

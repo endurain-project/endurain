@@ -36,5 +36,11 @@
     "edit": "編輯",
     "supported": "支援 Markdown",
     "empty": "無內容可預覽"
+  },
+  "password": {
+    "hintLength": "至少 {min} 個字元。",
+    "hintStrict": "至少 {min} 個字元，包含大寫字母、小寫字母、數字及特殊符號。",
+    "invalid": "密碼不符合要求",
+    "mismatch": "兩次輸入的密碼不符"
   }
 }

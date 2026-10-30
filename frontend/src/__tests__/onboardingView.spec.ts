@@ -64,7 +64,7 @@ describe('OnboardingView', () => {
     await password.setValue('short')
     await password.trigger('blur')
 
-    expect(wrapper.text()).toContain(i18n.global.t('login.onboarding.passwordInvalid'))
+    expect(wrapper.text()).toContain(i18n.global.t('app.password.invalid'))
   })
 
   it('submits normalised values and redirects to login with the success flag', async () => {

@@ -21,6 +21,10 @@ import { HttpError } from '@/services/http'
 import { requestSignUp } from '@/features/auth/services/signUp'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
+import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
   numberRange,
@@ -29,7 +33,6 @@ import {
   WEEKDAY_OPTIONS,
 } from '@/features/users/utils/userFieldOptions'
 import { compose, email, required } from '@/utils/validators'
-import { buildPasswordRequirements, isValidPassword } from '@/utils/validation'
 
 /** Form field shape backing the sign-up form. */
 interface SignUpFormValues {
@@ -61,18 +64,8 @@ const toasts = useToasts()
 
 const showOptionalFields = ref(false)
 
-const passwordRequirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    serverSettings.value.password_length_regular_users,
-  ),
-)
-
-const passwordHint = computed(() =>
-  serverSettings.value.password_type === 'length_only'
-    ? t('signup.passwordHintLength', { min: passwordRequirements.value.minLength })
-    : t('signup.passwordHintStrict', { min: passwordRequirements.value.minLength }),
-)
+// Sign-up creates a regular account, so the regular policy applies.
+const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy('regular')
 
 /**
  * Maps a backend HTTP error to a non-enumerating user-facing message.
@@ -169,9 +162,7 @@ const { values, errors, isValid, isSubmitting, submitError, handleSubmit, handle
       name: required(t('signup.requiredField')),
       username: required(t('signup.requiredField')),
       email: compose(required<string>(t('signup.requiredField')), email(t('signup.emailInvalid'))),
-      password: compose(required<string>(t('signup.requiredField')), (value) =>
-        isValidPassword(value, passwordRequirements.value) ? null : t('signup.passwordInvalid'),
-      ),
+      password: compose(required<string>(t('signup.requiredField')), validatePassword),
       // Height is captured per unit system and only the active system's inputs
       // are rendered. Skip the imperial validators in metric mode (and vice
       // versa) so a hidden field's stale value can't silently fail validation
@@ -190,13 +181,9 @@ const isMetric = computed(() => values.units === 'metric')
 // destructured from this same `useForm(...)` call, so referencing it inside a
 // validator here would be a circular reference) — the mismatch is surfaced via
 // this computed + the `confirmPasswordError` below instead.
-const passwordsMatch = computed(
-  () => values.confirmPassword.length > 0 && values.confirmPassword === values.password,
-)
-const confirmPasswordError = computed(() =>
-  values.confirmPassword.length > 0 && values.confirmPassword !== values.password
-    ? t('signup.passwordMismatch')
-    : undefined,
+const { matches: passwordsMatch, error: confirmPasswordError } = usePasswordConfirmation(
+  () => values.password,
+  () => values.confirmPassword,
 )
 
 // Keep `activeUnits` in step with the unit selector so the height validators

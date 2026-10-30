@@ -36,5 +36,11 @@
     "edit": "Muuda",
     "supported": "Markdown on toetatud",
     "empty": "Pole midagi näidata"
+  },
+  "password": {
+    "hintLength": "Vähemalt {min} tähemärki.",
+    "hintStrict": "Vähemalt {min} tähemärki, sealhulgas suurtäht, väiketäht, number ja erimärk.",
+    "invalid": "Parool ei vasta nõuetele",
+    "mismatch": "Paroolid ei kattu"
   }
 }

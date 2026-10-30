@@ -36,5 +36,11 @@
     "edit": "Upraviť",
     "supported": "Markdown je podporovaný",
     "empty": "Nie je čo zobraziť"
+  },
+  "password": {
+    "hintLength": "Aspoň {min} znakov.",
+    "hintStrict": "Aspoň {min} znakov, s veľkým písmenom, malým písmenom, číslom a špeciálnym znakom.",
+    "invalid": "Heslo nespĺňa požiadavky",
+    "mismatch": "Heslá sa nezhodujú"
   }
 }

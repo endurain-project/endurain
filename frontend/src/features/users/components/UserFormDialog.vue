@@ -6,6 +6,10 @@ import type { ManagedUser, UserAccessType } from '@/features/users/types'
 import type { Schemas } from '@/types'
 
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
@@ -13,16 +17,10 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
-import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
-import {
-  buildPasswordRequirements,
-  isValidPassword,
-  resolvePasswordMinLength,
-} from '@/utils/validation'
 import { compose, email, maxLength, pattern, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
@@ -60,8 +58,6 @@ const languageCodes = computed(() =>
 
 const createMutation = useCreateUserMutation()
 const updateMutation = useUpdateUserMutation()
-
-const { serverSettings } = usePublicServerSettings()
 
 /**
  * Form shape — the full set of admin-editable user fields. `password` is only
@@ -187,7 +183,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
       // Create-only: the backend's own password-policy check is the only
       // documented 400 this endpoint raises, so it's safe to surface a
       // password-specific message here (edits never send a password).
-      emit('error', t('settings.users.form.passwordInvalid'))
+      emit('error', t('app.password.invalid'))
     } else {
       emit('error', t('settings.users.form.saveError'))
     }
@@ -206,23 +202,8 @@ const activeUnits = ref<Schemas['Units']>('metric')
 // mirrored into its own ref, kept in sync via the watch below.
 const activeAccessType = ref<UserAccessType>('regular')
 
-/** Password policy mirrored from the server, scoped to the selected access type. */
-const passwordRequirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    resolvePasswordMinLength(
-      serverSettings.value.password_length_regular_users,
-      serverSettings.value.password_length_admin_users,
-      activeAccessType.value,
-    ),
-  ),
-)
-/** Human-readable hint describing the active password policy. */
-const passwordHint = computed(() =>
-  serverSettings.value.password_type === 'length_only'
-    ? t('settings.users.form.passwordHintLength', { min: passwordRequirements.value.minLength })
-    : t('settings.users.form.passwordHintStrict', { min: passwordRequirements.value.minLength }),
-)
+// The policy follows the selected access type.
+const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy(activeAccessType)
 
 const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
   useForm<UserFormValues>({
@@ -248,10 +229,7 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
           ? null
           : compose(
               required<string>(t('settings.users.form.passwordRequired')),
-              (candidate: string) =>
-                isValidPassword(candidate, passwordRequirements.value)
-                  ? null
-                  : t('settings.users.form.passwordInvalid'),
+              validatePassword,
             )(value),
       // Required only when creating; the mismatch itself is surfaced via the
       // `passwordsMatch`/`confirmPasswordError` computeds below (a validator here
@@ -279,18 +257,12 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
 const isEditing = computed(() => props.user !== null)
 const isMetric = computed(() => values.units === 'metric')
 
-// Only relevant when creating (the password fields are hidden on edit); a
-// blank confirm field isn't yet a mismatch, it just hasn't been filled in.
-const passwordsMatch = computed(
-  () =>
-    isEditing.value ||
-    (values.confirmPassword.length > 0 && values.confirmPassword === values.password),
+const { matches: confirmationMatches, error: confirmPasswordError } = usePasswordConfirmation(
+  () => values.password,
+  () => values.confirmPassword,
 )
-const confirmPasswordError = computed(() =>
-  values.confirmPassword.length > 0 && values.confirmPassword !== values.password
-    ? t('settings.users.form.passwordMismatch')
-    : undefined,
-)
+// Only relevant when creating: the password fields are hidden on edit.
+const passwordsMatch = computed(() => isEditing.value || confirmationMatches.value)
 
 // Keep `activeUnits` in step with the unit selector so the height validators
 // re-run against the correct system whenever the user toggles units.

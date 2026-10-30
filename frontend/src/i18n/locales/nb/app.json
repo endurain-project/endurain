@@ -36,5 +36,11 @@
     "edit": "Rediger",
     "supported": "Markdown støttes",
     "empty": "Ingenting å forhåndsvise"
+  },
+  "password": {
+    "hintLength": "Minst {min} tegn.",
+    "hintStrict": "Minst {min} tegn, med store og små bokstaver, et tall og et spesialtegn.",
+    "invalid": "Passordet oppfyller ikke kravene",
+    "mismatch": "Passordene stemmer ikke overens"
   }
 }

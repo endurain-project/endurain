@@ -36,5 +36,11 @@
     "edit": "Rediģēt",
     "supported": "Markdown tiek atbalstīts",
     "empty": "Nav ko priekšskatīt"
+  },
+  "password": {
+    "hintLength": "Vismaz {min} rakstzīmes.",
+    "hintStrict": "Vismaz {min} rakstzīmes, ar lielādiem un maziem burtiem, ciparu un īpašu rakstzīmi.",
+    "invalid": "Parole neatbilst prasībām",
+    "mismatch": "Paroles nesakrīt"
   }
 }

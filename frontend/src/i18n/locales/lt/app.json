@@ -36,5 +36,11 @@
     "edit": "Redaguoti",
     "supported": "Palaikomas Markdown",
     "empty": "Nėra ką peržiūrėti"
+  },
+  "password": {
+    "hintLength": "Bent {min} simbolių.",
+    "hintStrict": "Bent {min} simbolių, su didžiąja, mažąja raide, skaičiumi ir specialiu simboliu.",
+    "invalid": "Slaptažodis neatitinka reikalavimų",
+    "mismatch": "Slaptažodžiai nesutampa"
   }
 }

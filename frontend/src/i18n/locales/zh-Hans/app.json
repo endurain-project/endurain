@@ -36,5 +36,11 @@
     "edit": "编辑",
     "supported": "支持 Markdown",
     "empty": "暂无预览内容"
+  },
+  "password": {
+    "hintLength": "At least {min} characters.",
+    "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character.",
+    "invalid": "Password does not meet the requirements",
+    "mismatch": "两次密码不一致"
   }
 }

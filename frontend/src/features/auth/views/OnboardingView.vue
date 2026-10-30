@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
@@ -16,10 +16,13 @@ import { useToasts } from '@/composables/useToasts'
 import { completeOnboarding } from '@/features/auth/services/onboarding'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
 import { HttpError } from '@/services/http'
 import { queryKeys } from '@/services/queryKeys'
 import { compose, email, required } from '@/utils/validators'
-import { buildPasswordRequirements, isValidPassword } from '@/utils/validation'
 
 /** Form field shape backing the onboarding form. */
 interface OnboardingFormValues {
@@ -33,7 +36,7 @@ interface OnboardingFormValues {
 
 const router = useRouter()
 const { t } = useI18n()
-const { serverSettings, loginImageUrl, load } = usePublicServerSettings()
+const { loginImageUrl, load } = usePublicServerSettings()
 const toasts = useToasts()
 
 const createAdmin = useInvalidatingMutation({
@@ -42,18 +45,7 @@ const createAdmin = useInvalidatingMutation({
 })
 
 // The first account is always an administrator, so the admin policy applies.
-const passwordRequirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    serverSettings.value.password_length_admin_users,
-  ),
-)
-
-const passwordHint = computed(() =>
-  serverSettings.value.password_type === 'length_only'
-    ? t('login.onboarding.passwordHintLength', { min: passwordRequirements.value.minLength })
-    : t('login.onboarding.passwordHintStrict', { min: passwordRequirements.value.minLength }),
-)
+const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy('admin')
 
 /**
  * Maps a failed onboarding request to a user-facing message.
@@ -124,24 +116,16 @@ const { values, errors, isValid, isSubmitting, submitError, handleSubmit, handle
         required<string>(t('login.onboarding.requiredField')),
         email(t('login.onboarding.emailInvalid')),
       ),
-      password: compose(required<string>(t('login.onboarding.requiredField')), (value) =>
-        isValidPassword(value, passwordRequirements.value)
-          ? null
-          : t('login.onboarding.passwordInvalid'),
-      ),
+      password: compose(required<string>(t('login.onboarding.requiredField')), validatePassword),
     },
     onSubmit: submitForm,
   })
 
 // A validator can't read the sibling `password` field (`values` comes from this
 // same `useForm(...)` call), so the mismatch is derived here instead.
-const passwordsMatch = computed(
-  () => values.confirmPassword.length > 0 && values.confirmPassword === values.password,
-)
-const confirmPasswordError = computed(() =>
-  values.confirmPassword.length > 0 && values.confirmPassword !== values.password
-    ? t('login.onboarding.passwordMismatch')
-    : undefined,
+const { matches: passwordsMatch, error: confirmPasswordError } = usePasswordConfirmation(
+  () => values.password,
+  () => values.confirmPassword,
 )
 
 onMounted(() => {
