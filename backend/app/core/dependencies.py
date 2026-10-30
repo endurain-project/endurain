@@ -15,8 +15,9 @@ import core.exceptions as core_exceptions
 #: bad value with the standard validation problem document and publishes the bound in OpenAPI.
 PositiveId = Annotated[int, Path(gt=0)]
 
-#: The request-scoped database session. Rolled back on an unhandled error and closed afterwards by ``get_db``.
-DbSession = Annotated[Session, Depends(core_database.get_db)]
+#: The route's database session. Rolled back on an unhandled error and closed by ``get_db`` as soon as the route
+#: function returns, before the response is sent, so a slow client or a streamed body never pins a pooled connection.
+DbSession = Annotated[Session, Depends(core_database.get_db, scope="function")]
 
 
 def require_if_match_header(if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None) -> str:
