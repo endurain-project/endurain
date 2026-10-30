@@ -8,6 +8,7 @@ import type {
 } from '@/features/profile/types'
 import type { User } from '@/features/auth/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -87,14 +88,9 @@ export function useUpdateProfileMutation() {
  * @returns The TanStack Query mutation for updating privacy settings.
  */
 export function useUpdatePrivacyMutation() {
-  const client = useQueryClient()
-
-  return useMutation<void, Error, PrivacySettings>({
+  return useInvalidatingMutation<void, PrivacySettings>({
     mutationKey: queryKeys.profile.all(),
     mutationFn: (privacy) => updatePrivacySettings(privacy),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
-    },
   })
 }
 
@@ -105,14 +101,9 @@ export function useUpdatePrivacyMutation() {
  * @returns The TanStack Query mutation for bulk-updating activity visibility.
  */
 export function useUpdateExistingActivitiesVisibilityMutation() {
-  const client = useQueryClient()
-
-  return useMutation<void, Error, ActivityVisibility>({
+  return useInvalidatingMutation<void, ActivityVisibility>({
     mutationKey: queryKeys.activities.all(),
     mutationFn: (visibility) => updateUserActivitiesVisibility(visibility),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-    },
   })
 }
 

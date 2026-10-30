@@ -12,6 +12,7 @@ import type {
   StepUpInput,
 } from '@/features/security/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
@@ -192,14 +193,10 @@ export function useRevokeSessionMutation() {
  * @returns The TanStack Query mutation for revoking other sessions.
  */
 export function useRevokeOtherSessionsMutation() {
-  const client = useQueryClient()
-
-  return useMutation<void, Error, void>({
+  return useInvalidatingMutation<void, void>({
     mutationKey: queryKeys.security.all(),
     mutationFn: () => revokeOtherSessions(),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
-    },
+    invalidateKey: queryKeys.security.sessions(),
   })
 }
 

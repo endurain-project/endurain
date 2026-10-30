@@ -1,9 +1,10 @@
 import { storeToRefs } from 'pinia'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 
 import type { DefaultGear } from '@/features/profile/types'
 import type { Gear } from '@/features/gears/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { fetchGearsByType } from '@/features/gears/services/gears'
@@ -59,13 +60,8 @@ export function useGearTypeOptionsQuery() {
  * @returns The TanStack Query mutation for updating the default gear.
  */
 export function useUpdateDefaultGearMutation() {
-  const client = useQueryClient()
-
-  return useMutation<DefaultGear, Error, DefaultGear>({
+  return useInvalidatingMutation<DefaultGear, DefaultGear>({
     mutationKey: queryKeys.profile.defaultGear(),
     mutationFn: (gear) => updateDefaultGear(gear),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.profile.defaultGear() })
-    },
   })
 }

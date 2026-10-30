@@ -1,9 +1,10 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { storeToRefs } from 'pinia'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 
 import type { Goal, GoalFilters, GoalInput } from '@/features/goals/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { createGoal, deleteGoal, fetchGoals, updateGoal } from '@/features/goals/services/goals'
@@ -35,14 +36,9 @@ export function useGoalsQuery(filters: MaybeRefOrGetter<GoalFilters>) {
  * @returns The TanStack Query mutation for creating a goal.
  */
 export function useCreateGoalMutation() {
-  const client = useQueryClient()
-
-  return useMutation<Goal, Error, GoalInput>({
+  return useInvalidatingMutation<Goal, GoalInput>({
     mutationKey: queryKeys.goals.all(),
     mutationFn: (input) => createGoal(input),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.goals.all() })
-    },
   })
 }
 
@@ -52,14 +48,9 @@ export function useCreateGoalMutation() {
  * @returns The TanStack Query mutation for updating a goal.
  */
 export function useUpdateGoalMutation() {
-  const client = useQueryClient()
-
-  return useMutation<Goal, Error, { id: number; input: GoalInput; version: number }>({
+  return useInvalidatingMutation<Goal, { id: number; input: GoalInput; version: number }>({
     mutationKey: queryKeys.goals.all(),
     mutationFn: ({ id, input, version }) => updateGoal(id, input, version),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.goals.all() })
-    },
   })
 }
 
@@ -69,13 +60,8 @@ export function useUpdateGoalMutation() {
  * @returns The TanStack Query mutation for deleting a goal.
  */
 export function useDeleteGoalMutation() {
-  const client = useQueryClient()
-
-  return useMutation<void, Error, { id: number; version: number }>({
+  return useInvalidatingMutation<void, { id: number; version: number }>({
     mutationKey: queryKeys.goals.all(),
     mutationFn: ({ id, version }) => deleteGoal(id, version),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.goals.all() })
-    },
   })
 }

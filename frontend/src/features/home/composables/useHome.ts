@@ -1,10 +1,11 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
 import type { GoalProgress } from '@/features/goals/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
@@ -205,15 +206,11 @@ export function useGoalResultsQuery(enabled: MaybeRefOrGetter<boolean> = true) {
  * @returns The TanStack mutation for refreshing integration activities.
  */
 export function useRefreshActivitiesMutation() {
-  const client = useQueryClient()
-
-  return useMutation<ActivityIngestionJob, Error, void>({
+  return useInvalidatingMutation<ActivityIngestionJob, void>({
+    mutationKey: queryKeys.activities.all(),
     mutationFn: async () => {
       const job = await refreshActivities()
       return pollIngestionJob(job.id)
-    },
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
     },
   })
 }
