@@ -5,6 +5,17 @@ from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+import core.exceptions as core_exceptions
+
+
+class PasswordPolicyError(core_exceptions.DomainError):
+    """A password a caller supplied failed policy validation, answered as an unprocessable request."""
+
+    status_code = 422
+    code = "invalid-input"
+    title = "Unprocessable Content"
+    default_detail = "The password does not meet the configured policy"
+
 
 class SupportsHashPassword(Protocol):
     """Structural protocol for objects that can hash a password."""

@@ -12,6 +12,7 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.computation as token_hashing
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.crud as password_reset_crud
@@ -26,15 +27,6 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 RESET_EMAIL_COOLDOWN_SECONDS = 300
-
-
-class PasswordPolicyError(core_exceptions.DomainError):
-    """A replacement password failed policy validation."""
-
-    status_code = 422
-    code = "invalid-input"
-    title = "Unprocessable Content"
-    default_detail = "The password does not meet the configured policy"
 
 
 def create_password_reset_token(user_id: int, db: Session) -> str:
@@ -155,7 +147,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
             db,
         )
     except core_exceptions.InvalidInputError as err:
-        raise PasswordPolicyError(err.detail) from err
+        raise credentials_contracts.PasswordPolicyError(err.detail) from err
 
     credentials_integration.set_local_password_hash(token_user_id, hashed_password, db)
     password_reset_crud.mark_user_password_reset_tokens_used(token_user_id, db)

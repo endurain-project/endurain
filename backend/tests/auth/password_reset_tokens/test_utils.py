@@ -8,6 +8,7 @@ from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.password_reset_tokens.service as password_reset_service
 
 
@@ -84,7 +85,7 @@ class TestUsePasswordResetToken:
                 "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",
                 side_effect=core_exceptions.InvalidInputError("Password is too short"),
             ),
-            pytest.raises(password_reset_service.PasswordPolicyError) as exc_info,
+            pytest.raises(credentials_contracts.PasswordPolicyError) as exc_info,
         ):
             password_reset_service.use_password_reset_token("valid", "weak", mock_db)
         assert exc_info.value.status_code == 422
