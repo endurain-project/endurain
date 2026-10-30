@@ -41,8 +41,10 @@ import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
-# Map stream type to activity hide attribute
-_STREAM_HIDE_MAP: dict[int, str] = {
+#: The parent ``hide_*`` flag that withholds each stored stream type from a non-owner, or ``None`` for a
+#: type no flag covers. A type missing here is withheld, so a new stream type stays owner-only until it is
+#: given a rule.
+_STREAM_HIDE_MAP: dict[int, str | None] = {
     activity_streams_constants.STREAM_TYPE_HR: "hide_hr",
     activity_streams_constants.STREAM_TYPE_POWER: "hide_power",
     activity_streams_constants.STREAM_TYPE_CADENCE: "hide_cadence",
@@ -50,6 +52,8 @@ _STREAM_HIDE_MAP: dict[int, str] = {
     activity_streams_constants.STREAM_TYPE_SPEED: "hide_speed",
     activity_streams_constants.STREAM_TYPE_PACE: "hide_pace",
     activity_streams_constants.STREAM_TYPE_MAP: "hide_map",
+    # Ambient temperature is none of the data a flag covers; its sample times follow hide_start_time.
+    activity_streams_constants.STREAM_TYPE_TEMPERATURE: None,
 }
 
 
@@ -61,10 +65,12 @@ def _is_stream_hidden(activity: activity_schema.ActivityRead, stream_type: int) 
         stream_type: The stream type code.
 
     Returns:
-        True when the parent's hide flag for this stream type is set.
+        True when the parent's hide flag for this stream type is set, or when the type has no rule.
     """
-    attr = _STREAM_HIDE_MAP.get(stream_type)
-    return bool(attr and getattr(activity, attr, False))
+    if stream_type not in _STREAM_HIDE_MAP:
+        return True
+    attr = _STREAM_HIDE_MAP[stream_type]
+    return attr is not None and bool(getattr(activity, attr))
 
 
 def _filter_visible_streams(

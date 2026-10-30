@@ -6034,7 +6034,8 @@ export interface components {
          *     Attributes:
          *         id: Activity set primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Set start as a timezone-aware UTC instant.
+         *         start_time: Set start as a timezone-aware UTC instant, or None when the
+         *             parent hides its start time from this viewer.
          */
         ActivitySetsRead: {
             /** Activity Id */
@@ -6051,11 +6052,8 @@ export interface components {
             repetitions?: number | null;
             /** Set Type */
             set_type: string;
-            /**
-             * Start Time
-             * Format: date-time
-             */
-            start_time: string;
+            /** Start Time */
+            start_time: string | null;
             /** Weight */
             weight?: number | null;
         };

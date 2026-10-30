@@ -1632,3 +1632,148 @@ class TestHiddenStartTimeDoesNotLeakThroughQueries:
         crud.count_user_activities(1, mock_db, start_date=date(2026, 5, 1), user_is_owner=False, followee_ids=[1])
 
         assert "hide_start_time" in self._where(self._sql(mock_db))
+
+
+def _compiled(statement) -> str:
+    return str(statement.compile(compile_kwargs={"literal_binds": True}))
+
+
+def _where_of(sql: str) -> str:
+    """The WHERE clause alone: the columns named in the SELECT list are not filters."""
+    import re
+
+    return re.split(r"\s+WHERE\s+", sql, maxsplit=1)[1].split("ORDER BY")[0]
+
+
+def _order_by_of(sql: str) -> str:
+    return sql.split("ORDER BY")[1]
+
+
+def _listed_page_sql(mock_db, *, owner: bool, **kwargs) -> str:
+    import modules.activities.activity.crud as crud
+
+    mock_db.execute.return_value.scalars.return_value.all.return_value = []
+    crud.get_user_activities_with_pagination(1, mock_db, user_is_owner=owner, followee_ids=[1], **kwargs)
+    return _compiled(mock_db.execute.call_args.args[0])
+
+
+class TestHiddenLocationDoesNotLeakThroughSearch:
+    """A follower sees a hidden location as null, so a search must not match it either."""
+
+    def test_a_non_owner_search_matches_a_location_only_where_it_is_shown(self, mock_db):
+        where = _where_of(_listed_page_sql(mock_db, owner=False, name_search="lisbon"))
+
+        assert "activities.hide_location IS false" in where
+
+    def test_a_non_owner_search_still_matches_every_name(self):
+        sql = _compiled(activity_query.name_search_condition("lisbon", mask_hidden_location=True))
+
+        name_match, location_match = sql.split(" OR ", 1)
+        assert "lower(activities.name) LIKE" in name_match
+        assert "hide_location" not in name_match
+        assert "hide_location" in location_match
+
+    def test_the_owner_searches_every_location(self, mock_db):
+        where = _where_of(_listed_page_sql(mock_db, owner=True, name_search="lisbon"))
+
+        assert "hide_location" not in where
+        assert "lower(activities.town) LIKE" in where
+
+    def test_the_count_applies_the_same_rule(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.scalar.return_value = 0
+        crud.count_user_activities(1, mock_db, name_search="lisbon", user_is_owner=False, followee_ids=[1])
+
+        assert "hide_location" in _where_of(_compiled(mock_db.execute.call_args.args[0]))
+
+
+class TestHiddenValuesDoNotLeakThroughSorting:
+    """An activity's place in a sort on a hidden value would reveal the value, so it ties with the unset ones."""
+
+    @pytest.mark.parametrize(
+        ("sort_by", "flag"),
+        [
+            ("start_time", "hide_start_time"),
+            ("location", "hide_location"),
+            ("pace", "hide_pace"),
+            ("elevation", "hide_elevation"),
+            ("average_hr", "hide_hr"),
+        ],
+    )
+    @pytest.mark.parametrize("sort_order", ["asc", "desc"])
+    def test_a_non_owner_sort_on_a_hideable_value_masks_it(self, mock_db, sort_by, flag, sort_order):
+        import modules.activities.activity.constants as constants
+
+        order_by = _order_by_of(_listed_page_sql(mock_db, owner=False, sort_by=sort_by, sort_order=sort_order))
+
+        for column in constants.ACTIVITY_SORT_FIELDS[constants.ActivitySortField(sort_by)]:
+            assert f"WHEN (activities.{flag} IS true) THEN NULL ELSE activities.{column} END" in order_by
+
+    @pytest.mark.parametrize("sort_by", ["type", "name", "duration", "distance", "calories"])
+    def test_a_sort_on_a_value_no_flag_covers_is_unmasked(self, mock_db, sort_by):
+        assert "CASE" not in _order_by_of(_listed_page_sql(mock_db, owner=False, sort_by=sort_by))
+
+    @pytest.mark.parametrize("sort_by", ["start_time", "location", "pace", "elevation", "average_hr"])
+    def test_the_owner_sorts_by_the_real_value(self, mock_db, sort_by):
+        assert "CASE" not in _order_by_of(_listed_page_sql(mock_db, owner=True, sort_by=sort_by))
+
+    def test_a_masked_numeric_value_still_sorts_after_every_real_one(self, mock_db):
+        order_by = _order_by_of(_listed_page_sql(mock_db, owner=False, sort_by="pace", sort_order="asc"))
+
+        assert order_by.lstrip().startswith("coalesce(CASE")
+
+
+class TestHiddenStartTimeDoesNotLeakThroughStats:
+    """Week and month totals are a date window, so they follow the list's rule for hidden start times."""
+
+    @staticmethod
+    def _sum_sql(mock_db, *, owner: bool) -> str:
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = []
+        window = (datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 7, tzinfo=UTC))
+        crud.sum_user_activities_per_timeframe_by_type(1, *window, mock_db, user_is_owner=owner, followee_ids=[1])
+        return _compiled(mock_db.execute.call_args.args[0])
+
+    def test_a_non_owner_total_leaves_out_hidden_start_times(self, mock_db):
+        assert "activities.hide_start_time IS false" in _where_of(self._sum_sql(mock_db, owner=False))
+
+    def test_the_owner_total_counts_every_activity(self, mock_db):
+        assert "hide_start_time" not in _where_of(self._sum_sql(mock_db, owner=True))
+
+
+class TestFollowingFeedOrder:
+    """The feed is ordered by start time, except where the owner hid it, so no position reveals a hidden start."""
+
+    _FEED_KEY = (
+        "CASE WHEN (activities.hide_start_time IS true) THEN activities.created_at ELSE activities.start_time END"
+    )
+
+    @staticmethod
+    def _feed_sql(mock_db, after=None) -> str:
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = []
+        crud.get_following_feed_after([2], after, 10, mock_db)
+        return _compiled(mock_db.execute.call_args.args[0])
+
+    def test_a_hidden_start_is_ordered_by_when_the_activity_was_recorded(self, mock_db):
+        assert _order_by_of(self._feed_sql(mock_db)).lstrip().startswith(f"{self._FEED_KEY} DESC")
+
+    def test_the_cursor_resumes_on_the_same_key(self, mock_db):
+        sql = self._feed_sql(mock_db, after=(datetime(2024, 1, 15, 8, tzinfo=UTC), 7))
+
+        assert f"({self._FEED_KEY}, activities.id) < (" in _where_of(sql)
+
+    def test_each_entry_carries_the_key_it_was_ordered_by(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        recorded = datetime(2024, 1, 20, tzinfo=UTC)
+        row = SimpleNamespace(id=7, start_time=datetime(2024, 1, 15, 8, tzinfo=UTC))
+        mock_db.execute.return_value.all.return_value = [(row, recorded)]
+
+        with patch.object(crud.activity_serializers, "serialize_and_mask", return_value=[MagicMock()]):
+            [entry] = crud.get_following_feed_after([2], None, 10, mock_db)
+
+        assert (entry.cursor_sort_value, entry.cursor_id) == (recorded, 7)

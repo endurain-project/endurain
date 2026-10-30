@@ -3,11 +3,13 @@
 Laps, sets and workout steps used to carry a copy of these assertions each. The
 behaviour lives in ``activity/child_collection_service`` now, so it is asserted here; the
 per-package tests only check that each package declares itself correctly (and laps, its
-per-viewer mask).
+declared field masking).
 """
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+from pydantic import BaseModel
 
 import core.pagination as core_pagination
 import modules.activities.activity.child_collection_service as child_collection_service
@@ -24,14 +26,14 @@ def _parent(**kw):
     return SimpleNamespace(**{"id": 5, "user_id": 1, "hide_laps": False, **kw})
 
 
-def _collection(fetch=None, count=None, mask=None):
+def _collection(fetch=None, count=None, fields_by_hide_flag=None):
     return child_collection_service.ChildCollection(
         name="laps",
         hide_attr="hide_laps",
         fetch=fetch or MagicMock(return_value=["row"]),
         count=count or MagicMock(return_value=1),
         build=core_pagination.Page.build,
-        mask=mask,
+        **({} if fields_by_hide_flag is None else {"fields_by_hide_flag": fields_by_hide_flag}),
     )
 
 
@@ -124,45 +126,76 @@ class TestListPublic:
         mock_readable.assert_not_called()
 
 
+_FIELDS = {"hide_map": ("lat", "long"), "hide_hr": ("heart_rate",)}
+
+
+class _Row(BaseModel):
+    lat: float | None = 1.0
+    long: float | None = 2.0
+    heart_rate: int | None = 60
+    distance: float = 10.0
+
+
 class TestViewerMask:
-    """A package's per-viewer mask runs for everyone but the owner."""
+    """A package's declared flag-to-field map clears fields for everyone but the owner."""
 
     @patch(_RESOLVE_READABLE)
-    def test_a_non_owner_gets_the_masked_rows(self, mock_resolve):
-        parent = _parent()
-        mock_resolve.return_value = parent
-        mask = MagicMock(return_value=["masked"])
+    def test_a_non_owner_gets_the_covered_fields_cleared(self, mock_resolve):
+        mock_resolve.return_value = _parent(hide_map=True, hide_hr=False)
+        fetch = MagicMock(return_value=[_Row()])
 
-        page = _collection(mask=mask).list_for_requester(5, 2, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
+            5, 2, MagicMock(), page_number=1, num_records=10
+        )
 
-        assert page.items == ["masked"]
-        mask.assert_called_once_with(["row"], parent)
+        assert page.items == [_Row(lat=None, long=None)]
+
+    @patch(_RESOLVE_READABLE)
+    def test_a_flag_that_is_unset_clears_nothing(self, mock_resolve):
+        mock_resolve.return_value = _parent(hide_map=False, hide_hr=False)
+        fetch = MagicMock(return_value=[_Row()])
+
+        page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
+            5, 2, MagicMock(), page_number=1, num_records=10
+        )
+
+        assert page.items == [_Row()]
 
     @patch(_RESOLVE_PUBLIC)
-    def test_an_anonymous_viewer_gets_the_masked_rows(self, mock_resolve):
-        mock_resolve.return_value = _parent()
-        mask = MagicMock(return_value=["masked"])
+    def test_an_anonymous_viewer_gets_the_covered_fields_cleared(self, mock_resolve):
+        mock_resolve.return_value = _parent(hide_map=False, hide_hr=True)
+        fetch = MagicMock(return_value=[_Row()])
 
-        page = _collection(mask=mask).list_public(5, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_public(
+            5, MagicMock(), page_number=1, num_records=10
+        )
 
-        assert page.items == ["masked"]
+        assert page.items == [_Row(heart_rate=None)]
 
     @patch(_RESOLVE_READABLE)
     def test_the_owner_gets_the_rows_unmasked(self, mock_resolve):
-        mock_resolve.return_value = _parent()
-        mask = MagicMock()
+        mock_resolve.return_value = _parent(hide_map=True, hide_hr=True)
+        fetch = MagicMock(return_value=[_Row()])
 
-        page = _collection(mask=mask).list_for_requester(5, 1, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_requester(
+            5, 1, MagicMock(), page_number=1, num_records=10
+        )
 
-        assert page.items == ["row"]
-        mask.assert_not_called()
+        assert page.items == [_Row()]
 
     def test_a_resolved_parent_is_masked_for_a_non_owner(self):
-        mask = MagicMock(return_value=["masked"])
+        fetch = MagicMock(return_value=[_Row()])
 
-        page = _collection(mask=mask).list_for_activity(_parent(), 2, MagicMock(), page_number=1, num_records=10)
+        page = _collection(fetch, fields_by_hide_flag=_FIELDS).list_for_activity(
+            _parent(hide_map=True, hide_hr=True), 2, MagicMock(), page_number=1, num_records=10
+        )
 
-        assert page.items == ["masked"]
+        assert page.items == [_Row(lat=None, long=None, heart_rate=None)]
+
+    def test_a_collection_declaring_no_fields_serves_the_rows_as_they_are(self):
+        page = _collection().list_for_activity(_parent(), 2, MagicMock(), page_number=1, num_records=10)
+
+        assert page.items == ["row"]
 
 
 class TestListForActivity:

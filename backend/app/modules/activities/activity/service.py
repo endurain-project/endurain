@@ -555,7 +555,7 @@ def scroll_following_feed(
     page_entries = entries[:num_records]
     items = _with_thumbnail_urls([entry.activity for entry in page_entries])
     next_cursor = (
-        core_pagination.encode_cursor(page_entries[-1].cursor_start_time, page_entries[-1].cursor_id)
+        core_pagination.encode_cursor(page_entries[-1].cursor_sort_value, page_entries[-1].cursor_id)
         if has_more and page_entries
         else None
     )

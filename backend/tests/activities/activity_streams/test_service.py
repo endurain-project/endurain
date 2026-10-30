@@ -167,6 +167,22 @@ class TestPublicStreams:
             service.get_public_activity_stream(5, 1, MagicMock())
 
 
+_EVERY_FLAG = (
+    "hide_start_time",
+    "hide_location",
+    "hide_map",
+    "hide_hr",
+    "hide_power",
+    "hide_cadence",
+    "hide_elevation",
+    "hide_speed",
+    "hide_pace",
+    "hide_laps",
+    "hide_workout_sets_steps",
+    "hide_gear",
+)
+
+
 class TestStreamMask:
     """The per-type mask: each stream type is gated by its own parent flag."""
 
@@ -178,10 +194,26 @@ class TestStreamMask:
         assert service._is_stream_hidden(activity, constants.STREAM_TYPE_HR) is True
         assert service._is_stream_hidden(activity, constants.STREAM_TYPE_MAP) is False
 
-    def test_an_unmapped_stream_type_is_never_hidden(self):
+    def test_a_stream_type_without_a_rule_is_hidden(self):
+        """A type the mask does not know is withheld, so a new stream type cannot ship visible by omission."""
         from modules.activities.activity_streams import service
 
-        assert service._is_stream_hidden(MagicMock(), 999) is False
+        assert service._is_stream_hidden(MagicMock(), 999) is True
+
+    def test_every_stored_stream_type_has_a_rule(self):
+        from modules.activities.activity_streams import constants, service
+
+        stored = {value for name, value in vars(constants).items() if name.startswith("STREAM_TYPE_")}
+
+        assert set(service._STREAM_HIDE_MAP) == stored
+
+    def test_no_flag_hides_the_temperature(self):
+        """There is no ``hide_temperature``: ambient temperature is none of the data a flag covers."""
+        from modules.activities.activity_streams import constants, service
+
+        activity = MagicMock(**dict.fromkeys(_EVERY_FLAG, True))
+
+        assert service._is_stream_hidden(activity, constants.STREAM_TYPE_TEMPERATURE) is False
 
     def test_filter_keeps_only_the_visible_streams(self):
         from modules.activities.activity_streams import constants, service

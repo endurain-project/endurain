@@ -63,10 +63,16 @@ _NUMERIC_SORT_COLUMNS = {
     activity_models.Activity.average_hr,
 }
 
-# Columns that say when an activity happened, which an owner may hide from other readers.
-_TIME_SORT_COLUMNS = {
-    activity_models.Activity.start_time,
-    activity_models.Activity.end_time,
+# Columns whose value an owner may hide from other readers, each with the ``hide_*`` flag that hides it.
+_HIDEABLE_SORT_COLUMNS = {
+    activity_models.Activity.start_time: activity_models.Activity.hide_start_time,
+    activity_models.Activity.end_time: activity_models.Activity.hide_start_time,
+    activity_models.Activity.country: activity_models.Activity.hide_location,
+    activity_models.Activity.city: activity_models.Activity.hide_location,
+    activity_models.Activity.town: activity_models.Activity.hide_location,
+    activity_models.Activity.pace: activity_models.Activity.hide_pace,
+    activity_models.Activity.elevation_gain: activity_models.Activity.hide_elevation,
+    activity_models.Activity.average_hr: activity_models.Activity.hide_hr,
 }
 
 # Text columns coalesced to "" so an unset place name orders with the empty ones
@@ -78,15 +84,15 @@ _TEXT_SORT_COLUMNS = {
 }
 
 
-def _sort_order_by(sort_by: str | None, sort_order: str | None, *, mask_hidden_times: bool = False) -> list[Any]:
+def _sort_order_by(sort_by: str | None, sort_order: str | None, *, mask_hidden_values: bool = False) -> list[Any]:
     """Build the ORDER BY clauses for an activity list request.
 
     Args:
         sort_by: The requested sort key, already validated by the transport layer.
         sort_order: ``asc`` or ``desc``; anything else orders descending.
-        mask_hidden_times: Whether the reader must not learn a hidden start time. An activity whose owner hid
-            its start time then ties with the other hidden ones on a time key, because its place in the
-            order would otherwise reveal when it happened.
+        mask_hidden_values: Whether the reader must not learn a hidden value. An activity whose owner hid
+            the value a key orders by then sorts as if it had none, because its place in the order would
+            otherwise reveal the value.
 
     Returns:
         One clause per column the key orders by, highest precedence first, then the id so pages are stable.
@@ -95,14 +101,13 @@ def _sort_order_by(sort_by: str | None, sort_order: str | None, *, mask_hidden_t
     columns = SORT_MAP.get(sort_by or "", _DEFAULT_SORT_COLUMNS)
     clauses = []
     for column in columns:
-        if mask_hidden_times and column in _TIME_SORT_COLUMNS:
-            ordered = case((activity_models.Activity.hide_start_time.is_(True), None), else_=column)
-        elif column in _NUMERIC_SORT_COLUMNS:
-            ordered = func.coalesce(column, _NULL_SORT_SENTINEL if ascending else -_NULL_SORT_SENTINEL)
+        ordered = column
+        if mask_hidden_values and column in _HIDEABLE_SORT_COLUMNS:
+            ordered = case((_HIDEABLE_SORT_COLUMNS[column].is_(True), None), else_=column)
+        if column in _NUMERIC_SORT_COLUMNS:
+            ordered = func.coalesce(ordered, _NULL_SORT_SENTINEL if ascending else -_NULL_SORT_SENTINEL)
         elif column in _TEXT_SORT_COLUMNS:
-            ordered = func.coalesce(column, "")
-        else:
-            ordered = column
+            ordered = func.coalesce(ordered, "")
         clauses.append(ordered.asc() if ascending else ordered.desc())
     clauses.append(activity_models.Activity.id.asc() if ascending else activity_models.Activity.id.desc())
     return clauses
@@ -216,7 +221,7 @@ def _apply_user_activity_filters(
         # drops out of the results pins down the date.
         stmt = stmt.where(activity_models.Activity.hide_start_time.is_(False))
     if name_search:
-        stmt = stmt.where(activity_query.name_search_condition(name_search))
+        stmt = stmt.where(activity_query.name_search_condition(name_search, mask_hidden_location=not user_is_owner))
     return stmt
 
 
@@ -450,7 +455,7 @@ def get_user_activities_with_pagination(
         followee_ids=followee_ids,
     )
 
-    stmt = stmt.order_by(*_sort_order_by(sort_by, sort_order, mask_hidden_times=not user_is_owner))
+    stmt = stmt.order_by(*_sort_order_by(sort_by, sort_order, mask_hidden_values=not user_is_owner))
 
     stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
 
@@ -499,9 +504,10 @@ def sum_user_activities_per_timeframe_by_type(
 ) -> list[activity_contracts.ActivityTypeTotals]:
     """Add up a user's activities within a date range per activity type, in the database.
 
-    Matches the activities a reader may see for the same range and visibility, without loading them.
+    Matches the activities a reader may see for the same range and visibility, without loading them; for a
+    non-owner that leaves out the activities whose start time is hidden, as the list's date filter does.
     Masking never touches distance, active time or calories, so a non-owner's totals equal the sum of
-    the masked rows.
+    the matching masked rows.
 
     Args:
         user_id: Owner user ID.
@@ -530,6 +536,10 @@ def sum_user_activities_per_timeframe_by_type(
         .group_by(activity.activity_type)
     )
     stmt = _apply_activity_visibility_filter(stmt, user_is_owner=user_is_owner, followee_ids=followee_ids)
+    if not user_is_owner:
+        # The window is a date filter: totals that counted a hidden start time would reveal its week or month,
+        # the same leak the list's date filter closes.
+        stmt = stmt.where(activity.hide_start_time.is_(False))
     return [
         activity_contracts.ActivityTypeTotals(
             activity_type=activity_type, distance=float(distance), time=float(time), calories=float(calories)
@@ -650,13 +660,16 @@ def get_following_feed_after(
 ) -> list[activity_contracts.ActivityFeedEntry]:
     """Get the next keyset slice of the following feed.
 
-    Ordered by ``(start_time DESC, id DESC)``. ``id`` is part of the key because
-    ``start_time`` is not unique — two activities sharing a start time would
-    otherwise straddle the boundary and one of them would be skipped or repeated.
+    Ordered by ``(sort value DESC, id DESC)``. The sort value is the start time, or the creation time
+    where the owner hid the start: a hidden start ordered among the visible ones would be pinned between
+    its neighbours' start times. The creation time is assigned on insert, as the id is, so where it puts
+    an activity tells a reader nothing the activity's id does not. ``id`` is part of the key because the
+    sort value is not unique — two activities sharing one would otherwise straddle the boundary and one of
+    them would be skipped or repeated.
 
     Args:
         followee_ids: The requester's accepted-followee user ids.
-        after: The ``(start_time, id)`` position to resume strictly after, or
+        after: The ``(sort value, id)`` position to resume strictly after, or
             ``None`` for the first slice.
         num_records: Maximum records to return.
         db: Database session.
@@ -666,33 +679,30 @@ def get_following_feed_after(
     """
     if not followee_ids:
         return []
-    stmt = select(activity_models.Activity).where(
-        activity_models.Activity.user_id.in_(followee_ids),
-        activity_models.Activity.visibility.in_([0, 1]),
-        activity_models.Activity.is_hidden.is_(False),
+    activity = activity_models.Activity
+    sort_value = case((activity.hide_start_time.is_(True), activity.created_at), else_=activity.start_time)
+    stmt = select(activity, sort_value).where(
+        activity.user_id.in_(followee_ids),
+        activity.visibility.in_([0, 1]),
+        activity.is_hidden.is_(False),
         _is_not_live_strava_api_activity(),
     )
     if after is not None:
-        last_start_time, last_id = after
-        # Row-value comparison: strictly older, or same instant with a lower id.
-        stmt = stmt.where(
-            tuple_(activity_models.Activity.start_time, activity_models.Activity.id)
-            < tuple_(literal(last_start_time), literal(last_id))
-        )
-    stmt = stmt.order_by(desc(activity_models.Activity.start_time), desc(activity_models.Activity.id)).limit(
-        num_records
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
+        last_sort_value, last_id = after
+        # Row-value comparison: strictly older, or the same sort value with a lower id.
+        stmt = stmt.where(tuple_(sort_value, activity.id) < tuple_(literal(last_sort_value), literal(last_id)))
+    stmt = stmt.order_by(sort_value.desc(), activity.id.desc()).limit(num_records)
+    rows = db.execute(stmt).all()
+    if not rows:
         return []
-    masked = activity_serializers.serialize_and_mask(list(activities), force_non_owner=True)
+    masked = activity_serializers.serialize_and_mask([orm_activity for orm_activity, _ in rows], force_non_owner=True)
     return [
         activity_contracts.ActivityFeedEntry(
             activity=item,
-            cursor_start_time=orm_activity.start_time,
+            cursor_sort_value=row_sort_value,
             cursor_id=orm_activity.id,
         )
-        for orm_activity, item in zip(activities, masked, strict=True)
+        for (orm_activity, row_sort_value), item in zip(rows, masked, strict=True)
     ]
 
 

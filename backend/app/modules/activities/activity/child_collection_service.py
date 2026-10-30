@@ -12,8 +12,8 @@ CRUD calls, its page type and, when its rows repeat data the parent hides field 
 field, its mask — and this owns *how* the read runs.
 """
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -36,8 +36,9 @@ class ChildCollection[PageT]:
         fetch: Read one page of rows for an activity.
         count: Count an activity's rows.
         build: Wrap rows plus the total in the package's own page envelope.
-        mask: Clear what the parent's other ``hide_*`` flags hide from a non-owner, or
-            ``None`` when the rows carry nothing those flags cover.
+        fields_by_hide_flag: The row fields each of the parent's other ``hide_*`` flags
+            withholds from a non-owner, cleared when the flag is set; empty when the rows
+            carry nothing those flags cover.
     """
 
     name: str
@@ -45,7 +46,7 @@ class ChildCollection[PageT]:
     fetch: Callable[..., list[Any]]
     count: Callable[[int, Session], int]
     build: Callable[[list[Any], int, int, int], PageT]
-    mask: Callable[[list[Any], activity_schema.ActivityRead], list[Any]] | None = None
+    fields_by_hide_flag: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def _empty(self, page_number: int, num_records: int) -> PageT:
         """Return the empty page — the answer to both "none" and "not allowed".
@@ -58,6 +59,26 @@ class ChildCollection[PageT]:
             The empty page.
         """
         return self.build([], 0, page_number, num_records)
+
+    def _mask(self, items: list[Any], activity: activity_schema.ActivityRead) -> list[Any]:
+        """Clear what the parent's ``hide_*`` flags withhold from a viewer who is not the owner.
+
+        Args:
+            items: The rows about to be served.
+            activity: The parent activity, carrying its ``hide_*`` flags.
+
+        Returns:
+            The rows, with every field a set flag covers cleared.
+        """
+        hidden = [
+            column
+            for flag, columns in self.fields_by_hide_flag.items()
+            if getattr(activity, flag)
+            for column in columns
+        ]
+        if not hidden:
+            return items
+        return [item.model_copy(update=dict.fromkeys(hidden)) for item in items]
 
     def _page(
         self,
@@ -80,8 +101,8 @@ class ChildCollection[PageT]:
             The page and its total.
         """
         items = self.fetch(activity.id, db, page_number=page_number, num_records=num_records)
-        if self.mask is not None and requester_user_id != activity.user_id:
-            items = self.mask(items, activity)
+        if requester_user_id != activity.user_id:
+            items = self._mask(items, activity)
         return self.build(items, self.count(activity.id, db), page_number, num_records)
 
     def list_for_requester(
@@ -131,7 +152,7 @@ class ChildCollection[PageT]:
 
         The caller has already established that the viewer may see ``activity`` (as
         the viewer sees it, so its ``hide_*`` flags are present), so this only
-        applies the child's own flag and mask and runs no lookup of the parent.
+        applies the child's own flag and field masking and runs no lookup of the parent.
 
         Args:
             activity: The parent activity, as the viewer is allowed to see it.

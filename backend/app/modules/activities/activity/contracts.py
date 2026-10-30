@@ -128,12 +128,13 @@ class ActivityFeedEntry:
 
     Attributes:
         activity: Client-facing activity with privacy masking applied.
-        cursor_start_time: Raw start time used by the feed ordering.
-        cursor_id: Raw activity id used to break start-time ties.
+        cursor_sort_value: Unmasked value the feed orders by: the start time, or the creation time
+            where the owner hid the start.
+        cursor_id: Raw activity id used to break sort-value ties.
     """
 
     activity: activity_schema.ActivityRead
-    cursor_start_time: datetime
+    cursor_sort_value: datetime
     cursor_id: int
 
 

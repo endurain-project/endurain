@@ -3,8 +3,8 @@
 The paginated read itself is asserted once, in
 ``tests/activities/activity/test_child_collection_service.py``. What remains
 package-specific is the declaration: the wrong hide flag or the wrong CRUD pair
-would silently serve — or refuse — the wrong rows — and the per-viewer mask, which
-keeps a lap from serving what its activity hides.
+would silently serve — or refuse — the wrong rows — and the fields each flag clears, which
+keep a lap from serving what its activity hides.
 """
 
 import dataclasses
@@ -113,8 +113,8 @@ def _reading(*laps):
 class TestViewerMask:
     """A lap repeats the activity's hideable data, so each field follows its parent flag."""
 
-    def test_it_is_the_collections_mask(self):
-        assert service._COLLECTION.mask is service._mask_for_viewer
+    def test_it_declares_the_field_map(self):
+        assert service._COLLECTION.fields_by_hide_flag is service._FIELDS_BY_HIDE_FLAG
 
     @pytest.mark.parametrize(
         ("flag", "fields"),
@@ -135,7 +135,10 @@ class TestViewerMask:
     def test_each_flag_clears_its_fields_and_nothing_else(self, flag, fields):
         lap = _lap()
 
-        [masked] = service._mask_for_viewer([lap], _parent(**{flag: True}))
+        with patch.object(service, "_COLLECTION", _reading(lap)):
+            [masked] = service.list_for_activity(_parent(**{flag: True}), 2, MagicMock()).items
+
+        assert service._COLLECTION.fields_by_hide_flag[flag] == tuple(fields)
 
         assert all(getattr(masked, field) is None for field in fields)
         untouched = set(activity_laps_schema.ActivityLapsRead.model_fields) - set(fields)
@@ -144,7 +147,10 @@ class TestViewerMask:
     def test_no_flag_leaves_the_laps_as_they_are(self):
         laps = [_lap()]
 
-        assert service._mask_for_viewer(laps, _parent()) == laps
+        with patch.object(service, "_COLLECTION", _reading(*laps)):
+            page = service.list_for_activity(_parent(), 2, MagicMock())
+
+        assert page.items == laps
 
     def test_a_non_owner_reads_the_masked_laps(self):
         with patch.object(service, "_COLLECTION", _reading(_lap())):

@@ -78,7 +78,7 @@ def _feed_entry(**kw):
     activity = _valid_activity(**kw)
     return ActivityFeedEntry(
         activity=activity,
-        cursor_start_time=datetime(2024, 1, 15, 8, tzinfo=UTC),
+        cursor_sort_value=datetime(2024, 1, 15, 8, tzinfo=UTC),
         cursor_id=activity.id or 1,
     )
 
