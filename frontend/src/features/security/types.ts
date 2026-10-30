@@ -27,6 +27,9 @@ export type StepUpDto = Schemas['StepUpVerification']
 /** Email-change request body: the new address plus the step-up credentials. */
 export type EmailChangeDto = Schemas['EmailChange']
 
+/** Profile payload the email-change request answers with. */
+export type EmailChangeResultDto = Schemas['UsersMe']
+
 /** Raw session payload (snake_case wire shape). */
 export type SecuritySessionDto = Schemas['UsersSessionsRead']
 

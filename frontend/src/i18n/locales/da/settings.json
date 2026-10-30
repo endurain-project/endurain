@@ -683,6 +683,7 @@
       "subtitle": "Det er her, nulstillinger af adgangskode og meddelelser sendes. Ved ændring skal du bekræfte din identitet, og den nye adresse træder i kraft, når du bekræfter den via et link, vi sender dertil.",
       "sameAsCurrent": "Dette er allerede din e-mailadresse.",
       "success": "Bekræftelseslink er sendt til den nye adresse. Din e-mail ændres, når du bekræfter den.",
+      "appliedSuccess": "E-mail ændret.",
       "pending": "Afventende ændring til {email}",
       "pendingExpires": "Bekræftelseslinket udløber {date}.",
       "resend": "Send linket igen",

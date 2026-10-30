@@ -683,6 +683,7 @@
       "subtitle": "Aquí es donde se envían los restablecimientos de contraseña y los avisos. Para cambiarlo, debes confirmar tu identidad, y la nueva dirección surte efecto una vez que la confirmes desde un enlace que le enviamos.",
       "sameAsCurrent": "Esta ya es tu dirección de correo.",
       "success": "Se ha enviado un enlace de confirmación a la nueva dirección. Tu correo cambiará cuando lo confirmes.",
+      "appliedSuccess": "Correo electrónico cambiado.",
       "pending": "Cambio pendiente a {email}",
       "pendingExpires": "El enlace de confirmación caduca el {date}.",
       "resend": "Reenviar enlace",

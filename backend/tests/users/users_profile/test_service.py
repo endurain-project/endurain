@@ -72,6 +72,7 @@ class TestChangeEmail:
                 "modules.auth.account_security.integration_service.delete_other_user_sessions",
                 side_effect=lambda user_id, session_id, db: identity.delete_other_user_sessions(user_id, session_id),
             ),
+            patch(f"{_MODULE}.get_profile"),
         ):
             profile_service.change_email(1, change, "sid-1", store, mock_db)
 

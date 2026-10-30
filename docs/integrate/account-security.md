@@ -96,7 +96,7 @@ The counter resets automatically on a successful step-up verification.
 
 ## Email Change
 
-`POST /profile/email/change` (step-up required) does not replace the account's address. It creates a pending change, which answers `204`, and a later request replaces an earlier one. Entering the current address cancels the pending change. The request answers `409` when another account already uses the address. The address switches when the link emailed to the new address is confirmed through `POST /sign-up/confirm` (valid 24 hours). Confirmation answers `409` when another account has taken the address in the meantime, and then nothing changes. Until the change is confirmed, sign-in and password reset keep using the current address.
+`POST /profile/email/change` (step-up required) does not replace the account's address. It creates a pending change and answers `200` with the profile and its `ETag`: `pending_email` is set while the change awaits confirmation, and `email` already holds the new address when the server applied it at once (no outgoing mail). A later request replaces an earlier one. Entering the current address cancels the pending change. The request answers `409` when another account already uses the address. The address switches when the link emailed to the new address is confirmed through `POST /sign-up/confirm` (valid 24 hours). Confirmation answers `409` when another account has taken the address in the meantime, and then nothing changes. Until the change is confirmed, sign-in and password reset keep using the current address.
 
 | What | URL | Method | Description |
 | ---- | --- | ------ | ----------- |

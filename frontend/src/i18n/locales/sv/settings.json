@@ -683,6 +683,7 @@
       "subtitle": "Hit skickas återställningar av lösenord och aviseringar. För att ändra den behöver du bekräfta din identitet, och den nya adressen gäller först när du har bekräftat den via en länk som vi skickar dit.",
       "sameAsCurrent": "Det här är redan din e-postadress.",
       "success": "En bekräftelselänk har skickats till den nya adressen. Din e-post ändras när du har bekräftat den.",
+      "appliedSuccess": "E-postadressen har ändrats.",
       "pending": "Väntande ändring till {email}",
       "pendingExpires": "Bekräftelselänken går ut {date}.",
       "resend": "Skicka länken igen",

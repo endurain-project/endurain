@@ -683,6 +683,7 @@
       "subtitle": "Sem se pošiljajo ponastavitve gesla in obvestila. Pri spremembi moraš potrditi svojo identiteto, novi naslov pa začne veljati, ko ga potrdiš prek povezave, ki jo tja pošljemo.",
       "sameAsCurrent": "To je že vaš e-poštni naslov.",
       "success": "Potrditvena povezava je poslana na nov naslov. Vaš e-poštni naslov se bo spremenil, ko ga potrdite.",
+      "appliedSuccess": "E-poštni naslov je spremenjen.",
       "pending": "Čakajoča sprememba na {email}",
       "pendingExpires": "Potrditvena povezava poteče {date}.",
       "resend": "Ponovno pošlji povezavo",

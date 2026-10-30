@@ -683,6 +683,7 @@
       "subtitle": "Parola sıfırlamaları ve bildirimler buraya gönderilir. Değiştirmek için kimliğinizi doğrulamanız gerekir; yeni adres, oraya gönderdiğimiz bağlantıyı onayladığınızda geçerli olur.",
       "sameAsCurrent": "Bu zaten e-posta adresiniz.",
       "success": "Onay bağlantısı yeni adrese gönderildi. E-posta adresiniz onayladığınızda değişecek.",
+      "appliedSuccess": "E-posta değiştirildi.",
       "pending": "{email} adresine bekleyen değişiklik",
       "pendingExpires": "Onay bağlantısının süresi {date} tarihinde doluyor.",
       "resend": "Bağlantıyı yeniden gönder",

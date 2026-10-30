@@ -683,6 +683,7 @@
       "subtitle": "Ovde se šalju resetovanja lozinke i obaveštenja. Za promenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem linka koji šaljemo na nju.",
       "sameAsCurrent": "Ovo je već vaša email adresa.",
       "success": "Link za potvrdu je poslat na novu adresu. Vaš email se menja kada ga potvrdite.",
+      "appliedSuccess": "E-pošta je promenjena.",
       "pending": "Promena na {email} na čekanju",
       "pendingExpires": "Link za potvrdu ističe {date}.",
       "resend": "Ponovo pošalji link",

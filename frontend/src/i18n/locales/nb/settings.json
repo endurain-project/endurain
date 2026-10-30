@@ -683,6 +683,7 @@
       "subtitle": "Dette er hit passordtilbakestillinger og varsler sendes. Ved endring må du bekrefte identiteten din, og den nye adressen gjelder først når du bekrefter den via en lenke vi sender dit.",
       "sameAsCurrent": "Dette er allerede e-postadressen din.",
       "success": "Bekreftelseslenke er sendt til den nye adressen. E-posten din endres når du bekrefter den.",
+      "appliedSuccess": "E-post endret.",
       "pending": "Venter på endring til {email}",
       "pendingExpires": "Bekreftelseslenken utløper {date}.",
       "resend": "Send lenken på nytt",

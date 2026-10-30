@@ -683,6 +683,7 @@
       "subtitle": "C'est là que sont envoyés les réinitialisations de mot de passe et les notifications. Pour la modifier, vous devez confirmer votre identité, et la nouvelle adresse prend effet une fois confirmée via un lien que nous y envoyons.",
       "sameAsCurrent": "Il s'agit déjà de votre adresse e-mail.",
       "success": "Lien de confirmation envoyé à la nouvelle adresse. Votre e-mail sera modifié une fois que vous l'aurez confirmé.",
+      "appliedSuccess": "Adresse e-mail modifiée.",
       "pending": "Changement en attente vers {email}",
       "pendingExpires": "Le lien de confirmation expire le {date}.",
       "resend": "Renvoyer le lien",

@@ -683,6 +683,7 @@
       "subtitle": "Hierhin werden Passwort-Zurücksetzungen und Benachrichtigungen gesendet. Für eine Änderung musst du deine Identität bestätigen, und die neue Adresse gilt erst, wenn du sie über einen Link bestätigst, den wir dorthin senden.",
       "sameAsCurrent": "Das ist bereits deine E-Mail-Adresse.",
       "success": "Bestätigungslink an die neue Adresse gesendet. Deine E-Mail-Adresse wird geändert, sobald du sie bestätigst.",
+      "appliedSuccess": "E-Mail-Adresse geändert.",
       "pending": "Ausstehende Änderung zu {email}",
       "pendingExpires": "Der Bestätigungslink läuft am {date} ab.",
       "resend": "Link erneut senden",

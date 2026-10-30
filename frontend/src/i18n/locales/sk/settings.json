@@ -683,6 +683,7 @@
       "subtitle": "Sem sa posielajú obnovenia hesla a upozornenia. Pri zmene musíte potvrdiť svoju totožnosť a nová adresa sa stane platnou, až keď ju potvrdíte cez odkaz, ktorý na ňu odošleme.",
       "sameAsCurrent": "Toto je už vaša e-mailová adresa.",
       "success": "Potvrdzovací odkaz bol odoslaný na novú adresu. Vaša e-mailová adresa sa zmení, keď ju potvrdíte.",
+      "appliedSuccess": "E-mail bol zmenený.",
       "pending": "Čakajúca zmena na {email}",
       "pendingExpires": "Potvrdzovací odkaz vyprší {date}.",
       "resend": "Odoslať odkaz znova",

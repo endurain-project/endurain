@@ -683,6 +683,7 @@
       "subtitle": "Aquí envíanse os restablecementos de contrasinal e os avisos. Para cambialo tes que confirmar a túa identidade, e o novo enderezo xa é efectivo cando o confirmes desde unha ligazón que enviamos alí.",
       "sameAsCurrent": "Esta xa é o teu enderezo de correo electrónico.",
       "success": "Enviouse unha ligazón de confirmación ao novo enderezo. O teu correo cambiará cando o confirmes.",
+      "appliedSuccess": "Correo electrónico cambiado.",
       "pending": "Cambio pendente a {email}",
       "pendingExpires": "A ligazón de confirmación caduca o {date}.",
       "resend": "Reenviar a ligazón",

@@ -683,6 +683,7 @@
       "subtitle": "Ide érkeznek a jelszó-visszaállítások és az értesítések. A módosításhoz igazold a személyazonosságodat, az új cím pedig akkor lép életbe, ha megerősíted a rá küldött hivatkozással.",
       "sameAsCurrent": "Ez már a jelenlegi e-mail-címed.",
       "success": "A megerősítő hivatkozás elküldve az új címre. Az e-mail-címed a megerősítés után változik meg.",
+      "appliedSuccess": "E-mail-cím módosítva.",
       "pending": "Függőben lévő módosítás erre: {email}",
       "pendingExpires": "A megerősítő hivatkozás lejár: {date}.",
       "resend": "Hivatkozás újraküldése",

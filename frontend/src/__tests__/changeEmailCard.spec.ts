@@ -9,8 +9,9 @@ import ChangeEmailCard from '@/features/security/components/ChangeEmailCard.vue'
 
 const start = vi.fn<(...args: unknown[]) => Promise<void>>()
 
+const toastSuccess = vi.fn<(message: string) => void>()
 vi.mock('@/composables/useToasts', () => ({
-  useToasts: () => ({ success: vi.fn<() => void>(), error: vi.fn<() => void>() }),
+  useToasts: () => ({ success: toastSuccess, error: vi.fn<() => void>() }),
 }))
 vi.mock('@/features/security/composables/useIdpStepUp', () => ({
   useIdpStepUp: () => ({ start }),
@@ -18,8 +19,9 @@ vi.mock('@/features/security/composables/useIdpStepUp', () => ({
 }))
 const resend = vi.fn<(...args: unknown[]) => void>()
 const cancel = vi.fn<(...args: unknown[]) => void>()
+const change = vi.fn<(...args: unknown[]) => void>()
 vi.mock('@/features/security/composables/useSecurity', () => ({
-  useChangeEmailMutation: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
+  useChangeEmailMutation: () => ({ mutate: change, isPending: ref(false) }),
   useResendEmailChangeMutation: () => ({ mutate: resend, isPending: ref(false) }),
   useCancelEmailChangeMutation: () => ({ mutate: cancel, isPending: ref(false) }),
 }))
@@ -57,6 +59,8 @@ function mountCard(
 describe('ChangeEmailCard', () => {
   afterEach(() => {
     start.mockReset()
+    toastSuccess.mockReset()
+    change.mockReset()
     resend.mockReset()
     cancel.mockReset()
     mounted.splice(0).forEach((wrapper) => wrapper.unmount())
@@ -94,6 +98,26 @@ describe('ChangeEmailCard', () => {
 
     await wrapper.find('#security-new-email').setValue('other@example.com')
     expect(wrapper.find<HTMLButtonElement>('button[type="submit"]').element.disabled).toBe(false)
+  })
+
+  it.each([
+    [true, 'Confirmation link sent to the new address. Your email changes once you confirm it.'],
+    [false, 'Email changed.'],
+  ])('tells whether the change is pending (%s) in its success toast', async (pending, message) => {
+    change.mockImplementation((_input, options) =>
+      (options as { onSuccess: (pending: boolean) => void }).onSuccess(pending),
+    )
+    const wrapper = mountCard({
+      action: 'email_change',
+      reauth: { ticket: 't', codeVerifier: 'v' },
+      pending: {},
+    })
+    await nextTick()
+    await wrapper.find('#security-new-email').setValue('other@example.com')
+    await wrapper.find('form').trigger('submit')
+
+    expect(change).toHaveBeenCalledTimes(1)
+    expect(toastSuccess).toHaveBeenCalledWith(message)
   })
 
   it('shows no pending state without a pending change', () => {

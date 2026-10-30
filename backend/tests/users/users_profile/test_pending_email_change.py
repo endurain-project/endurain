@@ -21,6 +21,7 @@ _STEP_UP = "modules.auth.account_security.integration_service.verify_step_up"
 _OTHER_SESSIONS = "modules.auth.account_security.integration_service.delete_other_user_sessions"
 _ALL_SESSIONS = "modules.auth.account_security.integration_service.delete_all_user_sessions"
 _EVENT = "auth.email_change_verification_requested"
+_PROFILE = "modules.users.users_profile.service.get_profile"
 
 
 @pytest.fixture
@@ -67,7 +68,7 @@ def _change_email(db, email, *, user_id=7, revoke_other_sessions=False):
     change = users_schema.EmailChange(
         email=email, current_password="pw", mfa_code=None, revoke_other_sessions=revoke_other_sessions
     )
-    with patch(_STEP_UP), patch(_OTHER_SESSIONS) as other_sessions:
+    with patch(_STEP_UP), patch(_OTHER_SESSIONS) as other_sessions, patch(_PROFILE):
         profile_service.change_email(user_id, change, "sid", MagicMock(), db)
     return other_sessions
 
@@ -165,6 +166,40 @@ class TestSelfServiceEmailChange:
         other_sessions = _change_email(db, "new@example.com", revoke_other_sessions=True)
 
         other_sessions.assert_called_once_with(7, "sid", db)
+
+
+class TestChangeEmailAnswersWithTheProfile:
+    @staticmethod
+    def _request(db, email):
+        change = users_schema.EmailChange(email=email, current_password="pw", mfa_code=None)
+        with (
+            patch(_STEP_UP),
+            patch(_OTHER_SESSIONS),
+            patch(_PROFILE) as get_profile,
+        ):
+            result = profile_service.change_email(7, change, "sid", MagicMock(), db)
+        return result, get_profile
+
+    def test_a_pending_change_returns_the_profile_read_after_the_commit(self, db, mail, publish):
+        result, get_profile = self._request(db, "new@example.com")
+
+        assert result is get_profile.return_value
+        get_profile.assert_called_once_with(7, db)
+        assert len(_unused_tokens(db)) == 1
+
+    def test_an_address_applied_without_mail_returns_the_profile(self, db, no_mail, publish):
+        result, get_profile = self._request(db, "new@example.com")
+
+        assert result is get_profile.return_value
+        assert _user(db).email == "new@example.com"
+
+    def test_the_current_address_cancelling_a_change_returns_the_profile(self, db, mail, publish):
+        _change_email(db, "new@example.com")
+
+        result, get_profile = self._request(db, "user7@example.com")
+
+        assert result is get_profile.return_value
+        assert _unused_tokens(db) == []
 
 
 class TestResendAndCancel:

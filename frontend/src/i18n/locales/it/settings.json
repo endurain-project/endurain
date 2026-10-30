@@ -683,6 +683,7 @@
       "subtitle": "Qui vengono inviati i ripristini della password e le notifiche. Per modificarla è necessario confermare la propria identità, e il nuovo indirizzo diventa effettivo solo dopo la conferma tramite un link che gli inviamo.",
       "sameAsCurrent": "Questo è già il tuo indirizzo email.",
       "success": "Link di conferma inviato al nuovo indirizzo. La tua email cambierà dopo la conferma.",
+      "appliedSuccess": "Email modificata.",
       "pending": "Modifica in sospeso a {email}",
       "pendingExpires": "Il link di conferma scade il {date}.",
       "resend": "Invia di nuovo il link",

@@ -180,7 +180,7 @@ def change_email(
     session_id: str,
     step_up_store: "auth_dependencies.StepUpStore",
     db: Session,
-) -> None:
+) -> users_schema.UsersMe:
     """Request an email change after step-up verification, to take effect once the new address is confirmed.
 
     The address is where password resets go, so a stolen access token alone must not be able to
@@ -196,6 +196,10 @@ def change_email(
         session_id: The caller's current session, which stays signed in when other sessions are revoked.
         step_up_store: Step-up lockout store.
         db: Database session.
+
+    Returns:
+        The profile after the request: ``pending_email`` is set while a confirmation is awaited, and ``email``
+        is the new address when it was applied at once.
 
     Raises:
         UnauthenticatedError: If step-up verification fails.
@@ -215,7 +219,7 @@ def change_email(
     if new_email == current_email:
         sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
         db.commit()
-        return
+        return get_profile(user_id, db)
 
     verification_queued = True
     try:
@@ -235,6 +239,7 @@ def change_email(
             "Email changed but cannot be verified: outgoing email is not configured",
             extra=core_logger.context(user_id=user_id),
         )
+    return get_profile(user_id, db)
 
 
 def resend_email_change(user_id: int, state: platform_providers.StateProvider, db: Session) -> None:

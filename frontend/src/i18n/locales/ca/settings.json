@@ -683,6 +683,7 @@
       "subtitle": "Aquí s'envien els restabliments de contrasenya i els avisos. Per canviar-la cal que confirmis la teva identitat, i la nova adreça entra en vigor en confirmar-la des de l'enllaç que s'hi envia.",
       "sameAsCurrent": "Aquesta ja és la teva adreça de correu.",
       "success": "S'ha enviat un enllaç de confirmació a la nova adreça. El teu correu canviarà quan el confirmis.",
+      "appliedSuccess": "Correu electrònic canviat.",
       "pending": "Canvi pendent a {email}",
       "pendingExpires": "L'enllaç de confirmació caduca el {date}.",
       "resend": "Torna a enviar l'enllaç",

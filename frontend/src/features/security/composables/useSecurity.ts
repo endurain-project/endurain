@@ -304,7 +304,7 @@ export function useChangeEmailMutation() {
   const invalidate = useInvalidateEmailViews()
 
   return useMutation<
-    void,
+    boolean,
     Error,
     { email: string; stepUp: StepUpInput; revokeOtherSessions: boolean }
   >({

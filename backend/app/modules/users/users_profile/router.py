@@ -135,13 +135,13 @@ def edit_user(
 
 @router.post(
     "/email/change",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
+    response_model=users_schema.UsersMe,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_profile_email(
     request: Request,
+    response: Response,
     email_change: users_schema.EmailChange,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: Annotated[
@@ -153,7 +153,7 @@ def edit_profile_email(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> None:
+) -> users_schema.UsersMe:
     """Request a change of the authenticated user's email after step-up verification.
 
     The address is where password resets go, so the caller must re-prove identity with the
@@ -161,20 +161,27 @@ def edit_profile_email(
     until the link emailed to the new one is followed, and the new address is shown as
     ``pending_email`` meanwhile. A later request replaces an earlier one, and the current address
     cancels a pending change. When the server cannot send mail the address changes at once, unverified.
-    The user's other sessions are revoked when the request asks for it.
+    The user's other sessions are revoked when the request asks for it. The answer is the profile as it
+    stands afterwards, so the client can tell a pending change (``pending_email``) from an applied one.
 
     Args:
         request: The incoming request, read by the rate limiter.
+        response: The response, which carries the user's current ETag.
         email_change: The new address with the step-up credentials.
         token_user_id: User ID from access token.
         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
         step_up_store: Step-up lockout store.
         db: Database session.
 
+    Returns:
+        The profile after the request; its ``version`` is also sent as the ETag.
+
     Raises:
         HTTPException: 401 if step-up verification fails, 409 if another account uses the address.
     """
-    profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, db)
+    profile = profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, db)
+    core_etag.set_etag(response, profile.version)
+    return profile
 
 
 @router.post(

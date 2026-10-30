@@ -683,6 +683,7 @@
       "subtitle": "Hier worden wachtwoordherstellingen en meldingen naartoe gestuurd. Voor een wijziging moet je je identiteit bevestigen, en het nieuwe adres gaat pas in zodra je het bevestigt via een link die we ernaartoe sturen.",
       "sameAsCurrent": "Dit is al je e-mailadres.",
       "success": "Bevestigingslink verzonden naar het nieuwe adres. Je e-mailadres wijzigt zodra je het bevestigt.",
+      "appliedSuccess": "E-mailadres gewijzigd.",
       "pending": "Wijziging naar {email} in behandeling",
       "pendingExpires": "De bevestigingslink verloopt op {date}.",
       "resend": "Link opnieuw versturen",

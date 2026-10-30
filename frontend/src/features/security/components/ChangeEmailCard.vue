@@ -121,8 +121,11 @@ function submit(): void {
       revokeOtherSessions: revokeOtherSessions.value,
     },
     {
-      onSuccess: () => {
-        toasts.success(t('settings.security.email.success'))
+      onSuccess: (pending) => {
+        // Without outgoing mail the server applies the address at once, so no link was sent.
+        toasts.success(
+          t(pending ? 'settings.security.email.success' : 'settings.security.email.appliedSuccess'),
+        )
         resetForm()
       },
       onError: (error) => {

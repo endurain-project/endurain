@@ -55,7 +55,7 @@ describe('useChangeEmailMutation', () => {
   it('refreshes the users domain, so an admin sees their new unverified email', async () => {
     const queryClient = new QueryClient()
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
-    vi.mocked(changeEmail).mockResolvedValue()
+    vi.mocked(changeEmail).mockResolvedValue(true)
     const mutation = mountMutation(queryClient, useChangeEmailMutation)
 
     await mutation.mutateAsync({

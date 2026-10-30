@@ -683,6 +683,7 @@
       "subtitle": "Čia siunčiami slaptažodžio atstatymo ir pranešimai. Keičiant reikia patvirtinti savo tapatybę, o naujas adresas įsigalioja tik patvirtinus jį per nuorodą, kuri į jį išsiunčiama.",
       "sameAsCurrent": "Tai jau jūsų el. pašto adresas.",
       "success": "Patvirtinimo nuoroda išsiųsta į naują adresą. Jūsų el. paštas pakeisis tik patvirtinus.",
+      "appliedSuccess": "El. pašto adresas pakeistas.",
       "pending": "Laukiamas keitimas į {email}",
       "pendingExpires": "Patvirtinimo nuoroda galioja iki {date}.",
       "resend": "Siųsti nuorodą iš naujo",

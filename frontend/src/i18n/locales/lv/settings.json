@@ -683,6 +683,7 @@
       "subtitle": "Šeit tiek sūtītas paroles atjaunošanas saites un paziņojumi. Lai to mainītu, jāapstiprina sava identitāte, un jaunā adrese stāsies spēkā tikai pēc tam, kad to apstiprināsi, izmantojot uz to nosūtīto saiti.",
       "sameAsCurrent": "Šī jau ir jūsu e-pasta adrese.",
       "success": "Apstiprinājuma saite nosūtīta uz jauno adresi. Jūsu e-pasts mainīsies pēc apstiprināšanas.",
+      "appliedSuccess": "E-pasta adrese nomainīta.",
       "pending": "Gaidāma maiņa uz {email}",
       "pendingExpires": "Apstiprinājuma saite beigsies {date}.",
       "resend": "Nosūtīt saiti atkārtoti",

@@ -683,6 +683,7 @@
       "subtitle": "Ovdje se šalju poveznice za poništavanje lozinke i obavijesti. Za promjenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem poveznice koju na nju šaljemo.",
       "sameAsCurrent": "Ovo je već vaša adresa e-pošte.",
       "success": "Poveznica za potvrdu poslana je na novu adresu. Vaša e-pošta promijenit će se nakon potvrde.",
+      "appliedSuccess": "E-pošta je promijenjena.",
       "pending": "Promjena na čekanju na {email}",
       "pendingExpires": "Poveznica za potvrdu istječe {date}.",
       "resend": "Ponovno pošalji poveznicu",

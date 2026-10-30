@@ -683,6 +683,7 @@
       "subtitle": "Tänne lähetetään salasanan palautukset ja ilmoitukset. Muutos edellyttää henkilöllisyyden vahvistamista, ja uusi osoite tulee voimaan, kun vahvistat sen linkistä, joka lähetetään sinne.",
       "sameAsCurrent": "Tämä on jo sähköpostiosoitteesi.",
       "success": "Vahvistuslinkki lähetettiin uuteen osoitteeseen. Sähköpostisi vaihtuu, kun vahvistat sen.",
+      "appliedSuccess": "Sähköpostiosoite vaihdettu.",
       "pending": "Odottava muutos osoitteeseen {email}",
       "pendingExpires": "Vahvistuslinkki vanhenee {date}.",
       "resend": "Lähetä linkki uudelleen",

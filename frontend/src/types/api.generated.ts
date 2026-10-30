@@ -2798,15 +2798,20 @@ export interface paths {
          *     until the link emailed to the new one is followed, and the new address is shown as
          *     ``pending_email`` meanwhile. A later request replaces an earlier one, and the current address
          *     cancels a pending change. When the server cannot send mail the address changes at once, unverified.
-         *     The user's other sessions are revoked when the request asks for it.
+         *     The user's other sessions are revoked when the request asks for it. The answer is the profile as it
+         *     stands afterwards, so the client can tell a pending change (``pending_email``) from an applied one.
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which carries the user's current ETag.
          *         email_change: The new address with the step-up credentials.
          *         token_user_id: User ID from access token.
          *         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
+         *
+         *     Returns:
+         *         The profile after the request; its ``version`` is also sent as the ETag.
          *
          *     Raises:
          *         HTTPException: 401 if step-up verification fails, 409 if another account uses the address.
@@ -18026,11 +18031,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["UsersMe"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -429,20 +429,35 @@ class TestEditUser:
 class TestEditProfileEmail:
     """Tests for POST /profile/email/change — edit_profile_email."""
 
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
     @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change", return_value=True)
     @patch("modules.users.users_profile.service.users_integration.require_email_available")
     @patch("modules.users.users_profile.service.users_integration.require_user")
-    def test_success_runs_the_step_up_and_requests_the_change(
-        self, mock_require, _available, mock_request, profile_client, mock_auth_services
+    def test_success_runs_the_step_up_and_answers_with_the_profile_and_its_etag(
+        self,
+        mock_require,
+        _available,
+        mock_request,
+        mock_integrations,
+        mock_privacy,
+        profile_client,
+        mock_auth_services,
     ):
-        mock_require.return_value = _make_user_mock()
+        mock_require.return_value = _make_user_mock().model_copy(update={"version": 4})
+        mock_integrations.return_value = _make_integration_mock()
+        mock_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
 
         response = profile_client.post(
             PREFIX + "/email/change",
             json={"email": "new@example.com", "current_password": "pw", "mfa_code": None},
         )
 
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json()["email"] == "test@example.com"
+        assert response.headers["ETag"] == '"4"'
         mock_auth_services.verify_step_up.assert_called_once()
         assert mock_request.call_args.args[:3] == (1, "new@example.com", "test@example.com")
 

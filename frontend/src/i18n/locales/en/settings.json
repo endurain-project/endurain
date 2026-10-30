@@ -775,6 +775,7 @@
       "invalid": "Enter a valid email address.",
       "sameAsCurrent": "This is already your email address.",
       "success": "Confirmation link sent to the new address. Your email changes once you confirm it.",
+      "appliedSuccess": "Email changed.",
       "pending": "Pending change to {email}",
       "pendingExpires": "The confirmation link expires {date}.",
       "resend": "Resend link",

@@ -683,6 +683,7 @@
       "subtitle": "Aici sunt trimise resetările parolei și notificările. Pentru modificare trebuie să îți confirmi identitatea, iar noua adresă intră în vigoare după ce o confirmi printr-un link pe care îl trimitem acolo.",
       "sameAsCurrent": "Aceasta este deja adresa ta de e-mail.",
       "success": "Linkul de confirmare a fost trimis la noua adresă. E-mailul tău se va schimba după ce îl confirmi.",
+      "appliedSuccess": "Adresa de e-mail a fost schimbată.",
       "pending": "Schimbare în așteptare la {email}",
       "pendingExpires": "Linkul de confirmare expiră la {date}.",
       "resend": "Retrimite linkul",

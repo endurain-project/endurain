@@ -293,10 +293,14 @@ describe('changeEmail', () => {
     vi.mocked(apiFetch).mockReset()
   })
 
-  it('PUTs the new address together with the step-up credentials', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(undefined)
+  it('POSTs the new address together with the step-up credentials', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ pending_email: 'new@example.com' })
 
-    await changeEmail('new@example.com', { currentPassword: 'pw', mfaCode: '123456' }, true)
+    const pending = await changeEmail(
+      'new@example.com',
+      { currentPassword: 'pw', mfaCode: '123456' },
+      true,
+    )
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/email/change', {
       method: 'POST',
@@ -306,8 +310,16 @@ describe('changeEmail', () => {
         mfa_code: '123456',
         revoke_other_sessions: true,
       }),
-      responseType: 'void',
     })
+    expect(pending).toBe(true)
+  })
+
+  it('reports an address the server applied at once as not pending', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ email: 'new@example.com', pending_email: null })
+
+    await expect(
+      changeEmail('new@example.com', { currentPassword: 'pw', mfaCode: null }, false),
+    ).resolves.toBe(false)
   })
 })
 

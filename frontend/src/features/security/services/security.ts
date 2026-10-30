@@ -20,6 +20,7 @@ import type {
   SecuritySession,
   SecuritySessionDto,
   EmailChangeDto,
+  EmailChangeResultDto,
   IdpReauth,
   IdpReauthDto,
   StepUpDto,
@@ -375,23 +376,24 @@ export async function deleteAccount(input: StepUpInput): Promise<void> {
  * @param email - The new email address.
  * @param input - The step-up credentials (password and, with MFA, a code).
  * @param revokeOtherSessions - Whether to sign out every other session after the change.
+ * @returns Whether the new address awaits confirmation (`false` when it applied at once).
  * @throws {HttpError} When the request fails (401 step-up, 409 address already in use).
  */
 export async function changeEmail(
   email: string,
   input: StepUpInput,
   revokeOtherSessions: boolean,
-): Promise<void> {
+): Promise<boolean> {
   const payload: EmailChangeDto = {
     email,
     ...toStepUpWire(input),
     revoke_other_sessions: revokeOtherSessions,
   }
-  await apiFetch('/profile/email/change', {
+  const profile = await apiFetch<EmailChangeResultDto>('/profile/email/change', {
     method: 'POST',
     body: JSON.stringify(payload),
-    responseType: 'void',
   })
+  return profile.pending_email != null
 }
 
 /**

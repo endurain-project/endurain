@@ -683,6 +683,7 @@
       "subtitle": "Tutaj wysyłane są resetowania hasła i powiadomienia. Zmiana wymaga potwierdzenia tożsamości, a nowy adres obowiązuje dopiero po potwierdzeniu go za pomocą linku, który na niego wysyłamy.",
       "sameAsCurrent": "To jest już Twój adres e-mail.",
       "success": "Link potwierdzający został wysłany na nowy adres. Twój e-mail zmieni się po jego potwierdzeniu.",
+      "appliedSuccess": "Adres e-mail zmieniony.",
       "pending": "Oczekująca zmiana na {email}",
       "pendingExpires": "Link potwierdzający wygasa {date}.",
       "resend": "Wyślij link ponownie",
