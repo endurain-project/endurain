@@ -29,7 +29,7 @@ def fetch_activity_laps(
         state: The platform state provider holding the shared rate-limit state.
 
     Returns:
-        The converted laps, or ``None`` when Strava could not return them.
+        The converted laps, or ``None`` when Strava has none for the activity.
     """
     return strava_activity_service.fetch_and_process_activity_laps(
         strava_client,

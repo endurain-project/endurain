@@ -605,10 +605,11 @@ def fetch_and_process_activity_laps(
         rate_limits: The shared Strava rate-limit state.
 
     Returns:
-        The converted laps, or ``None`` when Strava could not return them.
+        The converted laps, or ``None`` when Strava has none for the activity.
 
     Raises:
         TooManyRequestsError: When Strava's rate limit is active or was just hit.
+        DependencyFailedError: When Strava cannot return the laps.
     """
     client_id = strava_client_service.get_client_id(user_integrations)
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
@@ -616,14 +617,21 @@ def fetch_and_process_activity_laps(
     try:
         laps = strava_client.get_activity_laps(strava_activity_id)
     except Exception as err:
+        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
+        # Laps don't exist for some activities; import the activity without them.
+        if strava_client_service.is_strava_not_found_error(err):
+            logger.debug(
+                "No laps found for Strava activity, continuing without laps",
+                extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
+            )
+            return None
         logger.warning(
             "Error fetching Strava activity laps",
             extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             exc_info=err,
         )
-        # The activity is stored without laps rather than not at all
-        return None
+        raise core_exceptions.DependencyFailedError("Not able to fetch Strava activity laps") from err
 
     # Create an array to store the processed laps
     laps_processed = []

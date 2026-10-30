@@ -324,11 +324,25 @@ class TestFetchAndProcessActivityLapsRateLimit:
         assert rate_limits.is_rate_limited("app-a") is True
         assert rate_limits.is_rate_limited("app-b") is False
 
-    def test_another_failure_still_returns_none(self, rate_limits):
+    def test_not_found_returns_none(self, rate_limits):
+        client = Mock()
+        client.get_activity_laps.side_effect = _make_strava_fault(404)
+
+        assert self._call(client, rate_limits) is None
+
+    def test_another_failure_raises_so_the_activity_is_retried(self, rate_limits):
+        client = Mock()
+        client.get_activity_laps.side_effect = _make_strava_fault(503)
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            self._call(client, rate_limits)
+
+    def test_a_network_failure_raises_so_the_activity_is_retried(self, rate_limits):
         client = Mock()
         client.get_activity_laps.side_effect = RuntimeError("network failure")
 
-        assert self._call(client, rate_limits) is None
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            self._call(client, rate_limits)
 
 
 class TestFetchAndProcessActivityLapsElevation:
@@ -499,6 +513,15 @@ class TestARejectedTokenUnlinksTheAccount:
                 user_integrations=self._integrations(),
                 rate_limits=rate_limits,
             )
+
+        assert handle.call_args.args[:2] == (1, "enc")
+
+    def test_the_laps_fetch(self, handle, rate_limits):
+        client = Mock()
+        client.get_activity_laps.side_effect = AccessUnauthorized()
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            activity_utils.fetch_and_process_activity_laps(client, 99, 1, [], self._integrations(), rate_limits)
 
         assert handle.call_args.args[:2] == (1, "enc")
 
