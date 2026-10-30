@@ -71,9 +71,9 @@ def test_session_lookup_returns_dto_and_none(lookup, mock_db):
     assert lookup("missing", mock_db) is None
 
 
-def test_session_lookup_translates_database_errors(mock_db):
+def test_session_lookup_lets_database_errors_reach_the_global_handler(mock_db):
     mock_db.execute.side_effect = SQLAlchemyError("database unavailable")
-    with pytest.raises(core_exceptions.ProcessingError):
+    with pytest.raises(SQLAlchemyError):
         sessions_crud.get_session_by_id("session-id", mock_db)
 
 
