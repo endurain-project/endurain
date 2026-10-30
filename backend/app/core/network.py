@@ -292,7 +292,7 @@ def get_ip_address(request: Request) -> str:
             return hops[0]
 
         real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
+        if real_ip and _looks_like_ip(real_ip):
             return real_ip
 
     # Untrusted peer or no peer info — use the raw socket IP

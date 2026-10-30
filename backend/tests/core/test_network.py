@@ -709,3 +709,33 @@ class TestUrlRejectionReasonBounded:
 
     def test_a_url_refused_without_dns_needs_no_slot(self):
         assert core_network.url_rejection_reason_bounded("ftp://example.com/x") is not None
+
+
+class TestXRealIpValidation:
+    """X-Real-IP is only used when it is a valid IP address."""
+
+    @staticmethod
+    def _request(real_ip):
+        from unittest.mock import MagicMock
+
+        request = MagicMock()
+        request.client.host = "10.0.0.1"
+        request.headers = {"X-Real-IP": real_ip}
+        return request
+
+    def test_a_valid_address_is_used(self):
+        from unittest.mock import patch
+
+        import core.network as core_network
+
+        with patch.object(core_network, "_is_trusted_peer", return_value=True):
+            assert core_network.get_ip_address(self._request("203.0.113.7")) == "203.0.113.7"
+
+    @pytest.mark.parametrize("value", ["not-an-ip", "x" * 500, "203.0.113.7, 1.1.1.1"])
+    def test_an_invalid_value_falls_back_to_the_peer_address(self, value):
+        from unittest.mock import patch
+
+        import core.network as core_network
+
+        with patch.object(core_network, "_is_trusted_peer", return_value=True):
+            assert core_network.get_ip_address(self._request(value)) == "10.0.0.1"
