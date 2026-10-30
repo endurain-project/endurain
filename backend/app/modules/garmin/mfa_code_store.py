@@ -28,7 +28,7 @@ logger = core_logger.get_logger(__name__)
 
 _GARMIN_MFA_KEY_PREFIX = "endurain:garmin:mfa:code"
 # TTL must exceed the 65-second blocking_login timeout in garmin/utils.py.
-_DEFAULT_TTL_SECONDS: int = 90
+_DEFAULT_TTL_SECONDS: int = 200
 
 
 class GarminMFACodeStoreUnavailableError(RuntimeError):

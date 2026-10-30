@@ -19,6 +19,11 @@ import modules.websocket.utils as websocket_utils
 
 logger = core_logger.get_logger(__name__)
 
+# Users with a Garmin Connect link in flight. A second concurrent login makes
+# Garmin send a second MFA code, and both logins then race for the one code
+# the user types, so one of them always fails.
+_links_in_progress: set[int] = set()
+
 
 async def get_mfa(
     user_id: int,
@@ -29,7 +34,7 @@ async def get_mfa(
     await notify_frontend_mfa_required(user_id, websocket_manager)
 
     # Wait for the MFA code
-    for _ in range(60):  # Timeout after 60 seconds
+    for _ in range(180):  # Timeout after 180 seconds; email/SMS codes can be slow
         if mfa_codes.has_code(user_id):
             return mfa_codes.get_code(user_id)
         await asyncio.sleep(1)
@@ -54,15 +59,22 @@ async def link_garminconnect(
     websocket_manager: websocket_manager.WebSocketManager,
     is_cn: bool = False,
 ):
+    if user_id in _links_in_progress:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A Garmin Connect link is already in progress",
+        )
+    _links_in_progress.add(user_id)
+
     # Capture the running event loop so the thread can schedule async work on it
     loop = asyncio.get_running_loop()
 
     def blocking_login():
         # Bridge sync→async: schedule the async MFA prompt on the event loop
-        # and block the thread until the user submits the code (timeout 65 s)
+        # and block the thread until the user submits the code (timeout 185 s)
         def sync_mfa_callback():
             future = asyncio.run_coroutine_threadsafe(get_mfa(user_id, mfa_codes, websocket_manager), loop)
-            return future.result(timeout=65)
+            return future.result(timeout=185)
 
         # Create a new Garmin object
         garmin = garminconnect.Garmin(
@@ -128,6 +140,7 @@ async def link_garminconnect(
             detail="Internal server error while linking Garmin Connect",
         ) from err
     finally:
+        _links_in_progress.discard(user_id)
         if mfa_codes.has_code(user_id):
             mfa_codes.delete_code(user_id)
 

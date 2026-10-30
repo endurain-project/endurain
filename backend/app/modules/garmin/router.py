@@ -75,7 +75,9 @@ async def garminconnect_mfa_code(
     ],
 ):
     # Store the MFA code
-    mfa_codes.add_code(token_user_id, mfa_request.mfa_code)
+    # Codes are often pasted or autofilled as "123 456" or "123-456"
+    mfa_code = "".join(mfa_request.mfa_code.split()).replace("-", "")
+    mfa_codes.add_code(token_user_id, mfa_code)
     return {"message": "MFA code received successfully"}
 
 

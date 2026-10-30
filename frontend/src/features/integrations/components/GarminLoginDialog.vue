@@ -71,6 +71,11 @@ onUnmounted(stopListening)
 
 /** Starts the link; the request resolves once any required MFA code is supplied. */
 function onLogin(): void {
+  // Enter in a field or a double click must not start a second Garmin login:
+  // each one makes Garmin send its own MFA code, so one of them always fails.
+  if (linkMutation.isPending.value) {
+    return
+  }
   linkMutation.mutate(
     { username: username.value.trim(), password: password.value, isCn: isCn.value },
     {
