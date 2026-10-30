@@ -11,6 +11,7 @@ The only jobs declared here are core's and the substrate's own.
 """
 
 import inspect
+import time
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -27,8 +28,8 @@ logger = core_logger.get_logger(__name__)
 
 scheduler = AsyncIOScheduler()
 
-#: How much of its interval a run of a locked job marks as done. Each replica's scheduler fires its own
-#: interval, so a run marks the job for most of one: another replica's tick inside it skips, and the mark
+#: How much of its interval, counted from the start of a run, a successful run of a locked job marks as done.
+#: Each replica's scheduler fires its own interval, so another replica's tick inside the mark skips, and the mark
 #: has expired by the time this replica's own next tick comes round.
 _DUE_MARK_FRACTION = 0.9
 
@@ -88,41 +89,76 @@ def run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -
         return func(*args) if acquired else None
 
 
-def _claim_interval(lock_name: str, minutes: int) -> bool:
-    """Mark a locked job as run for this interval, unless another replica already ran it.
+def _mark_key(lock_name: str) -> str:
+    """Build the state key that marks a locked job as run this interval.
+
+    Args:
+        lock_name: Stable coordination-lock name, which also names the mark.
+
+    Returns:
+        The state key.
+    """
+    return f"endurain:scheduler:last-run:{lock_name}"
+
+
+def _is_due(lock_name: str) -> bool:
+    """Check, under the job's lock, whether another replica already ran a locked job this interval.
 
     The lock only keeps two runs from overlapping; without the mark, every replica would run the job once
     per interval of its own. An unreachable state store lets the run go ahead, still under its lock.
 
     Args:
         lock_name: Stable coordination-lock name, which also names the mark.
-        minutes: The job's interval.
 
     Returns:
         True when this run is due, False when another replica ran the job this interval.
     """
-    ttl_seconds = max(int(minutes * 60 * _DUE_MARK_FRACTION), 1)
     try:
-        claimed = platform_runtime.get_active_platform().state.set_if_absent(
-            f"endurain:scheduler:last-run:{lock_name}", b"1", ttl_seconds
-        )
+        marked = platform_runtime.get_active_platform().state.get(_mark_key(lock_name)) is not None
     except StateBackendUnavailableError as err:
         logger.warning(
-            "Could not mark a scheduler job as run; running it under its lock",
+            "Could not read whether a scheduler job ran; running it under its lock",
             exc_info=err,
             extra=core_logger.context(lock_name=lock_name),
         )
         return True
-    if not claimed:
+    if marked:
         logger.debug(
             "Scheduler job skipped because another replica already ran it this interval",
             extra=core_logger.context(lock_name=lock_name),
         )
-    return claimed
+    return not marked
+
+
+def _mark_run(lock_name: str, minutes: int, started: float) -> None:
+    """Mark a locked job as run for the rest of this interval, after a run that succeeded.
+
+    Only a finished run is marked, so a run that raised, or a replica that died mid-run, leaves the job due at
+    the next tick of any replica. The mark lasts until a fixed share of the interval after the run started; a
+    run that took longer leaves no mark.
+
+    Args:
+        lock_name: Stable coordination-lock name, which also names the mark.
+        minutes: The job's interval.
+        started: ``time.monotonic()`` when the run started.
+    """
+    ttl_seconds = int(minutes * 60 * _DUE_MARK_FRACTION - (time.monotonic() - started))
+    if ttl_seconds < 1:
+        return
+    try:
+        platform_runtime.get_active_platform().state.set(_mark_key(lock_name), b"1", ttl_seconds=ttl_seconds)
+    except StateBackendUnavailableError as err:
+        logger.warning(
+            "Could not mark a scheduler job as run; another replica may run it again this interval",
+            exc_info=err,
+            extra=core_logger.context(lock_name=lock_name),
+        )
 
 
 def run_due_job(lock_name: str, minutes: int, func: Callable[..., object], *args: object) -> object | None:
-    """Run a synchronous recurring job once per interval across every replica.
+    """Run a synchronous recurring job once per interval across every replica, retrying a failed run.
+
+    The lock is held across the check, the run and the mark, so two replicas never run the job at once.
 
     Args:
         lock_name: Stable coordination-lock name.
@@ -134,11 +170,18 @@ def run_due_job(lock_name: str, minutes: int, func: Callable[..., object], *args
         The operation result, or ``None`` when another replica holds the lock or already ran the job.
     """
     with _held_lock(lock_name) as acquired:
-        return func(*args) if acquired and _claim_interval(lock_name, minutes) else None
+        if not acquired or not _is_due(lock_name):
+            return None
+        started = time.monotonic()
+        result = func(*args)
+        _mark_run(lock_name, minutes, started)
+        return result
 
 
 async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., object], *args: object) -> object | None:
-    """Run an asynchronous recurring job once per interval across every replica.
+    """Run an asynchronous recurring job once per interval across every replica, retrying a failed run.
+
+    The lock is held across the check, the run and the mark, so two replicas never run the job at once.
 
     Args:
         lock_name: Stable coordination-lock name.
@@ -150,11 +193,13 @@ async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., o
         The awaited result, or ``None`` when another replica holds the lock or already ran the job.
     """
     with _held_lock(lock_name) as acquired:
-        if not acquired or not _claim_interval(lock_name, minutes):
+        if not acquired or not _is_due(lock_name):
             return None
+        started = time.monotonic()
         result = func(*args)
         if inspect.isawaitable(result):
-            return await result
+            result = await result
+        _mark_run(lock_name, minutes, started)
         return result
 
 
