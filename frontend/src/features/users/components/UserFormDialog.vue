@@ -549,8 +549,8 @@ watch(open, (isOpen) => {
 
       <FormField
         v-if="isMetric"
-        :label="`${t('settings.users.form.height')} (${t('settings.users.form.unitCm')})`"
-        :placeholder="`${t('settings.users.form.height')} (${t('settings.users.form.unitCm')})`"
+        :label="`${t('settings.users.form.height')} (${t('units.cm')})`"
+        :placeholder="`${t('settings.users.form.height')} (${t('units.cm')})`"
       >
         <template #default="{ fieldId, placeholder }">
           <input
@@ -573,11 +573,7 @@ watch(open, (isOpen) => {
           t('settings.users.form.height')
         }}</span>
         <div class="flex gap-3">
-          <FormField
-            class="flex-1"
-            :error="errors.heightFeet"
-            :placeholder="t('settings.users.form.unitFeet')"
-          >
+          <FormField class="flex-1" :error="errors.heightFeet" :placeholder="t('units.ft')">
             <template #default="{ fieldId, describedBy, invalid, placeholder }">
               <input
                 :id="fieldId"
@@ -585,7 +581,7 @@ watch(open, (isOpen) => {
                 :class="inputFieldClass"
                 :aria-describedby="describedBy"
                 :aria-invalid="invalid"
-                :aria-label="`${t('settings.users.form.height')} (${t('settings.users.form.unitFeet')})`"
+                :aria-label="`${t('settings.users.form.height')} (${t('units.ft')})`"
                 name="heightFeet"
                 type="number"
                 min="0"
@@ -597,11 +593,7 @@ watch(open, (isOpen) => {
               />
             </template>
           </FormField>
-          <FormField
-            class="flex-1"
-            :error="errors.heightInches"
-            :placeholder="t('settings.users.form.unitInches')"
-          >
+          <FormField class="flex-1" :error="errors.heightInches" :placeholder="t('units.in')">
             <template #default="{ fieldId, describedBy, invalid, placeholder }">
               <input
                 :id="fieldId"
@@ -609,7 +601,7 @@ watch(open, (isOpen) => {
                 :class="inputFieldClass"
                 :aria-describedby="describedBy"
                 :aria-invalid="invalid"
-                :aria-label="`${t('settings.users.form.height')} (${t('settings.users.form.unitInches')})`"
+                :aria-label="`${t('settings.users.form.height')} (${t('units.in')})`"
                 name="heightInches"
                 type="number"
                 min="0"
@@ -625,8 +617,8 @@ watch(open, (isOpen) => {
       </div>
 
       <FormField
-        :label="`${t('settings.users.form.maxHeartRate')} (${t('settings.users.form.unitBpm')})`"
-        :placeholder="`${t('settings.users.form.maxHeartRate')} (${t('settings.users.form.unitBpm')})`"
+        :label="`${t('settings.users.form.maxHeartRate')} (${t('units.bpm')})`"
+        :placeholder="`${t('settings.users.form.maxHeartRate')} (${t('units.bpm')})`"
       >
         <template #default="{ fieldId, placeholder }">
           <input

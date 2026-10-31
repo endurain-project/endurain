@@ -116,14 +116,14 @@
       "units": "Eenheden",
       "unitsMetric": "Metrisch",
       "unitsImperial": "Imperiaal",
+      "weightUnits": "Gewichtseenheden",
+      "weightUnitsDefault": "Eenheden volgen",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pond (lb)",
       "height": "Lengte",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Voeten moet tussen 0 en 10 zijn",
       "inchesInvalid": "Inches moet tussen 0 en 11 zijn",
       "maxHeartRate": "Max. hartslag",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -508,13 +508,6 @@
       "distance": "Afstand",
       "elevation": "Hoogte",
       "duration": "Duur"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Doel {name} bewerken",

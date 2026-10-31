@@ -1,11 +1,14 @@
 /**
  * Health display formatters — pure functions that turn raw metric values into
  * the strings shown on the dashboard cards. Unit-system-aware values (weight,
- * water) convert via the shared `@/utils/units` helpers; threshold logic (BMI
- * category, HRV status) returns i18n key suffixes the view resolves to labels,
- * keeping the cutoffs unit-testable and out of the template.
+ * water) convert via the shared `@/utils/units` helpers; formatters that print a
+ * unit symbol or a duration take the resolver from `useUnitFormat()` so the text
+ * comes from the active locale; threshold logic (BMI category, HRV status)
+ * returns i18n key suffixes the view resolves to labels, keeping the cutoffs
+ * unit-testable and out of the template.
  */
 
+import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 import type { FastingSnapshot, HealthChartBucket } from '@/features/health/types'
 
@@ -13,17 +16,25 @@ import { kgToLbs, mlToFlOz } from '@/utils/units'
 
 type Units = Schemas['Units']
 
+/** Resolves a unit key to its localized symbol (`useUnitFormat().unitLabel`). */
+type UnitLabel = (unit: UnitKey) => string
+
+/** Formats an hours-and-minutes duration (`useUnitFormat().duration`). */
+type DurationFormat = (hours: number, minutes: number, showZeroHours?: boolean) => string
+
 /**
- * Formats a duration in seconds as a compact `Hh Mm` string (e.g. `8h 5m`).
+ * Formats a duration in seconds as a compact localized hours-and-minutes string
+ * (e.g. `8h 5m`), always showing the hours part (`0h 5m`).
  *
  * @param seconds - Duration in seconds (clamped to zero if negative).
- * @returns The `Hh Mm` representation.
+ * @param duration - The localized hours-and-minutes formatter.
+ * @returns The hours-and-minutes representation.
  */
-export function formatHoursMinutes(seconds: number): string {
+export function formatHoursMinutes(seconds: number, duration: DurationFormat): string {
   const totalMinutes = Math.max(0, Math.round(seconds / 60))
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
-  return `${hours}h ${minutes}m`
+  return duration(hours, minutes, true)
 }
 
 /**
@@ -46,20 +57,22 @@ export function formatElapsedClock(seconds: number): string {
  * Formats a resting heart rate as `52 bpm`.
  *
  * @param bpm - Resting heart rate in beats per minute.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted heart rate.
  */
-export function formatRestingHeartRate(bpm: number): string {
-  return `${Math.round(bpm)} bpm`
+export function formatRestingHeartRate(bpm: number, unitLabel: UnitLabel): string {
+  return `${Math.round(bpm)} ${unitLabel('bpm')}`
 }
 
 /**
  * Formats a skin-temperature deviation to one decimal place in °C.
  *
  * @param celsius - Deviation in degrees Celsius (may be negative).
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted deviation.
  */
-export function formatSkinTempDeviation(celsius: number): string {
-  return `${celsius.toFixed(1)} °C`
+export function formatSkinTempDeviation(celsius: number, unitLabel: UnitLabel): string {
+  return `${celsius.toFixed(1)} ${unitLabel('celsius')}`
 }
 
 /**
@@ -67,13 +80,14 @@ export function formatSkinTempDeviation(celsius: number): string {
  *
  * @param weightKg - Weight in kilograms.
  * @param weightUnits - The unit system the user weighs in.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted weight (`72.0 kg` or `158.7 lb`).
  */
-export function formatWeight(weightKg: number, weightUnits: Units): string {
+export function formatWeight(weightKg: number, weightUnits: Units, unitLabel: UnitLabel): string {
   if (weightUnits === 'imperial') {
-    return `${kgToLbs(weightKg).toFixed(1)} lb`
+    return `${kgToLbs(weightKg).toFixed(1)} ${unitLabel('lb')}`
   }
-  return `${weightKg.toFixed(1)} kg`
+  return `${weightKg.toFixed(1)} ${unitLabel('kg')}`
 }
 
 /**
@@ -82,13 +96,14 @@ export function formatWeight(weightKg: number, weightUnits: Units): string {
  *
  * @param massKg - Mass in kilograms.
  * @param weightUnits - The unit system the user weighs in.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted mass (`5.20 kg` or `11.46 lb`).
  */
-export function formatBodyMass(massKg: number, weightUnits: Units): string {
+export function formatBodyMass(massKg: number, weightUnits: Units, unitLabel: UnitLabel): string {
   if (weightUnits === 'imperial') {
-    return `${kgToLbs(massKg).toFixed(2)} lb`
+    return `${kgToLbs(massKg).toFixed(2)} ${unitLabel('lb')}`
   }
-  return `${massKg.toFixed(2)} kg`
+  return `${massKg.toFixed(2)} ${unitLabel('kg')}`
 }
 
 /**
@@ -158,13 +173,14 @@ export function formatSteps(steps: number): string {
  *
  * @param amountMl - Volume in millilitres.
  * @param units - The user's unit system.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted volume (`1500 ml` or `50.7 fl oz`).
  */
-export function formatWater(amountMl: number, units: Units): string {
+export function formatWater(amountMl: number, units: Units, unitLabel: UnitLabel): string {
   if (units === 'imperial') {
-    return `${mlToFlOz(amountMl).toFixed(1)} fl oz`
+    return `${mlToFlOz(amountMl).toFixed(1)} ${unitLabel('flOz')}`
   }
-  return `${Math.round(amountMl)} ml`
+  return `${Math.round(amountMl)} ${unitLabel('ml')}`
 }
 
 /**

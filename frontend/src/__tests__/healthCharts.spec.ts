@@ -85,6 +85,8 @@ describe('health charts plot the aggregated series', () => {
 
     expect(metric.series[0]!.data).toEqual([70])
     expect(imperial.series[0]!.data).toEqual([154.3])
+    expect(metric.valueFormat?.(70)).toBe('70.0 units.kg')
+    expect(imperial.valueFormat?.(154.3)).toBe('154.3 units.lb')
   })
 
   it('water converts to the viewer units', () => {
@@ -102,6 +104,8 @@ describe('health charts plot the aggregated series', () => {
 
     expect(metric.series[0]!.data).toEqual([2000])
     expect(imperial.series[0]!.data).toEqual([33.8])
+    expect(metric.valueFormat?.(2000)).toBe('2000 units.ml')
+    expect(imperial.valueFormat?.(33.8)).toBe('33.8 units.flOz')
   })
 
   it('poop plots movements per day to one decimal', () => {

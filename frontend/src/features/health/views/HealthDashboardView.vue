@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import HealthDashboardCard from '@/features/health/components/HealthDashboardCard.vue'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useHealthDashboardQuery } from '@/features/health/composables/useHealth'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   bmiCategoryKey,
   fastingElapsedSeconds,
@@ -27,6 +28,7 @@ import {
  * the user's unit system. Mirrors v1's HealthDashboardZoneComponent.
  */
 const { t } = useI18n()
+const { duration, unitLabel } = useUnitFormat()
 
 const dashboardQuery = useHealthDashboardQuery()
 const { data: user } = useCurrentUser()
@@ -121,32 +123,37 @@ const cards = computed<CardModel[]>(() => {
     {
       key: 'sleep',
       title: t('health.dashboard.sleep'),
-      value: d?.sleepSeconds != null ? formatHoursMinutes(d.sleepSeconds) : null,
+      value: d?.sleepSeconds != null ? formatHoursMinutes(d.sleepSeconds, duration) : null,
       noDataLabel: noData,
       noTargetLabel: t('health.dashboard.noSleepTarget'),
-      targetDisplayValue: tg?.sleepSeconds != null ? formatHoursMinutes(tg.sleepSeconds) : null,
+      targetDisplayValue:
+        tg?.sleepSeconds != null ? formatHoursMinutes(tg.sleepSeconds, duration) : null,
       arrowDirection: arrow(d?.sleepSeconds ?? null, tg?.sleepSeconds ?? null),
     },
     {
       key: 'rhr',
       title: t('health.dashboard.restingHeartRate'),
-      value: d?.restingHeartRate != null ? formatRestingHeartRate(d.restingHeartRate) : null,
+      value:
+        d?.restingHeartRate != null ? formatRestingHeartRate(d.restingHeartRate, unitLabel) : null,
       noDataLabel: noData,
       footerText: hrvLabel(d?.hrvStatus ?? null),
     },
     {
       key: 'skinTemp',
       title: t('health.dashboard.avgSkinTemperatureDeviation'),
-      value: d?.skinTempDeviation != null ? formatSkinTempDeviation(d.skinTempDeviation) : null,
+      value:
+        d?.skinTempDeviation != null
+          ? formatSkinTempDeviation(d.skinTempDeviation, unitLabel)
+          : null,
       noDataLabel: noData,
     },
     {
       key: 'weight',
       title: t('health.dashboard.weight'),
-      value: d?.weightKg != null ? formatWeight(d.weightKg, wu) : null,
+      value: d?.weightKg != null ? formatWeight(d.weightKg, wu, unitLabel) : null,
       noDataLabel: noData,
       noTargetLabel: t('health.dashboard.noWeightTarget'),
-      targetDisplayValue: tg?.weightKg != null ? formatWeight(tg.weightKg, wu) : null,
+      targetDisplayValue: tg?.weightKg != null ? formatWeight(tg.weightKg, wu, unitLabel) : null,
       arrowDirection: arrow(d?.weightKg ?? null, tg?.weightKg ?? null),
     },
     {
@@ -171,19 +178,20 @@ const cards = computed<CardModel[]>(() => {
     {
       key: 'fasting',
       title: t('health.dashboard.fasting'),
-      value: fastingSeconds != null ? formatHoursMinutes(fastingSeconds) : null,
+      value: fastingSeconds != null ? formatHoursMinutes(fastingSeconds, duration) : null,
       noDataLabel: noData,
       noTargetLabel: t('health.dashboard.noFastingTarget'),
-      targetDisplayValue: tg?.fastingSeconds != null ? formatHoursMinutes(tg.fastingSeconds) : null,
+      targetDisplayValue:
+        tg?.fastingSeconds != null ? formatHoursMinutes(tg.fastingSeconds, duration) : null,
       arrowDirection: arrow(fastingSeconds, tg?.fastingSeconds ?? null),
     },
     {
       key: 'water',
       title: t('health.dashboard.water'),
-      value: d?.waterMl != null ? formatWater(d.waterMl, u) : null,
+      value: d?.waterMl != null ? formatWater(d.waterMl, u, unitLabel) : null,
       noDataLabel: noData,
       noTargetLabel: t('health.dashboard.noWaterTarget'),
-      targetDisplayValue: tg?.waterMl != null ? formatWater(tg.waterMl, u) : null,
+      targetDisplayValue: tg?.waterMl != null ? formatWater(tg.waterMl, u, unitLabel) : null,
       arrowDirection: arrow(d?.waterMl ?? null, tg?.waterMl ?? null),
     },
     {

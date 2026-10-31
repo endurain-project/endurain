@@ -116,14 +116,14 @@
       "units": "Μονάδες",
       "unitsMetric": "Μετρικές",
       "unitsImperial": "Αγγλοσαξονικές",
+      "weightUnits": "Μονάδες βάρους",
+      "weightUnitsDefault": "Ακολουθεί τις μονάδες",
+      "weightUnitsMetric": "Κιλά (kg)",
+      "weightUnitsImperial": "Λίβρες (lb)",
       "height": "Ύψος",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Τα πόδια πρέπει να είναι μεταξύ 0 και 10",
       "inchesInvalid": "Οι ίντσες πρέπει να είναι μεταξύ 0 και 11",
       "maxHeartRate": "Μέγιστος καρδιακός παλμός",
-      "unitBpm": "bpm",
       "currency": "Νόμισμα",
       "currencies": {
         "euro": "Ευρώ",
@@ -508,13 +508,6 @@
       "distance": "Απόσταση",
       "elevation": "Υψομετρική διαφορά",
       "duration": "Διάρκεια"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Επεξεργασία στόχου {name}",

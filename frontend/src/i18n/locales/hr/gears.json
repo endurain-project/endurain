@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtri",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bicikl",
     "shoes": "Obuća",
@@ -91,7 +89,6 @@
     "unsupported": "Ova vrsta opreme ne prati komponente.",
     "noneActive": "Sve su komponente neaktivne. Uključite „Prikaži neaktivno” za njihov prikaz.",
     "inactive": "Neaktivno",
-    "unitHours": "h",
     "purchasedOn": "Kupljeno {date}",
     "wearLabel": "Trošenje: {name}",
     "actions": {

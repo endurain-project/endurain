@@ -116,14 +116,14 @@
       "units": "Mértékegységek",
       "unitsMetric": "Metrikus",
       "unitsImperial": "Angolszász",
+      "weightUnits": "Súlymértékegység",
+      "weightUnitsDefault": "Mértékegységek követése",
+      "weightUnitsMetric": "Kilogramm (kg)",
+      "weightUnitsImperial": "Font (lb)",
       "height": "Magasság",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "A láb értéke 0 és 10 között lehet",
       "inchesInvalid": "A hüvelyk értéke 0 és 11 között lehet",
       "maxHeartRate": "Max. pulzusszám",
-      "unitBpm": "bpm",
       "currency": "Pénznem",
       "currencies": {
         "euro": "Euró",
@@ -508,13 +508,6 @@
       "distance": "Táv",
       "elevation": "Szintemelkedés",
       "duration": "Időtartam"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "A(z) {name} cél szerkesztése",

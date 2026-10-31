@@ -108,18 +108,6 @@ export function hoursMinutesToSeconds(hours: number, minutes: number): number {
   )
 }
 
-/**
- * Formats a duration in seconds as a compact `Hh Mm` string (or `Mm` under an
- * hour), matching how the rest of the app summarizes durations.
- *
- * @param seconds - Duration in seconds.
- * @returns A compact human-readable duration, e.g. `12h 30m` or `45m`.
- */
-export function formatGoalDuration(seconds: number): string {
-  const { hours, minutes } = secondsToHoursMinutes(seconds)
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-}
-
 /** Recurrence intervals in display order, shared by the goal form and filters. */
 export const GOAL_INTERVALS: readonly GoalInterval[] = ['daily', 'weekly', 'monthly', 'yearly']
 

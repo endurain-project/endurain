@@ -116,14 +116,14 @@
       "units": "Enheder",
       "unitsMetric": "Metrisk",
       "unitsImperial": "Imperisk",
+      "weightUnits": "Vægtenheder",
+      "weightUnitsDefault": "Følg enheder",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pund (lb)",
       "height": "Højde",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Fod skal være mellem 0 og 10",
       "inchesInvalid": "Tommer skal være mellem 0 og 11",
       "maxHeartRate": "Maks. puls",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -508,13 +508,6 @@
       "distance": "Distance",
       "elevation": "Højdemeter",
       "duration": "Varighed"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Redigér {name}-mål",

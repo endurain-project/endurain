@@ -6,6 +6,7 @@ import type { Schemas } from '@/types'
 import type { WaterEntry, WaterEntryInput } from '@/features/health/types'
 import type { Validator } from '@/utils/validators'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
@@ -38,6 +39,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateWaterEntryMutation()
 const updateMutation = useUpdateWaterEntryMutation()
@@ -134,7 +136,7 @@ const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.water.form.editTitle') : t('health.water.form.addTitle'),
 )
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const amountUnitLabel = computed(() => unitLabel(isImperial.value ? 'flOz' : 'ml'))
 const amountLabel = computed(() => `${t('health.water.form.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */

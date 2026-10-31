@@ -8,6 +8,7 @@ import type { HealthChartSeries } from '@/features/health/types'
 import { themeColor } from '@/lib/themeColor'
 import HealthChartCard from '@/features/health/components/HealthChartCard.vue'
 import { useHealthMetricChart } from '@/features/health/composables/useHealthMetricChart'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHealthChartLabel, formatHoursMinutes } from '@/features/health/utils/healthFormat'
 
 const props = defineProps<{
@@ -18,6 +19,7 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+const { duration } = useUnitFormat()
 
 const SLEEP_COLOR = themeColor('--color-brand-mid')
 const TARGET_COLOR = themeColor('--color-goal')
@@ -49,7 +51,7 @@ const chartRender = computed<ChartRenderOptions>(() => {
     kind: 'bar',
     series,
     labels,
-    valueFormat: (value) => formatHoursMinutes(value * 3600),
+    valueFormat: (value) => formatHoursMinutes(value * 3600, duration),
   }
 })
 

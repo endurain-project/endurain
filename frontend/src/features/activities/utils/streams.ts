@@ -1,6 +1,7 @@
 import type { ChartRenderOptions } from '@/composables/useChartProvider'
 import type { GeoPoint } from '@/composables/useMapProvider'
 
+import type { UnitKey } from '@/i18n'
 import { themeColor } from '@/lib/themeColor'
 
 import type {
@@ -198,22 +199,23 @@ function valueFormatter(
   metric: StreamMetric,
   activityType: number,
   units: Units,
+  unitLabel: (unit: UnitKey) => string,
 ): (value: number) => string {
   switch (metric) {
     case 'hr':
-      return (v) => `${Math.round(v)} bpm`
+      return (v) => `${Math.round(v)} ${unitLabel('bpm')}`
     case 'power':
-      return (v) => `${Math.round(v)} W`
+      return (v) => `${Math.round(v)} ${unitLabel('w')}`
     case 'cadence':
-      return (v) => `${Math.round(v)} ${cadenceUnitLabel(activityType)}`
+      return (v) => `${Math.round(v)} ${unitLabel(cadenceUnitLabel(activityType))}`
     case 'elevation':
-      return (v) => `${Math.round(v)} ${units === 'imperial' ? 'ft' : 'm'}`
+      return (v) => `${Math.round(v)} ${unitLabel(units === 'imperial' ? 'ft' : 'm')}`
     case 'velocity':
-      return (v) => `${v.toFixed(1)} ${speedUnitLabel(activityType, units)}`
+      return (v) => `${v.toFixed(1)} ${unitLabel(speedUnitLabel(activityType, units))}`
     case 'pace':
       return (v) => formatPaceClock(v)
     case 'temperature':
-      return (v) => `${v.toFixed(1)}°${units === 'imperial' ? 'F' : 'C'}`
+      return (v) => `${v.toFixed(1)} ${unitLabel(units === 'imperial' ? 'fahrenheit' : 'celsius')}`
     default:
       return (v) => String(v)
   }
@@ -256,14 +258,14 @@ function buildTimeLabels(pointCount: number, totalSeconds: number): string[] {
  * @param pointCount - Number of samples in the series.
  * @param activity - The activity (distance / time basis).
  * @param units - The user's unit system.
- * @returns Labels of length `pointCount` and their unit suffix (`''` for
+ * @returns Labels of length `pointCount` and their unit key (`null` for
  *   self-describing axes such as time, or the index fallback).
  */
 function buildChartXAxis(
   pointCount: number,
   activity: Activity,
   units: Units,
-): { labels: string[]; unit: string } {
+): { labels: string[]; unit: UnitKey | null } {
   if (activity.distance > 0) {
     return {
       labels: buildDistanceLabels(pointCount, activity.distance, units),
@@ -272,13 +274,13 @@ function buildChartXAxis(
   }
   const seconds = activityDuration(activity)
   if (seconds !== null) {
-    return { labels: buildTimeLabels(pointCount, seconds), unit: '' }
+    return { labels: buildTimeLabels(pointCount, seconds), unit: null }
   }
   const labels: string[] = []
   for (let i = 0; i < pointCount; i += 1) {
     labels.push(String(i + 1))
   }
-  return { labels, unit: '' }
+  return { labels, unit: null }
 }
 
 /** A single stat shown beneath a stream chart (e.g. avg/max for that metric). */
@@ -287,8 +289,8 @@ export interface StreamStat {
   labelKey: string
   /** Formatted value. */
   value: string
-  /** Unit suffix (may be empty). */
-  unit: string
+  /** Unit key, or `null` for a unitless value. */
+  unit: UnitKey | null
 }
 
 /** Whether a numeric activity field is present and finite. */
@@ -309,11 +311,11 @@ function statPresent(value: number | null | undefined): value is number {
 function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units): StreamStat[] {
   const type = activity.activityType
   const stats: StreamStat[] = []
-  const push = (labelKey: string, formatted: { value: string; unit: string }): void => {
+  const push = (labelKey: string, formatted: { value: string; unit: UnitKey | null }): void => {
     stats.push({ labelKey, value: formatted.value, unit: formatted.unit })
   }
   const watts = (labelKey: string, value: number): void => {
-    stats.push({ labelKey, value: String(Math.round(value)), unit: 'W' })
+    stats.push({ labelKey, value: String(Math.round(value)), unit: 'w' })
   }
   // The summary "Time" tile already shows the activity duration, so the speed
   // and pace rows add elapsed time only when stops make it longer.
@@ -323,7 +325,7 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
       stats.push({
         labelKey: 'activities.metrics.elapsedTime',
         value: formatHmsDuration(elapsed),
-        unit: '',
+        unit: null,
       })
     }
   }
@@ -422,12 +424,14 @@ export interface StreamChart {
  * @param stream - The metric stream.
  * @param activity - The activity domain model (type, distance, aggregate stats).
  * @param units - The user's unit system.
+ * @param unitLabel - Resolves a unit key to its localized symbol for the chart ticks and tooltips.
  * @returns The chart model, or `null`.
  */
 export function buildStreamChart(
   stream: ActivityStream,
   activity: Activity,
   units: Units,
+  unitLabel: (unit: UnitKey) => string,
 ): StreamChart | null {
   const metric = METRIC_BY_TYPE[stream.streamType]
   if (!metric || stream.waypoints.length === 0) {
@@ -452,8 +456,8 @@ export function buildStreamChart(
       kind: 'line',
       series: [{ label: METRIC_TITLE_KEY[metric], data, color: METRIC_COLOR[metric] }],
       labels: xAxis.labels,
-      xUnit: xAxis.unit,
-      valueFormat: valueFormatter(metric, type, units),
+      xUnit: xAxis.unit ? unitLabel(xAxis.unit) : '',
+      valueFormat: valueFormatter(metric, type, units, unitLabel),
       zoom: true,
     },
     stats: buildStreamStats(metric, activity, units),
@@ -468,6 +472,7 @@ export function buildStreamChart(
  * @param streams - The activity's metric streams.
  * @param activity - The activity domain model.
  * @param units - The user's unit system.
+ * @param unitLabel - Resolves a unit key to its localized symbol for the chart ticks and tooltips.
  * @param isMetricVisible - Predicate deciding whether a metric is visible to
  *   the current viewer (owner vs. privacy flags).
  * @returns The ordered, visible, type-relevant chart models.
@@ -476,6 +481,7 @@ export function buildStreamCharts(
   streams: ActivityStream[],
   activity: Activity,
   units: Units,
+  unitLabel: (unit: UnitKey) => string,
   isMetricVisible: (metric: StreamMetric) => boolean,
 ): StreamChart[] {
   const type = activity.activityType
@@ -490,7 +496,7 @@ export function buildStreamCharts(
     ) {
       continue
     }
-    const chart = buildStreamChart(stream, activity, units)
+    const chart = buildStreamChart(stream, activity, units, unitLabel)
     if (chart) {
       byMetric.set(metric, chart)
     }

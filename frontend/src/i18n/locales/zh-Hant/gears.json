@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "篩選",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "自行車",
     "shoes": "跑鞋",
@@ -91,7 +89,6 @@
     "unsupported": "此裝備類型不支援零件追蹤。",
     "noneActive": "所有零件均已停用。開啟「顯示停用裝備」以查看。",
     "inactive": "停用",
-    "unitHours": "h",
     "purchasedOn": "購買於 {date}",
     "wearLabel": "{name} 磨耗",
     "actions": {

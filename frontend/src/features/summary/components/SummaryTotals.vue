@@ -6,11 +6,13 @@ import type { Units } from '@/features/activities/utils/format'
 import type { SummaryTotals } from '@/features/summary/types'
 
 import { Card } from '@/components/ui/card'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   formatSummaryCalories,
   formatSummaryDistance,
   formatSummaryDuration,
   formatSummaryElevation,
+  type SummaryMetric,
 } from '@/features/summary/utils/summaryFormat'
 
 const props = defineProps<{
@@ -21,6 +23,13 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel, duration } = useUnitFormat()
+
+/** The duration as a unitless metric: the unit is part of the localized text. */
+function summaryDuration(seconds: number): SummaryMetric {
+  const { hours, minutes } = formatSummaryDuration(seconds)
+  return { value: duration(hours, minutes), unit: null }
+}
 
 /** The five headline totals, formatted into `{ value, unit }` tiles. */
 const tiles = computed(() => [
@@ -32,7 +41,7 @@ const tiles = computed(() => [
   {
     key: 'duration',
     label: t('summary.metrics.duration'),
-    metric: formatSummaryDuration(props.totals.totalDuration),
+    metric: summaryDuration(props.totals.totalDuration),
   },
   {
     key: 'elevation',
@@ -47,7 +56,7 @@ const tiles = computed(() => [
   {
     key: 'activities',
     label: t('summary.metrics.activities'),
-    metric: { value: props.totals.activityCount.toString(), unit: '' },
+    metric: { value: props.totals.activityCount.toString(), unit: null },
   },
 ])
 </script>
@@ -58,7 +67,7 @@ const tiles = computed(() => [
       <p class="text-caption">{{ tile.label }}</p>
       <p class="text-page-title tabular-nums">
         {{ tile.metric.value }}
-        <span v-if="tile.metric.unit" class="text-hint">{{ tile.metric.unit }}</span>
+        <span v-if="tile.metric.unit" class="text-hint">{{ unitLabel(tile.metric.unit) }}</span>
       </p>
     </Card>
   </div>

@@ -1,4 +1,5 @@
 import type { MetricPillVariants } from '@/components/ui/metric-pill'
+import type { UnitKey } from '@/i18n'
 
 import type { Activity } from '../types'
 import {
@@ -11,12 +12,12 @@ import {
   activityTypeUsesPace,
 } from './activityType'
 import {
-  combineMetric,
   formatDistance,
   formatElevation,
   formatHmsDuration,
   formatPace,
   formatSpeed,
+  type FormattedMetric,
   type Units,
 } from './format'
 
@@ -38,8 +39,8 @@ export interface MetricTile {
   labelKey: string
   /** Formatted value. */
   value: string
-  /** Unit suffix (may be empty). */
-  unit: string
+  /** Unit key, or `null` for a unitless value. */
+  unit: UnitKey | null
   /** Semantic colour accent for the value. */
   accent: NonNullable<MetricPillVariants['accent']>
 }
@@ -113,7 +114,7 @@ export function buildActivityMetrics(
         key: 'time',
         labelKey: 'activities.metrics.time',
         value: formatHmsDuration(duration),
-        unit: '',
+        unit: null,
         accent: 'ink',
       })
     }
@@ -127,7 +128,7 @@ export function buildActivityMetrics(
         key: 'elapsedTime',
         labelKey: 'activities.metrics.elapsedTime',
         value: formatHmsDuration(elapsed),
-        unit: '',
+        unit: null,
         accent: 'ink',
       })
     }
@@ -185,7 +186,7 @@ export function buildActivityMetrics(
         key: 'avgPower',
         labelKey: 'activities.metrics.avgPower',
         value: String(Math.round(activity.averagePower)),
-        unit: 'W',
+        unit: 'w',
         accent: 'effort',
       })
     }
@@ -221,7 +222,7 @@ export function buildActivityMetrics(
         key: 'jumps',
         labelKey: 'activities.metrics.jumps',
         value: String(Math.round(activity.totalCycles)),
-        unit: '',
+        unit: null,
         accent: 'brand',
       })
     }
@@ -285,20 +286,16 @@ export function buildActivityMetrics(
  * @param enhancedAvgSpeed - Lap average speed in metres per second.
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns A combined `value unit` string, or `--`.
+ * @returns The split pace or speed metric, or `null` when the lap has no reading.
  */
 export function formatLapTempo(
   enhancedAvgPace: number | null,
   enhancedAvgSpeed: number | null,
   activityType: number,
   units: Units,
-): string {
+): FormattedMetric | null {
   if (activityTypeUsesPace(activityType)) {
-    return enhancedAvgPace === null
-      ? '--'
-      : combineMetric(formatPace(enhancedAvgPace, activityType, units))
+    return enhancedAvgPace === null ? null : formatPace(enhancedAvgPace, activityType, units)
   }
-  return enhancedAvgSpeed === null
-    ? '--'
-    : combineMetric(formatSpeed(enhancedAvgSpeed, activityType, units))
+  return enhancedAvgSpeed === null ? null : formatSpeed(enhancedAvgSpeed, activityType, units)
 }

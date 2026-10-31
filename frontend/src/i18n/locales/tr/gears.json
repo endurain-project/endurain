@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtreler",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bisiklet",
     "shoes": "Ayakkabı",
@@ -91,7 +89,6 @@
     "unsupported": "Bu ekipman türü bileşen takibi yapmaz.",
     "noneActive": "Tüm bileşenler pasif. Görmek için \"Pasif olanları göster\" seçeneğini açın.",
     "inactive": "Pasif",
-    "unitHours": "h",
     "purchasedOn": "{date} tarihinde satın alındı",
     "wearLabel": "{name} aşınması",
     "actions": {

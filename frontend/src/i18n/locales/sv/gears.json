@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filter",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Cykel",
     "shoes": "Skor",
@@ -91,7 +89,6 @@
     "unsupported": "Den här utrustningstypen spårar inte komponenter.",
     "noneActive": "Alla komponenter är inaktiva. Aktivera \"Visa inaktiv\" för att se dem.",
     "inactive": "Inaktiv",
-    "unitHours": "h",
     "purchasedOn": "Köpt {date}",
     "wearLabel": "{name} slitage",
     "actions": {

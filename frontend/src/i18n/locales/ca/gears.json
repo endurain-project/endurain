@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtres",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bicicleta",
     "shoes": "Sabatilles",
@@ -91,7 +89,6 @@
     "unsupported": "Aquest tipus d'equipament no fa el seguiment de components.",
     "noneActive": "Tots els components estan inactius. Activa \"Mostra els inactius\" per veure'ls.",
     "inactive": "Inactiu",
-    "unitHours": "h",
     "purchasedOn": "Comprat el {date}",
     "wearLabel": "Desgast de {name}",
     "actions": {

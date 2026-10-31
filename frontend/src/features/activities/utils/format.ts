@@ -1,3 +1,4 @@
+import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 
 import { kmToMiles } from '@/utils/units'
@@ -30,19 +31,8 @@ const METERS_TO_FEET = 3.28084
 export interface FormattedMetric {
   /** The formatted numeric value (no unit). */
   value: string
-  /** The unit suffix (may be empty). */
-  unit: string
-}
-
-/**
- * Combines a {@link FormattedMetric} into a single `value unit` string for
- * dense contexts (lap tables, tooltips).
- *
- * @param metric - The split metric.
- * @returns The combined string.
- */
-export function combineMetric(metric: FormattedMetric): string {
-  return metric.unit ? `${metric.value} ${metric.unit}` : metric.value
+  /** The unit key, or `null` for a unitless value. */
+  unit: UnitKey | null
 }
 
 /**
@@ -87,20 +77,20 @@ export function formatPaceClock(secondsPerUnit: number): string {
 }
 
 /**
- * Resolves the pace unit label for an activity type and unit system.
+ * Resolves the pace unit key for an activity type and unit system.
  *
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns The pace unit label (e.g. `min/km`).
+ * @returns The pace unit key (e.g. `minPerKm`).
  */
-export function paceUnitLabel(activityType: number, units: Units): string {
+export function paceUnitLabel(activityType: number, units: Units): UnitKey {
   if (activityTypeIsSwimming(activityType)) {
-    return units === 'imperial' ? 'min/100yd' : 'min/100m'
+    return units === 'imperial' ? 'minPer100yd' : 'minPer100m'
   }
   if (activityTypeIsRowing(activityType) || activityTypeIsStandUpPaddling(activityType)) {
-    return 'min/500m'
+    return 'minPer500m'
   }
-  return units === 'imperial' ? 'min/mi' : 'min/km'
+  return units === 'imperial' ? 'minPerMi' : 'minPerKm'
 }
 
 /**
@@ -153,17 +143,17 @@ export function formatPace(
 }
 
 /**
- * Resolves the speed unit label, accounting for marine sports (knots).
+ * Resolves the speed unit key, accounting for marine sports (knots).
  *
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns The speed unit label.
+ * @returns The speed unit key.
  */
-export function speedUnitLabel(activityType: number, units: Units): string {
+export function speedUnitLabel(activityType: number, units: Units): UnitKey {
   if (activityTypeUsesKnots(activityType)) {
     return 'kn'
   }
-  return units === 'imperial' ? 'mph' : 'km/h'
+  return units === 'imperial' ? 'mph' : 'kmh'
 }
 
 /**
@@ -208,13 +198,13 @@ export function formatSpeed(
 }
 
 /**
- * Resolves the distance unit label, accounting for swimming (metres/yards).
+ * Resolves the distance unit key, accounting for swimming (metres/yards).
  *
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns The distance unit label.
+ * @returns The distance unit key.
  */
-export function distanceUnitLabel(activityType: number, units: Units): string {
+export function distanceUnitLabel(activityType: number, units: Units): UnitKey {
   if (activityTypeIsSwimming(activityType)) {
     return units === 'imperial' ? 'yd' : 'm'
   }
@@ -277,7 +267,7 @@ export function elevationToDisplay(meters: number, units: Units): number {
  * @returns The split elevation metric.
  */
 export function formatElevation(meters: number | null | undefined, units: Units): FormattedMetric {
-  const unit = units === 'imperial' ? 'ft' : 'm'
+  const unit: UnitKey = units === 'imperial' ? 'ft' : 'm'
   if (meters === null || meters === undefined) {
     return { value: '--', unit }
   }
@@ -319,11 +309,11 @@ export function presentCadence(raw: number, activityType: number): number {
 }
 
 /**
- * Resolves the cadence unit label (SPM for running, RPM otherwise).
+ * Resolves the cadence unit key (SPM for running, RPM otherwise).
  *
  * @param activityType - Numeric activity type.
- * @returns The cadence unit label.
+ * @returns The cadence unit key.
  */
-export function cadenceUnitLabel(activityType: number): string {
+export function cadenceUnitLabel(activityType: number): UnitKey {
   return activityTypeIsRunning(activityType) ? 'spm' : 'rpm'
 }

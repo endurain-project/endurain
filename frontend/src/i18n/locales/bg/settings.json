@@ -116,14 +116,14 @@
       "units": "Мерни единици",
       "unitsMetric": "Метрични",
       "unitsImperial": "Имперски",
+      "weightUnits": "Мерни единици за тегло",
+      "weightUnitsDefault": "Според мерните единици",
+      "weightUnitsMetric": "Килограми (kg)",
+      "weightUnitsImperial": "Паунда (lb)",
       "height": "Височина",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Футовете трябва да са между 0 и 10",
       "inchesInvalid": "Инчовете трябва да са между 0 и 11",
       "maxHeartRate": "Максимален пулс",
-      "unitBpm": "bpm",
       "currency": "Валута",
       "currencies": {
         "euro": "Евро",
@@ -508,13 +508,6 @@
       "distance": "Разстояние",
       "elevation": "Изкачване",
       "duration": "Продължителност"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Редактирай целта {name}",

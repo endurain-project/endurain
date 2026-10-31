@@ -8,6 +8,7 @@ import type { HealthChartSeries } from '@/features/health/types'
 import { themeColor } from '@/lib/themeColor'
 import HealthChartCard from '@/features/health/components/HealthChartCard.vue'
 import { useHealthMetricChart } from '@/features/health/composables/useHealthMetricChart'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   formatHealthChartLabel,
   formatRestingHeartRate,
@@ -19,6 +20,7 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const RHR_COLOR = themeColor('--color-brand-mid')
 
@@ -32,7 +34,7 @@ const chartRender = computed<ChartRenderOptions>(() => {
     kind: 'line',
     series: [{ label: t('health.rhr.chartSeries'), data, color: RHR_COLOR }],
     labels,
-    valueFormat: (value) => formatRestingHeartRate(value),
+    valueFormat: (value) => formatRestingHeartRate(value, unitLabel),
   }
 })
 

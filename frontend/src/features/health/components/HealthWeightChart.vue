@@ -2,10 +2,12 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { UnitKey } from '@/i18n'
 import type { ChartRenderOptions } from '@/composables/useChartProvider'
 import type { Schemas } from '@/types'
 import type { HealthChartSeries } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { themeColor } from '@/lib/themeColor'
 import { kgToLbs } from '@/utils/units'
 import HealthChartCard from '@/features/health/components/HealthChartCard.vue'
@@ -22,6 +24,7 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const WEIGHT_COLOR = themeColor('--color-brand-mid')
 const TARGET_COLOR = themeColor('--color-goal')
@@ -32,7 +35,7 @@ function toDisplay(kg: number): number {
 }
 
 /** Unit suffix shown on the y-axis ticks and tooltip. */
-const unitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lb' : 'kg'))
+const unitKey = computed<UnitKey>(() => (props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 
 /** Render options for the chart provider: a weight line plus an optional target line. */
 const chartRender = computed<ChartRenderOptions>(() => {
@@ -56,7 +59,7 @@ const chartRender = computed<ChartRenderOptions>(() => {
     kind: 'line',
     series,
     labels,
-    valueFormat: (value) => `${value.toFixed(1)} ${unitLabel.value}`,
+    valueFormat: (value) => `${value.toFixed(1)} ${unitLabel(unitKey.value)}`,
   }
 })
 

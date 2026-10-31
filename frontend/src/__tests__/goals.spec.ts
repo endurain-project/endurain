@@ -14,7 +14,6 @@ import {
 import {
   distanceValueToMeters,
   elevationValueToMeters,
-  formatGoalDuration,
   hoursMinutesToSeconds,
   metersToDistanceValue,
   metersToElevationValue,
@@ -250,10 +249,5 @@ describe('goal unit conversions', () => {
   it('splits and recombines durations', () => {
     expect(secondsToHoursMinutes(5400)).toEqual({ hours: 1, minutes: 30 })
     expect(hoursMinutesToSeconds(1, 30)).toBe(5400)
-  })
-
-  it('formats durations compactly', () => {
-    expect(formatGoalDuration(5400)).toBe('1h 30m')
-    expect(formatGoalDuration(1800)).toBe('30m')
   })
 })

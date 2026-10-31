@@ -400,7 +400,7 @@ watch(open, (isOpen) => {
             name="heightCm"
             type="number"
             min="0"
-            :placeholder="t('settings.users.form.unitCm')"
+            :placeholder="t('units.cm')"
             :disabled="isSubmitting"
           />
         </template>
@@ -420,13 +420,13 @@ watch(open, (isOpen) => {
               min="0"
               max="10"
               step="1"
-              :placeholder="t('settings.users.form.unitFeet')"
+              :placeholder="t('units.ft')"
               :disabled="isSubmitting"
               @blur="handleBlur('heightFeet')"
             />
           </template>
         </FormField>
-        <FormField :label="t('settings.users.form.unitInches')" :error="errors.heightInches">
+        <FormField :label="t('units.in')" :error="errors.heightInches">
           <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
@@ -439,7 +439,7 @@ watch(open, (isOpen) => {
               min="0"
               max="11"
               step="1"
-              :placeholder="t('settings.users.form.unitInches')"
+              :placeholder="t('units.in')"
               :disabled="isSubmitting"
               @blur="handleBlur('heightInches')"
             />
@@ -456,7 +456,7 @@ watch(open, (isOpen) => {
             name="maxHeartRate"
             type="number"
             min="0"
-            :placeholder="t('settings.users.form.unitBpm')"
+            :placeholder="t('units.bpm')"
             :disabled="isSubmitting"
           />
         </template>

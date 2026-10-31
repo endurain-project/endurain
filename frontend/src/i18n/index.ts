@@ -17,6 +17,7 @@ import enSearch from './locales/en/search.json'
 import enUserProfile from './locales/en/userProfile.json'
 import enSummary from './locales/en/summary.json'
 import enHealth from './locales/en/health.json'
+import enUnits from './locales/en/units.json'
 
 /**
  * English message set, assembled from one file per feature namespace. The
@@ -40,6 +41,7 @@ const en = {
   userProfile: enUserProfile,
   summary: enSummary,
   health: enHealth,
+  units: enUnits,
 }
 
 /**
@@ -47,6 +49,13 @@ const en = {
  * `en` is the source of truth; every other locale must match this schema.
  */
 export type MessageSchema = typeof en
+
+/**
+ * A measurement unit symbol under `units.*` (e.g. `km`, `kg`, `bpm`). Formatters
+ * return these keys so they stay free of i18n; the view resolves them through
+ * `useUnitFormat`.
+ */
+export type UnitKey = Exclude<keyof MessageSchema['units'], 'duration'>
 
 /** Locales the app can switch to, in display order. */
 export const SUPPORTED_LOCALES = [

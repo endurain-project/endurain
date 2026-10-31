@@ -8,11 +8,8 @@ import type { Units } from '@/features/activities/utils/format'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  combineMetric,
-  formatDistance,
-  formatHmsDuration,
-} from '@/features/activities/utils/format'
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { formatDistance, formatHmsDuration } from '@/features/activities/utils/format'
 import { type SportStatRow, type StatMetric, topSports } from '@/features/home/utils/sportStats'
 
 const props = defineProps<{
@@ -27,6 +24,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel, formatMetric } = useUnitFormat()
 
 /** The metric the user ranks and displays their sports by. */
 const metric = ref<StatMetric>('distance')
@@ -59,12 +57,12 @@ const monthRows = computed(() => topSports(props.monthStats, metric.value))
 /** Formats a sport row's value for the currently selected metric. */
 function formatValue(row: SportStatRow): string {
   if (metric.value === 'distance') {
-    return combineMetric(formatDistance(row.stats.distance, row.activityType, props.units))
+    return formatMetric(formatDistance(row.stats.distance, row.activityType, props.units))
   }
   if (metric.value === 'time') {
     return formatHmsDuration(row.stats.time)
   }
-  return `${Math.round(row.stats.calories)} ${t('home.stats.caloriesUnit')}`
+  return `${Math.round(row.stats.calories)} ${unitLabel('kcal')}`
 }
 </script>
 

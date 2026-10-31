@@ -105,6 +105,19 @@ describe('ProfileInfoCard', () => {
     expect(valueFor(wrapper, 'Weight units')).toBe('Pounds (lb)')
   })
 
+  it('shows the height in localized units for each measurement system', () => {
+    const metric = mountCard(makeProfile({ units: 'metric', height: 178 }))
+    expect(valueFor(metric, 'Height')).toBe('178 cm')
+
+    const imperial = mountCard(makeProfile({ units: 'imperial', height: 178 }))
+    expect(valueFor(imperial, 'Height')).toBe('5 ft 10 in')
+  })
+
+  it('shows the maximum heart rate with the localized bpm unit', () => {
+    const wrapper = mountCard(makeProfile({ maxHeartRate: 190 }))
+    expect(valueFor(wrapper, 'Max heart rate')).toBe('190 bpm')
+  })
+
   it('shows the weight units the units setting implies when no override is set', () => {
     const metric = mountCard(makeProfile({ units: 'metric', weightUnits: null }))
     expect(valueFor(metric, 'Weight units')).toBe('Kilograms (kg)')

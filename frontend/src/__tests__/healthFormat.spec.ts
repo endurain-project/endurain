@@ -1,12 +1,53 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+import type { UnitKey } from '@/i18n'
 
 import {
   dateTimeLocalToIso,
   formatHealthChartLabel,
+  formatHoursMinutes,
+  formatRestingHeartRate,
+  formatSkinTempDeviation,
+  formatWater,
+  formatWeight,
   localDayOf,
   nowDateTimeLocalInput,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
+
+/** Wraps the unit key so a test can tell the resolver supplied the symbol. */
+const label = (unit: UnitKey): string => `<${unit}>`
+
+describe('unit-bearing formatters', () => {
+  it('formatHoursMinutes hands the parts to the duration formatter and keeps zero hours', () => {
+    const duration = vi.fn<(hours: number, minutes: number, showZeroHours?: boolean) => string>(
+      () => 'formatted',
+    )
+
+    expect(formatHoursMinutes(29100, duration)).toBe('formatted')
+    expect(duration).toHaveBeenCalledWith(8, 5, true)
+    formatHoursMinutes(-30, duration)
+    expect(duration).toHaveBeenLastCalledWith(0, 0, true)
+  })
+
+  it('formatRestingHeartRate rounds and takes the bpm symbol from the resolver', () => {
+    expect(formatRestingHeartRate(51.6, label)).toBe('52 <bpm>')
+  })
+
+  it('formatSkinTempDeviation takes the Celsius symbol from the resolver', () => {
+    expect(formatSkinTempDeviation(-1.24, label)).toBe('-1.2 <celsius>')
+  })
+
+  it('formatWeight picks kg or lb by unit system', () => {
+    expect(formatWeight(72, 'metric', label)).toBe('72.0 <kg>')
+    expect(formatWeight(72, 'imperial', label)).toBe('158.7 <lb>')
+  })
+
+  it('formatWater picks ml or fl oz by unit system', () => {
+    expect(formatWater(1500.4, 'metric', label)).toBe('1500 <ml>')
+    expect(formatWater(1500, 'imperial', label)).toBe('50.7 <flOz>')
+  })
+})
 
 describe('datetime-local round trip', () => {
   it('converts a local wall clock to a real UTC instant', () => {

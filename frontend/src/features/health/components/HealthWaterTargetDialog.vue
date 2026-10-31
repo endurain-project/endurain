@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Schemas } from '@/types'
 import type { HealthTargets } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const updateTargetMutation = useUpdateWaterTargetMutation()
 
@@ -73,7 +75,7 @@ const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>(
   onSubmit: submitForm,
 })
 
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const amountUnitLabel = computed(() => unitLabel(isImperial.value ? 'flOz' : 'ml'))
 const amountLabel = computed(() => `${t('health.water.target.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */

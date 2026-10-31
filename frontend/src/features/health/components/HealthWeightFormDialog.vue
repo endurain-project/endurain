@@ -6,6 +6,7 @@ import type { Schemas } from '@/types'
 import type { WeightEntry, WeightEntryInput } from '@/features/health/types'
 import type { Validator } from '@/utils/validators'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
@@ -38,6 +39,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateWeightEntryMutation()
 const updateMutation = useUpdateWeightEntryMutation()
@@ -147,7 +149,7 @@ const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.weight.form.editTitle') : t('health.weight.form.addTitle'),
 )
-const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() => unitLabel(props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.form.weight')} (${massUnitLabel.value})`)
 const boneMassLabel = computed(() => `${t('health.weight.form.boneMass')} (${massUnitLabel.value})`)
 const muscleMassLabel = computed(

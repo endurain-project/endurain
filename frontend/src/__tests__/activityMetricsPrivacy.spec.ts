@@ -153,8 +153,8 @@ describe('buildActivityMetrics', () => {
 
 describe('formatLapTempo', () => {
   it('uses pace for running and speed for cycling', () => {
-    expect(formatLapTempo(0.3, null, 1, 'metric')).toBe('5:00 min/km')
-    expect(formatLapTempo(null, 10, 4, 'metric')).toBe('36.00 km/h')
-    expect(formatLapTempo(null, null, 1, 'metric')).toBe('--')
+    expect(formatLapTempo(0.3, null, 1, 'metric')).toEqual({ value: '5:00', unit: 'minPerKm' })
+    expect(formatLapTempo(null, 10, 4, 'metric')).toEqual({ value: '36.00', unit: 'kmh' })
+    expect(formatLapTempo(null, null, 1, 'metric')).toBeNull()
   })
 })

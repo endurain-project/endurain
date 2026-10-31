@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
@@ -51,6 +52,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGearComponentMutation()
 const updateMutation = useUpdateGearComponentMutation()
@@ -194,12 +196,10 @@ const sortedTypes = computed(() =>
     humanizeComponentType(a).localeCompare(humanizeComponentType(b)),
   ),
 )
-const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
-)
+const distanceUnitLabel = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
 const expectedLabel = computed(() =>
   isTimeBasedGear(props.gearType)
-    ? `${t('gears.components.form.expectedTime')} (${t('gears.components.unitHours')})`
+    ? `${t('gears.components.form.expectedTime')} (${unitLabel('h')})`
     : `${t('gears.components.form.expectedDistance')} (${distanceUnitLabel.value})`,
 )
 const purchaseValueLabel = computed(

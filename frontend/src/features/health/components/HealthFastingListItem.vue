@@ -8,6 +8,7 @@ import type { FastingEntry, FastingStatus } from '@/features/health/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
 import { formatMediumDateTime } from '@/utils/datetime'
 
@@ -18,6 +19,7 @@ const props = defineProps<{
 const emit = defineEmits<{ edit: [entry: FastingEntry]; delete: [entry: FastingEntry] }>()
 
 const { t, locale } = useI18n()
+const { duration } = useUnitFormat()
 
 /** Badge colour per fasting status. */
 const STATUS_VARIANTS: Record<FastingStatus, 'default' | 'info' | 'warning' | 'outline'> = {
@@ -34,7 +36,7 @@ const statusVariant = computed(() =>
 /** Recorded length of the fast, shown in parentheses after the type. */
 const durationLabel = computed(() =>
   props.entry.actualDurationSeconds != null
-    ? formatHoursMinutes(props.entry.actualDurationSeconds)
+    ? formatHoursMinutes(props.entry.actualDurationSeconds, duration)
     : null,
 )
 

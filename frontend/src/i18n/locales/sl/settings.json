@@ -116,14 +116,14 @@
       "units": "Enote",
       "unitsMetric": "Metrični",
       "unitsImperial": "Imperialni",
+      "weightUnits": "Enote teže",
+      "weightUnitsDefault": "Sledi enotam",
+      "weightUnitsMetric": "Kilogrami (kg)",
+      "weightUnitsImperial": "Funti (lb)",
       "height": "Višina",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Čevlji morajo biti med 0 in 10",
       "inchesInvalid": "Palci morajo biti med 0 in 11",
       "maxHeartRate": "Maks. srčni utrip",
-      "unitBpm": "utrip/min",
       "currency": "Valuta",
       "currencies": {
         "euro": "Evro",
@@ -508,13 +508,6 @@
       "distance": "Razdalja",
       "elevation": "Višinska razlika",
       "duration": "Trajanje"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Uredi cilj {name}",

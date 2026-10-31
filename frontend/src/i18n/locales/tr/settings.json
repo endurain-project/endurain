@@ -116,14 +116,14 @@
       "units": "Birimler",
       "unitsMetric": "Metrik",
       "unitsImperial": "İngiliz",
+      "weightUnits": "Ağırlık birimleri",
+      "weightUnitsDefault": "Birimleri takip et",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pound (lb)",
       "height": "Boy",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Fit değeri 0 ile 10 arasında olmalı",
       "inchesInvalid": "İnç değeri 0 ile 11 arasında olmalı",
       "maxHeartRate": "Maks. kalp atış hızı",
-      "unitBpm": "bpm",
       "currency": "Para birimi",
       "currencies": {
         "euro": "Euro",
@@ -508,13 +508,6 @@
       "distance": "Mesafe",
       "elevation": "Yükseklik",
       "duration": "Süre"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "{name} hedefini düzenle",

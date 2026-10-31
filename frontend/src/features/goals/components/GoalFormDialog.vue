@@ -16,6 +16,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Select } from '@/components/ui/select'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import {
@@ -52,6 +53,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGoalMutation()
 const updateMutation = useUpdateGoalMutation()
@@ -174,12 +176,8 @@ const canSubmit = computed(() => {
   return base !== null && base > 0
 })
 
-const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.miles') : t('settings.goals.unit.km'),
-)
-const elevationUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.feet') : t('settings.goals.unit.meters'),
-)
+const distanceUnit = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
+const elevationUnit = computed(() => unitLabel(props.units === 'imperial' ? 'ft' : 'm'))
 const distanceLabel = computed(
   () => `${t('settings.goals.metric.distance')} (${distanceUnit.value})`,
 )
@@ -187,7 +185,7 @@ const elevationLabel = computed(
   () => `${t('settings.goals.metric.elevation')} (${elevationUnit.value})`,
 )
 const caloriesLabel = computed(
-  () => `${t('settings.goals.metric.calories')} (${t('settings.goals.unit.calories')})`,
+  () => `${t('settings.goals.metric.calories')} (${unitLabel('kcal')})`,
 )
 
 /** Seeds the form from the goal being edited, or pristine defaults. */

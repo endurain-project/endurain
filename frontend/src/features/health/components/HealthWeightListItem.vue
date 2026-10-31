@@ -8,6 +8,7 @@ import type { WeightEntry } from '@/features/health/types'
 
 import { Button } from '@/components/ui/button'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   formatBmi,
   formatBodyMass,
@@ -24,6 +25,7 @@ const props = defineProps<{
 const emit = defineEmits<{ edit: [entry: WeightEntry]; delete: [entry: WeightEntry] }>()
 
 const { t, locale } = useI18n()
+const { unitLabel, percent } = useUnitFormat()
 
 const expanded = ref(false)
 
@@ -39,7 +41,9 @@ const hasDetails = computed(
 
 /** Primary weight string, or an em dash when the entry carries no weight. */
 const weightLabel = computed(() =>
-  props.entry.weightKg === null ? '—' : formatWeight(props.entry.weightKg, props.weightUnits),
+  props.entry.weightKg === null
+    ? '—'
+    : formatWeight(props.entry.weightKg, props.weightUnits, unitLabel),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))
@@ -100,19 +104,19 @@ const fromGarmin = computed(() => props.entry.source === 'garmin')
       </div>
       <div v-if="entry.bodyFatPct !== null">
         <dt class="text-caption">{{ t('health.weight.detail.bodyFat') }}</dt>
-        <dd class="text-hint">{{ entry.bodyFatPct.toFixed(1) }}%</dd>
+        <dd class="text-hint">{{ percent(entry.bodyFatPct, 1) }}</dd>
       </div>
       <div v-if="entry.bodyWaterPct !== null">
         <dt class="text-caption">{{ t('health.weight.detail.bodyWater') }}</dt>
-        <dd class="text-hint">{{ entry.bodyWaterPct.toFixed(1) }}%</dd>
+        <dd class="text-hint">{{ percent(entry.bodyWaterPct, 1) }}</dd>
       </div>
       <div v-if="entry.boneMassKg !== null">
         <dt class="text-caption">{{ t('health.weight.detail.boneMass') }}</dt>
-        <dd class="text-hint">{{ formatBodyMass(entry.boneMassKg, weightUnits) }}</dd>
+        <dd class="text-hint">{{ formatBodyMass(entry.boneMassKg, weightUnits, unitLabel) }}</dd>
       </div>
       <div v-if="entry.muscleMassKg !== null">
         <dt class="text-caption">{{ t('health.weight.detail.muscleMass') }}</dt>
-        <dd class="text-hint">{{ formatBodyMass(entry.muscleMassKg, weightUnits) }}</dd>
+        <dd class="text-hint">{{ formatBodyMass(entry.muscleMassKg, weightUnits, unitLabel) }}</dd>
       </div>
     </dl>
   </div>

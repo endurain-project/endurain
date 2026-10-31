@@ -116,14 +116,14 @@
       "units": "Одиниці",
       "unitsMetric": "Метричні",
       "unitsImperial": "Імперські",
+      "weightUnits": "Одиниці ваги",
+      "weightUnitsDefault": "Відповідно до одиниць",
+      "weightUnitsMetric": "Кілограми (kg)",
+      "weightUnitsImperial": "Фунти (lb)",
       "height": "Зріст",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Фути мають бути від 0 до 10",
       "inchesInvalid": "Дюйми мають бути від 0 до 11",
       "maxHeartRate": "Макс. пульс",
-      "unitBpm": "bpm",
       "currency": "Валюта",
       "currencies": {
         "euro": "Євро",
@@ -508,13 +508,6 @@
       "distance": "Дистанція",
       "elevation": "Висота",
       "duration": "Тривалість"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Редагувати ціль {name}",

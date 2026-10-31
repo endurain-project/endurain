@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Schemas } from '@/types'
 import type { HealthTargets } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const updateTargetMutation = useUpdateWeightTargetMutation()
 
@@ -80,7 +82,7 @@ const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>(
   onSubmit: submitForm,
 })
 
-const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() => unitLabel(props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.target.weight')} (${massUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */

@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
@@ -42,6 +43,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGearMutation()
 const updateMutation = useUpdateGearMutation()
@@ -157,9 +159,7 @@ const dialogTitle = computed(() =>
 )
 // Racquets have no odometer, so the distance field is hidden for that type.
 const showDistance = computed(() => values.gearType !== GEAR_TYPE.RACQUET)
-const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
-)
+const distanceUnitLabel = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
 const distanceLabel = computed(
   () => `${t('gears.form.initialDistance')} (${distanceUnitLabel.value})`,
 )

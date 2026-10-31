@@ -116,14 +116,14 @@
       "units": "單位",
       "unitsMetric": "公制",
       "unitsImperial": "英制",
+      "weightUnits": "體重單位",
+      "weightUnitsDefault": "跟隨單位",
+      "weightUnitsMetric": "公斤 (kg)",
+      "weightUnitsImperial": "磅 (lb)",
       "height": "身高",
-      "unitCm": "公分",
-      "unitFeet": "英尺",
-      "unitInches": "英寸",
       "feetInvalid": "英尺必須介於 0 到 10 之間",
       "inchesInvalid": "英寸必須介於 0 到 11 之間",
       "maxHeartRate": "最大心率",
-      "unitBpm": "bpm",
       "currency": "貨幣",
       "currencies": {
         "euro": "歐元",
@@ -508,13 +508,6 @@
       "distance": "距離",
       "elevation": "爬升",
       "duration": "時長"
-    },
-    "unit": {
-      "calories": "大卡",
-      "km": "公里",
-      "miles": "英里",
-      "meters": "公尺",
-      "feet": "英尺"
     },
     "list": {
       "edit": "編輯 {name} 目標",

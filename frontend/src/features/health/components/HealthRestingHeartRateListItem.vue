@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { RestingHeartRateEntry } from '@/features/health/types'
 
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHealthEntryDate, formatRestingHeartRate } from '@/features/health/utils/healthFormat'
 
 const props = defineProps<{
@@ -13,12 +14,13 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 /** Primary heart-rate string, or an em dash when the entry carries no value. */
 const rhrLabel = computed(() =>
   props.entry.restingHeartRate === null
     ? '—'
-    : formatRestingHeartRate(props.entry.restingHeartRate),
+    : formatRestingHeartRate(props.entry.restingHeartRate, unitLabel),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))

@@ -17,7 +17,7 @@ import {
 } from '@/features/gears/services/gears'
 import {
   currencySymbol,
-  formatDuration,
+  splitDuration,
   kmToDisplayDistance,
   metersToDisplayDistance,
 } from '@/features/gears/utils/format'
@@ -271,9 +271,9 @@ describe('gear format helpers', () => {
     expect(metersToDisplayDistance(1609.344, 'imperial')).toBe(1)
   })
 
-  it('formats durations as compact hours and minutes', () => {
-    expect(formatDuration(3661)).toBe('1h 1m')
-    expect(formatDuration(2700)).toBe('45m')
-    expect(formatDuration(0)).toBe('0m')
+  it('splits durations into floored hours and minutes', () => {
+    expect(splitDuration(3661)).toEqual({ hours: 1, minutes: 1 })
+    expect(splitDuration(2700)).toEqual({ hours: 0, minutes: 45 })
+    expect(splitDuration(0)).toEqual({ hours: 0, minutes: 0 })
   })
 })

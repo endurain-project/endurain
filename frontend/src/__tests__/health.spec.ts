@@ -50,6 +50,7 @@ import {
   updateWeightTarget,
 } from '@/features/health/services/health'
 import { formatBodyMass, formatHealthEntryDate } from '@/features/health/utils/healthFormat'
+import type { UnitKey } from '@/i18n'
 import { kgToLbs, lbsToKg } from '@/utils/units'
 
 vi.mock('@/services/http', () => ({
@@ -154,13 +155,16 @@ describe('formatHealthEntryDate', () => {
   })
 })
 
+/** Wraps the unit key so a test can tell the resolver supplied the symbol. */
+const label = (unit: UnitKey): string => `<${unit}>`
+
 describe('formatBodyMass', () => {
   it('formats kilograms to two decimals for metric users', () => {
-    expect(formatBodyMass(3.2, 'metric')).toBe('3.20 kg')
+    expect(formatBodyMass(3.2, 'metric', label)).toBe('3.20 <kg>')
   })
 
   it('converts to pounds for imperial users', () => {
-    expect(formatBodyMass(5, 'imperial')).toBe(`${kgToLbs(5).toFixed(2)} lb`)
+    expect(formatBodyMass(5, 'imperial', label)).toBe(`${kgToLbs(5).toFixed(2)} <lb>`)
   })
 })
 

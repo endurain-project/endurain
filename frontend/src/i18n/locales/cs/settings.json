@@ -116,14 +116,14 @@
       "units": "Jednotky",
       "unitsMetric": "Metrické",
       "unitsImperial": "Imperiální",
+      "weightUnits": "Jednotky hmotnosti",
+      "weightUnitsDefault": "Podle jednotek",
+      "weightUnitsMetric": "Kilogramy (kg)",
+      "weightUnitsImperial": "Libry (lb)",
       "height": "Výška",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Stopy musí být mezi 0 a 10",
       "inchesInvalid": "Palce musí být mezi 0 a 11",
       "maxHeartRate": "Maximální tepová frekvence",
-      "unitBpm": "bpm",
       "currency": "Měna",
       "currencies": {
         "euro": "Euro",
@@ -508,13 +508,6 @@
       "distance": "Vzdálenost",
       "elevation": "Převýšení",
       "duration": "Doba trvání"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Upravit cíl {name}",
