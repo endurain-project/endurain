@@ -234,6 +234,9 @@ export interface Activity {
   city: string | null
   town: string | null
   country: string | null
+  /** Recording device, when the imported file named one. */
+  trackerManufacturer: string | null
+  trackerModel: string | null
 
   /** Total distance in metres. */
   distance: number

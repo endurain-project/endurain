@@ -29,6 +29,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import core.async_bridge as core_async_bridge
 import core.config as core_config
 import core.exceptions as core_exceptions
+import core.geocoding_place as core_geocoding_place
 import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
@@ -175,6 +176,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     # Install the host's configuration and correlation source before anything
     # reads them. The substrate logs its own capability report as it builds.
+    core_geocoding_place.install()
     substrate_settings = core_platform_settings.build_jasil_settings(core_config.settings)
     jasil_settings.configure(substrate_settings)
     jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
