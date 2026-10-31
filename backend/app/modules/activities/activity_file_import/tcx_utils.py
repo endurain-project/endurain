@@ -88,14 +88,18 @@ def _parse_laps(
         lap_moving = activity_file_import_parser_utils.compute_moving_time_from_times(
             [tp.time for tp in lap.trackpoints if tp.time is not None]
         )
+        # A lap can carry zero trackpoints (manual or sensor-less TCX); its
+        # positions are unknown then.
+        first_tp = lap.trackpoints[0] if lap.trackpoints else None
+        last_tp = lap.trackpoints[-1] if lap.trackpoints else None
 
         laps.append(
             {
                 "start_time": core_timezone.to_utc_aware(lap.start_time),
-                "start_position_lat": (lap.trackpoints[0].latitude),
-                "start_position_long": (lap.trackpoints[0].longitude),
-                "end_position_lat": (lap.trackpoints[-1].latitude),
-                "end_position_long": (lap.trackpoints[-1].longitude),
+                "start_position_lat": (first_tp.latitude if first_tp else None),
+                "start_position_long": (first_tp.longitude if first_tp else None),
+                "end_position_lat": (last_tp.latitude if last_tp else None),
+                "end_position_long": (last_tp.longitude if last_tp else None),
                 "total_elapsed_time": lap_elapsed,
                 "total_timer_time": lap_moving if lap_moving > 0 else lap_elapsed,
                 "total_distance": (round(lap.distance) if lap.distance else None),
@@ -141,7 +145,7 @@ def _extract_waypoints(
             "hr": tp["hr_value"],
         }
         for tp in trackpoints
-        if "hr_value" in tp and tp.get("time") is not None
+        if tp.get("hr_value") is not None and tp.get("time") is not None
     ]
 
     cad_waypoints = [
@@ -192,6 +196,7 @@ def _extract_waypoints(
     last_time = None
     prev_lat = None
     prev_lon = None
+    prev_pos_time = None
 
     def _close_segment() -> int:
         """Flush the open pause-split sub-segment when it has two points."""
@@ -218,6 +223,7 @@ def _extract_waypoints(
                 last_time = None
                 prev_lat = None
                 prev_lon = None
+                prev_pos_time = None
             elif delta > 0:
                 moving_time += delta
             # Non-positive deltas (duplicate/out-of-order timestamps) add
@@ -225,22 +231,29 @@ def _extract_waypoints(
 
         timestamp = core_timezone.format_utc(time_val)
 
-        lat_lon_waypoints.append(
-            {
-                "time": timestamp,
-                "lat": lat,
-                "lon": lon,
-            }
-        )
-
-        instant_speed = activities_computation.calculate_instant_speed(
-            last_time,
-            time_val,
-            lat,
-            lon,
-            prev_lat,
-            prev_lon,
-        )
+        # tcxreader emits latitude/longitude keys set to None for trackpoints
+        # without a <Position> (indoor/treadmill activities). Skipping them keeps
+        # a GPS-less file on the non-GPS path.
+        if lat is not None and lon is not None:
+            lat_lon_waypoints.append(
+                {
+                    "time": timestamp,
+                    "lat": lat,
+                    "lon": lon,
+                }
+            )
+            instant_speed = activities_computation.calculate_instant_speed(
+                prev_pos_time,
+                time_val,
+                lat,
+                lon,
+                prev_lat,
+                prev_lon,
+            )
+        else:
+            # calculate_instant_speed guards a missing previous position but
+            # not a missing current one.
+            instant_speed = 0
 
         instant_pace = 1 / instant_speed if instant_speed > 0 else 0
 
@@ -258,11 +271,11 @@ def _extract_waypoints(
         )
 
         if last_time is None or time_val > last_time:
-            prev_lat, prev_lon, last_time = (
-                lat,
-                lon,
-                time_val,
-            )
+            last_time = time_val
+        # Speed is measured from the last positioned point, tracked apart from
+        # last_time so a position-less point neither moves nor blocks it.
+        if lat is not None and lon is not None and (prev_pos_time is None or time_val > prev_pos_time):
+            prev_lat, prev_lon, prev_pos_time = lat, lon, time_val
 
     _close_segment()
 
@@ -364,6 +377,29 @@ def _build_activity(
     )
 
 
+def _read_tcx(file: str) -> Any:
+    """Read a TCX file, falling back to keeping position-less trackpoints.
+
+    tcxreader's default ``only_gps=True`` drops every trackpoint without a
+    longitude, and it leaves ``start_time`` unset when two or fewer trackpoints
+    remain. GPS files keep that default so their start time (part of the dedup
+    key) and stats stay as tcxreader computes them; a file left without a start
+    time (indoor/treadmill, or a few stray GPS fixes) is re-read with
+    ``only_gps=False``.
+
+    Args:
+        file: Path to the TCX file.
+
+    Returns:
+        Parsed TCX exercise object.
+    """
+    reader = tcxreader.TCXReader()
+    tcx_file = reader.read(file)
+    if tcx_file.start_time is None:
+        tcx_file = reader.read(file, only_gps=False)
+    return tcx_file
+
+
 def parse_tcx_file(
     file: str,
     user_id: int,
@@ -391,7 +427,7 @@ def parse_tcx_file(
     """
     try:
         logger.debug("TCX parse start", extra=core_logger.context(file=Path(file).name, user_id=user_id))
-        tcx_file = tcxreader.TCXReader().read(file)
+        tcx_file = _read_tcx(file)
         trackpoints = tcx_file.trackpoints_to_dict()
 
         # Only used when the file carries no GPS track to resolve a zone from.
@@ -452,8 +488,8 @@ def parse_tcx_file(
             )
 
             timezone = activity_file_import_parser_utils.resolve_timezone_from_lat_lon(
-                trackpoints[0]["latitude"],
-                trackpoints[0]["longitude"],
+                lat_lon_wp[0]["lat"],
+                lat_lon_wp[0]["lon"],
                 timezone,
             )
 
