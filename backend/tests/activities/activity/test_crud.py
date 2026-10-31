@@ -477,7 +477,7 @@ class TestGetUserActivityStarts:
         start = datetime(2026, 10, 13, 7, tzinfo=UTC)
         mock_db.execute.return_value.all.return_value = [(start, "Europe/Zurich"), (start, None)]
 
-        r = crud.get_user_activity_starts(user_id=1, db=mock_db)
+        r = crud.get_user_activity_starts(user_id=1, db=mock_db, user_is_owner=True)
 
         assert r == [
             contracts.ActivityStartRef(start_time=start, timezone="Europe/Zurich"),
@@ -488,7 +488,7 @@ class TestGetUserActivityStarts:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.all.return_value = []
-        crud.get_user_activity_starts(user_id=1, db=mock_db)
+        crud.get_user_activity_starts(user_id=1, db=mock_db, user_is_owner=True)
 
         sql = self._emitted_sql(mock_db)
         assert sql.split("FROM")[0].split() == ["SELECT", "activities.start_time,", "activities.timezone"]
@@ -500,9 +500,25 @@ class TestGetUserActivityStarts:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.return_value.all.return_value = []
-        crud.get_user_activity_starts(user_id=1, db=mock_db, activity_types=[1, 11])
+        crud.get_user_activity_starts(user_id=1, db=mock_db, activity_types=[1, 11], user_is_owner=True)
 
         assert "activities.activity_type IN (1, 11)" in self._emitted_sql(mock_db)
+
+    def test_owner_keeps_strava_activities(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = []
+        crud.get_user_activity_starts(user_id=1, db=mock_db, user_is_owner=True)
+
+        assert "strava_activity_id" not in self._emitted_sql(mock_db)
+
+    def test_non_owner_excludes_strava_activities(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = []
+        crud.get_user_activity_starts(user_id=1, db=mock_db, user_is_owner=False)
+
+        assert "activities.strava_activity_id IS NULL" in self._emitted_sql(mock_db)
 
 
 class TestBulkSetGear:

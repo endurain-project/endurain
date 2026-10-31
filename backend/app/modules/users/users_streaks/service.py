@@ -17,6 +17,8 @@ def get_weekly_streak(
     settings: streak_settings_schema.UsersStreakSettingsBase,
     today: date,
     db: Session,
+    *,
+    user_is_owner: bool,
 ) -> streak_schema.WeeklyStreakResponse:
     """
     Calculate the weekly streak for a user.
@@ -32,6 +34,8 @@ def get_weekly_streak(
         settings: Streak settings (target and type filter).
         today: The user's local date.
         db: Database session.
+        user_is_owner: Whether the requester owns the streak; other
+            viewers never count live Strava API activities.
 
     Returns:
         The weekly streak response.
@@ -39,7 +43,9 @@ def get_weekly_streak(
     activity_types = settings.activity_types or None
     local_dates = [
         local_date
-        for activity in activity_integration.list_user_activity_starts(user_id, db, activity_types=activity_types)
+        for activity in activity_integration.list_user_activity_starts(
+            user_id, db, activity_types=activity_types, user_is_owner=user_is_owner
+        )
         if (local_date := streak_utils.local_start_date(activity.start_time, activity.timezone)) is not None
     ]
 

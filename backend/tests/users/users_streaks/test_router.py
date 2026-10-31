@@ -64,6 +64,7 @@ class TestReadMyWeeklyStreak:
         user_id, first_day_of_week, _settings, _today, _db = mock_streak.call_args.args
         assert user_id == 1
         assert first_day_of_week == "monday"
+        assert mock_streak.call_args.kwargs == {"user_is_owner": True}
 
 
 class TestReadUserWeeklyStreak:
@@ -81,6 +82,7 @@ class TestReadUserWeeklyStreak:
         assert response.status_code == 200
         assert response.json()["longest_streak"] == 5
         assert mock_streak.call_args.args[0] == 2
+        assert mock_streak.call_args.kwargs == {"user_is_owner": False}
 
     @patch("modules.users.users_streaks.router.streak_service.get_weekly_streak")
     @patch("modules.users.users_streaks.router.streak_settings_crud.get_streak_settings_by_user_id")
@@ -107,6 +109,7 @@ class TestReadUserWeeklyStreak:
 
         assert response.status_code == 200
         assert response.json()["current_streak"] == 3
+        assert mock_streak.call_args.kwargs == {"user_is_owner": True}
 
     def test_invalid_user_id(self, client):
         """Rejects non-positive user IDs."""

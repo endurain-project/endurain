@@ -39,14 +39,16 @@ class TestGetWeeklyStreak:
         ]
         db = MagicMock()
 
-        all_types = streak_service.get_weekly_streak(1, "monday", _settings(), TODAY, db)
+        all_types = streak_service.get_weekly_streak(1, "monday", _settings(), TODAY, db, user_is_owner=True)
         assert all_types.current_week_start == date(2026, 10, 12)
         assert all_types.current_week_count == 2
         assert all_types.current_streak == 3
         assert all_types.current_streak_start == date(2026, 9, 28)
-        mock_list.assert_called_with(1, db, activity_types=None)
+        mock_list.assert_called_with(1, db, activity_types=None, user_is_owner=True)
 
-        two_per_week = streak_service.get_weekly_streak(1, "monday", _settings(min_activities_per_week=2), TODAY, db)
+        two_per_week = streak_service.get_weekly_streak(
+            1, "monday", _settings(min_activities_per_week=2), TODAY, db, user_is_owner=True
+        )
         assert two_per_week.current_streak == 1
         assert two_per_week.current_week_met is True
         assert two_per_week.min_activities_per_week == 2
@@ -56,9 +58,11 @@ class TestGetWeeklyStreak:
         mock_list.return_value = []
         db = MagicMock()
 
-        runs_only = streak_service.get_weekly_streak(1, "monday", _settings(activity_types=[1]), TODAY, db)
+        runs_only = streak_service.get_weekly_streak(
+            1, "monday", _settings(activity_types=[1]), TODAY, db, user_is_owner=False
+        )
 
-        mock_list.assert_called_once_with(1, db, activity_types=[1])
+        mock_list.assert_called_once_with(1, db, activity_types=[1], user_is_owner=False)
         assert runs_only.activity_types == [1]
 
     def test_follows_first_day_of_week(self, mock_list):
@@ -66,13 +70,13 @@ class TestGetWeeklyStreak:
         # Sunday 11 Oct 10:00 local time
         mock_list.return_value = [_activity(datetime(2026, 10, 11, 8, tzinfo=UTC))]
 
-        monday = streak_service.get_weekly_streak(1, "monday", _settings(), TODAY, MagicMock())
+        monday = streak_service.get_weekly_streak(1, "monday", _settings(), TODAY, MagicMock(), user_is_owner=True)
         assert monday.current_week_start == date(2026, 10, 12)
         assert monday.current_week_count == 0
         assert monday.recent_weeks[-2].week_start == date(2026, 10, 5)
         assert monday.recent_weeks[-2].activity_count == 1
 
-        sunday = streak_service.get_weekly_streak(1, "sunday", _settings(), TODAY, MagicMock())
+        sunday = streak_service.get_weekly_streak(1, "sunday", _settings(), TODAY, MagicMock(), user_is_owner=True)
         assert sunday.current_week_start == date(2026, 10, 11)
         assert sunday.current_week_count == 1
         assert sunday.current_week_met is True
@@ -81,7 +85,7 @@ class TestGetWeeklyStreak:
         """Returns an empty streak with a full history strip when there are no activities."""
         mock_list.return_value = []
 
-        result = streak_service.get_weekly_streak(1, "sunday", _settings(), TODAY, MagicMock())
+        result = streak_service.get_weekly_streak(1, "sunday", _settings(), TODAY, MagicMock(), user_is_owner=True)
 
         assert result.current_streak == 0
         assert result.longest_streak == 0

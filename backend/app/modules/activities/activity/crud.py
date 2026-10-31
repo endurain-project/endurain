@@ -307,6 +307,7 @@ def get_user_activity_starts(
     db: Session,
     *,
     activity_types: Sequence[int] | None = None,
+    user_is_owner: bool,
 ) -> list[activity_contracts.ActivityStartRef]:
     """Get the start time and timezone of a user's non-hidden activities.
 
@@ -318,6 +319,8 @@ def get_user_activity_starts(
         user_id: Owner user ID.
         db: Database session.
         activity_types: Activity types to include, or ``None`` for all.
+        user_is_owner: When False, live Strava API activities are excluded,
+            since that data is owner-only.
 
     Returns:
         The matching start references, empty when there are none.
@@ -326,6 +329,8 @@ def get_user_activity_starts(
         activity_models.Activity.user_id == user_id,
         activity_models.Activity.is_hidden.is_(False),
     )
+    if not user_is_owner:
+        stmt = stmt.where(_is_not_live_strava_api_activity())
     if activity_types is not None:
         stmt = stmt.where(activity_models.Activity.activity_type.in_(activity_types))
     return [

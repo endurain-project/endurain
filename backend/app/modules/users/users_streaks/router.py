@@ -18,13 +18,14 @@ import modules.users.users_streaks.service as streak_service
 router = APIRouter()
 
 
-def _streak_for_user(user_id: int, db: Session) -> streak_schema.WeeklyStreakResponse:
+def _streak_for_user(user_id: int, db: Session, *, user_is_owner: bool) -> streak_schema.WeeklyStreakResponse:
     """
     Load settings and calculate the streak for a user.
 
     Args:
         user_id: Target user ID.
         db: Database session.
+        user_is_owner: Whether the requester is the target user.
 
     Returns:
         The weekly streak response.
@@ -35,7 +36,9 @@ def _streak_for_user(user_id: int, db: Session) -> streak_schema.WeeklyStreakRes
     user = users_utils.get_user_by_id_or_404(user_id, db)
     settings = streak_settings_crud.get_streak_settings_by_user_id(user_id, db)
     today = core_timezone.today_in(users_utils.timezone_or_default(user.timezone))
-    return streak_service.get_weekly_streak(user_id, user.first_day_of_week, settings, today, db)
+    return streak_service.get_weekly_streak(
+        user_id, user.first_day_of_week, settings, today, db, user_is_owner=user_is_owner
+    )
 
 
 @router.get(
@@ -61,7 +64,7 @@ async def read_my_weekly_streak(
     Returns:
         The weekly streak response.
     """
-    return _streak_for_user(token_user_id, db)
+    return _streak_for_user(token_user_id, db, user_is_owner=True)
 
 
 @router.get(
@@ -96,8 +99,9 @@ async def read_user_weekly_streak(
     Returns:
         The weekly streak response, or None if not shared.
     """
-    if user_id != token_user_id:
+    user_is_owner = user_id == token_user_id
+    if not user_is_owner:
         settings = streak_settings_crud.get_streak_settings_by_user_id(user_id, db)
         if not settings.show_on_profile:
             return None
-    return _streak_for_user(user_id, db)
+    return _streak_for_user(user_id, db, user_is_owner=user_is_owner)

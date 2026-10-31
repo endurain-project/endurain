@@ -52,10 +52,10 @@ class TestIntegrationService:
         db = MagicMock()
         mock_crud.get_user_activity_starts.return_value = ["a"]
 
-        result = integration_service.list_user_activity_starts(3, db, activity_types=[1])
+        result = integration_service.list_user_activity_starts(3, db, activity_types=[1], user_is_owner=False)
 
         assert result == ["a"]
-        mock_crud.get_user_activity_starts.assert_called_once_with(3, db, activity_types=[1])
+        mock_crud.get_user_activity_starts.assert_called_once_with(3, db, activity_types=[1], user_is_owner=False)
 
     @patch("modules.activities.activity.integration_service.activity_crud")
     def test_list_user_activities_with_garminconnect_gear_delegates(self, mock_crud):
