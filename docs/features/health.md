@@ -81,7 +81,7 @@ The fasting page also shows statistics over your history:
 
 ## Targets
 
-Set a target for any metric under the metric's page: weight (kg or lbs), daily steps, sleep duration, fasting duration, daily water (ml) and daily bowel movements. Targets appear as goal lines in the charts. They are stored together, and changing one keeps the others.
+Set a target for any metric under the metric's page: weight (kg or lb), daily steps, sleep duration, fasting duration, daily water (ml) and daily bowel movements. Targets appear as goal lines in the charts. They are stored together, and changing one keeps the others.
 
 ## History
 

@@ -37,6 +37,7 @@ export type UserAccessType = Schemas['UserAccessType']
  * @property preferredLanguage - Backend language code.
  * @property gender - Gender.
  * @property units - Measurement system.
+ * @property weightUnits - Weight units override, or `null` to follow `units`.
  * @property currency - Preferred currency.
  * @property firstDayOfWeek - First day of the week.
  * @property city - City, or `null`.
@@ -64,6 +65,7 @@ export interface ManagedUser {
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string | null
@@ -165,6 +167,7 @@ export interface EditUserFields {
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string | null
@@ -189,6 +192,7 @@ export interface CreateUserInput {
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string | null

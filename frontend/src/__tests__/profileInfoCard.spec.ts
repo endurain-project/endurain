@@ -102,7 +102,7 @@ describe('ProfileInfoCard', () => {
   it('shows the weight units override next to the measurement system', () => {
     const wrapper = mountCard(makeProfile({ units: 'metric', weightUnits: 'imperial' }))
     expect(valueFor(wrapper, 'Units')).toBe('Metric')
-    expect(valueFor(wrapper, 'Weight units')).toBe('Pounds (lbs)')
+    expect(valueFor(wrapper, 'Weight units')).toBe('Pounds (lb)')
   })
 
   it('shows the weight units the units setting implies when no override is set', () => {
@@ -110,6 +110,6 @@ describe('ProfileInfoCard', () => {
     expect(valueFor(metric, 'Weight units')).toBe('Kilograms (kg)')
 
     const imperial = mountCard(makeProfile({ units: 'imperial', weightUnits: null }))
-    expect(valueFor(imperial, 'Weight units')).toBe('Pounds (lbs)')
+    expect(valueFor(imperial, 'Weight units')).toBe('Pounds (lb)')
   })
 })

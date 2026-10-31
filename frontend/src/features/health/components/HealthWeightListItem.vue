@@ -18,7 +18,7 @@ import {
 const props = defineProps<{
   /** The weight entry to render. */
   entry: WeightEntry
-  /** The measurement system used to present body mass (kg or lbs). */
+  /** The measurement system used to present body mass (kg or lb). */
   weightUnits: Schemas['Units']
 }>()
 const emit = defineEmits<{ edit: [entry: WeightEntry]; delete: [entry: WeightEntry] }>()

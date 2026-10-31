@@ -42,6 +42,7 @@ function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
     preferred_language: 'en',
     gender: 'female',
     units: 'metric',
+    weight_units: 'imperial',
     currency: 'euro',
     first_day_of_week: 'monday',
     city: 'London',
@@ -67,6 +68,7 @@ describe('mapManagedUser', () => {
       externalAuthCount: 0,
       preferredLanguage: 'en',
       units: 'metric',
+      weightUnits: 'imperial',
       currency: 'euro',
       firstDayOfWeek: 'monday',
       photoPath: '/api/v1/users/7/photo?t=sig',
@@ -76,6 +78,10 @@ describe('mapManagedUser', () => {
 
   it('normalizes a missing photo to a null avatar URL', () => {
     expect(mapManagedUser(makeUserDto({ photo_path: null })).avatarUrl).toBeNull()
+  })
+
+  it('leaves the weight units override null when the user follows units', () => {
+    expect(mapManagedUser(makeUserDto({ weight_units: null })).weightUnits).toBeNull()
   })
 })
 
@@ -142,6 +148,7 @@ describe('users service requests', () => {
       preferredLanguage: 'en',
       gender: 'unspecified',
       units: 'metric',
+      weightUnits: 'imperial',
       currency: 'euro',
       firstDayOfWeek: 'monday',
       city: 'Lisbon',
@@ -163,6 +170,7 @@ describe('users service requests', () => {
         pending_admin_approval: false,
         mfa_enabled: false,
         units: 'metric',
+        weight_units: 'imperial',
         currency: 'euro',
         preferred_language: 'en',
         gender: 'unspecified',
@@ -191,6 +199,7 @@ describe('users service requests', () => {
       preferredLanguage: 'en',
       gender: 'female',
       units: 'metric',
+      weightUnits: null,
       currency: 'euro',
       firstDayOfWeek: 'monday',
       city: 'London',
@@ -213,6 +222,7 @@ describe('users service requests', () => {
         preferred_language: 'en',
         gender: 'female',
         units: 'metric',
+        weight_units: null,
         currency: 'euro',
         first_day_of_week: 'monday',
         city: 'London',

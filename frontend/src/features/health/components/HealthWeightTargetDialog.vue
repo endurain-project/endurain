@@ -19,7 +19,7 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{
   /** The current health targets, providing the record id, owner, and weight. */
   targets: HealthTargets
-  /** The measurement system used to present the target body mass (kg or lbs). */
+  /** The measurement system used to present the target body mass (kg or lb). */
   weightUnits: Schemas['Units']
 }>()
 
@@ -80,7 +80,7 @@ const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>(
   onSubmit: submitForm,
 })
 
-const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lbs' : 'kg'))
+const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.target.weight')} (${massUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */

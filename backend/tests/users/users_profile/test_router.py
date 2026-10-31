@@ -420,6 +420,13 @@ class TestEditUser:
         assert response.headers["ETag"] == '"3"'
         mock_edit.assert_called_once()
 
+    @patch("modules.users.users_profile.service.users_integration.edit_profile")
+    def test_an_unknown_weight_unit_is_refused(self, mock_edit, profile_client):
+        response = profile_client.patch(PREFIX, json={"weight_units": "stone"}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 422
+        mock_edit.assert_not_called()
+
 
 # ===================================================================
 # PATCH /profile/privacy

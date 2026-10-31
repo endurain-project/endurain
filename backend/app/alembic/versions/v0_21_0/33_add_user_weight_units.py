@@ -1,4 +1,4 @@
-"""32: add users.weight_units
+"""33: add users.weight_units
 
 Body weight was always presented in the unit system of ``users.units``, which also drives
 distance, pace, elevation and temperature. Users who mix systems — the canonical example being
@@ -10,7 +10,7 @@ Nullable with no backfill. ``NULL`` means "not set" and displays exactly as befo
 follows ``users.units``. Nothing changes for existing users.
 
 Revision ID: 7a3d94c1e8b5
-Revises: 6d3a8f1c5e92
+Revises: 4b7e2c9d1a63
 Create Date: 2026-10-31 12:00:00
 
 """
@@ -22,7 +22,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "7a3d94c1e8b5"
-down_revision: str | None = "6d3a8f1c5e92"
+down_revision: str | None = "4b7e2c9d1a63"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

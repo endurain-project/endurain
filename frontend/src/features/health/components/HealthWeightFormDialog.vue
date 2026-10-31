@@ -26,7 +26,7 @@ const props = withDefaults(
   defineProps<{
     /** The weight entry being edited, or `null`/absent when logging a new one. */
     entry?: WeightEntry | null
-    /** The measurement system used to present body mass (kg or lbs). */
+    /** The measurement system used to present body mass (kg or lb). */
     weightUnits: Schemas['Units']
   }>(),
   { entry: null },
@@ -147,7 +147,7 @@ const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.weight.form.editTitle') : t('health.weight.form.addTitle'),
 )
-const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lbs' : 'kg'))
+const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.form.weight')} (${massUnitLabel.value})`)
 const boneMassLabel = computed(() => `${t('health.weight.form.boneMass')} (${massUnitLabel.value})`)
 const muscleMassLabel = computed(

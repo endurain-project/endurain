@@ -936,6 +936,17 @@ class TestEdits:
 
         assert mock_crud.update_user.call_args.args[1] == {"weight_units": None}
 
+    def test_admin_edit_without_weight_units_keeps_the_override(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, weight_units="imperial")
+        mock_crud.update_user.return_value = _user(1, units="imperial", weight_units="imperial")
+        edit = users_schema.UsersEdit(**_edit(1, units="imperial").model_dump(exclude={"weight_units"}))
+
+        users_service.stage_user_edit(1, edit, mock_db, if_match="*")
+
+        changes = mock_crud.update_user.call_args.args[1]
+        assert changes["units"] == "imperial"
+        assert "weight_units" not in changes
+
     def test_profile_height_change_recalculates_bmi(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, height=170)
         mock_crud.update_user.return_value = _user(1, height=175)

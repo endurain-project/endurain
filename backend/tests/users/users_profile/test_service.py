@@ -199,6 +199,7 @@ class TestStageExport:
     def test_server_managed_fields_never_reach_the_archive(self, mock_users, mock_utils, mock_export, mock_db):
         mock_utils.sqlalchemy_obj_to_dict.return_value = {
             "name": "Test",
+            "weight_units": "imperial",
             "password": "secret",
             "mfa_secret": "s",
             "access_type": "admin",
@@ -215,7 +216,7 @@ class TestStageExport:
 
         mock_export.ExportService.assert_called_once_with(1, storage, mock_db)
         exported = mock_export.ExportService.return_value.build_export_archive.call_args.args[0]
-        assert exported == {"name": "Test"}
+        assert exported == {"name": "Test", "weight_units": "imperial"}
         assert size == 5
         area, key, archive = storage.save_stream.call_args.args
         assert (area, key) == ("profile_export_staging", "1.zip")

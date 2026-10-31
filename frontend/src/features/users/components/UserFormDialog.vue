@@ -77,6 +77,7 @@ interface UserFormValues {
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: 'default' | Schemas['Units']
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string
@@ -102,6 +103,7 @@ function defaultValues(): UserFormValues {
     preferredLanguage: 'en',
     gender: 'unspecified',
     units: 'metric',
+    weightUnits: 'default',
     currency: 'euro',
     firstDayOfWeek: 'monday',
     city: '',
@@ -127,6 +129,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
   // `v-model.number` leaves a stale '' in place instead of `null` when a
   // cleared field can't parse as a finite number.
   const maxHeartRate = toNumberOrNull(formValues.maxHeartRate ?? '')
+  const weightUnits = formValues.weightUnits === 'default' ? null : formValues.weightUnits
   try {
     if (props.user) {
       await updateMutation.mutateAsync({
@@ -142,6 +145,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
           preferredLanguage: formValues.preferredLanguage,
           gender: formValues.gender,
           units: formValues.units,
+          weightUnits,
           currency: formValues.currency,
           firstDayOfWeek: formValues.firstDayOfWeek,
           city,
@@ -164,6 +168,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
         preferredLanguage: formValues.preferredLanguage,
         gender: formValues.gender,
         units: formValues.units,
+        weightUnits,
         currency: formValues.currency,
         firstDayOfWeek: formValues.firstDayOfWeek,
         city,
@@ -316,6 +321,7 @@ function populate(): void {
   values.preferredLanguage = user.preferredLanguage
   values.gender = user.gender
   values.units = user.units
+  values.weightUnits = user.weightUnits ?? 'default'
   values.currency = user.currency
   values.firstDayOfWeek = user.firstDayOfWeek
   values.city = user.city ?? ''
@@ -527,6 +533,16 @@ watch(open, (isOpen) => {
           <Select :id="fieldId" v-model="values.units" :disabled="isSubmitting">
             <option value="metric">{{ t('settings.users.form.unitsMetric') }}</option>
             <option value="imperial">{{ t('settings.users.form.unitsImperial') }}</option>
+          </Select>
+        </template>
+      </FormField>
+
+      <FormField :label="t('settings.users.form.weightUnits')">
+        <template #default="{ fieldId }">
+          <Select :id="fieldId" v-model="values.weightUnits" :disabled="isSubmitting">
+            <option value="default">{{ t('settings.users.form.weightUnitsDefault') }}</option>
+            <option value="metric">{{ t('settings.users.form.weightUnitsMetric') }}</option>
+            <option value="imperial">{{ t('settings.users.form.weightUnitsImperial') }}</option>
           </Select>
         </template>
       </FormField>

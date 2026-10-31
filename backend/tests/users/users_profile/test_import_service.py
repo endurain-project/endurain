@@ -555,6 +555,29 @@ class TestImportServiceUserData:
 
         assert service.counts["user"] == 1
 
+    async def _imported_profile(self, user_row: dict[str, Any]) -> Any:
+        """Imports one archived user row and returns the profile update it staged."""
+        service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        with (
+            patch("modules.users.users_profile.import_service.users_integration.edit_profile") as mock_edit,
+            patch.object(service, "collect_and_import_user_default_gear", new_callable=AsyncMock),
+            patch.object(service, "collect_and_import_user_goals", new_callable=AsyncMock),
+            patch.object(service, "collect_and_import_user_integrations", new_callable=AsyncMock),
+            patch.object(service, "collect_and_import_user_privacy_settings", new_callable=AsyncMock),
+        ):
+            await service.collect_and_import_user_data([user_row], [], [], [], [], {})
+        return mock_edit.call_args.args[1]
+
+    async def test_an_archive_carries_the_weight_units_override_over(self) -> None:
+        profile = await self._imported_profile({"units": "metric", "weight_units": "imperial"})
+
+        assert profile.model_dump(exclude_unset=True) == {"units": "metric", "weight_units": "imperial"}
+
+    async def test_an_archive_without_weight_units_leaves_the_override_untouched(self) -> None:
+        profile = await self._imported_profile({"units": "imperial"})
+
+        assert "weight_units" not in profile.model_fields_set
+
     async def test_collect_and_import_user_data_empty_still_imports_sub_settings(self) -> None:
         mock_db = MagicMock(spec=Session)
         service = profile_import_service.ImportService(

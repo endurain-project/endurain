@@ -31,6 +31,7 @@ const user: ManagedUser = {
   preferredLanguage: 'en',
   gender: 'unspecified',
   units: 'metric',
+  weightUnits: null,
   currency: 'euro',
   firstDayOfWeek: 'monday',
   city: null,
@@ -45,9 +46,9 @@ const user: ManagedUser = {
  * renders inline where the test can drive it. */
 const passthrough = { template: '<div><slot /></div>' }
 
-async function mountDialog(isSelf: boolean) {
+async function mountDialog(isSelf: boolean, edited: ManagedUser = user) {
   const wrapper = mount(UserFormDialog, {
-    props: { open: false, user, isSelf },
+    props: { open: false, user: edited, isSelf },
     global: {
       plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
@@ -124,5 +125,34 @@ describe('UserFormDialog email verification switches', () => {
       email: 'new@example.com',
       email_verified: true,
     })
+  })
+})
+
+describe('UserFormDialog weight units', () => {
+  const weightUnitsSelect = (wrapper: Awaited<ReturnType<typeof mountDialog>>) =>
+    wrapper.findAll('select').find((select) => select.find('option[value="default"]').exists())!
+
+  it('seeds the override and sends it back unchanged', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountDialog(false, { ...user, weightUnits: 'imperial' })
+
+    expect((weightUnitsSelect(wrapper).element as HTMLSelectElement).value).toBe('imperial')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
+    expect(JSON.parse(String(init?.body))).toMatchObject({ weight_units: 'imperial' })
+  })
+
+  it('sends null when set to follow units', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountDialog(false, { ...user, weightUnits: 'imperial' })
+
+    await weightUnitsSelect(wrapper).setValue('default')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
+    expect(JSON.parse(String(init?.body))).toMatchObject({ weight_units: null })
   })
 })

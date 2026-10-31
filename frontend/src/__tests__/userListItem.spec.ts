@@ -23,6 +23,7 @@ const base: ManagedUser = {
   preferredLanguage: 'en',
   gender: 'unspecified',
   units: 'metric',
+  weightUnits: null,
   currency: 'euro',
   firstDayOfWeek: 'monday',
   city: null,

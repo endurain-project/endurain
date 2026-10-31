@@ -63,30 +63,30 @@ export function formatSkinTempDeviation(celsius: number): string {
 }
 
 /**
- * Formats a weight, converting to pounds for imperial users.
+ * Formats a weight, converting to pounds when the user weighs in imperial.
  *
  * @param weightKg - Weight in kilograms.
- * @param units - The user's unit system.
- * @returns The formatted weight (`72.0 kg` or `158.7 lbs`).
+ * @param weightUnits - The unit system the user weighs in.
+ * @returns The formatted weight (`72.0 kg` or `158.7 lb`).
  */
-export function formatWeight(weightKg: number, units: Units): string {
-  if (units === 'imperial') {
-    return `${kgToLbs(weightKg).toFixed(1)} lbs`
+export function formatWeight(weightKg: number, weightUnits: Units): string {
+  if (weightUnits === 'imperial') {
+    return `${kgToLbs(weightKg).toFixed(1)} lb`
   }
   return `${weightKg.toFixed(1)} kg`
 }
 
 /**
- * Formats a mass (bone/muscle), converting to pounds for imperial users, to two
- * decimal places.
+ * Formats a mass (bone/muscle), converting to pounds when the user weighs in
+ * imperial, to two decimal places.
  *
  * @param massKg - Mass in kilograms.
- * @param units - The user's unit system.
- * @returns The formatted mass (`5.20 kg` or `11.46 lbs`).
+ * @param weightUnits - The unit system the user weighs in.
+ * @returns The formatted mass (`5.20 kg` or `11.46 lb`).
  */
-export function formatBodyMass(massKg: number, units: Units): string {
-  if (units === 'imperial') {
-    return `${kgToLbs(massKg).toFixed(2)} lbs`
+export function formatBodyMass(massKg: number, weightUnits: Units): string {
+  if (weightUnits === 'imperial') {
+    return `${kgToLbs(massKg).toFixed(2)} lb`
   }
   return `${massKg.toFixed(2)} kg`
 }
