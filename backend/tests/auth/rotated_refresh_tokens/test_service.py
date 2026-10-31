@@ -285,7 +285,88 @@ class TestTokenReuseGracePeriod:
 
     def test_grace_period_value(self):
         """
-        Test grace period is 60 seconds.
+        Test grace period is 10 seconds.
         """
         # Assert
-        assert rotated_token_utils.TOKEN_REUSE_GRACE_PERIOD_SECONDS == 60
+        assert rotated_token_utils.TOKEN_REUSE_GRACE_PERIOD_SECONDS == 10
+
+
+class _FixedClock:
+    """Stand-in for the service's ``datetime`` whose ``now`` returns a settable instant."""
+
+    current = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls.current
+
+
+class TestGraceWindowTiming:
+    """
+    Test suite for the replay grace window measured from the rotation instant.
+    """
+
+    ROTATED_AT = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+    def _rotate_and_present(self, seconds_after: int, mock_hash, mock_crud, mock_crypto):
+        """Store a rotation at ROTATED_AT, then present the token ``seconds_after`` later.
+
+        Returns:
+            The stored schema, and the record the lookup returns for the replay.
+        """
+        mock_hash.return_value = "hashed-token"
+        mock_crypto.encrypt_token_fernet.return_value = "encrypted-replacement"
+        mock_crypto.decrypt_token_fernet.return_value = "decrypted-replacement"
+        replacement_exp = self.ROTATED_AT + timedelta(days=7)
+        _FixedClock.current = self.ROTATED_AT
+        rotated_token_utils.store_rotated_token(
+            "raw-token",
+            "family-id",
+            0,
+            MagicMock(),
+            refresh_token_exp=self.ROTATED_AT + timedelta(days=6),
+            replacement_refresh_token="new-refresh-token",
+            replacement_refresh_token_exp=replacement_exp,
+        )
+        stored = mock_crud.create_rotated_token.call_args.args[0]
+        record = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
+        record.expires_at = stored.expires_at
+        record.rotated_at = stored.rotated_at
+        record.token_family_id = "family-id"
+        record.rotation_count = 0
+        record.replacement_refresh_token = "encrypted-replacement"
+        record.replacement_refresh_token_exp = replacement_exp
+        mock_crud.get_rotated_token_by_hash.return_value = record
+        _FixedClock.current = self.ROTATED_AT + timedelta(seconds=seconds_after)
+        return stored
+
+    @patch("modules.auth.rotated_refresh_tokens.service.datetime", _FixedClock)
+    @patch("modules.auth.rotated_refresh_tokens.service.core_cryptography")
+    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
+    @patch("modules.auth.rotated_refresh_tokens.service.hmac_hash_token")
+    def test_store_rotated_token_expires_ten_seconds_after_rotation(self, mock_hash, mock_crud, mock_crypto):
+        stored = self._rotate_and_present(0, mock_hash, mock_crud, mock_crypto)
+
+        assert stored.expires_at == stored.rotated_at + timedelta(seconds=10)
+
+    @patch("modules.auth.rotated_refresh_tokens.service.datetime", _FixedClock)
+    @patch("modules.auth.rotated_refresh_tokens.service.core_cryptography")
+    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
+    @patch("modules.auth.rotated_refresh_tokens.service.hmac_hash_token")
+    def test_token_presented_11_seconds_after_rotation_is_theft(self, mock_hash, mock_crud, mock_crypto):
+        self._rotate_and_present(11, mock_hash, mock_crud, mock_crypto)
+
+        assert rotated_token_utils.check_token_reuse("raw-token", MagicMock()) == (True, False)
+        assert rotated_token_utils.get_grace_replay_token("raw-token", MagicMock()) is None
+
+    @patch("modules.auth.rotated_refresh_tokens.service.datetime", _FixedClock)
+    @patch("modules.auth.rotated_refresh_tokens.service.core_cryptography")
+    @patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud")
+    @patch("modules.auth.rotated_refresh_tokens.service.hmac_hash_token")
+    def test_token_presented_9_seconds_after_rotation_is_in_grace(self, mock_hash, mock_crud, mock_crypto):
+        self._rotate_and_present(9, mock_hash, mock_crud, mock_crypto)
+
+        assert rotated_token_utils.check_token_reuse("raw-token", MagicMock()) == (True, True)
+        replay = rotated_token_utils.get_grace_replay_token("raw-token", MagicMock())
+        assert replay is not None
+        assert replay[0] == "decrypted-replacement"

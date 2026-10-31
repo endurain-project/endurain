@@ -14,7 +14,7 @@ class RotatedRefreshTokenCreate(BaseModel):
         rotation_count: Sequential rotation number for this
             token.
         rotated_at: Timestamp when this token was rotated.
-        expires_at: Cleanup marker timestamp.
+        expires_at: End of the replay grace window.
         refresh_token_exp: Expiry of the rotated refresh token.
         replacement_refresh_token: Fernet-encrypted replacement
             refresh token for in-grace replay.
@@ -43,7 +43,7 @@ class RotatedRefreshTokenCreate(BaseModel):
     )
     expires_at: datetime = Field(
         ...,
-        description="Cleanup marker (rotated_at + 60 seconds)",
+        description="End of the replay grace window",
     )
     refresh_token_exp: datetime = Field(
         ...,

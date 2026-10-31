@@ -13,9 +13,9 @@ import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
 logger = core_logger.get_logger(__name__)
 
-# Grace period for token reuse (60 seconds)
+# Grace period for token reuse (10 seconds)
 # Allows for network retries/delays without false positives
-TOKEN_REUSE_GRACE_PERIOD_SECONDS: int = 60
+TOKEN_REUSE_GRACE_PERIOD_SECONDS: int = 10
 
 
 def hmac_hash_token(token: str) -> str:
@@ -103,7 +103,7 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
     Returns:
         Tuple of (is_reused, in_grace_period):
             - (False, False): Token is valid, not reused.
-            - (True, True): Reused but within 60s grace period.
+            - (True, True): Reused but within the grace period.
             - (True, False): Reused after grace period - THEFT!
 
     Raises:

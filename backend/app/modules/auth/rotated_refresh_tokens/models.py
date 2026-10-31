@@ -17,7 +17,7 @@ class RotatedRefreshToken(Base):
         hashed_token: Hashed old refresh token.
         rotation_count: Which rotation this token belonged to.
         rotated_at: When this token was rotated.
-        expires_at: End of the replay grace window (rotated_at + 60 seconds).
+        expires_at: End of the replay grace window.
         refresh_token_exp: Expiry of the rotated refresh token; the record
             is kept until then, so a replay is recognised as reuse.
         replacement_refresh_token: Fernet-encrypted replacement
@@ -57,7 +57,7 @@ class RotatedRefreshToken(Base):
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        comment="Cleanup marker (rotated_at + 60 seconds)",
+        comment="End of the replay grace window",
     )
     refresh_token_exp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
