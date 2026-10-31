@@ -63,12 +63,12 @@ def password_hasher() -> auth_password_hasher.PasswordHasher:
 
 @pytest.fixture
 def session_policy() -> server_settings_contracts.SessionPolicy:
-    """The default session policy: 15-minute access tokens, 7-day refresh tokens, no timeouts."""
+    """The default session policy: 15-minute access, 7-day refresh, no idle timeout, 30-day absolute timeout."""
     return server_settings_contracts.SessionPolicy(
         access_token_ttl=timedelta(minutes=15),
         refresh_token_ttl=timedelta(days=7),
         idle_timeout=None,
-        absolute_timeout=None,
+        absolute_timeout=timedelta(hours=720),
     )
 
 

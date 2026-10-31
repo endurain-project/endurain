@@ -275,7 +275,7 @@ class ServerSettingsSessionPolicy(BaseModel):
     """The session and token policy fields, kept off the public settings model.
 
     Attributes:
-        session_idle_timeout_enabled: Enforce the idle and absolute session timeouts.
+        session_idle_timeout_enabled: Enforce the idle session timeout; the absolute timeout always applies.
         session_idle_timeout_hours: Hours of inactivity that end a session (1-8760).
         session_absolute_timeout_hours: Hours after which a session ends (1-8760, not below the idle timeout).
         access_token_expire_minutes: Access token lifetime in minutes (1-1440).
@@ -283,7 +283,8 @@ class ServerSettingsSessionPolicy(BaseModel):
     """
 
     session_idle_timeout_enabled: StrictBool = Field(
-        ..., description="Enforce session idle and absolute timeouts (true - yes, false - no)"
+        ...,
+        description="Enforce the session idle timeout (true - yes, false - no); the absolute timeout always applies",
     )
     session_idle_timeout_hours: StrictInt = Field(
         ..., ge=1, le=8760, description="Hours of inactivity after which a session ends"

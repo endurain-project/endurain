@@ -40,12 +40,12 @@ def validate_session_timeout(
     session: sessions_contracts.SessionRead,
     policy: sessions_contracts.SessionTimeoutPolicy,
 ) -> None:
-    """Raise an authentication error if a configured session timeout elapsed."""
-    if policy.idle_timeout is None or policy.absolute_timeout is None:
-        return
+    """Raise an authentication error if a session timeout elapsed.
 
+    The idle timeout is checked only when the policy sets one; the absolute timeout always applies.
+    """
     now = datetime.now(UTC)
-    if now > session.last_activity_at + policy.idle_timeout:
+    if policy.idle_timeout is not None and now > session.last_activity_at + policy.idle_timeout:
         raise core_exceptions.UnauthenticatedError("Session expired due to inactivity")
     if now > session.created_at + policy.absolute_timeout:
         raise core_exceptions.UnauthenticatedError("Session expired. Please login again for security.")

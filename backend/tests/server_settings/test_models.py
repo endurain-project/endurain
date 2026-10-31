@@ -93,3 +93,12 @@ class TestServerSettingsModel:
             "refresh_token_expire_days_check",
             "read_notification_retention_days_check",
         }
+
+
+class TestSessionAbsoluteTimeoutDefault:
+    """The absolute session timeout defaults to 30 days."""
+
+    def test_default_and_server_default_are_720_hours(self):
+        column = server_settings_models.ServerSettings.__table__.c.session_absolute_timeout_hours
+        assert column.default.arg == 720
+        assert str(column.server_default.arg) == "720"

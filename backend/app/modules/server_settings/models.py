@@ -43,7 +43,7 @@ class ServerSettings(Base):
         geocoding_use_https: Address the geocoding host over HTTPS.
         geocoding_rate_limit: Geocoding requests per second.
         geocoding_api_key: API key for the geocoding service (encrypted).
-        session_idle_timeout_enabled: Enforce session idle and absolute timeouts.
+        session_idle_timeout_enabled: Enforce the session idle timeout; the absolute timeout always applies.
         session_idle_timeout_hours: Hours of inactivity that end a session.
         session_absolute_timeout_hours: Hours after which a session ends.
         access_token_expire_minutes: Access token lifetime in minutes.
@@ -200,7 +200,7 @@ class ServerSettings(Base):
         default=False,
         server_default=text("false"),
         nullable=False,
-        comment="Enforce session idle and absolute timeouts (true - yes, false - no)",
+        comment="Enforce the session idle timeout (true - yes, false - no); the absolute timeout always applies",
     )
     session_idle_timeout_hours: Mapped[int] = mapped_column(
         default=1,
@@ -209,8 +209,8 @@ class ServerSettings(Base):
         comment="Hours of inactivity after which a session ends",
     )
     session_absolute_timeout_hours: Mapped[int] = mapped_column(
-        default=24,
-        server_default=text("24"),
+        default=720,
+        server_default=text("720"),
         nullable=False,
         comment="Hours after which a session ends whatever its activity",
     )

@@ -65,6 +65,12 @@ def get_session_with_oauth_state(
     return session, oauth_state
 
 
+def _cap_expiry(expires_at: datetime, created_at: datetime, db: Session) -> datetime:
+    """Return ``expires_at`` limited to the session's creation time plus the absolute timeout."""
+    policy: server_settings_contracts.SessionPolicy = server_settings_integration.get_session_policy(db)
+    return min(expires_at, created_at + policy.absolute_timeout)
+
+
 def create_session(
     session_id: str,
     user: users_schema.UsersRead,
@@ -93,7 +99,7 @@ def create_session(
         browser_version=device.browser_version,
         created_at=now,
         last_activity_at=now,
-        expires_at=expires_at,
+        expires_at=_cap_expiry(expires_at, now, db),
         oauth_state_id=oauth_state_id,
         tokens_exchanged=False,
         token_family_id=session_id,
@@ -133,7 +139,7 @@ def edit_session(
             "browser": device.browser,
             "browser_version": device.browser_version,
             "last_activity_at": datetime.now(UTC),
-            "expires_at": expires_at,
+            "expires_at": _cap_expiry(expires_at, session.created_at, db),
             "rotation_count": session.rotation_count + 1,
             "last_rotation_at": datetime.now(UTC),
             "csrf_token_hash": csrf_hash,

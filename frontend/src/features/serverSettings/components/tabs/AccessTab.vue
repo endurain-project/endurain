@@ -140,7 +140,7 @@ const SESSION_ENV_FIELDS = [
         data-setting="session-timeouts-enabled"
         :disabled="isSubmitting || Boolean(envVar('session_idle_timeout_enabled'))"
       >
-        {{ t('settings.server.session.timeoutsEnabled') }}
+        {{ t('settings.server.session.idleTimeoutEnabled') }}
       </Switch>
       <EnvManagedHint :name="envVar('session_idle_timeout_enabled')" />
 
@@ -190,11 +190,7 @@ const SESSION_ENV_FIELDS = [
               type="text"
               inputmode="numeric"
               maxlength="4"
-              :disabled="
-                isSubmitting ||
-                !values.sessionIdleTimeoutEnabled ||
-                Boolean(envVar('session_absolute_timeout_hours'))
-              "
+              :disabled="isSubmitting || Boolean(envVar('session_absolute_timeout_hours'))"
               @blur="handleBlur('sessionAbsoluteTimeoutHours')"
             />
           </template>

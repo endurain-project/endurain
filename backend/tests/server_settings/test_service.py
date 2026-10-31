@@ -565,11 +565,11 @@ class TestGetSessionPolicy:
         assert policy.idle_timeout == timedelta(hours=2)
         assert policy.absolute_timeout == timedelta(hours=48)
 
-    def test_disabled_timeouts_are_none_but_lifetimes_stay(self, edit_env):
+    def test_disabled_idle_timeout_is_none_but_absolute_timeout_and_lifetimes_stay(self, edit_env):
         policy = server_settings_service.get_session_policy(MagicMock())
 
         assert policy.idle_timeout is None
-        assert policy.absolute_timeout is None
+        assert policy.absolute_timeout == timedelta(hours=edit_env.stored.session_absolute_timeout_hours)
         assert policy.access_token_ttl == timedelta(minutes=15)
         assert policy.refresh_token_ttl == timedelta(days=7)
 

@@ -82,7 +82,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property geocodingHost - Host (and optional port) of the geocoding service, or null for its default host.
  * @property geocodingUseHttps - Whether the geocoding host is addressed over HTTPS.
  * @property geocodingRateLimit - Maximum geocoding requests per second (0 disables throttling).
- * @property sessionIdleTimeoutEnabled - Whether the session idle and absolute timeouts are enforced.
+ * @property sessionIdleTimeoutEnabled - Whether the session idle timeout is enforced (the absolute timeout always applies).
  * @property sessionIdleTimeoutHours - Hours of inactivity that end a session.
  * @property sessionAbsoluteTimeoutHours - Hours after which a session ends whatever its activity.
  * @property accessTokenExpireMinutes - Access token lifetime in minutes.

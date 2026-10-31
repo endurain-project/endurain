@@ -10795,7 +10795,7 @@ export interface components {
             session_absolute_timeout_hours: number;
             /**
              * Session Idle Timeout Enabled
-             * @description Enforce session idle and absolute timeouts (true - yes, false - no)
+             * @description Enforce the session idle timeout (true - yes, false - no); the absolute timeout always applies
              */
             session_idle_timeout_enabled: boolean;
             /**
@@ -10960,7 +10960,7 @@ export interface components {
             session_absolute_timeout_hours: number;
             /**
              * Session Idle Timeout Enabled
-             * @description Enforce session idle and absolute timeouts (true - yes, false - no)
+             * @description Enforce the session idle timeout (true - yes, false - no); the absolute timeout always applies
              */
             session_idle_timeout_enabled: boolean;
             /**

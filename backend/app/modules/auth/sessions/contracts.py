@@ -10,7 +10,7 @@ class SessionTimeoutPolicy(Protocol):
     """Timeout values consumed by pure session validation."""
 
     idle_timeout: timedelta | None
-    absolute_timeout: timedelta | None
+    absolute_timeout: timedelta
 
 
 class SessionRead(BaseModel):

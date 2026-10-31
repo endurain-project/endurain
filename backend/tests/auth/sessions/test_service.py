@@ -44,6 +44,7 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
     hasher = MagicMock()
     hasher.hash_password.return_value = "hashed-refresh"
     with (
+        _policy_patch(),
         patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
     ):
         result = sessions_service.create_session(
@@ -70,6 +71,7 @@ def test_edit_session_stages_rotation(mock_db):
     hasher = MagicMock()
     hasher.hash_password.return_value = "replacement-hash"
     with (
+        _policy_patch(),
         patch(
             "modules.auth.sessions.service.sessions_crud.edit_session", return_value=_session(rotation_count=1)
         ) as edit,
@@ -222,3 +224,74 @@ def test_session_logs_carry_a_fingerprint_not_the_session_id(mock_db, caplog):
         sessions_service.delete_session("secret-session-id", 7, mock_db)
     assert "secret-session-id" not in caplog.text
     assert "secret-session-id" not in str([record.__dict__ for record in caplog.records])
+
+
+_ABSOLUTE = timedelta(hours=720)
+
+
+def _hasher():
+    hasher = MagicMock()
+    hasher.hash_password.return_value = "hashed"
+    return hasher
+
+
+def _policy_patch():
+    policy = SimpleNamespace(idle_timeout=None, absolute_timeout=_ABSOLUTE)
+    return patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy)
+
+
+def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
+    hasher = _hasher()
+    before = datetime.now(UTC)
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
+    ):
+        sessions_service.create_session(
+            "session-id",
+            SimpleNamespace(id=7),
+            "127.0.0.1",
+            _FIREFOX_UA,
+            "r",
+            hasher,
+            before + timedelta(days=3650),
+            mock_db,
+        )
+    staged = create.call_args.args[0]
+    assert staged.expires_at == staged.created_at + _ABSOLUTE
+
+
+def test_create_session_keeps_an_earlier_expiry(mock_db):
+    requested = datetime.now(UTC) + timedelta(days=1)
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
+    ):
+        sessions_service.create_session(
+            "session-id", SimpleNamespace(id=7), "127.0.0.1", _FIREFOX_UA, "r", _hasher(), requested, mock_db
+        )
+    assert create.call_args.args[0].expires_at == requested
+
+
+def test_edit_session_caps_expiry_at_creation_plus_absolute_timeout(mock_db):
+    created = datetime.now(UTC) - timedelta(hours=700)
+    session = _session(created_at=created)
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
+    ):
+        sessions_service.edit_session(
+            session, "127.0.0.2", _FIREFOX_UA, "r", _hasher(), datetime.now(UTC) + timedelta(days=7), mock_db
+        )
+    assert edit.call_args.args[0].expires_at == created + _ABSOLUTE
+
+
+def test_edit_session_keeps_an_earlier_expiry(mock_db):
+    session = _session(created_at=datetime.now(UTC))
+    requested = datetime.now(UTC) + timedelta(days=7)
+    with (
+        _policy_patch(),
+        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
+    ):
+        sessions_service.edit_session(session, "127.0.0.2", _FIREFOX_UA, "r", _hasher(), requested, mock_db)
+    assert edit.call_args.args[0].expires_at == requested

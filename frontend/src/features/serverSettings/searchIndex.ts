@@ -99,7 +99,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('password', 'password-length-regular', 'settings.server.password.lengthRegular'),
   field('password', 'password-length-admin', 'settings.server.password.lengthAdmin'),
   SECTIONS.session,
-  field('session', 'session-timeouts-enabled', 'settings.server.session.timeoutsEnabled', [
+  field('session', 'session-timeouts-enabled', 'settings.server.session.idleTimeoutEnabled', [
     'SESSION_IDLE_TIMEOUT_ENABLED',
   ]),
   field('session', 'session-idle-hours', 'settings.server.session.idleHours', [

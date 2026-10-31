@@ -91,19 +91,19 @@ def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
         db: Database session.
 
     Returns:
-        The session policy. The timeouts are enforced together, so both are None while
-        they are disabled.
+        The session policy. The idle timeout is None while it is disabled; the absolute
+        timeout always applies.
 
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
     """
     settings = get_server_settings(db)
-    timeouts_enabled = settings.session_idle_timeout_enabled
+    idle_timeout_enabled = settings.session_idle_timeout_enabled
     return server_settings_contracts.SessionPolicy(
         access_token_ttl=timedelta(minutes=settings.access_token_expire_minutes),
         refresh_token_ttl=timedelta(days=settings.refresh_token_expire_days),
-        idle_timeout=timedelta(hours=settings.session_idle_timeout_hours) if timeouts_enabled else None,
-        absolute_timeout=timedelta(hours=settings.session_absolute_timeout_hours) if timeouts_enabled else None,
+        idle_timeout=timedelta(hours=settings.session_idle_timeout_hours) if idle_timeout_enabled else None,
+        absolute_timeout=timedelta(hours=settings.session_absolute_timeout_hours),
     )
 
 

@@ -33,12 +33,11 @@ class SessionPolicy:
     Attributes:
         access_token_ttl: Lifetime of a new access token.
         refresh_token_ttl: Lifetime of a new refresh token and of the session it renews.
-        idle_timeout: Inactivity after which a session ends, or None when timeouts are disabled.
-        absolute_timeout: Age after which a session ends whatever its activity, or None when
-            timeouts are disabled.
+        idle_timeout: Inactivity after which a session ends, or None when the idle timeout is disabled.
+        absolute_timeout: Age after which a session ends whatever its activity; always applies.
     """
 
     access_token_ttl: timedelta
     refresh_token_ttl: timedelta
     idle_timeout: timedelta | None
-    absolute_timeout: timedelta | None
+    absolute_timeout: timedelta

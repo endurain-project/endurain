@@ -16,7 +16,7 @@ _POLICY = server_settings_contracts.SessionPolicy(
     idle_timeout=timedelta(hours=1),
     absolute_timeout=timedelta(hours=24),
 )
-_NO_TIMEOUT_POLICY = dataclasses.replace(_POLICY, idle_timeout=None, absolute_timeout=None)
+_NO_IDLE_POLICY = dataclasses.replace(_POLICY, idle_timeout=None)
 
 
 def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_contracts.SessionRead:
@@ -97,9 +97,19 @@ def test_validate_timeout_rejects_absolute_expiry():
         sessions_utils.validate_session_timeout(session, _POLICY)
 
 
-def test_validate_timeout_skips_when_policy_disabled():
-    old = datetime.now(UTC) - timedelta(days=10)
-    sessions_utils.validate_session_timeout(_session(last_activity_at=old, created_at=old), _NO_TIMEOUT_POLICY)
+def test_validate_timeout_without_idle_policy_ignores_inactivity():
+    now = datetime.now(UTC)
+    sessions_utils.validate_session_timeout(
+        _session(last_activity_at=now - timedelta(hours=10), created_at=now - timedelta(hours=12)), _NO_IDLE_POLICY
+    )
+
+
+def test_validate_timeout_without_idle_policy_still_enforces_absolute_timeout():
+    old = datetime.now(UTC) - timedelta(hours=25)
+    with pytest.raises(core_exceptions.UnauthenticatedError):
+        sessions_utils.validate_session_timeout(
+            _session(last_activity_at=datetime.now(UTC), created_at=old), _NO_IDLE_POLICY
+        )
 
 
 def test_verify_csrf_token_compares_hmac_values():
