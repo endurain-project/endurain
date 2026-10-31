@@ -329,7 +329,6 @@ def prepare_sign_up_approval_request_email(
         admin.email,
         *sign_up_email_messages.get_admin_signup_notification_email(
             admin.name,
-            user.name,
             user.username,
             frontend_host,
             locale,

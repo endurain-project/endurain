@@ -211,7 +211,6 @@ def get_email_changed_email(
 
 def get_admin_signup_notification_email(
     user_name: str,
-    sign_up_user_name: str,
     sign_up_user_username: str,
     frontend_host: str,
     locale: str | None = None,
@@ -220,7 +219,6 @@ def get_admin_signup_notification_email(
 
     Args:
         user_name: Display name of the admin recipient.
-        sign_up_user_name: Display name of the signed-up user.
         sign_up_user_username: Username of the signed-up user.
         frontend_host: Base URL of the frontend, used in links and the footer.
         locale: Preferred locale code for the admin recipient.
@@ -229,7 +227,7 @@ def get_admin_signup_notification_email(
         A 3-tuple of (subject, html_content, text_content).
     """
     safe_name = html.escape(user_name)
-    safe_sign_up_name = html.escape(sign_up_user_name)
+    safe_sign_up_username = html.escape(sign_up_user_username)
 
     def tr(key: str, **kwargs: str) -> str:
         return core_i18n.t(key, locale, **kwargs)
@@ -259,7 +257,7 @@ def get_admin_signup_notification_email(
                 color: {core_email_templates.INFO_TEXT}; padding: 15px;
                 border-radius: 8px; margin: 20px 0;"
             >
-                <strong>{user_label}</strong> {safe_sign_up_name}
+                <strong>{user_label}</strong> {safe_sign_up_username}
             </div>
             <p>{review}</p>
             <div style="text-align: center; margin: 30px 0;">
@@ -288,7 +286,7 @@ def get_admin_signup_notification_email(
     text_content = (
         f"{tr('admin_signup.greeting', name=user_name)}\n\n"
         f"{intro}\n"
-        f"{user_label} {sign_up_user_name}\n\n"
+        f"{user_label} {sign_up_user_username}\n\n"
         f"{review}\n"
         f"{admin_link}\n\n"
         f"{labels['best_regards']}\n"

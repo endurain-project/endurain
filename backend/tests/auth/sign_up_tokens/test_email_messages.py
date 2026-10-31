@@ -133,41 +133,38 @@ class TestGetAdminSignupNotificationEmail:
         """Builder returns (subject, html, text) tuple."""
         result = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "New User",
             "newuser",
             _make_service(),
             locale="en",
         )
         assert len(result) == 3
 
-    def test_html_contains_new_user_name(self):
-        """HTML body contains the new user's display name."""
+    def test_html_shows_username_not_display_name(self):
+        """HTML body identifies the new user by username."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "New User",
             "newuser",
             _make_service(),
             locale="en",
         )
-        assert "New User" in html_body
+        assert "newuser" in html_body
+        assert "New User" not in html_body
 
     def test_admin_link_url_encodes_username(self):
         """Admin link URL-encodes special characters in username."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "Some User",
             "user name@test",
             _make_service(),
             locale="en",
         )
-        # The raw username with spaces/@ must not appear unencoded in the link
-        assert "user name@test" not in html_body
+        assert "username=user%20name%40test" in html_body
+        assert "username=user name@test" not in html_body
 
     def test_admin_link_html_escaped(self):
         """Admin link is HTML-escaped so attributes are not broken."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "Some User",
             "normaluser",
             _make_service(),
             locale="en",
@@ -175,12 +172,11 @@ class TestGetAdminSignupNotificationEmail:
         # The link should contain the frontend host (escaped)
         assert "endurain.example.com" in html_body
 
-    def test_html_escapes_sign_up_user_name(self):
-        """HTML body escapes special characters in the new user name."""
+    def test_html_escapes_sign_up_username(self):
+        """HTML body escapes special characters in the new user's username."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
             "<script>evil</script>",
-            "eviluser",
             _make_service(),
             locale="en",
         )
@@ -190,13 +186,12 @@ class TestGetAdminSignupNotificationEmail:
         """
         HTML body escapes <script> tags in the admin recipient name.
 
-        Both `user_name` (admin) and `sign_up_user_name` pass through
+        Both `user_name` (admin) and `sign_up_user_username` pass through
         html.escape(); this test specifically validates that a
         malicious admin name cannot inject raw HTML.
         """
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "<script>alert(1)</script>",
-            "New User",
             "newuser",
             _make_service(),
             locale="en",
@@ -221,14 +216,12 @@ class TestGetAdminSignupNotificationEmail:
         try:
             subject_pt, _, _ = email_messages.get_admin_signup_notification_email(
                 "Admin",
-                "New User",
                 "newuser",
                 _make_service(),
                 locale="pt-PT",
             )
             subject_us, _, _ = email_messages.get_admin_signup_notification_email(
                 "Admin",
-                "New User",
                 "newuser",
                 _make_service(),
                 locale="en",
