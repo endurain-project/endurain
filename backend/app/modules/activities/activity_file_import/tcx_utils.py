@@ -272,10 +272,10 @@ def _extract_waypoints(
 
         if last_time is None or time_val > last_time:
             last_time = time_val
-            # Speed is measured from the last positioned point, so a
-            # position-less point leaves that baseline untouched.
-            if lat is not None and lon is not None:
-                prev_lat, prev_lon, prev_pos_time = lat, lon, time_val
+        # Speed is measured from the last positioned point, tracked apart from
+        # last_time so a position-less point neither moves nor blocks it.
+        if lat is not None and lon is not None and (prev_pos_time is None or time_val > prev_pos_time):
+            prev_lat, prev_lon, prev_pos_time = lat, lon, time_val
 
     _close_segment()
 

@@ -958,6 +958,20 @@ class TestTcxWithoutGps:
         # 0.001 deg of latitude is ~111 m, covered over the 20 s since the last positioned point.
         assert vel[2] == pytest.approx(111.2 / 20, rel=0.01)
 
+    def test_extract_waypoints_takes_a_positioned_point_sharing_a_partial_points_time_as_baseline(self):
+        dt = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
+        trackpoints = [
+            {"time": dt, "latitude": 40.0, "longitude": -3.0},
+            {"time": dt + timedelta(seconds=10), "latitude": None, "longitude": -3.0},
+            {"time": dt + timedelta(seconds=10), "latitude": 40.001, "longitude": -3.0},
+            {"time": dt + timedelta(seconds=20), "latitude": 40.0015, "longitude": -3.0},
+        ]
+
+        waypoints = tcx_utils._extract_waypoints(trackpoints, SimpleNamespace(trackpoints=[]))
+
+        # 0.0005 deg of latitude is ~55.6 m, covered in the 10 s since the point at 10 s.
+        assert waypoints["vel_waypoints"][3]["vel"] == pytest.approx(55.6 / 10, rel=0.01)
+
     def test_parse_tcx_file_without_gps_uses_default_timezone(self):
         trackpoints = [
             {"time": datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC), "latitude": None, "longitude": None, "hr_value": 120},
