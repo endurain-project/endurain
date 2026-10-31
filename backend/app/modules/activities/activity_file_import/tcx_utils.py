@@ -196,6 +196,7 @@ def _extract_waypoints(
     last_time = None
     prev_lat = None
     prev_lon = None
+    prev_pos_time = None
 
     def _close_segment() -> int:
         """Flush the open pause-split sub-segment when it has two points."""
@@ -222,6 +223,7 @@ def _extract_waypoints(
                 last_time = None
                 prev_lat = None
                 prev_lon = None
+                prev_pos_time = None
             elif delta > 0:
                 moving_time += delta
             # Non-positive deltas (duplicate/out-of-order timestamps) add
@@ -241,7 +243,7 @@ def _extract_waypoints(
                 }
             )
             instant_speed = activities_computation.calculate_instant_speed(
-                last_time,
+                prev_pos_time,
                 time_val,
                 lat,
                 lon,
@@ -269,11 +271,11 @@ def _extract_waypoints(
         )
 
         if last_time is None or time_val > last_time:
-            prev_lat, prev_lon, last_time = (
-                lat,
-                lon,
-                time_val,
-            )
+            last_time = time_val
+            # Speed is measured from the last positioned point, so a
+            # position-less point leaves that baseline untouched.
+            if lat is not None and lon is not None:
+                prev_lat, prev_lon, prev_pos_time = lat, lon, time_val
 
     _close_segment()
 
@@ -379,9 +381,11 @@ def _read_tcx(file: str) -> Any:
     """Read a TCX file, falling back to keeping position-less trackpoints.
 
     tcxreader's default ``only_gps=True`` drops every trackpoint without a
-    longitude. GPS files keep that default so their start time (part of the
-    dedup key) and stats stay as tcxreader computes them; a file left with no
-    trackpoints (indoor/treadmill) is re-read with ``only_gps=False``.
+    longitude, and it leaves ``start_time`` unset when two or fewer trackpoints
+    remain. GPS files keep that default so their start time (part of the dedup
+    key) and stats stay as tcxreader computes them; a file left without a start
+    time (indoor/treadmill, or a few stray GPS fixes) is re-read with
+    ``only_gps=False``.
 
     Args:
         file: Path to the TCX file.
@@ -391,7 +395,7 @@ def _read_tcx(file: str) -> Any:
     """
     reader = tcxreader.TCXReader()
     tcx_file = reader.read(file)
-    if not tcx_file.trackpoints:
+    if tcx_file.start_time is None:
         tcx_file = reader.read(file, only_gps=False)
     return tcx_file
 

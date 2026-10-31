@@ -953,7 +953,10 @@ class TestTcxWithoutGps:
         waypoints = tcx_utils._extract_waypoints(trackpoints, SimpleNamespace(trackpoints=[]))
 
         assert len(waypoints["lat_lon_waypoints"]) == 2
-        assert len(waypoints["vel_waypoints"]) == 3
+        vel = [wp["vel"] for wp in waypoints["vel_waypoints"]]
+        assert vel[:2] == [0, 0]
+        # 0.001 deg of latitude is ~111 m, covered over the 20 s since the last positioned point.
+        assert vel[2] == pytest.approx(111.2 / 20, rel=0.01)
 
     def test_parse_tcx_file_without_gps_uses_default_timezone(self):
         trackpoints = [
@@ -1011,12 +1014,33 @@ class TestTcxWithoutGps:
         activity = result["activity"]
         assert activity.start_time == datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
         assert activity.end_time == datetime(2026, 6, 20, 8, 2, 0, tzinfo=UTC)
+        assert activity.total_timer_time == 120
         assert activity.timezone == "Europe/Lisbon"
         assert result["is_lat_lon_set"] is False
         assert result["is_heart_rate_set"] is True
         assert [wp["hr"] for wp in result["hr_waypoints"]] == [120, 121, 122]
         assert result["is_elevation_set"] is False
         assert all(wp["ele"] is not None for wp in result["ele_waypoints"])
+
+    def test_parse_tcx_file_reads_file_with_too_few_gps_fixes(self, tmp_path):
+        trackpoints = (
+            "<Trackpoint><Time>2026-06-20T08:00:00Z</Time>"
+            "<Position><LatitudeDegrees>40.0</LatitudeDegrees>"
+            "<LongitudeDegrees>-3.0</LongitudeDegrees></Position></Trackpoint>"
+            + "".join(f"<Trackpoint><Time>2026-06-20T08:0{minute}:00Z</Time></Trackpoint>" for minute in range(1, 3))
+        )
+        file = _write_tcx(tmp_path, trackpoints)
+
+        with patch(
+            "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+            return_value="Europe/Madrid",
+        ):
+            result = tcx_utils.parse_tcx_file(file=file, user_id=1, default_timezone="Europe/Lisbon")
+
+        activity = result["activity"]
+        assert activity.start_time == datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        assert activity.end_time == datetime(2026, 6, 20, 8, 2, 0, tzinfo=UTC)
+        assert len(result["lat_lon_waypoints"]) == 1
 
     def test_parse_tcx_file_starts_gps_file_at_first_positioned_point(self, tmp_path):
         trackpoints = "<Trackpoint><Time>2026-06-20T08:00:00Z</Time></Trackpoint>" + "".join(
