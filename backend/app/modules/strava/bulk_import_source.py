@@ -17,6 +17,7 @@ drops them, and how to build the source that answers those three questions.
 
 import os
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -177,6 +178,7 @@ def _build_source(
     user_id: int,
     import_initiated_time: str,
     read_member: activity_ingestion_integration.ArchiveMemberReader,
+    _member_names: Sequence[str],
 ) -> StravaBulkImportSource:
     """Build the source for one batch from the export's manifest and the user's gear.
 
@@ -184,6 +186,7 @@ def _build_source(
         user_id: The importing user.
         import_initiated_time: ISO timestamp of when the import began.
         read_member: Reads a member of the archive by name.
+        _member_names: Every member path in the archive; the manifest has a fixed name.
 
     Returns:
         The source applied to every file of the batch.

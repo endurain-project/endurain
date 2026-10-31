@@ -4,6 +4,7 @@ Endurain lets you upload single files from the web interface. To import many fil
 
 - *Generic bulk import* - activity files such as .fit, .tcx, .gpx and .gz.
 - *Importing from a Strava bulk export* - activities, activity metadata (name, description, gear) and photos from a Strava export, plus bikes and shoes.
+- *Importing from a Garmin data export* - activity files from a Garmin export, named as in Garmin Connect.
 
 Nike Run Club data can be imported with the generic bulk import after converting it, see [Importing data from a Nike Run Club export](#importing-data-from-a-nike-run-club-export).
 
@@ -88,6 +89,16 @@ Comments on media are not imported (Endurain does not have comments on media).
 
 If you had unnamed shoes in Strava, the gear import renames them, so activities that refer to them by their Strava name are not linked. Edit `activities.csv` to use the new name before importing, using the format Strava writes: `{brand} {model} {name}`.
 
+## Importing data from a Garmin data export (BETA)
+
+Garmin lets you request an export of your data from your Garmin account. Its activity files only carry a generic name ("Workout"), while the export's `DI_CONNECT/DI-Connect-Fitness/<user>_<n>_summarizedActivities.json` files list each activity's Garmin Connect name. The Garmin import names every imported activity from the entry with the same start time (within 60 seconds), so the names match those of the Garmin Connect sync. An activity without a matching entry keeps the name from its file.
+
+The activity files ship as ZIPs inside `DI_CONNECT/DI-Connect-Uploaded-Files/`; extract them first. Then, in the settings "Import" page, choose "Garmin export import" and either upload a ZIP holding the extracted activity files and the `summarizedActivities.json` files, or place both in your folder:
+
+- Folder: `data/activity_files/bulk_import/<your user id>/`
+
+Folders are fine, and other export files are ignored and left alone. An import without a `summarizedActivities.json` file fails; use the generic bulk import for plain activity files.
+
 ## Importing data from a Nike Run Club export
 
 Nike Run Club has no export button in the app, but Nike sends your data on request: sign in at <https://www.nike.com/member/settings/privacy> and click "Request Data" under "Download Your Data". The export is a ZIP with one .tcx file per run. These files can't be imported directly: the values are wrapped in whitespace, heart rate is stored in trackpoints without GPS, and pauses and run names are lost.
@@ -116,7 +127,7 @@ When items are imported either through a bulk import or Strava bulk import, the 
 
 The import_info dictionary should include at least the following fields:
 * imported (boolean)
-* import_source (str) - e.g., "Strava bulk import" or "Basic bulk import"
+* import_source (str) - e.g., "Strava bulk import", "Garmin bulk import" or "Basic bulk import"
 * strava_activity_id (int) - holds Strava's internal activity ID for Strava activities when imported from a bulk Strava import
 * import_ISO_time (str) - an ISO formatted string holding the time of import.  This will be the time the entire import was triggered, and should be the same for all files of a single bulk import.
 

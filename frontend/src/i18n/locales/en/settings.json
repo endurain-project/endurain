@@ -778,7 +778,7 @@
   },
   "import": {
     "title": "Import",
-    "subtitle": "Import activities and gear from files or a Strava bulk export",
+    "subtitle": "Import activities and gear from files, a Strava bulk export or a Garmin data export",
     "beta": "Beta",
     "bulk": {
       "title": "Bulk import",
@@ -804,6 +804,15 @@
       "shoesError": "Couldn't import Strava shoes. Please try again.",
       "activitiesUpload": "Import activities (upload ZIP)",
       "activitiesFolder": "Import activities (server folder)"
+    },
+    "garmin": {
+      "title": "Garmin export import",
+      "subtitle": "Import the activity files of a Garmin data export, named as in Garmin Connect from its summarizedActivities.json",
+      "import": "Import",
+      "activitiesUpload": "Import activities (upload ZIP)",
+      "activitiesFolder": "Import activities (server folder)",
+      "activitiesQueued": "Garmin activities queued for import. You can leave this page; it continues in the background.",
+      "activitiesError": "Couldn't queue the Garmin activities import. Please try again."
     },
     "job": {
       "preparing": "Preparing the import…",
