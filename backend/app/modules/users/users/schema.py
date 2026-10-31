@@ -183,6 +183,8 @@ class UsersBase(BaseModel):
         preferred_language: Preferred language.
         gender: User's gender.
         units: User units (metric, imperial).
+        weight_units: Weight units override (metric - kg, imperial - lb);
+            null follows units.
         height: User's height in centimeters (1-300).
         max_heart_rate: Maximum heart rate in bpm (30-250).
         first_day_of_week: First day of the week.
@@ -213,6 +215,10 @@ class UsersBase(BaseModel):
     units: server_settings_schema.Units = Field(
         default=server_settings_schema.Units.METRIC,
         description="User units (metric, imperial)",
+    )
+    weight_units: server_settings_schema.Units | None = Field(
+        default=None,
+        description="Weight units override (metric - kg, imperial - lb), follows 'units' when null",
     )
     height: StrictInt | None = Field(
         default=None,
@@ -720,6 +726,7 @@ class ProfileUpdate(BaseModel):
         preferred_language: Preferred application language.
         gender: User's gender.
         units: Preferred unit system.
+        weight_units: Preferred weight units, independent of units; null follows units.
         height: User's height in centimeters.
         max_heart_rate: Maximum heart rate in bpm.
         first_day_of_week: First day of the week.
@@ -748,6 +755,7 @@ class ProfileUpdate(BaseModel):
     preferred_language: Language | None = None
     gender: Gender | None = None
     units: server_settings_schema.Units | None = None
+    weight_units: server_settings_schema.Units | None = None
     height: StrictInt | None = Field(default=None, ge=1, le=300)
     max_heart_rate: StrictInt | None = Field(default=None, ge=30, le=250)
     first_day_of_week: WeekDay | None = None

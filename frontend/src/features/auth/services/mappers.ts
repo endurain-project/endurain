@@ -60,6 +60,7 @@ export function mapUserProfile(dto: UserProfileDto): User {
     isGarminConnectLinked: toBoolean(dto.is_garminconnect_linked),
     hasLocalPassword: dto.has_local_password,
     units: dto.units,
+    weightUnits: dto.weight_units ?? dto.units,
     currency: dto.currency,
     firstDayOfWeek: dto.first_day_of_week ?? 'monday',
   }

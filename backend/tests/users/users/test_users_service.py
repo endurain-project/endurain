@@ -920,6 +920,22 @@ class TestEdits:
 
         assert mock_crud.update_user.call_args.args[1] == {"timezone": "Europe/Lisbon"}
 
+    def test_profile_edit_can_set_the_weight_units_override(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, weight_units="imperial")
+
+        users_service.stage_profile_edit(1, users_schema.ProfileUpdate(weight_units="imperial"), mock_db, if_match="*")
+
+        assert mock_crud.update_user.call_args.args[1] == {"weight_units": "imperial"}
+
+    def test_profile_edit_can_clear_the_weight_units_override(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, weight_units="imperial")
+        mock_crud.update_user.return_value = _user(1, weight_units=None)
+
+        users_service.stage_profile_edit(1, users_schema.ProfileUpdate(weight_units=None), mock_db, if_match="*")
+
+        assert mock_crud.update_user.call_args.args[1] == {"weight_units": None}
+
     def test_profile_height_change_recalculates_bmi(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, height=170)
         mock_crud.update_user.return_value = _user(1, height=175)

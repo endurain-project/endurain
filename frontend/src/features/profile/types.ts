@@ -97,6 +97,7 @@ export interface PrivacySettings {
  * @property birthdate - Birthdate (ISO date), or `null`.
  * @property gender - Gender.
  * @property units - Measurement system.
+ * @property weightUnits - Weight units override, or `null` to follow `units`.
  * @property currency - Preferred currency.
  * @property height - Height in centimetres, or `null`.
  * @property maxHeartRate - Max heart rate in bpm, or `null`.
@@ -125,6 +126,7 @@ export interface ProfileDetails {
   birthdate: string | null
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   height: number | null
   maxHeartRate: number | null
@@ -154,6 +156,11 @@ export interface ProfileEditInput {
   birthdate: string | null
   gender: Schemas['Gender']
   units: Schemas['Units']
+  /**
+   * Weight units override, independent of `units`; `null` means the weight
+   * display follows `units` (the pre-split behaviour).
+   */
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   height: number | null
   maxHeartRate: number | null

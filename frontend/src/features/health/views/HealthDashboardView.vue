@@ -32,6 +32,7 @@ const dashboardQuery = useHealthDashboardQuery()
 const { data: user } = useCurrentUser()
 
 const units = computed(() => user.value?.units ?? 'metric')
+const weightUnits = computed(() => user.value?.weightUnits ?? 'metric')
 const dashboard = computed(() => dashboardQuery.data.value ?? null)
 const targets = computed(() => dashboard.value?.targets ?? null)
 
@@ -111,6 +112,7 @@ const cards = computed<CardModel[]>(() => {
   const d = dashboard.value
   const tg = targets.value
   const u = units.value
+  const wu = weightUnits.value
   const noData = t('health.dashboard.labelNoData')
   const fastingSeconds = d?.fasting ? fastingElapsedSeconds(d.fasting) : null
   const bmi = d?.bmi ?? null
@@ -141,10 +143,10 @@ const cards = computed<CardModel[]>(() => {
     {
       key: 'weight',
       title: t('health.dashboard.weight'),
-      value: d?.weightKg != null ? formatWeight(d.weightKg, u) : null,
+      value: d?.weightKg != null ? formatWeight(d.weightKg, wu) : null,
       noDataLabel: noData,
       noTargetLabel: t('health.dashboard.noWeightTarget'),
-      targetDisplayValue: tg?.weightKg != null ? formatWeight(tg.weightKg, u) : null,
+      targetDisplayValue: tg?.weightKg != null ? formatWeight(tg.weightKg, wu) : null,
       arrowDirection: arrow(d?.weightKg ?? null, tg?.weightKg ?? null),
     },
     {

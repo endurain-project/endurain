@@ -62,6 +62,7 @@ const authUser: User = {
   isGarminConnectLinked: false,
   hasLocalPassword: true,
   units: 'metric',
+  weightUnits: 'metric',
   currency: 'euro',
   firstDayOfWeek: 'sunday',
 }

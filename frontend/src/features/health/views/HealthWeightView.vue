@@ -34,7 +34,7 @@ const toasts = useToasts()
 const { data: currentUser } = useCurrentUser()
 const chart = useChartProvider()
 
-const units = computed(() => currentUser.value?.units ?? 'metric')
+const weightUnits = computed(() => currentUser.value?.weightUnits ?? 'metric')
 
 /** Selectable time windows for the weight history, in display order. */
 const INTERVAL_OPTIONS: WeightInterval[] = [
@@ -171,7 +171,7 @@ function confirmDelete(): void {
       v-if="chartSeries"
       :series="chartSeries"
       :target-kg="targetKg"
-      :units="units"
+      :weight-units="weightUnits"
     />
     <Alert v-else-if="chartQuery.isError.value" kind="error">
       {{ t('health.chartError') }}
@@ -221,7 +221,7 @@ function confirmDelete(): void {
         <li v-for="entry in entries" :key="entry.id">
           <HealthWeightListItem
             :entry="entry"
-            :units="units"
+            :weight-units="weightUnits"
             @edit="openEdit"
             @delete="openDelete"
           />
@@ -232,7 +232,7 @@ function confirmDelete(): void {
     <HealthWeightFormDialog
       v-model:open="isFormOpen"
       :entry="editingEntry"
-      :units="units"
+      :weight-units="weightUnits"
       @success="onDialogSuccess"
       @error="onDialogError"
     />
@@ -240,7 +240,7 @@ function confirmDelete(): void {
       v-if="targets"
       v-model:open="isTargetOpen"
       :targets="targets"
-      :units="units"
+      :weight-units="weightUnits"
       @success="onDialogSuccess"
       @error="onDialogError"
     />

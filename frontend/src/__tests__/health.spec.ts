@@ -160,7 +160,7 @@ describe('formatBodyMass', () => {
   })
 
   it('converts to pounds for imperial users', () => {
-    expect(formatBodyMass(5, 'imperial')).toBe(`${kgToLbs(5).toFixed(2)} lb`)
+    expect(formatBodyMass(5, 'imperial')).toBe(`${kgToLbs(5).toFixed(2)} lbs`)
   })
 })
 
