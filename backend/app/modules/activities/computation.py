@@ -14,7 +14,6 @@ composition and contributor surfaces.
 
 import statistics
 from datetime import UTC, datetime
-from itertools import pairwise
 from statistics import mean
 
 from geopy.distance import geodesic
@@ -189,28 +188,38 @@ def sum_elevation_deltas(
     elevations: list[dict],
     threshold: float = ELEVATION_THRESHOLD,
 ) -> tuple[float, float]:
-    """Sum per-step elevation deltas above ``threshold``.
+    """Count gain and loss from the last altitude that crossed ``threshold``.
 
     Expects an already-smoothed series and applies no smoothing itself. Laps
     slice the stream smoothed once by :func:`smooth_elevation_stream`:
     re-smoothing each slice clips gain at every lap boundary through filter
     edge effects, so per-lap sums would no longer partition the activity total.
 
+    The gate is measured from the last counted altitude, not from the previous
+    sample: a one-second track climbs less than ``threshold`` per sample after
+    smoothing, and a per-sample gate dropped the whole hill.
+
     Args:
         elevations: List of dicts with an ``ele`` key (meters).
-        threshold: Minimum |delta| (m) counted toward gain/loss.
+        threshold: Minimum climb or drop (m) since the last counted point.
 
     Returns:
         Tuple of (gain_m, loss_m); (0.0, 0.0) for empty input.
     """
+    if not elevations:
+        return 0.0, 0.0
     total_gain = 0.0
     total_loss = 0.0
-    for previous, current in pairwise(elevations):
-        diff = current["ele"] - previous["ele"]
+    anchor = elevations[0]["ele"]
+    for waypoint in elevations[1:]:
+        elevation = waypoint["ele"]
+        diff = elevation - anchor
         if diff > threshold:
             total_gain += diff
+            anchor = elevation
         elif diff < -threshold:
             total_loss -= diff
+            anchor = elevation
     return total_gain, total_loss
 
 
@@ -222,14 +231,16 @@ def compute_elevation_gain_and_loss(
 ) -> tuple[float, float] | tuple[None, None]:
     """Compute total elevation gain/loss in meters from waypoints.
 
-    Applies a median filter then a moving-average smoother before
-    summing per-step deltas above ``threshold``.
+    Applies a median filter then a moving-average smoother. The threshold is
+    measured from the last counted altitude, not from the previous sample: a
+    one-second track climbs less than ``threshold`` per sample after smoothing,
+    and a per-sample gate dropped the whole hill.
 
     Args:
         elevations: List of dicts with an ``ele`` key (meters).
         median_window: Window size for the median pre-filter.
         avg_window: Window size for the moving-average smoother.
-        threshold: Minimum |delta| (m) counted toward gain/loss.
+        threshold: Minimum climb or drop (m) since the last counted point.
 
     Returns:
         Tuple of (gain_m, loss_m); (0.0, 0.0) for a flat stream, and
