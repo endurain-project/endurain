@@ -1,8 +1,9 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { FollowEdge, FollowStatus } from '@/features/followers/types'
+import type { PublicUser } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -19,6 +20,9 @@ import {
   unfollowUser,
 } from '@/features/followers/services/followers'
 
+/** Freshness window for follow graph reads; relationship writes invalidate the domain. */
+const FOLLOWER_QUERY_STALE_TIME_MS = 60_000
+
 /** Resolves a reactive user id to a positive number, or `0` when unavailable. */
 function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
   const value = toValue(userId)
@@ -26,38 +30,76 @@ function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
 }
 
 /**
+ * Writes the profiles a follow list carried into the public-profile cache its rows read, so
+ * a row finds its user there instead of requesting it.
+ *
+ * @param client - The active query client.
+ * @param profiles - Each row's profile, or `null` for a user the server left out.
+ */
+function seedPublicProfiles(
+  client: QueryClient,
+  profiles: ReadonlyMap<number, PublicUser | null>,
+): void {
+  for (const [userId, profile] of profiles) {
+    client.setQueryData(queryKeys.users.publicProfile(userId), profile)
+  }
+}
+
+/**
  * The people who follow a user (the profile's followers list). Gated on a valid
- * user id and authentication.
+ * user id and authentication. The followers' profiles arrive with the list and are
+ * seeded into the public-profile cache.
  *
  * @param userId - Reactive id of the profile owner.
+ * @param enabled - Reactive gate for whether the list is currently needed.
  * @returns The TanStack query result for the followers list.
  */
-export function useFollowersQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useFollowersQuery(
+  userId: MaybeRefOrGetter<number | null>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
   return useQuery<FollowEdge[]>({
     queryKey: computed(() => queryKeys.followers.followersList(id.value)),
-    queryFn: ({ signal }) => fetchFollowers(id.value, signal),
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    queryFn: async ({ signal }) => {
+      const { edges, profiles } = await fetchFollowers(id.value, signal)
+      seedPublicProfiles(client, profiles)
+      return edges
+    },
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }
 
 /**
  * The people a user follows (the profile's following list). Gated on a valid
- * user id and authentication.
+ * user id and authentication. The followed users' profiles arrive with the list and
+ * are seeded into the public-profile cache.
  *
  * @param userId - Reactive id of the profile owner.
+ * @param enabled - Reactive gate for whether the list is currently needed.
  * @returns The TanStack query result for the following list.
  */
-export function useFollowingQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useFollowingQuery(
+  userId: MaybeRefOrGetter<number | null>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
   return useQuery<FollowEdge[]>({
     queryKey: computed(() => queryKeys.followers.followingList(id.value)),
-    queryFn: ({ signal }) => fetchFollowing(id.value, signal),
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    queryFn: async ({ signal }) => {
+      const { edges, profiles } = await fetchFollowing(id.value, signal)
+      seedPublicProfiles(client, profiles)
+      return edges
+    },
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }
 
@@ -75,6 +117,7 @@ export function useFollowersCountQuery(userId: MaybeRefOrGetter<number | null>) 
   return useQuery<number>({
     queryKey: computed(() => queryKeys.followers.followersCount(id.value)),
     queryFn: ({ signal }) => fetchFollowersCount(id.value, signal),
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && id.value > 0),
   })
 }
@@ -93,6 +136,7 @@ export function useFollowingCountQuery(userId: MaybeRefOrGetter<number | null>) 
   return useQuery<number>({
     queryKey: computed(() => queryKeys.followers.followingCount(id.value)),
     queryFn: ({ signal }) => fetchFollowingCount(id.value, signal),
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && id.value > 0),
   })
 }
@@ -114,6 +158,7 @@ export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) 
   return useQuery<FollowStatus>({
     queryKey: computed(() => queryKeys.followers.state(viewerId.value, target.value)),
     queryFn: ({ signal }) => fetchFollowStatus(target.value, signal),
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(
       () =>
         isAuthenticated.value &&
@@ -139,6 +184,7 @@ function useFollowGraphMutation(mutationFn: (targetId: number) => Promise<void>)
     mutationFn,
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.followers.all() })
+      void client.invalidateQueries({ queryKey: queryKeys.activities.profileOverviews() })
     },
   })
 }
@@ -161,6 +207,7 @@ function useRelationshipDeleteMutation(
     mutationFn: (targetId: number) => mutationFn(targetId, currentUser.value?.id ?? 0),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.followers.all() })
+      void client.invalidateQueries({ queryKey: queryKeys.activities.profileOverviews() })
     },
   })
 }

@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Sačekajte dok potvrđujemo vašu adresu.",
+  "choosePasswordTitle": "Izaberite lozinku",
+  "choosePasswordBody": "Vaša e-adresa biće potvrđena kada podesite lozinku za svoj nalog.",
+  "submitPassword": "Podesi lozinku",
+  "submittingPassword": "Čuvanje lozinke",
   "successTitle": "Email je verifikovan",
   "successBody": "Vaša email adresa je potvrđena.",
   "adminApprovalBody": "Vaš nalog sada čeka odobrenje administratora.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verifikacija nije uspela",
   "missingTokenBody": "Ovom linku za verifikaciju nedostaje token.",
   "errorInvalidToken": "Ovaj link za verifikaciju je nevažeći ili je istekao.",
+  "errorEmailTaken": "Ovu email adresu sada koristi drugi nalog, pa se ne može potvrditi.",
   "errorNotFound": "Nismo mogli da pronađemo nalog za ovaj link.",
   "errorGeneral": "Nismo mogli da verifikujemo vaš email. Pokušajte ponovo.",
   "retry": "Pokušaj ponovo",

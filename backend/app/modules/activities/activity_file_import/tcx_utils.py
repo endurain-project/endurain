@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 import tcxreader
 
@@ -386,8 +387,8 @@ def parse_tcx_file(
         associated metadata.
 
     Raises:
-        ProcessingError: When the TCX file cannot be
-            parsed or processed.
+        InvalidInputError: When the content is not valid TCX or cannot be parsed.
+        ProcessingError: When the TCX file cannot be read.
     """
     try:
         logger.debug("TCX parse start", extra=core_logger.context(file=Path(file).name, user_id=user_id))
@@ -514,8 +515,16 @@ def parse_tcx_file(
 
     except core_exceptions.DomainError:
         raise
-    except Exception as err:
-        # The exception text can carry file paths / parser internals, so it is
-        # logged but never returned to the caller (OWASP A09).
-        logger.error("Error in parse_tcx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
+    except (ElementTree.ParseError, ValueError) as err:
+        # The uploader's file is the problem (broken XML, undecodable bytes), so a retry reaches the same verdict.
+        logger.debug("Rejected a malformed TCX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("Can't open TCX file") from err
+    except OSError as err:
+        logger.debug("Could not read a TCX file", exc_info=err, extra=core_logger.context(user_id=user_id))
         raise core_exceptions.ProcessingError("Can't open TCX file") from err
+    except Exception as err:
+        # Any other failure on these bytes recurs on every retry, so the file is refused rather than retried;
+        # the traceback is kept at WARNING in case the parser itself is at fault.
+        # The exception text can carry file paths / parser internals, so it is logged but never returned (OWASP A09).
+        logger.warning("Could not parse a TCX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("Can't parse TCX file") from err

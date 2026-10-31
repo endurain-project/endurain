@@ -1,27 +1,21 @@
 """User integrations database models."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class UsersIntegrations(Base):
-    """
-    User third-party service integration settings.
+    """User third-party service integration settings.
 
     Attributes:
         id: Primary key.
         user_id: Foreign key to users table (unique).
         strava_client_id: Encrypted Strava client ID.
         strava_client_secret: Encrypted Strava client secret.
-        strava_state: Temporary state for Strava OAuth flow.
         strava_token: Encrypted Strava access token.
         strava_refresh_token: Encrypted Strava refresh token.
         strava_token_expires_at: Strava token expiration
@@ -31,7 +25,6 @@ class UsersIntegrations(Base):
             data.
         garminconnect_sync_gear: Enable Garmin Connect gear
             synchronization.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "users_integrations"
@@ -58,12 +51,6 @@ class UsersIntegrations(Base):
         default=None,
         nullable=True,
         comment=("Strava client secret encrypted at rest with Fernet key"),
-    )
-    strava_state: Mapped[str | None] = mapped_column(
-        String(length=45),
-        default=None,
-        nullable=True,
-        comment="Strava temporary state for link process",
     )
     strava_token: Mapped[str | None] = mapped_column(
         String(length=512),
@@ -100,5 +87,13 @@ class UsersIntegrations(Base):
         comment="Whether Garmin Connect gear is to be synced",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="users_integrations")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

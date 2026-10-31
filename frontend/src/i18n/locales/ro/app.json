@@ -18,6 +18,7 @@
     "help": "Verifică dacă ENDURAIN_HOST indică URL-ul la care instanța ta Endurain este accesibilă (de exemplu https://endurain.example.com) și dacă backendul rulează, apoi reîncarcă pagina.",
     "reload": "Reîncarcă"
   },
+  "staleError": "Acest lucru a fost modificat în altă parte în timp ce îl vizualizai, așa că nimic nu a fost salvat. Versiunea actuală a fost încărcată. Verifică-o și încearcă din nou.",
   "dismiss": "Închide",
   "language": "Limbă",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Editează",
     "supported": "Markdown acceptat",
     "empty": "Nimic de previzualizat"
+  },
+  "password": {
+    "hintLength": "Cel puțin {min} caractere.",
+    "hintStrict": "Cel puțin {min} caractere, cu majusculă, minusculă, o cifră și un caracter special.",
+    "invalid": "Parola nu îndeplinește cerințele",
+    "mismatch": "Parolele nu coincid"
   }
 }

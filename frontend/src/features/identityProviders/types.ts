@@ -1,7 +1,7 @@
 import type { Schemas } from '@/types'
 
 /** Raw authenticated identity-provider payload (snake_case wire shape). */
-export type IdentityProviderDto = Schemas['IdentityProvider']
+export type IdentityProviderDto = Schemas['IdentityProviderRead']
 
 /** Create body for a new identity provider (client secret required). */
 export type IdentityProviderCreateDto = Schemas['IdentityProviderCreate']
@@ -10,7 +10,7 @@ export type IdentityProviderCreateDto = Schemas['IdentityProviderCreate']
 export type IdentityProviderUpdateDto = Schemas['IdentityProviderUpdate']
 
 /** Raw identity-provider preset payload (snake_case wire shape). */
-export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplate']
+export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplateRead']
 
 /**
  * The clean, camel-cased identity-provider model used across the admin zone.
@@ -27,6 +27,7 @@ export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplate']
  * @property clientId - OAuth client id (decrypted for admins), or `null`.
  * @property scopes - Space-separated OAuth scopes.
  * @property icon - Built-in icon key or a custom icon URL, or `null`.
+ * @property iconUploaded - Whether an uploaded image is shown instead of `icon`.
  * @property autoCreateUsers - Whether first-time logins auto-create an account.
  * @property syncUserInfo - Whether profile info is synced on each login.
  * @property authorizationEndpoint - Discovered OAuth authorization endpoint, or `null`.
@@ -35,6 +36,8 @@ export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplate']
  */
 export interface IdentityProvider {
   id: number
+  /** Row version echoed as `If-Match` when the provider is edited. */
+  version: number
   name: string
   slug: string
   providerType: string
@@ -43,6 +46,7 @@ export interface IdentityProvider {
   clientId: string | null
   scopes: string
   icon: string | null
+  iconUploaded: boolean
   autoCreateUsers: boolean
   syncUserInfo: boolean
   authorizationEndpoint: string | null

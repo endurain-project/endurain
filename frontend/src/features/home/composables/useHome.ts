@@ -1,10 +1,11 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
 import type { GoalProgress } from '@/features/goals/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
@@ -90,7 +91,8 @@ export function useUserWeekActivitiesQuery(
 
 /**
  * The home dashboard's infinite feed of activities from the people the viewer
- * follows. Same shape as {@link useUserActivitiesFeed}.
+ * follows. Same shape as {@link useUserActivitiesFeed}. The owners' profiles arrive
+ * with each slice and are seeded into the activity-owner cache the cards read.
  *
  * @param userId - Reactive id of the viewer.
  * @param pageSize - Records per page.
@@ -103,12 +105,19 @@ export function useFollowersActivitiesFeed(
   pageSize: number = DEFAULT_FEED_PAGE_SIZE,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) => fetchFollowersActivities(pageParam, pageSize, signal),
+    queryFn: async ({ pageParam, signal }) => {
+      const slice = await fetchFollowersActivities(pageParam, pageSize, signal)
+      for (const [ownerId, owner] of slice.owners) {
+        client.setQueryData(queryKeys.activities.owner(ownerId), owner)
+      }
+      return slice
+    },
     // Keyset, not offset: the server hands back the position of the last row it
     // returned, so activities arriving mid-scroll cannot shift the window.
     initialPageParam: null as string | null,
@@ -197,15 +206,11 @@ export function useGoalResultsQuery(enabled: MaybeRefOrGetter<boolean> = true) {
  * @returns The TanStack mutation for refreshing integration activities.
  */
 export function useRefreshActivitiesMutation() {
-  const client = useQueryClient()
-
-  return useMutation<ActivityIngestionJob, Error, void>({
+  return useInvalidatingMutation<ActivityIngestionJob, void>({
+    mutationKey: queryKeys.activities.all(),
     mutationFn: async () => {
       const job = await refreshActivities()
       return pollIngestionJob(job.id)
-    },
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
     },
   })
 }

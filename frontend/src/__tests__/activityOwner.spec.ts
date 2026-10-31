@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { apiFetch } from '@/services/http'
+import { apiFetch, HttpError } from '@/services/http'
 import { fetchActivityOwner } from '@/features/activities/services/activityOwner'
 
-vi.mock('@/services/http', () => ({ apiFetch: vi.fn<typeof apiFetch>() }))
+vi.mock('@/services/http', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/http')>()),
+  apiFetch: vi.fn<typeof apiFetch>(),
+}))
 
 const ownerDto = {
   id: 7,
@@ -36,7 +39,12 @@ describe('fetchActivityOwner', () => {
   })
 
   it('returns null when the public endpoint withholds the user (setting off)', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
     expect(await fetchActivityOwner(7, false)).toBeNull()
+  })
+
+  it('rethrows other failures', async () => {
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
+    await expect(fetchActivityOwner(7, true)).rejects.toBeInstanceOf(HttpError)
   })
 })

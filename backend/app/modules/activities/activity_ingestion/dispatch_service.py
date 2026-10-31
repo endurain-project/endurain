@@ -37,6 +37,18 @@ def worker_retries() -> bool:
     return core_config.settings.JOBS_ENABLED
 
 
+def pool_owns_jobs() -> bool:
+    """Return whether this process's in-process pool is the only place queued jobs run.
+
+    Jobs the pool held are gone once the process restarts. That is not true with a durable worker
+    (its lease protects the job) nor with several web workers (a sibling's pool still holds its own).
+
+    Returns:
+        True on the local profile with a single web worker.
+    """
+    return not worker_retries() and core_config.settings.WEB_WORKERS == 1
+
+
 def claim_lease() -> timedelta:
     """Return how long a ``processing`` claim stays valid without being touched.
 
@@ -64,6 +76,29 @@ def commit_or_publish(db: Session, *, publish: Callable[[Callable[[], None]], No
         publish(db.commit)
     else:
         db.commit()
+
+
+def require_capacity() -> None:
+    """Refuse a request up front when the in-process pool is full and no worker would take its job.
+
+    Call before staging anything or creating a job row, so a refusal leaves nothing behind.
+
+    Raises:
+        PoolFullError: On the local profile, when the pool holds its limit of jobs.
+    """
+    if not worker_retries():
+        activity_ingestion_background.require_capacity()
+
+
+def require_node_capacity() -> None:
+    """Refuse a request up front when the in-process pool is full, whatever the profile.
+
+    For work that runs on this node even with durable jobs (see :func:`run_on_this_node`).
+
+    Raises:
+        PoolFullError: When the pool holds its limit of jobs.
+    """
+    activity_ingestion_background.require_capacity()
 
 
 def run_in_background(run: Callable[..., Any], *args: Any) -> None:

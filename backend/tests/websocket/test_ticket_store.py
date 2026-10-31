@@ -6,20 +6,11 @@ import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
+import core.attempt_state as core_attempt_state
 from modules.websocket.ticket_store import (
     TICKET_TTL_SECONDS,
     WsTicketStore,
-    WsTicketStoreProtocol,
-    WsTicketStoreUnavailableError,
-    get_ws_ticket_store,
 )
-
-
-class TestWsTicketStoreProtocol:
-    """Structural conformance to WsTicketStoreProtocol."""
-
-    def test_store_satisfies_protocol(self):
-        assert isinstance(WsTicketStore(state=MemoryState()), WsTicketStoreProtocol)
 
 
 class TestWsTicketStore:
@@ -77,28 +68,20 @@ class TestWsTicketStore:
         assert len(mock_log.method_calls) == 1
         warning_msg = mock_log.warning.call_args.args[0]
         assert "secret-ticket-abc" not in warning_msg
-        assert "ws:ticket:" not in warning_msg
+        assert "endurain:websocket:ticket" not in warning_msg
 
 
 class TestWsTicketStoreUnavailable:
-    """Backend outages surface as WsTicketStoreUnavailableError."""
+    """Backend outages surface as core_attempt_state.StateUnavailableError."""
 
     def test_create_ticket_raises(self):
         state = MagicMock()
         state.set_if_absent.side_effect = StateBackendUnavailableError("down")
-        with pytest.raises(WsTicketStoreUnavailableError):
+        with pytest.raises(core_attempt_state.StateUnavailableError):
             WsTicketStore(state=state).create_ticket(user_id=1)
 
     def test_consume_ticket_raises(self):
         state = MagicMock()
         state.get_and_delete.side_effect = StateBackendUnavailableError("down")
-        with pytest.raises(WsTicketStoreUnavailableError):
+        with pytest.raises(core_attempt_state.StateUnavailableError):
             WsTicketStore(state=state).consume_ticket("some-ticket")
-
-
-class TestGetWsTicketStore:
-    """get_ws_ticket_store: returns the module singleton."""
-
-    def test_returns_singleton(self):
-        assert get_ws_ticket_store() is get_ws_ticket_store()
-        assert isinstance(get_ws_ticket_store(), WsTicketStoreProtocol)

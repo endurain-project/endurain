@@ -1,6 +1,6 @@
 [project]
 name = "endurain"
-version = "0.20.2"
+version = "0.21.0-beta1"
 description = "Endurain API for the Endurain app"
 authors = [{name = "João Vitória Silva", email = "joao@endurain.com"}]
 # readme intentionally omitted — internal app, not published to PyPI
@@ -38,13 +38,13 @@ dependencies = [
     "httpx2>=2.13.0",
     "itsdangerous>=2.2.0",
     "slowapi>=0.1.10",
-    "safeuploads[fastapi]>=1.1.1",
+    "safeuploads[fastapi]>=1.1.2",
     "nh3>=0.3.7",
     "aiofiles>=25.1.0",
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[fastapi,geocoding,jobs,migrations]>=0.6.1,<0.7.0",
+    "jasil[fastapi,geocoding,jobs,migrations]>=0.13.0,<0.14.0",
 ]
 
 [project.optional-dependencies]
@@ -52,14 +52,15 @@ dependencies = [
 # shared state / event bus and S3-compatible object storage. The default image
 # (`uv export --no-dev`) ships neither, so `local` deployments stay lean.
 distributed = [
-    "boto3>=1.43.98",
+    "boto3>=1.43.99",
     "redis>=8.1.0",
-    "jasil[redis,s3]>=0.6.1,<0.7.0",
+    "jasil[redis,s3]>=0.13.0,<0.14.0",
 ]
 
 [dependency-groups]
 typecheck = [
     "mypy>=2.3.1",
+    "ty>=0.0.83",
     "types-requests",
     "types-psutil",
     "types-qrcode",
@@ -77,7 +78,7 @@ test = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
-    "boto3>=1.43.98",
+    "boto3>=1.43.99",
     "redis>=8.1.0",
 ]
 dev = [
@@ -94,12 +95,13 @@ docs = [
 ]
 
 [tool.uv]
-required-version = "0.12.24"
+required-version = "0.13.5"
 exclude-newer = "30 days"
-# jasil is first-party (endurain-project) and published through PyPI Trusted
-# Publishing with PEP 740 attestations, so it is exempt from the quarantine the
-# cutoff applies to third-party releases. Every other dependency keeps it.
-exclude-newer-package = { jasil = false }
+# jasil and safeuploads are first-party (endurain-project) and published through
+# PyPI Trusted Publishing with PEP 740 attestations, so they are exempt from the
+# quarantine the cutoff applies to third-party releases. Every other dependency
+# keeps it.
+exclude-newer-package = { jasil = false, safeuploads = false }
 
 [[tool.uv.index]]
 name = "pypi"
@@ -127,6 +129,7 @@ lint-check = "ruff check ."
 format-check = "ruff format --check ."
 test = "pytest"
 typecheck = "mypy"
+typecheck-ty = "ty check"
 validate = ["lint", "format", "test", "typecheck"]
 check = ["lint-check", "format-check", "test", "typecheck"]
 
@@ -185,6 +188,28 @@ module = [
 ]
 ignore_missing_imports = true
 
+[tool.ty.environment]
+python-version = "3.13"
+root = ["app"]
+
+[tool.ty.src]
+include = ["app"]
+exclude = ["tests/", "alembic/"]
+
+[tool.ty.analysis]
+allowed-unresolved-imports = [
+    "apscheduler.**",
+    "staticmap",
+    "fitdecode",
+    "garminconnect",
+    "geopy.**",
+    "tcxreader",
+    "user_agents",
+    "safeuploads.**",
+    "boto3",
+    "botocore.**",
+]
+
 [tool.ruff]
 target-version = "py313"
 line-length = 120
@@ -215,10 +240,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-# Docstring rules ("D") apply to the converted modules (activities, followers). Everything
-# below is outside them until converted: removing a module from this list is part of
-# converting it. ``tests/architecture/test_module_boundaries.py`` keeps the module entries
-# in step with UNCONVERTED_MODULES.
+# Docstring rules apply to every module; only application composition, runtime data, and tests are exempt.
 "app/api.py" = ["D"]
 "app/model_registry.py" = ["D"]
 "app/module_registry.py" = ["D"]
@@ -227,23 +249,14 @@ convention = "google"
 "app/data/**/*.py" = ["D"]  # runtime data directories, not code
 "app/logs/**/*.py" = ["D"]
 "app/migrations/**/*.py" = ["D"]
-"app/modules/auth/**/*.py" = ["D"]
-"app/modules/garmin/**/*.py" = ["D"]
-"app/modules/gears/**/*.py" = ["D"]
-"app/modules/health/**/*.py" = ["D"]
-"app/modules/notifications/**/*.py" = ["D"]
-"app/modules/server_settings/**/*.py" = ["D"]
-"app/modules/strava/**/*.py" = ["D"]
-"app/modules/users/**/*.py" = ["D"]
-"app/modules/websocket/**/*.py" = ["D"]
 "scripts/**/*.py" = ["D"]
 "tests/**/*.py" = ["D", "S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["D", "E402", "I001"]  # alembic migrations have specific import order; docstrings not required
 "app/alembic/versions/v0_3_0_migration.py" = ["S105", "S106"]  # legitimate password hashes in seed migration
 "app/modules/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
-"app/modules/auth/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
-"app/modules/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
-"app/modules/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
+"app/modules/auth/authentication/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
+"app/modules/auth/authentication/service.py" = ["S105", "S106"]  # false positive on token_type string comparisons
+"app/modules/auth/authentication/dependencies.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/main.py" = ["D", "S105"]  # false positive on env var value
 
 [tool.ruff.format]

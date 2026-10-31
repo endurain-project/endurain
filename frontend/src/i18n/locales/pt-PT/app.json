@@ -18,6 +18,7 @@
     "help": "Verifique se ENDURAIN_HOST aponta para o URL onde a sua instância do Endurain está acessível (por exemplo https://endurain.example.com) e se o backend está em execução; depois, recarregue a página.",
     "reload": "Recarregar"
   },
+  "staleError": "Isto foi alterado noutro local enquanto o estava a ver, por isso nada foi guardado. A versão atual foi carregada. Reveja-a e tente novamente.",
   "dismiss": "Dispensar",
   "language": "Idioma",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Editar",
     "supported": "Markdown suportado",
     "empty": "Nada para pré-visualizar"
+  },
+  "password": {
+    "hintLength": "Pelo menos {min} caracteres.",
+    "hintStrict": "Pelo menos {min} caracteres, com maiúscula, minúscula, um número e um caractere especial.",
+    "invalid": "A palavra-passe não cumpre os requisitos",
+    "mismatch": "As palavras-passe não coincidem"
   }
 }

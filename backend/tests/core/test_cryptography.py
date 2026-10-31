@@ -13,8 +13,8 @@ from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
-from fastapi import HTTPException
 
+import core.exceptions as core_exceptions
 from core import cryptography
 
 
@@ -38,7 +38,7 @@ class TestCreateFernetCipher:
         monkeypatch.delenv("FERNET_KEY_FILE", raising=False)
 
         with patch("core.config.read_secret", return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.CryptographyError) as exc_info:
                 cryptography.create_fernet_cipher()
 
             assert exc_info.value.status_code == 500
@@ -48,7 +48,7 @@ class TestCreateFernetCipher:
         """Test Fernet cipher creation fails with invalid key."""
         monkeypatch.setenv("FERNET_KEY", "invalid_key")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
             cryptography.create_fernet_cipher()
 
         assert exc_info.value.status_code == 500
@@ -118,7 +118,7 @@ class TestEncryptTokenFernet:
         """Test encryption fails gracefully when cipher creation fails."""
         monkeypatch.setenv("FERNET_KEY", "invalid_key")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
             cryptography.encrypt_token_fernet("test")
 
         assert exc_info.value.status_code == 500
@@ -152,7 +152,7 @@ class TestDecryptTokenFernet:
         """Test decryption fails with invalid encrypted data."""
         invalid_encrypted = "not_a_valid_encrypted_token"
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UndecryptableError) as exc_info:
             cryptography.decrypt_token_fernet(invalid_encrypted)
 
         assert exc_info.value.status_code == 500
@@ -166,7 +166,7 @@ class TestDecryptTokenFernet:
         # Tamper with the encrypted data
         tampered = encrypted[:-5] + "XXXXX"
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UndecryptableError) as exc_info:
             cryptography.decrypt_token_fernet(tampered)
 
         assert exc_info.value.status_code == 500
@@ -199,7 +199,7 @@ class TestDecryptTokenFernet:
         monkeypatch.setenv("FERNET_KEY", new_key)
 
         # Decryption should fail
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UndecryptableError) as exc_info:
             cryptography.decrypt_token_fernet(encrypted)
 
         assert exc_info.value.status_code == 500
@@ -246,3 +246,15 @@ class TestEncryptDecryptRoundtrip:
         # Both should decrypt to the same original token
         assert cryptography.decrypt_token_fernet(encrypted1) == token
         assert cryptography.decrypt_token_fernet(encrypted2) == token
+
+
+class TestDecryptKeyFailure:
+    """A key that cannot be used is not an undecryptable value."""
+
+    def test_an_unusable_key_is_a_cryptography_error_not_an_undecryptable_value(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", "invalid_key")
+
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
+            cryptography.decrypt_token_fernet("anything")
+
+        assert not isinstance(exc_info.value, core_exceptions.UndecryptableError)

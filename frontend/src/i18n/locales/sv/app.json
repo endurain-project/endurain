@@ -18,6 +18,7 @@
     "help": "Kontrollera att ENDURAIN_HOST pekar på den URL där din Endurain-instans är nåbar (till exempel https://endurain.example.com) och att backend körs, och ladda sedan om sidan.",
     "reload": "Ladda om"
   },
+  "staleError": "Detta ändrades på annat håll medan du tittade på det, så inget sparades. Den aktuella versionen har lästs in. Granska den och försök igen.",
   "dismiss": "Stäng",
   "language": "Språk",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Redigera",
     "supported": "Markdown stöds",
     "empty": "Inget att förhandsgranska"
+  },
+  "password": {
+    "hintLength": "Minst {min} tecken.",
+    "hintStrict": "Minst {min} tecken, med versaler, gemener, en siffra och ett specialtecken.",
+    "invalid": "Lösenordet uppfyller inte kraven",
+    "mismatch": "Lösenorden matchar inte"
   }
 }

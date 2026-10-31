@@ -18,6 +18,7 @@
     "help": "Controleer of ENDURAIN_HOST verwijst naar de URL waar je Endurain-instantie bereikbaar is (bijvoorbeeld https://endurain.example.com) en dat de backend draait, en herlaad daarna de pagina.",
     "reload": "Opnieuw laden"
   },
+  "staleError": "Dit is ergens anders gewijzigd terwijl je ernaar keek, dus er is niets opgeslagen. De huidige versie is geladen. Bekijk deze en probeer het opnieuw.",
   "dismiss": "Sluiten",
   "language": "Taal",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Bewerken",
     "supported": "Markdown ondersteund",
     "empty": "Niets om een voorbeeld van te tonen"
+  },
+  "password": {
+    "hintLength": "Minimaal {min} tekens.",
+    "hintStrict": "Minimaal {min} tekens, met hoofdletter, kleine letter, een cijfer en een speciaal teken.",
+    "invalid": "Wachtwoord voldoet niet aan de vereisten",
+    "mismatch": "Wachtwoorden komen niet overeen"
   }
 }

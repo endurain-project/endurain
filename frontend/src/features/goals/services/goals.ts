@@ -10,6 +10,8 @@ import type {
 } from '@/features/goals/types'
 
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { fetchAllPages } from '@/services/pagination'
 
 /**
  * Maps a raw goal payload to the clean {@link Goal} model — the single boundary
@@ -23,6 +25,7 @@ export function mapGoal(dto: GoalDto): Goal {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     interval: dto.interval,
     activityType: dto.activity_type,
     goalType: dto.goal_type,
@@ -75,8 +78,8 @@ export function mapGoalProgress(dto: GoalProgressDto): GoalProgress {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGoalResults(signal?: AbortSignal): Promise<GoalProgress[]> {
-  const dtos = await apiFetch<GoalProgressDto[] | null>('/profile/goals/results', { signal })
-  return (dtos ?? []).map(mapGoalProgress)
+  const dtos = await fetchAllPages<GoalProgressDto>('/profile/goals/results', undefined, signal)
+  return dtos.map(mapGoalProgress)
 }
 
 /**
@@ -124,12 +127,8 @@ export async function fetchGoals(
   if (filters.goalType) {
     params.set('goal_type', filters.goalType)
   }
-  const query = params.toString()
-  const dtos = await apiFetch<GoalDto[] | null>(
-    query ? `/profile/goals?${query}` : '/profile/goals',
-    { signal },
-  )
-  return (dtos ?? []).map(mapGoal)
+  const dtos = await fetchAllPages<GoalDto>('/profile/goals', params, signal)
+  return dtos.map(mapGoal)
 }
 
 /**
@@ -149,19 +148,20 @@ export async function createGoal(input: GoalInput): Promise<Goal> {
 }
 
 /**
- * Updates a goal for the authenticated user. The backend's update body carries
- * the goal's `id` and `user_id`, so both round-trip from the loaded record.
+ * Updates a goal for the authenticated user. The goal is named by the path and the body is
+ * the whole goal.
  *
  * @param id - The goal id.
- * @param userId - The goal owner's user id.
  * @param input - The clean goal input.
+ * @param version - The goal version the form was loaded at, for `If-Match`.
  * @returns The updated goal, mapped to the clean model.
- * @throws {HttpError} When the request fails.
+ * @throws {HttpError} When the request fails, including 412 when stale.
  */
-export async function updateGoal(id: number, userId: number, input: GoalInput): Promise<Goal> {
-  const payload: GoalUpdateDto = { ...toWire(input), id, user_id: userId }
-  const dto = await apiFetch<GoalDto>('/profile/goals', {
+export async function updateGoal(id: number, input: GoalInput, version: number): Promise<Goal> {
+  const payload: GoalUpdateDto = toWire(input)
+  const dto = await apiFetch<GoalDto>(`/profile/goals/${id}`, {
     method: 'PUT',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })
   return mapGoal(dto)
@@ -171,8 +171,13 @@ export async function updateGoal(id: number, userId: number, input: GoalInput): 
  * Deletes a goal for the authenticated user.
  *
  * @param id - The goal id.
- * @throws {HttpError} When the request fails.
+ * @param version - The goal version the list item was read at, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the goal changed since it was read).
  */
-export async function deleteGoal(id: number): Promise<void> {
-  await apiFetch(`/profile/goals/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteGoal(id: number, version: number): Promise<void> {
+  await apiFetch(`/profile/goals/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }

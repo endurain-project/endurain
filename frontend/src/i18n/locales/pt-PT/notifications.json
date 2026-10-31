@@ -39,6 +39,11 @@
       "title": "Garmin Connect precisa de atenção",
       "body": "A tua sessão do Garmin Connect expirou. Volta a ligar para continuar a sincronizar."
     },
+    "idpLinked": {
+      "title": "Novo fornecedor de início de sessão associado",
+      "body": "{name} foi associado à sua conta. Se não foi você, reveja as definições de segurança.",
+      "bodyGeneric": "Um fornecedor de início de sessão foi associado à sua conta. Se não foi você, reveja as definições de segurança."
+    },
     "adminSignUpApproval": {
       "title": "Novo registo aguarda aprovação",
       "body": "{name} ({'@'}{username}) está a aguardar aprovação da conta."

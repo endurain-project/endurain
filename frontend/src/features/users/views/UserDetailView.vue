@@ -17,6 +17,8 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
+import { formatMediumDateTime } from '@/utils/datetime'
 import {
   useApproveUserMutation,
   useDeleteUserMutation,
@@ -32,7 +34,7 @@ import {
  */
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 const { data: currentUser } = useCurrentUser()
 
@@ -79,14 +81,18 @@ function confirmDelete(): void {
   if (!target) {
     return
   }
-  deleteMutation.mutate(target.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.users.delete.success'))
-      void router.push({ name: 'settings-users' })
+  deleteMutation.mutate(
+    { id: target.id, version: target.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('settings.users.delete.success'))
+        void router.push({ name: 'settings-users' })
+      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error')),
     },
-    onError: () => toasts.error(t('settings.users.delete.error')),
-  })
+  )
 }
 
 // Photo management: a hidden file input drives the upload. The backend validates
@@ -161,14 +167,20 @@ function reject(): void {
   if (!target) {
     return
   }
-  rejectMutation.mutate(target.id, {
-    onSuccess: () => {
-      isRejectOpen.value = false
-      toasts.success(t('settings.users.approval.rejectSuccess'))
-      void router.push({ name: 'settings-users' })
+  rejectMutation.mutate(
+    { id: target.id, version: target.version },
+    {
+      onSuccess: () => {
+        isRejectOpen.value = false
+        toasts.success(t('settings.users.approval.rejectSuccess'))
+        void router.push({ name: 'settings-users' })
+      },
+      onError: (error) =>
+        toasts.error(
+          isStaleWrite(error) ? t('app.staleError') : t('settings.users.approval.rejectError'),
+        ),
     },
-    onError: () => toasts.error(t('settings.users.approval.rejectError')),
-  })
+  )
 }
 </script>
 
@@ -270,6 +282,14 @@ function reject(): void {
           <div class="min-w-0">
             <h1 class="truncate text-page-title">{{ user.name }}</h1>
             <p class="truncate text-body">@{{ user.username }} · {{ user.email }}</p>
+            <p v-if="user.pendingEmail && user.pendingEmailExpiresAt" class="text-hint">
+              {{
+                t('settings.users.detail.pendingEmail', {
+                  email: user.pendingEmail,
+                  date: formatMediumDateTime(user.pendingEmailExpiresAt, locale),
+                })
+              }}
+            </p>
             <UserStatusBadges :user="user" :is-self="isSelf" class="mt-2" />
           </div>
         </div>
@@ -393,6 +413,7 @@ function reject(): void {
       <UserFormDialog
         v-model:open="isFormOpen"
         :user="user"
+        :is-self="isSelf"
         @success="onFormSuccess"
         @error="onFormError"
       />

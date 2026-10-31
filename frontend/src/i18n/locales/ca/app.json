@@ -18,6 +18,7 @@
     "help": "Comprova que ENDURAIN_HOST apunta a l'URL on la teva instància d'Endurain és accessible (per exemple https://endurain.example.com) i que el backend s'està executant; després, torna a carregar la pàgina.",
     "reload": "Torna a carregar"
   },
+  "staleError": "Això s'ha canviat en un altre lloc mentre ho estaves mirant, així que no s'ha desat res. S'ha carregat la versió actual. Revisa-la i torna-ho a provar.",
   "dismiss": "Descarta",
   "language": "Idioma",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Edita",
     "supported": "Markdown compatible",
     "empty": "Res per previsualitzar"
+  },
+  "password": {
+    "hintLength": "Almenys {min} caràcters.",
+    "hintStrict": "Almenys {min} caràcters, amb majúscules, minúscules, un número i un caràcter especial.",
+    "invalid": "La contrasenya no compleix els requisits",
+    "mismatch": "Les contrasenyes no coincideixen"
   }
 }

@@ -18,6 +18,7 @@
     "help": "Skontrolujte, či ENDURAIN_HOST smeruje na URL, kde je vaša inštancia Endurain dostupná (napríklad https://endurain.example.com) a či backend beží, potom znova načítajte stránku.",
     "reload": "Znova načítať"
   },
+  "staleError": "Toto bolo zmenené inde, kým ste to pozerali, takže sa nič neuložilo. Aktuálna verzia bola načítaná. Skontrolujte ju a skúste to znova.",
   "dismiss": "Zavrieť",
   "language": "Jazyk",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Upraviť",
     "supported": "Markdown je podporovaný",
     "empty": "Nie je čo zobraziť"
+  },
+  "password": {
+    "hintLength": "Aspoň {min} znakov.",
+    "hintStrict": "Aspoň {min} znakov, s veľkým písmenom, malým písmenom, číslom a špeciálnym znakom.",
+    "invalid": "Heslo nespĺňa požiadavky",
+    "mismatch": "Heslá sa nezhodujú"
   }
 }

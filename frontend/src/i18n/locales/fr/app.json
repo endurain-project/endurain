@@ -18,6 +18,7 @@
     "help": "Vérifiez que ENDURAIN_HOST pointe vers l'URL où votre instance Endurain est accessible (par exemple https://endurain.example.com) et que le backend est en cours d'exécution, puis rechargez la page.",
     "reload": "Recharger"
   },
+  "staleError": "Ceci a été modifié ailleurs pendant que vous le consultiez, donc rien n'a été enregistré. La version actuelle a été chargée. Vérifiez-la et réessayez.",
   "dismiss": "Fermer",
   "language": "Langue",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Modifier",
     "supported": "Markdown pris en charge",
     "empty": "Rien à afficher"
+  },
+  "password": {
+    "hintLength": "Au moins {min} caractères.",
+    "hintStrict": "Au moins {min} caractères, avec majuscule, minuscule, chiffre et caractère spécial.",
+    "invalid": "Le mot de passe ne répond pas aux exigences",
+    "mismatch": "Les mots de passe ne correspondent pas"
   }
 }

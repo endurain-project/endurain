@@ -18,6 +18,7 @@
     "help": "Pārbaudiet, vai ENDURAIN_HOST norāda uz URL, kurā ir sasniedzama jūsu Endurain instance (piemēram, https://endurain.example.com) un vai aizmugursistēma darbojas, pēc tam pārlādējiet lapu.",
     "reload": "Pārlādēt"
   },
+  "staleError": "Šis tika mainīts citur, kamēr to skatījāties, tāpēc nekas netika saglabāts. Ir ielādēta pašreizējā versija. Pārskatiet to un mēģiniet vēlreiz.",
   "dismiss": "Aizvērt",
   "language": "Valoda",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Rediģēt",
     "supported": "Markdown tiek atbalstīts",
     "empty": "Nav ko priekšskatīt"
+  },
+  "password": {
+    "hintLength": "Vismaz {min} rakstzīmes.",
+    "hintStrict": "Vismaz {min} rakstzīmes, ar lielādiem un maziem burtiem, ciparu un īpašu rakstzīmi.",
+    "invalid": "Parole neatbilst prasībām",
+    "mismatch": "Paroles nesakrīt"
   }
 }

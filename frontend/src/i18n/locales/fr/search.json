@@ -24,9 +24,6 @@
     "waterSports": "Sports nautiques",
     "skating": "Patinage"
   },
-  "results": {
-    "inactive": "Inactif"
-  },
   "idle": {
     "title": "Rechercher dans Endurain",
     "description": "Choisissez ce que vous cherchez, puis commencez à taper pour voir les résultats."

@@ -1,5 +1,9 @@
 {
   "verifyingBody": "請稍候，我們正在確認您的電子郵件地址。",
+  "choosePasswordTitle": "選擇你的密碼",
+  "choosePasswordBody": "為帳號設定密碼後，你的電子郵件即完成驗證。",
+  "submitPassword": "設定密碼",
+  "submittingPassword": "正在儲存密碼",
   "successTitle": "電子郵件已驗證",
   "successBody": "您的電子郵件地址已確認。",
   "adminApprovalBody": "您的帳號正在等待管理員核准。",
@@ -7,6 +11,7 @@
   "invalidTitle": "驗證失敗",
   "missingTokenBody": "此驗證連結缺少權杖。",
   "errorInvalidToken": "此驗證連結無效或已過期。",
+  "errorEmailTaken": "此信箱地址現已被其他帳號使用，因此無法確認。",
   "errorNotFound": "我們找不到此連結對應的帳號。",
   "errorGeneral": "無法驗證您的電子郵件，請再試一次。",
   "retry": "重試",

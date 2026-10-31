@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { kmToMiles, milesToKm } from '@/utils/units'
@@ -117,7 +118,7 @@ async function submitForm(values: GearFormValues): Promise<void> {
   const input = buildInput(values)
   try {
     if (props.gear) {
-      await updateMutation.mutateAsync({ id: props.gear.id, input })
+      await updateMutation.mutateAsync({ id: props.gear.id, input, version: props.gear.version })
       emit('success', t('gears.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)
@@ -125,7 +126,9 @@ async function submitForm(values: GearFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (isStaleWrite(error)) {
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('gears.form.nicknameTaken'))
     } else {
       emit('error', t('gears.form.saveError'))

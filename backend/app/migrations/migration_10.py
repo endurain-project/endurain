@@ -27,9 +27,8 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
-import migrations.crud as migrations_crud
-import modules.users.users.crud as users_crud
-import modules.users.users.signing as users_signing
+import migrations.service as migrations_service
+import modules.users.users.migration_service as users_migration
 
 logger = core_logger.get_logger(__name__)
 
@@ -41,7 +40,7 @@ def _user_image_area_dir() -> Path:
     rather than a setting, so there is one definition of where a local photo
     lives.
     """
-    return Path(core_config.settings.DATA_DIR).resolve() / users_signing.USER_IMAGE_STORAGE_AREA
+    return Path(core_config.settings.DATA_DIR).resolve() / users_migration.USER_IMAGE_STORAGE_AREA
 
 
 def _legacy_file(photo_path: str) -> Path | None:
@@ -89,7 +88,7 @@ def process_migration_10(db: Session) -> None:
         # The raw column, not the read schema: the schema resolves the value
         # into a signed URL, which would look like a legacy path and get every
         # photo cleared.
-        stored_photos = users_crud.get_stored_photo_keys(db)
+        stored_photos = users_migration.get_stored_photo_keys(db)
     except Exception as err:
         logger.error(
             f"Migration 10 - Error fetching users: {err}", exc_info=err, extra=core_logger.context(console=True)
@@ -107,7 +106,7 @@ def process_migration_10(db: Session) -> None:
                     f"Migration 10 - user {user_id} has no photo at {stored}; clearing the reference",
                     extra=core_logger.context(console=True),
                 )
-                users_crud.set_user_photo_key(user_id, None, db)
+                users_migration.set_photo_key(user_id, None, db)
                 cleared += 1
                 continue
 
@@ -119,9 +118,9 @@ def process_migration_10(db: Session) -> None:
                 if source != expected:
                     os.replace(source, expected)
             else:
-                storage.save(users_signing.USER_IMAGE_STORAGE_AREA, key, source.read_bytes())
+                storage.save(users_migration.USER_IMAGE_STORAGE_AREA, key, source.read_bytes())
 
-            users_crud.set_user_photo_key(user_id, key, db)
+            users_migration.set_photo_key(user_id, key, db)
             converted += 1
         except Exception as err:
             logger.error(
@@ -139,7 +138,7 @@ def process_migration_10(db: Session) -> None:
 
     if processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(10, db)
+            migrations_service.mark_executed(10, db)
         except Exception as err:
             logger.error(
                 f"Migration 10 - Failed to set migration as executed: {err}",

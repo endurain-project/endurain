@@ -24,7 +24,7 @@ def _local_storage(tmp_path):
     here (prefix matching, symlink containment, skipping directories) lives in
     ``list_keys`` itself.
     """
-    return LocalStorage(str(tmp_path))
+    return LocalStorage(str(tmp_path), legacy_layout=True)
 
 
 def _area_dir(tmp_path):

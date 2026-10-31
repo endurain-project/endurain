@@ -44,6 +44,7 @@ class TestResolveTileSettings:
     @patch("modules.activities.activity_thumbnail.service.server_settings_integration")
     def test_defaults_without_settings(self, mock_settings):
         import modules.activities.activity_thumbnail.render as render
+        import modules.server_settings.constants as server_settings_constants
         import modules.server_settings.contracts as server_settings_contracts
         from modules.activities.activity_thumbnail.service import resolve_tile_settings
 
@@ -51,7 +52,7 @@ class TestResolveTileSettings:
 
         url, background_color, api_key = resolve_tile_settings(MagicMock())
 
-        assert url == render.DEFAULT_TILE_URL
+        assert url == server_settings_constants.DEFAULT_TILE_URL
         assert background_color == render.DEFAULT_BG_COLOR
         assert api_key is None
 
@@ -83,7 +84,6 @@ class TestGenerateAndStoreThumbnail:
 
         mock_render.render_activity_thumbnail.return_value = b"data"
         mock_signing.thumbnail_key.return_value = "1.webp"
-        mock_signing.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
         mock_activities.set_thumbnail_key.return_value = False
         storage = MagicMock()
 
@@ -102,7 +102,6 @@ class TestGenerateAndStoreThumbnail:
 
         mock_render.render_activity_thumbnail.return_value = b"data"
         mock_signing.thumbnail_key.return_value = "1.webp"
-        mock_signing.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
         mock_render.THUMBNAIL_CONTENT_TYPE = "image/webp"
         storage = MagicMock()
         db = MagicMock()
@@ -199,6 +198,28 @@ class TestDeleteAndRegenerateThumbnails:
 
     @patch("modules.activities.activity_thumbnail.service._run_missing_thumbnail_generation")
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    def test_each_page_read_ends_before_its_blobs_are_deleted(self, mock_activities, mock_gen):
+        """A blob delete is an object-storage round trip, so no read transaction may wait on it."""
+        from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
+
+        events: list[str] = []
+        mock_db = MagicMock()
+        mock_db.commit.side_effect = lambda: events.append("commit")
+        storage = MagicMock()
+        storage.delete.side_effect = lambda area, key: events.append(f"delete {key}")
+        pages = iter(
+            _pages([MagicMock(id=1, map_thumbnail_path="1.webp")], [MagicMock(id=2, map_thumbnail_path="2.webp")])
+        )
+        mock_activities.list_activities_with_thumbnail.side_effect = lambda *a, **k: (
+            events.append("read") or next(pages)
+        )
+
+        delete_and_regenerate_all_activity_thumbnails(storage, MagicMock(), MagicMock(), mock_db)
+
+        assert events[:6] == ["read", "commit", "delete 1.webp", "read", "commit", "delete 2.webp"]
+
+    @patch("modules.activities.activity_thumbnail.service._run_missing_thumbnail_generation")
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("modules.activities.activity_thumbnail.service.logger")
     def test_logs_when_delete_fails(self, mock_logger, mock_activities, mock_gen):
         from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
@@ -257,27 +278,14 @@ class TestDeleteAndRegenerateThumbnails:
 
 
 class TestGenerateMissingThumbnails:
-    """generate_missing_activity_thumbnails: lock + storage-backed backfill."""
+    """generate_missing_activity_thumbnails: the storage-backed backfill."""
 
     @staticmethod
-    def _platform(*, acquired=True, storage=None):
+    def _platform(*, storage=None):
         platform = MagicMock()
-        platform.lock.try_acquire.return_value.__enter__.return_value = acquired
         platform.clock.now.return_value = _NOW
         platform.storage = storage if storage is not None else MagicMock()
         return platform
-
-    @patch("modules.activities.activity_thumbnail.service.logger")
-    def test_skips_when_lock_not_acquired(self, mock_logger):
-        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
-
-        platform = self._platform(acquired=False)
-
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, MagicMock())
-
-        mock_logger.debug.assert_any_call(
-            "Thumbnail scheduler: another replica holds the backfill lock; skipping",
-        )
 
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("modules.activities.activity_thumbnail.service.logger")
@@ -289,7 +297,7 @@ class TestGenerateMissingThumbnails:
         mock_activities.list_activities_with_thumbnail.return_value = []
         mock_activities.list_activities_without_thumbnail.return_value = []
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, mock_db)
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, mock_db)
 
         mock_logger.debug.assert_any_call(
             "Thumbnail scheduler: no activities without thumbnail found",
@@ -309,7 +317,7 @@ class TestGenerateMissingThumbnails:
         mock_activities.list_activities_with_thumbnail.side_effect = _pages([activity])
         mock_activities.list_activities_without_thumbnail.return_value = []
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, mock_db)
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, mock_db)
 
         storage.exists.assert_called_once_with("activity_thumbnails", "1.webp")
         mock_activities.set_thumbnail_key.assert_called_once_with(1, None, mock_db, expected_key="1.webp")
@@ -344,7 +352,7 @@ class TestGenerateMissingThumbnails:
             1: [{"lat": 38.0, "lon": -9.0}, {"lat": 38.1, "lon": -9.1}]
         }
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, mock_db)
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, mock_db)
 
         mock_generate.assert_called_once()
         args = mock_generate.call_args.args
@@ -380,7 +388,7 @@ class TestGenerateMissingThumbnails:
         # Only activity 1 has a GPS stream; activity 2 is skipped.
         mock_streams_service.get_gps_waypoints_for_activities.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, mock_db)
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, mock_db)
 
         mock_generate.assert_called_once()
 
@@ -422,7 +430,7 @@ class TestGenerateMissingThumbnails:
             3: [{"lat": 3.0, "lon": 3.0}],
         }
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, mock_db)
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, mock_db)
 
         # Every read stays bounded and advances past the last id of its page.
         assert [
@@ -444,7 +452,6 @@ class TestBackfillFailureIsolation:
     @staticmethod
     def _platform(storage=None):
         platform = MagicMock()
-        platform.lock.try_acquire.return_value.__enter__.return_value = True
         platform.clock.now.return_value = _NOW
         platform.storage = storage if storage is not None else MagicMock()
         return platform
@@ -473,7 +480,7 @@ class TestBackfillFailureIsolation:
         # 1 renders, 2 raises, 3 is skipped (None); 4 has no GPS stream at all.
         mock_generate.side_effect = ["1.webp", core_exceptions.ProcessingError(), None]
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, db)
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, db)
 
         assert mock_generate.call_count == 3
         mock_activities.defer_thumbnail_attempts.assert_called_once_with([2, 3, 4], _NOW + THUMBNAIL_RETRY_DELAY, db)
@@ -487,7 +494,7 @@ class TestBackfillFailureIsolation:
         mock_activities.list_activities_with_thumbnail.return_value = []
         mock_activities.list_activities_without_thumbnail.return_value = []
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, MagicMock())
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, MagicMock())
 
         assert mock_activities.list_activities_without_thumbnail.call_args.kwargs["due_at"] == _NOW
 
@@ -503,7 +510,7 @@ class TestBackfillFailureIsolation:
         )
         mock_activities.list_activities_without_thumbnail.return_value = []
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, MagicMock())
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, MagicMock())
 
         storage.iter_objects.assert_called_once()
         storage.exists.assert_not_called()
@@ -523,6 +530,42 @@ class TestBackfillFailureIsolation:
         )
         mock_activities.list_activities_without_thumbnail.return_value = []
 
-        generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, MagicMock())
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, MagicMock())
 
         mock_activities.set_thumbnail_key.assert_not_called()
+
+
+class TestClearReferencesToMissingBlobs:
+    """The reconciliation confirms blobs on storage, which must not happen inside a database transaction."""
+
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    def test_confirms_and_clears_with_no_transaction_open_across_storage_calls(self, integration):
+        import modules.activities.activity.contracts as activity_contracts
+        from modules.activities.activity_thumbnail.service import _clear_references_to_missing_blobs
+
+        in_transaction = False
+
+        def read_page(db, *, after_id, limit):
+            nonlocal in_transaction
+            in_transaction = True
+            return [activity_contracts.ActivityThumbnailRef(id=1, map_thumbnail_path="1.webp")] if after_id == 0 else []
+
+        def end_transaction():
+            nonlocal in_transaction
+            in_transaction = False
+
+        def exists(area, key):
+            assert not in_transaction, "a transaction was open during a storage existence check"
+            return False
+
+        integration.list_activities_with_thumbnail.side_effect = read_page
+        integration.set_thumbnail_key.return_value = True
+        db = MagicMock()
+        db.commit.side_effect = end_transaction
+        storage = MagicMock()
+        storage.iter_objects.return_value = iter([])
+        storage.exists.side_effect = exists
+
+        _clear_references_to_missing_blobs(storage, db)
+
+        integration.set_thumbnail_key.assert_called_once_with(1, None, db, expected_key="1.webp")

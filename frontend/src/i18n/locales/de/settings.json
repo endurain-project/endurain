@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inaktiv",
       "unverified": "E-Mail nicht bestätigt",
+      "pendingEmail": "Ausstehende E-Mail-Änderung",
       "pending": "Genehmigung ausstehend",
       "externalAuth": "Externe Auth"
     },
@@ -64,18 +65,15 @@
       "email": "E-Mail",
       "emailRequired": "E-Mail ist erforderlich",
       "emailInvalid": "Gib eine gültige E-Mail-Adresse ein",
+      "emailChangeHint": "An die neue Adresse wird ein Bestätigungslink gesendet; sie ersetzt die aktuelle, sobald sie bestätigt wurde. Der Benutzer wird auf allen Geräten abgemeldet. Markiere die neue Adresse als bestätigt, um sie stattdessen sofort zu übernehmen.",
       "accessType": "Zugriffstyp",
       "accessTypeRegular": "Normaler Benutzer",
       "accessTypeAdmin": "Administrator",
       "password": "Passwort",
       "passwordHint": "Mindestens 8 Zeichen",
-      "passwordHintStrict": "Mindestens {min} Zeichen, mit Groß- und Kleinbuchstaben, einer Zahl und einem Sonderzeichen",
-      "passwordHintLength": "Mindestens {min} Zeichen",
       "passwordRequired": "Passwort ist erforderlich",
-      "passwordInvalid": "Dieses Passwort erfüllt die Anforderungen nicht",
       "confirmPassword": "Passwort bestätigen",
       "confirmPasswordRequired": "Passwort bestätigen",
-      "passwordMismatch": "Passwörter stimmen nicht überein",
       "preferredLanguage": "Bevorzugte Sprache",
       "languages": {
         "ca": "Katalanisch",
@@ -149,6 +147,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-Mail bestätigt",
+      "emailVerifiedCurrentHint": "Dies ist der Status der aktuellen Adresse.",
+      "newEmailVerified": "Neue Adresse als bestätigt markieren",
       "pendingAdminApproval": "Admin-Genehmigung ausstehend",
       "requiredField": "Pflichtfeld",
       "create": "Benutzer hinzufügen",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Zurück zu den Benutzern",
+      "pendingEmail": "Ausstehende E-Mail-Änderung zu {email}, Link läuft am {date} ab",
       "notFoundTitle": "Benutzer nicht gefunden",
       "notFoundDescription": "Dieses Konto wurde möglicherweise gelöscht",
       "securityTitle": "Sicherheit",
@@ -186,16 +187,12 @@
       "title": "Passwort zurücksetzen",
       "description": "Neues Passwort für {username} festlegen",
       "newLabel": "Neues Passwort",
-      "hintLength": "Mindestens {min} Zeichen",
-      "hintStrict": "Mindestens {min} Zeichen, mit Groß- und Kleinbuchstaben, einer Zahl und einem Sonderzeichen",
       "confirmLabel": "Neues Passwort bestätigen",
-      "mismatch": "Passwörter stimmen nicht überein",
       "required": "Passwort ist erforderlich",
       "submit": "Passwort zurücksetzen",
       "cancel": "Abbrechen",
       "close": "Schließen",
       "success": "Passwort aktualisiert",
-      "invalid": "Dieses Passwort erfüllt die Anforderungen nicht",
       "error": "Passwort konnte nicht aktualisiert werden. Bitte versuche es erneut."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "Test-E-Mail gesendet",
       "failed": "Die Test-E-Mail konnte nicht gesendet werden",
       "failedUnknown": "Details findest du in den Serverlogs."
+    },
+    "envLocked": "Festgelegt durch {name}",
+    "envSection": "Einige Einstellungen hier werden durch Umgebungsvariablen ({names}) festgelegt. Entferne sie aus der Umgebung, um diese Einstellungen hier zu bearbeiten.",
+    "unsaved": "Nicht gespeicherte Änderungen",
+    "discard": "Verwerfen",
+    "tabs": {
+      "label": "Bereiche der Servereinstellungen",
+      "general": "Allgemein",
+      "access": "Zugang & Sicherheit",
+      "maps": "Karten & Standort",
+      "email": "E-Mail",
+      "unsaved": "Enthält nicht gespeicherte Änderungen"
+    },
+    "search": {
+      "placeholder": "Einstellungen suchen…",
+      "noResults": "Keine Einstellungen gefunden"
+    },
+    "leave": {
+      "title": "Ohne Speichern verlassen?",
+      "description": "Du hast nicht gespeicherte Änderungen. Wenn du diese Seite verlässt, gehen sie verloren.",
+      "confirm": "Ohne Speichern verlassen",
+      "stay": "Auf der Seite bleiben",
+      "close": "Schließen"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Scopes dürfen maximal 500 Zeichen lang sein",
       "icon": "Symbol",
       "iconNone": "Kein",
-      "iconCustom": "Benutzerdefinierte URL",
-      "customIconUrl": "Benutzerdefinierte Symbol-URL",
-      "customIconUrlHint": "Link zu einem Bild, das auf dem Anmelde-Button angezeigt wird",
       "enabled": "Aktiviert",
       "autoCreateUsers": "Benutzer bei erster Anmeldung automatisch erstellen",
       "syncUserInfo": "Profilinformationen bei jeder Anmeldung synchronisieren",
@@ -559,9 +576,6 @@
       "current": "Aktuelles Passwort",
       "new": "Neues Passwort",
       "confirm": "Neues Passwort bestätigen",
-      "requirementsStrict": "Mindestens {length} Zeichen, einschließlich Großbuchstabe, Kleinbuchstabe, Zahl und Symbol.",
-      "requirementsLength": "Mindestens {length} Zeichen.",
-      "mismatch": "Die Passwörter stimmen nicht überein.",
       "revokeOthers": "Von allen anderen Geräten abmelden",
       "submit": "Passwort ändern",
       "success": "Passwort geändert",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Dein Passwort oder Code ist falsch.",
       "alreadyLinked": "Dieses Konto ist bereits verknüpft.",
       "lastMethodError": "Du kannst deine einzige Anmeldemethode nicht trennen. Setze zuerst ein Passwort."
+    },
+    "email": {
+      "subtitle": "Hierhin werden Passwort-Zurücksetzungen und Benachrichtigungen gesendet. Für eine Änderung musst du deine Identität bestätigen, und die neue Adresse gilt erst, wenn du sie über einen Link bestätigst, den wir dorthin senden.",
+      "sameAsCurrent": "Das ist bereits deine E-Mail-Adresse.",
+      "success": "Bestätigungslink an die neue Adresse gesendet. Deine E-Mail-Adresse wird geändert, sobald du sie bestätigst.",
+      "appliedSuccess": "E-Mail-Adresse geändert.",
+      "pending": "Ausstehende Änderung zu {email}",
+      "pendingExpires": "Der Bestätigungslink läuft am {date} ab.",
+      "resend": "Link erneut senden",
+      "cancel": "Änderung abbrechen",
+      "resendSuccess": "Falls eine Änderung aussteht, ist ein neuer Link auf dem Weg zur neuen Adresse.",
+      "resendError": "Der Link konnte nicht erneut gesendet werden. Bitte versuche es erneut.",
+      "cancelSuccess": "E-Mail-Änderung abgebrochen.",
+      "cancelError": "Die Änderung konnte nicht abgebrochen werden. Bitte versuche es erneut."
     },
     "apiKeys": {
       "title": "API-Schlüssel",
@@ -923,7 +951,6 @@
       "invalidType": "Bitte wähle ein .zip-Archiv.",
       "exportSuccess": "Export bereit, dein Download sollte in Kürze beginnen",
       "exportError": "Deine Daten konnten nicht exportiert werden. Bitte versuche es erneut.",
-      "importSuccess": "Daten importiert",
       "importError": "Das Archiv konnte nicht importiert werden. Bitte überprüfe die Datei und versuche es erneut."
     }
   }

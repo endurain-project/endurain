@@ -11,23 +11,23 @@ from pydantic import (
     field_validator,
 )
 
+import core.pagination as core_pagination
 import modules.auth.api_keys.utils as api_keys_utils
+import modules.auth.identity_providers.schema as idp_schema
 
 
 class UsersApiKeyCreate(BaseModel):
-    """
-    Schema for creating a new API key.
+    """Schema for creating a new API key.
 
     API-key creation is a sensitive, persistent grant of
     account access — it must be gated by step-up
     verification. The caller MUST supply ``current_password``,
     and an MFA code when MFA is enabled on the account.
 
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
+    An account without a local password (it signs in through an
+    identity provider) proves a fresh sign-in with a linked provider
+    instead: ``idp_reauth`` carries the ticket from
+    ``POST /profile/identity-providers/{idp_id}/step-up``.
 
     Attributes:
         name: User-friendly label for the key.
@@ -36,10 +36,11 @@ class UsersApiKeyCreate(BaseModel):
             None means the key never expires.
         current_password: Caller's existing password
             (step-up verification). Required when the account
-            has a local password; may be omitted for SSO-only
-            accounts.
+            has a local password.
         mfa_code: TOTP or backup code, required when MFA
             is enabled on the account.
+        idp_reauth: Proof of a fresh identity-provider sign-in. Required
+            when the account has no local password.
     """
 
     name: StrictStr = Field(
@@ -72,8 +73,7 @@ class UsersApiKeyCreate(BaseModel):
     @field_validator("scopes")
     @classmethod
     def scopes_must_be_valid(cls, v: list[str]) -> list[str]:
-        """
-        Validate API keys only grant activity upload access.
+        """Validate API keys only grant activity upload access.
 
         Args:
             v: List of scope strings to validate.
@@ -91,12 +91,16 @@ class UsersApiKeyCreate(BaseModel):
             )
         return v
 
-    model_config = ConfigDict(from_attributes=True)
+    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+        default=None,
+        description="Fresh identity-provider sign-in, required when the account has no local password",
+    )
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class UsersApiKeyRead(BaseModel):
-    """
-    API key read schema for list/detail responses.
+    """API key read schema for list/detail responses.
 
     Never exposes the raw key or its hash. Safe to
     return in all authenticated GET responses.
@@ -126,9 +130,8 @@ class UsersApiKeyRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UsersApiKeyCreated(UsersApiKeyRead):
-    """
-    API key creation response schema.
+class UsersApiKeyCreatedRead(UsersApiKeyRead):
+    """API key creation response schema.
 
     Extends UsersApiKeyRead with the raw key, returned
     only once at creation time. The raw key is never
@@ -148,3 +151,7 @@ class UsersApiKeyCreated(UsersApiKeyRead):
         from_attributes=True,
         extra="forbid",
     )
+
+
+#: One page of a user's API keys.
+UsersApiKeyPage = core_pagination.Page[UsersApiKeyRead]

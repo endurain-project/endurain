@@ -1,24 +1,61 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UserDto } from '@/features/users/types'
+import type { PublicUserDto } from '@/features/users/types'
 
-import { apiFetch } from '@/services/http'
-import { fetchPublicUser, mapPublicUser } from '@/features/users/services/publicUsers'
+import { apiFetch, HttpError } from '@/services/http'
+import {
+  fetchPublicUser,
+  mapEmbeddedUsers,
+  mapPublicUser,
+  searchPublicUsers,
+} from '@/features/users/services/publicUsers'
 
-vi.mock('@/services/http', () => ({ apiFetch: vi.fn<typeof apiFetch>() }))
+vi.mock('@/services/http', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/http')>()),
+  apiFetch: vi.fn<typeof apiFetch>(),
+}))
 
-// A `UsersRead` payload carries many fields; the public mapper only reads this
-// privacy-conscious subset, so the fixture is narrowed and cast for the test.
-const userDto = {
+const userDto: PublicUserDto = {
   id: 7,
   name: 'Jane Runner',
   username: 'jane',
   city: 'Lisbon',
   photo_path: '/api/v1/users/7/photo?t=sig',
-} as UserDto
+}
 
 beforeEach(() => {
   vi.mocked(apiFetch).mockReset()
+})
+
+describe('mapEmbeddedUsers', () => {
+  it('maps each referenced id from the embedded users object', () => {
+    const users = mapEmbeddedUsers([7], { '7': userDto }, mapPublicUser)
+
+    expect(users.get(7)).toMatchObject({ id: 7, name: 'Jane Runner' })
+  })
+
+  it('maps an id the server left out to null, as a lookup of that user would', () => {
+    const users = mapEmbeddedUsers([7, 8], { '7': userDto }, mapPublicUser)
+
+    expect(users.get(8)).toBeNull()
+    expect(users.has(8)).toBe(true)
+  })
+
+  it('maps every id to null when the response carries no users object', () => {
+    const users = mapEmbeddedUsers([7], undefined, mapPublicUser)
+
+    expect([...users.entries()]).toEqual([[7, null]])
+  })
+
+  it('ignores embedded users nothing references, and repeated ids', () => {
+    const users = mapEmbeddedUsers(
+      [7, 7],
+      { '7': userDto, '9': { ...userDto, id: 9 } },
+      mapPublicUser,
+    )
+
+    expect([...users.keys()]).toEqual([7])
+  })
 })
 
 describe('mapPublicUser', () => {
@@ -35,7 +72,7 @@ describe('mapPublicUser', () => {
   })
 
   it('does not expose sensitive fields', () => {
-    const user = mapPublicUser(userDto)
+    const user = mapPublicUser({ ...userDto, email: 'jane@example.com' } as PublicUserDto)
     expect(user).not.toHaveProperty('email')
     expect(user).not.toHaveProperty('birthdate')
   })
@@ -52,7 +89,18 @@ describe('fetchPublicUser', () => {
   })
 
   it('returns null when the user is not found', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
     expect(await fetchPublicUser(7)).toBeNull()
+  })
+})
+
+describe('searchPublicUsers', () => {
+  it('encodes the term and maps the public projection', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [userDto] })
+
+    const users = await searchPublicUsers('a da')
+
+    expect(apiFetch).toHaveBeenCalledWith('/users/username/contains/a%20da', { signal: undefined })
+    expect(users[0]?.username).toBe('jane')
   })
 })

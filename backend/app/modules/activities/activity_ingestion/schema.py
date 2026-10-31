@@ -27,7 +27,8 @@ class ActivityIngestionJobRead(BaseModel):
             finished import with failures still ends ``completed``.
         provider: The one provider a refresh syncs; ``None`` when it syncs every
             linked provider.
-        status: Current lifecycle state.
+        status: Current lifecycle state. A refresh waiting for a provider's rate limit to clear is ``deferred``.
+        retry_after: When a deferred refresh runs again.
         error_code: Sanitized failure reason when ``status`` is failed.
         activity_ids: Ids created by the import once it completes.
         created_at: When the request was accepted.
@@ -47,6 +48,7 @@ class ActivityIngestionJobRead(BaseModel):
     provider: str | None = None
     status: activity_ingestion_constants.IngestionJobStatus
     error_code: activity_ingestion_constants.IngestionJobErrorCode | None = None
+    retry_after: datetime | None = None
     activity_ids: list[int] = []
     created_at: datetime
     updated_at: datetime

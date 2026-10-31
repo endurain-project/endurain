@@ -18,6 +18,7 @@
     "help": "請檢查 ENDURAIN_HOST 是否指向可存取您的 Endurain 執行個體的網址（例如 https://endurain.example.com），並確認後端正在執行，然後重新載入頁面。",
     "reload": "重新載入"
   },
+  "staleError": "您查看時此內容已在其他地方被變更，因此未儲存任何內容。已載入目前版本。請檢視後再試一次。",
   "dismiss": "關閉",
   "language": "語言",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "編輯",
     "supported": "支援 Markdown",
     "empty": "無內容可預覽"
+  },
+  "password": {
+    "hintLength": "至少 {min} 個字元。",
+    "hintStrict": "至少 {min} 個字元，包含大寫字母、小寫字母、數字及特殊符號。",
+    "invalid": "密碼不符合要求",
+    "mismatch": "兩次輸入的密碼不符"
   }
 }

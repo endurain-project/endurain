@@ -18,6 +18,7 @@
     "help": "Comproba que ENDURAIN_HOST apunta ao URL onde a túa instancia de Endurain é accesible (por exemplo https://endurain.example.com) e que o backend se está a executar; despois, volve cargar a páxina.",
     "reload": "Recargar"
   },
+  "staleError": "Isto cambiouse noutro lugar mentres o mirabas, así que non se gardou nada. Cargouse a versión actual. Revísaa e téntao de novo.",
   "dismiss": "Descartar",
   "language": "Idioma",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Editar",
     "supported": "Compatible con Markdown",
     "empty": "Nada que previsualizar"
+  },
+  "password": {
+    "hintLength": "Polo menos {min} caracteres.",
+    "hintStrict": "Polo menos {min} caracteres, con maiúsculas, minúsculas, un número e un carácter especial.",
+    "invalid": "O contrasinal non cumpre os requisitos",
+    "mismatch": "Os contrasinais non coinciden"
   }
 }

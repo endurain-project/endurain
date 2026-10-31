@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Vydržte, zatímco potvrzujeme vaši adresu.",
+  "choosePasswordTitle": "Zvolte si heslo",
+  "choosePasswordBody": "Váš e-mail bude potvrzen, jakmile pro svůj účet nastavíte heslo.",
+  "submitPassword": "Nastavit heslo",
+  "submittingPassword": "Ukládání hesla",
   "successTitle": "E-mail ověřen",
   "successBody": "Vaše e-mailová adresa byla potvrzena.",
   "adminApprovalBody": "Váš účet nyní čeká na schválení administrátorem.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Ověření selhalo",
   "missingTokenBody": "Tomuto ověřovacímu odkazu chybí token.",
   "errorInvalidToken": "Tento ověřovací odkaz je neplatný nebo vypršel.",
+  "errorEmailTaken": "Tato e-mailová adresa je nyní používána jiným účtem, a proto ji nelze potvrdit.",
   "errorNotFound": "Pro tento odkaz se nepodařilo najít účet.",
   "errorGeneral": "Váš e-mail se nepodařilo ověřit. Zkuste to prosím znovu.",
   "retry": "Zkusit znovu",

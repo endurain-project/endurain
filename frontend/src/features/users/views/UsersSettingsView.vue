@@ -21,9 +21,10 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
+  useApproveUserMutation,
   useDeleteUserMutation,
-  useUserSearchQuery,
   useUsersQuery,
 } from '@/features/users/composables/useUsers'
 
@@ -91,8 +92,11 @@ function clearSearch(): void {
 
 const isSearching = computed(() => debouncedSearch.value.trim().length > 0)
 
-const listQuery = useUsersQuery(page, recordsPerPage, () => ({ ...filters }))
-const searchQuery = useUserSearchQuery(debouncedSearch)
+// The username search is a server-side filter on the same paginated list.
+const listQuery = useUsersQuery(page, recordsPerPage, () => ({
+  ...filters,
+  username: debouncedSearch.value.trim(),
+}))
 
 /** Users on the current page. */
 const listUsers = computed(() => listQuery.data.value?.records ?? [])
@@ -103,19 +107,9 @@ const totalCount = computed(() => listQuery.data.value?.total ?? 0)
 // total shrinks (e.g. after deleting the last user on the final page).
 const { totalPages, reset: resetPage } = useListPagination(page, totalCount, recordsPerPage)
 
-// Two modes share one render path: live username search vs. the paginated list.
-const displayedUsers = computed(() =>
-  isSearching.value ? (searchQuery.data.value ?? []) : listUsers.value,
-)
-const isPending = computed(() =>
-  isSearching.value ? searchQuery.isPending.value : listQuery.isPending.value,
-)
-const isError = computed(() =>
-  isSearching.value ? searchQuery.isError.value : listQuery.isError.value,
-)
-const isEmpty = computed(
-  () => !isPending.value && !isError.value && displayedUsers.value.length === 0,
-)
+const isPending = computed(() => listQuery.isPending.value)
+const isError = computed(() => listQuery.isError.value)
+const isEmpty = computed(() => !isPending.value && !isError.value && listUsers.value.length === 0)
 /** Number of filters deviating from their default, shown as a badge. */
 const activeFilterCount = computed(
   () =>
@@ -147,16 +141,12 @@ const emptyState = computed<{
   }
 })
 
-// Changing any filter alters the result set, so restart at the first page.
-watch(filters, resetPage)
+// Changing a filter or the search term alters the result set, so restart at the first page.
+watch([filters, debouncedSearch], resetPage)
 
-/** Refetches whichever query currently drives the view. */
+/** Refetches the list after an error. */
 function refetchActive(): void {
-  if (isSearching.value) {
-    void searchQuery.refetch()
-  } else {
-    void listQuery.refetch()
-  }
+  void listQuery.refetch()
 }
 
 /** Whether a row is the signed-in admin's own account (no self-delete). */
@@ -210,15 +200,55 @@ function confirmDelete(): void {
   if (!user) {
     return
   }
-  deleteMutation.mutate(user.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.users.delete.success'))
+  deleteMutation.mutate(
+    { id: user.id, version: user.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('settings.users.delete.success'))
+      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error')),
     },
-    onError: () => {
-      toasts.error(t('settings.users.delete.error'))
-    },
+  )
+}
+
+// Pending sign-up moderation: approve clears the pending flag; reject deletes the
+// account after confirmation.
+const approveMutation = useApproveUserMutation()
+const isRejectOpen = ref(false)
+const userToReject = ref<ManagedUser | null>(null)
+
+function approve(user: ManagedUser): void {
+  approveMutation.mutate(user.id, {
+    onSuccess: () => toasts.success(t('settings.users.approval.approveSuccess')),
+    onError: () => toasts.error(t('settings.users.approval.approveError')),
   })
+}
+
+function openReject(user: ManagedUser): void {
+  userToReject.value = user
+  isRejectOpen.value = true
+}
+
+function confirmReject(): void {
+  const user = userToReject.value
+  if (!user) {
+    return
+  }
+  deleteMutation.mutate(
+    { id: user.id, version: user.version },
+    {
+      onSuccess: () => {
+        isRejectOpen.value = false
+        toasts.success(t('settings.users.approval.rejectSuccess'))
+      },
+      onError: (error) =>
+        toasts.error(
+          isStaleWrite(error) ? t('app.staleError') : t('settings.users.approval.rejectError'),
+        ),
+    },
+  )
 }
 </script>
 
@@ -263,11 +293,11 @@ function confirmDelete(): void {
       :is-loading="isPending"
       :is-error="isError"
       :is-empty="isEmpty"
-      :show-header="!isError && !isSearching"
+      :show-header="!isError"
       :error-title="t('settings.users.error.title')"
       :error-description="t('settings.users.error.description')"
       :retry-label="t('settings.users.error.retry')"
-      :paginated="!isSearching"
+      paginated
       :total-pages="totalPages"
       @retry="refetchActive"
     >
@@ -325,13 +355,15 @@ function confirmDelete(): void {
       </template>
 
       <ul class="divide-y divide-border">
-        <li v-for="user in displayedUsers" :key="user.id">
+        <li v-for="user in listUsers" :key="user.id">
           <UserListItem
             :user="user"
             :is-self="isSelf(user)"
             @password="openPassword"
             @edit="openEdit"
             @delete="openDelete"
+            @approve="approve"
+            @reject="openReject"
           />
         </li>
       </ul>
@@ -340,6 +372,7 @@ function confirmDelete(): void {
     <UserFormDialog
       v-model:open="isFormOpen"
       :user="editingUser"
+      :is-self="editingUser !== null && isSelf(editingUser)"
       @success="onFormSuccess"
       @error="onFormError"
     />
@@ -352,6 +385,18 @@ function confirmDelete(): void {
       :close-label="t('settings.users.delete.close')"
       :pending="deleteMutation.isPending.value"
       @confirm="confirmDelete"
+    />
+    <ConfirmDialog
+      v-model:open="isRejectOpen"
+      :title="t('settings.users.approval.rejectTitle')"
+      :description="
+        t('settings.users.approval.rejectBody', { username: userToReject?.username ?? '' })
+      "
+      :confirm-label="t('settings.users.approval.rejectConfirm')"
+      :cancel-label="t('settings.users.approval.rejectCancel')"
+      :close-label="t('settings.users.approval.rejectClose')"
+      :pending="deleteMutation.isPending.value"
+      @confirm="confirmReject"
     />
     <UserPasswordDialog
       v-model:open="isPasswordOpen"

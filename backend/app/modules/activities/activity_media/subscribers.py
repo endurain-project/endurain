@@ -61,7 +61,7 @@ def cleanup_activity_media_for_event(event: Event) -> None:
 on_activity_deleted_cleanup_media = best_effort(cleanup_activity_media_for_event)
 
 
-def register_activity_media_cleanup_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the media cleanup subscriber for ``activity.deleted``.
 
     Called once at startup before the event bus is started.
@@ -72,7 +72,7 @@ def register_activity_media_cleanup_subscribers(events: EventBusProvider) -> Non
     events.subscribe(activity_events.ACTIVITY_DELETED, on_activity_deleted_cleanup_media)
 
 
-def register_activity_media_cleanup_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the media cleanup handler as a durable job subscriber.
 
     Used when durable jobs are enabled: the outbox relay fans ``activity.deleted``

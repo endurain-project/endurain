@@ -31,6 +31,7 @@
       "admin": "Administrador",
       "inactive": "Inactivo",
       "unverified": "Correo no verificado",
+      "pendingEmail": "Cambio de correo pendiente",
       "pending": "Pendiente de aprobación",
       "externalAuth": "Autenticación externa"
     },
@@ -64,18 +65,15 @@
       "email": "Correo electrónico",
       "emailRequired": "El correo electrónico es obligatorio",
       "emailInvalid": "Introduce una dirección de correo válida",
+      "emailChangeHint": "Se envía un enlace de confirmación a la nueva dirección, que reemplaza a la actual una vez confirmada. El usuario queda desconectado de todos los dispositivos. Marca la nueva dirección como verificada para aplicarla ahora.",
       "accessType": "Tipo de acceso",
       "accessTypeRegular": "Usuario regular",
       "accessTypeAdmin": "Administrador",
       "password": "Contraseña",
       "passwordHint": "Al menos 8 caracteres",
-      "passwordHintStrict": "Al menos {min} caracteres, con mayúscula, minúscula, un número y un carácter especial",
-      "passwordHintLength": "Al menos {min} caracteres",
       "passwordRequired": "La contraseña es obligatoria",
-      "passwordInvalid": "Esa contraseña no cumple los requisitos",
       "confirmPassword": "Confirmar contraseña",
       "confirmPasswordRequired": "Confirmar contraseña",
-      "passwordMismatch": "Las contraseñas no coinciden",
       "preferredLanguage": "Idioma preferido",
       "languages": {
         "ca": "Catalán",
@@ -149,6 +147,8 @@
       "statusLegend": "Estado de la cuenta",
       "active": "Activo",
       "emailVerified": "Correo verificado",
+      "emailVerifiedCurrentHint": "Este es el estado de la dirección actual.",
+      "newEmailVerified": "Marcar la nueva dirección como verificada",
       "pendingAdminApproval": "Pendiente de aprobación de administrador",
       "requiredField": "Campo obligatorio",
       "create": "Añadir usuario",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Volver a usuarios",
+      "pendingEmail": "Cambio de correo pendiente a {email}, el enlace caduca el {date}",
       "notFoundTitle": "Usuario no encontrado",
       "notFoundDescription": "Es posible que esta cuenta haya sido eliminada",
       "securityTitle": "Seguridad",
@@ -186,16 +187,12 @@
       "title": "Restablecer contraseña",
       "description": "Establecer una nueva contraseña para {username}",
       "newLabel": "Nueva contraseña",
-      "hintLength": "Al menos {min} caracteres",
-      "hintStrict": "Al menos {min} caracteres, con mayúscula, minúscula, un número y un carácter especial",
       "confirmLabel": "Confirmar nueva contraseña",
-      "mismatch": "Las contraseñas no coinciden",
       "required": "La contraseña es obligatoria",
       "submit": "Restablecer contraseña",
       "cancel": "Cancelar",
       "close": "Cerrar",
       "success": "Contraseña actualizada",
-      "invalid": "Esa contraseña no cumple los requisitos",
       "error": "No se pudo actualizar la contraseña. Inténtalo de nuevo."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "Correo de prueba enviado",
       "failed": "No se pudo enviar el correo de prueba",
       "failedUnknown": "Consulta los registros del servidor para más detalles."
+    },
+    "envLocked": "Definido por {name}",
+    "envSection": "Algunos ajustes de aquí los definen variables de entorno ({names}). Elimínalas del entorno para editar esos ajustes aquí.",
+    "unsaved": "Cambios sin guardar",
+    "discard": "Descartar",
+    "tabs": {
+      "label": "Secciones de los ajustes del servidor",
+      "general": "General",
+      "access": "Acceso y seguridad",
+      "maps": "Mapas y ubicación",
+      "email": "Correo electrónico",
+      "unsaved": "Tiene cambios sin guardar"
+    },
+    "search": {
+      "placeholder": "Buscar ajustes…",
+      "noResults": "No se encontraron ajustes"
+    },
+    "leave": {
+      "title": "¿Salir sin guardar?",
+      "description": "Tienes cambios sin guardar. Si sales de esta página se perderán.",
+      "confirm": "Salir sin guardar",
+      "stay": "Quedarse en la página",
+      "close": "Cerrar"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Los ámbitos deben tener 500 caracteres o menos",
       "icon": "Icono",
       "iconNone": "Ninguno",
-      "iconCustom": "URL personalizada",
-      "customIconUrl": "URL de icono personalizado",
-      "customIconUrlHint": "Enlace a una imagen mostrada en el botón de inicio de sesión",
       "enabled": "Habilitado",
       "autoCreateUsers": "Crear usuarios automáticamente en el primer inicio de sesión",
       "syncUserInfo": "Sincronizar información de perfil en cada inicio de sesión",
@@ -559,9 +576,6 @@
       "current": "Contraseña actual",
       "new": "Nueva contraseña",
       "confirm": "Confirmar nueva contraseña",
-      "requirementsStrict": "Al menos {length} caracteres, incluyendo una mayúscula, una minúscula, un número y un símbolo.",
-      "requirementsLength": "Al menos {length} caracteres.",
-      "mismatch": "Las contraseñas no coinciden.",
       "revokeOthers": "Cerrar sesión en todos los demás dispositivos",
       "submit": "Cambiar contraseña",
       "success": "Contraseña cambiada",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Tu contraseña o código es incorrecto.",
       "alreadyLinked": "Esa cuenta ya está vinculada.",
       "lastMethodError": "No puedes desvincular tu único método de inicio de sesión. Establece una contraseña primero."
+    },
+    "email": {
+      "subtitle": "Aquí es donde se envían los restablecimientos de contraseña y los avisos. Para cambiarlo, debes confirmar tu identidad, y la nueva dirección surte efecto una vez que la confirmes desde un enlace que le enviamos.",
+      "sameAsCurrent": "Esta ya es tu dirección de correo.",
+      "success": "Se ha enviado un enlace de confirmación a la nueva dirección. Tu correo cambiará cuando lo confirmes.",
+      "appliedSuccess": "Correo electrónico cambiado.",
+      "pending": "Cambio pendiente a {email}",
+      "pendingExpires": "El enlace de confirmación caduca el {date}.",
+      "resend": "Reenviar enlace",
+      "cancel": "Cancelar cambio",
+      "resendSuccess": "Si hay un cambio pendiente, se está enviando un nuevo enlace a la nueva dirección.",
+      "resendError": "No se pudo reenviar el enlace. Inténtalo de nuevo.",
+      "cancelSuccess": "Cambio de correo cancelado.",
+      "cancelError": "No se pudo cancelar el cambio. Inténtalo de nuevo."
     },
     "apiKeys": {
       "title": "Claves API",
@@ -923,7 +951,6 @@
       "invalidType": "Elige un archivo .zip.",
       "exportSuccess": "Exportación lista, tu descarga debería comenzar pronto",
       "exportError": "No se pudieron exportar tus datos. Inténtalo de nuevo.",
-      "importSuccess": "Datos importados",
       "importError": "No se pudo importar el archivo. Comprueba el archivo e inténtalo de nuevo."
     }
   }

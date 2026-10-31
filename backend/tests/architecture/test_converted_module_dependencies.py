@@ -1,4 +1,4 @@
-"""What a converted module may take from ``core``, and which modules a hand-listed contract covers.
+"""What a converted module may take from ``core``.
 
 Two rules from ``docs/developer-guide/module-structure.md`` that import-linter
 states badly:
@@ -7,36 +7,47 @@ states badly:
   between a module and this application. The allowlist below names every
   ``core`` module a converted module reaches today and why, so a new reach into
   application-wide state is a reviewed diff instead of an unnoticed import.
-* ``auth-boundary`` names its source modules by hand, so a module is
-  unconstrained until someone remembers to add it. The test fails on the
-  difference.
 """
 
 import ast
-import configparser
 import pathlib
 
-from tests._helpers.module_roles import CONVERTED_MODULES, UNCONVERTED_MODULES
+from tests._helpers.module_roles import CONVERTED_MODULES
 
 _MODULES_ROOT = pathlib.Path("app/modules")
-
-_IMPORTLINTER = pathlib.Path(".importlinter")
 
 #: ``core`` modules a converted module may import, as ``{core module: reason}``.
 #: Generic primitives sit first; the entries below the divider read
 #: application-wide state or wiring and are the ones to shrink, or to move into
 #: ``jasil`` when they are generic enough to be shared by other products.
 _ALLOWED_CORE: dict[str, str] = {
+    "core.attempt_state": "The claim-and-poll state of an attempt that runs off the request.",
+    "core.sync_runner": "The shared claim, run and dead-letter bookkeeping of a queued provider sync.",
+    "core.provider_rate_limit": "The shared, expiring record of a provider's rate limit, which Strava and Garmin both keep.",
+    "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
+    "core.blob_sweep": "The storage-side reconciliation sweeps for blobs no row owns or names any more.",
     "core.calendar": "Period boundaries for activity summaries.",
+    "core.cryptography": "Encrypts and decrypts the tile-provider API key at rest.",
+    "core.email_cooldown": "The per-account cooldown on emails anyone can trigger without signing in.",
+    "core.email_templates": "The shared layout the test email is wrapped in.",
+    "core.environment": "The set of deployed environments, asked by the cookie policy.",
     "core.etag": "Conditional-response helpers for activity routes.",
     "core.event_metadata": "Event envelope metadata shared by every publisher.",
     "core.exceptions": "The domain error vocabulary raised by crud and service.",
     "core.file_uploads": "The only path an ``UploadFile`` may take.",
+    "core.geocoding": "The reverse-geocoding configuration shape the settings store and the substrate is fed.",
     "core.hashing": "Content digests for upload and media deduplication.",
+    "core.http_cache": "The browser cache lifetime of a signed photo, thumbnail or media URL.",
+    "core.i18n": "Localises the test email.",
+    "core.local_pool": "The bounded in-process pool background work runs on when no durable worker does.",
+    "core.jwt_keys": "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate limiter.",
     "core.logger": "Structured logging.",
+    "core.mail": "The mail configuration shape the settings store, and its validation wording.",
+    "core.network": "The SSRF check on a tile server URL before it is saved.",
     "core.pagination": "Page and cursor primitives.",
     "core.sanitization": "Cleaning user-supplied text before storage.",
     "core.signing": "The token-signing primitive behind thumbnail URLs.",
+    "core.text_imports": "Size- and row-bounded reading of an imported Strava gear or activities CSV.",
     "core.timezone": "Timezone resolution and conversion.",
     # Application-wide state or wiring: a declared dependency, not a free one.
     "core.config": "Environment-backed settings read directly rather than passed in.",
@@ -103,22 +114,3 @@ class TestCoreAllowlist:
         used = {name for path in _converted_files() for name in _core_imports(path)}
         stale = sorted(set(_ALLOWED_CORE) - used)
         assert not stale, f"Remove allowlist entries that no converted module imports any more: {stale}"
-
-
-class TestAuthBoundaryCoverage:
-    """The hand-listed ``auth-boundary`` sources cover every top-level module."""
-
-    def test_auth_boundary_lists_every_module(self):
-        parser = configparser.ConfigParser(allow_no_value=True, delimiters=("=",))
-        parser.read(_IMPORTLINTER, encoding="utf-8")
-        sources = {
-            line.strip()
-            for line in parser["importlinter:contract:auth-boundary"]["source_modules"].splitlines()
-            if line.strip()
-        }
-        expected = {f"modules.{name}" for name in (*CONVERTED_MODULES, *UNCONVERTED_MODULES) if name != "auth"}
-        expected.add("core")
-        assert sources == expected, (
-            "auth-boundary source_modules must list core and every top-level module except auth; "
-            f"missing={sorted(expected - sources)} unexpected={sorted(sources - expected)}"
-        )

@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inactif",
       "unverified": "E-mail non vérifié",
+      "pendingEmail": "Changement d'e-mail en attente",
       "pending": "En attente d'approbation",
       "externalAuth": "Auth. externe"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "L'e-mail est obligatoire",
       "emailInvalid": "Entrez une adresse e-mail valide",
+      "emailChangeHint": "Un lien de confirmation est envoyé à la nouvelle adresse, qui remplace l'actuelle une fois confirmée. L'utilisateur est déconnecté de tous les appareils. Marquez la nouvelle adresse comme vérifiée pour l'appliquer immédiatement.",
       "accessType": "Type d'accès",
       "accessTypeRegular": "Utilisateur régulier",
       "accessTypeAdmin": "Administrateur",
       "password": "Mot de passe",
       "passwordHint": "Au moins 8 caractères",
-      "passwordHintStrict": "Au moins {min} caractères, avec majuscule, minuscule, chiffre et caractère spécial",
-      "passwordHintLength": "Au moins {min} caractères",
       "passwordRequired": "Le mot de passe est obligatoire",
-      "passwordInvalid": "Ce mot de passe ne répond pas aux exigences",
       "confirmPassword": "Confirmer le mot de passe",
       "confirmPasswordRequired": "Confirmer le mot de passe",
-      "passwordMismatch": "Les mots de passe ne correspondent pas",
       "preferredLanguage": "Langue préférée",
       "languages": {
         "ca": "Catalan",
@@ -149,6 +147,8 @@
       "statusLegend": "Statut du compte",
       "active": "Actif",
       "emailVerified": "E-mail vérifié",
+      "emailVerifiedCurrentHint": "Ceci est l'état de l'adresse actuelle.",
+      "newEmailVerified": "Marquer la nouvelle adresse comme vérifiée",
       "pendingAdminApproval": "En attente d'approbation admin",
       "requiredField": "Champ obligatoire",
       "create": "Ajouter l'utilisateur",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Retour aux utilisateurs",
+      "pendingEmail": "Changement d'e-mail en attente vers {email}, le lien expire le {date}",
       "notFoundTitle": "Utilisateur introuvable",
       "notFoundDescription": "Ce compte a peut-être été supprimé",
       "securityTitle": "Sécurité",
@@ -186,16 +187,12 @@
       "title": "Réinitialiser le mot de passe",
       "description": "Définir un nouveau mot de passe pour {username}",
       "newLabel": "Nouveau mot de passe",
-      "hintLength": "Au moins {min} caractères",
-      "hintStrict": "Au moins {min} caractères, avec majuscule, minuscule, chiffre et caractère spécial",
       "confirmLabel": "Confirmer le nouveau mot de passe",
-      "mismatch": "Les mots de passe ne correspondent pas",
       "required": "Le mot de passe est obligatoire",
       "submit": "Réinitialiser le mot de passe",
       "cancel": "Annuler",
       "close": "Fermer",
       "success": "Mot de passe mis à jour",
-      "invalid": "Ce mot de passe ne répond pas aux exigences",
       "error": "Impossible de mettre à jour le mot de passe. Veuillez réessayer."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "E-mail de test envoyé",
       "failed": "L'e-mail de test n'a pas pu être envoyé",
       "failedUnknown": "Consultez les journaux du serveur pour plus de détails."
+    },
+    "envLocked": "Défini par {name}",
+    "envSection": "Certains réglages ici sont définis par des variables d'environnement ({names}). Retirez-les de l'environnement pour modifier ces réglages ici.",
+    "unsaved": "Modifications non enregistrées",
+    "discard": "Annuler les modifications",
+    "tabs": {
+      "label": "Sections des réglages du serveur",
+      "general": "Général",
+      "access": "Accès et sécurité",
+      "maps": "Cartes et localisation",
+      "email": "E-mail",
+      "unsaved": "Contient des modifications non enregistrées"
+    },
+    "search": {
+      "placeholder": "Rechercher un réglage…",
+      "noResults": "Aucun réglage trouvé"
+    },
+    "leave": {
+      "title": "Quitter sans enregistrer ?",
+      "description": "Vous avez des modifications non enregistrées. Si vous quittez cette page, elles seront perdues.",
+      "confirm": "Quitter sans enregistrer",
+      "stay": "Rester sur la page",
+      "close": "Fermer"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Les portées doivent contenir 500 caractères ou moins",
       "icon": "Icône",
       "iconNone": "Aucune",
-      "iconCustom": "URL personnalisée",
-      "customIconUrl": "URL de l'icône personnalisée",
-      "customIconUrlHint": "Lien vers une image affichée sur le bouton de connexion",
       "enabled": "Activé",
       "autoCreateUsers": "Créer automatiquement les utilisateurs à la première connexion",
       "syncUserInfo": "Synchroniser les informations du profil à chaque connexion",
@@ -559,9 +576,6 @@
       "current": "Mot de passe actuel",
       "new": "Nouveau mot de passe",
       "confirm": "Confirmer le nouveau mot de passe",
-      "requirementsStrict": "Au moins {length} caractères, incluant une majuscule, une minuscule, un chiffre et un symbole.",
-      "requirementsLength": "Au moins {length} caractères.",
-      "mismatch": "Les mots de passe ne correspondent pas.",
       "revokeOthers": "Se déconnecter de tous les autres appareils",
       "submit": "Changer le mot de passe",
       "success": "Mot de passe modifié",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Votre mot de passe ou code est incorrect.",
       "alreadyLinked": "Ce compte est déjà lié.",
       "lastMethodError": "Vous ne pouvez pas délier votre seule méthode de connexion. Définissez d'abord un mot de passe."
+    },
+    "email": {
+      "subtitle": "C'est là que sont envoyés les réinitialisations de mot de passe et les notifications. Pour la modifier, vous devez confirmer votre identité, et la nouvelle adresse prend effet une fois confirmée via un lien que nous y envoyons.",
+      "sameAsCurrent": "Il s'agit déjà de votre adresse e-mail.",
+      "success": "Lien de confirmation envoyé à la nouvelle adresse. Votre e-mail sera modifié une fois que vous l'aurez confirmé.",
+      "appliedSuccess": "Adresse e-mail modifiée.",
+      "pending": "Changement en attente vers {email}",
+      "pendingExpires": "Le lien de confirmation expire le {date}.",
+      "resend": "Renvoyer le lien",
+      "cancel": "Annuler la modification",
+      "resendSuccess": "Si un changement est en attente, un nouveau lien est en route vers la nouvelle adresse.",
+      "resendError": "Impossible de renvoyer le lien. Veuillez réessayer.",
+      "cancelSuccess": "Modification de l'e-mail annulée.",
+      "cancelError": "Impossible d'annuler la modification. Veuillez réessayer."
     },
     "apiKeys": {
       "title": "Clés API",
@@ -923,7 +951,6 @@
       "invalidType": "Veuillez choisir une archive .zip.",
       "exportSuccess": "Exportation prête, votre téléchargement devrait commencer sous peu",
       "exportError": "Impossible d'exporter vos données. Veuillez réessayer.",
-      "importSuccess": "Données importées",
       "importError": "Impossible d'importer l'archive. Vérifiez le fichier et réessayez."
     }
   }

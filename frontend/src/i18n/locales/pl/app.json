@@ -18,6 +18,7 @@
     "help": "Sprawdź, czy ENDURAIN_HOST wskazuje adres URL, pod którym dostępna jest Twoja instancja Endurain (na przykład https://endurain.example.com), oraz czy zaplecze działa, a następnie odśwież stronę.",
     "reload": "Odśwież"
   },
+  "staleError": "Zostało to zmienione w innym miejscu, gdy na to patrzyłeś, więc nic nie zostało zapisane. Załadowano aktualną wersję. Sprawdź ją i spróbuj ponownie.",
   "dismiss": "Odrzuć",
   "language": "Język",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Edytuj",
     "supported": "Obsługa Markdown",
     "empty": "Nie ma nic do podglądu"
+  },
+  "password": {
+    "hintLength": "Co najmniej {min} znaków.",
+    "hintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym.",
+    "invalid": "Hasło nie spełnia wymagań",
+    "mismatch": "Hasła nie są zgodne"
   }
 }

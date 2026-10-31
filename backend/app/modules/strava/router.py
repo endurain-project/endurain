@@ -1,136 +1,63 @@
-import tempfile
-from collections.abc import Callable
-from datetime import UTC, date, datetime
-from typing import Annotated
+"""Strava routes: account linking, activity and gear sync, and gear CSV import."""
 
-import jasil.providers as platform_providers
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Security, UploadFile, status
-from sqlalchemy.orm import Session
-from stravalib.exc import AccessUnauthorized
+from datetime import date
 
-import core.cryptography as core_cryptography
-import core.database as core_database
+from fastapi import APIRouter, Request, Response, Security, UploadFile, status
+
 import core.dependencies as core_dependencies
-import core.exceptions as core_exceptions
-import core.file_uploads as core_file_uploads
-import core.logger as core_logger
+import core.etag as core_etag
 import core.rate_limit as core_rate_limit
-import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
-import modules.gears.gear.crud as gears_crud
-import modules.strava.gear_utils as strava_gear_utils
-import modules.strava.provider_registry as strava_provider_registry
+import modules.gears.gear.schema as gears_schema
+import modules.strava.constants as strava_constants
+import modules.strava.dependencies as strava_dependencies
+import modules.strava.gear_service as strava_gear_service
+import modules.strava.link_service as strava_link_service
 import modules.strava.schema as strava_schema
-import modules.strava.utils as strava_utils
-import modules.users.users_integrations.crud as user_integrations_crud
-
-logger = core_logger.get_logger(__name__)
+import modules.strava.service as strava_service
+import modules.strava.sync_service as strava_sync_service
 
 # Define the API router
 router = APIRouter()
 
-# Largest gear CSV accepted: a gear list is a few hundred rows at most.
-_GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
 
-
-@router.put(
+@router.post(
     "/link",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=strava_schema.StravaSyncStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def strava_link(
-    state: str,
-    code: str,
-    _validate_access_token: Annotated[
-        Callable,
-        Depends(auth_dependencies.validate_access_token),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the user integrations by the state
-    user_integrations = user_integrations_crud.get_user_integrations_by_strava_state(state, db)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def strava_link(
+    request: Request,
+    link: strava_schema.StravaLinkRequest,
+    token_user_id: auth_dependencies.CurrentUserId,
+    oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
+    sync_states: strava_dependencies.StravaSyncStateStoreDep,
+) -> strava_schema.StravaSyncStatus:
+    """Queue the exchange of a Strava authorization code for tokens.
 
-    # The state must belong to the authenticated user
-    if user_integrations is None or user_integrations.user_id != token_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User integrations not found",
-        )
-
-    # Check if client ID and client secret are set
-    if user_integrations.strava_client_id is None and user_integrations.strava_client_secret is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Strava client ID and secret not set",
-        )
-
-    try:
-        # Create a Strava client
-        strava_client = strava_utils.create_strava_client(user_integrations)
-
-        # Exchange code for token
-        tokens = strava_client.exchange_code_for_token(
-            client_id=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id),
-            client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
-            code=code,
-        )
-
-        # Update the user integrations with the tokens
-        user_integrations_crud.link_strava_account(user_integrations.user_id, tokens, db)
-
-        # Return success message
-        return {"detail": f"Strava linked successfully for user {user_integrations.user_id}"}
-    except Exception as err:
-        logger.error(f"Unable to link Strava account: {err}", exc_info=err)
-
-        # Clean up by setting Strava
-        user_integrations_crud.unlink_strava_account(user_integrations.user_id, db)
-
-        # Raise an HTTPException with appropriate status code
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail=f"Unable to link Strava account: {err}",
-        ) from err
+    Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+    pending is answered 409.
+    """
+    return strava_link_service.start_link(token_user_id, link, oauth_states, sync_states)
 
 
-@router.get(
+@router.post(
     "/activities",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def strava_retrieve_activities_days(
     request: Request,
     start_date: date,
     end_date: date,
-    _validate_access_token: Annotated[
-        Callable,
-        Depends(auth_dependencies.validate_access_token),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    storage: Annotated[
-        platform_providers.StorageProvider,
-        Depends(core_dependencies.get_storage),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    storage: core_dependencies.Storage,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Queue a Strava sync of an explicit date range.
 
@@ -138,218 +65,167 @@ def strava_retrieve_activities_days(
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
-    if start_date > end_date:
-        raise core_exceptions.InvalidInputError("start_date must not be after end_date")
-
-    job = activity_ingestion_integration.request_provider_sync(
-        token_user_id,
-        strava_provider_registry.PROVIDER_NAME,
-        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
-        storage,
-        db,
-    )
-    logger.info(f"Strava activities queued for user {token_user_id}")
-    return job
+    return strava_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
 
 
-@router.get("/gear", status_code=201)
-async def strava_retrieve_gear(
-    _validate_access_token: Annotated[
-        Callable,
-        Depends(auth_dependencies.validate_access_token),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    background_tasks: BackgroundTasks,
-):
-    # Process strava activities in the background
-    background_tasks.add_task(
-        strava_gear_utils.get_user_gear,
-        token_user_id,
-    )
+@router.post(
+    "/gear",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=strava_schema.StravaSyncStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
+def strava_retrieve_gear(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    sync_states: strava_dependencies.StravaSyncStateStoreDep,
+    rate_limits: strava_dependencies.StravaRateLimitStoreDep,
+) -> strava_schema.StravaSyncStatus:
+    """Queue a sync of the user's Strava gear; a background job runs it.
 
-    # Return success message and status code 202
-    logger.info(f"Strava gear will be processed in the background for user {token_user_id}")
-    return {"detail": f"Strava gear will be processed in the background for for {token_user_id}"}
-
-
-def _save_gear_csv(file: UploadFile) -> tuple[tempfile.TemporaryDirectory, str]:
-    """Stream an uploaded gear CSV to a private temp directory.
-
-    Args:
-        file: The uploaded CSV.
-
-    Returns:
-        The temp directory (the caller closes it) and the saved file's path.
+    Poll ``GET /strava/sync/gear`` for the outcome. A second request while one is
+    pending is answered 409.
     """
-    work_dir = tempfile.TemporaryDirectory(prefix="strava-gear-")
-    try:
-        path = core_file_uploads.save_text_upload_sync(
-            file, upload_dir=work_dir.name, filename="gear.csv", max_bytes=_GEAR_CSV_MAX_BYTES
-        )
-    except BaseException:
-        work_dir.cleanup()
-        raise
-    return work_dir, path
+    return strava_sync_service.request_gear_sync(token_user_id, sync_states, rate_limits, db)
 
 
-@router.post("/import/bikes", status_code=201)
+@router.get(
+    "/sync/{kind}",
+    response_model=strava_schema.StravaSyncStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+def strava_sync_status(
+    kind: strava_constants.SyncKind,
+    token_user_id: auth_dependencies.CurrentUserId,
+    sync_states: strava_dependencies.StravaSyncStateStoreDep,
+) -> strava_schema.StravaSyncStatus:
+    """Report where the authenticated user's queued link, gear sync or unlink is."""
+    return strava_sync_service.get_sync_status(token_user_id, kind, sync_states)
+
+
+@router.post(
+    "/import/bikes",
+    status_code=status.HTTP_201_CREATED,
+    response_model=strava_schema.StravaGearImportResult,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def import_bikes_from_strava_export(
     request: Request,
     file: UploadFile,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    """Create the bikes listed in an uploaded Strava ``bikes.csv``."""
-    work_dir, path = _save_gear_csv(file)
-    try:
-        bikes_dict = strava_gear_utils.iterate_over_bikes_csv(path)
-        bikes = (
-            strava_gear_utils.transform_csv_bike_gear_to_schema_gear(bikes_dict, token_user_id) if bikes_dict else []
-        )
-        if bikes:
-            gears_crud.create_multiple_gears(bikes, token_user_id, db)
-        logger.info("Bike import complete.", extra=core_logger.context(console=True))
-    finally:
-        work_dir.cleanup()
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> strava_schema.StravaGearImportResult:
+    """Create the bikes listed in an uploaded Strava ``bikes.csv`` and report how many."""
+    return strava_schema.StravaGearImportResult(
+        imported=strava_gear_service.import_gear(file, token_user_id, gears_schema.GearType.BIKE, db)
+    )
 
 
-@router.post("/import/shoes", status_code=201)
+@router.post(
+    "/import/shoes",
+    status_code=status.HTTP_201_CREATED,
+    response_model=strava_schema.StravaGearImportResult,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
+)
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def import_shoes_from_strava_export(
     request: Request,
     file: UploadFile,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    """Create the shoes listed in an uploaded Strava ``shoes.csv``."""
-    work_dir, path = _save_gear_csv(file)
-    try:
-        shoes_list = strava_gear_utils.iterate_over_shoes_csv(path)
-        shoes = (
-            strava_gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, token_user_id, db)
-            if shoes_list
-            else []
-        )
-        if shoes:
-            gears_crud.create_multiple_gears(shoes, token_user_id, db)
-        logger.info("Shoe import complete.", extra=core_logger.context(console=True))
-    finally:
-        work_dir.cleanup()
-
-
-@router.put("/client")
-async def strava_set_user_client(
-    client: strava_schema.StravaClient,
-    _validate_access_token: Annotated[
-        Callable,
-        Depends(auth_dependencies.validate_access_token),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[Session, Depends(core_database.get_db)],
-):
-    # Set the user Strava client
-    user_integrations_crud.set_user_strava_client(token_user_id, client.client_id, client.client_secret, db)
-
-    # Return success message
-    return {f"Strava client for user {token_user_id} edited successfully"}
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> strava_schema.StravaGearImportResult:
+    """Create the shoes listed in an uploaded Strava ``shoes.csv`` and report how many."""
+    return strava_schema.StravaGearImportResult(
+        imported=strava_gear_service.import_gear(file, token_user_id, gears_schema.GearType.SHOES, db)
+    )
 
 
 @router.put(
-    "/state/{state}",
+    "/client",
+    response_model=strava_schema.StravaDetail,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def strava_set_user_unique_state(
-    state: str | None,
-    _validate_access_token: Annotated[
-        Callable,
-        Depends(auth_dependencies.validate_access_token),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[Session, Depends(core_database.get_db)],
-):
-    # Set the user Strava state
-    user_integrations_crud.set_user_strava_state(token_user_id, state, db)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def strava_set_user_client(
+    request: Request,
+    client: strava_schema.StravaClientCredentials,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
+) -> strava_schema.StravaDetail:
+    """Store the user's Strava API client id and secret.
 
-    # Return success message
-    return {f"Strava state for user {token_user_id} edited successfully"}
+    Args:
+        request: The incoming request, read by the rate limiter.
+        client: The Strava application's client id and secret.
+        token_user_id: User ID from the access token.
+        db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition, the ``integrations_version`` the client read.
+
+    Returns:
+        A confirmation message.
+    """
+    version = strava_service.set_client(token_user_id, client, db, if_match=if_match)
+    core_etag.set_etag(response, version)
+    return strava_schema.StravaDetail(detail="Strava client edited successfully")
 
 
-@router.delete("/unlink")
-async def strava_unlink(
-    _validate_access_token: Annotated[
-        Callable,
-        Depends(auth_dependencies.validate_access_token),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get Strava client
-    strava_client = strava_utils.create_strava_client(
-        strava_utils.fetch_user_integrations_and_validate_token(token_user_id, db)
-    )
+@router.post(
+    "/state",
+    status_code=status.HTTP_201_CREATED,
+    response_model=strava_schema.StravaState,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def strava_begin_state(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
+) -> strava_schema.StravaState:
+    """Issue the one-time state that correlates the OAuth callback with the user.
 
-    # Deauthorize the Strava client
-    if strava_client:
-        try:
-            strava_client.deauthorize()
-        except (AccessUnauthorized, Exception) as err:
-            logger.info(
-                "Unable to deauthorize Strava account, using stravalib deauthorize logic. Will unlink forcibly",
-                exc_info=err,
-            )
+    Replaces any state the user issued earlier.
+    """
+    return strava_schema.StravaState(state=strava_service.begin_state(token_user_id, oauth_states))
 
-    # delete all strava gear for user
-    gears_crud.delete_all_strava_gear_for_user(token_user_id, db)
 
-    # delete all strava activities for user
-    activity_integration.delete_all_strava_activities(token_user_id, db)
+@router.delete(
+    "/state",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def strava_clear_user_state(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
+) -> None:
+    """Forget the user's pending OAuth state."""
+    strava_service.clear_state(token_user_id, oauth_states)
 
-    # unlink strava account
-    user_integrations_crud.unlink_strava_account(token_user_id, db)
 
-    # Return success message
-    return {"detail": f"Strava unlinked for user {token_user_id} successfully"}
+@router.delete(
+    "/link",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=strava_schema.StravaSyncStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def strava_unlink(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    sync_states: strava_dependencies.StravaSyncStateStoreDep,
+    rate_limits: strava_dependencies.StravaRateLimitStoreDep,
+) -> strava_schema.StravaSyncStatus:
+    """Queue the disconnection of the user's Strava account; a background job runs it.
+
+    The job revokes the authorization with Strava and deletes the activities and gear
+    imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
+    """
+    return strava_sync_service.request_unlink(token_user_id, sync_states, rate_limits, db)

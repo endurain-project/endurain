@@ -18,6 +18,7 @@
     "help": "Check that ENDURAIN_HOST points to the URL where your Endurain instance is reachable (for example https://endurain.example.com) and that the backend is running, then reload the page.",
     "reload": "Reload"
   },
+  "staleError": "This was changed elsewhere while you were looking at it, so nothing was saved. The current version has been loaded. Review it and try again.",
   "dismiss": "Dismiss",
   "language": "Language",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Edit",
     "supported": "Markdown supported",
     "empty": "Nothing to preview"
+  },
+  "password": {
+    "hintLength": "At least {min} characters.",
+    "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character.",
+    "invalid": "Password does not meet the requirements",
+    "mismatch": "Passwords don't match"
   }
 }

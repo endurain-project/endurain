@@ -24,7 +24,7 @@ An activity can also be hidden from everyone with **Hide this activity from ever
 
 ## Public links
 
-Public links are controlled by an administrator in **Settings → Server settings → Sharing**:
+Public links are controlled by an administrator in **Settings → Server settings → Public sharing**:
 
 - **Enable public shareable links:** off by default. When on, anyone with the link to a *public* activity can view it without signing in.
 - **Show user info on public links:** when on, the link also shows the owner's name and profile photo.

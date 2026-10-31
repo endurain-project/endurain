@@ -87,13 +87,6 @@ class TestHealthSleepModel:
         assert health_sleep_models.HealthSleep.min_heart_rate.type.python_type is int
         assert health_sleep_models.HealthSleep.awake_count.type.python_type is int
 
-    def test_health_sleep_model_relationship(self):
-        """
-        Test HealthSleep model has relationship to User.
-        """
-        # Assert
-        assert hasattr(health_sleep_models.HealthSleep, "users")
-
     def test_health_sleep_model_integer_fields(self):
         """
         Test HealthSleep model integer fields.

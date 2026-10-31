@@ -1,6 +1,7 @@
 import type { UserSession, UserSessionDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 
 /**
  * Maps a raw `UsersSessionsRead` payload to the clean {@link UserSession} model
@@ -37,8 +38,8 @@ export async function fetchUserSessions(
   userId: number,
   signal?: AbortSignal,
 ): Promise<UserSession[]> {
-  const dtos = await apiFetch<UserSessionDto[] | null>(`/sessions/user/${userId}`, { signal })
-  return (dtos ?? []).map(mapUserSession)
+  const dtos = await fetchAllPages<UserSessionDto>(`/users/${userId}/sessions`, undefined, signal)
+  return dtos.map(mapUserSession)
 }
 
 /**
@@ -50,7 +51,7 @@ export async function fetchUserSessions(
  * @throws {HttpError} When the request fails.
  */
 export async function revokeUserSession(sessionId: string, userId: number): Promise<void> {
-  await apiFetch<void>(`/sessions/${encodeURIComponent(sessionId)}/user/${userId}`, {
+  await apiFetch<void>(`/users/${userId}/sessions/${encodeURIComponent(sessionId)}`, {
     method: 'DELETE',
     responseType: 'void',
   })
@@ -72,7 +73,7 @@ export async function revokeOtherUserSessions(
   const query = excludeSessionId
     ? `?exclude_session_id=${encodeURIComponent(excludeSessionId)}`
     : ''
-  await apiFetch<void>(`/sessions/user/${userId}${query}`, {
+  await apiFetch<void>(`/users/${userId}/sessions${query}`, {
     method: 'DELETE',
     responseType: 'void',
   })

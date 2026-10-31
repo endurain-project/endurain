@@ -62,10 +62,10 @@ Endurain currently supports:
 - Multi-user functionality with admin and user profiles adaptable interfaces
 - Activity import via manual or bulk upload (.gpx, .tcx and .fit files. .fit files are preferred)
 - Strava integration for syncing activities and gear
-- Garmin Connect integration for syncing activities, gear and body composition
+- Garmin Connect integration for syncing activities, gear and health data (body composition, steps and sleep)
 - Activity feeds and statistics (week/month)
 - Basic activity privacy settings
-- Gear tracking (wetsuits, bicycles, shoes, racquets, skis, snowboards)
+- Gear tracking (bicycles, shoes, wetsuits, racquets, skis, snowboards, windsurf gear, water sports boards)
 - Gear component tracking (e.g., track when components like bike chains need replacing)
 - Default gear for activity types
 - User pages with stats and activity histories
@@ -74,7 +74,7 @@ Endurain currently supports:
 - Imperial and metric units support
 - Dark/light theme switcher
 - Third-party app support
-- Weight, steps and sleep logging
+- Weight, steps, sleep, water intake, bowel movement and fasting logging
 - Notification system
 - Define and track goals
 - MFA TOTP support
@@ -109,7 +109,7 @@ This project is licensed under the AGPL-3.0 or later License.
 
 Endurain has multi-language support, and you can help translate it into more languages via [Codeberg Translate](https://translate.codeberg.org/projects/endurain/). 
 
-Currently supported in:
+The language switcher in the app lists every available language. Translators who asked to be credited:
 
  - Catalan by [@rubenixnagios](https://github.com/rubenixnagios)
  - Chinese Simplified
@@ -122,6 +122,8 @@ Currently supported in:
  - Slovenian (SL) [@thehijacker](https://github.com/thehijacker)
  - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor) and [@tinchodin](https://github.com/tinchodin)
  - English (US)
+
+Other languages available: Bulgarian, Croatian, Czech, Danish, Finnish, Greek, Hungarian, Italian, Lithuanian, Norwegian Bokmål, Polish, Romanian, Serbian, Slovak, Swedish, Turkish and Ukrainian.
 
 ## Trademark notice
 

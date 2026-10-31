@@ -14,13 +14,9 @@ mocks (``mock.patch("...core_config.ATTR")``) keep
 working unchanged.
 """
 
-import functools
 import ipaddress
 import os
-import re
-import socket
 import stat
-from email.utils import parseaddr
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
@@ -28,25 +24,27 @@ from typing import Annotated, Self
 import jasil.capabilities as platform_capabilities
 import jasil.profile as platform_profile
 from cryptography.fernet import Fernet
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+import core.environment as core_environment
 import core.logger as core_logger
 import core.network as core_network
 
 logger = core_logger.get_logger(__name__)
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.20.2"
+API_VERSION = "v0.21.0-beta1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
 
-SERVER_IMAGES_URL_PATH = "server_images"
+#: The shortest ``SECRET_KEY`` accepted; ``openssl rand -hex 32``, which the docs prescribe, gives 64.
+MIN_SECRET_KEY_LENGTH = 32
 
-STRAVA_BULK_IMPORT_ACTIVITIES_FILE = "activities.csv"
-STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE = "Unnamed Shoe "
+
+SERVER_IMAGES_URL_PATH = "server_images"
 
 SUPPORTED_FILE_FORMATS = [
     ".fit",
@@ -57,38 +55,6 @@ SUPPORTED_FILE_FORMATS = [
 
 
 # Settings — every value driven by an environment variable.
-# RFC 1123 hostname: dot-separated labels of letters, digits and inner hyphens.
-_HOSTNAME_PATTERN = re.compile(
-    r"(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*"
-)
-
-
-def _is_plain_address(value: str) -> bool:
-    """Whether ``value`` is a single ``addr`` or ``Name <addr>`` email address."""
-    _, address = parseaddr(value)
-    return bool(address) and "@" in address and not any(c in value for c in "\r\n,;")
-
-
-def _is_valid_smtp_host(host: str) -> bool:
-    """Whether ``host`` is a hostname or an IP literal safe to place in a ``scheme://host:port`` URI."""
-    try:
-        ipaddress.ip_address(host)
-    except ValueError:
-        return bool(_HOSTNAME_PATTERN.fullmatch(host))
-    return True
-
-
-@functools.cache
-def _is_private_host(host: str) -> bool:
-    """Whether ``host`` resolves only to private, loopback or link-local addresses."""
-    try:
-        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
-    except OSError:
-        return False
-    addresses = [ipaddress.ip_address(info[4][0].split("%")[0]) for info in infos]
-    return bool(addresses) and all(a.is_private or a.is_loopback or a.is_link_local for a in addresses)
-
-
 class Settings(BaseSettings):
     """Environment-driven configuration values.
 
@@ -106,7 +72,9 @@ class Settings(BaseSettings):
 
     # --- Logging / environment ---
     LOG_LEVEL: str = "info"
-    ENVIRONMENT: str = "production"
+    # Websocket PING/PONG keepalive frames are logged at DEBUG; hidden unless enabled.
+    LOG_WEBSOCKET_FRAMES: bool = False
+    ENVIRONMENT: core_environment.Environment = "production"
     TZ: str = "UTC"
 
     # --- Deployment shape ---
@@ -259,6 +227,13 @@ class Settings(BaseSettings):
     # for operator review). Set to 0 (or negative) to disable pruning.
     JOBS_RETENTION_DAYS: int = 90
 
+    # --- Notifications ---
+    # Age in days after which read notifications are purged by a scheduled
+    # cleanup (daily). Unread notifications are never purged. Set to 0 to disable
+    # pruning and keep them forever.
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
+    READ_NOTIFICATION_RETENTION_DAYS: int = Field(90, ge=0, le=3650)
+
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
     # Disabled by default because query-string credentials appear in
@@ -266,7 +241,17 @@ class Settings(BaseSettings):
     # Enable only if you have integrations that cannot set custom headers.
     ALLOW_API_KEY_QUERY_PARAM: bool = False
 
+    # --- Session and token policy ---
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
+    # The bounds are the ones the database schema enforces, so whatever is accepted here is storable.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(15, ge=1, le=1440)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(7, ge=1, le=365)
+    SESSION_IDLE_TIMEOUT_ENABLED: bool = False
+    SESSION_IDLE_TIMEOUT_HOURS: int = Field(1, ge=1, le=8760)
+    SESSION_ABSOLUTE_TIMEOUT_HOURS: int = Field(24, ge=1, le=8760)
+
     # --- Reverse-geocoding providers ---
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
     REVERSE_GEO_PROVIDER: str = "nominatim"
     PHOTON_API_HOST: str = "photon.komoot.io"
     PHOTON_API_USE_HTTPS: bool = True
@@ -276,6 +261,7 @@ class Settings(BaseSettings):
     REVERSE_GEO_RATE_LIMIT: float = 1.0
 
     # --- Email (SMTP) ---
+    # Deprecated: imported into the ``mail_settings`` table on boot, removed in v0.22.0.
     # SMTP_PASSWORD is read separately via ``read_secret``
     # so it inherits the Docker-secrets ``_FILE`` contract
     # used by DB_PASSWORD / SECRET_KEY / FERNET_KEY and is
@@ -553,13 +539,16 @@ class Settings(BaseSettings):
         if v is None or v == "":
             return 1.0
         try:
-            return float(v)
+            rate = float(v)
         except (TypeError, ValueError):
+            rate = -1.0
+        if not 0 <= rate <= 100:
             logger.warning(
-                "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number; defaulting to 1.0",
+                "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number from 0 to 100; defaulting to 1.0",
                 extra=core_logger.context(console=True),
             )
             return 1.0
+        return rate
 
     @model_validator(mode="after")
     def _fill_filesystem_defaults(self) -> Self:
@@ -626,64 +615,6 @@ class Settings(BaseSettings):
         return "noop://"
 
     @property
-    def smtp_sender(self) -> str | None:
-        """Sender address: ``SMTP_FROM``, falling back to ``SMTP_USERNAME``."""
-        return self.SMTP_FROM or self.SMTP_USERNAME or None
-
-    @property
-    def mail_problems(self) -> list[str]:
-        """Reasons the SMTP settings cannot be used, empty when mail is usable or unset.
-
-        Mirrors what the mail backend rejects at platform build time, so an invalid
-        setting disables email with a warning instead of stopping the application.
-        Messages name the setting, never its value.
-        """
-        if not self.SMTP_HOST:
-            return []
-        problems: list[str] = []
-        if not _is_valid_smtp_host(self.SMTP_HOST):
-            problems.append("SMTP_HOST is not a valid hostname or IP address")
-        sender = self.smtp_sender
-        if not sender:
-            problems.append("neither SMTP_FROM nor SMTP_USERNAME is set, so there is no sender address")
-        elif not _is_plain_address(sender):
-            problems.append("the sender address (SMTP_FROM or SMTP_USERNAME) is not a valid email address")
-        password = read_secret("SMTP_PASSWORD")
-        if bool(self.SMTP_USERNAME) != bool(password):
-            problems.append("SMTP_USERNAME and SMTP_PASSWORD must be set together")
-        if not ((self.SMTP_USERNAME or "").isascii() and (password or "").isascii()):
-            problems.append("SMTP_USERNAME and SMTP_PASSWORD must contain only ASCII characters")
-        if not 0 < self.SMTP_PORT < 65536:
-            problems.append("SMTP_PORT must be between 1 and 65535")
-        if not self.SMTP_SECURE:
-            if self.SMTP_USERNAME or password:
-                problems.append(
-                    "SMTP_SECURE=false cannot be used with SMTP_USERNAME/SMTP_PASSWORD (credentials are never sent without TLS)"
-                )
-            elif _is_valid_smtp_host(self.SMTP_HOST) and not _is_private_host(self.SMTP_HOST):
-                problems.append("SMTP_SECURE=false is only allowed for a private or loopback SMTP_HOST")
-        return problems
-
-    @property
-    def mail_configured(self) -> bool:
-        """Whether outgoing email is configured and usable."""
-        return bool(self.SMTP_HOST) and not self.mail_problems
-
-    @property
-    def smtp_uri(self) -> str | None:
-        """Mail backend URI, or ``None`` when mail is not configured or unusable.
-
-        ``smtps://`` is implicit TLS; ``smtp://`` is STARTTLS (or cleartext when
-        ``SMTP_SECURE`` is false).
-        """
-        if not self.mail_configured:
-            return None
-        scheme = "smtps" if self.SMTP_SECURE and self.SMTP_SECURE_TYPE == "ssl" else "smtp"
-        # An IPv6 literal needs brackets inside a URI authority.
-        host = f"[{self.SMTP_HOST}]" if ":" in self.SMTP_HOST else self.SMTP_HOST
-        return f"{scheme}://{host}:{self.SMTP_PORT}"
-
-    @property
     def job_worker_mode(self) -> platform_profile.JobWorkerMode:
         """Where durable-job consumers run.
 
@@ -701,6 +632,23 @@ class Settings(BaseSettings):
         return platform_profile.resolve_topology(
             profile=self.DEPLOYMENT_PROFILE, web_workers=self.WEB_WORKERS, job_worker_mode=self.job_worker_mode
         )
+
+    @property
+    def single_log_writer(self) -> bool:
+        """Whether one process alone writes ``{LOGS_DIR}/app.log``.
+
+        Only then can the file be rotated safely and read back as the whole log.
+        """
+        return not self.resolved_deployment_topology.multi_process
+
+    @property
+    def logs_viewer_enabled(self) -> bool:
+        """Whether admins may read the application log through the API.
+
+        Off for the public demo and wherever several processes write logs, which
+        belong in the platform's log collection rather than in one local file.
+        """
+        return self.ENVIRONMENT != "demo" and self.single_log_writer
 
     # The ``substrate_*_uri`` properties below are what the platform substrate is
     # handed; the ``resolved_*`` ones above fold in the host's fallbacks for the
@@ -857,7 +805,6 @@ FILES_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/bulk_import"
 # on S3. Kept under DATA_DIR rather than the system temp dir because an
 # activity file can be up to 200 MiB.
 FILES_UPLOAD_INCOMING_DIR = f"{settings.FILES_DIR}/upload_incoming"
-STRAVA_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/strava_import"
 
 
 def bulk_import_dir_for(user_id: int) -> str:
@@ -877,23 +824,6 @@ def bulk_import_dir_for(user_id: int) -> str:
         Absolute path of that user's bulk-import directory.
     """
     return f"{FILES_BULK_IMPORT_DIR}/{int(user_id)}"
-
-
-def strava_bulk_import_dir_for(user_id: int) -> str:
-    """Return the Strava-export drop directory belonging to one user.
-
-    Per user for the same reason as :func:`bulk_import_dir_for`: one shared
-    directory would attribute whatever any user left there to whoever started the
-    import.
-
-    Args:
-        user_id: The owning user's id. Coerced to ``int`` so the value can only
-            ever be a single path segment.
-
-    Returns:
-        Absolute path of that user's Strava-export directory.
-    """
-    return f"{STRAVA_BULK_IMPORT_DIR}/{int(user_id)}"
 
 
 # Secret loading and environment validation
@@ -930,16 +860,18 @@ def read_secret(
 
             # Security: Validate file path to prevent path traversal
             if not _is_safe_path(file_path):
-                logger.error(f"Unsafe file path detected for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error(
+                    "Unsafe secret file path detected", extra=core_logger.context(console=True, env_var=file_env_var)
+                )
                 raise OSError(f"Unsafe file path for {file_env_var}")
 
             # Check if file exists and is readable
             if not file_path.exists():
-                logger.error(f"Secret file not found for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error("Secret file not found", extra=core_logger.context(console=True, env_var=file_env_var))
                 raise OSError(f"Secret file not found for {file_env_var}")
 
             if not file_path.is_file():
-                logger.error(f"Secret path is not a file for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error("Secret path is not a file", extra=core_logger.context(console=True, env_var=file_env_var))
                 raise OSError(f"Secret path is not a file for {file_env_var}")
 
             # Security: Check file permissions (should not be world-readable)
@@ -951,7 +883,7 @@ def read_secret(
 
             # Security: limit file size to prevent memory exhaustion.
             if file_stat.st_size > 65536:  # 64KB
-                logger.error(f"Secret file too large for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error("Secret file too large", extra=core_logger.context(console=True, env_var=file_env_var))
                 raise OSError(f"Secret file too large for {file_env_var}")
 
             # Read the secret file
@@ -965,7 +897,9 @@ def read_secret(
                     )
                     return content
                 else:
-                    logger.warning(f"Secret file is empty for {file_env_var}", extra=core_logger.context(console=True))
+                    logger.warning(
+                        "Secret file is empty", extra=core_logger.context(console=True, env_var=file_env_var)
+                    )
 
         except (OSError, UnicodeDecodeError) as e:
             # Log error without exposing file path details
@@ -1048,7 +982,8 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
         return False
     except Exception as err:
         logger.error(
-            f"FERNET_KEY validation failed: Unexpected error ({type(err).__name__})",
+            "FERNET_KEY validation failed: Unexpected error",
+            exc_info=err,
             extra=core_logger.context(console=True),
         )
         return False
@@ -1091,19 +1026,6 @@ def check_required_env_vars():
         "ENDURAIN_HOST",
     ]
 
-    # Email is optional; say clearly whether it is on, off or disabled by a bad setting.
-    if not settings.SMTP_HOST:
-        logger.info("Email not configured (SMTP_HOST is not set). Password reset and sign-up emails will not be sent.")
-    elif settings.mail_problems:
-        for problem in settings.mail_problems:
-            logger.warning(
-                f"Email disabled: {problem}. Password reset and sign-up emails will not be sent until "
-                "the SMTP settings are fixed.",
-                extra=core_logger.context(console=True),
-            )
-    else:
-        logger.info(f"Email enabled via {settings.smtp_uri}")
-
     # Check secret variables. Direct env var or _FILE must be present.
     for var in secret_vars:
         file_var = f"{var}_FILE"
@@ -1127,6 +1049,14 @@ def check_required_env_vars():
             message = "FERNET_KEY validation failed. Please check the key format and regenerate if necessary."
             logger.warning(message, extra=core_logger.context(console=True))
             raise ValueError(message)
+
+    secret_key = read_secret("SECRET_KEY")
+    if secret_key is not None and len(secret_key) < MIN_SECRET_KEY_LENGTH:
+        message = (
+            f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters. Generate one with 'openssl rand -hex 32'."
+        )
+        logger.error(message, extra=core_logger.context(console=True))
+        raise ValueError(message)
 
     validate_log_level(settings.LOG_LEVEL)
 

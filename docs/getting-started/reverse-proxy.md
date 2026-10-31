@@ -106,4 +106,4 @@ server {
 
 ## Access your instance
 
-Open `https://endurain.yourdomain.com` and log in with the [default credentials](quick-start.md#default-credentials).
+Open `https://endurain.yourdomain.com`. On a new installation, complete the onboarding with the setup token from the server log, as described in [First sign-in](quick-start.md#first-sign-in). Afterwards, sign in with the administrator account you created.

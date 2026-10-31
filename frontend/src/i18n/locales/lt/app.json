@@ -18,6 +18,7 @@
     "help": "Patikrinkite, ar ENDURAIN_HOST nurodo URL, kuriuo pasiekiama jūsų Endurain instancija (pavyzdžiui https://endurain.example.com) ir ar serveris veikia, tada iš naujo įkelkite puslapį.",
     "reload": "Įkelti iš naujo"
   },
+  "staleError": "Tai buvo pakeista kitur, kol į tai žiūrėjote, todėl nieko neįrašyta. Įkelta dabartinė versija. Peržiūrėkite ją ir bandykite dar kartą.",
   "dismiss": "Atmesti",
   "language": "Kalba",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Redaguoti",
     "supported": "Palaikomas Markdown",
     "empty": "Nėra ką peržiūrėti"
+  },
+  "password": {
+    "hintLength": "Bent {min} simbolių.",
+    "hintStrict": "Bent {min} simbolių, su didžiąja, mažąja raide, skaičiumi ir specialiu simboliu.",
+    "invalid": "Slaptažodis neatitinka reikalavimų",
+    "mismatch": "Slaptažodžiai nesutampa"
   }
 }

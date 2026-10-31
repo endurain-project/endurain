@@ -18,6 +18,7 @@
     "help": "Kontroller at ENDURAIN_HOST peker til URL-en der Endurain-instansen din er tilgjengelig (for eksempel https://endurain.example.com) og at backenden kjører, og last deretter inn siden på nytt.",
     "reload": "Last inn på nytt"
   },
+  "staleError": "Dette ble endret et annet sted mens du så på det, så ingenting ble lagret. Den gjeldende versjonen er lastet inn. Gå gjennom den og prøv igjen.",
   "dismiss": "Lukk",
   "language": "Språk",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Rediger",
     "supported": "Markdown støttes",
     "empty": "Ingenting å forhåndsvise"
+  },
+  "password": {
+    "hintLength": "Minst {min} tegn.",
+    "hintStrict": "Minst {min} tegn, med store og små bokstaver, et tall og et spesialtegn.",
+    "invalid": "Passordet oppfyller ikke kravene",
+    "mismatch": "Passordene stemmer ikke overens"
   }
 }

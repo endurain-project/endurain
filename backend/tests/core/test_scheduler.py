@@ -2,6 +2,10 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from jasil.backends.state_memory import MemoryState
+from jasil.providers import StateBackendUnavailableError
+
 
 class TestSchedulerJobId:
     """Tests for _scheduler_job_id helper."""
@@ -58,16 +62,16 @@ class TestStartScheduler:
             patch("core.scheduler.add_scheduler_job") as mock_add_job,
         ):
             mock_scheduler.running = True
-            from core.scheduler import ScheduledJob, _run_locked_job, start_scheduler
+            from core.scheduler import ScheduledJob, run_due_job, start_scheduler
 
             operation = MagicMock()
             start_scheduler([ScheduledJob(operation, 5, "locked", [1], "provider_sync")])
 
             mock_add_job.assert_called_once_with(
-                _run_locked_job,
+                run_due_job,
                 "interval",
                 5,
-                ("provider_sync", operation, 1),
+                ("provider_sync", 5, operation, 1),
                 "locked",
             )
 
@@ -77,7 +81,7 @@ class TestStartScheduler:
             patch("core.scheduler.add_scheduler_job") as mock_add_job,
         ):
             mock_scheduler.running = True
-            from core.scheduler import ScheduledJob, _run_locked_async_job, start_scheduler
+            from core.scheduler import ScheduledJob, _run_due_async_job, start_scheduler
 
             async def operation(value):
                 return value
@@ -85,10 +89,10 @@ class TestStartScheduler:
             start_scheduler([ScheduledJob(operation, 5, "locked", [1], "provider_async")])
 
             mock_add_job.assert_called_once_with(
-                _run_locked_async_job,
+                _run_due_async_job,
                 "interval",
                 5,
-                ("provider_async", operation, 1),
+                ("provider_async", 5, operation, 1),
                 "locked",
             )
 
@@ -151,9 +155,10 @@ class TestAddSchedulerJob:
                 pass
 
             add_scheduler_job(dummy, "interval", 60, [], "failing job")
-            mock_log.error.assert_any_call(
-                "Failed to add scheduler job to failing job: ValueError", exc_info=mock_scheduler.add_job.side_effect
-            )
+            args, kwargs = mock_log.error.call_args
+            assert args == ("Failed to add a scheduler job",)
+            assert kwargs["exc_info"] is mock_scheduler.add_job.side_effect
+            assert kwargs["extra"]["description"] == "failing job"
 
 
 class TestLockedSchedulerJobs:
@@ -161,42 +166,43 @@ class TestLockedSchedulerJobs:
 
     @patch("core.scheduler.platform_runtime")
     def test_sync_job_runs_when_lock_is_acquired(self, mock_runtime):
-        from core.scheduler import _run_locked_job
+        from core.scheduler import run_locked_job
 
         mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = True
         operation = MagicMock(return_value="done")
 
-        assert _run_locked_job("provider_sync", operation, 1) == "done"
+        assert run_locked_job("provider_sync", operation, 1) == "done"
         operation.assert_called_once_with(1)
 
     @patch("core.scheduler.platform_runtime")
     def test_sync_job_skips_when_lock_is_held(self, mock_runtime):
-        from core.scheduler import _run_locked_job
+        from core.scheduler import run_locked_job
 
         mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = False
         operation = MagicMock()
 
-        assert _run_locked_job("provider_sync", operation, 1) is None
+        assert run_locked_job("provider_sync", operation, 1) is None
         operation.assert_not_called()
 
     @patch("core.scheduler.platform_runtime")
     async def test_async_job_runs_when_lock_is_acquired(self, mock_runtime):
-        from core.scheduler import _run_locked_async_job
+        from core.scheduler import _run_due_async_job
 
         mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = True
+        mock_runtime.get_active_platform.return_value.state = MemoryState()
         operation = AsyncMock(return_value="done")
 
-        assert await _run_locked_async_job("provider_async", operation, 1) == "done"
+        assert await _run_due_async_job("provider_async", 5, operation, 1) == "done"
         operation.assert_awaited_once_with(1)
 
     @patch("core.scheduler.platform_runtime")
     async def test_async_job_skips_when_lock_is_held(self, mock_runtime):
-        from core.scheduler import _run_locked_async_job
+        from core.scheduler import _run_due_async_job
 
         mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = False
         operation = AsyncMock()
 
-        assert await _run_locked_async_job("provider_async", operation, 1) is None
+        assert await _run_due_async_job("provider_async", 5, operation, 1) is None
         operation.assert_not_awaited()
 
 
@@ -218,3 +224,155 @@ class TestStopScheduler:
 
             stop_scheduler()
             mock_scheduler.shutdown.assert_not_called()
+
+
+def test_run_once_with_a_lock_runs_the_job_only_under_that_lock():
+    import core.scheduler as core_scheduler
+
+    with patch.object(core_scheduler.scheduler, "add_job") as add_job:
+        core_scheduler.run_once(print, job_id="job", description="job", lock_name="lock")
+
+    assert add_job.call_args.args[0] is core_scheduler.run_locked_job
+    assert add_job.call_args.kwargs["args"] == ("lock", print)
+
+
+class TestRunDueJob:
+    """Every replica fires its own interval; a locked job still runs once per interval across them."""
+
+    @staticmethod
+    def _platform(state=None):
+        platform = MagicMock()
+        platform.lock.try_acquire.return_value.__enter__.return_value = True
+        platform.state = state if state is not None else MemoryState()
+        return platform
+
+    def test_a_second_replica_inside_the_interval_skips(self):
+        from core.scheduler import run_due_job
+
+        operation = MagicMock(return_value="ran")
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = self._platform()
+            assert run_due_job("sweep", 5, operation, 1) == "ran"
+            assert run_due_job("sweep", 5, operation, 1) is None
+
+        operation.assert_called_once_with(1)
+
+    def test_each_job_has_its_own_interval(self):
+        from core.scheduler import run_due_job
+
+        operation = MagicMock()
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = self._platform()
+            run_due_job("sweep", 5, operation)
+            run_due_job("purge", 5, operation)
+
+        assert operation.call_count == 2
+
+    def test_the_mark_expires_before_this_replicas_next_tick(self):
+        """Counted from the start of the run, so the replica that ran is never blocked from its own next run."""
+        from core.scheduler import run_due_job
+
+        state = MagicMock()
+        state.get.return_value = None
+        with (
+            patch("core.scheduler.platform_runtime") as runtime,
+            patch("core.scheduler.time.monotonic", side_effect=[1000.0, 1120.0]),
+        ):
+            runtime.get_active_platform.return_value = self._platform(state)
+            run_due_job("sweep", 5, MagicMock())
+
+        assert state.set.call_args.kwargs["ttl_seconds"] == int(5 * 60 * 0.9) - 120
+
+    def test_a_run_that_took_its_whole_interval_leaves_no_mark(self):
+        from core.scheduler import run_due_job
+
+        state = MagicMock()
+        state.get.return_value = None
+        with (
+            patch("core.scheduler.platform_runtime") as runtime,
+            patch("core.scheduler.time.monotonic", side_effect=[1000.0, 1300.0]),
+        ):
+            runtime.get_active_platform.return_value = self._platform(state)
+            run_due_job("sweep", 5, MagicMock())
+
+        state.set.assert_not_called()
+
+    def test_a_failed_run_is_retried_at_the_next_tick(self):
+        """A failure marks nothing, so the next tick of any replica runs the job again."""
+        from core.scheduler import run_due_job
+
+        operation = MagicMock(side_effect=[RuntimeError("boom"), "ran"])
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = self._platform()
+            with pytest.raises(RuntimeError):
+                run_due_job("sweep", 1440, operation)
+            assert run_due_job("sweep", 1440, operation) == "ran"
+            assert run_due_job("sweep", 1440, operation) is None
+
+        assert operation.call_count == 2
+
+    def test_a_run_marks_nothing_until_it_finishes(self):
+        """A replica that dies mid-run leaves no mark behind, so the next tick of another replica runs the job."""
+        from core.scheduler import run_due_job
+
+        platform = self._platform()
+        marks_seen_while_running = []
+
+        def operation():
+            marks_seen_while_running.append(platform.state.get("endurain:scheduler:last-run:sweep"))
+
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = platform
+            run_due_job("sweep", 1440, operation)
+
+        assert marks_seen_while_running == [None]
+        assert platform.state.get("endurain:scheduler:last-run:sweep") is not None
+
+    def test_an_unreachable_state_store_still_runs_the_job_under_its_lock(self):
+        from core.scheduler import run_due_job
+
+        state = MagicMock()
+        state.get.side_effect = StateBackendUnavailableError("down")
+        state.set.side_effect = StateBackendUnavailableError("down")
+        operation = MagicMock()
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = self._platform(state)
+            run_due_job("sweep", 5, operation)
+
+        operation.assert_called_once_with()
+
+    def test_another_replica_holding_the_lock_skips_without_marking(self):
+        from core.scheduler import run_due_job
+
+        platform = self._platform()
+        platform.lock.try_acquire.return_value.__enter__.return_value = False
+        operation = MagicMock()
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = platform
+            assert run_due_job("sweep", 5, operation) is None
+
+        operation.assert_not_called()
+        assert platform.state.get("endurain:scheduler:last-run:sweep") is None
+
+    async def test_an_async_job_is_due_once_per_interval_too(self):
+        from core.scheduler import _run_due_async_job
+
+        operation = AsyncMock(return_value="ran")
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = self._platform()
+            assert await _run_due_async_job("sync", 5, operation) == "ran"
+            assert await _run_due_async_job("sync", 5, operation) is None
+
+        operation.assert_awaited_once()
+
+    async def test_a_failed_async_run_is_retried_at_the_next_tick(self):
+        from core.scheduler import _run_due_async_job
+
+        operation = AsyncMock(side_effect=[RuntimeError("boom"), "ran"])
+        with patch("core.scheduler.platform_runtime") as runtime:
+            runtime.get_active_platform.return_value = self._platform()
+            with pytest.raises(RuntimeError):
+                await _run_due_async_job("sync", 1440, operation)
+            assert await _run_due_async_job("sync", 1440, operation) == "ran"
+
+        assert operation.await_count == 2

@@ -1,403 +1,259 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { LoaderCircle } from '@lucide/vue'
+import { Check, ChevronDown } from '@lucide/vue'
+import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 
-import type {
-  ServerSettings,
-  ServerSettingsFormValues,
-  TileMapsTemplate,
-} from '@/features/serverSettings/types'
-import type { Validator } from '@/utils/validators'
+import type { ServerSettings, TileMapsTemplate } from '@/features/serverSettings/types'
 
-import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { FormField } from '@/components/ui/form-field'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { useForm } from '@/composables/useForm'
-import { useToasts } from '@/composables/useToasts'
-import { useUpdateServerSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
+import ServerSettingsSearch from '@/features/serverSettings/components/ServerSettingsSearch.vue'
+import AccessTab from '@/features/serverSettings/components/tabs/AccessTab.vue'
+import GeneralTab from '@/features/serverSettings/components/tabs/GeneralTab.vue'
+import LogsTab from '@/features/serverSettings/components/tabs/LogsTab.vue'
+import MapsTab from '@/features/serverSettings/components/tabs/MapsTab.vue'
+import UnsavedChangesBar from '@/features/serverSettings/components/UnsavedChangesBar.vue'
+import { useLogsStatusQuery } from '@/features/serverSettings/composables/useServerSettings'
+import {
+  provideServerSettingsForm,
+  useServerSettingsForm,
+} from '@/features/serverSettings/composables/useServerSettingsForm'
+import type { SettingsSearchResult } from '@/features/serverSettings/searchIndex'
+import {
+  DEFAULT_SETTINGS_TAB,
+  parseSettingsTab,
+  SETTINGS_TABS,
+  type SettingsTab,
+} from '@/features/serverSettings/settingsTabs'
 
 const props = defineProps<{
   /** The loaded server settings; seeds the form (the parent mounts this only after load). */
   settings: ServerSettings
-  /** Available tile-server presets for the maps section. */
+  /** Available tile-server presets for the maps tab. */
   templates: TileMapsTemplate[]
 }>()
 
+/**
+ * The server settings page body: a search box, the tabs, and one form shared
+ * across the General, Access and Maps tabs so a single save and a single
+ * unsaved-changes state cover them. The Email tab keeps its own form and save.
+ * The active tab lives in the `?tab=` query so it can be linked and survives the
+ * rebuild that follows a save.
+ */
 const { t } = useI18n()
-const toasts = useToasts()
-const updateMutation = useUpdateServerSettingsMutation()
+const route = useRoute()
+const router = useRouter()
 
-/** Records-per-page options offered in the list (mirrors v1). */
-const NUM_RECORDS_OPTIONS = [5, 10, 25, 50, 100] as const
-/** Minimum-length options for regular users: 8–20 (mirrors v1). */
-const PASSWORD_REGULAR_LENGTHS = Array.from({ length: 13 }, (_, index) => index + 8)
-/** Minimum-length options for admin users: 8–25 (mirrors v1). */
-const PASSWORD_ADMIN_LENGTHS = Array.from({ length: 18 }, (_, index) => index + 8)
-/** Sentinel id for the "custom" (manually edited) tile server. */
-const CUSTOM_TEMPLATE = 'custom'
-/** Placeholders every valid tile URL template must contain. */
-const TILE_PLACEHOLDERS = ['{z}', '{x}', '{y}'] as const
+const form = useServerSettingsForm(props)
+provideServerSettingsForm(form)
+const { isDirty, isValid, isSubmitting, dirtyTabs, handleSubmit, discard } = form
 
-/**
- * Projects the loaded settings onto the form-editable subset. `id` and
- * `loginPhotoSet` are intentionally excluded: they round-trip from the freshest
- * server state at save time, never from a stale form value.
- *
- * @param settings - The loaded server settings.
- * @returns The editable form values.
- */
-function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
-  return {
-    units: settings.units,
-    currency: settings.currency,
-    numRecordsPerPage: settings.numRecordsPerPage,
-    publicShareableLinks: settings.publicShareableLinks,
-    publicShareableLinksUserInfo: settings.publicShareableLinksUserInfo,
-    signupEnabled: settings.signupEnabled,
-    signupRequireAdminApproval: settings.signupRequireAdminApproval,
-    signupRequireEmailVerification: settings.signupRequireEmailVerification,
-    ssoEnabled: settings.ssoEnabled,
-    localLoginEnabled: settings.localLoginEnabled,
-    ssoAutoRedirect: settings.ssoAutoRedirect,
-    tileserverUrl: settings.tileserverUrl,
-    tileserverAttribution: settings.tileserverAttribution,
-    tileserverApiKey: settings.tileserverApiKey,
-    tileserverRegenerateThumbnailsOnChange: settings.tileserverRegenerateThumbnailsOnChange,
-    mapBackgroundColor: settings.mapBackgroundColor,
-    passwordType: settings.passwordType,
-    passwordLengthRegularUsers: settings.passwordLengthRegularUsers,
-    passwordLengthAdminUsers: settings.passwordLengthAdminUsers,
-  }
-}
+const root = ref<HTMLElement | null>(null)
+const mailDirty = ref(false)
+const hasUnsaved = computed(() => isDirty.value || mailDirty.value)
 
-/**
- * Validates the tile URL template: non-empty and containing the `{z}/{x}/{y}`
- * placeholders. The backend enforces the full rule set (HTTPS, blocked
- * schemes) authoritatively; this is fast client feedback for the common case.
- *
- * @param requiredMessage - Error when the field is empty.
- * @param placeholderMessage - Error when a coordinate placeholder is missing.
- * @returns A validator for the tile URL field.
- */
-function tileUrlValidator(requiredMessage: string, placeholderMessage: string): Validator<string> {
-  return (value) => {
-    const trimmed = value.trim()
-    if (!trimmed) {
-      return requiredMessage
-    }
-    return TILE_PLACEHOLDERS.every((placeholder) => trimmed.includes(placeholder))
-      ? null
-      : placeholderMessage
-  }
-}
-
-/**
- * Finds the preset whose URL matches the given template, or the `custom`
- * sentinel when none does.
- *
- * @param url - The current tile URL template.
- * @returns The matching preset id, or `custom`.
- */
-function detectTemplate(url: string): string {
-  return (
-    props.templates.find((template) => template.urlTemplate === url)?.templateId ?? CUSTOM_TEMPLATE
-  )
-}
-
-/**
- * Persists the whole settings record, merging the form edits over the freshest
- * server state so `id` and `loginPhotoSet` round-trip untouched. Outcomes are
- * surfaced as toasts; the error is not rethrown, so no inline submit error
- * banner appears.
- *
- * @param formValues - The validated form values.
- */
-async function submitForm(formValues: ServerSettingsFormValues): Promise<void> {
-  try {
-    await updateMutation.mutateAsync({ ...props.settings, ...formValues })
-    toasts.success(t('settings.server.saveSuccess'))
-  } catch {
-    toasts.error(t('settings.server.saveError'))
-  }
-}
-
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur } =
-  useForm<ServerSettingsFormValues>({
-    initialValues: toFormValues(props.settings),
-    validators: {
-      tileserverUrl: tileUrlValidator(
-        t('settings.server.maps.urlRequired'),
-        t('settings.server.maps.urlInvalid'),
-      ),
-    },
-    onSubmit: submitForm,
-  })
-
-const selectedTemplate = ref(detectTemplate(props.settings.tileserverUrl))
-const isCustomTemplate = computed(() => selectedTemplate.value === CUSTOM_TEMPLATE)
-const selectedTemplateData = computed(
-  () => props.templates.find((template) => template.templateId === selectedTemplate.value) ?? null,
+const logsStatus = useLogsStatusQuery()
+// The logs tab exists only where the backend offers the viewer.
+const visibleTabs = computed(() =>
+  SETTINGS_TABS.filter((tab) => tab !== 'logs' || logsStatus.data.value?.enabled === true),
 )
 
-// Applying a preset fills the URL/attribution/background and clears the API key
-// (presets either embed it or need it configured elsewhere); the three fields
-// are then read-only until the user switches back to "custom".
-watch(selectedTemplate, (templateId) => {
-  if (templateId === CUSTOM_TEMPLATE) {
-    return
-  }
-  const template = props.templates.find((entry) => entry.templateId === templateId)
-  if (!template) {
-    return
-  }
-  values.tileserverUrl = template.urlTemplate
-  values.tileserverAttribution = template.attribution
-  values.tileserverApiKey = null
-  values.mapBackgroundColor = template.mapBackgroundColor
+const activeTab = computed(() => {
+  const tab = parseSettingsTab(route.query.tab)
+  // A linked ?tab=logs waits for the status before it is judged unavailable.
+  const unavailable =
+    tab === 'logs' && !logsStatus.isPending.value && !visibleTabs.value.includes(tab)
+  return unavailable ? DEFAULT_SETTINGS_TAB : tab
 })
+
+/**
+ * Whether a tab holds unsaved edits.
+ *
+ * @param tab - The tab to check.
+ * @returns True when the tab has edits.
+ */
+function isTabDirty(tab: SettingsTab): boolean {
+  return tab === 'email' ? mailDirty.value : dirtyTabs.value.has(tab)
+}
+
+/**
+ * Switches tab by updating the URL, keeping any other query params.
+ *
+ * @param value - The tab the user picked.
+ * @returns Resolves once the navigation settles.
+ */
+async function selectTab(value: string | number): Promise<void> {
+  await router.replace({ query: { ...route.query, tab: parseSettingsTab(value) } })
+}
+
+/** Classes that flash a ring around the element a search result points at. */
+const HIGHLIGHT_CLASSES = ['ring-2', 'ring-ring', 'ring-offset-2', 'ring-offset-background']
+const HIGHLIGHT_MS = 1500
+
+/**
+ * Jumps to a search result: opens its tab, scrolls the setting into view,
+ * focuses its control and briefly highlights it. A setting that is not on the
+ * page right now (for example a field of another geocoding service) falls back
+ * to its section.
+ *
+ * @param result - The chosen search result.
+ */
+async function jumpTo(result: SettingsSearchResult): Promise<void> {
+  await selectTab(result.entry.tab)
+  await nextTick()
+  const { id, sectionId } = result.entry
+  const target =
+    root.value?.querySelector<HTMLElement>(`[data-setting="${id}"]`) ??
+    (sectionId ? root.value?.querySelector<HTMLElement>(`[data-setting="${sectionId}"]`) : null)
+  if (!target) {
+    return
+  }
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+  if (id !== sectionId) {
+    target.querySelector<HTMLElement>('input, select, textarea')?.focus({ preventScroll: true })
+  }
+  target.classList.add(...HIGHLIGHT_CLASSES)
+  setTimeout(() => target.classList.remove(...HIGHLIGHT_CLASSES), HIGHLIGHT_MS)
+}
+
+const leaveTarget = ref<RouteLocationNormalized | null>(null)
+const leaveOpen = computed({
+  get: () => leaveTarget.value !== null,
+  set: (open: boolean) => {
+    if (!open) {
+      leaveTarget.value = null
+    }
+  },
+})
+let allowLeave = false
+
+// Leaving the page with edits held back asks first; the user's choice resumes the navigation.
+onBeforeRouteLeave((to) => {
+  if (allowLeave || !hasUnsaved.value) {
+    return true
+  }
+  leaveTarget.value = to
+  return false
+})
+
+/** Resumes the navigation the guard held back. */
+function confirmLeave(): void {
+  const target = leaveTarget.value
+  allowLeave = true
+  leaveTarget.value = null
+  if (target) {
+    void router.push(target.fullPath)
+  }
+}
+
+/**
+ * Asks the browser to confirm closing or reloading the tab while edits are unsaved.
+ *
+ * @param event - The `beforeunload` event.
+ */
+function warnBeforeUnload(event: BeforeUnloadEvent): void {
+  if (hasUnsaved.value) {
+    event.preventDefault()
+  }
+}
+
+onMounted(() => window.addEventListener('beforeunload', warnBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
 </script>
 
 <template>
-  <form class="flex flex-col gap-3" novalidate @submit.prevent="handleSubmit">
-    <!-- General -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.general.title') }}</h2>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField :label="t('settings.server.general.units')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.units" :disabled="isSubmitting">
-              <option value="metric">{{ t('settings.server.general.unitsMetric') }}</option>
-              <option value="imperial">{{ t('settings.server.general.unitsImperial') }}</option>
-            </Select>
-          </template>
-        </FormField>
+  <div ref="root" class="flex flex-col gap-3">
+    <Tabs class="flex flex-col gap-3" :model-value="activeTab" @update:model-value="selectTab">
+      <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+        <!-- Below lg: a menu button, like the settings zone menu above, instead of a tab row. -->
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" class="w-full justify-between lg:hidden">
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="truncate">{{ t(`settings.server.tabs.${activeTab}`) }}</span>
+                <span
+                  v-if="isTabDirty(activeTab)"
+                  role="img"
+                  class="size-2 shrink-0 rounded-full bg-brand"
+                  :aria-label="t('settings.server.tabs.unsaved')"
+                />
+              </span>
+              <ChevronDown class="size-4 shrink-0 opacity-60" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" class="w-56">
+            <DropdownMenuItem v-for="tab in visibleTabs" :key="tab" @select="selectTab(tab)">
+              <span class="truncate">{{ t(`settings.server.tabs.${tab}`) }}</span>
+              <span
+                v-if="isTabDirty(tab)"
+                role="img"
+                class="size-2 shrink-0 rounded-full bg-brand"
+                :aria-label="t('settings.server.tabs.unsaved')"
+              />
+              <Check v-if="tab === activeTab" class="ml-auto size-4 shrink-0" aria-hidden="true" />
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-        <FormField :label="t('settings.server.general.currency')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.currency" :disabled="isSubmitting">
-              <option value="euro">{{ t('settings.server.general.currencyEuro') }}</option>
-              <option value="dollar">{{ t('settings.server.general.currencyDollar') }}</option>
-              <option value="pound">{{ t('settings.server.general.currencyPound') }}</option>
-            </Select>
-          </template>
-        </FormField>
-
-        <FormField :label="t('settings.server.general.numRecords')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.numRecordsPerPage" :disabled="isSubmitting">
-              <option v-for="size in NUM_RECORDS_OPTIONS" :key="size" :value="size">
-                {{ size }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-      </div>
-    </Card>
-
-    <!-- Password policy -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.password.title') }}</h2>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField :label="t('settings.server.password.type')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.passwordType" :disabled="isSubmitting">
-              <option value="strict">{{ t('settings.server.password.typeStrict') }}</option>
-              <option value="length_only">
-                {{ t('settings.server.password.typeLengthOnly') }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-
-        <FormField :label="t('settings.server.password.lengthRegular')">
-          <template #default="{ fieldId }">
-            <Select
-              :id="fieldId"
-              v-model="values.passwordLengthRegularUsers"
-              :disabled="isSubmitting"
-            >
-              <option v-for="length in PASSWORD_REGULAR_LENGTHS" :key="length" :value="length">
-                {{ length }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-
-        <FormField :label="t('settings.server.password.lengthAdmin')">
-          <template #default="{ fieldId }">
-            <Select
-              :id="fieldId"
-              v-model="values.passwordLengthAdminUsers"
-              :disabled="isSubmitting"
-            >
-              <option v-for="length in PASSWORD_ADMIN_LENGTHS" :key="length" :value="length">
-                {{ length }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-      </div>
-    </Card>
-
-    <!-- Registration -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.signup.title') }}</h2>
-      <Switch v-model="values.signupEnabled" :disabled="isSubmitting">
-        {{ t('settings.server.signup.enabled') }}
-      </Switch>
-      <Switch v-model="values.signupRequireAdminApproval" :disabled="isSubmitting">
-        {{ t('settings.server.signup.adminApproval') }}
-      </Switch>
-      <Switch v-model="values.signupRequireEmailVerification" :disabled="isSubmitting">
-        {{ t('settings.server.signup.emailVerification') }}
-      </Switch>
-    </Card>
-
-    <!-- Authentication -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.sso.title') }}</h2>
-      <Switch v-model="values.ssoEnabled" :disabled="isSubmitting">
-        {{ t('settings.server.sso.enabled') }}
-      </Switch>
-      <Alert kind="info">{{ t('settings.server.sso.enabledInfo') }}</Alert>
-      <Switch v-model="values.localLoginEnabled" :disabled="isSubmitting">
-        {{ t('settings.server.sso.localLogin') }}
-      </Switch>
-      <Alert v-if="!values.localLoginEnabled" kind="warning">
-        {{ t('settings.server.sso.localLoginWarning') }}
-      </Alert>
-      <Switch v-model="values.ssoAutoRedirect" :disabled="isSubmitting">
-        {{ t('settings.server.sso.autoRedirect') }}
-      </Switch>
-      <Alert kind="info">{{ t('settings.server.sso.autoRedirectInfo') }}</Alert>
-    </Card>
-
-    <!-- Public sharing -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.sharing.title') }}</h2>
-      <Switch v-model="values.publicShareableLinks" :disabled="isSubmitting">
-        {{ t('settings.server.sharing.enabled') }}
-      </Switch>
-      <Alert v-if="values.publicShareableLinks" kind="warning">
-        {{ t('settings.server.sharing.enabledWarning') }}
-      </Alert>
-      <Switch
-        v-model="values.publicShareableLinksUserInfo"
-        :disabled="isSubmitting || !values.publicShareableLinks"
-      >
-        {{ t('settings.server.sharing.userInfo') }}
-      </Switch>
-      <Alert
-        v-if="values.publicShareableLinks && values.publicShareableLinksUserInfo"
-        kind="warning"
-      >
-        {{ t('settings.server.sharing.userInfoWarning') }}
-      </Alert>
-    </Card>
-
-    <!-- Maps -->
-    <Card class="flex flex-col gap-3">
-      <h2 class="text-card-heading">{{ t('settings.server.maps.title') }}</h2>
-
-      <FormField :label="t('settings.server.maps.template')">
-        <template #default="{ fieldId }">
-          <Select :id="fieldId" v-model="selectedTemplate" :disabled="isSubmitting">
-            <option
-              v-for="template in templates"
-              :key="template.templateId"
-              :value="template.templateId"
-            >
-              {{ template.name }}
-            </option>
-            <option :value="CUSTOM_TEMPLATE">{{ t('settings.server.maps.templateCustom') }}</option>
-          </Select>
-        </template>
-      </FormField>
-
-      <Alert v-if="!isCustomTemplate && selectedTemplateData?.requiresApiKeyBackend" kind="warning">
-        {{ t('settings.server.maps.apiKeyBackendWarning') }}
-      </Alert>
-      <Alert v-if="!isCustomTemplate && selectedTemplateData?.requiresApiKeyFrontend" kind="info">
-        {{ t('settings.server.maps.apiKeyFrontendWarning') }}
-      </Alert>
-
-      <FormField
-        :label="t('settings.server.maps.url')"
-        :hint="t('settings.server.maps.urlHint')"
-        :error="errors.tileserverUrl"
-      >
-        <template #default="{ fieldId, describedBy, invalid }">
-          <Input
-            :id="fieldId"
-            v-model="values.tileserverUrl"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            type="text"
-            inputmode="url"
-            maxlength="2048"
-            :disabled="isSubmitting || !isCustomTemplate"
-            @blur="handleBlur('tileserverUrl')"
-          />
-        </template>
-      </FormField>
-
-      <FormField :label="t('settings.server.maps.attribution')">
-        <template #default="{ fieldId }">
-          <Input
-            :id="fieldId"
-            v-model="values.tileserverAttribution"
-            type="text"
-            maxlength="1024"
-            :disabled="isSubmitting || !isCustomTemplate"
-          />
-        </template>
-      </FormField>
-
-      <FormField :label="t('settings.server.maps.apiKey')">
-        <template #default="{ fieldId }">
-          <Input
-            :id="fieldId"
-            :model-value="values.tileserverApiKey ?? ''"
-            type="text"
-            maxlength="512"
-            autocomplete="off"
-            :disabled="isSubmitting"
-            @update:model-value="values.tileserverApiKey = String($event).trim() || null"
-          />
-        </template>
-      </FormField>
-      <Alert kind="warning">{{ t('settings.server.maps.apiKeyWarning') }}</Alert>
-
-      <div class="flex flex-col gap-1">
-        <Label for="server-map-bg-color">{{ t('settings.server.maps.backgroundColor') }}</Label>
-        <div class="flex items-center gap-3">
-          <input
-            id="server-map-bg-color"
-            v-model="values.mapBackgroundColor"
-            type="color"
-            class="h-9 w-16 cursor-pointer rounded-input border border-input bg-background p-1 disabled:cursor-not-allowed disabled:opacity-60"
-            :disabled="isSubmitting || !isCustomTemplate"
-          />
-          <span class="text-body tabular-nums">{{ values.mapBackgroundColor }}</span>
-        </div>
+        <TabsList class="hidden lg:inline-flex" :aria-label="t('settings.server.tabs.label')">
+          <TabsTrigger v-for="tab in visibleTabs" :key="tab" :value="tab">
+            {{ t(`settings.server.tabs.${tab}`) }}
+            <span
+              v-if="isTabDirty(tab)"
+              role="img"
+              class="ml-2 size-2 rounded-full bg-brand"
+              :aria-label="t('settings.server.tabs.unsaved')"
+            />
+          </TabsTrigger>
+        </TabsList>
+        <ServerSettingsSearch @select="jumpTo" />
       </div>
 
-      <Switch v-model="values.tileserverRegenerateThumbnailsOnChange" :disabled="isSubmitting">
-        {{ t('settings.server.maps.regenerateThumbnails') }}
-      </Switch>
-    </Card>
+      <!-- Every panel stays mounted so the Email form keeps its edits while another tab is open. -->
+      <TabsContent value="general" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <GeneralTab />
+      </TabsContent>
+      <TabsContent value="access" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <AccessTab />
+      </TabsContent>
+      <TabsContent value="maps" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <MapsTab />
+      </TabsContent>
+      <TabsContent value="email" force-mount class="mt-0 data-[state=inactive]:hidden">
+        <EmailCard @dirty-change="mailDirty = $event" />
+      </TabsContent>
+      <!-- Not force-mounted: the log tail polls only while its tab is open. -->
+      <TabsContent v-if="visibleTabs.includes('logs')" value="logs" class="mt-0">
+        <LogsTab />
+      </TabsContent>
+    </Tabs>
 
-    <div class="flex justify-begin">
-      <Button type="submit" class="w-full sm:w-auto" :disabled="!isValid || isSubmitting">
-        <LoaderCircle v-if="isSubmitting" class="size-4 animate-spin" aria-hidden="true" />
-        {{ isSubmitting ? t('settings.server.saving') : t('settings.server.save') }}
-      </Button>
-    </div>
-  </form>
+    <UnsavedChangesBar
+      v-if="isDirty"
+      :saving="isSubmitting"
+      :can-save="isValid"
+      @save="handleSubmit"
+      @discard="discard"
+    />
+
+    <ConfirmDialog
+      v-model:open="leaveOpen"
+      :title="t('settings.server.leave.title')"
+      :description="t('settings.server.leave.description')"
+      :confirm-label="t('settings.server.leave.confirm')"
+      :cancel-label="t('settings.server.leave.stay')"
+      :close-label="t('settings.server.leave.close')"
+      @confirm="confirmLeave"
+    />
+  </div>
 </template>

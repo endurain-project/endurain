@@ -3,16 +3,16 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ChartRenderOptions } from '@/composables/useChartProvider'
-import type { SleepEntry } from '@/features/health/types'
+import type { HealthChartSeries } from '@/features/health/types'
 
 import { themeColor } from '@/lib/themeColor'
 import HealthChartCard from '@/features/health/components/HealthChartCard.vue'
 import { useHealthMetricChart } from '@/features/health/composables/useHealthMetricChart'
-import { formatHealthEntryDate, formatHoursMinutes } from '@/features/health/utils/healthFormat'
+import { formatHealthChartLabel, formatHoursMinutes } from '@/features/health/utils/healthFormat'
 
 const props = defineProps<{
-  /** The sleep entries to plot (newest first, as returned by the backend). */
-  entries: SleepEntry[]
+  /** The metric aggregated over the selected interval, oldest bucket first. */
+  series: HealthChartSeries
   /** The user's sleep target in seconds, drawn as a flat reference line. */
   targetSeconds: number | null
 }>()
@@ -27,21 +27,12 @@ function toHours(seconds: number): number {
   return Math.round((seconds / 3600) * 10) / 10
 }
 
-/**
- * Entries that carry a total-sleep value, oldest-first so the line reads
- * left → right in chronological order (the backend returns newest-first).
- */
-const plotted = computed(() =>
-  props.entries
-    .filter((entry) => entry.totalSleepSeconds !== null)
-    .slice()
-    .reverse(),
-)
-
 /** Render options for the chart provider: a sleep line plus an optional target line. */
 const chartRender = computed<ChartRenderOptions>(() => {
-  const labels = plotted.value.map((entry) => formatHealthEntryDate(entry.date, locale.value))
-  const data = plotted.value.map((entry) => toHours(entry.totalSleepSeconds as number))
+  const labels = props.series.points.map((point) =>
+    formatHealthChartLabel(point.date, props.series.bucket, locale.value),
+  )
+  const data = props.series.points.map((point) => toHours(point.value))
   const series: ChartRenderOptions['series'] = [
     { label: t('health.sleep.chartSleepSeries'), data, color: SLEEP_COLOR },
   ]
@@ -66,7 +57,11 @@ useHealthMetricChart(chartRender)
 </script>
 
 <template>
-  <HealthChartCard :title="t('health.sleep.chartTitle')" :accent-color="SLEEP_COLOR">
+  <HealthChartCard
+    :title="t('health.sleep.chartTitle')"
+    :accent-color="SLEEP_COLOR"
+    :bucket="series.bucket"
+  >
     <!-- min-w-0 lets the canvas shrink inside the grid on mobile. -->
     <div ref="chartContainer" class="relative h-56 w-full min-w-0" />
   </HealthChartCard>

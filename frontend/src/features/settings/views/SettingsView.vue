@@ -46,7 +46,7 @@ const { updateAvailable, latestVersion } = useUpdateCheck()
         <SettingsNav />
       </aside>
 
-      <RouterView />
+      <RouterView class="min-w-0" />
     </div>
   </section>
 </template>

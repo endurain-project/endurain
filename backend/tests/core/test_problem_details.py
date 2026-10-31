@@ -25,6 +25,14 @@ def _client() -> TestClient:
     def _domain():
         raise core_exceptions.NotFoundError("Activity 7 not found")
 
+    @app.get("/unauthenticated-bearer")
+    def _unauthenticated_bearer():
+        raise core_exceptions.UnauthenticatedError("Bearer token expired")
+
+    @app.get("/unauthenticated-api-key")
+    def _unauthenticated_api_key():
+        raise core_exceptions.UnauthenticatedError("API key expired", scheme="ApiKey")
+
     @app.get("/legacy")
     def _legacy():
         raise HTTPException(status_code=403, detail="Nope")
@@ -68,6 +76,27 @@ class TestProblemDocumentShape:
         ``detail`` keeps working untouched.
         """
         assert _client().get("/domain").json()["detail"] == "Activity 7 not found"
+
+    @pytest.mark.parametrize(
+        ("path", "authenticate"),
+        [
+            ("/unauthenticated-bearer", "Bearer"),
+            ("/unauthenticated-api-key", "ApiKey"),
+        ],
+    )
+    def test_unauthenticated_error_preserves_problem_and_authenticate_header(self, path, authenticate):
+        response = _client().get(path)
+
+        assert response.status_code == 401
+        assert response.headers["www-authenticate"] == authenticate
+        assert response.headers["content-type"].startswith(core_problem_details.PROBLEM_CONTENT_TYPE)
+        assert response.json() == {
+            "type": "urn:endurain:error:unauthorized",
+            "title": "Unauthorized",
+            "status": 401,
+            "detail": "Bearer token expired" if authenticate == "Bearer" else "API key expired",
+            "instance": path,
+        }
 
     def test_bare_http_exception_gets_the_same_shape(self):
         """A module not yet on domain errors must not speak a second dialect."""
@@ -183,7 +212,7 @@ class TestBuildProblemResponse:
 
 
 class TestDatabaseErrorBoundary:
-    """A commit that fails in a service has no ``handle_db_errors`` around it."""
+    """A commit failure reaches the database error handler unchanged."""
 
     def test_an_unwrapped_database_error_is_the_same_opaque_500(self):
         resp = _client().get("/commit-failed")

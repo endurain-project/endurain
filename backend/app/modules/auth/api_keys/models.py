@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class UsersApiKeys(Base):
-    """
-    User API key for third-party integrations.
+    """User API key for third-party integrations.
 
     Attributes:
         id: Unique key identifier (UUID).

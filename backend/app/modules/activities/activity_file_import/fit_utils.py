@@ -321,8 +321,12 @@ def create_activity_objects(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error("Error in create_activity_objects", exc_info=err, extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.ProcessingError("Can't parse FIT file sessions") from err
+        # Any other failure on these bytes recurs on every retry, so the file is refused rather than retried;
+        # the traceback is kept at WARNING in case the parser itself is at fault.
+        logger.warning(
+            "Could not build activities from a FIT file", exc_info=err, extra=core_logger.context(user_id=user_id)
+        )
+        raise core_exceptions.InvalidInputError("Can't parse FIT file sessions") from err
 
 
 def split_records_by_activity(parsed_data: dict) -> list[dict]:
@@ -824,7 +828,9 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
     elif name == "workout_step":
         state.workout_steps.append(activity_file_import_fit_frames.parse_frame_workout_step(frame))
     elif name == "exercise_title":
-        state.exercises_titles.append(activity_file_import_fit_frames.parse_frame_exercise_title(frame))
+        exercise_title = activity_file_import_fit_frames.parse_frame_exercise_title(frame)
+        if exercise_title is not None:
+            state.exercises_titles.append(exercise_title)
     elif name == "record":
         _handle_record_frame(frame, state)
     elif name == "device_settings":
@@ -854,7 +860,8 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
         The payload dict consumed by the ingestion pipeline.
 
     Raises:
-        ProcessingError: When the file cannot be parsed.
+        InvalidInputError: When the content is not a valid FIT file or cannot be parsed.
+        ProcessingError: When the file cannot be read.
     """
     try:
         logger.debug("FIT parse start", extra=core_logger.context(file=Path(file).name))
@@ -875,6 +882,15 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
         return state.to_payload()
     except core_exceptions.DomainError:
         raise
+    except fitdecode.FitError as err:
+        # The uploader's file is the problem, so a retry reaches the same verdict.
+        logger.debug("Rejected a malformed FIT file", exc_info=err, extra=core_logger.context(file=Path(file).name))
+        raise core_exceptions.InvalidInputError("Can't parse FIT file") from err
+    except OSError as err:
+        logger.debug("Could not read a FIT file", exc_info=err, extra=core_logger.context(file=Path(file).name))
+        raise core_exceptions.ProcessingError("Can't read FIT file") from err
     except Exception as err:
-        logger.error("Error in parse_fit_file", exc_info=err, extra=core_logger.context(file=Path(file).name))
-        raise core_exceptions.ProcessingError("Can't parse FIT file") from err
+        # Any other failure on these bytes recurs on every retry, so the file is refused rather than retried;
+        # the traceback is kept at WARNING in case the parser itself is at fault.
+        logger.warning("Could not parse a FIT file", exc_info=err, extra=core_logger.context(file=Path(file).name))
+        raise core_exceptions.InvalidInputError("Can't parse FIT file") from err

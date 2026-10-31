@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Inaktiv",
       "unverified": "Ubekreftet e-post",
+      "pendingEmail": "Venter på endring av e-post",
       "pending": "Venter på godkjenning",
       "externalAuth": "Ekstern autentisering"
     },
@@ -64,18 +65,15 @@
       "email": "E-post",
       "emailRequired": "E-post er obligatorisk",
       "emailInvalid": "Skriv inn en gyldig e-postadresse",
+      "emailChangeHint": "En bekreftelseslenke sendes til den nye adressen, og den erstatter den nåværende når den er bekreftet. Brukeren logges av på alle enheter. Merk i stedet den nye adressen som bekreftet for å ta den i bruk nå.",
       "accessType": "Tilgangstype",
       "accessTypeRegular": "Vanlig bruker",
       "accessTypeAdmin": "Administrator",
       "password": "Passord",
       "passwordHint": "Minst 8 tegn",
-      "passwordHintStrict": "Minst {min} tegn, med store og små bokstaver, et tall og et spesialtegn",
-      "passwordHintLength": "Minst {min} tegn",
       "passwordRequired": "Passord er obligatorisk",
-      "passwordInvalid": "Det passordet oppfyller ikke kravene",
       "confirmPassword": "Bekreft passord",
       "confirmPasswordRequired": "Bekreft passord",
-      "passwordMismatch": "Passordene stemmer ikke overens",
       "preferredLanguage": "Foretrukket språk",
       "languages": {
         "ca": "Katalansk",
@@ -149,6 +147,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-post bekreftet",
+      "emailVerifiedCurrentHint": "Dette er statusen til den nåværende adressen.",
+      "newEmailVerified": "Merk den nye adressen som bekreftet",
       "pendingAdminApproval": "Venter på godkjenning fra administrator",
       "requiredField": "Obligatorisk felt",
       "create": "Legg til bruker",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Tilbake til brukere",
+      "pendingEmail": "Venter på endring av e-post til {email}, lenken utløper {date}",
       "notFoundTitle": "Bruker ikke funnet",
       "notFoundDescription": "Denne kontoen kan ha blitt slettet",
       "securityTitle": "Sikkerhet",
@@ -186,16 +187,12 @@
       "title": "Tilbakestill passord",
       "description": "Sett et nytt passord for {username}",
       "newLabel": "Nytt passord",
-      "hintLength": "Minst {min} tegn",
-      "hintStrict": "Minst {min} tegn, med store og små bokstaver, et tall og et spesialtegn",
       "confirmLabel": "Bekreft nytt passord",
-      "mismatch": "Passordene stemmer ikke overens",
       "required": "Passord er obligatorisk",
       "submit": "Tilbakestill passord",
       "cancel": "Avbryt",
       "close": "Lukk",
       "success": "Passord oppdatert",
-      "invalid": "Det passordet oppfyller ikke kravene",
       "error": "Kunne ikke oppdatere passordet. Vennligst prøv igjen."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "Test-e-post sendt",
       "failed": "Test-e-posten kunne ikke sendes",
       "failedUnknown": "Se serverloggene for detaljer."
+    },
+    "envLocked": "Angitt av {name}",
+    "envSection": "Noen innstillinger her angis av miljøvariabler ({names}). Fjern dem fra miljøet for å redigere dem her.",
+    "unsaved": "Ulagrede endringer",
+    "discard": "Forkast",
+    "tabs": {
+      "label": "Seksjoner i serverinnstillingene",
+      "general": "Generelt",
+      "access": "Tilgang og sikkerhet",
+      "maps": "Kart og posisjon",
+      "email": "E-post",
+      "unsaved": "Har ulagrede endringer"
+    },
+    "search": {
+      "placeholder": "Søk i innstillinger…",
+      "noResults": "Fant ingen innstillinger"
+    },
+    "leave": {
+      "title": "Forlate uten å lagre?",
+      "description": "Du har ulagrede endringer. Hvis du forlater siden, går de tapt.",
+      "confirm": "Forlat uten å lagre",
+      "stay": "Bli på siden",
+      "close": "Lukk"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Omfang må være 500 tegn eller færre",
       "icon": "Ikon",
       "iconNone": "Ingen",
-      "iconCustom": "Egendefinert URL",
-      "customIconUrl": "URL til egendefinert ikon",
-      "customIconUrlHint": "Lenke til et bilde som vises på innloggingsknappen",
       "enabled": "Aktivert",
       "autoCreateUsers": "Opprett brukere automatisk ved første innlogging",
       "syncUserInfo": "Synkroniser profilinformasjon ved hver innlogging",
@@ -559,9 +576,6 @@
       "current": "Nåværende passord",
       "new": "Nytt passord",
       "confirm": "Bekreft nytt passord",
-      "requirementsStrict": "Minst {length} tegn, inkludert en stor bokstav, en liten bokstav, et tall og et symbol.",
-      "requirementsLength": "Minst {length} tegn.",
-      "mismatch": "Passordene stemmer ikke overens.",
       "revokeOthers": "Logg ut av alle andre enheter",
       "submit": "Endre passord",
       "success": "Passord endret",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Passordet eller koden din er feil.",
       "alreadyLinked": "Den kontoen er allerede koblet til.",
       "lastMethodError": "Du kan ikke koble fra den eneste innloggingsmetoden din. Sett et passord først."
+    },
+    "email": {
+      "subtitle": "Dette er hit passordtilbakestillinger og varsler sendes. Ved endring må du bekrefte identiteten din, og den nye adressen gjelder først når du bekrefter den via en lenke vi sender dit.",
+      "sameAsCurrent": "Dette er allerede e-postadressen din.",
+      "success": "Bekreftelseslenke er sendt til den nye adressen. E-posten din endres når du bekrefter den.",
+      "appliedSuccess": "E-post endret.",
+      "pending": "Venter på endring til {email}",
+      "pendingExpires": "Bekreftelseslenken utløper {date}.",
+      "resend": "Send lenken på nytt",
+      "cancel": "Avbryt endringen",
+      "resendSuccess": "Hvis en endring venter, er en ny lenke på vei til den nye adressen.",
+      "resendError": "Kunne ikke sende lenken på nytt. Vennligst prøv igjen.",
+      "cancelSuccess": "Endringen av e-post er avbrutt.",
+      "cancelError": "Kunne ikke avbryte endringen. Vennligst prøv igjen."
     },
     "apiKeys": {
       "title": "API-nøkler",
@@ -923,7 +951,6 @@
       "invalidType": "Vennligst velg et .zip-arkiv.",
       "exportSuccess": "Eksport klar, nedlastingen din bør starte snart",
       "exportError": "Kunne ikke eksportere dataene dine. Vennligst prøv igjen.",
-      "importSuccess": "Data importert",
       "importError": "Kunne ikke importere arkivet. Vennligst sjekk filen og prøv igjen."
     }
   }

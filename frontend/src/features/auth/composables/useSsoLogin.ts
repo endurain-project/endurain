@@ -5,12 +5,14 @@ import type { PublicServerSettings } from '@/features/config/types'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { generateCodeChallenge, generateCodeVerifier } from '@/features/auth/utils/pkce'
+import { HttpError } from '@/services/http'
 import { exchangeSessionForTokens, getIdentityProviderLoginUrl } from '@/services/identityProviders'
 import { getQueryString, useSafeRedirect } from '@/composables/useSafeRedirect'
 import { useTelemetry } from '@/composables/useTelemetry'
 
 const PKCE_PREFIX = 'pkce_verifier_'
 const PKCE_VERIFIER_TTL_MS = 10 * 60 * 1000
+const MFA_REQUIRED_PROBLEM = 'urn:endurain:error:mfa-required'
 
 interface StoredPkceVerifier {
   verifier: string
@@ -22,7 +24,17 @@ export type SsoStartResult = { status: 'redirecting' } | { status: 'error' }
 
 /** Result of processing an SSO callback. */
 export type SsoCallbackResult =
-  { status: 'none' } | { status: 'completed' } | { status: 'error'; messageKey: string }
+  | { status: 'none' }
+  | { status: 'completed' }
+  | { status: 'mfa-required' }
+  | { status: 'error'; messageKey: string }
+
+/** An SSO session whose exchange waits for the account's MFA code. */
+interface PendingSsoMfa {
+  sessionId: string
+  storedKey: string
+  verifier: string
+}
 
 /**
  * Finds the PKCE verifier stored before redirecting to the IdP.
@@ -117,6 +129,36 @@ export function useSsoLogin() {
   const auth = useAuthStore()
   const { getSafeRedirect, getSsoRedirect, isCustomSchemeRedirect, navigateAfterLogin } =
     useSafeRedirect()
+  let pendingMfa: PendingSsoMfa | null = null
+
+  /**
+   * Exchanges an SSO session for web tokens and signs the user in.
+   *
+   * @param pending - The session to exchange, with its stored PKCE verifier.
+   * @param mfaCode - MFA code, when the account has MFA enabled.
+   * @throws {HttpError} When the exchange is refused.
+   */
+  async function exchangeAndSignIn(pending: PendingSsoMfa, mfaCode?: string): Promise<void> {
+    const tokenData = mfaCode
+      ? await exchangeSessionForTokens(pending.sessionId, pending.verifier, mfaCode)
+      : await exchangeSessionForTokens(pending.sessionId, pending.verifier)
+    sessionStorage.removeItem(pending.storedKey)
+
+    if (!tokenData.csrf_token) {
+      throw new Error('Missing CSRF token')
+    }
+
+    await auth.completeTokenLogin({
+      session_id: tokenData.session_id,
+      access_token: tokenData.access_token,
+      csrf_token: tokenData.csrf_token,
+      token_type: 'bearer',
+      expires_in: tokenData.expires_in,
+      refresh_token_expires_in: tokenData.refresh_token_expires_in,
+    } satisfies AuthTokenResponse)
+    useTelemetry().trackEvent('login_succeeded', { method: 'sso' })
+    await navigateAfterLogin()
+  }
 
   /**
    * Starts an SSO login using the backend PKCE endpoints. On success the
@@ -188,27 +230,35 @@ export function useSsoLogin() {
         throw new Error('Missing PKCE verifier')
       }
 
-      const tokenData = await exchangeSessionForTokens(sessionId, stored.verifier)
-      sessionStorage.removeItem(stored.key)
-
-      if (!tokenData.csrf_token) {
-        throw new Error('Missing CSRF token')
+      const pending = { sessionId, storedKey: stored.key, verifier: stored.verifier }
+      try {
+        await exchangeAndSignIn(pending)
+      } catch (error) {
+        // The session stays usable, so the user can still finish with a code.
+        if (error instanceof HttpError && error.type === MFA_REQUIRED_PROBLEM) {
+          pendingMfa = pending
+          return { status: 'mfa-required' }
+        }
+        throw error
       }
-
-      await auth.completeTokenLogin({
-        session_id: tokenData.session_id,
-        access_token: tokenData.access_token,
-        csrf_token: tokenData.csrf_token,
-        token_type: 'bearer',
-        expires_in: tokenData.expires_in,
-        refresh_token_expires_in: tokenData.refresh_token_expires_in,
-      } satisfies AuthTokenResponse)
-      useTelemetry().trackEvent('login_succeeded', { method: 'sso' })
-      await navigateAfterLogin()
       return { status: 'completed' }
     } catch {
       return { status: 'error', messageKey: 'login.ssoTokenExchangeFailed' }
     }
+  }
+
+  /**
+   * Finishes an SSO login that is waiting for the account's MFA code.
+   *
+   * @param mfaCode - TOTP or backup code.
+   * @throws {HttpError} When the code is refused or the account is locked out.
+   */
+  async function completeSsoMfa(mfaCode: string): Promise<void> {
+    if (!pendingMfa) {
+      throw new Error('No SSO login is waiting for an MFA code')
+    }
+    await exchangeAndSignIn(pendingMfa, mfaCode)
+    pendingMfa = null
   }
 
   /**
@@ -238,5 +288,5 @@ export function useSsoLogin() {
     }
   }
 
-  return { startSsoLogin, processSsoCallback, maybeAutoRedirect }
+  return { startSsoLogin, processSsoCallback, completeSsoMfa, maybeAutoRedirect }
 }

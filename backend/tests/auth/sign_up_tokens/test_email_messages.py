@@ -95,6 +95,37 @@ class TestGetSignupConfirmationEmail:
         assert subject_xx == subject_us
 
 
+class TestGetEmailChangeConfirmationEmail:
+    """Tests for get_email_change_confirmation_email."""
+
+    def test_asks_to_confirm_the_new_address_not_a_new_account(self):
+        """The email is about a changed address, not a sign-up."""
+        subject, html_body, text_body = email_messages.get_email_change_confirmation_email(
+            "Alice", "https://example.com/verify-email?token=xyz", _make_service(), locale="en"
+        )
+        assert subject == "Endurain - Confirm your new email address"
+        assert "signing up" not in html_body
+        assert "signing up" not in text_body
+
+    def test_html_and_text_contain_the_link(self):
+        """Both bodies carry the verification link."""
+        link = "https://example.com/verify-email?token=xyz"
+        _, html_body, text_body = email_messages.get_email_change_confirmation_email(
+            "Alice", link, _make_service(), locale="en"
+        )
+        assert link in html_body
+        assert link in text_body
+
+    def test_html_escapes_user_name(self):
+        """HTML body escapes special characters in user names."""
+        _, html_body, _ = email_messages.get_email_change_confirmation_email(
+            "<img src=x>", "https://example.com/verify-email", _make_service(), locale="en"
+        )
+        greeting_section = html_body.split("<h3")[1]
+        assert "<img src=x>" not in greeting_section
+        assert "&lt;img src=x&gt;" in greeting_section
+
+
 class TestGetAdminSignupNotificationEmail:
     """Tests for get_admin_signup_notification_email."""
 
@@ -102,41 +133,38 @@ class TestGetAdminSignupNotificationEmail:
         """Builder returns (subject, html, text) tuple."""
         result = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "New User",
             "newuser",
             _make_service(),
             locale="en",
         )
         assert len(result) == 3
 
-    def test_html_contains_new_user_name(self):
-        """HTML body contains the new user's display name."""
+    def test_html_shows_username_not_display_name(self):
+        """HTML body identifies the new user by username."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "New User",
             "newuser",
             _make_service(),
             locale="en",
         )
-        assert "New User" in html_body
+        assert "newuser" in html_body
+        assert "New User" not in html_body
 
     def test_admin_link_url_encodes_username(self):
         """Admin link URL-encodes special characters in username."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "Some User",
             "user name@test",
             _make_service(),
             locale="en",
         )
-        # The raw username with spaces/@ must not appear unencoded in the link
-        assert "user name@test" not in html_body
+        assert "username=user%20name%40test" in html_body
+        assert "username=user name@test" not in html_body
 
     def test_admin_link_html_escaped(self):
         """Admin link is HTML-escaped so attributes are not broken."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
-            "Some User",
             "normaluser",
             _make_service(),
             locale="en",
@@ -144,12 +172,11 @@ class TestGetAdminSignupNotificationEmail:
         # The link should contain the frontend host (escaped)
         assert "endurain.example.com" in html_body
 
-    def test_html_escapes_sign_up_user_name(self):
-        """HTML body escapes special characters in the new user name."""
+    def test_html_escapes_sign_up_username(self):
+        """HTML body escapes special characters in the new user's username."""
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "Admin",
             "<script>evil</script>",
-            "eviluser",
             _make_service(),
             locale="en",
         )
@@ -159,13 +186,12 @@ class TestGetAdminSignupNotificationEmail:
         """
         HTML body escapes <script> tags in the admin recipient name.
 
-        Both `user_name` (admin) and `sign_up_user_name` pass through
+        Both `user_name` (admin) and `sign_up_user_username` pass through
         html.escape(); this test specifically validates that a
         malicious admin name cannot inject raw HTML.
         """
         _, html_body, _ = email_messages.get_admin_signup_notification_email(
             "<script>alert(1)</script>",
-            "New User",
             "newuser",
             _make_service(),
             locale="en",
@@ -190,14 +216,12 @@ class TestGetAdminSignupNotificationEmail:
         try:
             subject_pt, _, _ = email_messages.get_admin_signup_notification_email(
                 "Admin",
-                "New User",
                 "newuser",
                 _make_service(),
                 locale="pt-PT",
             )
             subject_us, _, _ = email_messages.get_admin_signup_notification_email(
                 "Admin",
-                "New User",
                 "newuser",
                 _make_service(),
                 locale="en",
@@ -259,3 +283,49 @@ class TestGetUserSignupApprovedEmail:
             locale="es",
         )
         assert 'lang="es-ES"' in html_body
+
+
+class TestGetExistingAccountEmail:
+    """Tests for get_existing_account_email."""
+
+    def test_returns_three_tuple(self):
+        result = email_messages.get_existing_account_email("Alice", _make_service(), locale="en")
+        assert len(result) == 3
+
+    def test_links_to_the_login_page(self):
+        service = _make_service()
+        _, html_body, text_body = email_messages.get_existing_account_email("Alice", service, locale="en")
+        assert f"{service}/login" in html_body
+        assert f"{service}/login" in text_body
+
+    def test_html_escapes_the_name(self):
+        _, html_body, _ = email_messages.get_existing_account_email("<script>x</script>", _make_service(), locale="en")
+        assert "<script>x</script>" not in html_body
+
+    def test_the_subject_is_localized_in_english(self):
+        subject, _, _ = email_messages.get_existing_account_email("Alice", _make_service(), locale="en")
+        assert subject == "Endurain - Sign-up attempt with your email"
+
+
+class TestGetEmailChangedEmail:
+    """Tests for get_email_changed_email."""
+
+    def test_shows_only_the_masked_new_address(self):
+        subject, html_body, text_body = email_messages.get_email_changed_email(
+            "Alice", "alice@example.org", "https://endurain.example.com", locale="en"
+        )
+
+        assert subject
+        assert "a***@example.org" in html_body
+        assert "a***@example.org" in text_body
+        assert "alice@example.org" not in html_body + text_body
+
+    def test_escapes_the_name(self):
+        _, html_body, _ = email_messages.get_email_changed_email(
+            "<b>Al</b>", "alice@example.org", "https://endurain.example.com", locale="en"
+        )
+
+        assert "<b>Al</b>" not in html_body
+
+    def test_mask_keeps_the_first_character_and_the_domain(self):
+        assert email_messages.mask_email("bob@mail.example.org") == "b***@mail.example.org"

@@ -18,6 +18,7 @@
     "help": "Provjerite pokazuje li ENDURAIN_HOST na URL na kojem je vaša Endurain instanca dostupna (na primjer https://endurain.example.com) i je li pozadinski sustav pokrenut, zatim ponovno učitajte stranicu.",
     "reload": "Ponovno učitaj"
   },
+  "staleError": "Ovo je promijenjeno drugdje dok ste to gledali, pa ništa nije spremljeno. Učitana je trenutačna verzija. Pregledajte je i pokušajte ponovno.",
   "dismiss": "Odbaci",
   "language": "Jezik",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Uredi",
     "supported": "Markdown podržan",
     "empty": "Nema ničega za pregled"
+  },
+  "password": {
+    "hintLength": "Najmanje {min} znakova.",
+    "hintStrict": "Najmanje {min} znakova, s velikim slovom, malim slovom, brojem i posebnim znakom.",
+    "invalid": "Lozinka ne zadovoljava zahtjeve",
+    "mismatch": "Lozinke se ne podudaraju"
   }
 }

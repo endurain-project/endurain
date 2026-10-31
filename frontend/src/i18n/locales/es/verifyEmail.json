@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Un momento mientras confirmamos tu dirección.",
+  "choosePasswordTitle": "Elige tu contraseña",
+  "choosePasswordBody": "Tu correo se confirma cuando estableces una contraseña para tu cuenta.",
+  "submitPassword": "Establecer contraseña",
+  "submittingPassword": "Guardando contraseña",
   "successTitle": "Correo verificado",
   "successBody": "Tu dirección de correo ha sido confirmada.",
   "adminApprovalBody": "Tu cuenta está ahora esperando la aprobación del administrador.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verificación fallida",
   "missingTokenBody": "A este enlace de verificación le falta el token.",
   "errorInvalidToken": "Este enlace de verificación no es válido o ha caducado.",
+  "errorEmailTaken": "Esta dirección de correo ya la usa otra cuenta, por lo que no se puede confirmar.",
   "errorNotFound": "No pudimos encontrar una cuenta para este enlace.",
   "errorGeneral": "No pudimos verificar tu correo. Inténtalo de nuevo.",
   "retry": "Intentar de nuevo",

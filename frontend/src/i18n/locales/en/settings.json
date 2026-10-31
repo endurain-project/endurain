@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inactive",
       "unverified": "Unverified email",
+      "pendingEmail": "Pending email change",
       "pending": "Pending approval",
       "externalAuth": "External auth"
     },
@@ -64,18 +65,15 @@
       "email": "Email",
       "emailRequired": "Email is required",
       "emailInvalid": "Enter a valid email address",
+      "emailChangeHint": "A confirmation link is sent to the new address and it replaces the current one once confirmed. The user is signed out of every device. Mark the new address as verified to apply it now instead.",
       "accessType": "Access type",
       "accessTypeRegular": "Regular user",
       "accessTypeAdmin": "Administrator",
       "password": "Password",
       "passwordHint": "At least 8 characters",
-      "passwordHintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character",
-      "passwordHintLength": "At least {min} characters",
       "passwordRequired": "Password is required",
-      "passwordInvalid": "That password doesn't meet the requirements",
       "confirmPassword": "Confirm password",
       "confirmPasswordRequired": "Confirm the password",
-      "passwordMismatch": "Passwords don't match",
       "preferredLanguage": "Preferred language",
       "languages": {
         "ca": "Catalan",
@@ -149,6 +147,8 @@
       "statusLegend": "Account status",
       "active": "Active",
       "emailVerified": "Email verified",
+      "emailVerifiedCurrentHint": "This is the status of the current address.",
+      "newEmailVerified": "Mark the new address as verified",
       "pendingAdminApproval": "Pending admin approval",
       "requiredField": "Required field",
       "create": "Add user",
@@ -157,7 +157,7 @@
       "close": "Close",
       "createSuccess": "User added",
       "updateSuccess": "User updated",
-      "conflict": "That username or email is already in use",
+      "conflict": "That username is already in use",
       "saveError": "Couldn't save the user. Please try again."
     },
     "delete": {
@@ -166,11 +166,12 @@
       "confirm": "Delete",
       "cancel": "Cancel",
       "close": "Close",
-      "success": "User deleted",
+      "success": "User signed out and queued for deletion",
       "error": "Couldn't delete the user. Please try again."
     },
     "detail": {
       "back": "Back to users",
+      "pendingEmail": "Pending email change to {email}, link expires {date}",
       "notFoundTitle": "User not found",
       "notFoundDescription": "This account may have been deleted",
       "securityTitle": "Security",
@@ -186,16 +187,12 @@
       "title": "Reset password",
       "description": "Set a new password for {username}",
       "newLabel": "New password",
-      "hintLength": "At least {min} characters",
-      "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character",
       "confirmLabel": "Confirm new password",
-      "mismatch": "Passwords don't match",
       "required": "Password is required",
       "submit": "Reset password",
       "cancel": "Cancel",
       "close": "Close",
       "success": "Password updated",
-      "invalid": "That password doesn't meet the requirements",
       "error": "Couldn't update the password. Please try again."
     },
     "sessions": {
@@ -277,6 +274,31 @@
     "saving": "Saving…",
     "saveSuccess": "Server settings updated",
     "saveError": "Couldn't update the server settings. Please try again.",
+    "staleError": "These settings were changed by someone else while you were editing. Your changes were not saved. Reload the page to see the current values.",
+    "envLocked": "Set by {name}",
+    "envSection": "Some settings here are set by environment variables ({names}). Remove them from the environment to edit those settings here.",
+    "unsaved": "Unsaved changes",
+    "discard": "Discard",
+    "tabs": {
+      "label": "Server settings sections",
+      "general": "General",
+      "access": "Access & security",
+      "maps": "Maps & location",
+      "email": "Email",
+      "logs": "Logs",
+      "unsaved": "Has unsaved changes"
+    },
+    "search": {
+      "placeholder": "Search settings…",
+      "noResults": "No settings found"
+    },
+    "leave": {
+      "title": "Leave without saving?",
+      "description": "You have unsaved changes. If you leave this page they will be lost.",
+      "confirm": "Leave without saving",
+      "stay": "Stay on page",
+      "close": "Close"
+    },
     "loadError": {
       "title": "Couldn't load server settings",
       "description": "Something went wrong while loading the server settings. You can try again.",
@@ -300,6 +322,24 @@
       "typeLengthOnly": "Length only",
       "lengthRegular": "Minimum length regular users",
       "lengthAdmin": "Minimum length admin users"
+    },
+    "session": {
+      "title": "Sessions",
+      "description": "Changes apply to new sign-ins and to the next token refresh. Tokens already issued keep their lifetime.",
+      "idleTimeoutEnabled": "Enforce idle timeout",
+      "idleHours": "Idle timeout (hours)",
+      "idleHoursHint": "When enforced, a session ends after this many hours without activity.",
+      "absoluteHours": "Absolute timeout (hours)",
+      "absoluteHoursHint": "A session ends this many hours after sign-in, whatever its activity. Always applies. Not shorter than the idle timeout.",
+      "accessMinutes": "Access token lifetime (minutes)",
+      "refreshDays": "Refresh token lifetime (days)",
+      "invalidRange": "Enter a whole number between {min} and {max}.",
+      "absoluteBelowIdle": "Must not be shorter than the idle timeout."
+    },
+    "retention": {
+      "title": "Data retention",
+      "readNotifications": "Delete read notifications after (days)",
+      "readNotificationsHint": "0 keeps read notifications forever. Unread notifications are never deleted."
     },
     "signup": {
       "title": "Registration",
@@ -335,13 +375,34 @@
       "urlInvalid": "URL must include the z, x and y tile placeholders",
       "attribution": "Attribution",
       "apiKey": "Tile server API key",
-      "apiKeyWarning": "The API key is stored encrypted. Leave blank if your tile server doesn't need one.",
+      "apiKeyWarning": "The API key is stored encrypted and never shown again. Leave blank to keep the current key, or if your tile server doesn't need one.",
+      "apiKeyStored": "A key is stored",
+      "apiKeyRemove": "Remove the stored API key",
       "backgroundColor": "Map background color",
       "regenerateThumbnails": "Regenerate activity thumbnails when map settings change"
+    },
+    "geocoding": {
+      "title": "Reverse geocoding",
+      "description": "Turns activity coordinates into place names. Changes apply without a restart.",
+      "service": "Service",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Hostname with an optional port, without a scheme. A host on a private network must be listed in SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Connect over HTTPS",
+      "rateLimit": "Requests per second",
+      "rateLimitHint": "0 turns throttling off. Keep 1 for the public Nominatim and Photon services.",
+      "rateLimitInvalid": "Enter a number between 0 and 100.",
+      "apiKey": "API key",
+      "apiKeyStored": "A key is stored. Leave empty to keep it.",
+      "apiKeyRemove": "Remove the stored API key",
+      "apiKeyRequired": "geocode.maps.co needs an API key."
     },
     "photo": {
       "title": "Login photo",
       "description": "A custom image shown on the login screen",
+      "previewAlt": "Current login photo",
       "add": "Upload login photo",
       "replace": "Replace login photo",
       "delete": "Remove login photo",
@@ -355,9 +416,33 @@
       "cancel": "Cancel",
       "close": "Close"
     },
+    "logs": {
+      "title": "Server logs",
+      "description": "The newest records of the application log. Logs from deployments that run several processes are collected by your platform instead.",
+      "level": "Minimum level",
+      "allLevels": "All levels",
+      "search": "Search",
+      "searchPlaceholder": "Text, logger or request ID…",
+      "live": "Live",
+      "refresh": "Refresh",
+      "download": "Download",
+      "downloadError": "Couldn't download the log file.",
+      "clear": "Clear",
+      "cleared": "Logs cleared",
+      "clearError": "Couldn't clear the logs.",
+      "clearConfirm": {
+        "title": "Clear the server logs?",
+        "description": "This permanently deletes the log file and its rotated backups. Download the log first if you may need it. The action itself is recorded in the new log.",
+        "confirm": "Clear logs",
+        "cancel": "Cancel",
+        "close": "Close"
+      },
+      "loadError": "Couldn't load the logs.",
+      "empty": "No log records found"
+    },
     "email": {
       "title": "Email",
-      "description": "Endurain sends password reset and sign-up emails through the SMTP server configured in the environment.",
+      "description": "Endurain sends password reset and sign-up emails through the mail server configured here.",
       "statusLoadError": "Couldn't check the email configuration.",
       "configured": "Email is configured.",
       "notConfigured": "Email is not configured:",
@@ -366,7 +451,26 @@
       "sendHint": "The test email is sent to your own address.",
       "sent": "Test email sent",
       "failed": "The test email could not be sent",
-      "failedUnknown": "Check the server logs for details."
+      "failedUnknown": "Check the server logs for details.",
+      "settingsLoadError": "Couldn't load the mail settings.",
+      "host": "Host",
+      "hostHint": "Leave empty to turn email off.",
+      "port": "Port",
+      "portInvalid": "Enter a port between 1 and 65535.",
+      "security": "Connection security",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "None (private relay only)",
+      "securityNoneWarning": "Without encryption, only a mail server on a private or loopback address is accepted, and a username and password cannot be used.",
+      "username": "Username",
+      "password": "Password",
+      "passwordStored": "A password is stored. Leave empty to keep it.",
+      "passwordRemove": "Remove the stored password",
+      "fromAddress": "Sender address",
+      "fromAddressHint": "Leave empty to use the username.",
+      "save": "Save mail settings",
+      "saveSuccess": "Mail settings saved",
+      "saveError": "The mail settings could not be saved"
     }
   },
   "idp": {
@@ -442,15 +546,22 @@
       "scopesTooLong": "Scopes must be 500 characters or fewer",
       "icon": "Icon",
       "iconNone": "None",
-      "iconCustom": "Custom URL",
-      "customIconUrl": "Custom icon URL",
-      "customIconUrlHint": "Link to an image shown on the login button",
+      "iconUpload": "Upload an image",
+      "iconFileHint": "A PNG, JPEG, GIF or WebP image up to 1 MB, shown on the login button",
+      "iconChoose": "Choose image",
+      "iconReplace": "Replace image",
+      "iconPreviewAlt": "Icon preview",
+      "iconFileRequired": "Choose an image to upload",
+      "iconFileInvalidType": "The icon must be a PNG, JPEG, GIF or WebP image",
+      "iconFileTooLarge": "The icon must be 1 MB or smaller",
+      "iconSaveError": "The provider was saved, but its icon could not be updated. Edit the provider to try again.",
       "enabled": "Enabled",
       "autoCreateUsers": "Auto-create users on first login",
       "syncUserInfo": "Sync profile info on each login",
       "createSuccess": "Provider added",
       "updateSuccess": "Provider updated",
       "slugConflict": "That slug is already in use",
+      "staleError": "This provider changed elsewhere. Your changes weren't saved. Close and reopen it to load the current settings.",
       "saveError": "Couldn't save the provider. Please try again."
     }
   },
@@ -549,6 +660,7 @@
     "hidePassword": "Hide password",
     "mfaCode": "Authentication code",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Type {phrase} to confirm",
     "loadError": {
       "title": "Couldn't load your security settings",
       "description": "Something went wrong. You can try again."
@@ -559,9 +671,6 @@
       "current": "Current password",
       "new": "New password",
       "confirm": "Confirm new password",
-      "requirementsStrict": "At least {length} characters, including an uppercase letter, a lowercase letter, a number and a symbol.",
-      "requirementsLength": "At least {length} characters.",
-      "mismatch": "The passwords don't match.",
       "revokeOthers": "Sign out of all other devices",
       "submit": "Change password",
       "success": "Password changed",
@@ -649,7 +758,39 @@
       "unlinkError": "Couldn't unlink the account. Please try again.",
       "invalidCredentials": "Your password or code is incorrect.",
       "alreadyLinked": "That account is already linked.",
-      "lastMethodError": "You can't unlink your only sign-in method. Set a password first."
+      "lastMethodError": "You can't unlink your only sign-in method. Set a password first.",
+      "linkedOn": "Linked on {date}"
+    },
+    "email": {
+      "title": "Email address",
+      "subtitle": "This is where password resets and notices are sent. Changing it requires you to confirm your identity, and the new address takes effect once you confirm it from a link we send there.",
+      "current": "Current email",
+      "action": "Change email",
+      "new": "New email",
+      "invalid": "Enter a valid email address.",
+      "sameAsCurrent": "This is already your email address.",
+      "success": "Confirmation link sent to the new address. Your email changes once you confirm it.",
+      "appliedSuccess": "Email changed.",
+      "pending": "Pending change to {email}",
+      "pendingExpires": "The confirmation link expires {date}.",
+      "resend": "Resend link",
+      "cancel": "Cancel change",
+      "resendSuccess": "If a change is pending, a new link is on its way to the new address.",
+      "resendError": "Couldn't resend the link. Please try again.",
+      "cancelSuccess": "Email change cancelled.",
+      "cancelError": "Couldn't cancel the change. Please try again.",
+      "conflict": "That email is already in use.",
+      "error": "Couldn't change your email. Please try again."
+    },
+    "deleteAccount": {
+      "title": "Delete my account",
+      "subtitle": "Permanently delete your account and all of your data, including activities and their files, health records, gear, goals, integrations and sessions. This can't be undone. Export your data first if you want to keep a copy.",
+      "action": "Delete my account",
+      "dialogTitle": "Delete your account?",
+      "dialogDescription": "This permanently deletes your account and all of your data. Confirm your identity to continue.",
+      "confirm": "Delete my account",
+      "error": "Couldn't delete your account. Please try again.",
+      "onlyAdminError": "You are the only administrator. Make another user an administrator before deleting your account."
     },
     "apiKeys": {
       "title": "API keys",
@@ -694,6 +835,18 @@
       "deleteBody": "{name} will be permanently deleted. This can't be undone.",
       "deleteSuccess": "API key deleted",
       "deleteError": "Couldn't delete the API key. Please try again."
+    },
+    "stepUp": {
+      "prompt": "Your account has no password. Sign in again with a linked identity provider to confirm it's you.",
+      "continueWith": "Continue with {name}",
+      "ready": "Identity provider sign-in confirmed.",
+      "restart": "Sign in again",
+      "noProviders": "No linked identity provider is available to confirm your identity.",
+      "startError": "Couldn't start the identity provider sign-in. Please try again.",
+      "tooManyAttempts": "Too many attempts. Please try again later.",
+      "reauthRequired": "Confirm your identity with your identity provider to continue.",
+      "failed": "Signing in again with your identity provider failed. Please try again.",
+      "notFresh": "Your identity provider did not ask you to sign in again. Contact your administrator."
     }
   },
   "integrations": {
@@ -741,7 +894,7 @@
       "retrievingGear": "Retrieving your Strava gear in the background…",
       "retrieveGearError": "Couldn't start retrieving Strava gear. Please try again.",
       "unlinkTitle": "Disconnect Strava?",
-      "unlinkBody": "Endurain will stop importing from Strava. Your existing activities are kept.",
+      "unlinkBody": "Endurain will stop importing from Strava and delete the activities and gear it imported from Strava, including those from a Strava bulk export. Activities from other sources are kept.",
       "unlinkSuccess": "Strava disconnected",
       "unlinkError": "Couldn't disconnect Strava. Please try again."
     },
@@ -816,6 +969,8 @@
     "title": "My profile",
     "subtitle": "Manage your account details and privacy",
     "notSet": "Not set",
+    "emailManagedIn": "Your email is changed in Security settings.",
+    "emailManagedLink": "Open Security settings",
     "error": {
       "title": "Couldn't load your profile",
       "description": "Something went wrong while loading your profile. You can try again.",
@@ -921,10 +1076,40 @@
       "export": "Export data",
       "import": "Import data",
       "invalidType": "Please choose a .zip archive.",
-      "exportSuccess": "Export ready. Your download should begin shortly",
-      "exportError": "Couldn't export your data. Please try again.",
-      "importSuccess": "Data imported",
-      "importError": "Couldn't import the archive. Please check the file and try again."
+      "download": "Download export",
+      "downloadSuccess": "Your download should begin shortly",
+      "downloadError": "Couldn't download the export. Please try again.",
+      "exportQueued": "Export started. You can leave this page.",
+      "exportError": "Couldn't start the export. Please try again.",
+      "exportInProgress": "An export is already in progress.",
+      "exportStatus": {
+        "queued": "Waiting for the export to start…",
+        "running": "Preparing your export…",
+        "completed": "Your export is ready to download. It stays available for two hours.",
+        "failed": "The export didn't complete: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "it took too long. You can try again.",
+        "processing_failed": "something went wrong. You can try again."
+      },
+      "importQueued": "Import started. You can leave this page.",
+      "importError": "Couldn't start the import. Please check the file and try again.",
+      "importInProgress": "An import is already in progress.",
+      "status": {
+        "queued": "Waiting for the import to start…",
+        "running": "Importing your data…",
+        "writing_files": "Saving your files…",
+        "completed": "Import finished: {activities} activities and {gears} gears imported.",
+        "failed": "The import didn't complete: {reason}"
+      },
+      "failure": {
+        "invalid_file": "the archive isn't a valid Endurain export. Nothing was imported.",
+        "too_large": "the archive is too large. Nothing was imported.",
+        "too_many_activities": "the archive has too many activities. Nothing was imported.",
+        "timed_out": "it took too long. Nothing was imported, so you can try again.",
+        "files_incomplete": "your data was imported but some files are missing. Don't import it again; it would duplicate your data.",
+        "processing_failed": "something went wrong. Nothing was imported, so you can try again."
+      }
     }
   }
 }

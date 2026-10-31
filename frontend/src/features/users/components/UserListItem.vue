@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { KeyRound, Pencil, Trash2 } from '@lucide/vue'
+import { Check, KeyRound, Pencil, Trash2, X } from '@lucide/vue'
 
 import type { ManagedUser } from '@/features/users/types'
 
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
  * One row in the admin users list: avatar, identity, status badges, and the
  * reset-password / edit / delete actions. Deleting the current user is
  * disallowed, so the delete action is hidden for the signed-in admin's own row.
+ * A sign-up awaiting approval also gets approve / reject actions, disabled until
+ * the user's email is verified.
  */
 defineProps<{
   /** The user to render. */
@@ -25,6 +27,8 @@ const emit = defineEmits<{
   password: [user: ManagedUser]
   edit: [user: ManagedUser]
   delete: [user: ManagedUser]
+  approve: [user: ManagedUser]
+  reject: [user: ManagedUser]
 }>()
 
 const { t } = useI18n()
@@ -55,6 +59,26 @@ const { t } = useI18n()
       </div>
     </div>
     <div class="flex shrink-0 items-center gap-1">
+      <template v-if="user.pendingAdminApproval">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          :disabled="!user.emailVerified"
+          :aria-label="t('settings.users.approval.approve')"
+          @click="emit('approve', user)"
+        >
+          <Check class="size-4" aria-hidden="true" />
+        </Button>
+        <Button
+          variant="ghostDestructive"
+          size="icon-sm"
+          :disabled="!user.emailVerified"
+          :aria-label="t('settings.users.approval.reject')"
+          @click="emit('reject', user)"
+        >
+          <X class="size-4" aria-hidden="true" />
+        </Button>
+      </template>
       <Button
         variant="ghost"
         size="icon-sm"

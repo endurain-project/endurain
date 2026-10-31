@@ -21,7 +21,6 @@ The unified pipeline gives every upload the same defenses:
 
 import asyncio
 import contextlib
-import glob
 import gzip
 import hashlib
 import io
@@ -43,7 +42,6 @@ from safeuploads import (
     FileValidator,
     SecurityLimits,
 )
-from safeuploads.audit import SecurityAuditLogger
 from safeuploads.exceptions import (
     CompressionSecurityError,
     ExtensionSecurityError,
@@ -114,9 +112,6 @@ file_validator: FileValidator = FileValidator(config=_build_security_config())
 #: Structured audit logger backing the ``safeuploads.audit`` Python
 #: logger. Records validation start/success/failure events with a
 #: per-request correlation ID.
-audit_logger: SecurityAuditLogger = SecurityAuditLogger(enabled=True)
-
-
 # ---------------------------------------------------------------------------
 # Upload kinds and per-kind dispatch
 # ---------------------------------------------------------------------------
@@ -223,7 +218,7 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
     try:
         await validator(file)
     except FileSecurityError as err:
-        logger.warning(f"Upload validation failed: kind={kind.value} type={type(err).__name__}", exc_info=err)
+        logger.warning("Upload validation failed", exc_info=err, extra=core_logger.context(kind=kind.value))
         raise _to_domain_error(err) from err
 
 
@@ -350,22 +345,6 @@ def _resolve_upload_path(upload_dir: str, filename: str) -> Path:
     return file_path
 
 
-def resolve_storage_path(upload_dir: str, filename: str) -> Path:
-    """Resolve a server-generated filename inside a storage dir.
-
-    Args:
-        upload_dir: Trusted storage directory.
-        filename: Server-generated filename to resolve.
-
-    Returns:
-        Resolved path inside ``upload_dir``.
-
-    Raises:
-        DomainError: If the filename is empty or unsafe.
-    """
-    return _resolve_upload_path(upload_dir, filename)
-
-
 async def save_file(
     file: UploadFile | bytes,
     upload_dir: str,
@@ -409,13 +388,13 @@ async def save_file(
         async with aiofiles.open(file_path, "wb") as save_file:
             await save_file.write(content)
 
-        logger.debug(f"File saved successfully: {file_path}")
+        logger.debug("File saved successfully", extra=core_logger.context(file_name=os.path.basename(file_path)))
 
         return str(file_path)
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error(f"Error in save_file: {type(err).__name__}", exc_info=err)
+        logger.debug("Error in save_file", exc_info=err)
 
         # Remove the file if it was created
         if file_path and await aiofiles.os.path.exists(file_path):
@@ -584,30 +563,8 @@ async def save_validated_upload(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error(f"Error in save_validated_upload: {type(err).__name__}", exc_info=err)
+        logger.debug("Error in save_validated_upload", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to save file") from err
-
-
-async def read_validated_upload(file: UploadFile, *, kind: UploadKind) -> bytes:
-    """Validate an upload and return its bytes, without touching the filesystem.
-
-    The async counterpart of :func:`read_validated_upload_sync`, for callers that
-    hand the bytes to the platform ``StorageProvider`` rather than writing them
-    to a local directory.
-
-    Args:
-        file: Incoming FastAPI UploadFile.
-        kind: Logical content type, drives validator + size cap.
-
-    Returns:
-        The validated file contents.
-
-    Raises:
-        DomainError: 400/413/500 depending on the failure mode.
-    """
-    await validate_upload(file, kind=kind)
-    # The read is blocking on a spooled file that may have hit disk.
-    return await asyncio.to_thread(_read_capped_sync, file, _max_bytes_for(kind))
 
 
 def _read_capped_sync(file: UploadFile, max_bytes: int) -> bytes:
@@ -671,7 +628,7 @@ def save_validated_upload_sync(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error(f"Error in save_validated_upload_sync: {type(err).__name__}", exc_info=err)
+        logger.debug("Error in save_validated_upload_sync", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
@@ -702,46 +659,35 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
     return _read_capped_sync(file, _max_bytes_for(kind))
 
 
+#: Magic-number prefixes of the image formats the upload validator accepts, with their media type.
+_IMAGE_SIGNATURES: tuple[tuple[bytes, str], ...] = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def sniff_image_type(data: bytes) -> str | None:
+    """Return the media type of image bytes from their magic number.
+
+    Args:
+        data: The image bytes.
+
+    Returns:
+        The media type, or None when the format is not recognised.
+    """
+    for signature, media_type in _IMAGE_SIGNATURES:
+        if data.startswith(signature):
+            return media_type
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Filesystem cleanup helpers
 # ---------------------------------------------------------------------------
-
-
-async def delete_files_by_pattern(directory: str, pattern: str) -> None:
-    """
-    Delete files from filesystem matching a glob pattern asynchronously.
-
-    Searches directory for files matching the pattern and removes
-    them asynchronously. Silently skips files that no longer exist.
-
-    Args:
-        directory: Directory path to search in.
-        pattern: Glob pattern to match (e.g., "user_123.*").
-
-    Returns:
-        None
-
-    Raises:
-        None - errors logged but not raised for resilience.
-    """
-    try:
-        # Build full pattern path
-        full_pattern = os.path.join(directory, pattern)
-
-        # Find all files matching the pattern
-        files_to_delete = glob.glob(full_pattern)
-
-        # Remove each file found asynchronously
-        for file_path in files_to_delete:
-            try:
-                if await aiofiles.os.path.exists(file_path):
-                    await aiofiles.os.remove(file_path)
-
-                logger.debug(f"File deleted successfully: {file_path}")
-            except OSError as err:
-                logger.warning(f"Failed to delete file {file_path}: {err}", exc_info=err)
-    except Exception as err:
-        logger.error(f"Error deleting files matching pattern {pattern}: {err}", exc_info=err)
 
 
 # ---------------------------------------------------------------------------
@@ -810,7 +756,7 @@ async def save_validated_bytes(
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.error(f"save_validated_bytes failed: {type(err).__name__}", exc_info=err)
+        logger.debug("save_validated_bytes failed", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
@@ -1101,7 +1047,7 @@ async def extract_validated_zip(
     except core_exceptions.DomainError:
         raise
     except (zipfile.BadZipFile, OSError) as err:
-        logger.error(f"extract_validated_zip failed: {type(err).__name__}", exc_info=err)
+        logger.warning("extract_validated_zip failed", exc_info=err)
         raise core_exceptions.InvalidInputError("Failed to extract archive") from err
 
     try:
@@ -1117,7 +1063,10 @@ async def extract_validated_zip(
                 except core_exceptions.DomainError:
                     with contextlib.suppress(OSError):
                         staged_entry.unlink(missing_ok=True)
-                    logger.warning(f"extract_validated_zip dropped invalid entry: {final_entry.name}")
+                    logger.warning(
+                        "extract_validated_zip dropped an invalid entry",
+                        extra=core_logger.context(entry=final_entry.name),
+                    )
                     continue
                 kept.append((staged_entry, final_entry))
             extracted = kept
@@ -1131,7 +1080,7 @@ async def extract_validated_zip(
         except core_exceptions.DomainError:
             raise
         except OSError as err:
-            logger.error(f"extract_validated_zip promotion failed: {type(err).__name__}", exc_info=err)
+            logger.debug("extract_validated_zip promotion failed", exc_info=err)
             raise core_exceptions.ProcessingError("Failed to promote extracted files") from err
     finally:
         if staging_dir is not None:
@@ -1165,26 +1114,6 @@ def _resolve_within(path: str | os.PathLike, base_dir: Path) -> Path:
     except ValueError as err:
         raise core_exceptions.InvalidInputError("Path escapes the allowed directory") from err
     return resolved
-
-
-def ensure_within(path: str | os.PathLike, base_dir: str | os.PathLike) -> Path:
-    """Resolve ``path`` and verify it is contained under ``base_dir``.
-
-    Public containment guard for callers that receive a filesystem path from
-    an untrusted or replayable source (e.g. a durable-job payload) and must
-    confirm it has not escaped a trusted base directory before using it.
-
-    Args:
-        path: Filesystem path to verify.
-        base_dir: Trusted base directory.
-
-    Returns:
-        The resolved path, guaranteed to be inside ``base_dir``.
-
-    Raises:
-        DomainError: 400 when the resolved path escapes ``base_dir``.
-    """
-    return _resolve_within(path, Path(os.fspath(base_dir)).resolve())
 
 
 def move_within(
@@ -1237,7 +1166,7 @@ def move_within(
     except core_exceptions.DomainError:
         raise
     except (OSError, shutil.Error) as err:
-        logger.error(f"move_within failed: {type(err).__name__}", exc_info=err)
+        logger.debug("move_within failed", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to move file") from err
 
 
@@ -1272,7 +1201,7 @@ def safe_remove_within(
     except FileNotFoundError:
         return False
     except OSError as err:
-        logger.warning(f"safe_remove_within failed for {target.name}: {type(err).__name__}", exc_info=err)
+        logger.warning("safe_remove_within failed", exc_info=err, extra=core_logger.context(file_name=target.name))
         return False
 
 
@@ -1318,7 +1247,11 @@ def remove_files(file_paths: Iterable[str | os.PathLike]) -> None:
             if os.path.isfile(file_path):
                 os.remove(file_path)
         except OSError as err:
-            logger.warning(f"Failed to clean up file {os.fspath(file_path)}: {err}", exc_info=err)
+            logger.warning(
+                "Failed to clean up a file",
+                exc_info=err,
+                extra=core_logger.context(file_name=os.path.basename(file_path)),
+            )
 
 
 def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
@@ -1368,9 +1301,11 @@ def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
                 temp_file.write(chunk)
             temp_file.flush()
 
-        logger.info(
-            f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}",
-            extra=core_logger.context(console=True),
+        logger.debug(
+            "Decompressed <path> with inner type <inner_file_extension> to <temp_file_path>",
+            extra=core_logger.context(
+                path=str(path), inner_file_extension=inner_file_extension, temp_file_path=temp_file_path
+            ),
         )
 
         return temp_file_path, inner_file_extension

@@ -243,8 +243,6 @@ class TestUserGoalUpdateSchema:
         """Test UsersGoalUpdate supports partial updates."""
         # Act
         goal = user_goals_schema.UsersGoalUpdate(
-            id=1,
-            user_id=1,
             interval=user_goals_schema.Interval.DAILY,
             activity_type=user_goals_schema.ActivityType.RUN,
             goal_type=user_goals_schema.GoalType.DISTANCE,

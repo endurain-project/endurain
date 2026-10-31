@@ -7,7 +7,7 @@
   "markAllRead": "Marcar todo como leído",
   "seeAll": "Ver todo",
   "loadMore": "Cargar más",
-  "loading": "Cargando\u2026",
+  "loading": "Cargando…",
   "badge": "{count} notificaciones sin leer",
   "empty": {
     "title": "Estás al día",
@@ -38,6 +38,11 @@
     "garminTokenExpired": {
       "title": "Garmin Connect necesita atención",
       "body": "Tu sesión de Garmin Connect ha caducado. Vuelve a conectarla para continuar sincronizando."
+    },
+    "idpLinked": {
+      "title": "Nuevo proveedor de inicio de sesión vinculado",
+      "body": "{name} se vinculó a tu cuenta. Si no fuiste tú, revisa tu configuración de seguridad.",
+      "bodyGeneric": "Se vinculó un proveedor de inicio de sesión a tu cuenta. Si no fuiste tú, revisa tu configuración de seguridad."
     },
     "adminSignUpApproval": {
       "title": "Nuevo registro pendiente de aprobación",

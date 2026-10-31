@@ -105,12 +105,13 @@ class TestUsersPrivacySettingsModel:
         assert model.hide_activity_workout_sets_steps.type.python_type is bool
         assert model.hide_activity_gear.type.python_type is bool
 
-    def test_users_privacy_settings_model_relationship(self):
+    def test_users_privacy_settings_user_is_deleted_with_the_user_by_the_database(self):
         """
-        Test UsersPrivacySettings model has relationship to User.
+        Test the user foreign key cascades on delete, with no ORM relationship needed.
         """
         # Assert
-        assert hasattr(user_privacy_settings_models.UsersPrivacySettings, "users")
+        table = user_privacy_settings_models.UsersPrivacySettings.__table__
+        assert next(iter(table.c.user_id.foreign_keys)).ondelete == "CASCADE"
 
     def test_users_privacy_settings_model_default_visibility(self):
         """

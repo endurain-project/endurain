@@ -18,6 +18,7 @@
     "help": "请检查 ENDURAIN_HOST 是否指向可访问您的 Endurain 实例的网址（例如 https://endurain.example.com），并确认后端正在运行，然后重新加载页面。",
     "reload": "重新加载"
   },
+  "staleError": "您查看时此内容已在别处被修改，因此未保存任何内容。已加载当前版本。请检查后重试。",
   "dismiss": "关闭",
   "language": "语言",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "编辑",
     "supported": "支持 Markdown",
     "empty": "暂无预览内容"
+  },
+  "password": {
+    "hintLength": "At least {min} characters.",
+    "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character.",
+    "invalid": "Password does not meet the requirements",
+    "mismatch": "两次密码不一致"
   }
 }

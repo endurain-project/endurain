@@ -4,9 +4,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.activity_workout_steps.service as activity_workout_steps_service
 import modules.activities.contributors as activities_contributors
 
 
@@ -84,3 +86,21 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
         store=_store_workout_steps,
         parse_record=_parse_profile_record,
     )
+
+
+def list_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: int | None,
+    db: Session,
+) -> activity_workout_steps_schema.ActivityWorkoutStepsPage:
+    """Return the first page of an activity's workout steps for a viewer who may already see the activity.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty when the workout steps are hidden from this viewer.
+    """
+    return activity_workout_steps_service.list_for_activity(activity, requester_user_id, db)

@@ -17,7 +17,6 @@ vi.mock('@/features/profile/services/profile', async (importOriginal) => ({
 const profileInput: ProfileEditInput = {
   name: 'Ada Lovelace',
   username: 'ada',
-  email: 'ada@example.com',
   city: null,
   birthdate: null,
   gender: 'unspecified',
@@ -67,7 +66,7 @@ describe('useUpdateProfileMutation', () => {
     vi.mocked(updateProfile).mockResolvedValue()
     const mutation = mountMutation(queryClient)
 
-    await mutation.mutateAsync(profileInput)
+    await mutation.mutateAsync({ input: profileInput, version: 1 })
     await flushPromises()
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.activities.all() })
@@ -81,7 +80,7 @@ describe('useUpdateProfileMutation', () => {
     vi.mocked(updateProfile).mockResolvedValue()
     const mutation = mountMutation(queryClient)
 
-    await mutation.mutateAsync(profileInput)
+    await mutation.mutateAsync({ input: profileInput, version: 1 })
     await flushPromises()
 
     expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: queryKeys.activities.all() })

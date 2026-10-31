@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Agarda un momento mentres confirmamos o teu enderezo.",
+  "choosePasswordTitle": "Escolle o teu contrasinal",
+  "choosePasswordBody": "O teu correo confírmase cando estableces un contrasinal para a túa conta.",
+  "submitPassword": "Establecer contrasinal",
+  "submittingPassword": "Gardando o contrasinal",
   "successTitle": "Correo electrónico verificado",
   "successBody": "O teu enderezo de correo electrónico foi confirmado.",
   "adminApprovalBody": "A túa conta está agora agardando a aprobación do administrador.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verificación fallida",
   "missingTokenBody": "A este enlace de verificación fáltalle o token.",
   "errorInvalidToken": "Este enlace de verificación non é válido ou expirou.",
+  "errorEmailTaken": "Este enderezo de correo xa o usa outra conta, polo que non se pode confirmar.",
   "errorNotFound": "Non puidemos atopar unha conta para este enlace.",
   "errorGeneral": "Non puidemos verificar o teu correo electrónico. Por favor, téntao de novo.",
   "retry": "Tentar de novo",

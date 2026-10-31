@@ -12,10 +12,11 @@ from pydantic import (
 )
 from pydantic_core import PydanticCustomError
 
+import core.pagination as core_pagination
+
 
 class Interval(StrEnum):
-    """
-    Recurrence intervals for user goals.
+    """Recurrence intervals for user goals.
 
     Attributes:
         DAILY: Daily recurrence interval.
@@ -31,8 +32,7 @@ class Interval(StrEnum):
 
 
 class ActivityType(StrEnum):
-    """
-    Supported activity types for user goals.
+    """Supported activity types for user goals.
 
     Attributes:
         RUN: Running activities.
@@ -52,8 +52,7 @@ class ActivityType(StrEnum):
 
 
 class GoalType(StrEnum):
-    """
-    Types of measurable user goals.
+    """Types of measurable user goals.
 
     Attributes:
         CALORIES: Target calories burned.
@@ -81,8 +80,7 @@ TYPE_TO_FIELD = {
 
 
 class UsersGoalBase(BaseModel):
-    """
-    Base schema for users fitness goals.
+    """Base schema for users fitness goals.
 
     Attributes:
         interval: Goal time interval (daily, weekly, monthly,
@@ -114,8 +112,7 @@ class UsersGoalBase(BaseModel):
 
     @model_validator(mode="after")
     def ensure_correct_goal_field(self) -> "UsersGoalBase":
-        """
-        Validate exactly one goal field matches goal_type.
+        """Validate exactly one goal field matches goal_type.
 
         Returns:
             Self with validated goal field.
@@ -154,16 +151,14 @@ class UsersGoalBase(BaseModel):
 
 
 class UsersGoalCreate(UsersGoalBase):
-    """
-    Schema for creating a new users goal.
+    """Schema for creating a new users goal.
 
     Inherits all validation from UsersGoalBase.
     """
 
 
 class UsersGoalRead(UsersGoalBase):
-    """
-    Schema for reading a user goal.
+    """Schema for reading a user goal.
 
     Attributes:
         id: Unique identifier for the goal.
@@ -172,19 +167,23 @@ class UsersGoalRead(UsersGoalBase):
 
     id: StrictInt = Field(..., ge=1, description="Unique identifier for the goal")
     user_id: StrictInt = Field(..., ge=1, description="User who owns this goal")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class UsersGoalUpdate(UsersGoalRead):
-    """
-    Schema for updating an existing users goal.
+#: One page of a user's goals.
+UsersGoalPage = core_pagination.Page[UsersGoalRead]
 
-    Supports partial updates. Omitted fields remain unchanged.
+
+class UsersGoalUpdate(UsersGoalBase):
+    """Schema for replacing an existing users goal.
+
+    The goal is named by the path, so the body carries neither an id nor an owner. It is the whole
+    goal, because the goal type decides which target field is required.
     """
 
 
 class UsersGoalProgress(BaseModel):
-    """
-    Schema for user goal progress tracking.
+    """Schema for user goal progress tracking.
 
     Attributes:
         goal_id: Goal identifier.
@@ -232,3 +231,7 @@ class UsersGoalProgress(BaseModel):
         validate_assignment=True,
         use_enum_values=True,
     )
+
+
+#: One page of a user's goal progress.
+UsersGoalProgressPage = core_pagination.Page[UsersGoalProgress]

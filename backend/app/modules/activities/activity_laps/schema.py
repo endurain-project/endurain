@@ -154,12 +154,13 @@ class ActivityLapsRead(ActivityLapsBase):
     Attributes:
         id: Lap primary key.
         activity_id: Parent activity ID.
-        start_time: Lap start as a timezone-aware UTC instant.
+        start_time: Lap start as a timezone-aware UTC instant, or None when the
+            parent hides its start time from this viewer.
     """
 
     id: StrictInt
     activity_id: StrictInt
-    start_time: datetime  # type: ignore[assignment]
+    start_time: datetime | None  # type: ignore[assignment]
 
     model_config = ConfigDict(
         from_attributes=True,

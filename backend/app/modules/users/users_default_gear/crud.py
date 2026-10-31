@@ -1,180 +1,113 @@
-"""CRUD operations for user default gear.
-
-WARNING: Functions prefixed with `_` (underscore) are private and must not
-be imported outside this module. They are internal implementation details.
-Use only the public functions exported by users.users_default_gear.__init__
-for external consumption.
-"""
+"""CRUD operations for user default gear."""
 
 from typing import Any
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
-import modules.gears.gear.dependencies as gears_dependencies
+import core.etag as core_etag
+import core.exceptions as core_exceptions
 import modules.users.users_default_gear.models as users_default_gear_models
 import modules.users.users_default_gear.schema as users_default_gear_schema
+import modules.users.users_default_gear.serializers as users_default_gear_serializers
 
-# Private internal helpers
 
-
-def _transform_users_default_gear(
-    users: users_default_gear_models.UsersDefaultGear,
-) -> users_default_gear_schema.UsersDefaultGearRead:
-    """
-    Transform a user default gear instance to a Pydantic schema.
+def _select_by_user_id(user_id: int, db: Session) -> users_default_gear_models.UsersDefaultGear | None:
+    """Select a user's default gear ORM row.
 
     Args:
-        users: The user default gear ORM instance.
+        user_id: The ID of the user.
+        db: Database session.
 
     Returns:
-        The user default gear as a schema.
-    """
-    return users_default_gear_schema.UsersDefaultGearRead.model_validate(users)
-
-
-def _get_user_default_gear_model_by_user_id_or_404(
-    user_id: int,
-    db: Session,
-) -> users_default_gear_models.UsersDefaultGear:
-    """
-    Retrieve a mapped UsersDefaultGear ORM row by user ID or raise 404.
-
-    This is a **private internal helper**. Do not import or call from
-    outside this module. Use public CRUD functions instead (e.g.,
-    ``get_user_default_gear_by_user_id()``, ``edit_user_default_gear()``,
-    etc.).
-
-    Args:
-        user_id: User ID to search for.
-        db: SQLAlchemy database session.
-
-    Returns:
-        Mapped ``UsersDefaultGear`` ORM instance.
-
-    Raises:
-        HTTPException: 404 if user not found.
+        The ORM row, or None if the user has none.
     """
     stmt = select(users_default_gear_models.UsersDefaultGear).where(
         users_default_gear_models.UsersDefaultGear.user_id == user_id
     )
-    db_users_default_gear = db.execute(stmt).scalar_one_or_none()
-
-    if not db_users_default_gear:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User default gear not found",
-        )
-
-    return db_users_default_gear
+    return db.execute(stmt).scalar_one_or_none()
 
 
-# Public CRUD functions
-
-
-@core_decorators.handle_db_errors
 def get_user_default_gear_by_user_id(
     user_id: int,
     db: Session,
 ) -> users_default_gear_schema.UsersDefaultGearRead | None:
-    """
-    Retrieve default gear settings for a specific user.
+    """Retrieve default gear settings for a specific user.
 
     Args:
         user_id: The ID of the user to fetch settings for.
-        db: SQLAlchemy database session.
+        db: Database session.
 
     Returns:
-        The UsersDefaultGear model for the user or None if not found.
-
-    Raises:
-        HTTPException: 404 error if settings not found.
-        HTTPException: 500 error if database query fails.
+        The default gear settings, or None if not found.
     """
-    stmt = select(users_default_gear_models.UsersDefaultGear).where(
-        users_default_gear_models.UsersDefaultGear.user_id == user_id
-    )
-    db_users_default_gear = db.execute(stmt).scalar_one_or_none()
-    return _transform_users_default_gear(db_users_default_gear) if db_users_default_gear else None
+    db_default_gear = _select_by_user_id(user_id, db)
+    return users_default_gear_serializers.to_read_schema(db_default_gear) if db_default_gear else None
 
 
-@core_decorators.handle_db_errors
 def create_user_default_gear(
     user_id: int,
     db: Session,
 ) -> users_default_gear_schema.UsersDefaultGearRead:
-    """
-    Create default gear settings for a user.
+    """Stage empty default gear settings for a user (flushed, not committed).
 
     Args:
         user_id: The ID of the user to create settings for.
-        db: SQLAlchemy database session.
+        db: Database session.
 
     Returns:
-        The created UsersDefaultGear schema.
+        The created default gear settings.
 
     Raises:
-        HTTPException: 409 error if settings already exist.
-        HTTPException: 500 error if database operation fails.
+        ConflictError: If settings already exist for the user.
     """
+    db_default_gear = users_default_gear_models.UsersDefaultGear(user_id=user_id)
     try:
-        db_users_default_gear = users_default_gear_models.UsersDefaultGear(
-            user_id=user_id,
-        )
+        db.add(db_default_gear)
+        db.flush()
+        db.refresh(db_default_gear)
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError("Default gear settings already exist for this user") from err
 
-        db.add(db_users_default_gear)
-        db.commit()
-        db.refresh(db_users_default_gear)
-
-        return _transform_users_default_gear(db_users_default_gear)
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=("Default gear settings already exist for this user"),
-        ) from integrity_error
+    return users_default_gear_serializers.to_read_schema(db_default_gear)
 
 
-@core_decorators.handle_db_errors
 def edit_user_default_gear(
     user_default_gear: users_default_gear_schema.UsersDefaultGearUpdate,
     user_id: int,
     db: Session,
+    *,
+    if_match: str,
 ) -> users_default_gear_schema.UsersDefaultGearRead:
-    """
-    Update default gear settings for a user.
+    """Stage an update of a user's default gear settings (flushed, not committed).
+
+    Performs no ownership check on the gears: that is decided by
+    :mod:`modules.users.users_default_gear.service`.
 
     Args:
         user_default_gear: Schema with gear fields to update.
         user_id: The ID of the user.
-        db: SQLAlchemy database session.
+        db: Database session.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
-        The updated UsersDefaultGear schema.
+        The updated default gear settings.
 
     Raises:
-        HTTPException: 404 error if settings not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no default gear settings.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    if user_default_gear.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot edit default gear for another user.",
-        )
+    db_default_gear = _select_by_user_id(user_id, db)
+    if db_default_gear is None:
+        raise core_exceptions.NotFoundError("User default gear not found")
+    core_etag.require_if_match(if_match, db_default_gear.version, "default gear")
 
-    db_users_default_gear = _get_user_default_gear_model_by_user_id_or_404(user_id, db)
+    changes: dict[str, Any] = user_default_gear.model_dump(exclude_unset=True)
+    for key, value in changes.items():
+        setattr(db_default_gear, key, value)
 
-    user_default_gear_data: dict[str, Any] = user_default_gear.model_dump(exclude_unset=True, exclude={"user_id", "id"})
-    gears_dependencies.require_owned_gears(user_id, user_default_gear_data.values(), db)
-    for key, value in user_default_gear_data.items():
-        setattr(db_users_default_gear, key, value)
+    db.flush()
+    db.refresh(db_default_gear)
 
-    db.commit()
-    db.refresh(db_users_default_gear)
-
-    return _transform_users_default_gear(db_users_default_gear)
+    return users_default_gear_serializers.to_read_schema(db_default_gear)

@@ -1,5 +1,4 @@
-"""
-Pydantic schemas for health poop (bowel movement) data.
+"""Pydantic schemas for health poop (bowel movement) data.
 
 This module defines the request/response schemas for bowel
 movement tracking, including validation rules, Bristol Stool
@@ -18,12 +17,9 @@ from pydantic import (
     model_validator,
 )
 
-import modules.health.schema as health_schema
-
 
 class Source(Enum):
-    """
-    Enumeration of data sources for poop records.
+    """Enumeration of data sources for poop records.
 
     Attributes:
         MANUAL: Manually entered data.
@@ -33,8 +29,7 @@ class Source(Enum):
 
 
 class BristolType(Enum):
-    """
-    Bristol Stool Scale classification types.
+    """Bristol Stool Scale classification types.
 
     Attributes:
         TYPE_1: Separate hard lumps (severe constipation).
@@ -56,8 +51,7 @@ class BristolType(Enum):
 
 
 class Color(Enum):
-    """
-    Enumeration of common stool color descriptions.
+    """Enumeration of common stool color descriptions.
 
     Attributes:
         BROWN: Normal brown color.
@@ -81,8 +75,7 @@ class Color(Enum):
 
 
 class HealthPoopBase(BaseModel):
-    """
-    Base model for health poop data.
+    """Base model for health poop data.
 
     Attributes:
         date_time: Date and time of the bowel movement.
@@ -123,8 +116,7 @@ class HealthPoopBase(BaseModel):
 
 
 class HealthPoopCreate(HealthPoopBase):
-    """
-    Schema for creating a new poop record.
+    """Schema for creating a new poop record.
 
     Requires date_time and sets defaults for source.
     """
@@ -133,8 +125,7 @@ class HealthPoopCreate(HealthPoopBase):
     def set_defaults_and_validate(
         self,
     ) -> "HealthPoopCreate":
-        """
-        Validate required fields and set defaults.
+        """Validate required fields and set defaults.
 
         Returns:
             The validated model instance with defaults set.
@@ -150,8 +141,7 @@ class HealthPoopCreate(HealthPoopBase):
 
 
 class HealthPoopRead(HealthPoopBase):
-    """
-    Schema for reading a poop record.
+    """Schema for reading a poop record.
 
     Attributes:
         id: Unique identifier for the poop record.
@@ -166,27 +156,12 @@ class HealthPoopRead(HealthPoopBase):
         ...,
         description="Foreign key reference to the user",
     )
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthPoopUpdate(HealthPoopRead):
+class HealthPoopUpdate(HealthPoopBase):
+    """Schema for the fields a PATCH changes on a poop record.
+
+    The record is named by the path, so the body carries neither an id nor an owner; only the
+    fields present are changed.
     """
-    Schema for updating a poop record.
-
-    Inherits from HealthPoopRead for consistency with read
-    operations while allowing modifications to poop data.
-    """
-
-
-class HealthPoopListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health poop records.
-
-    Attributes:
-        records: A list of HealthPoopRead objects representing
-            individual bowel movement records.
-    """
-
-    records: list[HealthPoopRead] = Field(
-        ...,
-        description="List of health poop records",
-    )

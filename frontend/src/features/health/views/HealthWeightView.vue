@@ -9,6 +9,7 @@ import HealthWeightChart from '@/features/health/components/HealthWeightChart.vu
 import HealthWeightFormDialog from '@/features/health/components/HealthWeightFormDialog.vue'
 import HealthWeightListItem from '@/features/health/components/HealthWeightListItem.vue'
 import HealthWeightTargetDialog from '@/features/health/components/HealthWeightTargetDialog.vue'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -18,12 +19,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useChartProvider } from '@/composables/useChartProvider'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import {
   useDeleteWeightEntryMutation,
   useHealthTargetsQuery,
   useWeightEntriesQuery,
+  useHealthChartQuery,
 } from '@/features/health/composables/useHealth'
 
 const { t } = useI18n()
@@ -53,6 +56,7 @@ const targets = computed(() => targetsQuery.data.value ?? null)
 const targetKg = computed(() => targets.value?.weightKg ?? null)
 
 const listQuery = useWeightEntriesQuery(page, recordsPerPage, interval)
+const chartQuery = useHealthChartQuery('weight', interval)
 
 /** Weight entries on the current page (newest first). */
 const entries = computed(() => listQuery.data.value?.records ?? [])
@@ -67,14 +71,14 @@ const isPending = computed(() => listQuery.isPending.value)
 const isError = computed(() => listQuery.isError.value)
 const isEmpty = computed(() => !isPending.value && !isError.value && entries.value.length === 0)
 
-/** The chart is shown only when a provider is bundled and there is data to plot. */
-const showChart = computed(
-  () =>
-    chart.isAvailable &&
-    !isPending.value &&
-    !isError.value &&
-    entries.value.some((entry) => entry.weightKg !== null),
-)
+/**
+ * The whole interval's chart series, independent of the list's page. `null` when no chart
+ * provider is bundled or the interval holds nothing to plot.
+ */
+const chartSeries = computed(() => {
+  const series = chartQuery.data.value
+  return chart.isAvailable && series && series.points.length > 0 ? series : null
+})
 
 // Changing the interval changes the result set, so restart at the first page.
 watch(interval, resetPage)
@@ -123,15 +127,17 @@ function confirmDelete(): void {
   if (!entry) {
     return
   }
-  deleteMutation.mutate(entry.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('health.weight.delete.success'))
+  deleteMutation.mutate(
+    { id: entry.id, version: entry.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('health.weight.delete.success'))
+      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.weight.delete.error')),
     },
-    onError: () => {
-      toasts.error(t('health.weight.delete.error'))
-    },
-  })
+  )
 }
 </script>
 
@@ -161,7 +167,15 @@ function confirmDelete(): void {
       </div>
     </div>
 
-    <HealthWeightChart v-if="showChart" :entries="entries" :target-kg="targetKg" :units="units" />
+    <HealthWeightChart
+      v-if="chartSeries"
+      :series="chartSeries"
+      :target-kg="targetKg"
+      :units="units"
+    />
+    <Alert v-else-if="chartQuery.isError.value" kind="error">
+      {{ t('health.chartError') }}
+    </Alert>
 
     <ListPanel
       v-model:page="page"

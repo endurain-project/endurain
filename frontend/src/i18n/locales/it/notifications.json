@@ -39,6 +39,11 @@
       "title": "Garmin Connect richiede attenzione",
       "body": "La tua sessione Garmin Connect è scaduta. Ricollegala per continuare la sincronizzazione."
     },
+    "idpLinked": {
+      "title": "Nuovo provider di accesso collegato",
+      "body": "{name} è stato collegato al tuo account. Se non sei stato tu, controlla le impostazioni di sicurezza.",
+      "bodyGeneric": "Un provider di accesso è stato collegato al tuo account. Se non sei stato tu, controlla le impostazioni di sicurezza."
+    },
     "adminSignUpApproval": {
       "title": "Nuova registrazione in attesa di approvazione",
       "body": "{name} ({'@'}{username}) è in attesa di approvazione dell'account."

@@ -18,11 +18,13 @@
 | `UnsupportedFormatError` | 406 | Payload format cannot be processed |
 | `UnsupportedMediaTypeError` | 415 | File media type not accepted |
 | `PayloadTooLargeError` | 413 | Payload exceeds the accepted size (upload caps) |
+| `ServiceUnavailableError` | 503 | A capability the request depends on is not configured or not reachable |
+| `UpstreamError` | 502 | An external system the server called (mail relay, provider) failed |
 | `ProcessingError` | 500 | Internal failure the caller cannot fix |
 
 - New kind: subclass `DomainError` with `status_code`, `code`, `title`, `default_detail`.
 - `code` becomes the response `type` URN (`urn:endurain:error:<code>`); clients match on it, so a released `code` never changes.
-- A bare `HTTPException` is still tolerated in unconverted modules and is rendered as a problem document too.
+- Auth and converted modules raise domain exceptions from services and persistence; the application exception handler renders them as problem documents.
 - Persistence modules may not import `fastapi` (enforced by `TestLayerRules.test_persistence_raises_domain_errors_not_http_ones`).
 
 ## Problem document shape
@@ -34,14 +36,23 @@
 
 ## Endpoints
 
-- `response_model` on every JSON route (bytes routes declare `responses=` with the media type); status 200 GET, 201 POST create, 202 POST accepted for background processing, 204 DELETE.
+- `response_model` on every JSON route (bytes routes declare `responses=` with the media type); status 200 GET and a `POST` action answered at once (login, step-up), 201 `POST` that creates or replaces a resource (an upload included), 202 `POST` accepted for background processing, 204 `DELETE` and a write with nothing to return.
 - Routers validate and delegate; domain rules live in `service`.
-- Authorization through `Depends`/`Security(auth_dependencies.check_scopes, scopes=[...])`.
+- Authorization through `dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])]` on the route decorator; the caller's id through `auth_dependencies.CurrentUserId`.
+- Path ids use the shared aliases (`core_dependencies.PositiveId`, `auth_dependencies.AuthSessionId` and the module's own in its `dependencies.py`), never a local `Annotated[..., Path()]`.
 - Blob routes addressed by a signed capability token answer 404, not 403, for a bad token, and log a WARNING.
+
+## Versioned writes and long work
+
+- A client-editable resource has a `version`; reads set `ETag` with `core_etag.set_etag(response, version)`, `PUT`/`PATCH` take `IfMatch`, and a stale tag is 412 (missing header 428). `IfMatch` refuses `*`: only in-process callers pass `if_match="*"`. Creates, deletes and actions are not versioned.
+- Slow work starts with `POST` and answers 202 with a status handle; the client polls a `GET .../status` route. Idempotent actions use `PUT /{id}/<action>`.
+- Link, sync and unlink routes of a provider mirror each other (`POST /link`, `DELETE /link`, status via a polled route); a new provider copies Garmin and Strava rather than inventing names. The pools, the claim-start-release step, the queue-a-sync step, the run-and-record state machine and the durable job with its dead-letter hook live in `core/sync_runner.py`; a provider passes in what its work is and keeps only what differs.
+- A provider rate-limit response is raised as `TooManyRequestsError(retry_at=...)`; ingestion defers the job until then.
 
 ## Pagination
 
 - Offset lists return `core.pagination.Page[T]`, built with `Page.build(items, total, page, num_records)`; `next` is derived server-side.
+- A list route declares its window as `page: core_pagination.ListPage` (`ChildPage` for a child collection).
 - Defaults: 25 per page, maximum 200; child collections default to the maximum.
 - `total` carries the same filters and access scoping as `items`.
 - Lists that grow at the head (feeds) use `CursorPage` keyset pagination, not offset, so concurrent inserts cannot duplicate or skip rows.
@@ -50,7 +61,7 @@
 ## Rate limiting
 
 - Decorate with `@core_rate_limit.limiter.limit(<tier>)` and take `request: Request` as the first parameter.
-- Tiers: `DEFAULT` 120/min, `WRITE` 30/min, `SENSITIVE` 10/min (auth, secrets), `UPLOAD` 20/min, `PROVIDER_SYNC` 6/min.
+- Tiers: `DEFAULT` 120/min, `WRITE` 30/min, `SENSITIVE` 10/min (auth, secrets), `UPLOAD` 20/min, `PROVIDER_SYNC` 6/min, `EXPENSIVE_READ` 30/min (summaries, streams, dashboards, goal progress), `PUBLIC_READ` 120/min (cheap unauthenticated reads, keyed by IP), `EXPENSIVE_PUBLIC_READ` 30/min (unauthenticated streams).
 - Reads take the global default (`DEFAULT`, applied by the middleware); every write, upload or provider sync names its own tier, which `TestRouteConventions` enforces.
 - Pick the tier by what the endpoint costs or exposes; an authenticated write of caller-supplied bytes is `UPLOAD`.
 - Counters live in the shared state backend, so they hold across workers.

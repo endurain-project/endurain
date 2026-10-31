@@ -93,7 +93,7 @@ def _committed_outbox_rows(factory, activity_id: int) -> int:
         return (
             db.execute(
                 text(
-                    "SELECT count(*) FROM event_outbox WHERE event_type = :event_type "
+                    "SELECT count(*) FROM jasil_event_outbox WHERE event_type = :event_type "
                     "AND (payload ->> 'activity_id')::int = :activity_id"
                 ),
                 {"event_type": activity_events.ACTIVITY_CREATED, "activity_id": activity_id},

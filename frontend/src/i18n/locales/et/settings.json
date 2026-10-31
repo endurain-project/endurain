@@ -31,6 +31,7 @@
       "admin": "Administraator",
       "inactive": "Mitteaktiivne",
       "unverified": "Kinnitamata e-post",
+      "pendingEmail": "E-posti muutmine ootel",
       "pending": "Ootab heakskiitu",
       "externalAuth": "Väline autentimine"
     },
@@ -64,18 +65,15 @@
       "email": "E-post",
       "emailRequired": "E-post on kohustuslik",
       "emailInvalid": "Sisesta kehtiv e-posti aadress",
+      "emailChangeHint": "Uuele aadressile saadetakse kinnituslink ning pärast kinnitamist asendab see praeguse aadressi. Kasutaja logitakse välja kõigist seadmetest. Selle kohe rakendamiseks märgi uus aadress kinnitatuks.",
       "accessType": "Juurdepääsu tüüp",
       "accessTypeRegular": "Tavakasutaja",
       "accessTypeAdmin": "Administraator",
       "password": "Parool",
       "passwordHint": "Vähemalt 8 tähemärki",
-      "passwordHintStrict": "Vähemalt {min} tähemärki, sealhulgas suurtäht, väiketäht, number ja erimärk",
-      "passwordHintLength": "Vähemalt {min} tähemärki",
       "passwordRequired": "Parool on kohustuslik",
-      "passwordInvalid": "See parool ei vasta nõuetele",
       "confirmPassword": "Kinnita parool",
       "confirmPasswordRequired": "Kinnita parool",
-      "passwordMismatch": "Paroolid ei kattu",
       "preferredLanguage": "Eelistatud keel",
       "languages": {
         "ca": "Katalaani",
@@ -149,6 +147,8 @@
       "statusLegend": "Konto olek",
       "active": "Aktiivne",
       "emailVerified": "E-post kinnitatud",
+      "emailVerifiedCurrentHint": "See on praeguse aadressi olek.",
+      "newEmailVerified": "Märgi uus aadress kinnitatuks",
       "pendingAdminApproval": "Ootab administraatori heakskiitu",
       "requiredField": "Kohustuslik väli",
       "create": "Lisa kasutaja",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Tagasi kasutajate juurde",
+      "pendingEmail": "Ootel e-posti muutmine aadressile {email}, link aegub {date}",
       "notFoundTitle": "Kasutajat ei leitud",
       "notFoundDescription": "See konto võib olla kustutatud",
       "securityTitle": "Turvalisus",
@@ -186,16 +187,12 @@
       "title": "Lähtesta parool",
       "description": "Sea kasutajale {username} uus parool",
       "newLabel": "Uus parool",
-      "hintLength": "Vähemalt {min} tähemärki",
-      "hintStrict": "Vähemalt {min} tähemärki, sealhulgas suurtäht, väiketäht, number ja erimärk",
       "confirmLabel": "Kinnita uus parool",
-      "mismatch": "Paroolid ei kattu",
       "required": "Parool on kohustuslik",
       "submit": "Lähtesta parool",
       "cancel": "Tühista",
       "close": "Sulge",
       "success": "Parool uuendatud",
-      "invalid": "See parool ei vasta nõuetele",
       "error": "Parooli ei õnnestunud uuendada. Palun proovi uuesti."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "Test-e-kiri saadetud",
       "failed": "Test-e-kirja saatmine ebaõnnestus",
       "failedUnknown": "Üksikasjad leiad serveri logidest."
+    },
+    "envLocked": "Määratud muutujaga {name}",
+    "envSection": "Mõned siinsed seaded on määratud keskkonnamuutujatega ({names}). Eemalda need keskkonnast, et neid siin muuta.",
+    "unsaved": "Salvestamata muudatused",
+    "discard": "Loobu",
+    "tabs": {
+      "label": "Serveri seadete jaotised",
+      "general": "Üldine",
+      "access": "Juurdepääs ja turvalisus",
+      "maps": "Kaardid ja asukoht",
+      "email": "E-post",
+      "unsaved": "Sisaldab salvestamata muudatusi"
+    },
+    "search": {
+      "placeholder": "Otsi seadeid…",
+      "noResults": "Seadeid ei leitud"
+    },
+    "leave": {
+      "title": "Lahkuda salvestamata?",
+      "description": "Sul on salvestamata muudatusi. Kui lahkud lehelt, lähevad need kaotsi.",
+      "confirm": "Lahku salvestamata",
+      "stay": "Jää lehele",
+      "close": "Sulge"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Skoobid tohivad olla kuni 500 tähemärki",
       "icon": "Ikoon",
       "iconNone": "Puudub",
-      "iconCustom": "Kohandatud URL",
-      "customIconUrl": "Kohandatud ikooni URL",
-      "customIconUrlHint": "Link sisselogimise nupul kuvatavale pildile",
       "enabled": "Lubatud",
       "autoCreateUsers": "Loo kasutajad automaatselt esimesel sisselogimisel",
       "syncUserInfo": "Sünkrooni profiiliteave igal sisselogimisel",
@@ -559,9 +576,6 @@
       "current": "Praegune parool",
       "new": "Uus parool",
       "confirm": "Kinnita uus parool",
-      "requirementsStrict": "Vähemalt {length} tähemärki, sealhulgas suurtäht, väiketäht, number ja sümbol.",
-      "requirementsLength": "Vähemalt {length} tähemärki.",
-      "mismatch": "Paroolid ei kattu.",
       "revokeOthers": "Logi välja kõigist teistest seadmetest",
       "submit": "Muuda parooli",
       "success": "Parool muudetud",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Sinu parool või kood on vale.",
       "alreadyLinked": "See konto on juba seotud.",
       "lastMethodError": "Sa ei saa eemaldada oma ainsa sisselogimismeetodi seost. Sea esmalt parool."
+    },
+    "email": {
+      "subtitle": "Siia saadetakse parooli lähtestamise lingid ja teatised. Aadressi muutmiseks pead kinnitama oma isikut ning uus aadress jõustub alles pärast seda, kui kinnitad selle lingi kaudu, mis sinna saadetakse.",
+      "sameAsCurrent": "See on juba sinu e-posti aadress.",
+      "success": "Kinnituslink saadeti uuele aadressile. Sinu e-post muutub pärast kinnitamist.",
+      "appliedSuccess": "E-posti aadress muudetud.",
+      "pending": "Ootel muudatus aadressile {email}",
+      "pendingExpires": "Kinnituslink aegub {date}.",
+      "resend": "Saada link uuesti",
+      "cancel": "Tühista muudatus",
+      "resendSuccess": "Kui muudatus on ootel, on uus link teel uuele aadressile.",
+      "resendError": "Lingi uuesti saatmine ebaõnnestus. Palun proovi uuesti.",
+      "cancelSuccess": "E-posti muutmine tühistati.",
+      "cancelError": "Muudatust ei õnnestunud tühistada. Palun proovi uuesti."
     },
     "apiKeys": {
       "title": "API-võtmed",
@@ -923,7 +951,6 @@
       "invalidType": "Palun vali .zip-arhiiv.",
       "exportSuccess": "Eksport valmis, allalaadimine peaks varsti algama",
       "exportError": "Sinu andmeid ei õnnestunud eksportida. Palun proovi uuesti.",
-      "importSuccess": "Andmed imporditud",
       "importError": "Arhiivi ei õnnestunud importida. Palun kontrolli faili ja proovi uuesti."
     }
   }

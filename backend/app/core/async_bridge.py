@@ -63,16 +63,6 @@ def capture_running_loop() -> None:
     set_main_loop(asyncio.get_running_loop())
 
 
-def get_main_loop() -> asyncio.AbstractEventLoop | None:
-    """Return the captured main event loop, or ``None`` if it is not set.
-
-    Returns:
-        The main event loop when the application is running, else ``None``
-        (e.g. in unit tests, or before startup / after shutdown).
-    """
-    return _main_loop
-
-
 def dispatch(coro: Coroutine[Any, Any, Any]) -> Future[Any] | None:
     """Schedule ``coro`` on the main event loop from any thread; fire-and-forget.
 

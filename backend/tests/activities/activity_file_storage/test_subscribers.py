@@ -62,10 +62,10 @@ class TestOnActivityDeletedCleanupFile:
 
 class TestRegistration:
     def test_register_bus_subscribes_deleted(self):
-        from modules.activities.activity_file_storage.subscribers import register_activity_file_cleanup_subscribers
+        from modules.activities.activity_file_storage.subscribers import register_bus_subscribers
 
         events = MagicMock()
-        register_activity_file_cleanup_subscribers(events)
+        register_bus_subscribers(events)
 
         events.subscribe.assert_called_once()
         assert events.subscribe.call_args[0][0] == activity_events.ACTIVITY_DELETED
@@ -73,11 +73,11 @@ class TestRegistration:
     def test_register_durable_registers_handler(self):
         from modules.activities.activity_file_storage.subscribers import (
             ACTIVITY_FILE_CLEANUP_SUBSCRIBER_ID,
-            register_activity_file_cleanup_durable_handlers,
+            register_durable_handlers,
         )
 
         registry = MagicMock()
-        register_activity_file_cleanup_durable_handlers(registry)
+        register_durable_handlers(registry)
 
         registry.register.assert_called_once()
         args = registry.register.call_args[0]

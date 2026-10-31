@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inativo",
       "unverified": "Email não verificado",
+      "pendingEmail": "Alteração de email pendente",
       "pending": "Aprovação pendente",
       "externalAuth": "Autenticação externa"
     },
@@ -64,18 +65,15 @@
       "email": "Email",
       "emailRequired": "O email é obrigatório",
       "emailInvalid": "Introduz um endereço de email válido",
+      "emailChangeHint": "É enviada uma ligação de confirmação para o novo endereço, que substitui o atual depois de confirmado. O utilizador é desconectado de todos os dispositivos. Marque o novo endereço como verificado para o aplicar já.",
       "accessType": "Tipo de acesso",
       "accessTypeRegular": "Utilizador regular",
       "accessTypeAdmin": "Administrador",
       "password": "Palavra-passe",
       "passwordHint": "Pelo menos 8 caracteres",
-      "passwordHintStrict": "Pelo menos {min} caracteres, com maiúscula, minúscula, um número e um caractere especial",
-      "passwordHintLength": "Pelo menos {min} caracteres",
       "passwordRequired": "A palavra-passe é obrigatória",
-      "passwordInvalid": "Essa palavra-passe não cumpre os requisitos",
       "confirmPassword": "Confirmar palavra-passe",
       "confirmPasswordRequired": "Confirmar palavra-passe",
-      "passwordMismatch": "As palavras-passe não coincidem",
       "preferredLanguage": "Idioma preferido",
       "languages": {
         "ca": "Catalão",
@@ -149,6 +147,8 @@
       "statusLegend": "Estado da conta",
       "active": "Ativo",
       "emailVerified": "Email verificado",
+      "emailVerifiedCurrentHint": "Este é o estado do endereço atual.",
+      "newEmailVerified": "Marcar o novo endereço como verificado",
       "pendingAdminApproval": "Aprovação de admin pendente",
       "requiredField": "Campo obrigatório",
       "create": "Adicionar utilizador",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Voltar aos utilizadores",
+      "pendingEmail": "Alteração de email pendente para {email}, a ligação expira a {date}",
       "notFoundTitle": "Utilizador não encontrado",
       "notFoundDescription": "Esta conta pode ter sido eliminada",
       "securityTitle": "Segurança",
@@ -186,16 +187,12 @@
       "title": "Repor palavra-passe",
       "description": "Definir uma nova palavra-passe para {username}",
       "newLabel": "Nova palavra-passe",
-      "hintLength": "Pelo menos {min} caracteres",
-      "hintStrict": "Pelo menos {min} caracteres, com maiúscula, minúscula, um número e um caractere especial",
       "confirmLabel": "Confirmar nova palavra-passe",
-      "mismatch": "As palavras-passe não coincidem",
       "required": "A palavra-passe é obrigatória",
       "submit": "Repor palavra-passe",
       "cancel": "Cancelar",
       "close": "Fechar",
       "success": "Palavra-passe atualizada",
-      "invalid": "Essa palavra-passe não cumpre os requisitos",
       "error": "Não foi possível atualizar a palavra-passe. Tenta novamente."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "E-mail de teste enviado",
       "failed": "Não foi possível enviar o e-mail de teste",
       "failedUnknown": "Consulta os registos do servidor para mais detalhes."
+    },
+    "envLocked": "Definido por {name}",
+    "envSection": "Algumas definições aqui são definidas por variáveis de ambiente ({names}). Remova-as do ambiente para editar essas definições aqui.",
+    "unsaved": "Alterações não guardadas",
+    "discard": "Descartar",
+    "tabs": {
+      "label": "Secções das definições do servidor",
+      "general": "Geral",
+      "access": "Acesso e segurança",
+      "maps": "Mapas e localização",
+      "email": "Email",
+      "unsaved": "Tem alterações não guardadas"
+    },
+    "search": {
+      "placeholder": "Pesquisar definições…",
+      "noResults": "Nenhuma definição encontrada"
+    },
+    "leave": {
+      "title": "Sair sem guardar?",
+      "description": "Tem alterações não guardadas. Se sair desta página, serão perdidas.",
+      "confirm": "Sair sem guardar",
+      "stay": "Ficar na página",
+      "close": "Fechar"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Os scopes devem ter 500 caracteres ou menos",
       "icon": "Ícone",
       "iconNone": "Nenhum",
-      "iconCustom": "URL personalizado",
-      "customIconUrl": "URL de ícone personalizado",
-      "customIconUrlHint": "Ligação para uma imagem mostrada no botão de início de sessão",
       "enabled": "Ativado",
       "autoCreateUsers": "Criar utilizadores automaticamente no primeiro início de sessão",
       "syncUserInfo": "Sincronizar informações de perfil em cada início de sessão",
@@ -559,9 +576,6 @@
       "current": "Palavra-passe atual",
       "new": "Nova palavra-passe",
       "confirm": "Confirmar nova palavra-passe",
-      "requirementsStrict": "Pelo menos {length} caracteres, incluindo uma letra maiúscula, uma minúscula, um número e um símbolo.",
-      "requirementsLength": "Pelo menos {length} caracteres.",
-      "mismatch": "As palavras-passe não coincidem.",
       "revokeOthers": "Terminar sessão em todos os outros dispositivos",
       "submit": "Alterar palavra-passe",
       "success": "Palavra-passe alterada",
@@ -650,6 +664,20 @@
       "invalidCredentials": "A tua palavra-passe ou código está incorreto.",
       "alreadyLinked": "Essa conta já está associada.",
       "lastMethodError": "Não podes desassociar o único método de início de sessão. Define uma palavra-passe primeiro."
+    },
+    "email": {
+      "subtitle": "É para aqui que são enviadas as redefinições de palavra-passe e os avisos. Para o alterar, tens de confirmar a tua identidade, e o novo endereço só fica ativo depois de o confirmares através de uma ligação que lhe enviamos.",
+      "sameAsCurrent": "Este já é o teu endereço de email.",
+      "success": "Ligação de confirmação enviada para o novo endereço. O teu email muda quando a confirmares.",
+      "appliedSuccess": "Email alterado.",
+      "pending": "Alteração pendente para {email}",
+      "pendingExpires": "A ligação de confirmação expira a {date}.",
+      "resend": "Reenviar ligação",
+      "cancel": "Cancelar alteração",
+      "resendSuccess": "Se houver uma alteração pendente, está a caminho um novo link para o novo endereço.",
+      "resendError": "Não foi possível reenviar a ligação. Tenta novamente.",
+      "cancelSuccess": "Alteração de email cancelada.",
+      "cancelError": "Não foi possível cancelar a alteração. Tenta novamente."
     },
     "apiKeys": {
       "title": "Chaves de API",
@@ -923,7 +951,6 @@
       "invalidType": "Escolhe um arquivo .zip.",
       "exportSuccess": "Exportação pronta, o teu download deve começar em breve",
       "exportError": "Não foi possível exportar os teus dados. Tenta novamente.",
-      "importSuccess": "Dados importados",
       "importError": "Não foi possível importar o arquivo. Verifica o ficheiro e tenta novamente."
     }
   }

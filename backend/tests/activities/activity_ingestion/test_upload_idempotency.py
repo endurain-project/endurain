@@ -224,7 +224,8 @@ class TestConcurrentSameKey:
 
         assert result is winner
         discard.assert_called_once_with("abc.gpx", ANY)
-        db.rollback.assert_called_once()
+        # Once to end the key lookup before the upload was staged, once after the insert lost the race.
+        assert db.rollback.call_count == 2
 
     def test_a_racing_key_reuse_with_different_content_still_conflicts(self):
         db = MagicMock()
@@ -333,3 +334,29 @@ class TestReceivedUploadIsNeverLeftBehind:
             ingestion_jobs.accept_upload(7, "ride.gpx", MagicMock(), "storage", MagicMock(), idempotency_key="k")
 
         discard.assert_called_once_with(received)
+
+
+class TestNoConnectionHeldWhileStoring:
+    """The idempotency lookup reads, and the staged upload can be 200 MiB, so the read must end first."""
+
+    def test_the_upload_is_staged_after_the_lookup_has_ended_its_transaction(self):
+        db = MagicMock()
+        order = MagicMock()
+        order.attach_mock(db.rollback, "end_read")
+        store = MagicMock(side_effect=RuntimeError("stop here"))
+        order.attach_mock(store, "store_received_upload")
+
+        with (
+            patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "require_capacity"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_upload_entry_service,
+                "receive_upload",
+                return_value=MagicMock(fingerprint="f"),
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_for_idempotency", return_value=None),
+            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", store),
+            pytest.raises(RuntimeError, match="stop here"),
+        ):
+            ingestion_jobs.accept_upload(7, "a.fit", MagicMock(), MagicMock(), db, idempotency_key="key")
+
+        assert [call[0] for call in order.mock_calls] == ["end_read", "store_received_upload"]

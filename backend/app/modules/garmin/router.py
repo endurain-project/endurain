@@ -1,103 +1,91 @@
-from datetime import UTC, date, datetime
-from typing import Annotated
+"""Garmin Connect routes: account linking, MFA, and activity, gear and health sync."""
 
-import jasil.providers as platform_providers
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
-from sqlalchemy.orm import Session
+from datetime import date
 
-import core.database as core_database
+from fastapi import APIRouter, Request, Security, status
+
 import core.dependencies as core_dependencies
-import core.exceptions as core_exceptions
-import core.logger as core_logger
 import core.rate_limit as core_rate_limit
-import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
-import modules.garmin.gear_utils as garmin_gear_utils
-import modules.garmin.health_utils as garmin_health_utils
-import modules.garmin.mfa_code_store as garmin_mfa_code_store
-import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.constants as garmin_constants
+import modules.garmin.dependencies as garmin_dependencies
+import modules.garmin.link_service as garmin_link_service
 import modules.garmin.schema as garmin_schema
-import modules.garmin.utils as garmin_utils
-import modules.users.users_integrations.crud as user_integrations_crud
-import modules.websocket.manager as websocket_manager
+import modules.garmin.service as garmin_service
+import modules.garmin.sync_service as garmin_sync_service
 
-logger = core_logger.get_logger(__name__)
-
-# Define the API router
 router = APIRouter()
 
 
 @router.post(
     "/link",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=garmin_schema.GarminLinkStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def garminconnect_link(
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def garminconnect_link(
+    request: Request,
     garmin_user: garmin_schema.GarminLogin,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    mfa_codes: Annotated[
-        garmin_mfa_code_store.GarminMFACodeStore,
-        Depends(garmin_mfa_code_store.get_garmin_mfa_code_store),
-    ],
-    websocket_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
-):
-    # Link Garmin Connect account
-    await garmin_utils.link_garminconnect(
-        token_user_id,
-        garmin_user.username,
-        garmin_user.password,
-        db,
-        mfa_codes,
-        websocket_manager,
-        garmin_user.is_cn,
-    )
+    token_user_id: auth_dependencies.CurrentUserId,
+    mfa_codes: garmin_dependencies.GarminMFACodeStoreDep,
+    link_states: garmin_dependencies.GarminLinkStateStoreDep,
+) -> garmin_schema.GarminLinkStatus:
+    """Start linking a Garmin Connect account and return at once.
 
-    # Return success message
-    return {f"Garmin Connect linked for user {token_user_id} successfully"}
-
-
-@router.post("/mfa")
-async def garminconnect_mfa_code(
-    mfa_request: garmin_schema.MFARequest,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    mfa_codes: Annotated[
-        garmin_mfa_code_store.GarminMFACodeStore,
-        Depends(garmin_mfa_code_store.get_garmin_mfa_code_store),
-    ],
-):
-    # Store the MFA code
-    mfa_codes.add_code(token_user_id, mfa_request.mfa_code)
-    return {"message": "MFA code received successfully"}
+    The login runs in the background. Poll ``GET /garminconnect/link/status``: when it reports
+    ``mfa_required``, submit the code to ``POST /garminconnect/mfa`` and keep polling until it
+    reports ``completed`` or ``failed``. A second request while one is running is answered 409.
+    """
+    return garmin_link_service.start_link(token_user_id, garmin_user, mfa_codes, link_states)
 
 
 @router.get(
+    "/link/status",
+    response_model=garmin_schema.GarminLinkStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+def garminconnect_link_status(
+    token_user_id: auth_dependencies.CurrentUserId,
+    link_states: garmin_dependencies.GarminLinkStateStoreDep,
+) -> garmin_schema.GarminLinkStatus:
+    """Report where the authenticated user's Garmin Connect link attempt is."""
+    return garmin_link_service.get_link_status(token_user_id, link_states)
+
+
+@router.post(
+    "/mfa",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def garminconnect_mfa_code(
+    request: Request,
+    mfa_request: garmin_schema.MFARequest,
+    token_user_id: auth_dependencies.CurrentUserId,
+    mfa_codes: garmin_dependencies.GarminMFACodeStoreDep,
+    link_states: garmin_dependencies.GarminLinkStateStoreDep,
+) -> None:
+    """Hand the MFA code to the Garmin Connect login waiting for it."""
+    garmin_link_service.submit_mfa_code(token_user_id, mfa_request.mfa_code, mfa_codes, link_states)
+
+
+@router.post(
     "/activities",
-    status_code=202,
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def garminconnect_retrieve_activities_days(
     request: Request,
     start_date: date,
     end_date: date,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    storage: Annotated[
-        platform_providers.StorageProvider,
-        Depends(core_dependencies.get_storage),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    storage: core_dependencies.Storage,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Queue a Garmin Connect sync of an explicit date range.
 
@@ -105,88 +93,81 @@ def garminconnect_retrieve_activities_days(
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
-    if start_date > end_date:
-        raise core_exceptions.InvalidInputError("start_date must not be after end_date")
-
-    job = activity_ingestion_integration.request_provider_sync(
-        token_user_id,
-        garmin_provider_registry.PROVIDER_NAME,
-        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
-        storage,
-        db,
-    )
-    logger.info(f"Garmin Connect activities queued for user {token_user_id}")
-    return job
+    return garmin_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
 
 
-@router.get("/gear", status_code=202)
-async def garminconnect_retrieve_gear(
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    background_tasks: BackgroundTasks,
-):
-    # Process strava activities in the background
-    background_tasks.add_task(
-        garmin_gear_utils.get_user_gear,
-        token_user_id,
-    )
+@router.post(
+    "/gear",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=garmin_schema.GarminSyncStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
+def garminconnect_retrieve_gear(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    sync_states: garmin_dependencies.GarminSyncStateStoreDep,
+    rate_limits: garmin_dependencies.GarminRateLimitStoreDep,
+) -> garmin_schema.GarminSyncStatus:
+    """Queue a sync of the user's Garmin Connect gear; a background job runs it.
 
-    # Return success message and status code 202
-    logger.info(f"Garmin Connect gear will be processed in the background for user {token_user_id}")
-    return {"detail": f"Garmin Connect gear will be processed in the background for for {token_user_id}"}
+    Poll ``GET /garminconnect/sync/gear`` for the outcome. A second request while one is
+    pending is answered 409.
+    """
+    return garmin_sync_service.request_gear_sync(token_user_id, sync_states, rate_limits, db)
+
+
+@router.post(
+    "/health",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=garmin_schema.GarminSyncStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
+def garminconnect_retrieve_health_days(
+    request: Request,
+    start_date: date,
+    end_date: date,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    sync_states: garmin_dependencies.GarminSyncStateStoreDep,
+    rate_limits: garmin_dependencies.GarminRateLimitStoreDep,
+) -> garmin_schema.GarminSyncStatus:
+    """Queue a sync of the user's Garmin Connect health data for a date range.
+
+    The range must not exceed 31 days; a background job runs it. Poll
+    ``GET /garminconnect/sync/health`` for the outcome. A second request while one is pending is
+    answered 409.
+    """
+    return garmin_sync_service.request_health_sync(token_user_id, start_date, end_date, sync_states, rate_limits, db)
 
 
 @router.get(
-    "/health",
-    status_code=202,
+    "/sync/{kind}",
+    response_model=garmin_schema.GarminSyncStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def garminconnect_retrieve_health_days(
-    start_date: date,
-    end_date: date,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    # db: Annotated[Session, Depends(core_database.get_db)],
-    background_tasks: BackgroundTasks,
-    ws_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
-):
-    start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=UTC)
-    end_datetime = datetime.combine(end_date, datetime.max.time(), tzinfo=UTC)
-
-    # Process Garmin Connect activities in the background
-    background_tasks.add_task(
-        garmin_health_utils.get_user_garminconnect_health_by_dates,
-        start_datetime,
-        end_datetime,
-        token_user_id,
-        ws_manager,
-    )
-
-    # Return success message and status code 202
-    logger.info(f"Garmin Connect health data will be processed in the background for user {token_user_id}")
-    return {"detail": f"Garmin Connect health data will be processed in the background for for {token_user_id}"}
+def garminconnect_sync_status(
+    kind: garmin_constants.SyncKind,
+    token_user_id: auth_dependencies.CurrentUserId,
+    sync_states: garmin_dependencies.GarminSyncStateStoreDep,
+) -> garmin_schema.GarminSyncStatus:
+    """Report where the authenticated user's queued gear or health sync is."""
+    return garmin_sync_service.get_sync_status(token_user_id, kind, sync_states)
 
 
-@router.delete("/unlink")
-async def garminconnect_unlink(
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # unlink garmin connect account
-    user_integrations_crud.unlink_garminconnect_account(token_user_id, db)
-
-    # Return success message
-    return {"detail": f"Garmin Connect unlinked for user {token_user_id} successfully"}
+@router.delete(
+    "/link",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def garminconnect_unlink(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Unlink the user's Garmin Connect account."""
+    garmin_service.unlink_account(token_user_id, db)

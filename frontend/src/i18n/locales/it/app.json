@@ -18,6 +18,7 @@
     "help": "Verifica che ENDURAIN_HOST punti all'URL in cui la tua istanza di Endurain è raggiungibile (ad esempio https://endurain.example.com) e che il backend sia in esecuzione, poi ricarica la pagina.",
     "reload": "Ricarica"
   },
+  "staleError": "Questo è stato modificato altrove mentre lo stavi visualizzando, quindi non è stato salvato nulla. È stata caricata la versione attuale. Controllala e riprova.",
   "dismiss": "Chiudi",
   "language": "Lingua",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Modifica",
     "supported": "Markdown supportato",
     "empty": "Nessuna anteprima disponibile"
+  },
+  "password": {
+    "hintLength": "Almeno {min} caratteri.",
+    "hintStrict": "Almeno {min} caratteri, con lettere maiuscole, minuscole, un numero e un carattere speciale.",
+    "invalid": "La password non soddisfa i requisiti",
+    "mismatch": "Le password non corrispondono"
   }
 }

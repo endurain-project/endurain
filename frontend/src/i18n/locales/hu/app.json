@@ -18,6 +18,7 @@
     "help": "Ellenőrizd, hogy az ENDURAIN_HOST arra az URL-re mutat-e, ahol az Endurain példányod elérhető (például https://endurain.example.com), és hogy a háttérrendszer fut-e, majd töltsd újra az oldalt.",
     "reload": "Újratöltés"
   },
+  "staleError": "Ezt máshol módosították, miközben nézted, ezért semmi sem lett mentve. A jelenlegi verzió betöltődött. Nézd át, és próbáld újra.",
   "dismiss": "Bezárás",
   "language": "Nyelv",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Szerkesztés",
     "supported": "Markdown támogatott",
     "empty": "Nincs mit megjeleníteni"
+  },
+  "password": {
+    "hintLength": "Legalább {min} karakter.",
+    "hintStrict": "Legalább {min} karakter, nagybetűvel, kisbetűvel, számmal és különleges karakterrel.",
+    "invalid": "A jelszó nem felel meg a követelményeknek",
+    "mismatch": "A jelszavak nem egyeznek"
   }
 }

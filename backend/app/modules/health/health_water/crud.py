@@ -1,318 +1,218 @@
-"""
-CRUD operations for health water intake records.
+"""CRUD operations for health water intake records."""
 
-This module provides database operations for creating, reading,
-updating, and deleting water intake records.
-"""
+from datetime import date as date_type
+from decimal import Decimal
 
-from typing import overload
-
-from fastapi import HTTPException, status
-from sqlalchemy import desc, func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
+import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_water.models as health_water_models
 import modules.health.health_water.schema as health_water_schema
-import modules.health.utils as health_utils
-import modules.users.users.utils as users_utils
+import modules.health.record_crud as health_record_crud
+import modules.health.schema as health_schema
 
-# Private internal helpers
-
-
-@overload
-def _transform_health_water(health_water: health_water_models.HealthWater) -> health_water_schema.HealthWaterRead: ...
-
-
-@overload
-def _transform_health_water(
-    health_water: list[health_water_models.HealthWater],
-) -> list[health_water_schema.HealthWaterRead]: ...
+SPEC = health_record_crud.RecordSpec(
+    model=health_water_models.HealthWater,
+    read_schema=health_water_schema.HealthWaterRead,
+    not_found="Health water not found",
+    etag_label="water intake record",
+)
 
 
-def _transform_health_water(
-    health_water: health_water_models.HealthWater | list[health_water_models.HealthWater],
-) -> health_water_schema.HealthWaterRead | list[health_water_schema.HealthWaterRead]:
-    """
-    Transform a health water or list of health waters to a Pydantic schema.
+def get_health_water_number_by_user_id(user_id: int, db: Session, since: date_type | None = None) -> int:
+    """Count a user's water intake records.
 
     Args:
-        health_water: The health water ORM instance or list of instances.
-
-    Returns:
-        The health water(s) as a schema.
-    """
-    if isinstance(health_water, list):
-        return [health_water_schema.HealthWaterRead.model_validate(hw) for hw in health_water]
-    return health_water_schema.HealthWaterRead.model_validate(health_water)
-
-
-@core_decorators.handle_db_errors
-def _get_health_water_model_by_id_and_user_id_or_404(
-    health_water_id: int, user_id: int, db: Session
-) -> health_water_models.HealthWater:
-    """
-    Retrieve health water record model by ID and user ID.
-
-    Args:
-        health_water_id: Health water record ID to fetch.
-        user_id: User ID to fetch record for.
+        user_id: The records' owner.
         db: Database session.
+        since: Count only records on or after this date.
 
     Returns:
-        Mapped ``HealthWater`` ORM instance.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The number of records.
     """
-    # Get the health_water from the database
-    stmt = select(health_water_models.HealthWater).where(
-        health_water_models.HealthWater.id == health_water_id,
-        health_water_models.HealthWater.user_id == user_id,
-    )
-    db_health_water = db.execute(stmt).scalar_one_or_none()
-
-    if db_health_water is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health water not found",
-        )
-
-    return db_health_water
+    return health_record_crud.count(SPEC, user_id, health_water_models.HealthWater.date, since, db)
 
 
-# Public CRUD functions
-
-
-@core_decorators.handle_db_errors
-def get_health_water_number_by_user_id(
-    user_id: int,
-    db: Session,
-    interval: health_constants.Interval | None = None,
-) -> int:
-    """
-    Retrieve total count of water intake records for a user.
-
-    If interval is provided, count only records starting from
-    the calculated start date.
-
-    Args:
-        user_id: User ID to count records for.
-        db: Database session.
-        interval: Optional filter by goal interval.
-
-    Returns:
-        Total number of health water intake records.
-
-    Raises:
-        HTTPException: If database error occurs.
-    """
-    stmt = (
-        select(func.count())
-        .select_from(health_water_models.HealthWater)
-        .where(health_water_models.HealthWater.user_id == user_id)
-    )
-
-    if interval is not None:
-        stmt = stmt.where(
-            health_water_models.HealthWater.date
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
-        )
-
-    return db.execute(stmt).scalar_one()
-
-
-@core_decorators.handle_db_errors
-def get_health_water_by_id_and_user_id(
-    health_water_id: int, user_id: int, db: Session
-) -> health_water_schema.HealthWaterRead | None:
-    """
-    Retrieve water intake record by ID and user ID.
-
-    Args:
-        health_water_id: Water intake record ID to fetch.
-        user_id: User ID to fetch record for.
-        db: Database session.
-
-    Returns:
-        HealthWaterRead schema if found, None otherwise.
-
-    Raises:
-        HTTPException: If database error occurs.
-    """
-    stmt = select(health_water_models.HealthWater).where(
-        health_water_models.HealthWater.id == health_water_id,
-        health_water_models.HealthWater.user_id == user_id,
-    )
-    db_health_water = db.execute(stmt).scalar_one_or_none()
-    return _transform_health_water(db_health_water) if db_health_water else None
-
-
-@core_decorators.handle_db_errors
 def get_health_water_by_user_id(
     user_id: int,
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
-    interval: health_constants.Interval | None = None,
+    since: date_type | None = None,
 ) -> list[health_water_schema.HealthWaterRead]:
-    """
-    Retrieve water intake records for a user with optional
-    pagination and filtering.
+    """Retrieve a user's water intake records, optionally paginated and bounded.
 
     Args:
-        user_id: User ID whose records are to be retrieved.
-        db: Database session used to execute the query.
-        page_number: Page number for pagination (1-indexed).
-        num_records: Number of records per page.
-        interval: Time interval to filter records.
+        user_id: The records' owner.
+        db: Database session.
+        page_number: 1-based page; paginates only together with ``num_records``.
+        num_records: Records per page.
+        since: Return only records on or after this date.
 
     Returns:
-        List of HealthWaterRead schema records sorted by date descending.
+        The records ordered by date descending.
     """
-    stmt = select(health_water_models.HealthWater).where(health_water_models.HealthWater.user_id == user_id)
-
-    if interval is not None:
-        stmt = stmt.where(
-            health_water_models.HealthWater.date
-            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
-        )
-
-    stmt = stmt.order_by(desc(health_water_models.HealthWater.date))
-
-    if page_number is not None and num_records is not None:
-        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
-
-    db_health_water = db.execute(stmt).scalars().all()
-
-    return _transform_health_water(list(db_health_water))
+    return health_record_crud.list_page(
+        SPEC,
+        user_id,
+        health_water_models.HealthWater.date,
+        health_water_models.HealthWater.date,
+        since,
+        page_number,
+        num_records,
+        db,
+    )
 
 
-@core_decorators.handle_db_errors
 def get_health_water_by_date_and_user_id(
     user_id: int, date: str, db: Session
 ) -> health_water_schema.HealthWaterRead | None:
-    """
-    Retrieve water intake record for a user on a specific date.
+    """Retrieve a user's water intake record for a date.
 
     Args:
-        user_id: User ID.
-        date: Date string for the water intake record.
+        user_id: The record's owner.
+        date: The record's date.
         db: Database session.
 
     Returns:
-        HealthWaterRead schema if found, None otherwise.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The record, or ``None``.
     """
-    stmt = select(health_water_models.HealthWater).where(
-        health_water_models.HealthWater.date == func.date(date),
-        health_water_models.HealthWater.user_id == user_id,
-    )
-    db_health_water = db.execute(stmt).scalar_one_or_none()
-
-    return _transform_health_water(db_health_water) if db_health_water else None
+    return health_record_crud.find_by_date(SPEC, user_id, date, db)
 
 
-@core_decorators.handle_db_errors
 def create_health_water(
-    user_id: int,
-    health_water: health_water_schema.HealthWaterCreate,
-    db: Session,
+    user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
 ) -> health_water_schema.HealthWaterRead:
-    """
-    Create a new water intake record for a user.
+    """Stage a new water intake record for a user.
 
     Args:
-        user_id: User ID for the record owner.
-        health_water: Water intake data to create.
+        user_id: The record's owner.
+        health_water: The record to create.
         db: Database session.
 
     Returns:
-        Created water intake record.
+        The staged record.
 
     Raises:
-        HTTPException: If duplicate entry or database error.
+        ConflictError: If the user already has a record for that date.
     """
-    try:
-        db_health_water = health_water_models.HealthWater(
-            **health_water.model_dump(exclude_none=False),
-            user_id=user_id,
-        )
-
-        db.add(db_health_water)
-        db.commit()
-        db.refresh(db_health_water)
-
-        return _transform_health_water(db_health_water)
-    except IntegrityError as integrity_error:
-        db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(f"Duplicate entry error. Check if there is already an entry created for {health_water.date}"),
-        ) from integrity_error
+    return health_record_crud.create(
+        SPEC, user_id, health_water, db, conflict=health_record_crud.duplicate_date_message(health_water.date)
+    )
 
 
-@core_decorators.handle_db_errors
 def edit_health_water(
     user_id: int,
+    health_water_id: int,
     health_water: health_water_schema.HealthWaterUpdate,
     db: Session,
+    *,
+    if_match: str,
 ) -> health_water_schema.HealthWaterRead:
-    """
-    Edit water intake record for a user.
+    """Stage an update to a user's water intake record.
 
     Args:
-        user_id: User ID who owns the record.
-        health_water: Water intake data to update.
+        user_id: The record's owner.
+        health_water_id: The record to change.
+        health_water: The fields to change.
+        db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Returns:
+        The updated record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+        ConflictError: If the new date already has a record.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
+    """
+    return health_record_crud.edit(
+        SPEC,
+        health_water_id,
+        user_id,
+        health_water,
+        db,
+        if_match=if_match,
+        conflict=health_record_crud.DATE_TAKEN_MESSAGE,
+    )
+
+
+def add_health_water_amount(
+    user_id: int, health_water_id: int, amount_ml: Decimal, source: str | None, db: Session
+) -> health_water_schema.HealthWaterRead:
+    """Stage an intake added to the total of a user's water intake record.
+
+    The addition is one ``UPDATE``, so intakes added at the same moment, by this replica or
+    another, are all counted.
+
+    Args:
+        user_id: The record's owner.
+        health_water_id: The record to add to.
+        amount_ml: Water consumed, in milliliters.
+        source: Source of the intake.
         db: Database session.
 
     Returns:
-        Updated HealthWaterRead schema.
+        The updated record.
 
     Raises:
-        HTTPException: 403 if editing another user's record,
-            404 if not found, 500 if database error.
+        NotFoundError: If the user has no such record.
     """
-    if health_water.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=("Cannot edit health water intake for another user."),
+    db_health_water = health_record_crud.get_owned(SPEC, health_water_id, user_id, db)
+    db.execute(
+        update(health_water_models.HealthWater)
+        .where(health_water_models.HealthWater.id == health_water_id)
+        .values(
+            amount_ml=health_water_models.HealthWater.amount_ml + amount_ml,
+            source=source,
+            # A bulk UPDATE skips the ORM's version bump, and an intake is a change another client must see.
+            version=health_water_models.HealthWater.version + 1,
         )
-
-    db_health_water = _get_health_water_model_by_id_and_user_id_or_404(health_water.id, user_id, db)
-
-    health_water_data = health_water.model_dump(exclude_unset=True)
-    for key, value in health_water_data.items():
-        setattr(db_health_water, key, value)
-
-    db.commit()
+        .execution_options(synchronize_session=False)
+    )
     db.refresh(db_health_water)
 
-    return _transform_health_water(db_health_water)
+    return health_computation.to_read_schema(health_water_schema.HealthWaterRead, db_health_water)
 
 
-@core_decorators.handle_db_errors
-def delete_health_water(user_id: int, health_water_id: int, db: Session) -> None:
-    """
-    Delete a water intake record for a user.
+def delete_health_water(user_id: int, health_water_id: int, db: Session, *, if_match: str) -> None:
+    """Stage the deletion of a user's water intake record.
 
     Args:
-        user_id: User ID who owns the record.
-        health_water_id: Water intake record ID to delete.
+        user_id: The record's owner.
+        health_water_id: The record to delete.
+        db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
+    """
+    health_record_crud.delete(SPEC, health_water_id, user_id, db, if_match=if_match)
+
+
+def get_health_water_chart(
+    user_id: int, since: date_type, bucket: health_constants.ChartBucket, db: Session
+) -> list[health_schema.HealthChartPoint]:
+    """Average a user's water intake per chart bucket.
+
+    Args:
+        user_id: The records' owner.
+        since: First day of the charted window.
+        bucket: The span each point aggregates.
         db: Database session.
 
     Returns:
-        None
-
-    Raises:
-        HTTPException: If record not found or database error.
+        The buckets that hold a value, oldest first.
     """
-    db_health_water = _get_health_water_model_by_id_and_user_id_or_404(health_water_id, user_id, db)
-
-    db.delete(db_health_water)
-    db.commit()
+    model = health_water_models.HealthWater
+    day = health_computation.chart_bucket_expression(model.date, bucket, since)
+    stmt = (
+        select(day, func.avg(model.amount_ml))
+        .where(model.user_id == user_id, model.amount_ml.is_not(None), model.date >= since)
+        .group_by(day)
+        .order_by(day)
+    )
+    return [health_schema.HealthChartPoint(date=d, value=float(value)) for d, value in db.execute(stmt).all()]

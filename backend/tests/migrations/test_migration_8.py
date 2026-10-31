@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 class TestProcessMigration8:
     @patch("migrations.migration_8._reencode_to_webp")
     @patch("migrations.migration_8.Path")
-    @patch("migrations.migration_8.migrations_crud")
+    @patch("migrations.migration_8.migrations_service")
     @patch("migrations.migration_8.activities_crud")
     @patch("migrations.migration_8.activity_thumbnail_signing")
     @patch("migrations.migration_8.platform_runtime")
@@ -37,11 +37,11 @@ class TestProcessMigration8:
         storage.save.assert_called_once_with("activity_thumbnails", "1.webp", b"webp", "image/webp")
         mock_crud.set_activity_thumbnail_key.assert_called_once_with(1, "1.webp", db)
         source.unlink.assert_called_once_with(missing_ok=True)
-        mock_migrations.set_migration_as_executed.assert_called_once_with(8, db)
+        mock_migrations.mark_executed.assert_called_once_with(8, db)
 
     @patch("migrations.migration_8._reencode_to_webp")
     @patch("migrations.migration_8.Path")
-    @patch("migrations.migration_8.migrations_crud")
+    @patch("migrations.migration_8.migrations_service")
     @patch("migrations.migration_8.activities_crud")
     @patch("migrations.migration_8.activity_thumbnail_signing")
     @patch("migrations.migration_8.platform_runtime")
@@ -68,9 +68,9 @@ class TestProcessMigration8:
         storage.save.assert_not_called()
         mock_reencode.assert_not_called()
         mock_crud.set_activity_thumbnail_key.assert_called_once_with(1, None, db)
-        mock_migrations.set_migration_as_executed.assert_called_once_with(8, db)
+        mock_migrations.mark_executed.assert_called_once_with(8, db)
 
-    @patch("migrations.migration_8.migrations_crud")
+    @patch("migrations.migration_8.migrations_service")
     @patch("migrations.migration_8.activities_crud")
     @patch("migrations.migration_8.platform_runtime")
     @patch("migrations.migration_8.core_logger")
@@ -82,4 +82,4 @@ class TestProcessMigration8:
         db = MagicMock()
         process_migration_8(db)
 
-        mock_migrations.set_migration_as_executed.assert_called_once_with(8, db)
+        mock_migrations.mark_executed.assert_called_once_with(8, db)

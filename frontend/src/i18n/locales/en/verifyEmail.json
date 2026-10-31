@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Hang tight while we confirm your address.",
+  "choosePasswordTitle": "Choose your password",
+  "choosePasswordBody": "Your email is confirmed once you set a password for your account.",
+  "submitPassword": "Set password",
+  "submittingPassword": "Saving password",
   "successTitle": "Email verified",
   "successBody": "Your email address has been confirmed.",
   "adminApprovalBody": "Your account is now waiting for administrator approval.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verification failed",
   "missingTokenBody": "This verification link is missing its token.",
   "errorInvalidToken": "This verification link is invalid or expired.",
+  "errorEmailTaken": "That email address is now used by another account, so it can't be confirmed.",
   "errorNotFound": "We couldn't find an account for this link.",
   "errorGeneral": "We couldn't verify your email. Please try again.",
   "retry": "Try again",

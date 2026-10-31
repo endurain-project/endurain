@@ -6,12 +6,13 @@
 
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { keepPreviousData, useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type {
   FastingEntry,
   FastingEntryInput,
   FastingStatus,
+  HealthChartMetric,
   HealthInterval,
   PoopEntry,
   PoopEntryInput,
@@ -46,6 +47,7 @@ import {
   fetchActiveFasting,
   fetchFastingEntries,
   fetchFastingStats,
+  fetchHealthChart,
   fetchHealthDashboard,
   fetchHealthTargets,
   fetchStepsEntries,
@@ -68,6 +70,9 @@ import {
   updateSleepTarget,
 } from '@/features/health/services/health'
 
+/** Freshness window for mutable health reads; health writes and sync events invalidate them. */
+const HEALTH_QUERY_STALE_TIME_MS = 60_000
+
 /**
  * The authenticated user's health targets, used to annotate each dashboard card
  * with its metric's target and direction. Gated on authentication.
@@ -80,23 +85,31 @@ export function useHealthTargetsQuery() {
   return useQuery({
     queryKey: queryKeys.health.targets(),
     queryFn: ({ signal }) => fetchHealthTargets(signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
 
 /**
- * The authenticated user's consolidated daily health dashboard (today's sleep,
- * resting HR, steps, weight, fasting, water and bowel-movement metrics). Gated
- * on authentication.
+ * The authenticated user's consolidated daily health dashboard and health targets.
+ * The response also seeds the targets query cache for other health views.
  *
- * @returns The TanStack Query result for the daily health dashboard.
+ * @returns The TanStack Query result for the dashboard and targets.
  */
 export function useHealthDashboardQuery() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
+  const client = useQueryClient()
 
   return useQuery({
     queryKey: queryKeys.health.dashboard(),
-    queryFn: ({ signal }) => fetchHealthDashboard(signal),
+    queryFn: async ({ signal }) => {
+      const dashboard = await fetchHealthDashboard(signal)
+      if (dashboard.targets) {
+        client.setQueryData(queryKeys.health.targets(), dashboard.targets)
+      }
+      return dashboard
+    },
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
@@ -111,14 +124,22 @@ interface HealthEntriesParams<Interval extends string> {
   interval: Interval
 }
 
+/** Variables for delete-entry mutations shared by CRUD health metrics. */
+interface DeleteEntryVariables {
+  /** Record id to delete. */
+  id: number
+  /** The row version the list item was read at, for `If-Match`. */
+  version: number
+}
+
 /** Variables for update-entry mutations shared by CRUD health metrics. */
 interface UpdateEntryVariables<Input> {
   /** Record id to update. */
   id: number
-  /** Owning user id echoed back to the backend. */
-  userId: number
   /** Clean metric input. */
   input: Input
+  /** The row version the form was loaded at, for `If-Match`. */
+  version: number
 }
 
 /** Standard paginated query wrapper for health-history zones. */
@@ -148,6 +169,31 @@ function useHealthEntriesQuery<Page, Interval extends string>(
         },
         signal,
       ),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
+    placeholderData: keepPreviousData,
+    enabled: isAuthenticated,
+  })
+}
+
+/**
+ * A metric aggregated over an interval, for the zone charts. Independent of the paginated list, so
+ * the chart covers the whole interval in one request instead of the list's current page. Keyed on the
+ * metric and interval, so changing the interval refetches while the previous chart stays on screen.
+ *
+ * @param metric - The metric to chart.
+ * @param interval - Reactive time window to chart.
+ * @returns The TanStack Query result for the metric's chart series.
+ */
+export function useHealthChartQuery(
+  metric: HealthChartMetric,
+  interval: MaybeRefOrGetter<HealthInterval>,
+) {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery({
+    queryKey: computed(() => queryKeys.health.chart(metric, toValue(interval))),
+    queryFn: ({ signal }) => fetchHealthChart(metric, toValue(interval), signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: isAuthenticated,
   })
@@ -168,11 +214,11 @@ function useCreateHealthEntryMutation<Entry, Input>(
 /** Standard update-entry mutation wrapper for health CRUD zones. */
 function useUpdateHealthEntryMutation<Entry, Input>(
   mutationKey: readonly unknown[],
-  updateEntry: (id: number, userId: number, input: Input) => Promise<Entry>,
+  updateEntry: (id: number, input: Input, version: number) => Promise<Entry>,
 ) {
   return useInvalidatingMutation<Entry, UpdateEntryVariables<Input>>({
     mutationKey,
-    mutationFn: ({ id, userId, input }) => updateEntry(id, userId, input),
+    mutationFn: ({ id, input, version }) => updateEntry(id, input, version),
     invalidateKey: queryKeys.health.all(),
   })
 }
@@ -180,11 +226,11 @@ function useUpdateHealthEntryMutation<Entry, Input>(
 /** Standard delete-entry mutation wrapper for health CRUD zones. */
 function useDeleteHealthEntryMutation(
   mutationKey: readonly unknown[],
-  deleteEntry: (id: number) => Promise<void>,
+  deleteEntry: (id: number, version: number) => Promise<void>,
 ) {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, DeleteEntryVariables>({
     mutationKey,
-    mutationFn: (id) => deleteEntry(id),
+    mutationFn: ({ id, version }) => deleteEntry(id, version),
     invalidateKey: queryKeys.health.all(),
   })
 }
@@ -265,8 +311,8 @@ export function useDeleteWeightEntryMutation() {
  * @returns The TanStack Query mutation for updating the weight target.
  */
 export function useUpdateWeightTargetMutation() {
-  return useHealthTargetMutation<{ id: number; userId: number; weightKg: number | null }>(
-    ({ id, userId, weightKg }) => updateWeightTarget(id, userId, weightKg),
+  return useHealthTargetMutation<{ version: number; weightKg: number | null }>(
+    ({ version, weightKg }) => updateWeightTarget(version, weightKg),
   )
 }
 
@@ -329,8 +375,8 @@ export function useDeleteStepsEntryMutation() {
  * @returns The TanStack Query mutation for updating the steps target.
  */
 export function useUpdateStepsTargetMutation() {
-  return useHealthTargetMutation<{ id: number; userId: number; steps: number | null }>(
-    ({ id, userId, steps }) => updateStepsTarget(id, userId, steps),
+  return useHealthTargetMutation<{ version: number; steps: number | null }>(({ version, steps }) =>
+    updateStepsTarget(version, steps),
   )
 }
 
@@ -393,8 +439,8 @@ export function useDeleteWaterEntryMutation() {
  * @returns The TanStack Query mutation for updating the water target.
  */
 export function useUpdateWaterTargetMutation() {
-  return useHealthTargetMutation<{ id: number; userId: number; waterMl: number | null }>(
-    ({ id, userId, waterMl }) => updateWaterTarget(id, userId, waterMl),
+  return useHealthTargetMutation<{ version: number; waterMl: number | null }>(
+    ({ version, waterMl }) => updateWaterTarget(version, waterMl),
   )
 }
 
@@ -458,8 +504,8 @@ export function useDeletePoopEntryMutation() {
  * @returns The TanStack Query mutation for updating the poop target.
  */
 export function useUpdatePoopTargetMutation() {
-  return useHealthTargetMutation<{ id: number; userId: number; poopCount: number | null }>(
-    ({ id, userId, poopCount }) => updatePoopTarget(id, userId, poopCount),
+  return useHealthTargetMutation<{ version: number; poopCount: number | null }>(
+    ({ version, poopCount }) => updatePoopTarget(version, poopCount),
   )
 }
 
@@ -519,6 +565,7 @@ export function useActiveFastingQuery() {
   return useQuery({
     queryKey: queryKeys.health.fastingActive(),
     queryFn: ({ signal }) => fetchActiveFasting(signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
@@ -535,6 +582,7 @@ export function useFastingStatsQuery() {
   return useQuery({
     queryKey: queryKeys.health.fastingStats(),
     queryFn: ({ signal }) => fetchFastingStats(signal),
+    staleTime: HEALTH_QUERY_STALE_TIME_MS,
     enabled: isAuthenticated,
   })
 }
@@ -574,10 +622,11 @@ export function useUpdateFastingEntryMutation() {
 export function useCompleteFastingEntryMutation() {
   return useInvalidatingMutation<
     FastingEntry,
-    { id: number; fastEndTime: string; status: FastingStatus }
+    { id: number; fastEndTime: string; status: FastingStatus; version: number }
   >({
     mutationKey: queryKeys.health.fastingLists(),
-    mutationFn: ({ id, fastEndTime, status }) => completeFastingEntry(id, fastEndTime, status),
+    mutationFn: ({ id, fastEndTime, status, version }) =>
+      completeFastingEntry(id, fastEndTime, status, version),
     invalidateKey: queryKeys.health.all(),
   })
 }
@@ -599,10 +648,9 @@ export function useDeleteFastingEntryMutation() {
  */
 export function useUpdateFastingTargetMutation() {
   return useHealthTargetMutation<{
-    id: number
-    userId: number
+    version: number
     fastingSeconds: number | null
-  }>(({ id, userId, fastingSeconds }) => updateFastingTarget(id, userId, fastingSeconds))
+  }>(({ version, fastingSeconds }) => updateFastingTarget(version, fastingSeconds))
 }
 
 /**
@@ -665,8 +713,7 @@ export function useDeleteSleepEntryMutation() {
  */
 export function useUpdateSleepTargetMutation() {
   return useHealthTargetMutation<{
-    id: number
-    userId: number
+    version: number
     sleepSeconds: number | null
-  }>(({ id, userId, sleepSeconds }) => updateSleepTarget(id, userId, sleepSeconds))
+  }>(({ version, sleepSeconds }) => updateSleepTarget(version, sleepSeconds))
 }

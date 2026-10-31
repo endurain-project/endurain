@@ -7,12 +7,14 @@ import {
   deleteActivity,
   editActivity,
   fetchActivity,
+  fetchActivityDetail,
   fetchActivityLaps,
   fetchActivityStats,
   fetchActivityStreams,
+  fetchFollowersActivities,
   fetchUserActivitiesPage,
-  fetchUserActivityTypeCodes,
   fetchUserActivityTypeMap,
+  fetchUserThisMonthActivityCount,
   fetchUserWeekActivities,
   mapActivity,
   mapActivityLap,
@@ -192,6 +194,73 @@ describe('fetchActivity', () => {
   })
 })
 
+describe('fetchActivityDetail', () => {
+  const lapDto = { id: 1, total_distance: 1000 }
+  const setDto = { id: 2, duration: 30, set_type: 1 }
+  const stepDto = { duration_type: 1, message_index: 0 }
+  const page = (items: unknown[], next: number | null = null) => ({
+    items,
+    total: items.length,
+    page: 1,
+    num_records: 200,
+    next,
+  })
+  const detailDto = {
+    activity: activityDto,
+    laps: page([lapDto]),
+    sets: page([setDto]),
+    workout_steps: page([stepDto]),
+  }
+
+  it('reads the activity and its collections in one request', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    const detail = await fetchActivityDetail(5, { authenticated: true })
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith(
+      '/activities/5/detail',
+      expect.objectContaining({ auth: true }),
+    )
+    expect(detail?.activity.id).toBe(5)
+    expect(detail?.laps).toHaveLength(1)
+    expect(detail?.laps?.[0]).toMatchObject({ id: 1, totalDistance: 1000 })
+    expect(detail?.sets?.[0]).toMatchObject({ id: 2, duration: 30 })
+    expect(detail?.workoutSteps?.[0]).toMatchObject({ messageIndex: 0 })
+  })
+
+  it('uses the public endpoint when unauthenticated', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    await fetchActivityDetail(5, { authenticated: false })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/public/activities/5/detail',
+      expect.objectContaining({ auth: false }),
+    )
+  })
+
+  it('reports a collection with more pages as incomplete, to be read in full separately', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, laps: page([lapDto], 2) })
+
+    const detail = await fetchActivityDetail(5, { authenticated: true })
+
+    expect(detail?.laps).toBeNull()
+    expect(detail?.sets).toHaveLength(1)
+  })
+
+  it('returns null on a 404/422 response', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
+    expect(await fetchActivityDetail(5, { authenticated: true })).toBeNull()
+  })
+
+  it('rethrows non-not-found errors', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
+    await expect(fetchActivityDetail(5, { authenticated: true })).rejects.toBeInstanceOf(HttpError)
+  })
+})
+
 describe('searchActivitiesByName', () => {
   it('encodes the name search term and maps the results', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
@@ -234,7 +303,7 @@ describe('fetchUserWeekActivities', () => {
     const result = await fetchUserWeekActivities(7, 3)
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringMatching(
-        /^\/activities\/users\/7\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
+        /^\/users\/7\/activities\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
       ),
       expect.objectContaining({ signal: undefined }),
     )
@@ -336,15 +405,13 @@ describe('setActivityGear', () => {
     })
   })
 
-  it('omits If-Match when the copy carries no version', async () => {
-    // A conditional write needs something to be conditional on; sending a made
-    // up tag would fail every save.
-    const activity = { ...mapActivity(activityDto), version: null }
+  it('sends a version no stored row has when the copy carries none, so the backend refuses it', async () => {
+    const activity = mapActivity({ ...activityDto, version: null })
     vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
 
     await setActivityGear(activity, 42)
 
-    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({})
+    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({ 'If-Match': '"0"' })
   })
 })
 
@@ -352,15 +419,18 @@ describe('deleteActivity', () => {
   it('sends a DELETE to the activity delete endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'deleted' })
 
-    await deleteActivity(5)
+    await deleteActivity(5, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', { method: 'DELETE' })
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
+    })
   })
 })
 
 describe('updateUserActivitiesVisibility', () => {
   it('patches the collection with the wire value for the requested visibility', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'completed' })
 
     await updateUserActivitiesVisibility('followers')
 
@@ -369,7 +439,6 @@ describe('updateUserActivitiesVisibility', () => {
     expect(apiFetch).toHaveBeenCalledWith('/activities', {
       method: 'PATCH',
       body: JSON.stringify({ visibility: 1 }),
-      responseType: 'void',
     })
   })
 
@@ -379,12 +448,38 @@ describe('updateUserActivitiesVisibility', () => {
       ['followers', 1],
       ['private', 2],
     ] as const) {
-      vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+      vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'completed' })
       await updateUserActivitiesVisibility(name)
       expect(vi.mocked(apiFetch).mock.lastCall?.[1]).toMatchObject({
         body: JSON.stringify({ visibility: wire }),
       })
     }
+  })
+
+  it('follows the queued edit until it completes', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce({ status: 'queued' })
+        .mockResolvedValueOnce({ status: 'running' })
+        .mockResolvedValueOnce({ status: 'completed' })
+
+      const done = updateUserActivitiesVisibility('private')
+      await vi.advanceTimersByTimeAsync(2_000)
+      await vi.advanceTimersByTimeAsync(2_000)
+      await done
+
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/activities/bulk-edit')
+      expect(apiFetch).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports an edit that failed on the server', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'failed' })
+
+    await expect(updateUserActivitiesVisibility('private')).rejects.toThrow(/failed/)
   })
 })
 
@@ -396,30 +491,34 @@ describe('editActivity', () => {
       visibility: 2,
     })
 
-    const updated = await editActivity(5, {
-      name: 'Evening run',
-      activityType: 1,
-      description: '',
-      privateNotes: 'note',
-      visibility: 2,
-      isHidden: true,
-      hideStartTime: false,
-      hideLocation: false,
-      hideMap: true,
-      hideHr: false,
-      hidePower: false,
-      hideCadence: false,
-      hideElevation: false,
-      hideSpeed: false,
-      hidePace: false,
-      hideLaps: false,
-      hideWorkoutSetsSteps: false,
-      hideGear: false,
-    })
+    const updated = await editActivity(
+      5,
+      {
+        name: 'Evening run',
+        activityType: 1,
+        description: '',
+        privateNotes: 'note',
+        visibility: 2,
+        isHidden: true,
+        hideStartTime: false,
+        hideLocation: false,
+        hideMap: true,
+        hideHr: false,
+        hidePower: false,
+        hideCadence: false,
+        hideElevation: false,
+        hideSpeed: false,
+        hidePace: false,
+        hideLaps: false,
+        hideWorkoutSetsSteps: false,
+        hideGear: false,
+      },
+      3,
+    )
 
     expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
       method: 'PATCH',
-      headers: {},
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
         name: 'Evening run',
         activity_type: 1,
@@ -528,20 +627,61 @@ describe('fetchUserActivitiesPage', () => {
   })
 })
 
-describe('fetchUserActivityTypeCodes', () => {
-  it('parses the type map into ascending numeric codes', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ '9': 'Ride', '1': 'Run', '11': 'Walk' })
+describe('fetchFollowersActivities', () => {
+  const feedPage = {
+    items: [
+      { ...activityDto, id: 1, user_id: 7 },
+      { ...activityDto, id: 2, user_id: 8 },
+      { ...activityDto, id: 3, user_id: 7 },
+    ],
+    num_records: 25,
+    next_cursor: 'cursor-2',
+    users: { '7': { id: 7, name: 'Jane Runner', username: 'jane', city: null, photo_path: null } },
+  }
 
-    await expect(fetchUserActivityTypeCodes()).resolves.toEqual([1, 9, 11])
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/types',
-      expect.objectContaining({ signal: undefined }),
-    )
+  it('requests the feed with the cursor and maps the slice', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    const slice = await fetchFollowersActivities('cursor-1', 25)
+
+    expect(apiFetch).toHaveBeenCalledWith('/activities/feed?num_records=25&cursor=cursor-1', {
+      signal: undefined,
+    })
+    expect(slice.items.map((activity) => activity.id)).toEqual([1, 2, 3])
+    expect(slice.nextCursor).toBe('cursor-2')
   })
 
-  it('returns an empty list when the body is null', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    await expect(fetchUserActivityTypeCodes()).resolves.toEqual([])
+  it('returns each distinct owner once, from the same response', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    const { owners } = await fetchFollowersActivities(null, 25)
+
+    expect(apiFetch).toHaveBeenCalledOnce()
+    expect([...owners.keys()].sort()).toEqual([7, 8])
+    expect(owners.get(7)).toMatchObject({ name: 'Jane Runner', username: 'jane' })
+    // 8 is inactive or awaiting approval, so the server left it out: same as a 404 lookup.
+    expect(owners.get(8)).toBeNull()
+  })
+
+  it('returns no owners for an empty slice', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], num_records: 25, next_cursor: null })
+
+    const slice = await fetchFollowersActivities(null, 25)
+
+    expect(slice).toEqual({ items: [], nextCursor: null, owners: new Map() })
+  })
+})
+
+describe('fetchUserThisMonthActivityCount', () => {
+  it('reads the count from the page envelope without downloading the activities', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 42, page: 1, num_records: 1 })
+
+    await expect(fetchUserThisMonthActivityCount(7)).resolves.toBe(42)
+
+    const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+    expect(url).toMatch(
+      /^\/users\/7\/activities\?start_date=\d{4}-\d{2}-01&end_date=\d{4}-\d{2}-\d{2}&num_records=1$/,
+    )
   })
 })
 

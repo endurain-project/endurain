@@ -18,6 +18,7 @@
     "help": "ENDURAIN_HOST değerinin Endurain örneğinizin erişilebilir olduğu URL'yi (örneğin https://endurain.example.com) işaret ettiğini ve arka ucun çalıştığını doğrulayın, ardından sayfayı yeniden yükleyin.",
     "reload": "Yeniden yükle"
   },
+  "staleError": "Bunu baktığınız sırada başka bir yerde değiştirildi, bu yüzden hiçbir şey kaydedilmedi. Güncel sürüm yüklendi. Gözden geçirin ve yeniden deneyin.",
   "dismiss": "Kapat",
   "language": "Dil",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Düzenle",
     "supported": "Markdown destekleniyor",
     "empty": "Önizlenecek bir şey yok"
+  },
+  "password": {
+    "hintLength": "En az {min} karakter.",
+    "hintStrict": "En az {min} karakter; büyük harf, küçük harf, bir rakam ve bir özel karakter içermeli.",
+    "invalid": "Parola gereksinimleri karşılamıyor",
+    "mismatch": "Parolalar eşleşmiyor"
   }
 }

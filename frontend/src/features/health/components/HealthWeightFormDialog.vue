@@ -10,6 +10,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { kgToLbs, lbsToKg } from '@/utils/units'
@@ -82,12 +83,9 @@ function displayMassFromKg(kg: number | null): string {
   return String(Math.round(value * 100) / 100)
 }
 
-/** Converts a display-unit mass string back to kilograms for the wire. */
-function massToKg(raw: string): number | null {
-  const value = toNumberOrNull(raw)
-  if (value === null) {
-    return null
-  }
+/** Converts a validated display-unit mass string back to kilograms for the wire. */
+function massToKg(raw: string): number {
+  const value = Number(raw.trim())
   const kg = props.units === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
 }
@@ -118,7 +116,7 @@ async function submitForm(values: WeightFormValues): Promise<void> {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.weight.form.updateSuccess'))
@@ -127,8 +125,8 @@ async function submitForm(values: WeightFormValues): Promise<void> {
       emit('success', t('health.weight.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.weight.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.weight.form.saveError'))
   }
 }
 

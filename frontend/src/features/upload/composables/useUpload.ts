@@ -13,6 +13,7 @@ import {
 } from '@/features/upload/composables/usePendingThumbnails'
 import { fetchIngestionJob, uploadActivityFile } from '@/features/upload/services/upload'
 import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
+import { watchJob } from '@/composables/useRealtime'
 import { queryKeys } from '@/services/queryKeys'
 
 /** How long to wait between upload-job status polls. */
@@ -75,19 +76,24 @@ export async function pollIngestionJob(
   const intervalMs = options.intervalMs ?? POLL_INTERVAL_MS
   const timeoutMs = options.timeoutMs ?? POLL_TIMEOUT_MS
   const deadline = Date.now() + timeoutMs
+  const watch = watchJob(`ingestion:${jobId}`)
 
-  for (;;) {
-    const job = await fetchIngestionJob(jobId, { signal: options.signal })
-    if (isTerminalIngestionJob(job)) {
-      if (job.status === 'failed') {
-        throw new IngestionJobFailedError(job.error_code)
+  try {
+    for (;;) {
+      const job = await fetchIngestionJob(jobId, { signal: options.signal })
+      if (isTerminalIngestionJob(job)) {
+        if (job.status === 'failed') {
+          throw new IngestionJobFailedError(job.error_code)
+        }
+        return job
       }
-      return job
+      if (Date.now() >= deadline) {
+        throw new IngestionJobTimeoutError()
+      }
+      await watch.wait(intervalMs)
     }
-    if (Date.now() >= deadline) {
-      throw new IngestionJobTimeoutError()
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  } finally {
+    watch.stop()
   }
 }
 

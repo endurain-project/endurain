@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useSsoLogin } from '@/features/auth/composables/useSsoLogin'
+import { HttpError } from '@/services/http'
 
 const mocks = vi.hoisted(() => ({
   route: { query: {} as Record<string, unknown> },
@@ -192,6 +193,87 @@ describe('processSsoCallback', () => {
     expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
     expect(JSON.parse(sessionStorage.getItem('pkce_verifier_beta') ?? '{}')).toMatchObject({
       verifier: 'verifier-beta',
+    })
+  })
+
+  describe('an account with MFA enabled', () => {
+    const mfaRequired = new HttpError(
+      403,
+      'Forbidden',
+      'MFA verification required',
+      'urn:endurain:error:mfa-required',
+    )
+
+    function storeVerifier(): void {
+      sessionStorage.setItem(
+        'pkce_verifier_acme',
+        JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() }),
+      )
+      mocks.route.query = { sso: 'success', session_id: 'sso-session' }
+    }
+
+    it('asks for a code and keeps the verifier until the exchange succeeds', async () => {
+      storeVerifier()
+      mocks.exchangeSessionForTokens.mockRejectedValue(mfaRequired)
+
+      const { processSsoCallback } = useSsoLogin()
+      const result = await processSsoCallback()
+
+      expect(result).toEqual({ status: 'mfa-required' })
+      expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
+      expect(sessionStorage.getItem('pkce_verifier_acme')).not.toBeNull()
+    })
+
+    it('exchanges the same session with the code and signs in', async () => {
+      storeVerifier()
+      mocks.exchangeSessionForTokens.mockRejectedValueOnce(mfaRequired)
+      mocks.exchangeSessionForTokens.mockResolvedValueOnce(tokenExchange)
+
+      const { processSsoCallback, completeSsoMfa } = useSsoLogin()
+      await processSsoCallback()
+      await completeSsoMfa('123456')
+
+      expect(mocks.exchangeSessionForTokens).toHaveBeenLastCalledWith(
+        'sso-session',
+        'verifier-123',
+        '123456',
+      )
+      expect(mocks.completeTokenLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ access_token: 'sso-access' }),
+      )
+      expect(mocks.navigateAfterLogin).toHaveBeenCalled()
+      expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
+    })
+
+    it('lets the user retry after a wrong code', async () => {
+      storeVerifier()
+      mocks.exchangeSessionForTokens.mockRejectedValueOnce(mfaRequired)
+      mocks.exchangeSessionForTokens.mockRejectedValueOnce(new HttpError(400, 'Bad Request'))
+      mocks.exchangeSessionForTokens.mockResolvedValueOnce(tokenExchange)
+
+      const { processSsoCallback, completeSsoMfa } = useSsoLogin()
+      await processSsoCallback()
+      await expect(completeSsoMfa('000000')).rejects.toBeInstanceOf(HttpError)
+      await completeSsoMfa('123456')
+
+      expect(mocks.completeTokenLogin).toHaveBeenCalledTimes(1)
+    })
+
+    it('refuses a code when no SSO login is waiting for one', async () => {
+      const { completeSsoMfa } = useSsoLogin()
+
+      await expect(completeSsoMfa('123456')).rejects.toThrow('No SSO login is waiting')
+      expect(mocks.exchangeSessionForTokens).not.toHaveBeenCalled()
+    })
+
+    it('treats any other refusal as a failed exchange', async () => {
+      storeVerifier()
+      mocks.exchangeSessionForTokens.mockRejectedValue(new HttpError(409, 'Conflict'))
+
+      const { processSsoCallback } = useSsoLogin()
+      const result = await processSsoCallback()
+
+      expect(result).toEqual({ status: 'error', messageKey: 'login.ssoTokenExchangeFailed' })
     })
   })
 

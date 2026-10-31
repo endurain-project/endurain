@@ -9,6 +9,7 @@ import json
 
 import pytest
 
+import core.exceptions as core_exceptions
 import modules.auth.api_keys.utils as api_keys_utils
 
 
@@ -65,27 +66,27 @@ class TestValidateApiKeyScopes:
 
     def test_valid_scope_passes(self):
         """activities:upload is the only allowed scope and must not raise."""
-        api_keys_utils.validate_api_key_scopes(["activities:upload"], "standard")
+        api_keys_utils.validate_api_key_scopes(["activities:upload"])
 
     def test_unsupported_scope_raises(self):
         """An unsupported scope raises ValueError."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
-            api_keys_utils.validate_api_key_scopes(["admin:all"], "standard")
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
+            api_keys_utils.validate_api_key_scopes(["admin:all"])
 
     def test_empty_scopes_raises(self):
         """An empty scope list raises ValueError."""
-        with pytest.raises(ValueError):
-            api_keys_utils.validate_api_key_scopes([], "standard")
+        with pytest.raises(core_exceptions.InvalidInputError):
+            api_keys_utils.validate_api_key_scopes([])
 
     def test_mixed_valid_and_invalid_raises(self):
         """A mix of valid and invalid scopes raises ValueError."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
-            api_keys_utils.validate_api_key_scopes(["activities:upload", "admin:all"], "standard")
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
+            api_keys_utils.validate_api_key_scopes(["activities:upload", "admin:all"])
 
     def test_user_access_type_ignored(self):
         """The _user_access_type argument does not affect scope validation."""
-        api_keys_utils.validate_api_key_scopes(["activities:upload"], "premium")
-        api_keys_utils.validate_api_key_scopes(["activities:upload"], "free")
+        api_keys_utils.validate_api_key_scopes(["activities:upload"])
+        api_keys_utils.validate_api_key_scopes(["activities:upload"])
 
 
 class TestScopesJsonRoundTrip:

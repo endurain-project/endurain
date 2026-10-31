@@ -35,7 +35,7 @@ def get_activity_streams(
     )
     activity_streams: list[activity_streams_models.ActivityStreams] = list(db.scalars(stmt).all())
 
-    return activity_streams_serializers.to_read_schema(activity_streams)
+    return activity_streams_serializers.to_read_schemas(activity_streams)
 
 
 def get_activities_streams(
@@ -64,7 +64,7 @@ def get_activities_streams(
     if not all_streams:
         return []
 
-    return activity_streams_serializers.to_read_schema(all_streams)
+    return activity_streams_serializers.to_read_schemas(all_streams)
 
 
 def get_activity_stream_by_type(

@@ -34,11 +34,9 @@ from core.file_uploads import (
     _resolve_upload_path,
     _stream_to_path,
     _to_domain_error,
-    ensure_within,
     extract_validated_zip,
     move_within,
     read_validated_upload_sync,
-    resolve_storage_path,
     safe_remove_within,
     save_file,
     save_validated_bytes,
@@ -683,28 +681,6 @@ def test_move_within_rejects_source_outside_base(tmp_path: Path):
     assert outside.exists()
 
 
-def test_ensure_within_returns_resolved_inside(tmp_path: Path):
-    """A path inside the base dir resolves and is returned."""
-    base = tmp_path / "base"
-    base.mkdir()
-    target = base / "sub" / "file.bin"
-
-    resolved = ensure_within(target, base)
-
-    assert resolved == target.resolve()
-
-
-def test_ensure_within_rejects_escape(tmp_path: Path):
-    """A path outside the base dir is rejected with HTTP 400."""
-    base = tmp_path / "base"
-    base.mkdir()
-    outside = tmp_path / "outside.bin"
-
-    with pytest.raises(core_exceptions.DomainError) as exc:
-        ensure_within(outside, base)
-    assert exc.value.status_code == 400
-
-
 def test_safe_remove_within_removes_inside(tmp_path: Path):
     """File under base_dir is removed and True is returned."""
     target = tmp_path / "doomed.bin"
@@ -789,12 +765,6 @@ def test_resolve_upload_path_rejects_nul_byte(tmp_path: Path):
     with pytest.raises(core_exceptions.DomainError) as exc:
         _resolve_upload_path(str(tmp_path), "bad\x00file")
     assert exc.value.status_code == 400
-
-
-def test_resolve_storage_path(tmp_path: Path):
-    """Wrapper returns the same result as the internal function."""
-    resolved = resolve_storage_path(str(tmp_path), "ok.png")
-    assert resolved == _resolve_upload_path(str(tmp_path), "ok.png")
 
 
 # ---------------------------------------------------------------------------
@@ -931,39 +901,6 @@ async def test_save_validated_upload_generic_error(tmp_path: Path, monkeypatch):
 # ---------------------------------------------------------------------------
 # delete_files_by_pattern: per-file and generic errors
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_delete_files_by_pattern_no_files(tmp_path: Path):
-    """Pattern matching no files is a no-op."""
-    await core_file_uploads.delete_files_by_pattern(str(tmp_path), "*.nonexistent")
-
-
-@pytest.mark.asyncio
-async def test_delete_files_by_pattern_logs_per_file_oserror(tmp_path: Path, monkeypatch):
-    """OSError during individual file delete is caught and logged."""
-    target = tmp_path / "test.txt"
-    target.write_text("hello")
-
-    async def fail_remove(path: object, *args: object, **kwargs: object) -> None:
-        if "test.txt" in str(path):
-            raise OSError("permission denied")
-
-    monkeypatch.setattr(core_file_uploads.aiofiles.os, "remove", fail_remove)
-
-    await core_file_uploads.delete_files_by_pattern(str(tmp_path), "*.txt")
-
-
-@pytest.mark.asyncio
-async def test_delete_files_by_pattern_generic_error(tmp_path: Path, monkeypatch):
-    """Non-OSError exception during glob lookup is caught and logged."""
-
-    def fail_glob(_pattern: str) -> list[str]:
-        raise Exception("glob engine failed")
-
-    monkeypatch.setattr(core_file_uploads.glob, "glob", fail_glob)
-
-    await core_file_uploads.delete_files_by_pattern(str(tmp_path), "*.txt")
 
 
 # ---------------------------------------------------------------------------

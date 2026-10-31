@@ -25,7 +25,7 @@ class TestReadActivityMediaFile:
         db = MagicMock()
         storage = MagicMock()
 
-        resp = read_activity_media_file(1, 5, "tok", db, storage)
+        resp = read_activity_media_file(MagicMock(), 1, 5, "tok", db, storage)
 
         assert resp.status_code == 200
         assert resp.media_type == "image/jpeg"
@@ -40,7 +40,7 @@ class TestReadActivityMediaFile:
         mock_service.read_activity_media_blob.side_effect = core_exceptions.NotFoundError("Activity media not found")
 
         with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_media_file(1, 5, "forged", MagicMock(), MagicMock())
+            read_activity_media_file(MagicMock(), 1, 5, "forged", MagicMock(), MagicMock())
 
 
 class TestReadActivityMediaBlob:

@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Neaktivno",
       "unverified": "Nepotvrđena e-pošta",
+      "pendingEmail": "Promjena e-pošte na čekanju",
       "pending": "Čeka odobrenje",
       "externalAuth": "Vanjska autentifikacija"
     },
@@ -64,18 +65,15 @@
       "email": "E-pošta",
       "emailRequired": "E-pošta je obavezna",
       "emailInvalid": "Unesite valjanu adresu e-pošte",
+      "emailChangeHint": "Na novu adresu šalje se poveznica za potvrdu i ona zamjenjuje trenutačnu nakon potvrde. Korisnik se odjavljuje sa svih uređaja. Za primjenu odmah označite novu adresu kao potvrđenu.",
       "accessType": "Vrsta pristupa",
       "accessTypeRegular": "Običan korisnik",
       "accessTypeAdmin": "Administrator",
       "password": "Lozinka",
       "passwordHint": "Najmanje 8 znakova",
-      "passwordHintStrict": "Najmanje {min} znakova, s velikim slovom, malim slovom, brojem i posebnim znakom",
-      "passwordHintLength": "Najmanje {min} znakova",
       "passwordRequired": "Lozinka je obavezna",
-      "passwordInvalid": "Ta lozinka ne zadovoljava zahtjeve",
       "confirmPassword": "Potvrdi lozinku",
       "confirmPasswordRequired": "Potvrdi lozinku",
-      "passwordMismatch": "Lozinke se ne podudaraju",
       "preferredLanguage": "Željeni jezik",
       "languages": {
         "ca": "Katalonski",
@@ -149,6 +147,8 @@
       "statusLegend": "Status računa",
       "active": "Aktivno",
       "emailVerified": "E-pošta potvrđena",
+      "emailVerifiedCurrentHint": "Ovo je status trenutne adrese.",
+      "newEmailVerified": "Označi novu adresu kao potvrđenu",
       "pendingAdminApproval": "Čeka odobrenje administratora",
       "requiredField": "Obavezno polje",
       "create": "Dodaj korisnika",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Natrag na korisnike",
+      "pendingEmail": "Promjena e-pošte na {email} na čekanju, poveznica istječe {date}",
       "notFoundTitle": "Korisnik nije pronađen",
       "notFoundDescription": "Ovaj je račun možda izbrisan",
       "securityTitle": "Sigurnost",
@@ -186,16 +187,12 @@
       "title": "Ponovno postavi lozinku",
       "description": "Postavi novu lozinku za {username}",
       "newLabel": "Nova lozinka",
-      "hintLength": "Najmanje {min} znakova",
-      "hintStrict": "Najmanje {min} znakova, s velikim slovom, malim slovom, brojem i posebnim znakom",
       "confirmLabel": "Potvrdi novu lozinku",
-      "mismatch": "Lozinke se ne podudaraju",
       "required": "Lozinka je obavezna",
       "submit": "Ponovno postavi lozinku",
       "cancel": "Odustani",
       "close": "Zatvori",
       "success": "Lozinka je ažurirana",
-      "invalid": "Ta lozinka ne zadovoljava zahtjeve",
       "error": "Nije moguće ažurirati lozinku. Pokušajte ponovno."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "Probna e-poruka poslana",
       "failed": "Probnu e-poruku nije bilo moguće poslati",
       "failedUnknown": "Detalje potražite u zapisnicima poslužitelja."
+    },
+    "envLocked": "Postavljeno varijablom {name}",
+    "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
+    "unsaved": "Nespremljene promjene",
+    "discard": "Odbaci",
+    "tabs": {
+      "label": "Odjeljci postavki poslužitelja",
+      "general": "Općenito",
+      "access": "Pristup i sigurnost",
+      "maps": "Karte i lokacija",
+      "email": "E-pošta",
+      "unsaved": "Sadrži nespremljene promjene"
+    },
+    "search": {
+      "placeholder": "Pretraži postavke…",
+      "noResults": "Nema pronađenih postavki"
+    },
+    "leave": {
+      "title": "Napustiti bez spremanja?",
+      "description": "Imate nespremljene promjene. Ako napustite stranicu, bit će izgubljene.",
+      "confirm": "Napusti bez spremanja",
+      "stay": "Ostani na stranici",
+      "close": "Zatvori"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Opsezi moraju imati 500 znakova ili manje",
       "icon": "Ikona",
       "iconNone": "Nijedna",
-      "iconCustom": "Prilagođeni URL",
-      "customIconUrl": "URL prilagođene ikone",
-      "customIconUrlHint": "Link na sliku prikazanu na gumbu za prijavu",
       "enabled": "Omogućeno",
       "autoCreateUsers": "Automatski stvori korisnike pri prvoj prijavi",
       "syncUserInfo": "Sinkroniziraj podatke profila pri svakoj prijavi",
@@ -559,9 +576,6 @@
       "current": "Trenutna lozinka",
       "new": "Nova lozinka",
       "confirm": "Potvrdi novu lozinku",
-      "requirementsStrict": "Najmanje {length} znakova, uključujući veliko slovo, malo slovo, broj i simbol.",
-      "requirementsLength": "Najmanje {length} znakova.",
-      "mismatch": "Lozinke se ne podudaraju.",
       "revokeOthers": "Odjavi se sa svih drugih uređaja",
       "submit": "Promijeni lozinku",
       "success": "Lozinka je promijenjena",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Vaša lozinka ili kod su netočni.",
       "alreadyLinked": "Taj je račun već povezan.",
       "lastMethodError": "Ne možete prekinuti vezu svoje jedine metode prijave. Prvo postavite lozinku."
+    },
+    "email": {
+      "subtitle": "Ovdje se šalju poveznice za poništavanje lozinke i obavijesti. Za promjenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem poveznice koju na nju šaljemo.",
+      "sameAsCurrent": "Ovo je već vaša adresa e-pošte.",
+      "success": "Poveznica za potvrdu poslana je na novu adresu. Vaša e-pošta promijenit će se nakon potvrde.",
+      "appliedSuccess": "E-pošta je promijenjena.",
+      "pending": "Promjena na čekanju na {email}",
+      "pendingExpires": "Poveznica za potvrdu istječe {date}.",
+      "resend": "Ponovno pošalji poveznicu",
+      "cancel": "Otkaži promjenu",
+      "resendSuccess": "Ako je promjena na čekanju, nova poveznica stiže na novu adresu.",
+      "resendError": "Poveznicu nije bilo moguće ponovno poslati. Pokušajte ponovno.",
+      "cancelSuccess": "Promjena e-pošte je otkazana.",
+      "cancelError": "Promjenu nije bilo moguće otkazati. Pokušajte ponovno."
     },
     "apiKeys": {
       "title": "API ključevi",
@@ -923,7 +951,6 @@
       "invalidType": "Odaberite .zip arhivu.",
       "exportSuccess": "Izvoz je spreman, vaše bi preuzimanje uskoro trebalo započeti",
       "exportError": "Nije moguće izvesti vaše podatke. Pokušajte ponovno.",
-      "importSuccess": "Podaci su uvezeni",
       "importError": "Nije moguće uvesti arhivu. Provjerite datoteku i pokušajte ponovno."
     }
   }

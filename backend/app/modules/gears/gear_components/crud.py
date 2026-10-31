@@ -1,130 +1,141 @@
 """CRUD operations for gear components."""
 
-from typing import overload
-
-from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
-import modules.activities.activity.contracts as activity_contracts
-import modules.activities.activity.integration_service as activity_integration
+import core.etag as core_etag
+import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
-
-# Fields that must never be overwritten via
-# user-supplied data during updates.
-_IMMUTABLE_FIELDS: set[str] = {
-    "id",
-    "user_id",
-    "gear_id",
-}
-
-# Private internal helpers
+import modules.gears.gear_components.serializers as gear_components_serializers
 
 
-@overload
-def _transform_gear_components(
-    gear_components: gear_components_models.GearComponents,
-) -> gear_components_schema.GearComponentRead: ...
-
-
-@overload
-def _transform_gear_components(
-    gear_components: list[gear_components_models.GearComponents],
-) -> list[gear_components_schema.GearComponentRead]: ...
-
-
-def _transform_gear_components(
-    gear_components: gear_components_models.GearComponents | list[gear_components_models.GearComponents],
-) -> gear_components_schema.GearComponentRead | list[gear_components_schema.GearComponentRead]:
-    """
-    Transform a gear component or list of gear components to a Pydantic schema.
-
-    Args:
-        gear_components: The gear component ORM instance or list of instances.
-
-    Returns:
-        The gear component(s) as a schema.
-    """
-    if isinstance(gear_components, list):
-        return [gear_components_schema.GearComponentRead.model_validate(gc) for gc in gear_components]
-    return gear_components_schema.GearComponentRead.model_validate(gear_components)
-
-
-@core_decorators.handle_db_errors
-def _get_gear_component_model_by_id_and_user_id_or_404(
+def _find_gear_component_model(
     gear_component_id: int, user_id: int, db: Session
-) -> gear_components_models.GearComponents:
-    """
-    Retrieve gear component model by ID and user ID.
+) -> gear_components_models.GearComponents | None:
+    """Load a user's component row.
 
     Args:
-        gear_component_id: Gear component ID to fetch.
-        user_id: User ID to fetch record for.
+        gear_component_id: Component ID to fetch.
+        user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        Mapped ``GearComponents`` ORM instance.
-
-    Raises:
-        HTTPException: If database error occurs.
+        The mapped GearComponents ORM instance, or None if the user has no such component.
     """
-    # Get the gear_component from the database
     stmt = select(gear_components_models.GearComponents).where(
         gear_components_models.GearComponents.id == gear_component_id,
         gear_components_models.GearComponents.user_id == user_id,
     )
-    db_gear_component = db.execute(stmt).scalar_one_or_none()
+    return db.execute(stmt).scalar_one_or_none()
 
+
+def _get_gear_component_model_or_404(
+    gear_component_id: int, user_id: int, db: Session
+) -> gear_components_models.GearComponents:
+    """Load a user's component row for a write.
+
+    Args:
+        gear_component_id: Component ID to fetch.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The mapped GearComponents ORM instance.
+
+    Raises:
+        NotFoundError: If the user has no such component.
+    """
+    db_gear_component = _find_gear_component_model(gear_component_id, user_id, db)
     if db_gear_component is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Gear component not found",
-        )
-
+        raise core_exceptions.NotFoundError("Gear component not found")
     return db_gear_component
 
 
-# Public CRUD functions
+def get_gear_component_user_by_id(
+    user_id: int, gear_component_id: int, db: Session
+) -> gear_components_schema.GearComponentRead | None:
+    """Retrieve a user's component by ID.
 
+    Args:
+        user_id: Owner user ID.
+        gear_component_id: Component ID to fetch.
+        db: Database session.
 
-@core_decorators.handle_db_errors
-def get_gear_components_user(
-    user_id: int,
-    db: Session,
-) -> list[gear_components_schema.GearComponentRead]:
+    Returns:
+        The component, or None if the user has no such component.
     """
-    Retrieve all gear components for a user.
+    row = _find_gear_component_model(gear_component_id, user_id, db)
+    return gear_components_serializers.to_read_schema(row) if row is not None else None
+
+
+def get_gear_components_number(user_id: int, db: Session) -> int:
+    """Count a user's gear components.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        List of GearComponentRead schema.
-
-    Raises:
-        HTTPException: On database error (500).
+        Number of components the user has.
     """
-    stmt = select(
-        gear_components_models.GearComponents,
-    ).where(
-        gear_components_models.GearComponents.user_id == user_id,
+    stmt = select(func.count(gear_components_models.GearComponents.id)).where(
+        gear_components_models.GearComponents.user_id == user_id
     )
-    db_gear_components = db.execute(stmt).scalars().all()
-    return _transform_gear_components(list(db_gear_components))
+    return db.execute(stmt).scalar_one()
 
 
-@core_decorators.handle_db_errors
-def get_gear_components_user_by_gear_id(
-    user_id: int,
-    gear_id: int,
-    db: Session,
-    active: bool | None = None,
+def get_gear_components_user(
+    user_id: int, db: Session, *, limit: int | None = None, offset: int = 0
 ) -> list[gear_components_schema.GearComponentRead]:
+    """Retrieve a user's gear components, ordered by ID.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+        limit: Maximum number of components to return; all of them when omitted.
+        offset: Number of components to skip.
+
+    Returns:
+        The user's components (empty list if none).
     """
-    Retrieve gear components by user and gear.
+    stmt = (
+        select(gear_components_models.GearComponents)
+        .where(gear_components_models.GearComponents.user_id == user_id)
+        .order_by(gear_components_models.GearComponents.id)
+        .offset(offset)
+        .limit(limit)
+    )
+    return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
+
+
+def _filter_gear_components(stmt: Select, user_id: int, gear_id: int, *, active: bool | None) -> Select:
+    """Scope a component statement to one of a user's gears and the active filter.
+
+    Args:
+        stmt: The statement to filter.
+        user_id: Owner user ID.
+        gear_id: Gear ID to filter by.
+        active: Optional active-status filter.
+
+    Returns:
+        The filtered statement.
+    """
+    stmt = stmt.where(
+        gear_components_models.GearComponents.user_id == user_id,
+        gear_components_models.GearComponents.gear_id == gear_id,
+    )
+    if active is not None:
+        stmt = stmt.where(gear_components_models.GearComponents.active == active)
+    return stmt
+
+
+def get_gear_components_number_by_gear_id(
+    user_id: int, gear_id: int, db: Session, *, active: bool | None = None
+) -> int:
+    """Count a user's components for one gear.
 
     Args:
         user_id: Owner user ID.
@@ -133,194 +144,147 @@ def get_gear_components_user_by_gear_id(
         active: Optional active-status filter.
 
     Returns:
-        List of GearComponentRead schema.
-
-    Raises:
-        HTTPException: On database error (500).
+        Number of matching components.
     """
-    stmt = select(
-        gear_components_models.GearComponents,
-    ).where(
-        gear_components_models.GearComponents.user_id == user_id,
+    stmt = _filter_gear_components(
+        select(func.count(gear_components_models.GearComponents.id)), user_id, gear_id, active=active
+    )
+    return db.execute(stmt).scalar_one()
+
+
+def get_gear_components_user_by_gear_id(
+    user_id: int,
+    gear_id: int,
+    db: Session,
+    *,
+    active: bool | None = None,
+    page_number: int = 1,
+    num_records: int = core_pagination.MAX_NUM_RECORDS,
+) -> list[gear_components_schema.GearComponentRead]:
+    """Retrieve one page of a user's components for one gear, ordered by ID.
+
+    Args:
+        user_id: Owner user ID.
+        gear_id: Gear ID to filter by.
+        db: Database session.
+        active: Optional active-status filter.
+        page_number: Page number (1-indexed).
+        num_records: Records per page.
+
+    Returns:
+        The matching components on the page (empty list if none).
+    """
+    stmt = _filter_gear_components(select(gear_components_models.GearComponents), user_id, gear_id, active=active)
+    stmt = stmt.order_by(gear_components_models.GearComponents.id)
+    stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
+    return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
+
+
+def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> float:
+    """Sum the purchase value of a gear's components.
+
+    Args:
+        gear_id: Gear to sum costs for.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The total cost, zero when no component has a value.
+    """
+    stmt = select(func.coalesce(func.sum(gear_components_models.GearComponents.purchase_value), 0)).where(
         gear_components_models.GearComponents.gear_id == gear_id,
+        gear_components_models.GearComponents.user_id == user_id,
     )
-    if active is not None:
-        stmt = stmt.where(
-            gear_components_models.GearComponents.active == active,
-        )
-    db_gear_components = db.execute(stmt).scalars().all()
-    return _transform_gear_components(list(db_gear_components))
+    return float(db.execute(stmt).scalar_one() or 0)
 
 
-@core_decorators.handle_db_errors
 def create_gear_component(
-    gear_component: (gear_components_schema.GearComponentCreate),
+    gear_component: gear_components_schema.GearComponentCreate,
     user_id: int,
     db: Session,
 ) -> gear_components_schema.GearComponentRead:
-    """
-    Create a new gear component.
+    """Stage a new gear component.
 
     Args:
-        gear_component: Create schema data.
-        user_id: Authenticated user ID (token).
+        gear_component: Component payload to create.
+        user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        Created GearComponentRead schema.
+        The staged component with its generated ID.
 
     Raises:
-        HTTPException: On database error (500).
+        NotFoundError: If the gear was deleted before the component could be stored.
     """
-    new_gear_component = gear_components_models.GearComponents(
-        user_id=user_id,
-        gear_id=gear_component.gear_id,
-        type=gear_component.type,
-        brand=gear_component.brand,
-        model=gear_component.model,
-        purchase_date=(gear_component.purchase_date),
-        active=True,
-        expected_kms=(gear_component.expected_kms),
-        purchase_value=(gear_component.purchase_value),
-    )
-
-    db.add(new_gear_component)
-    db.commit()
+    new_gear_component = gear_components_serializers.to_orm(gear_component, user_id)
+    try:
+        db.add(new_gear_component)
+        db.flush()
+    except IntegrityError as err:
+        # The only constraint a payload can break is the gear it names, deleted since the caller checked.
+        raise core_exceptions.NotFoundError("Gear not found") from err
     db.refresh(new_gear_component)
+    return gear_components_serializers.to_read_schema(new_gear_component)
 
-    return _transform_gear_components(new_gear_component)
 
-
-@core_decorators.handle_db_errors
 def edit_gear_component(
-    gear_component: (gear_components_schema.GearComponentUpdate),
+    gear_component_id: int,
+    gear_component: gear_components_schema.GearComponentUpdate,
     user_id: int,
     db: Session,
+    *,
+    if_match: str,
 ) -> gear_components_schema.GearComponentRead:
-    """
-    Edit an existing gear component by ID.
+    """Stage a partial update to a user's component.
 
-    Applies a partial update (only fields present in the payload are
-    changed) and enforces the retired/active invariant: a retired
-    component (``retired_date`` set) is always inactive, while an
-    un-retired component keeps the client-supplied ``active`` value.
+    Only the fields present in the payload change. A retired component
+    (``retired_date`` set) is always inactive, while an un-retired one keeps the
+    client-supplied ``active`` value. The server never infers reactivation from
+    field presence, so behaviour is deterministic across every client; reactivating a
+    retired component is an explicit client action (clear ``retired_date`` and set
+    ``active`` to True in the same request).
 
     Args:
-        gear_component: Update schema data.
+        gear_component_id: Component ID to update.
+        gear_component: Component payload with the fields to change.
+        user_id: Owner user ID.
         db: Database session.
+        if_match: The ``If-Match`` precondition. Checked against the row this
+            function edits, so the flush's ``version_id_col`` guard holds the write to
+            the same version.
 
     Returns:
-        Updated GearComponentRead schema.
+        The updated component.
 
     Raises:
-        HTTPException: If not found (404) or
-            database error (500).
+        NotFoundError: If the user has no such component.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    db_gear_component = _get_gear_component_model_by_id_and_user_id_or_404(gear_component.id, user_id, db)
-
-    gear_component_data = gear_component.model_dump(
-        exclude_unset=True,
-    )
-    for key, value in gear_component_data.items():
-        if key not in _IMMUTABLE_FIELDS:
-            setattr(db_gear_component, key, value)
-
-    # Enforce the retired/active invariant: a retired component is always
-    # inactive. When the component is not retired, the client-supplied
-    # ``active`` value (already applied above) is honoured as-is. The
-    # server never infers reactivation from field presence, so behaviour
-    # is deterministic across every client; reactivating a retired
-    # component is an explicit client action (clear ``retired_date`` and
-    # set ``active`` to True in the same request).
+    db_gear_component = _get_gear_component_model_or_404(gear_component_id, user_id, db)
+    core_etag.require_if_match(if_match, db_gear_component.version, "gear component")
+    for key, value in gear_component.model_dump(exclude_unset=True).items():
+        setattr(db_gear_component, key, value)
     if db_gear_component.retired_date is not None:
         db_gear_component.active = False
-
-    db.commit()
+    db.flush()
     db.refresh(db_gear_component)
+    return gear_components_serializers.to_read_schema(db_gear_component)
 
-    return _transform_gear_components(db_gear_component)
 
-
-@core_decorators.handle_db_errors
-def delete_gear_component(
-    user_id: int,
-    gear_component_id: int,
-    db: Session,
-) -> None:
-    """
-    Delete a gear component by user and ID.
+def delete_gear_component(user_id: int, gear_component_id: int, db: Session, *, if_match: str) -> None:
+    """Stage the deletion of a user's component.
 
     Args:
         user_id: Owner user ID.
         gear_component_id: Component ID to delete.
         db: Database session.
-
-    Returns:
-        None.
+        if_match: The ``If-Match`` precondition, checked against the very row that is deleted.
 
     Raises:
-        HTTPException: If not found (404) or
-            database error (500).
+        NotFoundError: If the user has no such component.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    db_gear_component = _get_gear_component_model_by_id_and_user_id_or_404(gear_component_id, user_id, db)
-
-    db.delete(db_gear_component)
-    db.commit()
-
-
-@core_decorators.handle_db_errors
-def get_components_activity_stats(
-    gear_id: int,
-    user_id: int,
-    db: Session,
-) -> dict[int, dict[str, float]]:
-    """
-    Get per-component activity stats for a gear.
-
-    Computes distance and time accumulated
-    between each component's purchase_date
-    and retired_date from the gear's activities.
-
-    Both bounds are calendar dates, so they are compared against each activity's
-    date *in its own timezone* rather than against the raw UTC instant. Comparing
-    the instant put the boundary at UTC midnight: at UTC-8 an evening ride the day
-    before a purchase counted towards the new component, and at UTC+13 a morning
-    ride on the purchase day did not count at all. ``retired_date`` is inclusive,
-    so activities on the day a component was retired still count towards it.
-
-    Args:
-        gear_id: Gear ID to query.
-        user_id: Owner user ID; only their activities count.
-        db: Database session.
-
-    Returns:
-        Dict mapping component ID to
-        {distance, time} in meters/seconds.
-
-    Raises:
-        HTTPException: On database error.
-    """
-    comp_stmt = select(
-        gear_components_models.GearComponents.id,
-        gear_components_models.GearComponents.purchase_date,
-        gear_components_models.GearComponents.retired_date,
-    ).where(
-        gear_components_models.GearComponents.gear_id == gear_id,
-    )
-    windows = [
-        activity_contracts.GearUsageWindow(
-            key=row.id,
-            start_date=row.purchase_date,
-            end_date=row.retired_date,
-        )
-        for row in db.execute(comp_stmt).all()
-    ]
-
-    totals = activity_integration.get_gear_usage_totals_by_window(gear_id, user_id, windows, db)
-    return {
-        key: {
-            "distance": usage.distance,
-            "time": usage.time,
-        }
-        for key, usage in totals.items()
-    }
+    db_component = _get_gear_component_model_or_404(gear_component_id, user_id, db)
+    core_etag.require_if_match(if_match, db_component.version, "gear component")
+    db.delete(db_component)
+    db.flush()

@@ -24,6 +24,7 @@ import {
   UploadValidationError,
 } from '@/features/upload/types'
 import type { Activity } from '@/features/activities/types'
+import * as realtime from '@/composables/useRealtime'
 
 import { makeActivity } from './fixtures/activity'
 
@@ -217,6 +218,33 @@ describe('fetchIngestionJob', () => {
 })
 
 describe('pollIngestionJob', () => {
+  it('follows the hints of its own job', async () => {
+    const watch = vi.spyOn(realtime, 'watchJob')
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'processing' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [7] })))
+
+    await pollIngestionJob('job-1', { intervalMs: 0 })
+
+    expect(watch).toHaveBeenCalledExactlyOnceWith('ingestion:job-1')
+    watch.mockRestore()
+  })
+
+  it('stops following the hints once the import fails', async () => {
+    const stop = vi.fn<() => void>()
+    const watch = vi
+      .spyOn(realtime, 'watchJob')
+      .mockReturnValue({ wait: () => Promise.resolve(), stop })
+    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'failed' })))
+
+    await expect(pollIngestionJob('job-1', { intervalMs: 0 })).rejects.toThrow(
+      'Activity import failed',
+    )
+
+    expect(stop).toHaveBeenCalledOnce()
+    watch.mockRestore()
+  })
+
   it('polls until the import reaches a terminal state', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'pending' })))
@@ -227,6 +255,19 @@ describe('pollIngestionJob', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(job.activity_ids).toEqual([7, 8])
+  })
+
+  it('keeps polling a refresh that is waiting for a provider rate limit to clear', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'deferred', retry_after: '2026-01-01T12:00:00Z' })),
+      )
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [3] })))
+
+    const job = await pollIngestionJob('job-1', { intervalMs: 0 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(job.activity_ids).toEqual([3])
   })
 
   it('surfaces the sanitized failure code', async () => {

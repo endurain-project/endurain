@@ -46,7 +46,7 @@ class TestUpdateUserMFASingleWrite:
         mfa_row.mfa_secret = None
         user = self._setup(mock_db, mfa_row)
 
-        auth_mfa_crud.update_user_mfa(1, mock_db, "enc_secret")
+        auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc_secret")
 
         # users_mfa row updated
         assert mfa_row.mfa_enabled is True
@@ -67,21 +67,22 @@ class TestUpdateUserMFASingleWrite:
         assert mfa_row.mfa_enabled is False
         assert mfa_row.mfa_secret is None
 
-    def test_commit_called_once(self, mock_db):
-        """db.commit() is called exactly once."""
+    def test_crud_stages_without_committing(self, mock_db):
+        """CRUD flushes staged changes and leaves the transaction open."""
         mfa_row = MagicMock(spec=auth_mfa_models.UsersMFA)
         self._setup(mock_db, mfa_row)
 
-        auth_mfa_crud.update_user_mfa(1, mock_db, "enc")
+        auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc")
 
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     def test_refresh_not_called(self, mock_db):
         """db.refresh() is not called."""
         mfa_row = MagicMock(spec=auth_mfa_models.UsersMFA)
         self._setup(mock_db, mfa_row)
 
-        auth_mfa_crud.update_user_mfa(1, mock_db, "enc")
+        auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc")
 
         mock_db.refresh.assert_not_called()
 
@@ -101,7 +102,7 @@ class TestUpdateUserMFASingleWrite:
                 return_value=mock_new_row,
             ) as mock_class,
         ):
-            auth_mfa_crud.update_user_mfa(1, mock_db, "enc")
+            auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc")
 
             mock_class.assert_called_once_with(
                 user_id=1,

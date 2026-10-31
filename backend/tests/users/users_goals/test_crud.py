@@ -1,338 +1,203 @@
-"""Tests for user goals CRUD operations."""
+"""Tests for users.users_goals.crud module."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
+from tests._helpers.db import create_sqlite_session, ensure_user
 
 
 @pytest.fixture(autouse=True)
-def _patch_transform():
-    """Patch _transform_users_goals to a passthrough for MagicMock compatibility."""
+def _patch_serializer():
+    """Patch the serializer to a passthrough for MagicMock compatibility."""
     with patch(
-        "modules.users.users_goals.crud._transform_users_goals",
+        "modules.users.users_goals.crud.user_goals_serializers.to_read_schema",
         side_effect=lambda x: x,
     ):
         yield
 
 
+def _one(mock_db, row):
+    """Make the session's single-row SELECT return ``row`` (or None)."""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = row
+    mock_result.first.return_value = row
+    mock_db.execute.return_value = mock_result
+
+
+def _create_input():
+    return user_goals_schema.UsersGoalCreate(
+        interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
+    )
+
+
 class TestGetUserGoalsByUserId:
-    """
-    Test suite for get_user_goals_by_user_id function.
-    """
+    def test_returns_the_goals(self, mock_db):
+        goals = [MagicMock(spec=user_goals_models.UsersGoal), MagicMock(spec=user_goals_models.UsersGoal)]
+        mock_db.execute.return_value.scalars.return_value.all.return_value = goals
 
-    def test_get_user_goals_by_user_id_success(self, mock_db):
-        """Test successful retrieval of user goals."""
-        # Arrange
-        user_id = 1
-        mock_goal1 = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal2 = MagicMock(spec=user_goals_models.UsersGoal)
+        assert user_goals_crud.get_user_goals_by_user_id(1, mock_db) == goals
 
-        mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [mock_goal1, mock_goal2]
-        mock_result.scalars.return_value = mock_scalars
-        mock_db.execute.return_value = mock_result
+    def test_applies_every_filter(self, mock_db):
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
 
-        # Act
-        result = user_goals_crud.get_user_goals_by_user_id(user_id, mock_db)
+        result = user_goals_crud.get_user_goals_by_user_id(
+            1,
+            mock_db,
+            interval=user_goals_schema.Interval.WEEKLY,
+            activity_type=user_goals_schema.ActivityType.RUN,
+            goal_type=user_goals_schema.GoalType.CALORIES,
+        )
 
-        # Assert
-        assert result == [mock_goal1, mock_goal2]
-        mock_db.execute.assert_called_once()
-
-    def test_get_user_goals_by_user_id_empty(self, mock_db):
-        """Test retrieval when user has no goals."""
-        # Arrange
-        user_id = 1
-        mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = []
-        mock_result.scalars.return_value = mock_scalars
-        mock_db.execute.return_value = mock_result
-
-        # Act
-        result = user_goals_crud.get_user_goals_by_user_id(user_id, mock_db)
-
-        # Assert
         assert result == []
-
-    def test_get_user_goals_by_user_id_db_error(self, mock_db):
-        """Test database error handling."""
-        # Arrange
-        user_id = 1
-        mock_db.execute.side_effect = SQLAlchemyError("DB error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            user_goals_crud.get_user_goals_by_user_id(user_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert exc_info.value.detail == "Database error occurred"
+        compiled = str(mock_db.execute.call_args.args[0])
+        assert "interval" in compiled and "activity_type" in compiled and "goal_type" in compiled
 
 
-class TestGetUserGoalByUserAndGoalId:
-    """
-    Test suite for get_user_goal_by_user_and_goal_id function.
-    """
+class TestGetUserGoalsPage:
+    def test_returns_one_ordered_window_and_the_total(self, mock_db):
+        goals = [MagicMock(spec=user_goals_models.UsersGoal)]
+        mock_db.execute.return_value.scalars.return_value.all.return_value = goals
+        mock_db.execute.return_value.scalar_one.return_value = 41
 
-    def test_get_user_goal_by_user_and_goal_id_success(self, mock_db):
-        """Test successful retrieval of specific goal."""
-        # Arrange
-        user_id = 1
-        goal_id = 1
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
+        page = user_goals_crud.get_user_goals_page(1, mock_db, limit=25, offset=25)
+        total = user_goals_crud.count_user_goals(1, mock_db)
 
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_goal
-        mock_db.execute.return_value = mock_result
+        assert page == goals
+        assert total == 41
+        compiled = str(mock_db.execute.call_args_list[0].args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "ORDER BY users_goals.id" in compiled
+        assert "LIMIT 25" in compiled and "OFFSET 25" in compiled
 
-        # Act
-        result = user_goals_crud.get_user_goal_by_user_and_goal_id(user_id, goal_id, mock_db)
+    def test_the_count_applies_the_same_filters(self, mock_db):
+        mock_db.execute.return_value.scalar_one.return_value = 3
 
-        # Assert
-        assert result == mock_goal
+        user_goals_crud.count_user_goals(1, mock_db, interval=user_goals_schema.Interval.WEEKLY)
 
-    def test_get_user_goal_by_user_and_goal_id_not_found(self, mock_db):
-        """Test retrieval when goal not found."""
-        # Arrange
-        user_id = 1
-        goal_id = 999
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
-
-        # Act
-        result = user_goals_crud.get_user_goal_by_user_and_goal_id(user_id, goal_id, mock_db)
-
-        # Assert
-        assert result is None
-
-    def test_get_user_goal_by_user_and_goal_id_db_error(self, mock_db):
-        """Test database error handling."""
-        # Arrange
-        user_id = 1
-        goal_id = 1
-        mock_db.execute.side_effect = SQLAlchemyError("DB error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            user_goals_crud.get_user_goal_by_user_and_goal_id(user_id, goal_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "interval" in str(mock_db.execute.call_args.args[0])
 
 
 class TestCreateUserGoal:
-    """
-    Test suite for create_user_goal function.
-    """
+    def test_stages_without_committing(self, mock_db):
+        _one(mock_db, None)
 
-    def test_create_user_goal_duplicate(self, mock_db):
-        """Test creation fails when duplicate goal exists."""
-        # Arrange
-        user_id = 1
-        user_goal = user_goals_schema.UsersGoalCreate(
-            interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
-            goal_type=user_goals_schema.GoalType.CALORIES,
-            goal_calories=5000,
-            goal_activities_number=None,
-            goal_distance=None,
-            goal_elevation=None,
-            goal_duration=None,
-        )
+        result = user_goals_crud.create_user_goal(1, _create_input(), mock_db)
 
-        # Mock existing goal
-        mock_existing = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_existing
-        mock_db.execute.return_value = mock_result
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.create_user_goal(user_id, user_goal, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
-        assert "already has a goal" in exc_info.value.detail
-
-    def test_create_user_goal_db_error(self, mock_db):
-        """Test database error handling during creation."""
-        # Arrange
-        user_id = 1
-        user_goal = user_goals_schema.UsersGoalCreate(
-            interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
-            goal_type=user_goals_schema.GoalType.CALORIES,
-            goal_calories=5000,
-            goal_activities_number=None,
-            goal_distance=None,
-            goal_elevation=None,
-            goal_duration=None,
-        )
-
-        mock_db.execute.side_effect = SQLAlchemyError("DB error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            user_goals_crud.create_user_goal(user_id, user_goal, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_db.rollback.assert_called_once()
+        assert isinstance(result, user_goals_models.UsersGoal)
+        assert result.user_id == 1
+        assert result.goal_calories == 5000
+        mock_db.add.assert_called_once_with(result)
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
 
 class TestUpdateUserGoal:
-    """
-    Test suite for update_user_goal function.
-    """
-
-    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
-    def test_update_user_goal_success(self, mock_get_goal, mock_db):
-        """Test successful goal update."""
-        # Arrange
-        user_id = 1
-        goal_id = 1
-        user_goal = user_goals_schema.UsersGoalUpdate(
-            id=goal_id,
-            user_id=user_id,
-            interval=user_goals_schema.Interval.MONTHLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
-            goal_type=user_goals_schema.GoalType.CALORIES,
-            goal_calories=10000,
-            goal_activities_number=None,
-            goal_distance=None,
-            goal_elevation=None,
-            goal_duration=None,
+    def test_applies_the_set_fields_and_stages(self, mock_db):
+        row = MagicMock(spec=user_goals_models.UsersGoal)
+        row.version = 1
+        _one(mock_db, row)
+        update = user_goals_schema.UsersGoalUpdate(
+            interval="weekly", activity_type="run", goal_type="calories", goal_calories=9000
         )
 
-        mock_db_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_db_goal.user_id = user_id
-        mock_get_goal.return_value = mock_db_goal
+        result = user_goals_crud.update_user_goal(1, 7, update, mock_db, if_match="*")
 
-        # Act
-        result = user_goals_crud.update_user_goal(user_id, user_goal, mock_db)
+        assert result == row
+        assert row.goal_calories == 9000
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
-        # Assert
-        assert result == mock_db_goal
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once_with(mock_db_goal)
-
-    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
-    def test_update_user_goal_not_found(self, mock_get_goal, mock_db):
-        """Test update fails when goal not found."""
-        # Arrange
-        user_id = 1
-        goal_id = 999
-        user_goal = user_goals_schema.UsersGoalUpdate(
-            id=goal_id,
-            user_id=user_id,
-            interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
-            goal_type=user_goals_schema.GoalType.CALORIES,
-            goal_calories=5000,
-            goal_activities_number=None,
-            goal_distance=None,
-            goal_elevation=None,
-            goal_duration=None,
+    def test_missing_goal_is_not_found(self, mock_db):
+        _one(mock_db, None)
+        update = user_goals_schema.UsersGoalUpdate(
+            interval="weekly", activity_type="run", goal_type="calories", goal_calories=9000
         )
 
-        mock_get_goal.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User goal not found",
-        )
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.update_user_goal(user_id, user_goal, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-
-    @patch("modules.users.users_goals.crud.get_user_goal_by_user_and_goal_id")
-    def test_update_user_goal_wrong_user(self, mock_get_goal, mock_db):
-        """Test update fails when user doesn't own goal."""
-        # Arrange
-        user_id = 1
-        goal_id = 1
-        user_goal = user_goals_schema.UsersGoalUpdate(
-            id=goal_id,
-            user_id=2,  # Different user
-            interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
-            goal_type=user_goals_schema.GoalType.CALORIES,
-            goal_calories=5000,
-            goal_activities_number=None,
-            goal_distance=None,
-            goal_elevation=None,
-            goal_duration=None,
-        )
-
-        mock_db_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_db_goal.user_id = 2  # Different user
-        mock_get_goal.return_value = mock_db_goal
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.update_user_goal(user_id, user_goal, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        with pytest.raises(core_exceptions.NotFoundError):
+            user_goals_crud.update_user_goal(1, 7, update, mock_db, if_match="*")
 
 
 class TestDeleteUserGoal:
-    """
-    Test suite for delete_user_goal function.
-    """
+    def test_stages_the_deletion(self, mock_db):
+        row = MagicMock(spec=user_goals_models.UsersGoal)
+        row.version = 3
+        _one(mock_db, row)
 
-    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
-    def test_delete_user_goal_success(self, mock_get_goal, mock_db):
-        """Test successful goal deletion."""
-        # Arrange
-        user_id = 1
-        goal_id = 1
-        mock_db_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_get_goal.return_value = mock_db_goal
+        user_goals_crud.delete_user_goal(1, 5, mock_db, if_match='"3"')
 
-        # Act
-        user_goals_crud.delete_user_goal(user_id, goal_id, mock_db)
+        mock_db.delete.assert_called_once_with(row)
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
-        # Assert
-        mock_db.delete.assert_called_once_with(mock_db_goal)
-        mock_db.commit.assert_called_once()
+    def test_stale_if_match_is_refused_before_anything_is_deleted(self, mock_db):
+        row = MagicMock(spec=user_goals_models.UsersGoal)
+        row.version = 3
+        _one(mock_db, row)
 
-    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
-    def test_delete_user_goal_not_found(self, mock_get_goal, mock_db):
-        """Test deletion fails when goal not found."""
-        # Arrange
-        user_id = 1
-        goal_id = 999
-        mock_get_goal.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User goal not found",
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            user_goals_crud.delete_user_goal(1, 5, mock_db, if_match='"2"')
+
+        mock_db.delete.assert_not_called()
+
+    def test_missing_goal_is_not_found(self, mock_db):
+        _one(mock_db, None)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            user_goals_crud.delete_user_goal(1, 5, mock_db, if_match="*")
+
+
+class TestGoalUniquenessInTheDatabase:
+    """One goal per user, interval, activity type and goal type is the database's rule, so two requests cannot both win."""
+
+    @pytest.fixture
+    def db(self):
+        session = create_sqlite_session()
+        factory = sessionmaker(bind=session.get_bind())
+        ensure_user(factory, 1)
+        ensure_user(factory, 2)
+        yield session
+        session.close()
+
+    @staticmethod
+    def _goal(**overrides):
+        values = {"interval": "weekly", "activity_type": "run", "goal_type": "calories", "goal_calories": 5000}
+        values.update(overrides)
+        return user_goals_schema.UsersGoalCreate(**values)
+
+    def test_the_same_goal_twice_is_a_conflict(self, db):
+        user_goals_crud.create_user_goal(1, self._goal(), db)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            user_goals_crud.create_user_goal(1, self._goal(goal_calories=9000), db)
+
+    def test_another_users_identical_goal_is_allowed(self, db):
+        user_goals_crud.create_user_goal(1, self._goal(), db)
+
+        user_goals_crud.create_user_goal(2, self._goal(), db)
+
+    def test_editing_a_goal_into_another_one_is_a_conflict(self, db):
+        user_goals_crud.create_user_goal(1, self._goal(), db)
+        other = user_goals_crud.create_user_goal(1, self._goal(interval="monthly"), db)
+        change = user_goals_schema.UsersGoalUpdate(**self._goal().model_dump())
+
+        with pytest.raises(core_exceptions.ConflictError):
+            user_goals_crud.update_user_goal(1, other.id, change, db, if_match="*")
+
+    def test_replacing_a_goal_resets_the_targets_it_leaves_out(self, db):
+        created = user_goals_crud.create_user_goal(
+            1, self._goal(goal_type="distance", goal_calories=None, goal_distance=10000), db
+        )
+        # As a client sends it: the distance target is simply absent from the body.
+        replacement = user_goals_schema.UsersGoalUpdate(
+            interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.delete_user_goal(user_id, goal_id, mock_db)
+        result = user_goals_crud.update_user_goal(1, created.id, replacement, db, if_match="*")
 
-        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-
-    @patch("modules.users.users_goals.crud.get_user_goal_by_user_and_goal_id")
-    def test_delete_user_goal_db_error(self, mock_get_goal, mock_db):
-        """Test database error handling during deletion."""
-        # Arrange
-        user_id = 1
-        goal_id = 1
-        mock_db_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_get_goal.return_value = mock_db_goal
-        mock_db.delete.side_effect = SQLAlchemyError("DB error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            user_goals_crud.delete_user_goal(user_id, goal_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_db.rollback.assert_called_once()
+        assert result.goal_calories == 5000
+        assert result.goal_distance is None

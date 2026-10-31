@@ -7,10 +7,7 @@ import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import HealthDashboardCard from '@/features/health/components/HealthDashboardCard.vue'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
-import {
-  useHealthDashboardQuery,
-  useHealthTargetsQuery,
-} from '@/features/health/composables/useHealth'
+import { useHealthDashboardQuery } from '@/features/health/composables/useHealth'
 import {
   bmiCategoryKey,
   fastingElapsedSeconds,
@@ -32,20 +29,18 @@ import {
 const { t } = useI18n()
 
 const dashboardQuery = useHealthDashboardQuery()
-const targetsQuery = useHealthTargetsQuery()
 const { data: user } = useCurrentUser()
 
 const units = computed(() => user.value?.units ?? 'metric')
 const dashboard = computed(() => dashboardQuery.data.value ?? null)
-const targets = computed(() => targetsQuery.data.value ?? null)
+const targets = computed(() => dashboard.value?.targets ?? null)
 
-const isLoading = computed(() => dashboardQuery.isPending.value || targetsQuery.isPending.value)
-const isError = computed(() => dashboardQuery.isError.value || targetsQuery.isError.value)
+const isLoading = computed(() => dashboardQuery.isPending.value)
+const isError = computed(() => dashboardQuery.isError.value)
 
-/** Refetches both queries (the error state's retry affordance). */
+/** Refetches the dashboard (the error state's retry affordance). */
 function refetch(): void {
   void dashboardQuery.refetch()
-  void targetsQuery.refetch()
 }
 
 /**

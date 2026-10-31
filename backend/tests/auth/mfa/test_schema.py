@@ -127,10 +127,10 @@ class TestMFASetupRequest:
 
 
 class TestMFASetupResponse:
-    """Test suite for MFASetupResponse schema."""
+    """Test suite for MFASetupRead schema."""
 
     def test_valid_response(self):
-        data = mfa_schema.MFASetupResponse(
+        data = mfa_schema.MFASetupRead(
             secret="JBSWY3DPEHPK3PXP",
             qr_code="data:image/png;base64,iVBORw0KGgo=",
         )
@@ -139,7 +139,7 @@ class TestMFASetupResponse:
         assert data.app_name == "Endurain"
 
     def test_custom_app_name(self):
-        data = mfa_schema.MFASetupResponse(
+        data = mfa_schema.MFASetupRead(
             secret="JBSWY3DPEHPK3PXP",
             qr_code="data:image/png;base64,test",
             app_name="CustomApp",
@@ -148,30 +148,30 @@ class TestMFASetupResponse:
 
     def test_rejects_missing_secret(self):
         with pytest.raises(ValidationError):
-            mfa_schema.MFASetupResponse(qr_code="data:image/png;base64,test")
+            mfa_schema.MFASetupRead(qr_code="data:image/png;base64,test")
 
     def test_rejects_missing_qr_code(self):
         with pytest.raises(ValidationError):
-            mfa_schema.MFASetupResponse(secret="JBSWY3DPEHPK3PXP")
+            mfa_schema.MFASetupRead(secret="JBSWY3DPEHPK3PXP")
 
     def test_has_extra_forbid_config(self):
-        assert mfa_schema.MFASetupResponse.model_config.get("extra") == "forbid"
+        assert mfa_schema.MFASetupRead.model_config.get("extra") == "forbid"
 
 
 class TestMFAStatusResponse:
-    """Test suite for MFAStatusResponse schema."""
+    """Test suite for MFAStatusRead schema."""
 
     def test_mfa_enabled_true(self):
-        data = mfa_schema.MFAStatusResponse(mfa_enabled=True)
+        data = mfa_schema.MFAStatusRead(mfa_enabled=True)
         assert data.mfa_enabled is True
 
     def test_mfa_enabled_false(self):
-        data = mfa_schema.MFAStatusResponse(mfa_enabled=False)
+        data = mfa_schema.MFAStatusRead(mfa_enabled=False)
         assert data.mfa_enabled is False
 
     def test_rejects_non_boolean(self):
         with pytest.raises(ValidationError):
-            mfa_schema.MFAStatusResponse(mfa_enabled="yes")
+            mfa_schema.MFAStatusRead(mfa_enabled="yes")
 
     def test_has_extra_forbid_config(self):
-        assert mfa_schema.MFAStatusResponse.model_config.get("extra") == "forbid"
+        assert mfa_schema.MFAStatusRead.model_config.get("extra") == "forbid"

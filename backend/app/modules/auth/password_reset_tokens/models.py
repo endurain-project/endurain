@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class PasswordResetToken(Base):
-    """
-    Password reset token database model.
+    """Password reset token database model.
 
     Attributes:
         id: Unique token identifier (string, 64 chars).
@@ -43,6 +42,7 @@ class PasswordResetToken(Base):
     expires_at: Mapped[datetime_type] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Token expiration date (datetime)",
     )
     used: Mapped[bool] = mapped_column(

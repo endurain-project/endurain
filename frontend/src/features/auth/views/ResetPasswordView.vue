@@ -11,14 +11,17 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Label } from '@/components/ui/label'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
 import { HttpError } from '@/services/http'
 import { confirmPasswordReset } from '@/features/auth/services/passwordReset'
-import { buildPasswordRequirements, isValidPassword } from '@/utils/validation'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { serverSettings, load } = usePublicServerSettings()
+const { load } = usePublicServerSettings()
 
 /** Reset token from the emailed link; empty when absent or malformed. */
 const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
@@ -28,25 +31,19 @@ const confirmPassword = ref('')
 const isLoading = ref(false)
 const alert = ref<{ kind: 'error'; message: string } | null>(null)
 
-const passwordRequirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    serverSettings.value.password_length_regular_users,
-  ),
+// The account tier is unknown before submitting; see the 422 handling below.
+const { hint: passwordHint, isValid: isValidPassword } = usePasswordPolicy('regular')
+const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
+  password,
+  confirmPassword,
 )
 
 const isPasswordValid = computed(
-  () => password.value.length === 0 || isValidPassword(password.value, passwordRequirements.value),
-)
-const passwordsMatch = computed(
-  () => confirmPassword.value.length === 0 || password.value === confirmPassword.value,
+  () => password.value.length === 0 || isValidPassword(password.value),
 )
 
 const canSubmit = computed(
-  () =>
-    token.value.length > 0 &&
-    isValidPassword(password.value, passwordRequirements.value) &&
-    password.value === confirmPassword.value,
+  () => token.value.length > 0 && isValidPassword(password.value) && passwordsMatch.value,
 )
 
 /**
@@ -128,10 +125,10 @@ onMounted(() => {
             :aria-invalid="!isPasswordValid"
           />
           <p class="text-hint">
-            {{ t('resetPassword.passwordHelp', { min: passwordRequirements.minLength }) }}
+            {{ passwordHint }}
           </p>
           <p v-if="!isPasswordValid" class="text-field-error">
-            {{ t('resetPassword.weakPassword') }}
+            {{ t('app.password.invalid') }}
           </p>
         </div>
 
@@ -142,10 +139,10 @@ onMounted(() => {
             v-model="confirmPassword"
             name="confirm-password"
             autocomplete="new-password"
-            :aria-invalid="!passwordsMatch"
+            :aria-invalid="confirmError !== undefined"
           />
-          <p v-if="!passwordsMatch" class="text-field-error">
-            {{ t('resetPassword.mismatch') }}
+          <p v-if="confirmError" class="text-field-error">
+            {{ confirmError }}
           </p>
         </div>
 

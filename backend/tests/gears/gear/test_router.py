@@ -1,195 +1,167 @@
 from unittest.mock import patch
 
-from fastapi import FastAPI, HTTPException, status
+import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import core.database as core_db
+import core.exceptions as core_exceptions
+import core.pagination as core_pagination
+import modules.auth.dependencies as auth_deps
+import modules.gears.gear.router as router
+import modules.gears.gear.schema as schema
 
-def _build_app(mock_db):
-    import core.database as core_db
-    import core.dependencies as core_deps
-    import modules.auth.dependencies as auth_deps
-    import modules.gears.gear.dependencies as gear_deps
-    import modules.gears.gear.router as router
+_HEADERS = {"Authorization": "Bearer x"}
 
+
+@pytest.fixture
+def client(mock_db):
     app = FastAPI()
     app.include_router(router.router, prefix="/gears")
-
-    def _mock():
-        return None
-
-    def _uid():
-        return 1
-
-    app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = _uid
-    app.dependency_overrides[core_deps.validate_pagination_values_on_query] = _mock
-    app.dependency_overrides[gear_deps.validate_gear_id] = _mock
-    app.dependency_overrides[gear_deps.validate_gear_type] = _mock
+    core_exceptions.register_exception_handlers(app)
+    app.dependency_overrides[auth_deps.check_scopes] = lambda: None
+    app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+    return TestClient(app)
 
 
-class TestReadGearsUserAllPagination:
-    @patch("modules.gears.gear.router.gears_crud.get_gears_number")
-    @patch("modules.gears.gear.router.gears_crud.get_gear_users_with_pagination")
-    def test_list_success(self, mock_paginated, mock_number, mock_db):
-        from modules.gears.gear.schema import GearRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_paginated.return_value = [GearRead(id=1, user_id=1, nickname="Bike", gear_type=1)]
-        mock_number.return_value = 1
-
-        response = client.get("/gears", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 1
-
-    @patch("modules.gears.gear.router.gears_crud.get_gears_number")
-    @patch("modules.gears.gear.router.gears_crud.get_gear_users_with_pagination")
-    def test_list_empty(self, mock_paginated, mock_number, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_paginated.return_value = []
-        mock_number.return_value = 0
-
-        response = client.get("/gears", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 0
-        assert data["records"] == []
+def _read(**overrides) -> schema.GearRead:
+    return schema.GearRead(**{"id": 1, "user_id": 1, "nickname": "Bike", "gear_type": 1, **overrides})
 
 
-class TestReadGearById:
-    @patch("modules.gears.gear.router.gears_crud.get_gear_components_total_cost")
-    @patch("modules.gears.gear.router.gears_crud.get_gear_activity_stats")
-    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_id")
-    def test_success(self, mock_get, mock_stats, mock_cost, mock_db):
-        from modules.gears.gear.schema import GearRead
+class TestList:
+    @patch("modules.gears.gear.service.list_gears")
+    def test_passes_the_query_to_the_service(self, mock_list, client, mock_db):
+        mock_list.return_value = core_pagination.Page.build([_read()], 1, 2, 5)
 
-        client = TestClient(_build_app(mock_db))
-        gear = GearRead(id=1, user_id=1, nickname="Bike", gear_type=1, initial_kms=100.0)
-        mock_get.return_value = gear
-        mock_stats.return_value = {"total_distance": 50000, "total_time": 3600}
-        mock_cost.return_value = 1500.0
-
-        response = client.get("/gears/id/1", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-
-    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_id")
-    def test_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
-
-        response = client.get("/gears/id/999", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json() is None
-
-
-class TestReadGearByNickname:
-    @patch("modules.gears.gear.router.gears_crud.get_gear_user_contains_nickname")
-    def test_contains_success(self, mock_get, mock_db):
-        from modules.gears.gear.schema import GearRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [GearRead(id=1, user_id=1, nickname="Mountain Bike", gear_type=1)]
-
-        response = client.get("/gears/nickname/contains/Mountain", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-
-    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_nickname")
-    def test_exact_success(self, mock_get, mock_db):
-        from modules.gears.gear.schema import GearRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = GearRead(id=1, user_id=1, nickname="Bike", gear_type=1)
-
-        response = client.get("/gears/nickname/Bike", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-
-    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_nickname")
-    def test_exact_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
-
-        response = client.get("/gears/nickname/Unknown", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json() is None
-
-
-class TestReadGearByType:
-    @patch("modules.gears.gear.router.gears_crud.get_gear_by_type_and_user")
-    def test_success(self, mock_get, mock_db):
-        from modules.gears.gear.schema import GearRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [GearRead(id=1, user_id=1, nickname="Bike", gear_type=1)]
-
-        response = client.get("/gears/type/1", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-
-
-class TestCreateGear:
-    @patch("modules.gears.gear.router.gears_crud.create_gear")
-    def test_create_success(self, mock_create, mock_db):
-        from modules.gears.gear.schema import GearRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_create.return_value = GearRead(id=1, user_id=1, nickname="New Bike", gear_type=1)
-
-        response = client.post(
-            "/gears",
-            json={"nickname": "New Bike", "gear_type": 1},
-            headers={"Authorization": "Bearer x"},
+        response = client.get(
+            "/gears?page_number=2&num_records=5&show_inactive=false&gear_type=1&nickname_contains=bike",
+            headers=_HEADERS,
         )
+
+        assert response.status_code == 200
+        assert response.json()["total"] == 1
+        mock_list.assert_called_once_with(
+            1,
+            mock_db,
+            page_number=2,
+            num_records=5,
+            show_inactive=False,
+            gear_type=schema.GearType.BIKE,
+            nickname_contains="bike",
+        )
+
+    @patch("modules.gears.gear.service.list_gears")
+    def test_an_unpaged_request_gets_the_default_page(self, mock_list, client, mock_db):
+        mock_list.return_value = core_pagination.Page.build([], 0, 1, core_pagination.DEFAULT_NUM_RECORDS)
+
+        client.get("/gears", headers=_HEADERS)
+
+        mock_list.assert_called_once_with(
+            1,
+            mock_db,
+            page_number=1,
+            num_records=core_pagination.DEFAULT_NUM_RECORDS,
+            show_inactive=None,
+            gear_type=None,
+            nickname_contains=None,
+        )
+
+    def test_an_oversized_page_is_rejected(self, client):
+        response = client.get(f"/gears?num_records={core_pagination.MAX_NUM_RECORDS + 1}", headers=_HEADERS)
+
+        assert response.status_code == 422
+
+    def test_an_unknown_type_is_rejected(self, client):
+        assert client.get("/gears?gear_type=99", headers=_HEADERS).status_code == 422
+
+
+class TestReadById:
+    @patch("modules.gears.gear.service.read_gear_detail")
+    def test_the_version_is_sent_as_the_etag(self, mock_detail, client):
+        mock_detail.return_value = schema.GearDetailRead(**_read(version=7).model_dump())
+
+        assert client.get("/gears/1", headers=_HEADERS).headers["ETag"] == '"7"'
+
+    @patch("modules.gears.gear.service.read_gear_detail")
+    def test_unknown_gear_is_not_found(self, mock_detail, client):
+        mock_detail.side_effect = core_exceptions.NotFoundError("Gear not found")
+
+        assert client.get("/gears/999", headers=_HEADERS).status_code == 404
+
+    def test_a_non_positive_id_is_rejected(self, client):
+        assert client.get("/gears/0", headers=_HEADERS).status_code == 422
+
+
+class TestWrites:
+    @patch("modules.gears.gear.service.create_gear")
+    def test_create(self, mock_create, client):
+        mock_create.return_value = _read(nickname="New Bike")
+
+        response = client.post("/gears", json={"nickname": "New Bike", "gear_type": 1}, headers=_HEADERS)
+
         assert response.status_code == 201
 
+    @patch("modules.gears.gear.service.create_gear")
+    def test_create_conflict_is_409(self, mock_create, client):
+        mock_create.side_effect = core_exceptions.ConflictError("exists")
 
-class TestEditGear:
-    @patch("modules.gears.gear.router.gears_crud.edit_gear")
-    def test_edit_success(self, mock_edit, mock_db):
-        from modules.gears.gear.schema import GearRead
+        response = client.post("/gears", json={"nickname": "New Bike", "gear_type": 1}, headers=_HEADERS)
 
-        client = TestClient(_build_app(mock_db))
-        mock_edit.return_value = GearRead(id=1, user_id=1, nickname="Updated Bike", gear_type=1)
+        assert response.status_code == 409
 
-        response = client.put(
-            "/gears",
-            json={"id": 1, "nickname": "Updated Bike", "gear_type": 1},
-            headers={"Authorization": "Bearer x"},
-        )
+    @patch("modules.gears.gear.service.edit_gear")
+    def test_edit_is_partial_and_returns_the_etag(self, mock_edit, client, mock_db):
+        mock_edit.return_value = _read(nickname="Updated", version=4)
+
+        response = client.patch("/gears/1", json={"nickname": "Updated"}, headers={**_HEADERS, "If-Match": '"3"'})
+
         assert response.status_code == 200
+        assert response.json()["nickname"] == "Updated"
+        assert response.headers["ETag"] == '"4"'
+        assert mock_edit.call_args.kwargs == {"if_match": '"3"'}
 
-    @patch("modules.gears.gear.router.gears_crud.edit_gear")
-    def test_edit_not_found(self, mock_edit, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_edit.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Gear not found",
+    @patch("modules.gears.gear.service.edit_gear")
+    def test_an_edit_without_if_match_is_428(self, mock_edit, client):
+        assert client.patch("/gears/1", json={"brand": "x"}, headers=_HEADERS).status_code == 428
+        mock_edit.assert_not_called()
+
+    @patch("modules.gears.gear.service.edit_gear")
+    def test_a_stale_edit_is_412(self, mock_edit, client):
+        mock_edit.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+        assert client.patch("/gears/1", json={"brand": "x"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
+
+    def test_an_edit_cannot_clear_a_required_field_or_set_a_provider_id(self, client):
+        assert (
+            client.patch("/gears/1", json={"nickname": None}, headers={**_HEADERS, "If-Match": '"1"'}).status_code
+            == 422
+        )
+        assert (
+            client.patch("/gears/1", json={"strava_gear_id": "b1"}, headers={**_HEADERS, "If-Match": '"1"'}).status_code
+            == 422
         )
 
-        response = client.put(
-            "/gears",
-            json={"id": 999, "nickname": "Ghost", "gear_type": 1},
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 404
+    @patch("modules.gears.gear.service.delete_gear")
+    def test_delete(self, mock_delete, client, mock_db):
+        response = client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"3"'})
 
-
-class TestDeleteGear:
-    @patch("modules.gears.gear.router.gears_crud.delete_gear")
-    def test_delete_success(self, mock_delete, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_delete.return_value = None
-
-        response = client.delete("/gears/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204
+        mock_delete.assert_called_once_with(1, 1, mock_db, if_match='"3"')
 
-    @patch("modules.gears.gear.router.gears_crud.delete_gear")
-    def test_delete_not_found(self, mock_delete, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_delete.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Gear not found",
-        )
+    @patch("modules.gears.gear.service.delete_gear")
+    def test_delete_without_if_match_is_428(self, mock_delete, client):
+        assert client.delete("/gears/1", headers=_HEADERS).status_code == 428
+        mock_delete.assert_not_called()
 
-        response = client.delete("/gears/999", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 404
+    @patch("modules.gears.gear.service.delete_gear")
+    def test_a_stale_delete_is_412(self, mock_delete, client):
+        mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+        assert client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
+
+    @patch("modules.gears.gear.service.delete_gear")
+    def test_delete_of_a_missing_gear_is_404(self, mock_delete, client):
+        mock_delete.side_effect = core_exceptions.NotFoundError("Gear not found")
+
+        assert client.delete("/gears/1", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 404

@@ -31,7 +31,6 @@ class TestUserGoalModel:
         assert hasattr(model, "goal_distance")
         assert hasattr(model, "goal_elevation")
         assert hasattr(model, "goal_duration")
-        assert hasattr(model, "users")
 
     def test_user_goal_model_primary_key(self):
         """

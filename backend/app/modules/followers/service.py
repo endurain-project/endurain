@@ -14,15 +14,20 @@ This is the module's *own* application layer. What other modules may consume
 lives in :mod:`modules.followers.integration_service`.
 """
 
+import operator
+from collections.abc import Callable
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.followers.constants as followers_constants
+import modules.followers.contracts as followers_contracts
 import modules.followers.crud as followers_crud
 import modules.followers.event_publishers as followers_event_publishers
 import modules.followers.schema as followers_schema
+import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -70,6 +75,73 @@ def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Se
         raise core_exceptions.AccessConcealedError("User not found")
 
 
+def _with_profiles(
+    page: followers_schema.FollowRelationshipPage,
+    other_user_id: Callable[[followers_schema.FollowRelationshipRead], int],
+    db: Session,
+) -> followers_schema.FollowRelationshipPage:
+    """Attach the public profile of the user on the other side of every row, in one read.
+
+    Args:
+        page: The page of relationships.
+        other_user_id: Picks the other side's user ID from a row.
+        db: Database session.
+
+    Returns:
+        The page with ``users`` filled in.
+    """
+    profiles = users_integration.list_public_profiles({other_user_id(row) for row in page.items}, db)
+    return page.model_copy(update={"users": profiles})
+
+
+def _list_network(
+    target_user_id: int,
+    requester_user_id: int,
+    list_page: Callable[..., list[followers_schema.FollowRelationshipRead]],
+    count: Callable[..., int],
+    other_user_id: Callable[[followers_schema.FollowRelationshipRead], int],
+    db: Session,
+    *,
+    page_number: int,
+    num_records: int,
+    accepted_only: bool,
+) -> followers_schema.FollowRelationshipPage:
+    """Return one page of one side of a user's follow network with the matching total.
+
+    Args:
+        target_user_id: The user whose network to list.
+        requester_user_id: The authenticated requester.
+        list_page: The crud function that reads one page of the chosen side.
+        count: The crud function that counts the chosen side.
+        other_user_id: Picks the user on the other side of the network from a row.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+        accepted_only: Exclude pending follow requests when True.
+
+    Returns:
+        The page envelope, with the other side's profiles. ``total`` counts every row matching the
+        same filter, not just this page.
+
+    Raises:
+        AccessConcealedError: When the requester may not view this network; answered like a missing user.
+    """
+    # Checked once here so the page and its total share a single authorisation
+    # decision rather than each re-deriving it.
+    _ensure_may_view_network(target_user_id, requester_user_id, db)
+    effective_accepted_only = accepted_only or requester_user_id != target_user_id
+    items = list_page(
+        target_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=effective_accepted_only,
+    )
+    total = count(target_user_id, db, accepted_only=effective_accepted_only)
+    page = followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+    return _with_profiles(page, other_user_id, db)
+
+
 def list_followers(
     target_user_id: int,
     requester_user_id: int,
@@ -97,23 +169,17 @@ def list_followers(
         AccessConcealedError: When the requester may not view this network;
             answered like a missing user.
     """
-    # Checked once here so the page and its total share a single authorisation
-    # decision rather than each re-deriving it.
-    _ensure_may_view_network(target_user_id, requester_user_id, db)
-    effective_accepted_only = accepted_only or requester_user_id != target_user_id
-    items = followers_crud.get_all_followers_by_user_id(
+    return _list_network(
         target_user_id,
+        requester_user_id,
+        followers_crud.get_all_followers_by_user_id,
+        followers_crud.count_followers_by_user_id,
+        operator.attrgetter("follower_id"),
         db,
         page_number=page_number,
         num_records=num_records,
-        accepted_only=effective_accepted_only,
+        accepted_only=accepted_only,
     )
-    total = followers_crud.count_followers_by_user_id(
-        target_user_id,
-        db,
-        accepted_only=effective_accepted_only,
-    )
-    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
 def list_following(
@@ -143,21 +209,40 @@ def list_following(
         AccessConcealedError: When the requester may not view this network;
             answered like a missing user.
     """
-    _ensure_may_view_network(target_user_id, requester_user_id, db)
-    effective_accepted_only = accepted_only or requester_user_id != target_user_id
-    items = followers_crud.get_all_following_by_user_id(
+    return _list_network(
         target_user_id,
+        requester_user_id,
+        followers_crud.get_all_following_by_user_id,
+        followers_crud.count_following_by_user_id,
+        operator.attrgetter("followee_id"),
         db,
         page_number=page_number,
         num_records=num_records,
-        accepted_only=effective_accepted_only,
+        accepted_only=accepted_only,
     )
-    total = followers_crud.count_following_by_user_id(
-        target_user_id,
-        db,
-        accepted_only=effective_accepted_only,
+
+
+def get_profile_follow_counts(
+    target_user_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> followers_contracts.ProfileFollowCounts | None:
+    """Return accepted network counts, or None when the viewer cannot see the network.
+
+    Args:
+        target_user_id: The profile owner whose network to count.
+        requester_user_id: The authenticated viewer.
+        db: Database session.
+
+    Returns:
+        Both accepted relationship counts, or None when the network is private to this viewer.
+    """
+    if not _requester_may_view_network(target_user_id, requester_user_id, db):
+        return None
+    return followers_contracts.ProfileFollowCounts(
+        followers=followers_crud.count_followers_by_user_id(target_user_id, db, accepted_only=True),
+        following=followers_crud.count_following_by_user_id(target_user_id, db, accepted_only=True),
     )
-    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
 def list_pending_requests(
@@ -179,17 +264,18 @@ def list_pending_requests(
         num_records: Page size.
 
     Returns:
-        The page envelope.
+        The page envelope, with the profile of each requester.
     """
     items = followers_crud.get_pending_requests_for_user_id(
         requester_user_id, db, page_number=page_number, num_records=num_records
     )
     total = followers_crud.count_pending_requests_for_user_id(requester_user_id, db)
-    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+    page = followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
+    return _with_profiles(page, operator.attrgetter("follower_id"), db)
 
 
 def reject_follow_request(requester_user_id: int, follower_id: int, db: Session) -> None:
-    """Decline a pending follow request addressed to the caller.
+    """Decline a pending follow request addressed to the caller and publish ``follower.request_removed``.
 
     Distinct from :func:`delete_relationship`, which severs an already-accepted
     relationship. Both delete the same row, but only one of them is a decision
@@ -206,7 +292,9 @@ def reject_follow_request(requester_user_id: int, follower_id: int, db: Session)
         NotFoundError: When no pending request from that user exists.
     """
     followers_crud.delete_follower(follower_id, requester_user_id, db, status=followers_constants.FollowStatus.PENDING)
-    db.commit()
+    followers_event_publishers.publish_follower_request_removed(
+        follower_id, requester_user_id, db, commit=db.commit, source="api:reject_follow_request"
+    )
     logger.info(
         "Follow request rejected",
         extra=core_logger.context(requester_user_id=requester_user_id, follower_id=follower_id),
@@ -226,6 +314,8 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
         requester_user_id: The authenticated caller, who must be one of the two.
         db: Database session.
 
+    Publishes ``follower.request_removed`` when the deleted row was still a pending request.
+
     Raises:
         AccessConcealedError: When the caller is not part of the relationship; answered as a
             missing relationship so it does not confirm one exists.
@@ -238,8 +328,14 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
             ),
         )
         raise core_exceptions.AccessConcealedError("Follow relationship not found")
-    followers_crud.delete_follower(follower_id, followee_id, db)
-    db.commit()
+    deleted_status = followers_crud.delete_follower(follower_id, followee_id, db)
+    # Only a request that was still pending has a notification to take back.
+    if deleted_status == followers_constants.FollowStatus.PENDING:
+        followers_event_publishers.publish_follower_request_removed(
+            follower_id, followee_id, db, commit=db.commit, source="api:delete_follow_relationship"
+        )
+    else:
+        db.commit()
     logger.info(
         "Deleted a follow relationship",
         extra=core_logger.context(
@@ -286,7 +382,8 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
 
     Raises:
         InvalidInputError: If the requester targets themselves.
-        ConflictError: If the relationship already exists.
+        ConflictError: If the relationship already exists or the target already has the maximum
+            pending requests.
         NotFoundError: If the target user does not exist.
     """
     if requester_user_id == target_user_id:
@@ -294,6 +391,16 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
         # notifications.
         raise core_exceptions.InvalidInputError("Cannot follow yourself")
 
+    followers_crud.lock_pending_requests(target_user_id, db)
+    if (
+        followers_crud.count_pending_requests_for_user_id(target_user_id, db)
+        >= followers_constants.MAX_PENDING_REQUESTS
+    ):
+        logger.debug(
+            "Refused a follow request: the target has too many pending",
+            extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
+        )
+        raise core_exceptions.ConflictError("This user has too many pending follow requests")
     follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
     followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db, commit=db.commit)
     logger.info(
@@ -319,8 +426,19 @@ def accept_follow_request(
         The accepted relationship, read back after the flush.
 
     Raises:
+        ConflictError: When the requester already follows the maximum number of users.
         NotFoundError: When no pending request from that user exists.
     """
+    followers_crud.lock_accepted_followees(follower_id, db)
+    if (
+        followers_crud.count_following_by_user_id(follower_id, db, accepted_only=True)
+        >= followers_constants.MAX_ACCEPTED_FOLLOWEES
+    ):
+        logger.debug(
+            "Refused a follow acceptance: the follower follows too many users",
+            extra=core_logger.context(requester_user_id=requester_user_id, follower_id=follower_id),
+        )
+        raise core_exceptions.ConflictError("This user already follows the maximum number of users")
     relationship = followers_crud.accept_follower(requester_user_id, follower_id, db)
     followers_event_publishers.publish_follower_accepted(requester_user_id, follower_id, db, commit=db.commit)
     logger.info(

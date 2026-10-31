@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inattivo",
       "unverified": "Email non verificata",
+      "pendingEmail": "Modifica email in sospeso",
       "pending": "In attesa di approvazione",
       "externalAuth": "Autenticazione esterna"
     },
@@ -64,18 +65,15 @@
       "email": "Email",
       "emailRequired": "L'email è obbligatoria",
       "emailInvalid": "Inserisci un indirizzo email valido",
+      "emailChangeHint": "Un link di conferma viene inviato al nuovo indirizzo e sostituisce quello attuale una volta confermato. L'utente viene disconnesso da tutti i dispositivi. Contrassegna il nuovo indirizzo come verificato per applicarlo subito.",
       "accessType": "Tipo di accesso",
       "accessTypeRegular": "Utente normale",
       "accessTypeAdmin": "Amministratore",
       "password": "Password",
       "passwordHint": "Almeno 8 caratteri",
-      "passwordHintStrict": "Almeno {min} caratteri, con maiuscole, minuscole, un numero e un carattere speciale",
-      "passwordHintLength": "Almeno {min} caratteri",
       "passwordRequired": "La password è obbligatoria",
-      "passwordInvalid": "La password non soddisfa i requisiti",
       "confirmPassword": "Conferma password",
       "confirmPasswordRequired": "Conferma password",
-      "passwordMismatch": "Le password non corrispondono",
       "preferredLanguage": "Lingua preferita",
       "languages": {
         "ca": "Catalano",
@@ -149,6 +147,8 @@
       "statusLegend": "Stato account",
       "active": "Attivo",
       "emailVerified": "Email verificata",
+      "emailVerifiedCurrentHint": "Questo è lo stato dell'indirizzo attuale.",
+      "newEmailVerified": "Contrassegna il nuovo indirizzo come verificato",
       "pendingAdminApproval": "In attesa di approvazione admin",
       "requiredField": "Campo obbligatorio",
       "create": "Aggiungi utente",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Torna agli utenti",
+      "pendingEmail": "Modifica email in sospeso a {email}, il link scade il {date}",
       "notFoundTitle": "Utente non trovato",
       "notFoundDescription": "Questo account potrebbe essere stato eliminato",
       "securityTitle": "Sicurezza",
@@ -186,16 +187,12 @@
       "title": "Reimposta password",
       "description": "Imposta una nuova password per {username}",
       "newLabel": "Nuova password",
-      "hintLength": "Almeno {min} caratteri",
-      "hintStrict": "Almeno {min} caratteri, con maiuscole, minuscole, un numero e un carattere speciale",
       "confirmLabel": "Conferma nuova password",
-      "mismatch": "Le password non corrispondono",
       "required": "La password è obbligatoria",
       "submit": "Reimposta password",
       "cancel": "Annulla",
       "close": "Chiudi",
       "success": "Password aggiornata",
-      "invalid": "La password non soddisfa i requisiti",
       "error": "Impossibile aggiornare la password. Riprova."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "E-mail di prova inviata",
       "failed": "Impossibile inviare l'e-mail di prova",
       "failedUnknown": "Controlla i log del server per i dettagli."
+    },
+    "envLocked": "Impostato da {name}",
+    "envSection": "Alcune impostazioni qui sono definite da variabili d'ambiente ({names}). Rimuovile dall'ambiente per modificarle qui.",
+    "unsaved": "Modifiche non salvate",
+    "discard": "Annulla modifiche",
+    "tabs": {
+      "label": "Sezioni delle impostazioni del server",
+      "general": "Generale",
+      "access": "Accesso e sicurezza",
+      "maps": "Mappe e posizione",
+      "email": "Email",
+      "unsaved": "Contiene modifiche non salvate"
+    },
+    "search": {
+      "placeholder": "Cerca impostazioni…",
+      "noResults": "Nessuna impostazione trovata"
+    },
+    "leave": {
+      "title": "Uscire senza salvare?",
+      "description": "Hai modifiche non salvate. Se lasci questa pagina andranno perse.",
+      "confirm": "Esci senza salvare",
+      "stay": "Resta nella pagina",
+      "close": "Chiudi"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Gli scope devono avere al massimo 500 caratteri",
       "icon": "Icona",
       "iconNone": "Nessuna",
-      "iconCustom": "URL personalizzato",
-      "customIconUrl": "URL icona personalizzata",
-      "customIconUrlHint": "Link a un'immagine mostrata sul pulsante di accesso",
       "enabled": "Abilitato",
       "autoCreateUsers": "Crea utenti automaticamente al primo accesso",
       "syncUserInfo": "Sincronizza le informazioni del profilo ad ogni accesso",
@@ -559,9 +576,6 @@
       "current": "Password attuale",
       "new": "Nuova password",
       "confirm": "Conferma nuova password",
-      "requirementsStrict": "Almeno {length} caratteri, inclusa una lettera maiuscola, una minuscola, un numero e un simbolo.",
-      "requirementsLength": "Almeno {length} caratteri.",
-      "mismatch": "Le password non corrispondono.",
       "revokeOthers": "Disconnetti tutti gli altri dispositivi",
       "submit": "Cambia password",
       "success": "Password cambiata",
@@ -650,6 +664,20 @@
       "invalidCredentials": "La tua password o il codice non sono corretti.",
       "alreadyLinked": "Quell'account è già collegato.",
       "lastMethodError": "Non puoi scollegare il tuo unico metodo di accesso. Imposta prima una password."
+    },
+    "email": {
+      "subtitle": "Qui vengono inviati i ripristini della password e le notifiche. Per modificarla è necessario confermare la propria identità, e il nuovo indirizzo diventa effettivo solo dopo la conferma tramite un link che gli inviamo.",
+      "sameAsCurrent": "Questo è già il tuo indirizzo email.",
+      "success": "Link di conferma inviato al nuovo indirizzo. La tua email cambierà dopo la conferma.",
+      "appliedSuccess": "Email modificata.",
+      "pending": "Modifica in sospeso a {email}",
+      "pendingExpires": "Il link di conferma scade il {date}.",
+      "resend": "Invia di nuovo il link",
+      "cancel": "Annulla modifica",
+      "resendSuccess": "Se una modifica è in sospeso, un nuovo link è in arrivo al nuovo indirizzo.",
+      "resendError": "Impossibile inviare di nuovo il link. Riprova.",
+      "cancelSuccess": "Modifica dell'email annullata.",
+      "cancelError": "Impossibile annullare la modifica. Riprova."
     },
     "apiKeys": {
       "title": "Chiavi API",
@@ -923,7 +951,6 @@
       "invalidType": "Scegli un archivio .zip.",
       "exportSuccess": "Esportazione pronta, il download dovrebbe iniziare a breve",
       "exportError": "Impossibile esportare i tuoi dati. Riprova.",
-      "importSuccess": "Dati importati",
       "importError": "Impossibile importare l'archivio. Controlla il file e riprova."
     }
   }

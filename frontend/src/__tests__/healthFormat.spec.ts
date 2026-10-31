@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   dateTimeLocalToIso,
+  formatHealthChartLabel,
   localDayOf,
   nowDateTimeLocalInput,
   toDateTimeLocalInput,
@@ -54,5 +55,19 @@ describe('localDayOf', () => {
   it('returns null for missing or unparseable values', () => {
     expect(localDayOf(null)).toBeNull()
     expect(localDayOf('nonsense')).toBeNull()
+  })
+})
+
+describe('formatHealthChartLabel', () => {
+  it('labels a monthly bucket with its month and year', () => {
+    expect(formatHealthChartLabel('2026-06-01', 'month', 'en')).toBe('Jun 2026')
+  })
+
+  it.each(['day', 'week'] as const)('labels a %s bucket with its first day', (bucket) => {
+    expect(formatHealthChartLabel('2026-06-22', bucket, 'en')).toBe('Jun 22, 2026')
+  })
+
+  it('returns an empty string for an unparseable date', () => {
+    expect(formatHealthChartLabel('nonsense', 'month', 'en')).toBe('')
   })
 })

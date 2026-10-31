@@ -151,13 +151,13 @@ class TestUsersApiKeyRead:
 
 class TestUsersApiKeyCreated:
     """
-    Test suite for UsersApiKeyCreated schema.
+    Test suite for UsersApiKeyCreatedRead schema.
     """
 
     def test_created_schema_has_key_field(self):
-        """Test that UsersApiKeyCreated includes the raw 'key' field."""
+        """Test that UsersApiKeyCreatedRead includes the raw 'key' field."""
         now = datetime.now(UTC)
-        data = users_api_keys_schema.UsersApiKeyCreated(
+        data = users_api_keys_schema.UsersApiKeyCreatedRead(
             id="some-uuid",
             user_id=1,
             name="My Key",
@@ -172,10 +172,10 @@ class TestUsersApiKeyCreated:
         assert data.key == "endurain_secrettoken"
 
     def test_created_schema_extra_forbid(self):
-        """Test that extra fields are forbidden on UsersApiKeyCreated."""
+        """Test that extra fields are forbidden on UsersApiKeyCreatedRead."""
         now = datetime.now(UTC)
         with pytest.raises(ValidationError):
-            users_api_keys_schema.UsersApiKeyCreated(
+            users_api_keys_schema.UsersApiKeyCreatedRead(
                 id="some-uuid",
                 user_id=1,
                 name="My Key",
@@ -190,5 +190,5 @@ class TestUsersApiKeyCreated:
             )
 
     def test_created_schema_from_attributes(self):
-        """Test that UsersApiKeyCreated has from_attributes=True (ORM mode)."""
-        assert users_api_keys_schema.UsersApiKeyCreated.model_config.get("from_attributes") is True
+        """Test that UsersApiKeyCreatedRead has from_attributes=True (ORM mode)."""
+        assert users_api_keys_schema.UsersApiKeyCreatedRead.model_config.get("from_attributes") is True

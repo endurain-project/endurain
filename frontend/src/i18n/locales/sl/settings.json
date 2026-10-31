@@ -31,6 +31,7 @@
       "admin": "Skrbnik",
       "inactive": "Neaktiven",
       "unverified": "Neverificirana e-pošta",
+      "pendingEmail": "Čakajoča sprememba e-pošte",
       "pending": "Čaka na odobritev",
       "externalAuth": "Zunanja avtentikacija"
     },
@@ -64,18 +65,15 @@
       "email": "E-pošta",
       "emailRequired": "E-pošta je obvezna",
       "emailInvalid": "Vnesi veljaven e-poštni naslov",
+      "emailChangeHint": "Na nov naslov se pošlje potrditvena povezava, ki po potrditvi nadomesti trenutnega. Uporabnik bo odjavljen iz vseh naprav. Če želite spremembo uveljaviti takoj, označite novi naslov kot preverjen.",
       "accessType": "Vrsta dostopa",
       "accessTypeRegular": "Navaden uporabnik",
       "accessTypeAdmin": "Skrbnik",
       "password": "Geslo",
       "passwordHint": "Vsaj 8 znakov",
-      "passwordHintStrict": "Vsaj {min} znakov, z veliko in malo črko, številko in posebnim znakom",
-      "passwordHintLength": "Vsaj {min} znakov",
       "passwordRequired": "Geslo je obvezno",
-      "passwordInvalid": "To geslo ne izpolnjuje zahtev",
       "confirmPassword": "Potrdi geslo",
       "confirmPasswordRequired": "Potrdi geslo",
-      "passwordMismatch": "Gesli se ne ujemata",
       "preferredLanguage": "Želeni jezik",
       "languages": {
         "ca": "Katalonščina",
@@ -149,6 +147,8 @@
       "statusLegend": "Status računa",
       "active": "Aktiven",
       "emailVerified": "E-pošta verificirana",
+      "emailVerifiedCurrentHint": "To je stanje trenutnega naslova.",
+      "newEmailVerified": "Označi novi naslov kot preverjen",
       "pendingAdminApproval": "Čaka na odobritev skrbnika",
       "requiredField": "Obvezno polje",
       "create": "Dodaj uporabnika",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Nazaj na uporabnike",
+      "pendingEmail": "Čakajoča sprememba e-pošte na {email}, povezava poteče {date}",
       "notFoundTitle": "Uporabnik ni najden",
       "notFoundDescription": "Ta račun je morda bil izbrisan",
       "securityTitle": "Varnost",
@@ -186,16 +187,12 @@
       "title": "Ponastavi geslo",
       "description": "Nastavi novo geslo za {username}",
       "newLabel": "Novo geslo",
-      "hintLength": "Vsaj {min} znakov",
-      "hintStrict": "Vsaj {min} znakov, z veliko in malo črko, številko in posebnim znakom",
       "confirmLabel": "Potrdi novo geslo",
-      "mismatch": "Gesli se ne ujemata",
       "required": "Geslo je obvezno",
       "submit": "Ponastavi geslo",
       "cancel": "Prekliči",
       "close": "Zapri",
       "success": "Geslo posodobljeno",
-      "invalid": "To geslo ne izpolnjuje zahtev",
       "error": "Gesla ni bilo mogoče posodobiti. Prosim, poskusi znova."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "Testna e-pošta poslana",
       "failed": "Testne e-pošte ni bilo mogoče poslati",
       "failedUnknown": "Podrobnosti poiščite v dnevnikih strežnika."
+    },
+    "envLocked": "Nastavljeno s spremenljivko {name}",
+    "envSection": "Nekatere nastavitve tukaj določajo okoljske spremenljivke ({names}). Odstranite jih iz okolja, da boste te nastavitve lahko urejali tukaj.",
+    "unsaved": "Neshranjene spremembe",
+    "discard": "Zavrzi",
+    "tabs": {
+      "label": "Razdelki nastavitev strežnika",
+      "general": "Splošno",
+      "access": "Dostop in varnost",
+      "maps": "Zemljevidi in lokacija",
+      "email": "E-pošta",
+      "unsaved": "Vsebuje neshranjene spremembe"
+    },
+    "search": {
+      "placeholder": "Išči nastavitve…",
+      "noResults": "Nastavitev ni bilo mogoče najti"
+    },
+    "leave": {
+      "title": "Zapustiti brez shranjevanja?",
+      "description": "Imate neshranjene spremembe. Če zapustite stran, bodo izgubljene.",
+      "confirm": "Zapusti brez shranjevanja",
+      "stay": "Ostani na strani",
+      "close": "Zapri"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Obsegi morajo biti 500 znakov ali manj",
       "icon": "Ikona",
       "iconNone": "Brez",
-      "iconCustom": "URL po meri",
-      "customIconUrl": "URL ikone po meri",
-      "customIconUrlHint": "Povezava do slike, prikazane na gumbu za prijavo",
       "enabled": "Omogočen",
       "autoCreateUsers": "Samodejno ustvari uporabnike ob prvi prijavi",
       "syncUserInfo": "Sinhroniziraj podatke profila ob vsaki prijavi",
@@ -559,9 +576,6 @@
       "current": "Trenutno geslo",
       "new": "Novo geslo",
       "confirm": "Potrdi novo geslo",
-      "requirementsStrict": "Vsaj {length} znakov, vključno z veliko črko, malo črko, številko in simbolom.",
-      "requirementsLength": "Vsaj {length} znakov.",
-      "mismatch": "Gesli se ne ujemata.",
       "revokeOthers": "Odjavi se iz vseh drugih naprav",
       "submit": "Spremeni geslo",
       "success": "Geslo spremenjeno",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Tvoje geslo ali koda je napačna.",
       "alreadyLinked": "Ta račun je že povezan.",
       "lastMethodError": "Ne moreš odvezati edine metode prijave. Najprej nastavi geslo."
+    },
+    "email": {
+      "subtitle": "Sem se pošiljajo ponastavitve gesla in obvestila. Pri spremembi moraš potrditi svojo identiteto, novi naslov pa začne veljati, ko ga potrdiš prek povezave, ki jo tja pošljemo.",
+      "sameAsCurrent": "To je že vaš e-poštni naslov.",
+      "success": "Potrditvena povezava je poslana na nov naslov. Vaš e-poštni naslov se bo spremenil, ko ga potrdite.",
+      "appliedSuccess": "E-poštni naslov je spremenjen.",
+      "pending": "Čakajoča sprememba na {email}",
+      "pendingExpires": "Potrditvena povezava poteče {date}.",
+      "resend": "Ponovno pošlji povezavo",
+      "cancel": "Prekliči spremembo",
+      "resendSuccess": "Če je sprememba na čakanju, je nova povezava na poti na novi naslov.",
+      "resendError": "Povezave ni bilo mogoče ponovno poslati. Prosim, poskusi znova.",
+      "cancelSuccess": "Sprememba e-pošte je preklicana.",
+      "cancelError": "Spremembe ni bilo mogoče preklicati. Prosim, poskusi znova."
     },
     "apiKeys": {
       "title": "API ključi",
@@ -923,7 +951,6 @@
       "invalidType": "Prosim, izberi .zip arhiv.",
       "exportSuccess": "Izvoz pripravljen, prenos bi se moral kmalu začeti",
       "exportError": "Tvojih podatkov ni bilo mogoče izvoziti. Prosim, poskusi znova.",
-      "importSuccess": "Podatki uvoženi",
       "importError": "Arhiva ni bilo mogoče uvoziti. Prosim, preveri datoteko in poskusi znova."
     }
   }

@@ -12,7 +12,6 @@ import {
   fetchUserById,
   fetchUsers,
   mapManagedUser,
-  searchUsersByUsername,
   updateUser,
   uploadUserPhoto,
 } from '@/features/users/services/users'
@@ -30,6 +29,7 @@ vi.mock('@/services/http', () => ({
 function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
   return {
     id: 7,
+    version: 5,
     name: 'Ada Lovelace',
     username: 'ada',
     email: 'ada@example.com',
@@ -85,7 +85,12 @@ describe('users service requests', () => {
   })
 
   it('fetchUsers calls the paginated endpoint and maps records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ records: [makeUserDto()], total: 1 })
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [makeUserDto()],
+      total: 1,
+      page: 1,
+      num_records: 25,
+    })
 
     const page = await fetchUsers({
       page: 1,
@@ -105,12 +110,21 @@ describe('users service requests', () => {
     expect(page.records[0]?.username).toBe('ada')
   })
 
-  it('searchUsersByUsername encodes the term', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([makeUserDto()])
+  it('fetchUsers sends the username search as a server-side filter', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], total: 0, page: 1, num_records: 25 })
 
-    await searchUsersByUsername('a da')
+    await fetchUsers({
+      page: 1,
+      numRecords: 25,
+      showInactive: false,
+      showEmailUnverified: true,
+      showPendingApproval: true,
+      showExternalAuth: true,
+      showLocalAuth: true,
+      username: 'a da',
+    })
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/username/contains/a%20da', { signal: undefined })
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[0]).toContain('&username=a+da')
   })
 
   it('createUser posts the full field payload', async () => {
@@ -187,8 +201,8 @@ describe('users service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/users/7', {
       method: 'PUT',
+      headers: { 'If-Match': '"5"' },
       body: JSON.stringify({
-        id: 7,
         name: 'Ada L.',
         username: 'ada',
         email: 'ada@example.com',
@@ -214,7 +228,7 @@ describe('users service requests', () => {
 
     const user = await fetchUserById(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/id/7', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7', { signal: undefined })
     expect(user?.username).toBe('ada')
   })
 
@@ -225,33 +239,38 @@ describe('users service requests', () => {
   })
 
   it('changeUserPassword PUTs the new password', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ message: 'ok' })
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await changeUserPassword(7, 'secret123')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/password', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/password/change', {
+      method: 'POST',
       body: JSON.stringify({ password: 'secret123' }),
+      responseType: 'void',
     })
   })
 
   it('deleteUser issues a DELETE for the id', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteUser(7)
+    await deleteUser(7, 2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7', { method: 'DELETE', responseType: 'void' })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7', {
+      method: 'DELETE',
+      headers: { 'If-Match': '"2"' },
+      responseType: 'void',
+    })
   })
 
   it('uploadUserPhoto posts a multipart body to the image endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValue('data/user_images/7.png')
+    vi.mocked(apiFetch).mockResolvedValue({ photo_path: 'data/user_images/7.png' })
     const file = new File(['x'], 'avatar.png', { type: 'image/png' })
 
     const path = await uploadUserPhoto(7, file)
 
     expect(path).toBe('data/user_images/7.png')
     const call = vi.mocked(apiFetch).mock.calls[0]
-    expect(call?.[0]).toBe('/users/7/image')
+    expect(call?.[0]).toBe('/users/7/photo')
     expect(call?.[1]).toMatchObject({ method: 'POST', timeoutMs: 0 })
     expect(call?.[1]?.body).toBeInstanceOf(FormData)
   })
@@ -267,11 +286,14 @@ describe('users service requests', () => {
     })
   })
 
-  it('approveUser issues a PUT to the approve endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ message: 'ok' })
+  it('approveUser issues a POST to the approve endpoint', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await approveUser(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/approve', { method: 'PUT' })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/approve', {
+      method: 'POST',
+      responseType: 'void',
+    })
   })
 })

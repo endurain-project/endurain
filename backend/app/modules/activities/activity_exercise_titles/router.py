@@ -1,12 +1,9 @@
 """Authenticated API router for activity exercise titles."""
 
-from collections.abc import Callable
-from typing import Annotated
+from fastapi import APIRouter, Security
 
-from fastapi import APIRouter, Depends, Security
-from sqlalchemy.orm import Session
-
-import core.database as core_database
+import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_exercise_titles.service as activity_exercise_titles_service
 import modules.auth.dependencies as auth_dependencies
@@ -15,15 +12,21 @@ router = APIRouter()
 
 
 @router.get(
-    "/all",
-    response_model=list[activity_exercise_titles_schema.ActivityExerciseTitlesRead],
+    "",
+    response_model=activity_exercise_titles_schema.ActivityExerciseTitlesPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_activity_exercise_titles(
-    _check_scopes: Annotated[
-        Callable,
-        Security(auth_dependencies.check_scopes, scopes=["activities:read"]),
-    ],
-    db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[activity_exercise_titles_schema.ActivityExerciseTitlesRead]:
-    """Return all activity exercise titles."""
-    return activity_exercise_titles_service.list_activity_exercise_titles(db)
+    page: core_pagination.ChildPage,
+    db: core_dependencies.DbSession,
+) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
+    """Return one page of the activity exercise titles.
+
+    Args:
+        page: The requested window; a page holds up to the maximum when no size is given.
+        db: Database session dependency.
+
+    Returns:
+        The page of exercise titles.
+    """
+    return activity_exercise_titles_service.list_activity_exercise_titles(page, db)

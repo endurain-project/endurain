@@ -66,9 +66,11 @@ def apply_visibility_mask(
     if mask_private_notes:
         schema.private_notes = None
     if schema.hide_start_time:
-        # One representation of the instant means one place to mask it.
+        # One representation of the instant means one place to mask it. The import time
+        # places the start within minutes, so it goes with it.
         schema.start_time = None
         schema.end_time = None
+        schema.created_at = None
     if schema.hide_location:
         schema.city = None
         schema.town = None

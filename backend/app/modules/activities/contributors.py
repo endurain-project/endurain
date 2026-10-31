@@ -213,6 +213,13 @@ def child_ingestion_contributor(
     """
 
     def persist(data: Any, activity: activity_schema.ActivityRead, db: Session) -> None:
+        """Stage the parsed rows for the stored activity.
+
+        Args:
+            data: The parsed component rows.
+            activity: The stored activity they belong to.
+            db: Database session.
+        """
         store(data, activity.id, db)
 
     return ActivityIngestionContributor(key=key, persist=persist)
@@ -253,6 +260,17 @@ def child_profile_contributor[R](
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:
+        """Re-key the archived records of the original activity onto the restored one and stage them.
+
+        Args:
+            records: The archived records of the whole profile.
+            original_activity_id: The activity id the records were exported under.
+            new_activity: The restored activity.
+            db: Database session.
+
+        Returns:
+            The number of records restored.
+        """
         restored: list[R] = []
         for record in records:
             if record.get("activity_id") != original_activity_id:

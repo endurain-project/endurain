@@ -108,7 +108,7 @@ While most of the import processes are documented over in the features / importi
 
 All multipart import uploads are validated through `backend.app.core.file_uploads` before they are parsed or persisted. Use `validate_upload(file, kind=UploadKind.ZIP)` for profile ZIP imports that are consumed in memory, and `save_validated_upload(file, kind=..., upload_dir=..., filename=...)` for uploads that are written to disk.
 
-Activity uploads use server-generated filenames and `UploadKind.ACTIVITY` or `UploadKind.GZIP`; decompressed gzip payloads are re-validated as `UploadKind.ACTIVITY` before parsing. Validation failures are raised as `HTTPException` responses whose `detail` includes a human-readable `message` and, when provided by `safeuploads`, a machine-readable `code`.
+Activity uploads use server-generated filenames and `UploadKind.ACTIVITY` or `UploadKind.GZIP`; decompressed gzip payloads are re-validated as `UploadKind.ACTIVITY` before parsing. Validation failures are raised as `core.exceptions` domain errors: `PayloadTooLargeError` (413) for a size violation, `InvalidInputError` (400) for content the validators reject and `ProcessingError` (500) otherwise. They are rendered as problem documents (see [Errors, concurrency and rate limits](../integrate/errors-and-limits.md)); the `safeuploads` error code is logged, not returned.
 
 ### Bulk import
 

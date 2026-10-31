@@ -1,29 +1,29 @@
-"""
-FastAPI router for health water intake endpoints.
+"""FastAPI router for health water intake endpoints.
 
 This module defines the API endpoints for managing water intake
 records, including CRUD operations with pagination and filtering.
 """
 
-from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
-    HTTPException,
     Query,
+    Request,
+    Response,
     Security,
     status,
 )
-from sqlalchemy.orm import Session
 
-import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
+import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.health_water.crud as health_water_crud
 import modules.health.health_water.schema as health_water_schema
+import modules.health.health_water.service as health_water_service
+import modules.health.schema as health_schema
 
 # Define the API router
 router = APIRouter()
@@ -31,221 +31,181 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=(health_water_schema.HealthWaterListResponse),
-    status_code=status.HTTP_200_OK,
-)
-def read_health_water_all_pagination(
-    _check_scopes: Annotated[
-        Callable,
+    response_model=core_pagination.Page[health_water_schema.HealthWaterRead],
+    dependencies=[
         Security(
             auth_dependencies.check_scopes,
             scopes=["health:read"],
-        ),
+        )
     ],
-    _validate_pagination_values_on_query: Annotated[
-        Callable,
-        Depends(core_dependencies.validate_pagination_values_on_query),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    page_number: Annotated[
-        int | None,
-        Query(description="Pagination page number"),
-    ] = None,
-    num_records: Annotated[
-        int | None,
-        Query(description="Number of records per page"),
-    ] = None,
+)
+def read_health_water_all_pagination(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    page: core_pagination.ListPage,
     interval: Annotated[
         health_constants.Interval | None,
         Query(description="Filter by goal interval"),
     ] = None,
-) -> health_water_schema.HealthWaterListResponse:
-    """
-    Retrieve paginated water intake records for the user.
+) -> core_pagination.Page[health_water_schema.HealthWaterRead]:
+    """Retrieve paginated water intake records for the user.
+
+    One page of records, newest first, optionally limited to an interval. Access is
+    restricted to users with the 'health:read' scope.
 
     Args:
-        _check_scopes: Security dependency that validates the
-            user has 'health:read' scope.
-        _validate_pagination_values_on_query: Dependency that
-            validates pagination parameters.
-        token_user_id: The ID of the authenticated user
-            extracted from the access token.
+        token_user_id: The ID of the authenticated user extracted from the access token.
         db: Database session for executing queries.
-        page_number: Optional pagination page number.
-        num_records: Optional number of records per page.
-        interval: Optional filter by goal interval.
+        page: The requested page and page size.
+        interval: Optional filter to retrieve records within a specific goal interval.
 
     Returns:
-        HealthWaterListResponse containing total count,
-            pagination info, and water intake records.
-
-    Raises:
-        HTTPException: If the user lacks required scope or
-            pagination values are invalid.
+        The page of records with the total matching the interval.
     """
-    total = health_water_crud.get_health_water_number_by_user_id(token_user_id, db, interval)
-    records = health_water_crud.get_health_water_by_user_id(
-        token_user_id,
-        db,
-        page_number,
-        num_records,
-        interval,
+    return health_water_service.list_health_water(
+        token_user_id, db, page_number=page.page_number, num_records=page.num_records, interval=interval
     )
 
-    return health_water_schema.HealthWaterListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
-    )
+
+@router.get(
+    "/chart",
+    response_model=health_schema.HealthChartSeries,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_water_chart(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    interval: Annotated[
+        health_constants.Interval,
+        Query(description="Interval to chart"),
+    ] = health_constants.Interval.LAST_7_DAYS,
+) -> health_schema.HealthChartSeries:
+    """Chart the authenticated user's water intake over an interval.
+
+    One aggregated point per day, week or month depending on the interval, so the response stays small
+    however long the history. Access is restricted to users with the 'health:read' scope.
+
+    Args:
+        token_user_id: The ID of the authenticated user extracted from the access token.
+        db: Database session for executing queries.
+        interval: The window to chart.
+
+    Returns:
+        The interval's bucket size and its points, oldest first.
+    """
+    return health_water_service.get_health_water_chart(token_user_id, interval, db)
 
 
 @router.post(
     "",
     response_model=health_water_schema.HealthWaterRead,
     status_code=status.HTTP_201_CREATED,
-)
-def create_health_water(
-    health_water: health_water_schema.HealthWaterCreate,
-    _check_scopes: Annotated[
-        Callable,
+    dependencies=[
         Security(
             auth_dependencies.check_scopes,
             scopes=["health:write"],
-        ),
+        )
     ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def create_health_water(
+    request: Request,
+    health_water: health_water_schema.HealthWaterCreate,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> health_water_schema.HealthWaterRead:
-    """
-    Create or update a water intake record for the user.
+    """Record a water intake for the user's day.
 
-    If a record already exists for the given date, it will be
-    updated instead of creating a duplicate.
+    The intake is added to the day's total, so several intakes in one day are all counted.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_water: Water intake data to create.
-        _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.
         db: Database session dependency.
 
     Returns:
-        Created or updated HealthWaterRead record.
+        The day's HealthWaterRead record, with the intake added.
 
-    Raises:
-        HTTPException: 400 if date field is not provided.
     """
-    if not health_water.date:
-        raise HTTPException(
-            status_code=400,
-            detail="Date field is required.",
-        )
-
-    date_str = health_water.date.isoformat()
-
-    water_for_date = health_water_crud.get_health_water_by_date_and_user_id(token_user_id, date_str, db)
-
-    if water_for_date:
-        accumulated_ml = (water_for_date.amount_ml or 0) + (health_water.amount_ml or 0)
-        health_water_update = health_water_schema.HealthWaterUpdate(
-            id=water_for_date.id,
-            user_id=token_user_id,
-            amount_ml=accumulated_ml,
-            date=health_water.date,
-            source=health_water.source,
-        )
-        return health_water_crud.edit_health_water(token_user_id, health_water_update, db)
-    else:
-        return health_water_crud.create_health_water(token_user_id, health_water, db)
+    return health_water_service.create_health_water(token_user_id, health_water, db)
 
 
-@router.put(
-    "",
+@router.patch(
+    "/{health_water_id}",
     response_model=health_water_schema.HealthWaterRead,
-    status_code=status.HTTP_200_OK,
-)
-def edit_health_water(
-    health_water: health_water_schema.HealthWaterUpdate,
-    _check_scopes: Annotated[
-        Callable,
+    dependencies=[
         Security(
             auth_dependencies.check_scopes,
             scopes=["health:write"],
-        ),
+        )
     ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def edit_health_water(
+    request: Request,
+    health_water_id: core_dependencies.PositiveId,
+    health_water: health_water_schema.HealthWaterUpdate,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> health_water_schema.HealthWaterRead:
-    """
-    Edit an existing water intake record.
+    """Edit an existing water intake record.
 
     Args:
+        request: The incoming request, read by the rate limiter.
+        health_water_id: ID of the record to change.
         health_water: Water intake data to update.
-        _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         Updated HealthWaterRead record.
 
     Raises:
-        HTTPException: If record not found or unauthorized.
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    return health_water_crud.edit_health_water(token_user_id, health_water, db)
+    updated = health_water_service.edit_health_water(
+        token_user_id, health_water_id, health_water, db, if_match=if_match
+    )
+    core_etag.set_etag(response, updated.version)
+    return updated
 
 
 @router.delete(
     "/{health_water_id}",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_health_water(
-    health_water_id: int,
-    _check_scopes: Annotated[
-        Callable,
+    dependencies=[
         Security(
             auth_dependencies.check_scopes,
             scopes=["health:write"],
-        ),
+        )
     ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_health_water(
+    request: Request,
+    health_water_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
+    db: core_dependencies.DbSession,
 ) -> None:
-    """
-    Delete a water intake record for the authenticated user.
+    """Delete a water intake record for the authenticated user.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_water_id: ID of the water intake record.
-        _check_scopes: Security dependency for health:write.
         token_user_id: User ID from the access token.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
 
     Raises:
-        HTTPException: If record not found or unauthorized.
+        PreconditionFailedError: If the record changed since the client read it.
+        NotFoundError: If the user has no such record.
     """
-    health_water_crud.delete_health_water(token_user_id, health_water_id, db)
+    health_water_service.delete_health_water(token_user_id, health_water_id, db, if_match=if_match)

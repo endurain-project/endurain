@@ -2,8 +2,10 @@ import {
   Activity,
   Bell,
   CopyCheck,
+  KeyRound,
   ShieldAlert,
   UserCheck,
+  Unplug,
   UserPlus,
   Watch,
   type LucideIcon,
@@ -24,6 +26,8 @@ const NOTIFICATION_TYPE = {
   NEW_FOLLOWER_REQUEST: 11,
   NEW_FOLLOWER_REQUEST_ACCEPTED: 12,
   GARMIN_TOKEN_EXPIRED: 21,
+  STRAVA_TOKEN_EXPIRED: 22,
+  IDP_LINKED: 31,
   ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: 101,
 } as const
 
@@ -155,7 +159,27 @@ export function presentNotification(
         to: { name: 'settings', query: { tab: 'integrations' } },
       }
     }
+    case NOTIFICATION_TYPE.STRAVA_TOKEN_EXPIRED: {
+      return {
+        icon: Unplug,
+        titleKey: `${base}.stravaTokenExpired.title`,
+        bodyKey: `${base}.stravaTokenExpired.body`,
+        to: { name: 'settings', query: { tab: 'integrations' } },
+      }
+    }
+    case NOTIFICATION_TYPE.IDP_LINKED: {
+      const name = readString(options, 'idp_name')
+      return {
+        icon: KeyRound,
+        titleKey: `${base}.idpLinked.title`,
+        // A provider deleted since the link has no name, so the generic body applies.
+        bodyKey: name ? `${base}.idpLinked.body` : `${base}.idpLinked.bodyGeneric`,
+        bodyParams: { name },
+        to: { name: 'settings-security' },
+      }
+    }
     case NOTIFICATION_TYPE.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: {
+      const userId = readNumber(options, 'user_id')
       return {
         icon: ShieldAlert,
         titleKey: `${base}.adminSignUpApproval.title`,
@@ -164,7 +188,10 @@ export function presentNotification(
           name: readString(options, 'user_name'),
           username: readString(options, 'user_username'),
         },
-        to: { name: 'settings', query: { tab: 'users' } },
+        to:
+          userId === null
+            ? { name: 'settings-users' }
+            : { name: 'settings-user-detail', params: { id: String(userId) } },
       }
     }
     default:

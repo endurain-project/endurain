@@ -3,7 +3,7 @@ import type { UserIdentityProvider, UserIdentityProviderDto } from '@/features/u
 import { apiFetch } from '@/services/http'
 
 /**
- * Maps a raw `UsersIdentityProviderResponse` payload to the clean
+ * Maps a raw `IdentityProviderLinkRead` payload to the clean
  * {@link UserIdentityProvider} model — the single boundary where the snake_case
  * wire shape is normalized.
  *

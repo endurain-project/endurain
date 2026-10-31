@@ -147,11 +147,11 @@ class TestRegisterThumbnailSubscribers:
             on_activity_created_generate_thumbnail,
             on_activity_deleted_cleanup_thumbnail,
             on_tile_settings_changed_regenerate,
-            register_thumbnail_subscribers,
+            register_bus_subscribers,
         )
 
         events = MagicMock()
-        register_thumbnail_subscribers(events)
+        register_bus_subscribers(events)
 
         assert events.subscribe.call_count == 3
         events.subscribe.assert_any_call("activity.created", on_activity_created_generate_thumbnail)
@@ -207,11 +207,11 @@ class TestDurableThumbnailHandlers:
             THUMBNAIL_GENERATE_SUBSCRIBER_ID,
             cleanup_activity_thumbnail_for_event,
             generate_activity_thumbnail_for_event,
-            register_thumbnail_durable_handlers,
+            register_durable_handlers,
         )
 
         registry = JobHandlerRegistry()
-        register_thumbnail_durable_handlers(registry)
+        register_durable_handlers(registry)
 
         assert registry.get(THUMBNAIL_GENERATE_SUBSCRIBER_ID) is generate_activity_thumbnail_for_event
         assert registry.get(THUMBNAIL_CLEANUP_SUBSCRIBER_ID) is cleanup_activity_thumbnail_for_event

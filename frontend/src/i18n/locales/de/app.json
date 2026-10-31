@@ -18,6 +18,7 @@
     "help": "Stelle sicher, dass ENDURAIN_HOST auf die URL zeigt, unter der deine Endurain-Instanz erreichbar ist (zum Beispiel https://endurain.example.com), und dass das Backend läuft. Lade anschließend die Seite neu.",
     "reload": "Neu laden"
   },
+  "staleError": "Dies wurde an anderer Stelle geändert, während du es angesehen hast, daher wurde nichts gespeichert. Die aktuelle Version wurde geladen. Prüfe sie und versuche es erneut.",
   "dismiss": "Schließen",
   "language": "Sprache",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Bearbeiten",
     "supported": "Markdown unterstützt",
     "empty": "Nichts zu sehen"
+  },
+  "password": {
+    "hintLength": "Mindestens {min} Zeichen.",
+    "hintStrict": "Mindestens {min} Zeichen, mit Groß- und Kleinbuchstaben, einer Zahl und einem Sonderzeichen.",
+    "invalid": "Passwort erfüllt die Anforderungen nicht",
+    "mismatch": "Passwörter stimmen nicht überein"
   }
 }

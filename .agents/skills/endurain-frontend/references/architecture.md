@@ -16,6 +16,7 @@
 Writes:
 - Use `useInvalidatingMutation` so the affected domain's keys are invalidated.
 - Optimistic updates snapshot in `onMutate`, roll back in `onError`, invalidate in `onSettled` (reference: `useMarkNotificationReadMutation`).
+- A write to a versioned resource maps `version` through `rowVersion` and sends `ifMatchHeaders(version)` (`src/services/ifMatch.ts`); never `*`. On 412 refetch and show the conflict; a 428 is a bug.
 - Seed or invalidate `queryKeys.currentUser()` when a profile change must propagate everywhere.
 
 ## Typed API client

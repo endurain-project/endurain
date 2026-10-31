@@ -9,10 +9,12 @@ import worker
 
 
 class TestRunWorkerProcess:
-    def test_noop_when_jobs_disabled(self):
+    def test_refuses_to_start_when_jobs_disabled(self):
+        """A worker without the durable queue is a misconfiguration; exiting 0 would hide it behind restarts."""
         with patch("worker.core_config") as cfg, patch("worker.platform_container") as container:
             cfg.settings.JOBS_ENABLED = False
-            worker.run_worker_process(stop=threading.Event())
+            with pytest.raises(OSError, match="JOBS_ENABLED"):
+                worker.run_worker_process(stop=threading.Event())
         container.build_platform.assert_not_called()
 
     def test_builds_platform_and_drains(self):
@@ -37,15 +39,15 @@ class TestRunWorkerProcess:
         # as the API does, or the substrate would read all-defaults settings.
         built = platform_settings.build_jasil_settings.return_value
         substrate_settings.configure.assert_called_once_with(built)
-        container.build_platform.assert_called_once_with(built)
+        container.build_platform.assert_called_once_with(built, sources=module_registry.runtime_sources.return_value)
         runtime.set_active_platform.assert_called_once()
         # Every activity durable handler must be registered via the shared surface
         # so the worker can resolve any claimed job — the SAME call main.startup_event
         # makes, so the two entrypoints cannot drift.
-        module_registry.configure_activity_contributors.assert_called_once_with()
+        module_registry.configure_application.assert_called_once_with()
         module_registry.register_durable_handlers.assert_called_once_with(jobs_registry.registry)
-        assert module_registry.method_calls[:2] == [
-            call.configure_activity_contributors(),
+        assert module_registry.method_calls[2:4] == [
+            call.configure_application(),
             call.register_durable_handlers(jobs_registry.registry),
         ]
         install_signals.assert_called_once_with(stop)
@@ -53,7 +55,10 @@ class TestRunWorkerProcess:
         # Whatever the API's flag says, this process must present the standalone
         # topology, or ``run_job_worker`` refuses to start.
         cfg.settings.model_copy.assert_called_once_with(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
-        platform_settings.build_jasil_settings.assert_called_once_with(cfg.settings.model_copy.return_value)
+        platform_settings.build_jasil_settings.assert_called_once_with(
+            cfg.settings.model_copy.return_value,
+            plain_areas=module_registry.storage_plain_areas.return_value,
+        )
         # This process built its own platform, so draining is not the end of it:
         # the bus consumer thread and Redis clients have to be released too.
         lifecycle.shutdown.assert_called_once_with()

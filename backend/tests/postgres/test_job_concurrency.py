@@ -9,6 +9,7 @@ index.
 import threading
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from jasil.backends.lock_pg import PgAdvisoryLock
@@ -118,7 +119,10 @@ class TestStaleJobReaper:
         idle = _add_job(factory, idle_hours=48)
         with factory() as db:
             failed = ingestion_crud.fail_jobs_idle_since(
-                datetime.now(UTC) - timedelta(hours=24), ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, db
+                datetime.now(UTC) - timedelta(hours=24),
+                ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+                100,
+                db,
             )
             db.commit()
 
@@ -137,6 +141,7 @@ class TestStaleJobReaper:
                 result["failed"] = ingestion_crud.fail_jobs_idle_since(
                     datetime.now(UTC) - timedelta(hours=24),
                     ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+                    100,
                     db,
                 )
                 db.commit()
@@ -280,12 +285,28 @@ class TestRegenerationLock:
         with factory() as db:
             thumbnail_service.delete_and_regenerate_all_activity_thumbnails(platform.storage, lock, platform.clock, db)
 
-    def test_the_backfill_pass_skips_quietly_while_the_lock_is_held(self, factory, lock, _publish_local_platform):
-        platform = _publish_local_platform
-        release, thread = self._hold(lock, "thumbnail_backfill")
+    def test_the_scheduled_backfill_is_skipped_while_another_holder_has_the_lock(self, lock):
+        """The scheduler takes the lock for the pass, so a held lock means the pass does not run at all."""
+        import core.scheduler as core_scheduler
+
+        ran = []
+        platform = type("Platform", (), {"lock": lock})()
+        release, thread = self._hold(lock, thumbnail_service.BACKFILL_LOCK_NAME)
         try:
-            with factory() as db:
-                thumbnail_service.generate_missing_activity_thumbnails(platform.storage, lock, platform.clock, db)
+            with patch.object(core_scheduler.platform_runtime, "get_active_platform", return_value=platform):
+                core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
         finally:
             release.set()
             thread.join(timeout=10)
+
+        assert ran == []
+
+    def test_the_scheduled_backfill_runs_once_the_lock_is_free(self, lock):
+        import core.scheduler as core_scheduler
+
+        ran = []
+        platform = type("Platform", (), {"lock": lock})()
+        with patch.object(core_scheduler.platform_runtime, "get_active_platform", return_value=platform):
+            core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
+
+        assert ran == [True]

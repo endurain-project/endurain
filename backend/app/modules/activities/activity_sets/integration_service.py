@@ -5,9 +5,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_sets.contracts as activity_sets_contracts
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
+import modules.activities.activity_sets.service as activity_sets_service
 import modules.activities.contributors as activities_contributors
 
 
@@ -79,3 +81,21 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
         store=_store_sets,
         parse_record=_parse_profile_record,
     )
+
+
+def list_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: int | None,
+    db: Session,
+) -> activity_sets_schema.ActivitySetsPage:
+    """Return the first page of an activity's sets for a viewer who may already see the activity.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty when the sets are hidden from this viewer.
+    """
+    return activity_sets_service.list_for_activity(activity, requester_user_id, db)

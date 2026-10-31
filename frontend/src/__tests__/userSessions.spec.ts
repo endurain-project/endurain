@@ -53,12 +53,27 @@ describe('user sessions service', () => {
   })
 
   it('fetchUserSessions calls the user-sessions endpoint and maps records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([makeSessionDto()])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [makeSessionDto()], next: null })
 
     const sessions = await fetchUserSessions(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/user/7', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?page_number=1', { signal: undefined })
     expect(sessions[0]?.browser).toBe('Chrome')
+  })
+
+  it('fetchUserSessions follows the pages until the last one', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [makeSessionDto()], next: 2 })
+      .mockResolvedValueOnce({ items: [makeSessionDto({ id: 'sess-2' })], next: null })
+
+    const sessions = await fetchUserSessions(7)
+
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/users/7/sessions?page_number=2',
+      expect.anything(),
+    )
+    expect(sessions.map((session) => session.id)).toEqual(['sess-1', 'sess-2'])
   })
 
   it('fetchUserSessions maps a null payload to an empty array', async () => {
@@ -72,7 +87,7 @@ describe('user sessions service', () => {
 
     await revokeUserSession('sess-1', 7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/sess-1/user/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/sess-1', {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -83,7 +98,7 @@ describe('user sessions service', () => {
 
     await revokeOtherUserSessions(7, 'sess-1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/user/7?exclude_session_id=sess-1', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?exclude_session_id=sess-1', {
       method: 'DELETE',
       responseType: 'void',
     })
@@ -94,7 +109,7 @@ describe('user sessions service', () => {
 
     await revokeOtherUserSessions(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/sessions/user/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions', {
       method: 'DELETE',
       responseType: 'void',
     })

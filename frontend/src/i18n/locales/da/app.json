@@ -18,6 +18,7 @@
     "help": "Kontrollér, at ENDURAIN_HOST peger på den URL, hvor din Endurain-instans kan nås (for eksempel https://endurain.example.com), og at backenden kører, og genindlæs derefter siden.",
     "reload": "Genindlæs"
   },
+  "staleError": "Dette blev ændret et andet sted, mens du kiggede på det, så intet blev gemt. Den aktuelle version er indlæst. Gennemgå den, og prøv igen.",
   "dismiss": "Afvis",
   "language": "Sprog",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Redigér",
     "supported": "Markdown understøttes",
     "empty": "Intet at forhåndsvise"
+  },
+  "password": {
+    "hintLength": "Mindst {min} tegn.",
+    "hintStrict": "Mindst {min} tegn med store bogstaver, små bogstaver, et tal og et specialtegn.",
+    "invalid": "Adgangskoden opfylder ikke kravene",
+    "mismatch": "Adgangskoderne stemmer ikke overens"
   }
 }

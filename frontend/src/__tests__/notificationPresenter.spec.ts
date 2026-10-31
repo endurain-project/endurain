@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { Activity, Bell, CopyCheck, ShieldAlert, UserCheck, UserPlus, Watch } from '@lucide/vue'
+import {
+  Activity,
+  Bell,
+  CopyCheck,
+  KeyRound,
+  ShieldAlert,
+  UserCheck,
+  UserPlus,
+  Unplug,
+  Watch,
+} from '@lucide/vue'
 
 import type { Notification } from '@/features/notifications/types'
 
@@ -75,12 +85,44 @@ describe('presentNotification', () => {
     expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
   })
 
-  it('routes an admin sign-up approval to settings users', () => {
-    const result = presentNotification(make(101, { user_name: 'Ada', user_username: 'ada' }))
+  it('routes a Strava token expiry to settings integrations', () => {
+    const result = presentNotification(make(22))
+
+    expect(result.icon).toBe(Unplug)
+    expect(result.titleKey).toBe('notifications.types.stravaTokenExpired.title')
+    expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
+  })
+
+  it('names the linked provider and routes to security settings', () => {
+    const result = presentNotification(make(31, { idp_id: 4, idp_name: 'Authentik' }))
+
+    expect(result.icon).toBe(KeyRound)
+    expect(result.titleKey).toBe('notifications.types.idpLinked.title')
+    expect(result.bodyKey).toBe('notifications.types.idpLinked.body')
+    expect(result.bodyParams).toEqual({ name: 'Authentik' })
+    expect(result.to).toEqual({ name: 'settings-security' })
+  })
+
+  it('falls back to the generic body when the linked provider has no name', () => {
+    const result = presentNotification(make(31, { idp_id: 4, idp_name: null }))
+
+    expect(result.bodyKey).toBe('notifications.types.idpLinked.bodyGeneric')
+  })
+
+  it('routes an admin sign-up approval to the pending user', () => {
+    const result = presentNotification(
+      make(101, { user_id: 7, user_name: 'Ada', user_username: 'ada' }),
+    )
 
     expect(result.icon).toBe(ShieldAlert)
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
-    expect(result.to).toEqual({ name: 'settings', query: { tab: 'users' } })
+    expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: '7' } })
+  })
+
+  it('routes an admin sign-up approval without a user id to the users list', () => {
+    const result = presentNotification(make(101, { user_name: 'Ada', user_username: 'ada' }))
+
+    expect(result.to).toEqual({ name: 'settings-users' })
   })
 
   it('falls back to a neutral bell for unknown types', () => {

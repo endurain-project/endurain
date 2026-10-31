@@ -41,6 +41,8 @@ export type GoalMetric = Schemas['UsersGoalCreate']['goal_type']
 export interface Goal {
   id: number
   userId: number
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   interval: GoalInterval
   activityType: GoalActivityType
   goalType: GoalMetric

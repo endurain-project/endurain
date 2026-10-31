@@ -1,22 +1,21 @@
 """User management router for authenticated operations."""
 
-from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security, UploadFile, status
-from fastapi.concurrency import run_in_threadpool
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Request, Response, Security, UploadFile, status
 
-import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
+import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_providers.links.schema as auth_identity_links_schema
-import modules.auth.identity_service as auth_identity_service
-import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
-import modules.users.users.crud as users_crud
+import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+import modules.users.users.deletion_job_service as users_deletion_job_service
 import modules.users.users.dependencies as users_dependencies
+import modules.users.users.photo_service as users_photo_service
 import modules.users.users.schema as users_schema
-import modules.users.users.utils as users_utils
+import modules.users.users.service as users_service
 
 # Define the API router
 router = APIRouter()
@@ -24,30 +23,12 @@ router = APIRouter()
 
 @router.get(
     "",
-    status_code=status.HTTP_200_OK,
-    response_model=users_schema.UsersListResponse,
+    response_model=core_pagination.Page[users_schema.UsersRead],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
 def read_users_all_pagination(
-    _validate_pagination_values_on_query: Annotated[
-        Callable, Depends(core_dependencies.validate_pagination_values_on_query)
-    ],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
-    page_number: Annotated[
-        int | None,
-        Query(description="Pagination page number"),
-    ] = None,
-    num_records: Annotated[
-        int | None,
-        Query(description="Number of records per page"),
-    ] = None,
+    db: core_dependencies.DbSession,
+    page: core_pagination.ListPage,
     show_inactive: Annotated[
         bool | None,
         Query(description="Filter by inactive status"),
@@ -68,463 +49,455 @@ def read_users_all_pagination(
         bool | None,
         Query(description="Filter by local authentication status"),
     ] = None,
-) -> users_schema.UsersListResponse:
-    """
-    Retrieve paginated list of all users.
+    username: Annotated[
+        str | None,
+        Query(description="Keep only users whose username contains this text"),
+    ] = None,
+) -> core_pagination.Page[users_schema.UsersRead]:
+    """Retrieve paginated list of all users.
 
     Args:
-        _validate_pagination_values: Pagination validation.
-        _check_scopes: Authorization check.
         db: Database session dependency.
-        page_number: Optional page number to retrieve.
-        num_records: Optional number of records per page.
+        page: The requested page and page size.
         show_inactive: Optional filter by inactive status.
         show_email_unverified: Optional filter by email verification status.
         show_pending_approval: Optional filter by pending approval status.
         show_external_auth: Optional filter by external authentication status.
         show_local_auth: Optional filter by local authentication status.
+        username: Optional text the username must contain.
 
     Returns:
         Paginated list of users with total count.
     """
-    total: int = users_crud.get_users_number(
+    return users_service.list_users(
         db,
-        show_inactive,
-        show_email_unverified,
-        show_pending_approval,
-    )
-    users: list[users_schema.UsersRead] = users_crud.get_users_with_pagination(
-        db,
-        page_number,
-        num_records,
-        show_inactive,
-        show_email_unverified,
-        show_pending_approval,
-    )
-
-    # Batch fetch IdP link counts for all users in a single grouped query
-    user_ids: list[int] = [user.id for user in users]
-    idp_counts: dict[int, int] = identity_service.get_identity_link_counts_for_users(user_ids)
-    mfa_enabled_map: dict[int, bool] = identity_service.get_mfa_enabled_for_users(user_ids)
-
-    # Enrich with IDP count before serializing
-    enriched_users: list[users_schema.UsersRead] = []
-    for user in users:
-        idp_count: int = idp_counts.get(user.id, 0)
-        user.external_auth_count = idp_count
-        user.mfa_enabled = mfa_enabled_map.get(user.id, False)
-
-        # Apply external/local auth filters
-        if idp_count > 0 and show_external_auth is False:
-            continue
-        if idp_count == 0 and show_local_auth is False:
-            continue
-
-        enriched_users.append(user)
-
-    return users_schema.UsersListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=enriched_users,
+        page_number=page.page_number,
+        num_records=page.num_records,
+        show_inactive=show_inactive,
+        show_email_unverified=show_email_unverified,
+        show_pending_approval=show_pending_approval,
+        show_external_auth=show_external_auth,
+        show_local_auth=show_local_auth,
+        username=username,
     )
 
 
 @router.get(
     "/username/contains/{username}",
-    status_code=status.HTTP_200_OK,
-    response_model=list[users_schema.UsersRead] | None,
+    response_model=users_schema.UserPublicPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read"])],
 )
 def read_users_contain_username(
-    username: str,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> list[users_schema.UsersRead] | users_schema.UsersRead | None:
-    """
-    Search users by partial username match.
+    username: users_dependencies.Username,
+    page: core_pagination.ListPage,
+    db: core_dependencies.DbSession,
+) -> users_schema.UserPublicPage:
+    """Search active users by partial username match, one page at a time.
 
     Args:
         username: Partial username to search for.
-        _check_scopes: Authorization check.
+        page: The requested window of matches.
         db: Database session dependency.
 
     Returns:
-        List of users matching the search.
+        The page of matching users' public projections.
     """
-    return users_crud.get_user_by_username(username=username, db=db, contains=True)
+    return users_service.search_public_users(username, page, db)
 
 
 @router.get(
     "/username/{username}",
-    status_code=status.HTTP_200_OK,
-    response_model=users_schema.UsersRead | None,
+    response_model=users_schema.UsersRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
 def read_users_username(
-    username: str,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> users_schema.UsersRead | None:
-    """
-    Get user by exact username.
+    username: users_dependencies.Username,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> users_schema.UsersRead:
+    """Get user by exact username.
 
     Args:
         username: Exact username to search for.
-        _check_scopes: Authorization check.
         db: Database session dependency.
+        response: The response, which carries the user's ETag.
 
     Returns:
-        User if found, None otherwise.
+        The user.
+
+    Raises:
+        NotFoundError: If there is no such user.
     """
-    return users_crud.get_user_by_username(username, db)
+    user = users_service.require_user_by_username(username, db)
+    core_etag.set_etag(response, user.version)
+    return user
 
 
-@router.get(
-    "/email/{email}",
-    status_code=status.HTTP_200_OK,
-    response_model=users_schema.UsersRead | None,
+@router.post(
+    "/email/lookup",
+    response_model=users_schema.UsersRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
-def read_users_email(
-    email: str,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> users_schema.UsersRead | None:
-    """
-    Get user by email address.
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def lookup_user_by_email(
+    request: Request,
+    lookup: users_schema.UsersEmailLookup,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> users_schema.UsersRead:
+    """Get a user by email address.
+
+    The address travels in the request body, so it never reaches access logs or proxy caches
+    through the URL.
 
     Args:
-        email: Email address to search for.
-        _check_scopes: Authorization check.
+        request: The incoming request, read by the rate limiter.
+        lookup: The email address to search for.
         db: Database session dependency.
+        response: The response, which carries the user's ETag.
 
     Returns:
-        User if found, None otherwise.
+        The user.
+
+    Raises:
+        NotFoundError: If there is no such user.
     """
-    return users_crud.get_user_by_email(email, db)
+    user = users_service.require_user_by_email(lookup.email, db)
+    core_etag.set_etag(response, user.version)
+    return user
 
 
 @router.get(
     "/id/{user_id}",
-    status_code=status.HTTP_200_OK,
-    response_model=users_schema.UsersRead | None,
+    response_model=users_schema.UserPublicRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read"])],
 )
 def read_users_id(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> users_schema.UsersRead | None:
-    """
-    Get user by ID.
+    user_id: core_dependencies.PositiveId,
+    db: core_dependencies.DbSession,
+) -> users_schema.UserPublicRead:
+    """Get a user's public projection by ID.
 
     Args:
         user_id: User ID to retrieve.
-        _validate_id: User ID validation dependency.
-        _check_scopes: Authorization check.
         db: Database session dependency.
 
     Returns:
-        User if found, None otherwise.
+        The public projection.
+
+    Raises:
+        NotFoundError: If the user does not exist.
     """
-    return users_crud.get_user_by_id(user_id, db)
+    return users_service.get_public_profile(user_id, db)
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=users_schema.UsersRead)
-def create_user(
-    user: users_schema.UsersCreate,
-    _check_scope: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+@router.get(
+    "/{user_id}",
+    response_model=users_schema.UsersRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
+)
+def read_users_full(
+    user_id: core_dependencies.PositiveId,
+    db: core_dependencies.DbSession,
+    response: Response,
 ) -> users_schema.UsersRead:
-    """
-    Create a new user (admin operation).
+    """Get a user's full record by ID (admin operation).
 
     Args:
+        user_id: User ID to retrieve.
+        db: Database session dependency.
+        response: The response, which carries the user's ETag.
+
+    Returns:
+        The full record.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    user = users_service.require_user_with_pending_email(user_id, db)
+    core_etag.set_etag(response, user.version)
+    return user
+
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=users_schema.UsersRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def create_user(
+    request: Request,
+    user: users_schema.UsersCreate,
+    db: core_dependencies.DbSession,
+) -> users_schema.UsersRead:
+    """Create a new user (admin operation).
+
+    Args:
+        request: The incoming request, read by the rate limiter.
         user: User creation data.
-        _check_scope: Authorization check.
-        identity_service: Identity service dependency.
         db: Database session dependency.
 
     Returns:
         Created user data.
     """
-    created_user: users_schema.UsersRead = users_crud.create_user(user, identity_service, db)
-
-    # Create default data for the user
-    users_utils.create_user_default_data(created_user.id, identity_service, db)
-
-    # Return the created user
-    return created_user
+    return users_service.create_user(user, db)
 
 
 @router.post(
-    "/{user_id}/image",
+    "/{user_id}/photo",
     status_code=status.HTTP_201_CREATED,
-    response_model=str,
+    response_model=users_schema.UserPhotoRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
 )
-async def upload_user_image(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+@core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
+def upload_user_image(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
     file: UploadFile,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> str | None:
-    """
-    Upload user profile image.
+    storage: core_dependencies.Storage,
+    db: core_dependencies.DbSession,
+) -> users_schema.UserPhotoRead:
+    """Upload user profile image.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         user_id: ID of user to upload image for.
-        _validate_id: User ID validation dependency.
         file: Uploaded image file.
-        _check_scopes: Authorization check.
+        storage: The platform storage provider.
         db: Database session dependency.
 
     Returns:
-        Path to uploaded image.
+        The servable URL of the new photo.
     """
-    await users_utils.save_user_image_file(user_id, file, db)
-    # Fetch the persisted user off the event loop (blocking sync DB read).
-    user: users_schema.UsersRead | None = await run_in_threadpool(users_crud.get_user_by_id, user_id, db)
-    return user.photo_path if user and user.photo_path else None
+    users_photo_service.upload_photo(user_id, file, storage, db)
+    return users_schema.UserPhotoRead(photo_path=users_service.require_user(user_id, db).photo_path)
 
 
-@router.put("/{user_id}", status_code=status.HTTP_200_OK, response_model=users_schema.UsersRead)
-async def edit_user(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    user_attributtes: users_schema.UsersRead,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+@router.put(
+    "/{user_id}",
+    response_model=users_schema.UsersRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def edit_user(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    user_attributtes: users_schema.UsersEdit,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> users_schema.UsersRead:
-    """
-    Update user information.
+    """Update user information.
+
+    A change of email, access type or active flag signs the edited user out everywhere.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         user_id: ID of user to update.
-        _validate_id: User ID validation dependency.
         user_attributtes: User data to update.
-        _check_scopes: Authorization check.
+        token_user_id: ID of the administrator making the edit.
         db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         Updated user data.
     """
-    db_user: users_schema.UsersRead = await users_crud.edit_user(user_id, user_attributtes, db)
-
-    # Enrich with IDP count before serializing. The lookup is a blocking
-    # sync DB call, so offload it to a worker thread to keep the event
-    # loop responsive.
-    idp_counts: dict[int, int] = await run_in_threadpool(
-        identity_service.get_identity_link_counts_for_users, [db_user.id]
-    )
-    idp_count: int = idp_counts.get(db_user.id, 0)
-    db_user.external_auth_count = idp_count
-
-    # Enrich MFA status the same way (blocking sync DB call offloaded to
-    # a worker thread).
-    mfa_enabled_map: dict[int, bool] = await run_in_threadpool(identity_service.get_mfa_enabled_for_users, [db_user.id])
-    db_user.mfa_enabled = mfa_enabled_map.get(db_user.id, False)
-
-    return db_user
+    updated = users_service.edit_user(user_id, user_attributtes, token_user_id, db, if_match=if_match)
+    core_etag.set_etag(response, updated.version)
+    return updated
 
 
-@router.put("/{user_id}/approve", status_code=status.HTTP_200_OK, response_model=dict[str, str])
-async def approve_user(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> dict[str, str]:
-    """
-    Approve pending user account.
+@router.post(
+    "/{user_id}/approve",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def approve_user(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Approve pending user account.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         user_id: ID of user to approve.
-        _validate_id: User ID validation dependency.
-        _check_scopes: Authorization check.
+        db: Database session dependency.
+    """
+    users_service.approve_user(user_id, db)
+
+
+@router.post(
+    "/{user_id}/password/change",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def edit_user_password(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    user_attributes: users_schema.UsersAdminEditPassword,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Update another user's password.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        user_id: ID of user to update password for.
+        user_attributes: New password data.
+        token_user_id: ID of the administrator making the change.
+        db: Database session dependency.
+    """
+    users_service.change_user_password(user_id, user_attributes.password, token_user_id, db)
+
+
+@router.delete(
+    "/{user_id}/photo",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_user_photo(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    storage: core_dependencies.Storage,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Delete user profile photo.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        user_id: ID of user whose photo to delete.
+        storage: The platform storage provider.
         db: Database session dependency.
 
     Returns:
-        Success message.
+        None
     """
-    # Approve the user off the event loop (blocking sync DB write).
-    await run_in_threadpool(users_crud.approve_user, user_id, db)
-
-    # Send approval email
-    await run_in_threadpool(sign_up_tokens_utils.request_sign_up_approved_email, user_id, db)
-
-    # Return success message
-    return {"message": f"User ID {user_id} approved successfully."}
+    users_photo_service.delete_photo(user_id, storage, db)
 
 
-@router.put("/{user_id}/password", status_code=status.HTTP_200_OK, response_model=dict[str, str])
-def edit_user_password(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    user_attributes: users_schema.UsersAdminEditPassword,
-    _check_scope: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
-) -> dict[str, str]:
-    """
-    Update user password.
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=users_schema.UserDeletionStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def delete_user(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    states: users_dependencies.UserDeletionStateStoreDep,
+    storage: core_dependencies.Storage,
+    if_match: core_dependencies.IfMatch,
+    db: core_dependencies.DbSession,
+) -> users_schema.UserDeletionStatus:
+    """Queue the deletion of another user's account.
+
+    The user is signed out and deactivated at once and a background job erases their data. Poll
+    ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
 
     Args:
-        user_id: ID of user to update password for.
-        _validate_id: User ID validation dependency.
-        user_attributes: New password data.
-        _check_scope: Authorization check.
-        identity_service: Identity service dependency.
+        request: The incoming request, read by the rate limiter.
+        user_id: ID of user to delete.
+        token_user_id: ID of the administrator making the request.
+        states: Shared store of the deletion's state.
+        storage: The platform storage provider.
+        if_match: The ``If-Match`` precondition.
+        db: Database session dependency.
 
     Returns:
-        Success message.
+        The deletion's initial status.
+
+    Raises:
+        PermissionDeniedError: If the administrator targets their own account.
+        NotFoundError: If the user does not exist.
+        PreconditionFailedError: If the user changed since the client read it.
+        ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    identity_service.change_managed_user_password(
-        user_id,
-        user_attributes.password,
+    return users_deletion_job_service.request_deletion_by_administrator(
+        user_id, token_user_id, states, storage, db, if_match=if_match
     )
 
-    # Return success message
-    return {"message": f"User ID {user_id} password updated successfully"}
 
-
-@router.delete("/{user_id}/photo", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def delete_user_photo(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> None:
-    """
-    Delete user profile photo.
+@router.get(
+    "/{user_id}/deletion",
+    response_model=users_schema.UserDeletionStatus,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
+)
+def read_user_deletion_status(
+    user_id: core_dependencies.PositiveId,
+    states: users_dependencies.UserDeletionStateStoreDep,
+) -> users_schema.UserDeletionStatus:
+    """Report where a user's account deletion is.
 
     Args:
-        user_id: ID of user whose photo to delete.
-        _validate_id: User ID validation dependency.
-        _check_scopes: Authorization check.
-        db: Database session dependency.
+        user_id: ID of the user being deleted.
+        states: Shared store of the deletion's state.
 
     Returns:
-        None
+        The deletion's status.
+
+    Raises:
+        NotFoundError: If no deletion is recorded or it has expired.
     """
-    await users_crud.update_user_photo(user_id, db)
-
-
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def delete_user(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> None:
-    """
-    Delete user account.
-
-    Args:
-        user_id: ID of user to delete.
-        _validate_id: User ID validation dependency.
-        _check_scopes: Authorization check.
-        db: Database session dependency.
-
-    Returns:
-        None
-    """
-    await users_crud.delete_user(user_id, db)
+    return users_deletion_job_service.get_deletion_status(user_id, states)
 
 
 @router.get(
     "/{user_id}/identity-providers",
-    status_code=status.HTTP_200_OK,
-    response_model=list[auth_identity_links_schema.UsersIdentityProviderResponse],
+    response_model=list[auth_identity_links_schema.IdentityProviderLinkRead],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
 def get_user_identity_providers(
-    user_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
-) -> list[auth_identity_links_schema.UsersIdentityProviderResponse]:
-    """
-    List the identity provider links of a specific user (admin).
+    user_id: core_dependencies.PositiveId,
+    db: core_dependencies.DbSession,
+) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
+    """List the identity provider links of a specific user (admin).
 
     Args:
         user_id: ID of the user whose identity provider links to retrieve.
-        _validate_id: User ID validation dependency.
-        _check_scopes: Authorization check (users:read scope).
-        identity_service: Identity service dependency.
+        db: Database session.
 
     Returns:
         The user's enriched identity provider links (empty list if none).
     """
-    return identity_service.get_user_identity_provider_links(user_id)
+    return account_security_integration.get_user_identity_provider_links(user_id, db)
 
 
 @router.delete(
     "/{user_id}/identity-providers/{idp_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_user_identity_provider(
-    user_id: int,
-    idp_id: int,
-    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    identity_service: Annotated[
-        auth_identity_service.IdentityService,
-        Depends(auth_identity_service.get_identity_service),
-    ],
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    idp_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> None:
-    """
-    Unlink an identity provider from a specific user (admin).
+    """Unlink an identity provider from another user (admin).
 
     Args:
+        request: The incoming request, read by the rate limiter.
         user_id: ID of the user to unlink the identity provider from.
         idp_id: ID of the identity provider to unlink.
-        _validate_id: User ID validation dependency.
-        _check_scopes: Authorization check (users:write scope).
-        identity_service: Identity service dependency.
+        token_user_id: ID of the administrator making the change.
+        db: Database session.
 
     Returns:
         None
     """
-    identity_service.admin_delete_identity_provider_link(user_id, idp_id)
+    users_service.unlink_identity_provider(user_id, idp_id, token_user_id, db)

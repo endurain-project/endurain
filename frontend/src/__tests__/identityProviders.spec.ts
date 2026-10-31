@@ -10,12 +10,14 @@ import { apiFetch } from '@/services/http'
 import {
   createIdentityProvider,
   deleteIdentityProvider,
+  deleteIdentityProviderIcon,
   fetchIdentityProviders,
   fetchIdentityProviderTemplates,
   mapIdentityProvider,
   mapIdentityProviderTemplate,
   toProviderInput,
   updateIdentityProvider,
+  uploadIdentityProviderIcon,
 } from '@/features/identityProviders/services/identityProviders'
 import {
   isBuiltinProviderIcon,
@@ -30,6 +32,7 @@ vi.mock('@/services/http', () => ({
 function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): IdentityProviderDto {
   return {
     id: 3,
+    version: 1,
     name: 'Keycloak',
     slug: 'keycloak',
     provider_type: 'oidc',
@@ -41,6 +44,7 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
     jwks_uri: 'https://idp.test/certs',
     scopes: 'openid profile email',
     icon: 'keycloak',
+    icon_uploaded: false,
     auto_create_users: true,
     sync_user_info: true,
     client_id: 'endurain',
@@ -51,7 +55,7 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
   }
 }
 
-/** Builds a full `IdentityProviderTemplate` wire payload, overridable per case. */
+/** Builds a full `IdentityProviderTemplateRead` wire payload, overridable per case. */
 function makeTemplateDto(
   overrides: Partial<IdentityProviderTemplateDto> = {},
 ): IdentityProviderTemplateDto {
@@ -91,6 +95,7 @@ describe('mapIdentityProvider', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     expect(mapIdentityProvider(makeProviderDto())).toEqual({
       id: 3,
+      version: 1,
       name: 'Keycloak',
       slug: 'keycloak',
       providerType: 'oidc',
@@ -99,6 +104,7 @@ describe('mapIdentityProvider', () => {
       clientId: 'endurain',
       scopes: 'openid profile email',
       icon: 'keycloak',
+      iconUploaded: false,
       autoCreateUsers: true,
       syncUserInfo: true,
       authorizationEndpoint: 'https://idp.test/auth',
@@ -148,7 +154,7 @@ describe('identity providers service requests', () => {
   it('fetchIdentityProviders maps the list and tolerates a null payload', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([makeProviderDto()])
     expect(await fetchIdentityProviders()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/idp', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers', { signal: undefined })
 
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     expect(await fetchIdentityProviders()).toEqual([])
@@ -157,7 +163,7 @@ describe('identity providers service requests', () => {
   it('fetchIdentityProviderTemplates reads the templates endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([makeTemplateDto()])
     expect(await fetchIdentityProviderTemplates()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/idp/templates', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/templates', { signal: undefined })
   })
 
   it('createIdentityProvider posts the wire body including the client secret', async () => {
@@ -169,7 +175,10 @@ describe('identity providers service requests', () => {
 
     await createIdentityProvider(makeInput())
 
-    expect(apiFetch).toHaveBeenCalledWith('/idp', expect.objectContaining({ method: 'POST' }))
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/identity-providers',
+      expect.objectContaining({ method: 'POST' }),
+    )
     expect(JSON.parse(body as string)).toEqual({
       name: 'Keycloak',
       slug: 'keycloak',
@@ -192,9 +201,12 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: null }))
+    await updateIdentityProvider(3, makeInput({ clientSecret: null }), 4)
 
-    expect(apiFetch).toHaveBeenCalledWith('/idp/3', expect.objectContaining({ method: 'PUT' }))
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/identity-providers/3',
+      expect.objectContaining({ method: 'PUT', headers: { 'If-Match': '"4"' } }),
+    )
     const parsed = JSON.parse(body as string) as Record<string, unknown>
     expect(parsed).not.toHaveProperty('client_secret')
     expect(parsed).toMatchObject({ name: 'Keycloak', enabled: true })
@@ -207,7 +219,7 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }))
+    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }), 4)
 
     expect((JSON.parse(body as string) as Record<string, unknown>).client_secret).toBe('rotated')
   })
@@ -215,9 +227,36 @@ describe('identity providers service requests', () => {
   it('deleteIdentityProvider issues a DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteIdentityProvider(3)
+    await deleteIdentityProvider(3, 5)
 
-    expect(apiFetch).toHaveBeenCalledWith('/idp/3', { method: 'DELETE', responseType: 'void' })
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3', {
+      method: 'DELETE',
+      headers: { 'If-Match': '"5"' },
+      responseType: 'void',
+    })
+  })
+
+  it('uploadIdentityProviderIcon posts the file as multipart form data', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+    const file = new File(['png'], 'logo.png', { type: 'image/png' })
+
+    await uploadIdentityProviderIcon(3, file)
+
+    const [path, init] = vi.mocked(apiFetch).mock.calls[0] ?? ['', {}]
+    expect(path).toBe('/identity-providers/3/icon')
+    expect(init).toMatchObject({ method: 'POST', responseType: 'void' })
+    expect((init as { body: FormData }).body.get('file')).toBe(file)
+  })
+
+  it('deleteIdentityProviderIcon issues a DELETE', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await deleteIdentityProviderIcon(3)
+
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3/icon', {
+      method: 'DELETE',
+      responseType: 'void',
+    })
   })
 })
 
@@ -228,13 +267,31 @@ describe('resolveProviderLogo', () => {
     expect(typeof logo).toBe('string')
   })
 
-  it('returns the raw URL for a custom icon', () => {
-    expect(resolveProviderLogo('https://example.com/logo.png')).toBe('https://example.com/logo.png')
+  it('returns null for an icon that is not a built-in key', () => {
+    expect(resolveProviderLogo('https://example.com/logo.png')).toBeNull()
   })
 
   it('returns null when no icon is set', () => {
     expect(resolveProviderLogo(null)).toBeNull()
     expect(resolveProviderLogo('')).toBeNull()
+  })
+
+  it('addresses an uploaded icon by the provider slug, ahead of the stored icon', () => {
+    const logo = resolveProviderLogo('keycloak', { slug: 'my idp', iconUploaded: true })
+
+    expect(logo?.endsWith('/public/idp/my%20idp/icon')).toBe(true)
+  })
+
+  it('adds the provider version to an uploaded icon so a replaced image is refetched', () => {
+    const logo = resolveProviderLogo(null, { slug: 'x', iconUploaded: true, version: 4 })
+
+    expect(logo?.endsWith('/public/idp/x/icon?v=4')).toBe(true)
+  })
+
+  it('ignores the slug when no icon is uploaded', () => {
+    expect(resolveProviderLogo('keycloak', { slug: 'x', iconUploaded: false })).toBe(
+      resolveProviderLogo('keycloak'),
+    )
   })
 })
 

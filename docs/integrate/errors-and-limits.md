@@ -33,7 +33,7 @@ Clients that only read `detail` keep working. Some errors carry extra members, s
 
 <!-- generated:error-types -->
 
-A request validation failure is `422` with `urn:endurain:error:validation-failed` and an `errors` list. Exceeding a rate limit is `429` with `urn:endurain:error:rate-limited`. An error raised without a specific type uses a slug of the HTTP status phrase.
+A request validation failure is `422` with `urn:endurain:error:validation-failed` and an `errors` list. Exceeding a rate limit is `429` with `urn:endurain:error:rate-limited`. A sensitive request from an account without a local password that carries no `idp_reauth` is `401` with `urn:endurain:error:idp-reauth-required` and a `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` header. An error raised without a specific type uses a slug of the HTTP status phrase.
 
 ### Authentication errors
 
@@ -47,21 +47,78 @@ Authentication and authorization failures use the same shape. Typical causes:
 | `404` | Invalid session ID, user not found |
 | `429` | Too many login or OAuth attempts |
 
-## Concurrent edits with `If-Match`
+## Concurrent edits with `ETag` and `If-Match`
 
-Two clients that read the same activity and then save it would silently overwrite each other. To prevent this, reading an activity returns an `ETag`. Send it back in `If-Match` when you edit.
+Two clients that read the same record and then save it would silently overwrite each other: the second save wins and the first edit is gone, with no error. This happens in ordinary use, with the app open on a phone and a laptop. To prevent it, every record you can edit carries a **version**. You tell the API which version you read, and it refuses the edit if the record has moved on.
 
-```http
-GET /api/v1/activities/42
-→ 200  ETag: "7"
-
-PATCH /api/v1/activities/42
-If-Match: "7"
+```mermaid
+sequenceDiagram
+    participant A as Client A
+    participant API
+    participant B as Client B
+    A->>API: GET /gears/5
+    API-->>A: 200, version 3, ETag "3"
+    B->>API: GET /gears/5
+    API-->>B: 200, version 3, ETag "3"
+    A->>API: PATCH /gears/5, If-Match "3"
+    API-->>A: 200, ETag "4"
+    B->>API: PATCH /gears/5, If-Match "3"
+    API-->>B: 412 precondition-failed
+    B->>API: GET /gears/5, then retry with If-Match "4"
 ```
 
-- If the activity is still at that version, the edit applies and the response carries the new `ETag`.
-- If someone else changed it in between, the API answers `412` with `urn:endurain:error:precondition-failed`. Read the activity again, reapply your change and retry.
-- `If-Match: *` matches any version. Omitting the header skips the check, so existing clients keep working.
+### Where to read the version
+
+- **The `version` field** of every record in a response, including each item of a list. It is an integer that goes up by one whenever the record changes.
+- **The `ETag` header** of a response that returns a single record, and of every write that returns the updated record. It is the same number in quotes, such as `"7"`.
+
+Use whichever is convenient. They always agree.
+
+### Sending it back
+
+Add the header to the write:
+
+```http
+PATCH /api/v1/gears/5
+If-Match: "3"
+```
+
+`If-Match` is **required** on an edit of a versioned resource. The outcomes:
+
+| Situation | Status | `type` |
+| --------- | ------ | ------ |
+| The header is missing | `428` | `urn:endurain:error:precondition-required` |
+| The header names a version that is no longer current | `412` | `urn:endurain:error:precondition-failed` |
+| The header names the current version | `200` or `204` | The edit applies and the version goes up. |
+| `If-Match: *` | `200` or `204` | The edit applies whatever the version is. |
+
+On a `412`, read the record again, apply your change on top of what is there now and retry with the new version. Do not retry the same request: it will fail the same way. Use `If-Match: *` only when you really mean "overwrite whatever is there".
+
+A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never matches, as the HTTP standard requires for `If-Match`.
+
+### Which requests need it
+
+| Resource | Requests |
+| -------- | -------- |
+| Activities | `PATCH /activities/{id}` and `DELETE /activities/{id}` (the bulk edit of `PATCH /activities` has no single record and does not need it) |
+| Gears and gear components | `PATCH` and `DELETE /gears/{id}`, `PATCH` and `DELETE /gear-components/{id}` |
+| Health records | `PATCH` and `DELETE /health/{weight,water,steps,sleep,poop,fasting}/{id}`, and `POST /health/fasting/{id}/complete`, which changes the session it ends |
+| Health targets | `PATCH /health/targets` |
+| Your profile | `PATCH /profile`, using the profile's `ETag` or `version` |
+| Your privacy settings | `PATCH /profile/privacy`, using `privacy_settings_version` from `GET /profile` (the privacy settings have their own version) |
+| Your default gear | `PATCH /profile/default-gear` |
+| Your goals | `PUT` and `DELETE /profile/goals/{id}` |
+| Users (administrators) | `PUT /users/{id}` and `DELETE /users/{id}`, which still answers `202` because the account is erased by a background job |
+| Your Strava client credentials | `PUT /strava/client`, using `integrations_version` from `GET /profile` |
+| Identity providers (administrators) | `PUT` and `DELETE /identity-providers/{idp_id}` |
+| Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
+
+Creating and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`. Neither does deleting anything not listed above, such as an API key, a session, an activity photo or the login photo. Deleting your own account (`POST /profile/delete-account`) is confirmed with step-up instead.
+
+`PATCH /profile` and `PATCH /profile/privacy` answer `200` with the updated record and its new `ETag`, so the next edit needs no extra read.
+
+!!! note
+    A change made by the server itself also moves the version. For example, approving a user, a Garmin Connect sync that updates a day, or adding a water intake all change a record, so a form you opened before that gets a `412` on save. That is the intended behaviour: it tells you the record is not what you were looking at.
 
 ## Rate limits
 

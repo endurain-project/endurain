@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   useDeleteGearMutation,
   useGearSearchQuery,
@@ -179,15 +180,17 @@ function confirmDelete(): void {
   if (!gear) {
     return
   }
-  deleteMutation.mutate(gear.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('gears.delete.success'))
+  deleteMutation.mutate(
+    { id: gear.id, version: gear.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('gears.delete.success'))
+      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error')),
     },
-    onError: () => {
-      toasts.error(t('gears.delete.error'))
-    },
-  })
+  )
 }
 </script>
 

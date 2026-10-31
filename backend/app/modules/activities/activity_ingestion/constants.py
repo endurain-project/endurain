@@ -2,6 +2,9 @@
 
 from enum import StrEnum
 
+#: Storage area holding the files a bulk import could not read, for the operator.
+BULK_IMPORT_ERROR_STORAGE_AREA = "bulk_import_errors"
+
 
 class IngestionJobKind(StrEnum):
     """What kind of ingestion the job performs."""
@@ -16,6 +19,7 @@ class IngestionJobStatus(StrEnum):
 
     PENDING = "pending"
     PROCESSING = "processing"
+    DEFERRED = "deferred"
     COMPLETED = "completed"
     FAILED = "failed"
 

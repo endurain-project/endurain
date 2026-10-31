@@ -1,140 +1,369 @@
-"""CRUD operations for user management.
+"""CRUD operations for users."""
 
-WARNING: Functions prefixed with `_` (underscore) are private and must not
-be imported outside this module. They are internal implementation details.
-Use only the public functions exported by users.users.__init__ for external
-consumption.
-"""
-
-from typing import TYPE_CHECKING, Literal, overload
+from collections.abc import Collection
+from datetime import datetime
+from typing import Any
 from urllib.parse import unquote
 
-if TYPE_CHECKING:
-    import modules.auth.identity_service as auth_identity_service
-
-from fastapi import HTTPException, status
-from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
-import core.logger as core_logger
-import modules.activities.activity.integration_service as activity_integration
-import modules.auth.password_policy as auth_password_policy
-import modules.health.health_weight.utils as health_weight_utils
-import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.utils as server_settings_utils
+import core.etag as core_etag
+import core.exceptions as core_exceptions
+import core.sanitization as core_sanitization
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
-import modules.users.users.signing as users_signing
-import modules.users.users.utils as users_utils
+import modules.users.users.serializers as users_serializers
 
-logger = core_logger.get_logger(__name__)
+_DUPLICATE_DETAIL = "Duplicate entry error. Check if email and username are unique"
 
-# Private internal helpers
-
-
-def _to_read_schema(user: users_models.Users) -> users_schema.UsersRead:
-    """Convert one ORM user to its read schema, resolving the photo URL.
-
-    ``photo_path`` holds a ``StorageProvider`` key, not a servable path, so this
-    is where it becomes an addressable (signed, token-gated) URL.
-    """
-    schema = users_schema.UsersRead.model_validate(user)
-    schema.photo_path = users_signing.user_image_url(user.photo_path, user.id)
-    return schema
+#: Advisory-lock key serializing the creation of the first administrator. It differs from the migration lock key
+#: (``_MIGRATION_LOCK_KEY`` in ``migrations/startup.py``), and the single-key form lives apart from the two-key
+#: namespaces the followers use.
+_FIRST_ADMIN_LOCK_KEY = 7_203_419_002
 
 
-@overload
-def _transform_users(users: users_models.Users) -> users_schema.UsersRead: ...
-
-
-@overload
-def _transform_users(users: list[users_models.Users]) -> list[users_schema.UsersRead]: ...
-
-
-def _transform_users(
-    users: users_models.Users | list[users_models.Users],
-) -> users_schema.UsersRead | list[users_schema.UsersRead]:
-    """
-    Transform a user or list of users to a Pydantic schema.
-
-    Args:
-        users: The user ORM instance or list of instances.
-
-    Returns:
-        The user(s) as a schema.
-    """
-    if isinstance(users, list):
-        return [_to_read_schema(user) for user in users]
-    return _to_read_schema(users)
-
-
-def _get_user_model_by_id_or_404(user_id: int, db: Session) -> users_models.Users:
-    """
-    Retrieve a mapped Users ORM row by ID or raise 404.
-
-    This is a **private internal helper**. Do not import or call from
-    outside this module. Use public CRUD functions instead (e.g.,
-    ``get_user_by_id()``, ``edit_user()``, etc.).
+def _get_user_model_by_id(user_id: int, db: Session) -> users_models.Users:
+    """Retrieve a mapped user ORM row by ID.
 
     Args:
         user_id: User ID to search for.
-        db: SQLAlchemy database session.
+        db: Database session.
 
     Returns:
-        Mapped ``Users`` ORM instance.
+        The mapped ``Users`` ORM instance.
 
     Raises:
-        HTTPException: 404 if user not found.
+        NotFoundError: If the user does not exist.
     """
     stmt = select(users_models.Users).where(users_models.Users.id == user_id)
-    db_userss = db.execute(stmt).scalar_one_or_none()
+    db_user = db.execute(stmt).scalar_one_or_none()
+    if db_user is None:
+        raise core_exceptions.NotFoundError("User not found")
 
-    if db_userss is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    return db_userss
+    return db_user
 
 
-def _persist_user_edits(
-    db_users: users_models.Users,
-    height_before: int | None,
-    recalculate_bmi_on_height_change: bool,
-    db: Session,
-) -> users_schema.UsersRead:
-    """
-    Commit pending user edits and refresh derived data.
-
-    Bundles the blocking portion of an edit into a single unit so
-    callers can offload it with ``run_in_threadpool`` and keep the API
-    event loop responsive. The commit/refresh and the bulk BMI
-    recalculation are synchronous SQLAlchemy calls.
+def _filtered(
+    stmt,
+    show_inactive: bool | None,
+    show_email_unverified: bool | None,
+    show_pending_approval: bool | None,
+    username: str | None = None,
+):
+    """Apply the optional list filters to a users statement.
 
     Args:
-        db_users: Mapped ``Users`` row carrying pending in-memory
-            changes that have not yet been committed.
-        height_before: User height prior to the edit, used to detect a
-            change that requires recalculating BMI.
-        recalculate_bmi_on_height_change: When ``True`` and the height
-            actually changed, recompute BMI for every weight entry.
-        db: SQLAlchemy database session.
+        stmt: The statement to filter.
+        show_inactive: If False, excludes inactive users, except sign-ups awaiting approval (they
+            are inactive until approved).
+        show_email_unverified: If False, excludes users with unverified emails.
+        show_pending_approval: If False, excludes users pending admin approval.
+        username: If set, keeps only users whose username contains it.
 
     Returns:
-        The persisted user serialized as ``users_schema.UsersRead``.
+        The filtered statement.
     """
-    db.commit()
-    db.refresh(db_users)
+    if show_inactive is False:
+        stmt = stmt.where(or_(users_models.Users.active.is_(True), users_models.Users.pending_admin_approval.is_(True)))
+    if show_email_unverified is False:
+        stmt = stmt.where(users_models.Users.email_verified.is_(True))
+    if show_pending_approval is False:
+        stmt = stmt.where(users_models.Users.pending_admin_approval.is_(False))
+    if username:
+        escaped = core_sanitization.escape_like(_normalized_username(username))
+        stmt = stmt.where(func.lower(users_models.Users.username).like(f"%{escaped}%", escape="\\"))
 
-    if recalculate_bmi_on_height_change and height_before != db_users.height:
-        # Update the user's health data
-        health_weight_utils.calculate_bmi_all_user_entries(db_users.id, db)
+    return stmt
 
-    return _transform_users(db_users)
+
+def get_all_users(db: Session) -> list[users_schema.UsersRead]:
+    """Retrieve all users.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        All user schemas.
+    """
+    users = db.execute(select(users_models.Users)).scalars().all()
+    return [users_serializers.to_read_schema(user) for user in users]
+
+
+def get_users_number(
+    db: Session,
+    show_inactive: bool | None = True,
+    show_email_unverified: bool | None = True,
+    show_pending_approval: bool | None = True,
+    username: str | None = None,
+) -> int:
+    """Count users matching the optional list filters.
+
+    Args:
+        db: Database session.
+        show_inactive: If False, excludes inactive users.
+        show_email_unverified: If False, excludes users with unverified emails.
+        show_pending_approval: If False, excludes users pending admin approval.
+        username: If set, counts only users whose username contains it.
+
+    Returns:
+        Number of users matching the filters.
+    """
+    stmt = _filtered(
+        select(func.count(users_models.Users.id)), show_inactive, show_email_unverified, show_pending_approval, username
+    )
+    return db.execute(stmt).scalar_one()
+
+
+def get_users_with_pagination(
+    db: Session,
+    page_number: int | None = None,
+    num_records: int | None = None,
+    show_inactive: bool | None = True,
+    show_email_unverified: bool | None = True,
+    show_pending_approval: bool | None = True,
+    username: str | None = None,
+) -> list[users_schema.UsersRead]:
+    """Retrieve a page of users, ordered by username, with optional filters.
+
+    Args:
+        db: Database session.
+        page_number: The 1-indexed page; pagination is skipped when it or ``num_records`` is None.
+        num_records: The number of records per page.
+        show_inactive: If False, excludes inactive users.
+        show_email_unverified: If False, excludes users with unverified emails.
+        show_pending_approval: If False, excludes users pending admin approval.
+        username: If set, keeps only users whose username contains it.
+
+    Returns:
+        The users matching the filters.
+    """
+    stmt = _filtered(select(users_models.Users), show_inactive, show_email_unverified, show_pending_approval, username)
+    stmt = stmt.order_by(users_models.Users.username)
+
+    if page_number is not None and num_records is not None:
+        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
+
+    return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
+
+
+def _normalized_username(username: str) -> str:
+    """Decode and lower-case a username as it arrives in a URL.
+
+    Args:
+        username: The raw username.
+
+    Returns:
+        The normalized username.
+    """
+    return unquote(username).replace("+", " ").lower()
+
+
+def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead | None:
+    """Retrieve a user by exact username.
+
+    Args:
+        username: Username to search for.
+        db: Database session.
+
+    Returns:
+        The user, or None if there is none.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.username == _normalized_username(username))
+    user = db.execute(stmt).scalar_one_or_none()
+    return users_serializers.to_read_schema(user) if user else None
+
+
+def search_active_users_by_username(
+    username: str, limit: int, offset: int, db: Session
+) -> list[users_schema.UsersRead]:
+    """Retrieve the active users whose username contains the search term.
+
+    Args:
+        username: The partial username to search for.
+        limit: The most users to return.
+        offset: How many matching users to skip.
+        db: Database session.
+
+    Returns:
+        The matching users, ordered by username.
+    """
+    stmt = (
+        _filtered(select(users_models.Users), False, True, True, username)
+        .order_by(users_models.Users.username)
+        .limit(limit)
+        .offset(offset)
+    )
+    return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
+
+
+def get_user_by_email(email: str, db: Session) -> users_schema.UsersRead | None:
+    """Retrieve a user by email address.
+
+    Args:
+        email: Email address to search for (case-insensitive).
+        db: Database session.
+
+    Returns:
+        The user, or None if there is none.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.email == email.lower())
+    user = db.execute(stmt).scalar_one_or_none()
+    return users_serializers.to_read_schema(user) if user else None
+
+
+def get_user_by_id(user_id: int, db: Session) -> users_schema.UsersRead | None:
+    """Retrieve a user by ID.
+
+    Args:
+        user_id: User ID to search for.
+        db: Database session.
+
+    Returns:
+        The user, or None if there is none.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.id == user_id)
+    user = db.execute(stmt).scalar_one_or_none()
+    return users_serializers.to_read_schema(user) if user else None
+
+
+def get_users_by_ids(user_ids: Collection[int], db: Session) -> list[users_schema.UsersRead]:
+    """Retrieve several users by ID in one query.
+
+    Args:
+        user_ids: IDs to look up; repeated IDs are read once.
+        db: Database session.
+
+    Returns:
+        The users that exist, in no particular order. An empty list when no IDs are given, without
+        querying.
+    """
+    if not user_ids:
+        return []
+    stmt = select(users_models.Users).where(users_models.Users.id.in_(set(user_ids)))
+    return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
+
+
+def get_users_admin(db: Session) -> list[users_schema.UsersRead]:
+    """Retrieve all admin users.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The admin user schemas.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.access_type == users_schema.UserAccessType.ADMIN.value)
+    return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
+
+
+def get_photo_key(user_id: int, db: Session) -> str | None:
+    """Return the storage key of a user's photo, as stored on the row.
+
+    Args:
+        user_id: The user to look up.
+        db: Database session.
+
+    Returns:
+        The key, or None if the user has no photo or does not exist.
+    """
+    stmt = select(users_models.Users.photo_path).where(users_models.Users.id == user_id)
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def get_photo_keys_by_user_ids(user_ids: list[int], db: Session) -> dict[int, str]:
+    """Return the photo each of the given users names, as stored on the row.
+
+    Args:
+        user_ids: The users to look up.
+        db: Database session.
+
+    Returns:
+        The stored photo by user id; a user with no photo, or that does not exist, is left out.
+    """
+    stmt = select(users_models.Users.id, users_models.Users.photo_path).where(
+        users_models.Users.id.in_(user_ids), users_models.Users.photo_path.is_not(None)
+    )
+    return {user_id: photo for user_id, photo in db.execute(stmt).all()}
+
+
+def replace_photo_key(user_id: int, photo_key: str | None, db: Session) -> str | None:
+    """Row-lock a user, set their stored photo key, and return the key it replaced (flushed, not committed).
+
+    Concurrent photo changes for one user queue on the lock, so each sees exactly the key it
+    replaced and no change can mistake another's new key for a leftover.
+
+    Args:
+        user_id: The user to update.
+        photo_key: The new ``StorageProvider`` key, or None to clear the photo.
+        db: Database session.
+
+    Returns:
+        The key the row held before, or None if there was none.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.id == user_id).with_for_update()
+    db_user = db.execute(stmt).scalar_one_or_none()
+    if db_user is None:
+        raise core_exceptions.NotFoundError("User not found")
+
+    previous = db_user.photo_path
+    db_user.photo_path = photo_key
+    db.flush()
+    return previous
+
+
+def any_user_exists(db: Session) -> bool:
+    """Tell whether at least one user exists.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        True when the users table holds a row.
+    """
+    return bool(db.execute(select(exists().select_from(users_models.Users))).scalar_one())
+
+
+def lock_first_admin_creation(db: Session) -> None:
+    """Serialize the creation of the first administrator until the transaction ends.
+
+    An empty users table has no row to lock, so concurrent onboarding requests would each see no user and each
+    insert one. The transaction-scoped advisory lock makes the second wait for the first to commit or roll back,
+    and it then sees the user.
+
+    Args:
+        db: Database session.
+    """
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _FIRST_ADMIN_LOCK_KEY})
+
+
+def lock_active_admin_ids(db: Session) -> list[int]:
+    """Row-lock the active administrators, in id order, and return their ids.
+
+    Two concurrent requests that each remove a different administrator would otherwise both see
+    "another one remains" and leave none. The lock makes the second wait for the first to commit,
+    and it then counts what is really left.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The ids of the active admin users.
+    """
+    stmt = (
+        select(users_models.Users.id)
+        .where(
+            users_models.Users.access_type == users_schema.UserAccessType.ADMIN.value,
+            users_models.Users.active.is_(True),
+        )
+        .order_by(users_models.Users.id)
+        .with_for_update()
+    )
+    return list(db.execute(stmt).scalars().all())
 
 
 def get_stored_photo_keys(db: Session) -> list[tuple[int, str | None]]:
@@ -151,779 +380,196 @@ def get_stored_photo_keys(db: Session) -> list[tuple[int, str | None]]:
     Returns:
         ``(user_id, photo_path)`` pairs.
     """
-    rows = db.query(users_models.Users.id, users_models.Users.photo_path).all()
+    rows = db.execute(select(users_models.Users.id, users_models.Users.photo_path)).all()
     return [(row[0], row[1]) for row in rows]
 
 
-def set_user_photo_key(user_id: int, photo_key: str | None, db: Session) -> None:
-    """Set a user's stored photo key synchronously (migration use only).
-
-    The async :func:`update_user_photo` is the API path; a data migration runs
-    outside the event loop and needs the plain synchronous write.
+def create_user(fields: dict[str, Any], db: Session) -> users_schema.UsersRead:
+    """Stage a new user row (flushed, not committed).
 
     Args:
-        user_id: The user to update.
-        photo_key: The ``StorageProvider`` key, or ``None`` to clear the photo.
+        fields: The column values of the new user, already normalized.
         db: Database session.
 
     Returns:
-        None.
-    """
-    _apply_user_photo_update(user_id, photo_key, db)
-
-
-def _apply_user_photo_update(
-    user_id: int,
-    photo_path: str | None,
-    db: Session,
-) -> None:
-    """
-    Persist a user's photo path change.
-
-    Bundles the blocking DB work (lookup, update, commit, refresh)
-    so callers can offload it with ``run_in_threadpool`` and keep
-    the API event loop responsive.
-
-    Args:
-        user_id: ID of the user whose photo path is updated.
-        photo_path: New photo path, or ``None`` to clear it.
-        db: SQLAlchemy database session.
+        The created user.
 
     Raises:
-        HTTPException: 404 if the user does not exist.
+        ConflictError: If the username or email is already taken.
     """
-    db_users = _get_user_model_by_id_or_404(user_id, db)
-    db_users.photo_path = photo_path
-    db.commit()
-    db.refresh(db_users)
+    db_user = users_models.Users(**fields)
+    try:
+        db.add(db_user)
+        db.flush()
+        db.refresh(db_user)
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError(_DUPLICATE_DETAIL) from err
+
+    return users_serializers.to_read_schema(db_user)
 
 
-def _delete_user_row(user_id: int, db: Session) -> None:
+def update_user(
+    user_id: int, changes: dict[str, Any], db: Session, *, if_match: str | None = None
+) -> users_schema.UsersRead:
+    """Stage column changes on a user (flushed, not committed).
+
+    Args:
+        user_id: ID of the user to update.
+        changes: The column values to set. Names that are read-only properties on the model
+            are skipped.
+        db: Database session.
+        if_match: The ``If-Match`` precondition of a client edit, checked against the row this function
+            edits. ``None`` for a system writer, which the flush's ``version_id_col`` guard still holds to
+            the version it loaded.
+
+    Returns:
+        The updated user.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If the username or email is already taken.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    Delete a user row from the database.
+    db_user = _get_user_model_by_id(user_id, db)
+    if if_match is not None:
+        core_etag.require_if_match(if_match, db_user.version, "user")
 
-    Bundles the blocking DB work (lookup, delete, commit) so callers
-    can offload it with ``run_in_threadpool`` and keep the API event
-    loop responsive.
+    was_active = db_user.active
+    for key, value in changes.items():
+        # Response-only fields are excluded by the caller; this guards any computed
+        # property added to the model later.
+        class_attr = getattr(type(db_user), key, None)
+        if isinstance(class_attr, property) and class_attr.fset is None:
+            continue
+        setattr(db_user, key, value)
+    if changes.get("active") is True:
+        # Reactivating an account cancels a deletion queued for it, or the sweep would carry it out.
+        db_user.deletion_requested_at = None
+        db_user.deletion_attempts = 0
+        db_user.deactivated_at = None
+    elif changes.get("active") is False and was_active:
+        db_user.deactivated_at = func.now()
+
+    try:
+        db.flush()
+        db.refresh(db_user)
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError(_DUPLICATE_DETAIL) from err
+
+    return users_serializers.to_read_schema(db_user)
+
+
+def is_deactivated(user_id: int, db: Session) -> bool:
+    """Tell whether an administrator or a deletion request deactivated a user.
+
+    Args:
+        user_id: ID of the user.
+        db: Database session.
+
+    Returns:
+        True when the account carries a deactivation time. False for an active account and for a sign-up
+        that is not yet verified or approved.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    return _get_user_model_by_id(user_id, db).deactivated_at is not None
+
+
+def stage_deletion_request(user_id: int, db: Session) -> None:
+    """Stage the deactivation of a user and the marker that its deletion is queued (flushed, not committed).
+
+    Args:
+        user_id: ID of the user being deleted.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    db_user = _get_user_model_by_id(user_id, db)
+    db_user.active = False
+    db_user.deactivated_at = func.now()
+    db_user.deletion_requested_at = func.now()
+    db_user.deletion_attempts = 0
+    db.flush()
+
+
+def list_stalled_deletion_ids(
+    requested_before: datetime, max_attempts: int, after_id: int, limit: int, db: Session
+) -> list[int]:
+    """Return the ids of users whose queued deletion has not finished, oldest id first.
+
+    Args:
+        requested_before: Only deletions queued before this instant.
+        max_attempts: Only users the sweep has queued fewer times than this.
+        after_id: Return only ids above this, so a pass pages through the table.
+        limit: The most ids to return.
+        db: Database session.
+
+    Returns:
+        The user ids, ascending.
+    """
+    stmt = (
+        select(users_models.Users.id)
+        .where(
+            users_models.Users.deletion_requested_at < requested_before,
+            users_models.Users.deletion_attempts < max_attempts,
+            users_models.Users.id > after_id,
+        )
+        .order_by(users_models.Users.id)
+        .limit(limit)
+    )
+    return list(db.scalars(stmt).all())
+
+
+def record_deletion_attempt(user_id: int, db: Session) -> int | None:
+    """Stage one more automatic attempt at a user's deletion (flushed, not committed).
+
+    Args:
+        user_id: ID of the user being deleted.
+        db: Database session.
+
+    Returns:
+        The attempts made so far including this one, or None when the user is gone or no longer queued
+        for deletion (an administrator reactivated the account).
+    """
+    stmt = select(users_models.Users).where(users_models.Users.id == user_id).with_for_update()
+    db_user = db.execute(stmt).scalar_one_or_none()
+    if db_user is None or db_user.deletion_requested_at is None:
+        return None
+    db_user.deletion_attempts += 1
+    db.flush()
+    return db_user.deletion_attempts
+
+
+def is_deletion_cancelled(user_id: int, db: Session) -> bool:
+    """Tell whether an administrator reactivated a user whose deletion was queued.
+
+    The row is locked until the caller's transaction ends, so a reactivation cannot slip in between
+    this answer and the deletion it guards.
+
+    Args:
+        user_id: ID of the user being deleted.
+        db: Database session.
+
+    Returns:
+        True when the user exists and is no longer queued for deletion. False when the deletion should
+        go on, including when the user is already gone.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.id == user_id).with_for_update()
+    db_user = db.execute(stmt).scalar_one_or_none()
+    return db_user is not None and db_user.deletion_requested_at is None
+
+
+def delete_user(user_id: int, db: Session) -> None:
+    """Stage the deletion of a user row (flushed, not committed).
 
     Args:
         user_id: ID of the user to delete.
-        db: SQLAlchemy database session.
+        db: Database session.
 
     Raises:
-        HTTPException: 404 if the user does not exist.
+        NotFoundError: If the user does not exist.
     """
-    db_users = _get_user_model_by_id_or_404(user_id, db)
-    # Remove the user's activities explicitly instead of letting the database FK
-    # cascade drop them silently: the cascade tells nobody, so every thumbnail and
-    # stored source file the user produced would be orphaned in storage forever
-    # (an incomplete erasure). Going through the activities integration service
-    # publishes one ``activity.deleted`` per row, and the cleanup subscribers
-    # reclaim the blobs.
-    activity_integration.delete_all_activities_for_user(user_id, db)
-    db.delete(db_users)
-    db.commit()
-
-
-# Public CRUD functions
-
-
-@core_decorators.handle_db_errors
-def get_all_users(db: Session) -> list[users_schema.UsersRead]:
-    """
-    Retrieve all users from the database.
-
-    Args:
-        db: SQLAlchemy database session.
-
-    Returns:
-        List of all user schemas.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(users_models.Users)
-    users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
-
-    return _transform_users(users)
-
-
-@core_decorators.handle_db_errors
-def get_users_number(
-    db: Session,
-    show_inactive: bool | None = True,
-    show_email_unverified: bool | None = True,
-    show_pending_approval: bool | None = True,
-) -> int:
-    """
-    Count users matching the optional list filters.
-
-    Args:
-        db: SQLAlchemy database session.
-        show_inactive: If False, excludes inactive users.
-            Defaults to True.
-        show_email_unverified: If False, excludes users with
-            unverified emails. Defaults to True.
-        show_pending_approval: If False, excludes users pending
-            admin approval. Defaults to True.
-
-    Returns:
-        Number of users matching the filters.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(func.count(users_models.Users.id))
-
-    if show_inactive is False:
-        stmt = stmt.where(users_models.Users.active.is_(True))
-    if show_email_unverified is False:
-        stmt = stmt.where(users_models.Users.email_verified.is_(True))
-    if show_pending_approval is False:
-        stmt = stmt.where(users_models.Users.pending_admin_approval.is_(False))
-
-    return db.execute(stmt).scalar_one()
-
-
-@core_decorators.handle_db_errors
-def get_users_with_pagination(
-    db: Session,
-    page_number: int | None = None,
-    num_records: int | None = None,
-    show_inactive: bool | None = True,
-    show_email_unverified: bool | None = True,
-    show_pending_approval: bool | None = True,
-) -> list[users_schema.UsersRead]:
-    """
-    Retrieve a paginated list of users with optional filtering.
-
-    Args:
-        db (Session): Database session for executing queries.
-        page_number (int | None): The page number for pagination (1-indexed).
-            If None, pagination is not applied. Defaults to None.
-        num_records (int | None): The number of records per page.
-            If None, pagination is not applied. Defaults to None.
-        show_inactive (bool | None): If False, excludes inactive users.
-            Defaults to True (includes inactive users).
-        show_email_unverified (bool | None): If False, excludes users with
-            unverified emails. Defaults to True (includes email unverified
-            users).
-        show_pending_approval (bool | None): If False, excludes users pending
-            admin approval. Defaults to True (includes pending approval users).
-
-    Returns:
-        list[users_schema.UsersRead]: A list of User schemas matching the specified
-            criteria, ordered by username. Returns an empty list if no users
-            match the filters.
-    """
-    stmt = select(users_models.Users)
-
-    if show_inactive is False:
-        stmt = stmt.where(users_models.Users.active.is_(True))
-    if show_email_unverified is False:
-        stmt = stmt.where(users_models.Users.email_verified.is_(True))
-    if show_pending_approval is False:
-        stmt = stmt.where(users_models.Users.pending_admin_approval.is_(False))
-
-    stmt = stmt.order_by(users_models.Users.username)
-
-    if page_number is not None and num_records is not None:
-        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
-
-    users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
-    return _transform_users(users)
-
-
-@overload
-def get_user_by_username(
-    username: str,
-    db: Session,
-    contains: Literal[False] = False,
-) -> users_schema.UsersRead | None: ...
-
-
-@overload
-def get_user_by_username(
-    username: str,
-    db: Session,
-    contains: Literal[True],
-) -> list[users_schema.UsersRead]: ...
-
-
-@core_decorators.handle_db_errors
-def get_user_by_username(
-    username: str, db: Session, contains: bool = False
-) -> list[users_schema.UsersRead] | users_schema.UsersRead | None:
-    """
-    Retrieve user by username.
-
-    Args:
-        username: Username to search for.
-        db: SQLAlchemy database session.
-        contains: If True, performs partial match search and returns
-                  list of matching users. If False, performs exact
-                  match and returns single user or None.
-
-    Returns:
-        If contains=False: User schema if found, None otherwise.
-        If contains=True: List of user schemas matching the search.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    # Decode and normalize search term (needed for both exact and partial matches)
-    normalized_username = unquote(username).replace("+", " ").lower()
-
-    if contains:
-        # Escape LIKE special characters to prevent SQL injection
-        escaped_username = normalized_username.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
-
-        # Query users with username containing the search term
-        stmt = select(users_models.Users).where(
-            func.lower(users_models.Users.username).like(f"%{escaped_username}%", escape="\\")
-        )
-        users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
-        return _transform_users(users)
-    else:
-        # Exact match - no LIKE escaping needed
-        stmt = select(users_models.Users).where(users_models.Users.username == normalized_username)
-        user = db.execute(stmt).scalar_one_or_none()
-        return _transform_users(user) if user else None
-
-
-@core_decorators.handle_db_errors
-def get_user_by_email(email: str, db: Session) -> users_schema.UsersRead | None:
-    """
-    Retrieve user by email address.
-
-    Args:
-        email: Email address to search for (case-insensitive).
-        db: SQLAlchemy database session.
-
-    Returns:
-        User schema if found, None otherwise.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(users_models.Users).where(users_models.Users.email == email.lower())
-    user = db.execute(stmt).scalar_one_or_none()
-    return _transform_users(user) if user else None
-
-
-@core_decorators.handle_db_errors
-def get_user_by_id(user_id: int, db: Session, public_check: bool = False) -> users_schema.UsersRead | None:
-    """
-    Retrieve user by ID.
-
-    Args:
-        user_id: User ID to search for.
-        db: SQLAlchemy database session.
-        public_check: If True, only returns user when public sharing
-                      is enabled in server settings.
-
-    Returns:
-        User schema if found (and public sharing enabled if
-        public_check=True), None otherwise.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    if public_check:
-        # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
-
-        # Return None if public sharable links are disabled
-        if not server_settings.public_shareable_links or not server_settings.public_shareable_links_user_info:
-            return None
-
-    stmt = select(users_models.Users).where(users_models.Users.id == user_id)
-    user = db.execute(stmt).scalar_one_or_none()
-    return _transform_users(user) if user else None
-
-
-@core_decorators.handle_db_errors
-def get_users_admin(db: Session) -> list[users_schema.UsersRead]:
-    """
-    Retrieve all admin users from the database.
-
-    Args:
-        db: SQLAlchemy database session.
-
-    Returns:
-        List of admin user schemas.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    stmt = select(users_models.Users).where(users_models.Users.access_type == users_schema.UserAccessType.ADMIN.value)
-    users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
-    return _transform_users(users)
-
-
-@core_decorators.handle_db_errors
-def create_user(
-    user: users_schema.UsersCreate,
-    identity_service: "auth_identity_service.IdentityService",
-    db: Session,
-) -> users_schema.UsersRead:
-    """
-    Create a new user with hashed password.
-
-    Args:
-        user: User creation data with plain text password.
-        identity_service: Identity service dependency.
-        db: SQLAlchemy database session.
-
-    Returns:
-        Created user schema with hashed password.
-
-    Raises:
-        HTTPException: 409 if email/username already exists.
-        HTTPException: 500 if database error occurs.
-    """
-    try:
-        user.username = user.username.lower()
-        user.email = user.email.lower()
-
-        # Get server settings to determine password policy
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
-
-        # Normalize access_type to string value
-        access_type_value = users_schema.normalize_access_type(user.access_type)
-
-        # Hash the password with configurable policy and length
-        hashed_password = auth_password_policy.validate_and_hash_for_user(
-            identity_service,
-            server_settings,
-            access_type_value,
-            user.password,
-        )
-
-        # Create a new user
-        db_users = users_models.Users(
-            **user.model_dump(exclude={"password", "access_type", "mfa_enabled"}),
-            access_type=access_type_value,
-        )
-
-        # Add the user to the database
-        db.add(db_users)
-        db.commit()
-        db.refresh(db_users)
-
-        # Persist the password hash in the auth-owned credential table.
-        identity_service.set_local_password_hash(db_users.id, hashed_password)
-
-        # Return user
-        return _transform_users(db_users)
-    except HTTPException:
-        # Rollback the transaction
-        db.rollback()
-        raise
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
-
-        # Raise an HTTPException with a 409 Conflict status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=("Duplicate entry error. Check if email and username are unique"),
-        ) from integrity_error
-
-
-@core_decorators.handle_db_errors
-def create_signup_user(
-    user: users_schema.UsersSignup,
-    server_settings: server_settings_schema.ServerSettingsRead,
-    identity_service: "auth_identity_service.IdentityService",
-    db: Session,
-    persist_credential: bool = True,
-) -> users_schema.UsersRead:
-    """
-    Create a new user during signup process.
-
-    Args:
-        user: User signup data.
-        server_settings: Server config for signup requirements.
-        identity_service: Identity service dependency.
-        db: SQLAlchemy database session.
-        persist_credential: When ``True`` (default), validate the supplied
-            password and store its hash in the auth-owned credential table.
-            SSO-created accounts pass ``False`` so they get no local
-            credential row and remain SSO-only (``has_local_password`` then
-            correctly reports ``False``).
-
-    Returns:
-        Created user schema.
-
-    Raises:
-        HTTPException: 409 if email/username already exists. Abstract message
-            to reduce information leakage.
-        HTTPException: 500 if database error occurs.
-    """
-    try:
-        # Determine user status based on server settings
-        active = True
-        email_verified = False
-        pending_admin_approval = False
-
-        if server_settings.signup_require_email_verification:
-            email_verified = False
-            active = False  # Inactive until email verified
-
-        if server_settings.signup_require_admin_approval:
-            pending_admin_approval = True
-            active = False  # Inactive until approved
-
-        # If both email verification and admin approval are disabled, user is immediately active
-        if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
-            active = True
-            email_verified = True
-
-        # Create a new user
-        db_users = users_models.Users(
-            **user.model_dump(
-                exclude={
-                    "username",
-                    "email",
-                    "access_type",
-                    "active",
-                    "email_verified",
-                    "pending_admin_approval",
-                    "password",
-                }
-            ),
-            username=user.username.lower(),
-            email=user.email.lower(),
-            access_type=users_schema.UserAccessType.REGULAR.value,
-            active=active,
-            email_verified=email_verified,
-            pending_admin_approval=pending_admin_approval,
-        )
-
-        # Hash the signup password with the configured policy. SSO-created
-        # accounts opt out (persist_credential=False) so the supplied
-        # placeholder password is never validated or hashed.
-        hashed_password: str | None = None
-        if persist_credential:
-            hashed_password = auth_password_policy.validate_and_hash_for_user(
-                identity_service,
-                server_settings,
-                users_schema.UserAccessType.REGULAR.value,
-                user.password,
-            )
-
-        # Add the user to the database
-        db.add(db_users)
-        db.commit()
-        db.refresh(db_users)
-
-        # Persist the password hash in the auth-owned credential table. Skipped
-        # for SSO-only accounts so that ``has_local_password`` stays a true row
-        # existence check.
-        if hashed_password is not None:
-            identity_service.set_local_password_hash(db_users.id, hashed_password)
-
-        # Return user
-        return _transform_users(db_users)
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
-
-        # Raise an HTTPException with a 409 Conflict status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=("Unable to create user."),
-        ) from integrity_error
-
-
-@core_decorators.handle_db_errors
-async def edit_user(user_id: int, user: users_schema.UsersRead, db: Session) -> users_schema.UsersRead:
-    """
-    Update an existing user's information.
-
-    Note:
-        This dynamic-assignment helper is intended for **admin**
-        endpoints that legitimately need to set fields like
-        ``access_type``, ``active``, or ``pending_admin_approval``.
-        Self-service profile updates MUST NOT call this — use
-        :func:`edit_profile_user` instead, which enforces an
-        explicit allow-list and prevents privilege escalation
-        through mass assignment.
-
-    Args:
-        user_id: ID of user to update.
-        user: User data to update with.
-        db: SQLAlchemy database session.
-
-    Returns:
-        users_schema.UsersRead
-
-    Raises:
-        HTTPException: 404 if user not found.
-        HTTPException: 409 if email/username conflict.
-        HTTPException: 500 if database error occurs.
-    """
-    try:
-        # Fetch the user off the event loop (blocking DB read).
-        db_users = await run_in_threadpool(_get_user_model_by_id_or_404, user_id, db)
-
-        height_before = db_users.height
-
-        user.username = user.username.lower()
-
-        # ``photo_path`` is excluded because the read schema exposes a
-        # resolved, signed URL while the column stores a storage key.
-        # Echoing the read model back would overwrite the key with its own
-        # URL; the photo is owned solely by the upload/delete endpoints.
-        user_data = user.model_dump(
-            exclude_unset=True,
-            exclude={"password", "external_auth_count", "mfa_enabled", "photo_path"},
-        )
-        # Iterate over the fields and update the db_users dynamically
-        for key, value in user_data.items():
-            # Skip attributes that are read-only properties on the ORM model
-            # with no setter. Response-only fields (e.g. mfa_enabled,
-            # external_auth_count) are already excluded above via
-            # model_dump, this is a defensive guard for any future
-            # computed property added to Users.
-            class_attr = getattr(type(db_users), key, None)
-            if isinstance(class_attr, property) and class_attr.fset is None:
-                continue
-            setattr(db_users, key, value)
-
-        # Persist the changes off the event loop. The commit/refresh and the
-        # bulk BMI recalculation are blocking SQLAlchemy calls, so run them
-        # in a worker thread to keep the API event loop responsive.
-        return await run_in_threadpool(
-            _persist_user_edits,
-            db_users,
-            height_before,
-            True,
-            db,
-        )
-    except HTTPException:
-        raise
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
-
-        # Raise an HTTPException with a 409 Conflict status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=("Duplicate entry error. Check if email and username are unique"),
-        ) from integrity_error
-
-
-# Allow-list of fields a user is permitted to change on their own
-# account via the self-service profile endpoint. Any field not in
-# this set is silently dropped before persistence to prevent
-# privilege escalation through mass assignment (e.g. setting
-# ``access_type`` to ``admin`` on the caller's own row).
-PROFILE_SELF_SERVICE_FIELDS: frozenset[str] = frozenset(
-    {
-        "name",
-        "username",
-        "email",
-        "city",
-        "birthdate",
-        "preferred_language",
-        "gender",
-        "units",
-        "height",
-        "max_heart_rate",
-        "first_day_of_week",
-        "currency",
-    }
-)
-
-
-@core_decorators.handle_db_errors
-async def edit_profile_user(
-    user_id: int,
-    profile: users_schema.ProfileUpdate,
-    db: Session,
-) -> users_schema.UsersRead:
-    """
-    Apply a self-service profile update with strict allow-listing.
-
-    Only fields enumerated in :data:`PROFILE_SELF_SERVICE_FIELDS`
-    are persisted. Administrative attributes such as
-    ``access_type``, ``active``, ``mfa_enabled``, ``mfa_secret``,
-    ``email_verified``, and ``pending_admin_approval`` are NEVER
-    written from this path — even if a malicious payload smuggles
-    them through validation, they cannot reach the database here.
-
-    Args:
-        user_id: ID of the authenticated user invoking the update.
-        profile: Validated self-service profile payload.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The updated user schema (``users_schema.UsersRead``).
-
-    Raises:
-        HTTPException: 404 if the user does not exist, 409 on
-            email/username uniqueness conflict, 500 on DB errors.
-    """
-    try:
-        # Fetch the user off the event loop (blocking DB read).
-        db_users = await run_in_threadpool(_get_user_model_by_id_or_404, user_id, db)
-
-        height_before = db_users.height
-
-        # exclude_unset means only fields the caller actually sent
-        # are considered. The intersection with the allow-list is
-        # the second line of defence.
-        provided = profile.model_dump(exclude_unset=True)
-        updates = {k: v for k, v in provided.items() if k in PROFILE_SELF_SERVICE_FIELDS}
-
-        if "username" in updates and isinstance(updates["username"], str):
-            updates["username"] = updates["username"].lower()
-        if "email" in updates and isinstance(updates["email"], str):
-            updates["email"] = updates["email"].lower()
-
-        for key, value in updates.items():
-            setattr(db_users, key, value)
-
-        # Persist the changes off the event loop. The commit/refresh and the
-        # bulk BMI recalculation are blocking SQLAlchemy calls, so run them
-        # in a worker thread to keep the API event loop responsive.
-        return await run_in_threadpool(
-            _persist_user_edits,
-            db_users,
-            height_before,
-            "height" in updates,
-            db,
-        )
-    except HTTPException:
-        raise
-    except IntegrityError as integrity_error:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=("Duplicate entry error. Check if email and username are unique"),
-        ) from integrity_error
-
-
-@core_decorators.handle_db_errors
-def approve_user(user_id: int, db: Session) -> None:
-    """
-    Approve a user by marking them as active.
-
-    Args:
-        user_id: ID of user to approve.
-        db: SQLAlchemy database session.
-
-    Returns:
-        None
-
-    Raises:
-        HTTPException: 404 if user not found.
-        HTTPException: 400 if user email not verified.
-        HTTPException: 500 if database error occurs.
-    """
-    # Get the user from the database
-    db_users = _get_user_model_by_id_or_404(user_id, db)
-
-    if not db_users.email_verified:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User email is not verified",
-        )
-
-    db_users.pending_admin_approval = False
-    db_users.active = True
-
-    # Commit the transaction
-    db.commit()
-    db.refresh(db_users)
-
-
-@core_decorators.handle_db_errors
-def verify_user_email(
-    user_id: int,
-    server_settings: server_settings_schema.ServerSettingsRead,
-    db: Session,
-) -> None:
-    """
-    Verify user email and conditionally activate account.
-
-    Args:
-        user_id: ID of user to verify.
-        server_settings: Server config determining activation policy.
-        db: SQLAlchemy database session.
-
-    Returns:
-        None
-
-    Raises:
-        HTTPException: 404 if user not found.
-        HTTPException: 500 if database error occurs.
-    """
-    # Get the user from the database
-    db_users = _get_user_model_by_id_or_404(user_id, db)
-
-    db_users.email_verified = True
-    if not server_settings.signup_require_admin_approval:
-        db_users.pending_admin_approval = False
-        db_users.active = True
-
-    # Commit the transaction
-    db.commit()
-    db.refresh(db_users)
-
-
-@core_decorators.handle_db_errors
-async def update_user_photo(user_id: int, db: Session, photo_path: str | None = None) -> str | None:
-    """
-    Update a user's photo path.
-
-    Args:
-        user_id: ID of user to update photo for.
-        db: SQLAlchemy database session.
-        photo_path: New photo path. If None, removes photo.
-
-    Returns:
-        The updated photo path, or None if removed.
-
-    Raises:
-        HTTPException: 404 if user not found.
-        HTTPException: 500 if database error occurs.
-    """
-    # Persist the photo path change off the event loop (blocking sync
-    # DB calls), keeping the API event loop responsive.
-    await run_in_threadpool(_apply_user_photo_update, user_id, photo_path, db)
-
-    if photo_path:
-        # Return the photo path
-        return photo_path
-
-    # Delete the user photo in the filesystem
-    await users_utils.delete_user_photo_filesystem(user_id)
-
-    return None
-
-
-@core_decorators.handle_db_errors
-async def delete_user(user_id: int, db: Session) -> None:
-    """
-    Delete a user from the database.
-
-    Args:
-        user_id: ID of user to delete.
-        db: SQLAlchemy database session.
-
-    Returns:
-        None
-
-    Raises:
-        HTTPException: 404 if user not found.
-        HTTPException: 500 if database error occurs.
-    """
-    # Delete the user row off the event loop (blocking sync DB calls),
-    # keeping the API event loop responsive.
-    await run_in_threadpool(_delete_user_row, user_id, db)
-
-    # Delete the user photo in the filesystem
-    await users_utils.delete_user_photo_filesystem(user_id)
+    db.delete(_get_user_model_by_id(user_id, db))
+    db.flush()

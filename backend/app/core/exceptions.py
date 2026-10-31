@@ -28,11 +28,13 @@ Every error leaves the API as an RFC 9457 problem document — see
 """
 
 import http
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import core.logger as core_logger
@@ -52,8 +54,10 @@ class DomainError(Exception):
         title: Short human-readable summary of the error *kind*. Constant per
             subclass; the per-occurrence message is ``detail``.
         detail: Caller-safe message returned in the response body.
+        headers: Response headers the error adds (``WWW-Authenticate``, ``Retry-After``); ``None`` when it adds none.
     """
 
+    headers: dict[str, str] | None = None
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "internal-error"
     title: str = "Internal Server Error"
@@ -105,6 +109,25 @@ class PermissionDeniedError(DomainError):
     default_detail = "Forbidden"
 
 
+class UnauthenticatedError(DomainError):
+    """The caller did not provide valid authentication credentials."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthorized"
+    title = "Unauthorized"
+    default_detail = "Not authenticated"
+
+    def __init__(self, detail: str | None = None, *, scheme: str = "Bearer") -> None:
+        """Initialise the error with the authentication challenge to return.
+
+        Args:
+            detail: Message returned to the client.
+            scheme: Authentication scheme named by ``WWW-Authenticate``.
+        """
+        super().__init__(detail)
+        self.headers = {"WWW-Authenticate": scheme}
+
+
 class InvalidInputError(DomainError):
     """The request is well-formed but semantically unusable."""
 
@@ -112,6 +135,60 @@ class InvalidInputError(DomainError):
     code = "invalid-input"
     title = "Bad Request"
     default_detail = "Bad Request"
+
+
+class InvalidMfaCodeError(InvalidInputError):
+    """A submitted MFA code did not verify.
+
+    Renders as the same ``400`` and ``invalid-input`` problem as :class:`InvalidInputError`; callers branch on the
+    type to tell a wrong code from other input failures.
+    """
+
+    default_detail = "Invalid MFA code"
+
+
+class MfaRequiredError(PermissionDeniedError):
+    """The account has MFA enabled and the request carried no MFA code.
+
+    Clients branch on the ``mfa-required`` problem type to ask for a code and send the same request again.
+    """
+
+    code = "mfa-required"
+    default_detail = "MFA verification required"
+
+
+class PasswordRequiredError(InvalidInputError):
+    """A sign-up confirmation arrived without the password the account is still missing.
+
+    Clients branch on the ``password-required`` problem type to ask the user for a password and send the same
+    request again; the token stays usable because nothing was committed.
+    """
+
+    code = "password-required"
+    default_detail = "A password is required to confirm this sign-up"
+
+
+class IdpReauthRequiredError(UnauthenticatedError):
+    """The account has no local password and the request carried no proof of a fresh identity-provider sign-in.
+
+    Clients branch on the ``idp-reauth-required`` problem type to send the user through their identity provider
+    and send the same request again with the proof. The challenge follows RFC 9470.
+    """
+
+    code = "idp-reauth-required"
+    default_detail = "Sign in again with your identity provider to continue"
+
+    def __init__(self, max_age: int, detail: str | None = None) -> None:
+        """Initialise the error with the freshness the new sign-in must meet.
+
+        Args:
+            max_age: Seconds within which the identity-provider sign-in must have happened.
+            detail: Message returned to the client.
+        """
+        super().__init__(
+            detail,
+            scheme=f'Bearer error="insufficient_user_authentication", max_age="{max_age}"',
+        )
 
 
 class ConflictError(DomainError):
@@ -135,6 +212,43 @@ class PreconditionFailedError(DomainError):
     code = "precondition-failed"
     title = "Precondition Failed"
     default_detail = "Precondition Failed"
+
+
+class PreconditionRequiredError(DomainError):
+    """The request must be conditional and carries no ``If-Match`` header.
+
+    A write to a versioned resource without a precondition is last-writer-wins,
+    so the caller is told to read the resource and send the tag it got.
+    """
+
+    status_code = status.HTTP_428_PRECONDITION_REQUIRED
+    code = "precondition-required"
+    title = "Precondition Required"
+    default_detail = "This request must be conditional; send the ETag you read in an If-Match header"
+
+
+class TooManyRequestsError(DomainError):
+    """A per-resource limit is reached, as opposed to the caller's request rate.
+
+    Attributes:
+        retry_at: When the limit clears, when the raiser knows it; a job that hit a provider's
+            limit waits until then instead of retrying into it.
+    """
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "too-many-requests"
+    title = "Too Many Requests"
+    default_detail = "Too Many Requests"
+
+    def __init__(self, detail: str | None = None, *, retry_at: datetime | None = None) -> None:
+        """Initialise the error with an optional message and the time the limit clears.
+
+        Args:
+            detail: Message returned to the client.
+            retry_at: When the limit clears, if known.
+        """
+        super().__init__(detail)
+        self.retry_at = retry_at
 
 
 class UnsupportedFormatError(DomainError):
@@ -182,6 +296,15 @@ class UpstreamError(DomainError):
     default_detail = "Bad Gateway"
 
 
+class DependencyFailedError(DomainError):
+    """A request depends on an external system that rejected it or is not linked."""
+
+    status_code = status.HTTP_424_FAILED_DEPENDENCY
+    code = "dependency-failed"
+    title = "Failed Dependency"
+    default_detail = "Failed Dependency"
+
+
 class ProcessingError(DomainError):
     """An internal step failed; the caller can do nothing about it.
 
@@ -193,6 +316,21 @@ class ProcessingError(DomainError):
     code = "internal-error"
     title = "Internal Server Error"
     default_detail = "Internal Server Error"
+
+
+class CryptographyError(ProcessingError):
+    """Encrypting or decrypting a secret failed, or the configured key cannot be used.
+
+    The response is as opaque as :class:`ProcessingError`: the cause belongs in the log.
+    """
+
+
+class UndecryptableError(CryptographyError):
+    """A stored secret was not produced by the configured key, or is corrupt.
+
+    Unlike a missing or malformed key, this concerns one value: the secret has to be entered
+    again, and retrying the same operation meets the same answer.
+    """
 
 
 def build_problem_response(
@@ -265,11 +403,12 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         method=request.method,
         status_code=exc.status_code,
         error=type(exc).__name__,
+        detail=exc.detail,
     )
     if exc.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
-        logger.error(f"Unhandled domain error on {request.method} {request.url.path}", exc_info=exc, extra=log_context)
+        logger.error("Unhandled domain error", exc_info=exc, extra=log_context)
     else:
-        logger.debug(f"Domain error on {request.method} {request.url.path}: {exc.detail}", extra=log_context)
+        logger.debug("Domain error", extra=log_context)
 
     return build_problem_response(
         request=request,
@@ -277,17 +416,44 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         code=exc.code,
         title=exc.title,
         detail=exc.detail,
+        headers=exc.headers,
     )
 
 
+#: PostgreSQL SQLSTATEs for a lock wait (``lock_timeout``) and a cancelled statement (``statement_timeout``).
+_TRANSIENT_DB_SQLSTATES = frozenset({"55P03", "57014"})
+#: Seconds a client is told to wait before retrying a request the database could not serve.
+_DB_RETRY_AFTER_SECONDS = 5
+
+
+def _is_database_unavailable(exc: SQLAlchemyError) -> bool:
+    """Tell whether a database error means the database could not take the request right now.
+
+    Args:
+        exc: The database error.
+
+    Returns:
+        True for an exhausted connection pool, a lock timeout or a statement timeout.
+    """
+    if isinstance(exc, SQLAlchemyTimeoutError):
+        return True
+    if isinstance(exc, OperationalError):
+        return getattr(exc.orig, "sqlstate", None) in _TRANSIENT_DB_SQLSTATES
+    return False
+
+
 async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
-    """Render a database error that reached the boundary as an opaque 500.
+    """Render a database error that reached the boundary as a problem document.
 
     The one place a database failure raised outside ``crud`` is translated. A
-    ``service`` owns the commit, so a failed commit is raised there rather than
-    inside a ``handle_db_errors``-wrapped persistence function; wrapping every
-    ``db.commit()`` in its own ``try`` would repeat this in each service.
+    ``service`` owns the commit, so a failed commit reaches this boundary;
+    wrapping every ``db.commit()`` in its own ``try`` would repeat this in each
+    service.
     The session has already been rolled back by ``core.database.get_db``.
+
+    An exhausted connection pool, a lock timeout and a statement timeout are transient, so they answer 503 with
+    ``Retry-After``; an ``IntegrityError`` is a unique or foreign-key conflict that only surfaced at commit, so it
+    answers 409. Both are logged as warnings. Anything else is an opaque 500 logged as an error.
 
     Only the exception class goes in the log message: SQLAlchemy error strings
     embed the SQL statement and its parameters (OWASP A09), so they are never
@@ -298,19 +464,58 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
         exc: The database error raised by the application layer.
 
     Returns:
+        The problem document for the failure.
+    """
+    log_context = core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__)
+    message = f"Database error on {request.method} {request.url.path}: {type(exc).__name__}"
+    headers: dict[str, str] | None = None
+    if _is_database_unavailable(exc):
+        logger.warning(message, extra=log_context)
+        error: type[DomainError] = ServiceUnavailableError
+        headers = {"Retry-After": str(_DB_RETRY_AFTER_SECONDS)}
+    elif isinstance(exc, IntegrityError):
+        logger.warning(message, extra=log_context)
+        error = ConflictError
+    else:
+        logger.error(message, exc_info=exc, extra=log_context)
+        error = ProcessingError
+    return build_problem_response(
+        request=request,
+        status_code=error.status_code,
+        code=error.code,
+        title=error.title,
+        detail=error.default_detail,
+        headers=headers,
+    )
+
+
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Render an error nothing else handled as the same opaque problem document.
+
+    Without it Starlette answers a plain-text 500, so clients would see a second error shape. Only the
+    exception class is logged in the message; the traceback goes in ``exc_info``.
+
+    Args:
+        request: The incoming request (used for log context and ``instance``).
+        exc: The unhandled exception.
+
+    Returns:
         The same problem document a :class:`ProcessingError` produces.
     """
     logger.error(
-        f"Database error on {request.method} {request.url.path}: {type(exc).__name__}",
+        f"Unhandled error on {request.method} {request.url.path}: {type(exc).__name__}",
         exc_info=exc,
         extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
     )
+    # This handler runs outside the request-id middleware, so the response header is set here.
+    request_id = core_middleware_request_id.get_request_id()
     return build_problem_response(
         request=request,
         status_code=ProcessingError.status_code,
         code=ProcessingError.code,
         title=ProcessingError.title,
         detail=ProcessingError.default_detail,
+        headers={"X-Request-ID": request_id} if request_id else None,
     )
 
 
@@ -410,3 +615,4 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, unhandled_error_handler)

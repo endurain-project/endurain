@@ -12,8 +12,7 @@ from pydantic import (
 
 
 class ActivityVisibility(Enum):
-    """
-    Activity visibility levels.
+    """Activity visibility levels.
 
     Attributes:
         PUBLIC: Visible to everyone.
@@ -27,8 +26,7 @@ class ActivityVisibility(Enum):
 
 
 class UsersPrivacySettingsBase(BaseModel):
-    """
-    Base schema for user privacy settings.
+    """Base schema for user privacy settings.
 
     Attributes:
         default_activity_visibility: Default activity visibility
@@ -82,16 +80,14 @@ class UsersPrivacySettingsBase(BaseModel):
 
 
 class UsersPrivacySettingsCreate(UsersPrivacySettingsBase):
-    """
-    Pydantic model for creating user privacy settings.
+    """Pydantic model for creating user privacy settings.
 
     Inherits all attributes from UsersPrivacySettingsBase.
     """
 
 
 class UsersPrivacySettingsUpdate(UsersPrivacySettingsBase):
-    """
-    Schema for updating user privacy settings.
+    """Schema for updating user privacy settings.
 
     Inherits all validation from UsersPrivacySettingsBase.
     All fields are optional for partial updates.
@@ -99,8 +95,7 @@ class UsersPrivacySettingsUpdate(UsersPrivacySettingsBase):
 
 
 class UsersPrivacySettingsRead(UsersPrivacySettingsBase):
-    """
-    Schema for reading user privacy settings.
+    """Schema for reading user privacy settings.
 
     Attributes:
         id: Unique identifier for the privacy settings record.
@@ -109,3 +104,4 @@ class UsersPrivacySettingsRead(UsersPrivacySettingsBase):
 
     id: StrictInt = Field(..., ge=1, description="Unique identifier for privacy settings")
     user_id: StrictInt = Field(..., ge=1, description="Foreign key reference to the user")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")

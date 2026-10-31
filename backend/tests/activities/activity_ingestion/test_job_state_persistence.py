@@ -84,6 +84,7 @@ def _read_job(factory, job_id: str = "job-1"):
             error_code=row.error_code,
             activity_ids=list(row.activity_ids or []),
             staged_key=row.staged_key,
+            retry_after=row.retry_after,
         )
 
 
@@ -171,6 +172,169 @@ class TestRefreshJob:
         assert job.activity_ids == [21]
 
 
+class TestDeferredRefresh:
+    """A refresh that hit a provider's rate limit waits for it to clear, then runs again by itself."""
+
+    def test_a_rate_limited_refresh_is_recorded_as_deferred_until_the_limit_clears(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None)
+        retry_at = _now() + timedelta(hours=2)
+        error = ingestion_jobs.activity_ingestion_refresh_entry_service.RefreshDeferredError(retry_at)
+
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(
+                ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", side_effect=error
+            ),
+        ):
+            ingestion_jobs.run_refresh_job("job-1", "storage")
+
+        job = _read_job(factory)
+        assert job.status == "deferred"
+        assert abs((job.retry_after.replace(tzinfo=UTC) - retry_at).total_seconds()) < 1
+
+    def test_a_deferred_job_is_not_claimed_by_a_duplicate_delivery(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() + timedelta(hours=1))
+
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers") as sync,
+        ):
+            ingestion_jobs.run_refresh_job("job-1", "storage")
+
+        sync.assert_not_called()
+        assert _read_job(factory).status == "deferred"
+
+    def test_a_job_whose_wait_is_over_is_queued_again_locally(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() - timedelta(minutes=1))
+
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+            ) as submit,
+        ):
+            released = ingestion_jobs.redispatch_deferred_refreshes("storage")
+
+        job = _read_job(factory)
+        assert released == 1
+        assert (job.status, job.retry_after) == ("pending", None)
+        assert submit.call_args.args[1:] == ("job-1", "storage")
+
+    def test_a_job_whose_wait_is_over_is_published_to_a_worker_when_durable(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() - timedelta(minutes=1))
+
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(ingestion_jobs.activity_ingestion_event_publishers, "publish_refresh_requests") as publish,
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+            ) as submit,
+        ):
+            ingestion_jobs.redispatch_deferred_refreshes("storage")
+
+        assert publish.call_args.args[0] == [("job-1", 7)]
+        submit.assert_not_called()
+
+    def test_a_job_still_waiting_is_left_alone(self, factory):
+        retry_at = _now() + timedelta(hours=1)
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=retry_at)
+
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+            ) as submit,
+        ):
+            assert ingestion_jobs.redispatch_deferred_refreshes("storage") == 0
+
+        assert _read_job(factory).status == "deferred"
+        submit.assert_not_called()
+
+    def test_the_stale_job_sweep_does_not_fail_a_job_that_is_waiting_on_purpose(self, factory):
+        long_ago = _now() - timedelta(days=3)
+        _add_job(
+            factory,
+            kind="refresh",
+            staged_key=None,
+            status="deferred",
+            updated_at=long_ago,
+            retry_after=_now() + timedelta(hours=1),
+        )
+        platform = MagicMock()
+        platform.clock.now.return_value = _now()
+
+        with patch.object(ingestion_jobs.core_database, "SessionLocal", factory):
+            ingestion_jobs.fail_stale_ingestion_jobs(platform.clock, MagicMock())
+
+        assert _read_job(factory).status == "deferred"
+
+    def test_the_hourly_fan_out_does_not_queue_a_second_refresh_behind_a_deferred_one(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() + timedelta(hours=1))
+
+        with factory() as db:
+            busy = ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([7], db)
+
+        assert busy == {7}
+
+
+class TestOrphanedLocalRefreshes:
+    """A restart loses the in-process pool's refreshes, so the local profile fails their rows at startup."""
+
+    @pytest.fixture(autouse=True)
+    def _single_process(self):
+        with patch.object(ingestion_jobs.core_config.settings, "WEB_WORKERS", 1):
+            yield
+
+    def _fail_at_startup(self, factory, *, jobs_enabled: bool) -> int:
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", jobs_enabled),
+        ):
+            return ingestion_jobs.fail_orphaned_local_refreshes()
+
+    @pytest.mark.parametrize("status", ["pending", "processing"])
+    def test_local_profile_fails_the_refresh_the_lost_pool_held(self, factory, status):
+        _add_job(factory, kind="refresh", staged_key=None, status=status)
+
+        assert self._fail_at_startup(factory, jobs_enabled=False) == 1
+
+        job = _read_job(factory)
+        assert job.status == "failed"
+        assert job.error_code == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED.value
+        with factory() as db:
+            assert ingestion_jobs.activity_ingestion_crud.get_user_ids_with_active_refresh([7], db) == set()
+
+    def test_local_profile_keeps_what_the_pool_does_not_own(self, factory):
+        _add_job(factory, id="deferred", kind="refresh", staged_key=None, status="deferred", retry_after=_now())
+        _add_job(factory, id="upload", kind="upload", status="pending")
+        _add_job(factory, id="done", kind="refresh", staged_key=None, status="completed", completed_at=_now())
+
+        assert self._fail_at_startup(factory, jobs_enabled=False) == 0
+
+        assert _read_job(factory, "deferred").status == "deferred"
+        assert _read_job(factory, "upload").status == "pending"
+        assert _read_job(factory, "done").status == "completed"
+
+    @pytest.mark.parametrize("status", ["pending", "processing"])
+    def test_durable_profile_leaves_the_leased_refresh_to_its_worker(self, factory, status):
+        _add_job(factory, kind="refresh", staged_key=None, status=status)
+
+        assert self._fail_at_startup(factory, jobs_enabled=True) == 0
+
+        assert _read_job(factory).status == status
+
+    def test_several_web_workers_leave_a_sibling_workers_refresh_alone(self, factory):
+        _add_job(factory, kind="refresh", staged_key=None, status="processing")
+
+        with patch.object(ingestion_jobs.core_config.settings, "WEB_WORKERS", 2):
+            assert self._fail_at_startup(factory, jobs_enabled=False) == 0
+
+        assert _read_job(factory).status == "processing"
+
+
 class TestPrune:
     def test_deleted_rows_stay_deleted(self, factory):
         old = datetime.now(UTC) - timedelta(days=400)
@@ -178,13 +342,12 @@ class TestPrune:
         _add_job(factory, id="fresh", status="pending")
 
         platform = MagicMock()
-        platform.lock.try_acquire.return_value.__enter__.return_value = True
         platform.clock.now.return_value = datetime.now(UTC)
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_RETENTION_DAYS", 90),
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
         ):
-            ingestion_jobs.prune_expired_ingestion_jobs(platform.lock, platform.clock)
+            ingestion_jobs.prune_expired_ingestion_jobs(platform.clock)
 
         assert _read_job(factory, "old") is None
         assert _read_job(factory, "fresh") is not None
@@ -255,7 +418,6 @@ class TestFailStaleJobs:
     @staticmethod
     def _run(factory) -> list[str]:
         platform = MagicMock()
-        platform.lock.try_acquire.return_value.__enter__.return_value = True
         platform.clock.now.return_value = datetime.now(UTC)
         discarded: list[str] = []
         with (
@@ -266,7 +428,7 @@ class TestFailStaleJobs:
                 side_effect=lambda key, _storage: discarded.append(key),
             ),
         ):
-            ingestion_jobs.fail_stale_ingestion_jobs(platform.lock, platform.clock, platform.storage)
+            ingestion_jobs.fail_stale_ingestion_jobs(platform.clock, platform.storage)
         return discarded
 
     def test_an_idle_upload_is_failed_and_its_blob_dropped(self, factory):
@@ -314,7 +476,6 @@ class TestSweepStaleStagedBlobs:
 
     def _run(self, factory, objects: dict[tuple[str, str], float]) -> list[tuple[str, str]]:
         platform = MagicMock()
-        platform.lock.try_acquire.return_value.__enter__.return_value = True
         platform.clock.now.return_value = self._NOW
         deleted: list[tuple[str, str]] = []
 
@@ -324,7 +485,7 @@ class TestSweepStaleStagedBlobs:
         platform.storage.iter_objects.side_effect = iter_objects
         platform.storage.delete.side_effect = lambda area, key: deleted.append((area, key))
         with patch.object(ingestion_jobs.core_database, "SessionLocal", factory):
-            ingestion_jobs.sweep_stale_staged_blobs(platform.lock, platform.clock, platform.storage)
+            ingestion_jobs.sweep_stale_staged_blobs(platform.clock, platform.storage)
         return deleted
 
     def _age(self, days: float) -> float:
@@ -336,6 +497,38 @@ class TestSweepStaleStagedBlobs:
         deleted = self._run(factory, {(area, "upload_staging/orphan.gpx"): self._age(3)})
 
         assert deleted == [(area, "upload_staging/orphan.gpx")]
+
+    def test_no_session_stays_open_across_a_storage_call(self, factory):
+        """A listing page or a delete is an object-storage round trip, so no connection may wait on it."""
+        open_sessions = {"count": 0}
+        seen_open: list[int] = []
+
+        class _Tracked:
+            def __enter__(self):
+                open_sessions["count"] += 1
+                self._session = factory()
+                return self._session.__enter__()
+
+            def __exit__(self, *exc):
+                open_sessions["count"] -= 1
+                return self._session.__exit__(*exc)
+
+        objects = [(f"upload_staging/orphan-{n}.gpx", self._age(3)) for n in range(3)]
+
+        def iter_objects(area_name, prefix=""):
+            for item in objects:
+                seen_open.append(open_sessions["count"])
+                yield item
+
+        platform = MagicMock()
+        platform.clock.now.return_value = self._NOW
+        platform.storage.iter_objects.side_effect = iter_objects
+        platform.storage.delete.side_effect = lambda *_a: seen_open.append(open_sessions["count"])
+        with patch.object(ingestion_jobs.core_database, "SessionLocal", _Tracked):
+            ingestion_jobs.sweep_stale_staged_blobs(platform.clock, platform.storage)
+
+        assert platform.storage.delete.call_count == 3
+        assert set(seen_open) == {0}
 
     def test_an_upload_a_job_still_names_is_kept(self, factory):
         _add_job(factory, staged_key="live.gpx")

@@ -46,7 +46,7 @@ export interface paths {
         head?: never;
         /**
          * Edit Activities
-         * @description Apply a bulk edit across all of the authenticated user's activities.
+         * @description Queue a bulk edit across all of the authenticated user's activities.
          *
          *     A PATCH on the collection with the change in the body, rather than the
          *     previous ``PUT /visibility/{visibility}``: the value being set is data, not
@@ -54,9 +54,55 @@ export interface paths {
          *     not exist at that path. The body shape also leaves room for a second
          *     bulk-editable field without another endpoint.
          *
-         *     Rejected as invalid input when the body asks for no change at all.
+         *     The edit can touch a whole library, so it runs as a background job: poll
+         *     ``GET /activities/bulk-edit`` for the outcome.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         body: The fields to apply; only those present are changed.
+         *         token_user_id: User ID from the access token.
+         *         states: Shared store of the edit's state.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The edit's initial status.
+         *
+         *     Raises:
+         *         InvalidInputError: When the body asks for no change at all. An empty
+         *             patch is a client bug, not a no-op worth reporting as success.
+         *         ConflictError: When a bulk edit is already pending.
          */
         patch: operations["edit_activities_api_v1_activities_patch"];
+        trace?: never;
+    };
+    "/api/v1/activities/bulk-edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Bulk Edit Status
+         * @description Report where the authenticated user's bulk edit is.
+         *
+         *     Args:
+         *         token_user_id: User ID from the access token.
+         *         states: Shared store of the edit's state.
+         *
+         *     Returns:
+         *         The edit's status.
+         *
+         *     Raises:
+         *         NotFoundError: If no bulk edit is recorded or it has expired.
+         */
+        get: operations["read_bulk_edit_status_api_v1_activities_bulk_edit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/activities/bulk-import": {
@@ -117,7 +163,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/exercise-titles/all": {
+    "/api/v1/activities/exercise-titles": {
         parameters: {
             query?: never;
             header?: never;
@@ -126,9 +172,16 @@ export interface paths {
         };
         /**
          * List Activity Exercise Titles
-         * @description Return all activity exercise titles.
+         * @description Return one page of the activity exercise titles.
+         *
+         *     Args:
+         *         page: The requested window; a page holds up to the maximum when no size is given.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The page of exercise titles.
          */
-        get: operations["list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get"];
+        get: operations["list_activity_exercise_titles_api_v1_activities_exercise_titles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -147,28 +200,11 @@ export interface paths {
         /**
          * List Following Feed
          * @description List a keyset slice of the authenticated user's following feed.
+         *
+         *     The slice also carries the public profile of each owner on it in ``users`` (the projection
+         *     ``GET /users/id/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
          */
         get: operations["list_following_feed_api_v1_activities_feed_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gears/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Gear Activities
-         * @description List the authenticated user's activities for a gear, with the matching total.
-         */
-        get: operations["list_gear_activities_api_v1_activities_gears__gear_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -307,46 +343,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/users/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List User Activities
-         * @description List another user's visible activities, with the matching total.
-         */
-        get: operations["list_user_activities_api_v1_activities_users__user_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/users/{user_id}/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read User Activity Stats
-         * @description Aggregate per-sport stats for a user's current ``week`` or ``month``.
-         */
-        get: operations["read_user_activity_stats_api_v1_activities_users__user_id__stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/activities/{activity_id}": {
         parameters: {
             query?: never;
@@ -366,6 +362,7 @@ export interface paths {
          * @description Delete one of the authenticated user's activities.
          *
          *     Answers ``204`` with no body: the resource is gone, and the status says so.
+         *     Send ``If-Match`` with the activity's ``version`` as an ETag; a stale tag is refused with 412.
          */
         delete: operations["delete_activity_api_v1_activities__activity_id__delete"];
         options?: never;
@@ -379,6 +376,30 @@ export interface paths {
          *     saved in between.
          */
         patch: operations["edit_activity_api_v1_activities__activity_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activity Detail
+         * @description Return an activity with its laps, sets and workout steps in one read.
+         *
+         *     Equivalent to reading the activity and each collection separately, with the access decision made
+         *     once. Streams and media stay on their own routes. The ``ETag`` is the activity's, to echo in
+         *     ``If-Match`` when saving it.
+         */
+        get: operations["read_activity_detail_api_v1_activities__activity_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/activities/{activity_id}/laps": {
@@ -610,10 +631,12 @@ export interface paths {
          *
          *     Protection Mechanisms:
          *     - Rate limiting: 10 requests per minute per IP (SENSITIVE tier, prevents DoS attacks)
-         *     - Progressive lockout: Per-username tracking prevents targeted brute-force:
+         *     - Progressive lockout: Per-username and client-address tracking prevents targeted brute-force without
+         *       letting one client lock the account for everyone:
          *       * 5 failures: 5 minute lockout
          *       * 10 failures: 30 minute lockout
          *       * 20 failures: 24 hour lockout
+         *       * A much higher account-wide threshold across all addresses stops a distributed brute force
          *
          *     This endpoint authenticates a user using provided credentials, checks if the user is active,
          *     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login
@@ -670,7 +693,7 @@ export interface paths {
          *
          *     Args:
          *         response: The HTTP response object to modify cookies.
-         *         request: The HTTP request object.
+         *         request: The HTTP request object, read by the rate limiter.
          *         _validate_refresh_token: Dependency to validate the refresh token.
          *         token_session_id: The session ID extracted from the refresh token.
          *         refresh_token_value: The refresh token value from the request.
@@ -722,7 +745,6 @@ export interface paths {
          *         mfa_request: MFA login request containing username and MFA code
          *         client_type: The type of client making the request ("web" or "mobile")
          *         pending_mfa_store: Store for pending MFA logins
-         *         identity_service: Identity service used to verify backup codes.
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
@@ -772,10 +794,11 @@ export interface paths {
          *         token_user_id: User ID extracted from the refresh token.
          *         token_session_id: Session ID extracted from the refresh token.
          *         refresh_token_value: The raw refresh token value.
+         *         refresh_token_exp: Expiry of the presented refresh token.
          *         password_hasher: Utility for verifying token hashes.
          *         token_manager: Utility for creating tokens.
          *         db: Database session.
-         *         client_type: Client type ("web" or "mobile").
+         *         client_type: Client type (\"web\" or \"mobile\").
          *         x_csrf_token: CSRF token header (web clients only, optional on page reload).
          *
          *     Returns:
@@ -804,7 +827,9 @@ export interface paths {
          * @description List the follow requests awaiting the authenticated user's decision.
          *
          *     Always scoped to the caller, so there is no user id to supply and no way to
-         *     read anyone else's pending requests.
+         *     read anyone else's pending requests. The page also carries each requester's public profile in
+         *     ``users`` (the projection ``GET /users/id/{user_id}`` returns), so a token with
+         *     ``followers:read`` alone receives it too.
          */
         get: operations["list_follow_requests_api_v1_followers_follow_requests_get"];
         put?: never;
@@ -852,36 +877,7 @@ export interface paths {
         patch: operations["accept_follow_request_api_v1_followers_follow_requests__follower_id__patch"];
         trace?: never;
     };
-    "/api/v1/followers/users/{user_id}/followers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List User Followers
-         * @description List a user's followers, with the matching total.
-         *
-         *     Privacy-aware: only the user themselves or an accepted follower may list them.
-         */
-        get: operations["list_user_followers_api_v1_followers_users__user_id__followers_get"];
-        put?: never;
-        /**
-         * Follow User
-         * @description Add the authenticated user to ``user_id``'s followers.
-         *
-         *     Always created pending: a follow takes effect only once the target accepts
-         *     it, so the returned ``status`` is ``pending`` and the target is notified.
-         */
-        post: operations["follow_user_api_v1_followers_users__user_id__followers_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/followers/{follower_id}": {
+    "/api/v1/garmin/activities": {
         parameters: {
             query?: never;
             header?: never;
@@ -890,74 +886,6 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
-        /**
-         * Delete Follow Relationship
-         * @description Delete the follow relationship where ``follower_id`` follows ``user_id``.
-         *
-         *     Serves both directions. Unfollowing is ``follower_id`` = the caller; removing
-         *     a follower is ``user_id`` = the caller. Either party may delete it, and the
-         *     caller must be one of them.
-         */
-        delete: operations["delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/following": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List User Following
-         * @description List who a user follows, with the matching total.
-         *
-         *     Privacy-aware: only the user themselves or an accepted follower may list them.
-         */
-        get: operations["list_user_following_api_v1_followers_users__user_id__following_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/relationship": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read User Relationship
-         * @description Return the authenticated user's relationship with ``user_id``, both directions.
-         *
-         *     Reports the requester's outgoing follow of ``user_id`` and ``user_id``'s
-         *     incoming follow of the requester; only relationships the requester is part of
-         *     are ever exposed.
-         */
-        get: operations["read_user_relationship_api_v1_followers_users__user_id__relationship_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/garminconnect/activities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
         /**
          * Garminconnect Retrieve Activities Days
          * @description Queue a Garmin Connect sync of an explicit date range.
@@ -966,50 +894,14 @@ export interface paths {
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
-        get: operations["garminconnect_retrieve_activities_days_api_v1_garminconnect_activities_get"];
-        put?: never;
-        post?: never;
+        post: operations["garminconnect_retrieve_activities_days_api_v1_garmin_activities_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/gear": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Garminconnect Retrieve Gear */
-        get: operations["garminconnect_retrieve_gear_api_v1_garminconnect_gear_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/garminconnect/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Garminconnect Retrieve Health Days */
-        get: operations["garminconnect_retrieve_health_days_api_v1_garminconnect_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/garminconnect/link": {
+    "/api/v1/garmin/gear": {
         parameters: {
             query?: never;
             header?: never;
@@ -1018,15 +910,21 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Garminconnect Link */
-        post: operations["garminconnect_link_api_v1_garminconnect_link_post"];
+        /**
+         * Garminconnect Retrieve Gear
+         * @description Queue a sync of the user's Garmin Connect gear; a background job runs it.
+         *
+         *     Poll ``GET /garminconnect/sync/gear`` for the outcome. A second request while one is
+         *     pending is answered 409.
+         */
+        post: operations["garminconnect_retrieve_gear_api_v1_garmin_gear_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/mfa": {
+    "/api/v1/garmin/health": {
         parameters: {
             query?: never;
             header?: never;
@@ -1035,15 +933,22 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Garminconnect Mfa Code */
-        post: operations["garminconnect_mfa_code_api_v1_garminconnect_mfa_post"];
+        /**
+         * Garminconnect Retrieve Health Days
+         * @description Queue a sync of the user's Garmin Connect health data for a date range.
+         *
+         *     The range must not exceed 31 days; a background job runs it. Poll
+         *     ``GET /garminconnect/sync/health`` for the outcome. A second request while one is pending is
+         *     answered 409.
+         */
+        post: operations["garminconnect_retrieve_health_days_api_v1_garmin_health_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/garminconnect/unlink": {
+    "/api/v1/garmin/link": {
         parameters: {
             query?: never;
             header?: never;
@@ -1051,16 +956,87 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /**
+         * Garminconnect Link
+         * @description Start linking a Garmin Connect account and return at once.
+         *
+         *     The login runs in the background. Poll ``GET /garminconnect/link/status``: when it reports
+         *     ``mfa_required``, submit the code to ``POST /garminconnect/mfa`` and keep polling until it
+         *     reports ``completed`` or ``failed``. A second request while one is running is answered 409.
+         */
+        post: operations["garminconnect_link_api_v1_garmin_link_post"];
+        /**
+         * Garminconnect Unlink
+         * @description Unlink the user's Garmin Connect account.
+         */
+        delete: operations["garminconnect_unlink_api_v1_garmin_link_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/garmin/link/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Garminconnect Link Status
+         * @description Report where the authenticated user's Garmin Connect link attempt is.
+         */
+        get: operations["garminconnect_link_status_api_v1_garmin_link_status_get"];
         put?: never;
         post?: never;
-        /** Garminconnect Unlink */
-        delete: operations["garminconnect_unlink_api_v1_garminconnect_unlink_delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear_components": {
+    "/api/v1/garmin/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Garminconnect Mfa Code
+         * @description Hand the MFA code to the Garmin Connect login waiting for it.
+         */
+        post: operations["garminconnect_mfa_code_api_v1_garmin_mfa_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/garmin/sync/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Garminconnect Sync Status
+         * @description Report where the authenticated user's queued gear or health sync is.
+         */
+        get: operations["garminconnect_sync_status_api_v1_garmin_sync__kind__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gear-components": {
         parameters: {
             query?: never;
             header?: never;
@@ -1069,65 +1045,13 @@ export interface paths {
         };
         /**
          * Read Gear Components
-         * @description Retrieve all gear components for a user.
-         *
-         *     Args:
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of gear component records or None.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve one page of the authenticated user's gear components, with the total.
          */
         get: operations["read_gear_components_api_v1_gear_components_get"];
-        /**
-         * Edit Gear Component
-         * @description Update an existing gear component.
-         *
-         *     Applies a partial update: only fields present in the request body are
-         *     changed, so omit a field to leave it untouched and send an explicit
-         *     null to clear a nullable field (e.g. `retired_date`).
-         *
-         *     The retired/active invariant is enforced server-side: while
-         *     `retired_date` is set the component is always inactive (`active` is
-         *     forced to false); while it is null the submitted `active` value is
-         *     honoured. Reactivating a retired component therefore requires clearing
-         *     `retired_date` and setting `active` to true in the same request.
-         *
-         *     Args:
-         *         gear_component: Updated component data.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Updated gear component record.
-         *
-         *     Raises:
-         *         HTTPException: If not found, forbidden,
-         *             or invalid dates.
-         */
-        put: operations["edit_gear_component_api_v1_gear_components_put"];
+        put?: never;
         /**
          * Create Gear Component
-         * @description Create a new gear component.
-         *
-         *     Args:
-         *         gear_component: Gear component data.
-         *         _check_scopes: Validates gears:write scope.
-         *         verify_gear_type: Validates component type.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Created gear component record.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or invalid
-         *             component type.
+         * @description Create a component on one of the authenticated user's gears.
          */
         post: operations["create_gear_component_api_v1_gear_components_post"];
         delete?: never;
@@ -1136,41 +1060,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear_components/gear_id/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear Components Gear Id
-         * @description Retrieve gear components by gear ID.
-         *
-         *     Args:
-         *         gear_id: Gear ID to filter by.
-         *         validate_gear_id: Validates gear ID.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         active: Optional active-status filter.
-         *
-         *     Returns:
-         *         List of gear component records or None.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
-         */
-        get: operations["read_gear_components_gear_id_api_v1_gear_components_gear_id__gear_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gear_components/types": {
+    "/api/v1/gear-components/types": {
         parameters: {
             query?: never;
             header?: never;
@@ -1179,16 +1069,7 @@ export interface paths {
         };
         /**
          * Read Gear Component Types
-         * @description Retrieve valid component type lists.
-         *
-         *     Args:
-         *         _check_scopes: Validates gears:read scope.
-         *
-         *     Returns:
-         *         Component types grouped by gear type.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve the valid component types, grouped by gear type.
          */
         get: operations["read_gear_component_types_api_v1_gear_components_types_get"];
         put?: never;
@@ -1199,7 +1080,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gear_components/{gear_component_id}": {
+    "/api/v1/gear-components/{gear_component_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1211,26 +1092,31 @@ export interface paths {
         post?: never;
         /**
          * Delete Component Gear
-         * @description Delete a gear component by ID.
+         * @description Delete one of the authenticated user's gear components.
          *
-         *     Args:
-         *         gear_component_id: Component ID to delete.
-         *         validate_id: Validates component ID.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: If not found, forbidden,
-         *             or unauthorized.
+         *     Send ``If-Match`` with the component's ``version`` as an ETag; a stale tag is refused with 412.
          */
         delete: operations["delete_component_gear_api_v1_gear_components__gear_component_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Gear Component
+         * @description Update one of the authenticated user's gear components.
+         *
+         *     Applies a partial update: only fields present in the request body are
+         *     changed, so omit a field to leave it untouched and send an explicit
+         *     null to clear a nullable field (e.g. `retired_date`).
+         *
+         *     The retired/active invariant is enforced server-side: while
+         *     `retired_date` is set the component is always inactive (`active` is
+         *     forced to false); while it is null the submitted `active` value is
+         *     honoured. Reactivating a retired component therefore requires clearing
+         *     `retired_date` and setting `active` to true in the same request.
+         *
+         *     Send ``If-Match`` with the component's ``version`` as an ETag to make the write
+         *     conditional; a stale tag is refused with 412.
+         */
+        patch: operations["edit_gear_component_api_v1_gear_components__gear_component_id__patch"];
         trace?: never;
     };
     "/api/v1/gears": {
@@ -1241,194 +1127,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Gears User All Pagination
-         * @description Retrieve paginated gear records for a user.
-         *
-         *     Args:
-         *         _validate_pagination_values_on_query:
-         *             Validates pagination query params.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         page_number: Optional page number.
-         *         num_records: Optional records per page.
-         *         show_inactive: Optional inactive filter.
-         *
-         *     Returns:
-         *         GearsListResponse with paginated records.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or invalid
-         *             parameters.
+         * List Gears
+         * @description Retrieve one page of the authenticated user's gears, with the matching total.
          */
-        get: operations["read_gears_user_all_pagination_api_v1_gears_get"];
-        /**
-         * Edit Gear
-         * @description Update an existing gear by ID.
-         *
-         *     Args:
-         *         gear: Updated gear data.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Updated GearRead record.
-         *
-         *     Raises:
-         *         HTTPException: If gear not found, forbidden,
-         *             or unauthorized.
-         */
-        put: operations["edit_gear_api_v1_gears_put"];
+        get: operations["list_gears_api_v1_gears_get"];
+        put?: never;
         /**
          * Create Gear
-         * @description Create a new gear for the authenticated user.
-         *
-         *     Args:
-         *         gear: Gear data to create.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Created GearRead record.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or gear
-         *             already exists.
+         * @description Create a gear for the authenticated user.
          */
         post: operations["create_gear_api_v1_gears_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gears/id/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear Id
-         * @description Retrieve a gear by ID with computed stats.
-         *
-         *     Args:
-         *         gear_id: Gear ID to retrieve.
-         *         validate_id: Validates gear ID exists.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         GearDetailRead with stats, or None.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
-         */
-        get: operations["read_gear_id_api_v1_gears_id__gear_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gears/nickname/contains/{nickname}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear User Contains Nickname
-         * @description Retrieve gears matching a nickname substring.
-         *
-         *     Args:
-         *         nickname: Substring to search for.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of GearRead matching the nickname.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
-         */
-        get: operations["read_gear_user_contains_nickname_api_v1_gears_nickname_contains__nickname__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gears/nickname/{nickname}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear User By Nickname
-         * @description Retrieve a gear by exact nickname for a user.
-         *
-         *     Args:
-         *         nickname: Gear nickname to match.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         GearRead if found, None otherwise.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
-         */
-        get: operations["read_gear_user_by_nickname_api_v1_gears_nickname__nickname__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gears/type/{gear_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear User By Type
-         * @description Retrieve gears by type for a user.
-         *
-         *     Args:
-         *         gear_type: Gear type identifier.
-         *         validate_type: Validates gear type value.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of GearRead matching the type.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or invalid
-         *             type.
-         */
-        get: operations["read_gear_user_by_type_api_v1_gears_type__gear_type__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1442,28 +1150,70 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Gear Id
+         * @description Retrieve a gear by ID with its total distance, time and components cost.
+         */
+        get: operations["read_gear_id_api_v1_gears__gear_id__get"];
         put?: never;
         post?: never;
         /**
          * Delete Gear
-         * @description Delete a gear by ID.
+         * @description Delete one of the authenticated user's gears.
          *
-         *     Args:
-         *         gear_id: Gear ID to delete.
-         *         validate_id: Validates gear ID exists.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: If gear not found, forbidden,
-         *             or unauthorized.
+         *     Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412.
          */
         delete: operations["delete_gear_api_v1_gears__gear_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit Gear
+         * @description Update one of the authenticated user's gears.
+         *
+         *     Applies a partial update: omit a field to leave it untouched and send an explicit
+         *     null to clear a nullable one (`brand`, `model`, `purchase_value`).
+         *
+         *     Send ``If-Match`` with the gear's ``version`` as an ETag to make the write
+         *     conditional; a stale tag is refused with 412.
+         */
+        patch: operations["edit_gear_api_v1_gears__gear_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/gears/{gear_id}/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Gear Activities
+         * @description List the authenticated user's activities for a gear, with the matching total.
+         */
+        get: operations["list_gear_activities_api_v1_gears__gear_id__activities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gears/{gear_id}/components": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Gear Components Gear Id
+         * @description Retrieve one page of a gear's components with the distance and time each has accumulated.
+         */
+        get: operations["read_gear_components_gear_id_api_v1_gears__gear_id__components_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1478,16 +1228,22 @@ export interface paths {
         };
         /**
          * Health
-         * @description Liveness check that needs a database connection.
+         * @description Liveness check that needs a database connection, and reports the shared state backend.
          *
          *     Unlike ``/about``, this fails when the connection pool is exhausted or the
-         *     database is unreachable, so orchestrators can detect a wedged instance.
+         *     database is unreachable, so orchestrators can detect a wedged instance. A state
+         *     backend that does not answer does not fail it: the process still serves most
+         *     routes (rate limits fall back to per-process counters), and restarting or
+         *     de-routing replicas would not bring the backend back. It answers 200 with
+         *     ``degraded`` so a monitor can alert on the body.
          *
          *     Args:
          *         db: Database session.
+         *         state: The platform state provider.
          *
          *     Returns:
-         *         ``{"status": "ok"}`` when the database answers.
+         *         ``ok`` when the database and the state backend answer, ``degraded`` when only the state
+         *         backend does not.
          *
          *     Raises:
          *         HTTPException: 503 when no connection can be obtained or the query fails.
@@ -1512,55 +1268,27 @@ export interface paths {
          * Read Health Fasting All Pagination
          * @description Retrieve health fasting records for the authenticated user.
          *
-         *     This endpoint fetches health fasting data with optional pagination and
-         *     filtering. Access is restricted to users with the 'health:read' scope.
+         *     One page of records, newest first, optionally limited to an interval. Access is
+         *     restricted to users with the 'health:read' scope.
          *
          *     Args:
-         *         _check_scopes: Security dependency that validates the user has
-         *             'health:read' scope.
-         *         _validate_pagination_values_on_query: Dependency that validates
-         *             pagination parameters.
-         *         token_user_id: The ID of the authenticated user extracted from the
-         *             access token.
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         page_number: Optional pagination page number to retrieve specific page
-         *             of results.
-         *         num_records: Optional number of records per page for pagination.
-         *         interval: Optional filter to retrieve records within a specific goal
-         *             interval.
+         *         page: The requested page and page size.
+         *         interval: Optional filter to retrieve records within a specific goal interval.
          *
          *     Returns:
-         *         HealthFastingListResponse: A response object containing:
-         *             - total: Total count of records matching the filter criteria
-         *             - num_records: Number of records returned per page
-         *             - page_number: Current page number
-         *             - records: List of paginated HealthFastingRead objects
-         *     Raises:
-         *         HTTPException: If the user lacks required 'health:read' scope or if
-         *             pagination values are invalid.
+         *         The page of records with the total matching the interval.
          */
         get: operations["read_health_fasting_all_pagination_api_v1_health_fasting_get"];
-        /**
-         * Edit Health Fasting
-         * @description Edit an existing fasting record.
-         *
-         *     Args:
-         *         health_fasting: Fasting data to update.
-         *         _check_scopes: Security dependency for health:write scope.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         Updated HealthFastingRead record.
-         */
-        put: operations["edit_health_fasting_api_v1_health_fasting_put"];
+        put?: never;
         /**
          * Create Health Fasting
          * @description Create a new fasting session.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_fasting: Fasting data to create.
-         *         _check_scopes: Security dependency for health:write scope.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
          *
@@ -1568,7 +1296,7 @@ export interface paths {
          *         Created HealthFastingRead record.
          *
          *     Raises:
-         *         HTTPException: If user already has an active fast.
+         *         ConflictError: If user already has an active fast.
          */
         post: operations["create_health_fasting_api_v1_health_fasting_post"];
         delete?: never;
@@ -1589,9 +1317,9 @@ export interface paths {
          * @description Retrieve the active fasting session for the authenticated user.
          *
          *     Args:
-         *         _check_scopes: Security dependency for health:read scope.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the session's ETag.
          *
          *     Returns:
          *         Active HealthFastingRead if exists, None otherwise.
@@ -1617,7 +1345,6 @@ export interface paths {
          * @description Retrieve fasting statistics for the authenticated user.
          *
          *     Args:
-         *         _check_scopes: Security dependency for health:read scope.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
          *
@@ -1646,15 +1373,15 @@ export interface paths {
          *
          *     Args:
          *         health_fasting_id: ID of the fasting record.
-         *         _check_scopes: Security dependency for health:read scope.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the record's ETag.
          *
          *     Returns:
          *         HealthFastingRead for the specified record.
          *
          *     Raises:
-         *         HTTPException: If record not found.
+         *         NotFoundError: If record not found.
          */
         get: operations["read_health_fasting_by_id_api_v1_health_fasting__health_fasting_id__get"];
         put?: never;
@@ -1664,15 +1391,36 @@ export interface paths {
          * @description Delete a fasting record.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_fasting_id: ID of the fasting record to delete.
-         *         _check_scopes: Security dependency for health:write scope.
          *         token_user_id: User ID from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
+         *
+         *     Raises:
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
          */
         delete: operations["delete_health_fasting_api_v1_health_fasting__health_fasting_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Health Fasting
+         * @description Edit an existing fasting record.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         health_fasting_id: ID of the record to change.
+         *         health_fasting: Fasting data to update.
+         *         token_user_id: User ID from the access token.
+         *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         Updated HealthFastingRead record.
+         */
+        patch: operations["edit_health_fasting_api_v1_health_fasting__health_fasting_id__patch"];
         trace?: never;
     };
     "/api/v1/health/fasting/{health_fasting_id}/complete": {
@@ -1689,11 +1437,13 @@ export interface paths {
          * @description Complete or end a fasting session.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_fasting_id: ID of the fasting record to complete.
          *         complete_data: Completion data with end time and status.
-         *         _check_scopes: Security dependency for health:write scope.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
          *
          *     Returns:
          *         Updated HealthFastingRead record.
@@ -1716,44 +1466,20 @@ export interface paths {
          * Read Health Poop All Pagination
          * @description Retrieve paginated poop records for the user.
          *
+         *     One page of records, newest first, optionally limited to an interval. Access is
+         *     restricted to users with the 'health:read' scope.
+         *
          *     Args:
-         *         _check_scopes: Security dependency that validates the
-         *             user has 'health:read' scope.
-         *         _validate_pagination_values_on_query: Dependency that
-         *             validates pagination parameters.
-         *         token_user_id: The ID of the authenticated user
-         *             extracted from the access token.
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         page_number: Optional pagination page number.
-         *         num_records: Optional number of records per page.
-         *         interval: Optional filter by goal interval.
+         *         page: The requested page and page size.
+         *         interval: Optional filter to retrieve records within a specific goal interval.
          *
          *     Returns:
-         *         HealthPoopListResponse containing total count,
-         *             pagination info, and poop records.
-         *
-         *     Raises:
-         *         HTTPException: If the user lacks required scope or
-         *             pagination values are invalid.
+         *         The page of records with the total matching the interval.
          */
         get: operations["read_health_poop_all_pagination_api_v1_health_poop_get"];
-        /**
-         * Edit Health Poop
-         * @description Edit an existing poop record.
-         *
-         *     Args:
-         *         health_poop: Poop data to update.
-         *         _check_scopes: Security dependency for health:write.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         Updated HealthPoopRead record.
-         *
-         *     Raises:
-         *         HTTPException: If record not found or unauthorized.
-         */
-        put: operations["edit_health_poop_api_v1_health_poop_put"];
+        put?: never;
         /**
          * Create Health Poop
          * @description Create a new poop record for the user.
@@ -1762,8 +1488,8 @@ export interface paths {
          *     per day.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_poop: Poop data to create.
-         *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
          *
@@ -1771,6 +1497,38 @@ export interface paths {
          *         Created HealthPoopRead record.
          */
         post: operations["create_health_poop_api_v1_health_poop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/poop/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Poop Chart
+         * @description Chart the authenticated user's daily bowel-movement frequency over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Declared before the ``/{health_poop_id}`` route so ``chart`` is not read as an id.
+         *     Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_poop_chart_api_v1_health_poop_chart_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1790,15 +1548,15 @@ export interface paths {
          *
          *     Args:
          *         health_poop_id: ID of the poop record.
-         *         _check_scopes: Security dependency for health:read.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the record's ETag.
          *
          *     Returns:
          *         HealthPoopRead for the specified record.
          *
          *     Raises:
-         *         HTTPException: If record not found.
+         *         NotFoundError: If the user has no such record.
          */
         get: operations["read_health_poop_by_id_api_v1_health_poop__health_poop_id__get"];
         put?: never;
@@ -1808,18 +1566,40 @@ export interface paths {
          * @description Delete a poop record for the authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_poop_id: ID of the poop record to delete.
-         *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
          *
          *     Raises:
-         *         HTTPException: If record not found or unauthorized.
+         *         PreconditionFailedError: If the record changed since the client read it.
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_poop_api_v1_health_poop__health_poop_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Health Poop
+         * @description Edit an existing poop record.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         health_poop_id: ID of the record to change.
+         *         health_poop: Poop data to update.
+         *         token_user_id: User ID from the access token.
+         *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         Updated HealthPoopRead record.
+         *
+         *     Raises:
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
+         */
+        patch: operations["edit_health_poop_api_v1_health_poop__health_poop_id__patch"];
         trace?: never;
     };
     "/api/v1/health/sleep": {
@@ -1833,83 +1613,100 @@ export interface paths {
          * Read Health Sleep All Pagination
          * @description Retrieve health sleep records for the authenticated user.
          *
-         *     This endpoint fetches health sleep data with optional pagination and
-         *     filtering. Access is restricted to users with the 'health:read' scope.
+         *     One page of records, newest first, optionally limited to an interval. Access is
+         *     restricted to users with the 'health:read' scope.
          *
          *     Args:
-         *         _check_scopes: Security dependency that validates the user has
-         *             'health:read' scope.
-         *         _validate_pagination_values_on_query: Dependency that validates
-         *             pagination parameters.
-         *         token_user_id: The ID of the authenticated user extracted from the
-         *             access token.
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         page_number: Optional pagination page number to retrieve specific page
-         *             of results.
-         *         num_records: Optional number of records per page for pagination.
-         *         interval: Optional filter to retrieve records within a specific goal
-         *             interval.
+         *         page: The requested page and page size.
+         *         interval: Optional filter to retrieve records within a specific goal interval.
          *
          *     Returns:
-         *         HealthSleepListResponse: A response object containing:
-         *             - total: Total count of records matching the filter criteria
-         *             - num_records: Number of records returned per page
-         *             - page_number: Current page number
-         *             - records: List of paginated HealthSleepRead objects
-         *     Raises:
-         *         HTTPException: If the user lacks required 'health:read' scope or if
-         *             pagination values are invalid.
+         *         The page of records with the total matching the interval.
          */
         get: operations["read_health_sleep_all_pagination_api_v1_health_sleep_get"];
-        /**
-         * Edit Health Sleep
-         * @description Edit health sleep data for a user.
-         *
-         *     This endpoint updates existing health sleep records in the database for the authenticated user.
-         *     Requires 'health:write' scope for authorization.
-         *
-         *     Args:
-         *         health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
-         *             containing the new values for the health sleep record.
-         *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
-         *             scope permission.
-         *         token_user_id (int): The user ID extracted from the JWT access token, used to identify
-         *             the user making the request.
-         *         db (Session): Database session dependency for performing database operations.
-         *
-         *     Returns:
-         *         health_sleep_schema.HealthSleepRead: The updated health sleep record with the new values
-         *             as stored in the database.
-         *
-         *     Raises:
-         *         HTTPException: May raise various HTTP exceptions if authorization fails, user is not
-         *             found, or database operations fail.
-         */
-        put: operations["edit_health_sleep_api_v1_health_sleep_put"];
+        put?: never;
         /**
          * Create Health Sleep
-         * @description Create or update health sleep data for a user.
+         * @description Create health sleep data for a user.
          *
-         *     This endpoint creates new health sleep data or updates existing data if an entry
-         *     for the specified date already exists. The operation is determined automatically
-         *     based on whether sleep data exists for the given date.
+         *     A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
          *
          *     Args:
-         *         health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create
-         *             or update, including the date and sleep duration.
-         *         _check_scopes (Callable): Security dependency that verifies the user has
-         *             'health:write' scope.
+         *         request: The incoming request, read by the rate limiter.
+         *         health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create,
+         *             including the date and sleep duration.
          *         token_user_id (int): The ID of the authenticated user extracted from the
          *             access token.
          *         db (Session): Database session dependency for database operations.
          *
          *     Returns:
-         *         health_sleep_schema.HealthSleepRead: The created or updated health sleep data.
-         *
-         *     Raises:
-         *         HTTPException: 400 error if the date field is not provided in the request.
+         *         health_sleep_schema.HealthSleepRead: The created health sleep data.
          */
         post: operations["create_health_sleep_api_v1_health_sleep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/sleep/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Sleep Chart
+         * @description Chart the authenticated user's total sleep seconds over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_sleep_chart_api_v1_health_sleep_chart_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/sleep/chart/resting-heart-rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Sleep Resting Heart Rate Chart
+         * @description Chart the authenticated user's resting heart rate over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_sleep_resting_heart_rate_chart_api_v1_health_sleep_chart_resting_heart_rate_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1934,24 +1731,49 @@ export interface paths {
          *     identified by the access token. The user must have 'health:write' scope permission.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_sleep_id (int): The unique identifier of the health sleep record to delete.
-         *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
          *         token_user_id (int): The user ID extracted from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db (Session): Database session dependency for executing the delete operation.
          *
          *     Returns:
          *         None: This function does not return a value.
          *
          *     Raises:
-         *         HTTPException: May be raised by dependencies if:
-         *             - The access token is invalid or expired
-         *             - The user lacks required 'health:write' scope
-         *             - The health sleep record doesn't exist or doesn't belong to the user
+         *         PreconditionFailedError: If the record changed since the client read it.
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Health Sleep
+         * @description Edit health sleep data for a user.
+         *
+         *     This endpoint updates existing health sleep records in the database for the authenticated user.
+         *     Requires 'health:write' scope for authorization.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         health_sleep_id: ID of the record to change.
+         *         health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
+         *             containing the new values for the health sleep record.
+         *         token_user_id (int): The user ID extracted from the JWT access token, used to identify
+         *             the user making the request.
+         *         db (Session): Database session dependency for performing database operations.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         health_sleep_schema.HealthSleepRead: The updated health sleep record with the new values
+         *             as stored in the database.
+         *
+         *     Raises:
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
+         */
+        patch: operations["edit_health_sleep_api_v1_health_sleep__health_sleep_id__patch"];
         trace?: never;
     };
     "/api/v1/health/stats/daily": {
@@ -1963,26 +1785,16 @@ export interface paths {
         };
         /**
          * Read Health Daily Stats
-         * @description Retrieve health daily stats and last weight record.
+         * @description Retrieve the user's health dashboard for today.
          *
          *     Args:
-         *         _check_scopes: Security dependency that validates the user has
-         *             'health:read' scope.
+         *         request: The incoming request, read by the rate limiter.
          *         token_user_id: The ID of the authenticated user extracted from the
          *             access token.
          *         db: Database session for executing queries.
          *
          *     Returns:
-         *         HealthDashboardResponse: A consolidated response containing:
-         *             - sleep: Latest sleep record with key metrics
-         *             - weight: Latest weight and BMI data
-         *             - steps: Today's step count
-         *             - fasting: Active or most recent fasting session
-         *             - water: Today's water intake in milliliters
-         *             - poop: Today's bowel movement count
-         *
-         *     Raises:
-         *         HTTPException: If the user lacks required 'health:read' scope.
+         *         The consolidated daily metrics and the user's health targets.
          */
         get: operations["read_health_daily_stats_api_v1_health_stats_daily_get"];
         put?: never;
@@ -2004,83 +1816,69 @@ export interface paths {
          * Read Health Steps All Pagination
          * @description Retrieve paginated health steps records for the authenticated user.
          *
-         *     This endpoint fetches health steps data with optional pagination and
-         *     filtering. Access is restricted to users with the 'health:read' scope.
+         *     One page of records, newest first, optionally limited to an interval. Access is
+         *     restricted to users with the 'health:read' scope.
          *
          *     Args:
-         *         _check_scopes: Security dependency that validates the user has
-         *             'health:read' scope.
-         *         _validate_pagination_values_on_query: Dependency that validates
-         *             pagination parameters.
-         *         token_user_id: The ID of the authenticated user extracted from the
-         *             access token.
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         page_number: Optional pagination page number to retrieve specific page
-         *             of results.
-         *         num_records: Optional number of records per page for pagination.
-         *         interval: Optional filter to retrieve records within a specific goal
-         *             interval.
+         *         page: The requested page and page size.
+         *         interval: Optional filter to retrieve records within a specific goal interval.
          *
          *     Returns:
-         *         HealthStepsListResponse: A response object containing:
-         *             - total: Total count of records matching the filter criteria
-         *             - num_records: Number of records returned per page
-         *             - page_number: Current page number
-         *             - records: List of paginated HealthStepsRead objects
-         *     Raises:
-         *         HTTPException: If the user lacks required 'health:read' scope or if
-         *             pagination values are invalid.
+         *         The page of records with the total matching the interval.
          */
         get: operations["read_health_steps_all_pagination_api_v1_health_steps_get"];
-        /**
-         * Edit Health Steps
-         * @description Edit health steps data for a user.
-         *
-         *     This endpoint updates existing health steps records in the database for the authenticated user.
-         *     Requires 'health:write' scope for authorization.
-         *
-         *     Args:
-         *         health_steps (health_steps_schema.HealthSteps): The health steps data to be updated,
-         *             containing the new values for the health steps record.
-         *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
-         *             scope permission.
-         *         token_user_id (int): The user ID extracted from the JWT access token, used to identify
-         *             the user making the request.
-         *         db (Session): Database session dependency for performing database operations.
-         *
-         *     Returns:
-         *         health_steps_schema.HealthSteps: The updated health steps record with the new values
-         *             as stored in the database.
-         *
-         *     Raises:
-         *         HTTPException: May raise various HTTP exceptions if authorization fails, user is not
-         *             found, or database operations fail.
-         */
-        put: operations["edit_health_steps_api_v1_health_steps_put"];
+        put?: never;
         /**
          * Create Health Steps
-         * @description Create or update health steps data for a user.
+         * @description Create health steps data for a user.
          *
-         *     This endpoint creates new health steps data or updates existing data if an entry
-         *     for the specified date already exists. The operation is determined automatically
-         *     based on whether steps data exists for the given date.
+         *     A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
          *
          *     Args:
-         *         health_steps (health_steps_schema.HealthSteps): The health steps data to create
-         *             or update, including the date and step count.
-         *         _check_scopes (Callable): Security dependency that verifies the user has
-         *             'health:write' scope.
+         *         request: The incoming request, read by the rate limiter.
+         *         health_steps (health_steps_schema.HealthSteps): The health steps data to create,
+         *             including the date and step count.
          *         token_user_id (int): The ID of the authenticated user extracted from the
          *             access token.
          *         db (Session): Database session dependency for database operations.
          *
          *     Returns:
-         *         health_steps_schema.HealthSteps: The created or updated health steps data.
-         *
-         *     Raises:
-         *         HTTPException: 400 error if the date field is not provided in the request.
+         *         health_steps_schema.HealthSteps: The created health steps data.
          */
         post: operations["create_health_steps_api_v1_health_steps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/steps/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Steps Chart
+         * @description Chart the authenticated user's steps over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_steps_chart_api_v1_health_steps_chart_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2105,24 +1903,49 @@ export interface paths {
          *     identified by the access token. The user must have 'health:write' scope permission.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_steps_id (int): The unique identifier of the health steps record to delete.
-         *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
          *         token_user_id (int): The user ID extracted from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db (Session): Database session dependency for executing the delete operation.
          *
          *     Returns:
          *         None: This function does not return a value.
          *
          *     Raises:
-         *         HTTPException: May be raised by dependencies if:
-         *             - The access token is invalid or expired
-         *             - The user lacks required 'health:write' scope
-         *             - The health steps record doesn't exist or doesn't belong to the user
+         *         PreconditionFailedError: If the record changed since the client read it.
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_steps_api_v1_health_steps__health_steps_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Health Steps
+         * @description Edit health steps data for a user.
+         *
+         *     This endpoint updates existing health steps records in the database for the authenticated user.
+         *     Requires 'health:write' scope for authorization.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         health_steps_id: ID of the record to change.
+         *         health_steps (health_steps_schema.HealthSteps): The health steps data to be updated,
+         *             containing the new values for the health steps record.
+         *         token_user_id (int): The user ID extracted from the JWT access token, used to identify
+         *             the user making the request.
+         *         db (Session): Database session dependency for performing database operations.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         health_steps_schema.HealthSteps: The updated health steps record with the new values
+         *             as stored in the database.
+         *
+         *     Raises:
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
+         */
+        patch: operations["edit_health_steps_api_v1_health_steps__health_steps_id__patch"];
         trace?: never;
     };
     "/api/v1/health/targets": {
@@ -2137,26 +1960,25 @@ export interface paths {
          * @description Retrieve all health targets for the authenticated user.
          *
          *     This endpoint fetches all health targets associated with the user identified by the
-         *     access token. It requires the 'health:read' scope for authorization.
+         *     access token. It requires the 'health_targets:read' scope for authorization.
          *
          *     Args:
-         *         _check_scopes (Callable): Security dependency that verifies the user has the
-         *             required 'health:read' scope. The underscore prefix indicates this parameter
-         *             is injected by FastAPI's security system but not directly used in the function.
          *         token_user_id (int): The user ID extracted from the JWT access token, automatically
          *             injected by the authentication dependency.
          *         db (Session): SQLAlchemy database session dependency for executing database queries.
+         *         response: The response, which carries the targets' ETag.
          *
          *     Returns:
          *         health_targets_schema.HealthTargetsRead | None: The
          *             health targets object containing all targets for
          *             the user, or None if no targets are found.
-         *
-         *     Raises:
-         *         HTTPException: May raise 401 Unauthorized if the token is invalid or expired.
-         *         HTTPException: May raise 403 Forbidden if the user lacks the required 'health:read' scope.
          */
         get: operations["read_health_targets_all_api_v1_health_targets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         /**
          * Update Health Targets
          * @description Update health targets for the authenticated user.
@@ -2165,17 +1987,15 @@ export interface paths {
          *     weight goals, activity targets, or other health metrics.
          *
          *     Args:
-         *         health_targets (
-         *             health_targets_schema.HealthTargetsUpdate): The
-         *             health targets data to be updated, containing the
-         *             new values for various health metrics.
-         *         _check_scopes (Callable): Security dependency that
-         *             verifies the user has 'health:write' scope
-         *             permission.
+         *         request: The incoming request, read by the rate limiter.
+         *         health_targets: The health targets to update, containing the new values for
+         *             the health metrics.
          *         token_user_id (int): The authenticated user's ID
          *             extracted from the access token.
          *         db (Session): Database session dependency for database
          *             operations.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
          *
          *     Returns:
          *         health_targets_schema.HealthTargetsRead: The updated
@@ -2183,16 +2003,10 @@ export interface paths {
          *             in the database.
          *
          *     Raises:
-         *         HTTPException: May raise authentication or authorization errors if the user
-         *             lacks proper permissions or if the token is invalid.
-         *         HTTPException: May raise database-related errors if the update operation fails.
+         *         NotFoundError: If the user has no targets.
+         *         PreconditionFailedError: If the targets changed since the client read them.
          */
-        put: operations["update_health_targets_api_v1_health_targets_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["update_health_targets_api_v1_health_targets_patch"];
         trace?: never;
     };
     "/api/v1/health/water": {
@@ -2206,64 +2020,67 @@ export interface paths {
          * Read Health Water All Pagination
          * @description Retrieve paginated water intake records for the user.
          *
+         *     One page of records, newest first, optionally limited to an interval. Access is
+         *     restricted to users with the 'health:read' scope.
+         *
          *     Args:
-         *         _check_scopes: Security dependency that validates the
-         *             user has 'health:read' scope.
-         *         _validate_pagination_values_on_query: Dependency that
-         *             validates pagination parameters.
-         *         token_user_id: The ID of the authenticated user
-         *             extracted from the access token.
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         page_number: Optional pagination page number.
-         *         num_records: Optional number of records per page.
-         *         interval: Optional filter by goal interval.
+         *         page: The requested page and page size.
+         *         interval: Optional filter to retrieve records within a specific goal interval.
          *
          *     Returns:
-         *         HealthWaterListResponse containing total count,
-         *             pagination info, and water intake records.
-         *
-         *     Raises:
-         *         HTTPException: If the user lacks required scope or
-         *             pagination values are invalid.
+         *         The page of records with the total matching the interval.
          */
         get: operations["read_health_water_all_pagination_api_v1_health_water_get"];
-        /**
-         * Edit Health Water
-         * @description Edit an existing water intake record.
-         *
-         *     Args:
-         *         health_water: Water intake data to update.
-         *         _check_scopes: Security dependency for health:write.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         Updated HealthWaterRead record.
-         *
-         *     Raises:
-         *         HTTPException: If record not found or unauthorized.
-         */
-        put: operations["edit_health_water_api_v1_health_water_put"];
+        put?: never;
         /**
          * Create Health Water
-         * @description Create or update a water intake record for the user.
+         * @description Record a water intake for the user's day.
          *
-         *     If a record already exists for the given date, it will be
-         *     updated instead of creating a duplicate.
+         *     The intake is added to the day's total, so several intakes in one day are all counted.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_water: Water intake data to create.
-         *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         Created or updated HealthWaterRead record.
-         *
-         *     Raises:
-         *         HTTPException: 400 if date field is not provided.
+         *         The day's HealthWaterRead record, with the intake added.
          */
         post: operations["create_health_water_api_v1_health_water_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/water/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Water Chart
+         * @description Chart the authenticated user's water intake over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_water_chart_api_v1_health_water_chart_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2285,18 +2102,40 @@ export interface paths {
          * @description Delete a water intake record for the authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_water_id: ID of the water intake record.
-         *         _check_scopes: Security dependency for health:write.
          *         token_user_id: User ID from the access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
          *
          *     Raises:
-         *         HTTPException: If record not found or unauthorized.
+         *         PreconditionFailedError: If the record changed since the client read it.
+         *         NotFoundError: If the user has no such record.
          */
         delete: operations["delete_health_water_api_v1_health_water__health_water_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Health Water
+         * @description Edit an existing water intake record.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         health_water_id: ID of the record to change.
+         *         health_water: Water intake data to update.
+         *         token_user_id: User ID from the access token.
+         *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         Updated HealthWaterRead record.
+         *
+         *     Raises:
+         *         NotFoundError: If the user has no such record.
+         *         PreconditionFailedError: If the record changed since the client read it.
+         */
+        patch: operations["edit_health_water_api_v1_health_water__health_water_id__patch"];
         trace?: never;
     };
     "/api/v1/health/weight": {
@@ -2310,80 +2149,68 @@ export interface paths {
          * Read Health Weight All Pagination
          * @description Retrieve paginated health weight records for the authenticated user.
          *
-         *     This endpoint fetches health weight data with optional pagination and
-         *     filtering. Access is restricted to users with the 'health:read' scope.
+         *     One page of records, newest first, optionally limited to an interval. Access is
+         *     restricted to users with the 'health:read' scope.
          *
          *     Args:
-         *         _check_scopes: Security dependency that validates the user has
-         *             'health:read' scope.
-         *         _validate_pagination_values_on_query: Dependency that validates
-         *             pagination parameters.
-         *         token_user_id: The ID of the authenticated user extracted from the
-         *             access token.
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         page_number: Optional pagination page number to retrieve specific page
-         *             of results.
-         *         num_records: Optional number of records per page for pagination.
-         *         interval: Optional filter to retrieve records within a specific goal
-         *             interval.
+         *         page: The requested page and page size.
+         *         interval: Optional filter to retrieve records within a specific goal interval.
          *
          *     Returns:
-         *         HealthWeightListResponse: A response object containing:
-         *             - total: Total count of records matching the filter criteria
-         *             - num_records: Number of records returned per page
-         *             - page_number: Current page number
-         *             - records: List of paginated HealthWeightRead objects
-         *
-         *     Raises:
-         *         HTTPException: If the user lacks required 'health:read' scope or if
-         *             pagination values are invalid.
+         *         The page of records with the total matching the interval.
          */
         get: operations["read_health_weight_all_pagination_api_v1_health_weight_get"];
-        /**
-         * Edit Health Weight
-         * @description Edit a health weight entry for the authenticated user.
-         *
-         *     This endpoint allows users with 'health:write' scope to update an existing
-         *     health weight record in the database.
-         *
-         *     Args:
-         *         health_weight (health_weight_schema.HealthWeight): The health weight data
-         *             to be updated, containing the weight information and associated metadata.
-         *         _check_scopes (Callable): Security dependency that verifies the user has
-         *             'health:write' scope permission.
-         *         token_user_id (int): The ID of the authenticated user extracted from the
-         *             access token.
-         *         db (Session): Database session dependency for executing database operations.
-         *
-         *     Returns:
-         *         The updated health weight record from the database.
-         *
-         *     Raises:
-         *         HTTPException: If the user doesn't have permission to edit the weight entry
-         *             or if the entry doesn't exist.
-         */
-        put: operations["edit_health_weight_api_v1_health_weight_put"];
+        put?: never;
         /**
          * Create Health Weight
-         * @description Create or update a health weight record for the authenticated user.
+         * @description Create a health weight record for the authenticated user.
          *
-         *     This endpoint creates a new health weight record if one doesn't exist for the given date,
-         *     or updates an existing record if one is already present for that date.
+         *     A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
          *
          *     Args:
-         *         health_weight (health_weight_schema.HealthWeightCreate): The health weight data to create or update.
+         *         request: The incoming request, read by the rate limiter.
+         *         health_weight (health_weight_schema.HealthWeightCreate): The health weight data to create.
          *             Must include a date field.
-         *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
          *         token_user_id (int): The ID of the authenticated user extracted from the access token.
          *         db (Session): Database session dependency for performing database operations.
          *
          *     Returns:
-         *         health_weight_schema.HealthWeightRead: The created or updated health weight record.
-         *
-         *     Raises:
-         *         HTTPException: 400 error if the date field is not provided in the request.
+         *         health_weight_schema.HealthWeightRead: The created health weight record.
          */
         post: operations["create_health_weight_api_v1_health_weight_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/weight/chart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Health Weight Chart
+         * @description Chart the authenticated user's weight over an interval.
+         *
+         *     One aggregated point per day, week or month depending on the interval, so the response stays small
+         *     however long the history. Access is restricted to users with the 'health:read' scope.
+         *
+         *     Args:
+         *         token_user_id: The ID of the authenticated user extracted from the access token.
+         *         db: Database session for executing queries.
+         *         interval: The window to chart.
+         *
+         *     Returns:
+         *         The interval's bucket size and its points, oldest first.
+         */
+        get: operations["read_health_weight_chart_api_v1_health_weight_chart_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2408,26 +2235,52 @@ export interface paths {
          *     the 'health:write' scope for authorization.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         health_weight_id (int): The unique identifier of the health weight entry to delete.
-         *         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
          *         token_user_id (int): The user ID extracted from the access token, used to ensure
          *             users can only delete their own weight entries.
+         *         if_match: The ``If-Match`` precondition.
          *         db (Session): Database session dependency for performing database operations.
          *
          *     Returns:
          *         None: This function does not return any value upon successful deletion.
          *
          *     Raises:
-         *         HTTPException: May raise various HTTP exceptions (e.g., 404 if entry not found,
-         *             403 if unauthorized) through the CRUD layer.
+         *         PreconditionFailedError: If the record changed since the client read it.
+         *         NotFoundError: If the entry doesn't exist for the user.
          */
         delete: operations["delete_health_weight_api_v1_health_weight__health_weight_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Health Weight
+         * @description Edit a health weight entry for the authenticated user.
+         *
+         *     This endpoint allows users with 'health:write' scope to update an existing
+         *     health weight record in the database.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         health_weight_id: ID of the record to change.
+         *         health_weight (health_weight_schema.HealthWeight): The health weight data
+         *             to be updated, containing the weight information and associated metadata.
+         *         token_user_id (int): The ID of the authenticated user extracted from the
+         *             access token.
+         *         db (Session): Database session dependency for executing database operations.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         The updated health weight record from the database.
+         *
+         *     Raises:
+         *         PermissionDeniedError: If the record names another user.
+         *         NotFoundError: If the entry doesn't exist.
+         */
+        patch: operations["edit_health_weight_api_v1_health_weight__health_weight_id__patch"];
         trace?: never;
     };
-    "/api/v1/idp": {
+    "/api/v1/identity-providers": {
         parameters: {
             query?: never;
             header?: never;
@@ -2440,13 +2293,11 @@ export interface paths {
          *
          *     Args:
          *         db: SQLAlchemy database session dependency.
-         *         _check_scopes: Authenticated user with the
-         *             'identity_providers:read' scope.
          *
          *     Returns:
          *         A list of all configured identity providers.
          */
-        get: operations["list_identity_providers_api_v1_idp_get"];
+        get: operations["list_identity_providers_api_v1_identity_providers_get"];
         put?: never;
         /**
          * Create Identity Provider
@@ -2455,8 +2306,7 @@ export interface paths {
          *     Args:
          *         idp_data: Data required to create the identity provider.
          *         db: SQLAlchemy database session dependency.
-         *         _check_scopes: Authenticated user with the
-         *             'identity_providers:write' scope.
+         *         request: Incoming request.
          *
          *     Returns:
          *         The newly created identity provider.
@@ -2465,14 +2315,14 @@ export interface paths {
          *         HTTPException: 409 if the slug already exists, 500 on
          *             database errors.
          */
-        post: operations["create_identity_provider_api_v1_idp_post"];
+        post: operations["create_identity_provider_api_v1_identity_providers_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/idp/templates": {
+    "/api/v1/identity-providers/templates": {
         parameters: {
             query?: never;
             header?: never;
@@ -2483,14 +2333,10 @@ export interface paths {
          * List Idp Templates
          * @description Get the list of pre-configured IdP templates (admin only).
          *
-         *     Args:
-         *         _check_scopes: Authenticated user with the
-         *             'identity_providers:read' scope.
-         *
          *     Returns:
          *         A list of identity provider templates.
          */
-        get: operations["list_idp_templates_api_v1_idp_templates_get"];
+        get: operations["list_idp_templates_api_v1_identity_providers_templates_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2499,7 +2345,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/idp/{idp_id}": {
+    "/api/v1/identity-providers/{idp_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2515,8 +2361,7 @@ export interface paths {
          *         idp_id: The unique identifier of the identity provider to update.
          *         idp_data: The data to update the identity provider with.
          *         db: SQLAlchemy database session dependency.
-         *         _check_scopes: Authenticated user with the
-         *             'identity_providers:write' scope.
+         *         request: Incoming request.
          *
          *     Returns:
          *         The updated identity provider.
@@ -2525,7 +2370,7 @@ export interface paths {
          *         HTTPException: 404 if the provider is not found, 409 on slug
          *             conflict, 500 on database errors.
          */
-        put: operations["update_identity_provider_api_v1_idp__idp_id__put"];
+        put: operations["update_identity_provider_api_v1_identity_providers__idp_id__put"];
         post?: never;
         /**
          * Delete Identity Provider
@@ -2533,21 +2378,23 @@ export interface paths {
          *
          *     Args:
          *         idp_id: The unique identifier of the identity provider to delete.
-         *         _check_scopes: Authenticated user with the
-         *             'identity_providers:write' scope.
+         *         request: Incoming request.
+         *         if_match: The ``If-Match`` precondition.
          *         db: SQLAlchemy database session dependency.
+         *         storage: The platform storage provider.
          *
          *     Raises:
          *         HTTPException: 404 if the provider is not found, 409 if users
-         *             are still linked to the provider.
+         *             are still linked to the provider, 412 if the provider changed
+         *             since the client read it.
          */
-        delete: operations["delete_identity_provider_api_v1_idp__idp_id__delete"];
+        delete: operations["delete_identity_provider_api_v1_identity_providers__idp_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/notifications/mark_all_as_read": {
+    "/api/v1/identity-providers/{idp_id}/icon": {
         parameters: {
             query?: never;
             header?: never;
@@ -2555,20 +2402,73 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
-         * Mark All Notifications As Read
-         * @description Mark all of the user's notifications as read.
+         * Upload Identity Provider Icon
+         * @description Upload the icon an identity provider shows on the login page.
+         *
+         *     Requires admin authentication with identity_providers:write scope. The icon replaces any custom icon URL
+         *     until it is removed.
          *
          *     Args:
-         *         _check_scopes: Dependency that checks if the user has the required
-         *             scopes.
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
+         *         idp_id: The identity provider the icon belongs to.
+         *         request: Incoming request.
+         *         file: The image to upload (PNG, JPEG, GIF or WebP).
+         *         storage: The platform storage provider.
+         *         db: SQLAlchemy database session dependency.
          *
          *     Returns:
-         *         None.
+         *         The provider version that identifies the stored icon.
+         *
+         *     Raises:
+         *         NotFoundError: 404 if the provider is not found.
+         *         PayloadTooLargeError: 413 if the image is larger than the icon cap.
          */
-        put: operations["mark_all_notifications_as_read_api_v1_notifications_mark_all_as_read_put"];
+        post: operations["upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post"];
+        /**
+         * Delete Identity Provider Icon
+         * @description Remove the uploaded icon of an identity provider.
+         *
+         *     Requires admin authentication with identity_providers:write scope.
+         *
+         *     Args:
+         *         idp_id: The identity provider the icon belongs to.
+         *         request: Incoming request.
+         *         storage: The platform storage provider.
+         *         db: SQLAlchemy database session dependency.
+         *
+         *     Raises:
+         *         NotFoundError: 404 if the provider is not found.
+         */
+        delete: operations["delete_identity_provider_icon_api_v1_identity_providers__idp_id__icon_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Notifications User Pagination
+         * @description Retrieve paginated notifications for the user.
+         *
+         *     Args:
+         *         token_user_id: ID of the user from the access token.
+         *         db: Database session dependency.
+         *         page: Resolved page number and size.
+         *         unread_only: Keep only the notifications that have not been read. ``total`` follows the
+         *             same filter, so ``unread_only=true&num_records=1`` is the unread count.
+         *
+         *     Returns:
+         *         The page of notifications with the user's total.
+         */
+        get: operations["read_notifications_user_pagination_api_v1_notifications_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2588,8 +2488,6 @@ export interface paths {
          * @description Retrieve notification count for the user.
          *
          *     Args:
-         *         _check_scopes: Dependency that checks if the user has the required
-         *             scopes.
          *         token_user_id: ID of the user from the access token.
          *         db: Database session dependency.
          *
@@ -2605,32 +2503,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/notifications/page_number/{page_number}/num_records/{num_records}": {
+    "/api/v1/notifications/read": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
-         * Read Notifications User Pagination
-         * @description Retrieve paginated notifications for the user.
+         * Mark All Notifications As Read
+         * @description Mark all of the user's notifications as read.
          *
          *     Args:
-         *         page_number: Page number to retrieve.
-         *         num_records: Number of records per page.
-         *         validate_pagination_values: Dependency that validates pagination values.
-         *         _check_scopes: Dependency that checks if the user has the required
-         *             scopes.
+         *         request: The incoming request, used by the rate limiter.
          *         token_user_id: ID of the user from the access token.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         List of notification objects for the page.
+         *         None.
          */
-        get: operations["read_notifications_user_pagination_api_v1_notifications_page_number__page_number__num_records__num_records__get"];
-        put?: never;
-        post?: never;
+        post: operations["mark_all_notifications_as_read_api_v1_notifications_read_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2650,14 +2544,11 @@ export interface paths {
          *
          *     Args:
          *         notification_id: Unique ID of the notification.
-         *         validate_notification_id: Dependency that validates the notification ID.
-         *         _check_scopes: Dependency that checks if the user has the required
-         *             scopes.
          *         token_user_id: ID of the user from the access token.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         Notification object or None if not found.
+         *         The notification.
          */
         get: operations["read_notifications_by_id_api_v1_notifications__notification_id__get"];
         put?: never;
@@ -2668,7 +2559,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/notifications/{notification_id}/mark_as_read": {
+    "/api/v1/notifications/{notification_id}/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -2676,23 +2567,21 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Mark Notification As Read
          * @description Mark a specific notification as read.
          *
          *     Args:
+         *         request: The incoming request, used by the rate limiter.
          *         notification_id: ID of the notification to mark as read.
-         *         validate_notification_id: Dependency that validates the notification ID.
-         *         _check_scopes: Dependency that checks if the user has the required
-         *             scopes.
          *         token_user_id: ID of the user from the access token.
          *         db: Database session dependency.
          *
          *     Returns:
          *         None.
          */
-        put: operations["mark_notification_as_read_api_v1_notifications__notification_id__mark_as_read_put"];
-        post?: never;
+        post: operations["mark_notification_as_read_api_v1_notifications__notification_id__read_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2710,21 +2599,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm Password Reset
-         * @description Confirm a password reset using a token and new password.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         confirm_data: Token and new password data.
-         *         identity_service: Dependency-injected identity service.
-         *         db: Dependency-injected database session.
-         *
-         *     Returns:
-         *         Success message on successful password reset.
-         *
-         *     Raises:
-         *         HTTPException: 400 if token is invalid or expired.
-         *         HTTPException: 422 if the new password fails the account's password policy.
-         *         HTTPException: 500 if password reset fails.
+         * @description Confirm a password reset using a token and replacement password.
          */
         post: operations["confirm_password_reset_api_v1_password_reset_confirm_post"];
         delete?: never;
@@ -2744,18 +2619,7 @@ export interface paths {
         put?: never;
         /**
          * Request Password Reset
-         * @description Handle a password reset request.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         request_data: Pydantic model with the email address.
-         *         db: Dependency-injected database session.
-         *
-         *     Returns:
-         *         Generic success message to avoid user enumeration.
-         *
-         *     Raises:
-         *         HTTPException: 503 if email service is not configured.
+         * @description Request a password reset without revealing whether the email exists.
          */
         post: operations["request_password_reset_api_v1_password_reset_request_post"];
         delete?: never;
@@ -2775,17 +2639,23 @@ export interface paths {
          * Read Users Me
          * @description Retrieve authenticated user profile with integrations.
          *
+         *     The ETag is the user's version, which a later ``PATCH /profile`` echoes in ``If-Match``. The
+         *     privacy settings have their own version, ``privacy_settings_version``.
+         *
          *     Args:
          *         token_user_id: User ID from access token.
          *         db: Database session.
+         *         response: The response, which carries the user's ETag.
          *
          *     Returns:
          *         User object with integration and privacy settings.
-         *
-         *     Raises:
-         *         HTTPException: If user or settings not found.
          */
         get: operations["read_users_me_api_v1_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         /**
          * Edit User
          * @description Edit self-service profile fields for the authenticated user.
@@ -2797,22 +2667,20 @@ export interface paths {
          *     endpoint, even if a malicious client submits them.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which carries the user's new ETag.
          *         user_attributtes: Allow-listed profile updates.
          *         token_user_id: User ID from access token.
          *         db: Database session.
+         *         if_match: The ``If-Match`` precondition, the ``version`` the client read.
          *
          *     Returns:
-         *         Success message with user ID.
+         *         The edited profile; its ``version`` is also sent as the ETag.
          */
-        put: operations["edit_user_api_v1_profile_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["edit_user_api_v1_profile_patch"];
         trace?: never;
     };
-    "/api/v1/profile/api_keys": {
+    "/api/v1/profile/api-keys": {
         parameters: {
             query?: never;
             header?: never;
@@ -2820,46 +2688,22 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Api Keys
-         * @description Retrieve all API keys for the authenticated user.
+         * List User Api Keys
+         * @description List one page of API keys for the authenticated user.
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
+         *         page: The requested window.
+         *         db: Database session.
          *
          *     Returns:
-         *         List of API key objects. Raw keys and hashes
-         *         are never included.
+         *         The page of API keys, newest first.
          */
-        get: operations["get_user_api_keys_api_v1_profile_api_keys_get"];
+        get: operations["list_user_api_keys_api_v1_profile_api_keys_get"];
         put?: never;
         /**
          * Create User Api Key
-         * @description Create a new API key for the authenticated user.
-         *
-         *     The raw key is returned once in this response and
-         *     cannot be retrieved again. Requested scopes must be
-         *     supported by API-key authentication.
-         *
-         *     Step-up verification is required (current password,
-         *     plus MFA code when MFA is enabled). API keys grant
-         *     persistent, long-lived access — a stolen access
-         *     token alone must not be sufficient to mint one.
-         *
-         *     Args:
-         *         data: Key creation data (name, scopes, expiry,
-         *             step-up credentials).
-         *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         Created API key including the raw key string.
-         *
-         *     Raises:
-         *         HTTPException: 401 if step-up verification fails.
-         *         HTTPException: 400 if scopes are not supported for API keys.
-         *         HTTPException: 404 if the user is not found.
+         * @description Create an API key after step-up verification.
          */
         post: operations["create_user_api_key_api_v1_profile_api_keys_post"];
         delete?: never;
@@ -2868,7 +2712,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/api_keys/{api_key_id}": {
+    "/api/v1/profile/api-keys/{api_key_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2880,22 +2724,7 @@ export interface paths {
         post?: never;
         /**
          * Delete User Api Key
-         * @description Permanently delete an API key.
-         *
-         *     Hard-delete. The key is gone and cannot be used
-         *     or recovered after this operation.
-         *
-         *     Args:
-         *         api_key_id: UUID of the API key to delete.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: 404 if the key is not found or
-         *             does not belong to the authenticated user.
+         * @description Permanently delete an API key owned by the authenticated user.
          */
         delete: operations["delete_user_api_key_api_v1_profile_api_keys__api_key_id__delete"];
         options?: never;
@@ -2903,7 +2732,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/api_keys/{api_key_id}/revoke": {
+    "/api/v1/profile/api-keys/{api_key_id}/revoke": {
         parameters: {
             query?: never;
             header?: never;
@@ -2912,33 +2741,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
+        /**
+         * Revoke User Api Key
+         * @description Revoke an API key owned by the authenticated user.
+         */
+        post: operations["revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_post"];
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * Revoke User Api Key
-         * @description Revoke an API key (soft-disable).
-         *
-         *     The key record is retained for audit purposes but
-         *     will be rejected on any subsequent use.
-         *
-         *     Args:
-         *         api_key_id: UUID of the API key to revoke.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: 404 if the key is not found or
-         *             does not belong to the authenticated user.
-         */
-        patch: operations["revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_patch"];
+        patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/default_gear": {
+    "/api/v1/profile/default-gear": {
         parameters: {
             query?: never;
             header?: never;
@@ -2952,25 +2766,150 @@ export interface paths {
          *     Args:
          *         token_user_id: User ID from access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the settings' ETag.
          *
          *     Returns:
          *         User default gear settings.
          */
         get: operations["read_user_default_gear_api_v1_profile_default_gear_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         /**
          * Edit User Default Gear
          * @description Update default gear settings for authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_default_gear: Updated gear settings.
          *         token_user_id: User ID from access token.
          *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
          *
          *     Returns:
          *         Updated user default gear settings.
          */
-        put: operations["edit_user_default_gear_api_v1_profile_default_gear_put"];
-        post?: never;
+        patch: operations["edit_user_default_gear_api_v1_profile_default_gear_patch"];
+        trace?: never;
+    };
+    "/api/v1/profile/delete-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete My Account
+         * @description Queue the deletion of the authenticated user's account and all of their data.
+         *
+         *     Requires step-up verification: the current password (or, for an account without one, a fresh
+         *     identity-provider sign-in), and an MFA code when MFA is enabled. The
+         *     account is signed out and deactivated at once and a background job erases the data, which is
+         *     permanent and cannot be undone. Export the profile first to keep a copy. The browser's
+         *     refresh-token cookie is cleared on the response.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which receives the cookie-deletion headers.
+         *         step_up: Step-up verification payload.
+         *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
+         *         state: The platform state provider.
+         *         storage: The platform storage provider.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The deletion's initial status.
+         */
+        post: operations["delete_my_account_api_v1_profile_delete_account_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Edit Profile Email
+         * @description Request a change of the authenticated user's email after step-up verification.
+         *
+         *     The address is where password resets go, so the caller must re-prove identity with the
+         *     current password (and an MFA code when MFA is enabled). The current address stays in place
+         *     until the link emailed to the new one is followed, and the new address is shown as
+         *     ``pending_email`` meanwhile. A later request replaces an earlier one, and the current address
+         *     cancels a pending change. When the server cannot send mail the address changes at once, unverified.
+         *     The user's other sessions are revoked when the request asks for it. The answer is the profile as it
+         *     stands afterwards, so the client can tell a pending change (``pending_email``) from an applied one.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which carries the user's current ETag.
+         *         email_change: The new address with the step-up credentials.
+         *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The profile after the request; its ``version`` is also sent as the ETag.
+         *
+         *     Raises:
+         *         HTTPException: 401 if step-up verification fails, 409 if another account uses the address.
+         */
+        post: operations["edit_profile_email_api_v1_profile_email_change_post"];
+        /**
+         * Cancel Profile Email Change
+         * @description Cancel the pending email change, so its confirmation link stops working.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         token_user_id: User ID from access token.
+         *         db: Database session.
+         */
+        delete: operations["cancel_profile_email_change_api_v1_profile_email_change_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/email/change/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Profile Email Change
+         * @description Send the confirmation email of the pending email change again.
+         *
+         *     The answer is the same whether or not an email was queued: there may be no pending change,
+         *     the server may not send mail, or an email may already have gone out within the cooldown.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         token_user_id: User ID from access token.
+         *         state: The platform state provider, for the resend cooldown.
+         *         db: Database session.
+         */
+        post: operations["resend_profile_email_change_api_v1_profile_email_change_resend_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2985,20 +2924,62 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Export Profile Data
-         * @description Export all profile data as ZIP archive.
+         * Read Profile Export Status
+         * @description Report where the authenticated user's profile export is.
          *
          *     Args:
          *         token_user_id: User ID from access token.
+         *         export_states: Shared store of the export's state.
+         *
+         *     Returns:
+         *         The export's state.
+         */
+        get: operations["read_profile_export_status_api_v1_profile_export_get"];
+        put?: never;
+        /**
+         * Export Profile Data
+         * @description Queue an export of all profile data as a ZIP archive.
+         *
+         *     A worker builds the archive; poll ``GET /profile/export`` for the outcome and fetch it from
+         *     ``GET /profile/export/download``.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         token_user_id: User ID from access token.
+         *         export_states: Shared store of the export's state.
          *         db: Database session.
          *
          *     Returns:
-         *         Streaming response with ZIP archive.
-         *
-         *     Raises:
-         *         HTTPException: If user not found or export fails.
+         *         The queued export's state.
          */
-        get: operations["export_profile_data_api_v1_profile_export_get"];
+        post: operations["export_profile_data_api_v1_profile_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/export/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Profile Export
+         * @description Download the authenticated user's finished profile export.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         token_user_id: User ID from access token.
+         *         export_states: Shared store of the export's state.
+         *         storage: The platform storage provider.
+         *
+         *     Returns:
+         *         Streaming response with the ZIP archive.
+         */
+        get: operations["download_profile_export_api_v1_profile_export_download_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3016,37 +2997,27 @@ export interface paths {
         };
         /**
          * Get User Goals
-         * @description Retrieve goals for the authenticated user with optional filters.
+         * @description Retrieve one page of goals for the authenticated user with optional filters.
          *
          *     Args:
          *         token_user_id: User ID from access token.
+         *         page: The requested window.
          *         db: Database session dependency.
          *         interval: Optional filter by goal interval.
          *         activity_type: Optional filter by activity type.
          *         goal_type: Optional filter by goal type.
          *
          *     Returns:
-         *         List of user goal objects matching the filters.
+         *         The page of user goals matching the filters.
          */
         get: operations["get_user_goals_api_v1_profile_goals_get"];
-        /**
-         * Update User Goal
-         * @description Update an existing goal for the authenticated user.
-         *
-         *     Args:
-         *         user_goal: Updated goal data.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The updated goal object.
-         */
-        put: operations["update_user_goal_api_v1_profile_goals_put"];
+        put?: never;
         /**
          * Create User Goal
          * @description Create a new goal for the authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_goal: Goal data to create.
          *         token_user_id: User ID from access token.
          *         db: Database session dependency.
@@ -3070,14 +3041,16 @@ export interface paths {
         };
         /**
          * Get User Goals Results
-         * @description Calculate and retrieve goal progress for authenticated user.
+         * @description Calculate and retrieve one page of goal progress for the authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         token_user_id: User ID from access token.
+         *         page: The requested window.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         List of goal progress objects, or None if no goals.
+         *         The page of goal progress objects, empty if no goals.
          */
         get: operations["get_user_goals_results_api_v1_profile_goals_results_get"];
         put?: never;
@@ -3096,16 +3069,37 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /**
+         * Update User Goal
+         * @description Replace an existing goal for the authenticated user.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         goal_id: ID of the goal to replace.
+         *         user_goal: The goal's new values.
+         *         token_user_id: User ID from access token.
+         *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         The updated goal object.
+         */
+        put: operations["update_user_goal_api_v1_profile_goals__goal_id__put"];
         post?: never;
         /**
          * Delete User Goal
          * @description Delete a goal for the authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         goal_id: ID of the goal to delete.
          *         token_user_id: User ID from access token.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
+         *
+         *     Raises:
+         *         PreconditionFailedError: If the goal changed since the client read it.
          */
         delete: operations["delete_user_goal_api_v1_profile_goals__goal_id__delete"];
         options?: never;
@@ -3113,7 +3107,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp": {
+    "/api/v1/profile/identity-providers": {
         parameters: {
             query?: never;
             header?: never;
@@ -3123,14 +3117,16 @@ export interface paths {
         /**
          * Get My Identity Providers
          * @description Retrieve all identity provider links for the authenticated user.
+         *
          *     This endpoint fetches all external identity provider (IdP) connections associated
          *     with the current user's account. Each link includes connection metadata and enriched
          *     details about the identity provider (name, slug, icon, and provider type).
+         *
          *     Args:
          *         token_user_id (int): The authenticated user's ID extracted from the JWT access token.
          *             Injected automatically via dependency injection.
-         *         db (Session): Database session for executing queries.
-         *             Injected automatically via dependency injection.
+         *         db: Database session.
+         *
          *     Returns:
          *         list[dict]: A list of dictionaries representing the user's IdP links. Each dictionary contains:
          *             - id (int): Unique identifier for the user-IdP link
@@ -3145,10 +3141,11 @@ export interface paths {
          *             - idp_slug (str): URL-safe identifier for the IdP (if available)
          *             - idp_icon (str): Icon/logo URL for the IdP (if available)
          *             - idp_provider_type (str): Type of provider (e.g., "oauth2", "oidc") (if available)
+         *
          *     Raises:
-         *         HTTPException: May raise authentication/authorization errors via the dependency injection.
+         *         DomainError: May raise authentication/authorization errors via the dependency injection.
          */
-        get: operations["get_my_identity_providers_api_v1_profile_idp_get"];
+        get: operations["get_my_identity_providers_api_v1_profile_identity_providers_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3157,7 +3154,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp/{idp_id}/link": {
+    "/api/v1/profile/identity-providers/{idp_id}/link": {
         parameters: {
             query?: never;
             header?: never;
@@ -3176,25 +3173,20 @@ export interface paths {
          *         - Uses one-time, short-lived (60s) link tokens instead of access tokens
          *         - Validates token expiry and single-use constraint
          *         - Optional IP address validation
+         *         - Binds the link to this browser with a cookie the callback requires
          *
          *     Args:
          *         idp_id (int): The ID of the identity provider to link.
          *         link_token (str): One-time link token from query parameter.
          *         request (Request): The FastAPI request object containing request context.
-         *         db (Session): The database session for performing CRUD operations.
+         *         db: Database session.
+         *         redirect: Optional frontend return path after linking.
          *
          *     Returns:
          *         RedirectResponse: A redirect to the identity provider's authorization URL
          *             with HTTP 307 status code.
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 401 UNAUTHORIZED: If the link token is invalid, expired, or already used.
-         *             - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
-         *             - 409 CONFLICT: If the identity provider is already linked to the user's account.
-         *             - 500 INTERNAL_SERVER_ERROR: If an unexpected error occurs during the linking process.
          */
-        get: operations["link_identity_provider_api_v1_profile_idp__idp_id__link_get"];
+        get: operations["link_identity_provider_api_v1_profile_identity_providers__idp_id__link_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3203,7 +3195,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp/{idp_id}/link/token": {
+    "/api/v1/profile/identity-providers/{idp_id}/link/token": {
         parameters: {
             query?: never;
             header?: never;
@@ -3222,8 +3214,8 @@ export interface paths {
          *
          *     Linking an identity provider is a sensitive operation that enables
          *     persistent authentication. Step-up verification is required: the
-         *     caller MUST supply ``current_password``, and an MFA code when MFA
-         *     is enabled on the account.
+         *     caller MUST supply ``current_password`` (or, for an account without
+         *     one, ``idp_reauth``), and an MFA code when MFA is enabled.
          *
          *     This approach is more secure than passing access tokens in query
          *     parameters, as the link token:
@@ -3237,26 +3229,67 @@ export interface paths {
          *         link_request (IdpLinkTokenRequest): Request with step-up credentials.
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): The authenticated user's ID extracted from the access token.
-         *         identity_service: Identity service dependency.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
          *
          *     Returns:
          *         IdpLinkTokenResponse: Contains the one-time token and expiration time.
          *
          *     Raises:
-         *         HTTPException:
+         *         DomainError:
          *             - 401 UNAUTHORIZED: If step-up verification fails.
          *             - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
          *             - 409 CONFLICT: If the identity provider is already linked.
          *             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
          */
-        post: operations["generate_link_token_api_v1_profile_idp__idp_id__link_token_post"];
+        post: operations["generate_link_token_api_v1_profile_identity_providers__idp_id__link_token_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/idp/{idp_id}/unlink": {
+    "/api/v1/profile/identity-providers/{idp_id}/step-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Idp Step Up
+         * @description Start a fresh sign-in with a linked identity provider, for an account without a local password.
+         *
+         *     Such an account has no password to prove, so a sensitive operation asks for this instead: the browser
+         *     follows ``authorization_url``, the provider signs the user in again, and the callback returns to
+         *     ``redirect`` with a single-use ``step_up_ticket`` in the URL fragment. The sensitive request then sends the
+         *     ticket and the PKCE verifier of ``code_challenge`` as ``idp_reauth``. The response sets a cookie that binds
+         *     the sign-in to this browser.
+         *
+         *     Args:
+         *         idp_id: The linked provider to sign in with again.
+         *         start: The PKCE challenge, the operation and the return path.
+         *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which receives the browser-binding cookie.
+         *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The provider's authorization URL.
+         */
+        post: operations["start_idp_step_up_api_v1_profile_identity_providers__idp_id__step_up_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/identity-providers/{idp_id}/unlink": {
         parameters: {
             query?: never;
             header?: never;
@@ -3271,7 +3304,8 @@ export interface paths {
          *
          *     This endpoint allows users to remove the association between their
          *     account and a specific identity provider. It requires step-up
-         *     verification (current password and MFA when enabled) and includes
+         *     verification (current password or a fresh identity-provider
+         *     sign-in, and MFA when enabled) and includes
          *     safety checks to prevent account lockout by ensuring users maintain
          *     at least one authentication method (either a password or another
          *     IdP link).
@@ -3281,18 +3315,20 @@ export interface paths {
          *         step_up (StepUpVerification): Step-up verification payload.
          *         request (Request): The FastAPI request object.
          *         token_user_id (int): User ID extracted from the access token.
-         *         identity_service: Identity service dependency.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
          *
          *     Returns:
          *         None: Returns 204 No Content on successful deletion.
          *
          *     Raises:
-         *         HTTPException (401): If step-up verification fails.
-         *         HTTPException (404): If the identity provider doesn't exist or
+         *         DomainError (401): If step-up verification fails.
+         *         DomainError (404): If the identity provider doesn't exist or
          *             is not linked to the user's account.
-         *         HTTPException (400): If attempting to unlink the last authentication method
+         *         DomainError (400): If attempting to unlink the last authentication method
          *             without having a password set (prevents account lockout).
-         *         HTTPException (500): If the deletion operation fails at the database level.
+         *         DomainError (500): If the deletion operation fails at the database level.
          *
          *     Notes:
          *         - Enforces step-up verification before unlinking.
@@ -3302,38 +3338,7 @@ export interface paths {
          *         - Uses token-based authentication to ensure users can only
          *           unlink their own IdPs.
          */
-        post: operations["delete_my_identity_provider_api_v1_profile_idp__idp_id__unlink_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profile/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload Profile Image
-         * @description Upload user profile image with security validation.
-         *
-         *     Args:
-         *         file: Image file to upload.
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Result of save operation.
-         *
-         *     Raises:
-         *         HTTPException: If validation or save fails.
-         */
-        post: operations["upload_profile_image_api_v1_profile_image_post"];
+        post: operations["delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3347,23 +3352,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Profile Import Status
+         * @description Report where the authenticated user's profile import is.
+         *
+         *     Args:
+         *         token_user_id: User ID from access token.
+         *         import_states: Shared store of the import's state.
+         *
+         *     Returns:
+         *         The import's state.
+         */
+        get: operations["read_profile_import_status_api_v1_profile_import_get"];
         put?: never;
         /**
          * Import Profile Data
-         * @description Import profile data from ZIP with security validation.
+         * @description Queue a profile import from a ZIP archive.
+         *
+         *     The archive is validated and staged, and a worker imports it; poll ``GET /profile/import`` for
+         *     the outcome. The database part is all-or-nothing, so a failed import leaves nothing behind.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         file: ZIP file containing profile data.
          *         token_user_id: User ID from access token.
+         *         import_states: Shared store of the import's state.
+         *         storage: The platform storage provider.
          *         db: Database session.
-         *         websocket_manager: WebSocket manager for updates.
          *
          *     Returns:
-         *         Import results with counts of imported items.
-         *
-         *     Raises:
-         *         HTTPException: If validation or import fails.
+         *         The queued import's state.
          */
         post: operations["import_profile_data_api_v1_profile_import_post"];
         delete?: never;
@@ -3396,13 +3414,15 @@ export interface paths {
          *         request: FastAPI request object for rate limiting.
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service for code generation.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
          *
          *     Returns:
          *         Response with generated backup codes and timestamp.
          *
          *     Raises:
-         *         HTTPException: 401 if step-up verification fails, 404 if
+         *         DomainError: 401 if step-up verification fails, 404 if
          *             user not found, 400 if MFA is not enabled.
          */
         post: operations["generate_mfa_backup_codes_api_v1_profile_mfa_backup_codes_post"];
@@ -3425,7 +3445,7 @@ export interface paths {
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         Backup code status with counts and creation date.
@@ -3447,6 +3467,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Disable Mfa
          * @description Disable MFA for authenticated user after step-up verification.
@@ -3461,21 +3482,23 @@ export interface paths {
          *     :func:`modules.auth.mfa.service.disable_user_mfa` only clears state.
          *
          *     Args:
-         *         request: MFA disable request with current password and
+         *         request: The incoming request, read by the rate limiter.
+         *         mfa_request: MFA disable request with current password and
          *             MFA code.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
          *
          *     Returns:
          *         Success message.
          *
          *     Raises:
-         *         HTTPException: 401 if the current password is wrong or
+         *         DomainError: 401 if the current password is wrong or
          *             the MFA code is invalid; 400 if MFA is not currently
          *             enabled.
          */
-        put: operations["disable_mfa_api_v1_profile_mfa_disable_put"];
-        post?: never;
+        post: operations["disable_mfa_api_v1_profile_mfa_disable_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3490,6 +3513,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Enable Mfa
          * @description Enable MFA for authenticated user after step-up verification.
@@ -3502,27 +3526,28 @@ export interface paths {
          *     code in the request body is the fresh enrolment code from the
          *     user's authenticator app and is verified separately by
          *     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
-         *     issued by ``POST /profile/mfa/setup``. SSO-only accounts may
-         *     omit ``current_password`` (see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`).
+         *     issued by ``POST /profile/mfa/setup``. An account without a local
+         *     password sends ``idp_reauth`` instead of ``current_password`` (see
+         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
          *
          *     Args:
-         *         request: MFA setup request with TOTP code and (when the
+         *         request: The incoming request, read by the rate limiter.
+         *         mfa_request: MFA setup request with TOTP code and (when the
          *             account has a local password) current password.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service instance for backup code
-         *             generation and step-up verification.
+         *         token_session_id: Session ID from access token.
          *         mfa_secret_store: Temporary secret storage.
+         *         step_up_store: Step-up lockout store.
+         *         db: Database session.
          *
          *     Returns:
          *         Success message and the freshly issued backup codes.
          *
          *     Raises:
-         *         HTTPException: 400 if no setup is in progress or the TOTP
+         *         DomainError: 400 if no setup is in progress or the TOTP
          *             code is invalid; 401 if step-up verification fails.
          */
-        put: operations["enable_mfa_api_v1_profile_mfa_enable_put"];
-        post?: never;
+        post: operations["enable_mfa_api_v1_profile_mfa_enable_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3543,9 +3568,10 @@ export interface paths {
          * @description Initiate MFA setup for authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
          *         mfa_secret_store: Temporary secret storage.
+         *         db: Database session.
          *
          *     Returns:
          *         MFA setup response with secret and QR code.
@@ -3570,7 +3596,7 @@ export interface paths {
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         MFA status response with enabled flag.
@@ -3598,15 +3624,17 @@ export interface paths {
          * @description Verify MFA code for authenticated user.
          *
          *     Args:
-         *         request: MFA request with code to verify.
+         *         request: The incoming request, read by the rate limiter.
+         *         mfa_request: MFA request with code to verify.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service instance for backup code verification.
+         *         step_up_store: Shared state, which records the TOTP step so the code works once.
+         *         db: Database session.
          *
          *     Returns:
          *         Success message.
          *
          *     Raises:
-         *         HTTPException: If MFA code is invalid.
+         *         DomainError: If MFA code is invalid.
          */
         post: operations["verify_mfa_api_v1_profile_mfa_verify_post"];
         delete?: never;
@@ -3615,7 +3643,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/password": {
+    "/api/v1/profile/password/change": {
         parameters: {
             query?: never;
             header?: never;
@@ -3623,6 +3651,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Edit Profile Password
          * @description Update user password after step-up verification.
@@ -3639,6 +3668,7 @@ export interface paths {
          *     evict a suspected attacker without logging the caller out.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_attributtes: Schema with current password, new
          *             password, optional MFA code, and the optional
          *             ``revoke_other_sessions`` flag.
@@ -3646,18 +3676,13 @@ export interface paths {
          *             token.
          *         token_session_id: Session ID of the caller, preserved when
          *             other sessions are revoked.
-         *         identity_service: Identity service dependency.
          *         step_up_store: Step-up lockout store.
-         *
-         *     Returns:
-         *         dict: A success message indicating the user's password
-         *         was updated.
+         *         db: Database session.
          *
          *     Raises:
          *         HTTPException: 401 if step-up verification fails.
          */
-        put: operations["edit_profile_password_api_v1_profile_password_put"];
-        post?: never;
+        post: operations["edit_profile_password_api_v1_profile_password_change_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3672,20 +3697,33 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /**
+         * Upload Profile Image
+         * @description Upload user profile image with security validation.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         file: Image file to upload.
+         *         token_user_id: User ID from access token.
+         *         storage: The platform storage provider.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The servable URL of the new photo.
+         */
+        post: operations["upload_profile_image_api_v1_profile_photo_post"];
         /**
          * Delete Profile Photo
          * @description Delete authenticated user's profile photo.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         token_user_id: User ID from access token.
+         *         storage: The platform storage provider.
          *         db: Database session.
-         *
-         *     Returns:
-         *         Success message.
          */
-        put: operations["delete_profile_photo_api_v1_profile_photo_put"];
-        post?: never;
-        delete?: never;
+        delete: operations["delete_profile_photo_api_v1_profile_photo_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3699,24 +3737,27 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         /**
          * Edit Profile Privacy Settings
          * @description Edit privacy settings for authenticated user.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which carries the settings' new ETag.
          *         user_privacy_settings: New privacy settings.
          *         token_user_id: User ID from access token.
          *         db: Database session.
+         *         if_match: The ``If-Match`` precondition, the ``privacy_settings_version`` the client read.
          *
          *     Returns:
-         *         Success message.
+         *         The edited settings; their ``version`` is also sent as the ETag.
          */
-        put: operations["edit_profile_privacy_settings_api_v1_profile_privacy_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["edit_profile_privacy_settings_api_v1_profile_privacy_patch"];
         trace?: never;
     };
     "/api/v1/profile/sessions": {
@@ -3728,14 +3769,15 @@ export interface paths {
         };
         /**
          * Read Sessions Me
-         * @description Retrieve all sessions for authenticated user.
+         * @description Retrieve one page of the authenticated user's sessions.
          *
          *     Args:
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         page: The requested window.
+         *         db: Database session.
          *
          *     Returns:
-         *         List of session objects for the user.
+         *         The page of session objects for the user.
          */
         get: operations["read_sessions_me_api_v1_profile_sessions_get"];
         put?: never;
@@ -3751,9 +3793,10 @@ export interface paths {
          *     ``revoke_other_sessions`` option.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         token_user_id: User ID from access token.
          *         token_session_id: The caller's current session, preserved.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         None.
@@ -3779,9 +3822,10 @@ export interface paths {
          * @description Delete user session from database.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         session_id: Session identifier to delete.
          *         token_user_id: User ID from access token.
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         None.
@@ -3792,7 +3836,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/activities/exercise-titles/all": {
+    "/api/v1/public/activities/exercise-titles": {
         parameters: {
             query?: never;
             header?: never;
@@ -3801,9 +3845,17 @@ export interface paths {
         };
         /**
          * List Public Activity Exercise Titles
-         * @description Return all activity exercise titles via the public endpoint.
+         * @description Return one page of the activity exercise titles via the public endpoint.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         page: The requested window; a page holds up to the maximum when no size is given.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The page of exercise titles, empty when public shareable links are disabled.
          */
-        get: operations["list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get"];
+        get: operations["list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3828,6 +3880,29 @@ export interface paths {
          *     used to enumerate which activity ids exist.
          */
         get: operations["read_public_activity_api_v1_public_activities__activity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/activities/{activity_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activity Detail
+         * @description Return a shared activity with its laps, sets and workout steps in one read.
+         *
+         *     Answers 404 when the activity does not exist *or* is not public, so it cannot be used to
+         *     enumerate which ids exist. A collection the owner hides is an empty page.
+         */
+        get: operations["read_public_activity_detail_api_v1_public_activities__activity_id__detail_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3955,7 +4030,8 @@ export interface paths {
          *         db (Session): SQLAlchemy database session dependency.
          *
          *     Returns:
-         *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an IdentityProviderPublic schema.
+         *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an
+         *         IdentityProviderPublic schema.
          */
         get: operations["get_enabled_identity_providers_api_v1_public_idp_get"];
         put?: never;
@@ -3978,24 +4054,30 @@ export interface paths {
          * @description Handle OAuth callback from an identity provider.
          *
          *     This endpoint processes the OAuth authorization callback from external identity providers.
-         *     It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
+         *     It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
+         *
          *     Args:
-         *         idp_slug (str): The slug identifier of the identity provider.
-         *         password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency for session management.
-         *         token_manager (auth_token_manager.TokenManager): Token manager dependency for creating session tokens.
-         *         db (Session): Database session dependency.
-         *         code (str): Authorization code received from the identity provider.
-         *         state (str): State parameter used for CSRF protection (database state ID).
-         *         request (Request): The incoming HTTP request.
+         *         request: The incoming HTTP request.
+         *         idp_slug: The slug identifier of the identity provider.
+         *         password_hasher: Password hasher dependency for session management.
+         *         db: Database session dependency.
+         *         service: Identity provider service.
+         *         browser_binding: The cookie that binds a link or step-up to the browser that started it.
+         *         code: Authorization code received from the identity provider; absent when it returned an error.
+         *         error: The provider's error code, such as ``login_required`` when it could not sign the user in again.
+         *         state: State parameter used for CSRF protection (database state ID).
          *
          *     Returns:
          *         RedirectResponse: A redirect response to either:
          *             - Settings page (link mode): /settings with success parameters
          *             - Login page (login mode): /login with session_id for token exchange
+         *             - The page that started a step-up, with its ticket or error in the fragment
          *             - Error page: /login with error parameter if callback fails
          *
          *     Raises:
-         *         HTTPException: If the identity provider is not found, disabled, or if callback processing fails.
+         *         NotFoundError: If the identity provider is not found or disabled.
+         *         InvalidInputError: If the state is unknown, expired, bound to another provider or already used.
+         *             Any failure after the state is claimed redirects instead, so the browser never ends on a JSON error.
          *
          *     Notes:
          *         - In link mode: Redirects to settings without creating a new session
@@ -4040,7 +4122,8 @@ export interface paths {
          *         RedirectResponse: A redirect response to the identity provider's authorization URL.
          *
          *     Raises:
-         *         HTTPException: If the identity provider is not found, disabled, or PKCE validation fails.
+         *         NotFoundError: If the identity provider is not found or disabled.
+         *         InvalidInputError: If PKCE validation or the redirect check fails.
          */
         get: operations["initiate_login_api_v1_public_idp_login__idp_slug__get"];
         put?: never;
@@ -4062,38 +4145,25 @@ export interface paths {
         put?: never;
         /**
          * Exchange Tokens For Session
-         * @description Exchange a PKCE code verifier for JWT tokens.
+         * @description Exchange a PKCE code verifier for the JWT tokens of an SSO session.
          *
-         *     After OAuth callback or password PKCE login creates a session, clients
-         *     call this endpoint to prove they possess the code_verifier (PKCE) and
-         *     receive the actual JWT tokens. This prevents token leakage through
-         *     browser redirects and ensures only the legitimate client can access the
-         *     tokens.
-         *
-         *     Security Features:
-         *     - PKCE verification (SHA256 hash of verifier must match challenge)
-         *     - One-time exchange (tokens_exchanged flag prevents replay)
-         *     - Rate limited (10 requests/minute)
-         *     - Session must be linked to OAuth state with PKCE data
-         *
-         *     Rate Limit: 10 requests per minute per IP
+         *     After the identity-provider callback creates a session, the client proves it holds the PKCE code verifier and
+         *     receives the tokens. The exchange succeeds once per session. An identity-provider session of an account with MFA
+         *     enabled also needs ``mfa_code``; without it the answer is a ``403`` with the ``mfa-required`` problem type and the
+         *     session stays usable.
          *
          *     Args:
-         *         session_id (str): Session ID from OAuth callback redirect.
-         *         request (Request): FastAPI request object (for rate limiting).
-         *         response (Response): FastAPI response object.
-         *         token_exchange (TokenExchangeRequest): Request body with code_verifier.
-         *         token_manager (TokenManager): Token manager dependency.
-         *         db (Session): Database session dependency.
+         *         session_id: Session created by the identity-provider callback.
+         *         request: Incoming request, read for the ``X-Client-Type`` header.
+         *         response: Response that receives the refresh cookie for web clients.
+         *         token_exchange: Body carrying the PKCE code verifier and, when MFA applies, the MFA code.
+         *         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
+         *         password_hasher: Hasher for the stored refresh token.
+         *         token_manager: Token manager that signs the tokens.
+         *         db: Database session.
          *
          *     Returns:
-         *         TokenExchangeResponse: JWT tokens (access, refresh, csrf) and metadata.
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 404 NOT_FOUND: Session not found or not linked to OAuth state
-         *             - 400 BAD_REQUEST: Invalid code_verifier or tokens already exchanged
-         *             - 409 CONFLICT: Tokens already exchanged for this session
+         *         The access token and, per client type, the CSRF token or the refresh token.
          */
         post: operations["exchange_tokens_for_session_api_v1_public_idp_session__session_id__tokens_post"];
         delete?: never;
@@ -4102,7 +4172,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/server_settings": {
+    "/api/v1/public/idp/{idp_slug}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Identity Provider Icon
+         * @description Serve the uploaded icon of an identity provider (unauthenticated).
+         *
+         *     The login screen renders before anyone is signed in, so the icon is public by design; it is one
+         *     admin-chosen image, not user data. The response carries an ETag derived from the provider version and must
+         *     be revalidated, so a replaced icon shows at once while a client that holds it gets a 304 without storage
+         *     being read.
+         *
+         *     Args:
+         *         idp_slug: The provider slug.
+         *         request: The HTTP request, for its ``If-None-Match`` header.
+         *         storage: The platform storage provider.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The image bytes, or a 304 when the client's copy is current.
+         *
+         *     Raises:
+         *         NotFoundError: 404 when the provider is unknown or has no uploaded icon.
+         */
+        get: operations["read_identity_provider_icon_api_v1_public_idp__idp_slug__icon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Onboarding Status
+         * @description Tell whether the installation has no account yet and needs its first administrator.
+         */
+        get: operations["read_onboarding_status_api_v1_public_onboarding_get"];
+        put?: never;
+        /**
+         * Complete Onboarding
+         * @description Create the first administrator with the setup token printed in the server log.
+         */
+        post: operations["complete_onboarding_api_v1_public_onboarding_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/server-settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -4114,7 +4245,7 @@ export interface paths {
          * @description Get public server settings (unauthenticated).
          *
          *     Protection Mechanisms:
-         *     - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
+         *     - Rate limiting: the PUBLIC_READ per-IP limit applies.
          *
          *     Returns only the public subset of server configuration
          *     (sensitive signup approval/verification settings excluded).
@@ -4132,7 +4263,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/server_settings/tile_maps_templates": {
+    "/api/v1/public/server-settings/login-photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Login Photo
+         * @description Serve the custom login page photo (unauthenticated).
+         *
+         *     The login screen renders before anyone is signed in, so the photo is public by
+         *     design; it is one admin-chosen image, not user data. The response carries an
+         *     ETag derived from the settings version, so a client that already holds the photo
+         *     gets a 304 without storage being read.
+         *
+         *     Args:
+         *         request: The HTTP request, for its ``If-None-Match`` header.
+         *         storage: The platform storage provider.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The image bytes, or a 304 when the client's copy is current.
+         *
+         *     Raises:
+         *         NotFoundError: 404 when no custom photo is stored.
+         */
+        get: operations["read_login_photo_api_v1_public_server_settings_login_photo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/server-settings/tile-maps-templates": {
         parameters: {
             query?: never;
             header?: never;
@@ -4144,7 +4311,7 @@ export interface paths {
          * @description Retrieve available tile map templates for server settings (unauthenticated).
          *
          *     Protection Mechanisms:
-         *     - Rate limiting: 60 requests per minute per IP (prevents DoS attacks)
+         *     - Rate limiting: the PUBLIC_READ per-IP limit applies.
          *
          *     This endpoint returns a list of all available tile map templates that can be
          *     used for configuring map display options in server settings.
@@ -4173,12 +4340,15 @@ export interface paths {
          * @description Get public user info by ID.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: The user ID to retrieve.
-         *         _validate_id: User ID validation dependency.
          *         db: Database session dependency.
          *
          *     Returns:
          *         User data if found and public sharing enabled.
+         *
+         *     Raises:
+         *         NotFoundError: If the user does not exist or public sharing is off.
          */
         get: operations["read_users_id_api_v1_public_users_id__user_id__get"];
         put?: never;
@@ -4189,7 +4359,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings": {
+    "/api/v1/server-settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -4202,22 +4372,33 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:read scope.
          *
+         *     Args:
+         *         db: Database session.
+         *         response: The response, which carries the ETag.
+         *
          *     Returns:
-         *         Current server settings configuration with decrypted API key.
+         *         Current server settings configuration. The tile API key is never returned,
+         *         only whether one is stored.
          */
         get: operations["read_server_settings_api_v1_server_settings_get"];
         /**
          * Edit Server Settings
          * @description Update server settings.
          *
-         *     Requires admin authentication with server_settings:write scope.
+         *     Requires admin authentication with server_settings:write scope. The body replaces
+         *     the whole configuration; only the API keys may be omitted, which keeps the stored
+         *     ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
+         *     a stale tag is refused with 412 rather than reverting an admin who saved in between.
          *
          *     Args:
-         *         request: FastAPI request object for accessing app state.
+         *         request: The HTTP request object.
          *         server_settings_attributes: Settings to update.
+         *         db: Database session.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
          *
          *     Returns:
-         *         Updated server settings configuration.
+         *         Updated server settings configuration, without the tile API key.
          */
         put: operations["edit_server_settings_api_v1_server_settings_put"];
         post?: never;
@@ -4227,7 +4408,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings/email": {
+    "/api/v1/server-settings/email": {
         parameters: {
             query?: never;
             header?: never;
@@ -4239,6 +4420,9 @@ export interface paths {
          * @description Get whether outgoing email is usable.
          *
          *     Requires admin authentication with server_settings:read scope.
+         *
+         *     Args:
+         *         db: Database session.
          *
          *     Returns:
          *         Whether email is configured and, when not, the reasons (setting names only).
@@ -4252,7 +4436,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings/email/test": {
+    "/api/v1/server-settings/email/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Mail Settings
+         * @description Get the mail server settings.
+         *
+         *     Requires admin authentication with server_settings:read scope.
+         *
+         *     Args:
+         *         db: Database session.
+         *         response: The response, which carries the ETag.
+         *
+         *     Returns:
+         *         The mail settings. The password is never returned, only whether one is stored;
+         *         ``env_managed`` names the fields an environment variable currently sets.
+         */
+        get: operations["read_mail_settings_api_v1_server_settings_email_settings_get"];
+        /**
+         * Edit Mail Settings
+         * @description Update the mail server settings.
+         *
+         *     Requires admin authentication with server_settings:write scope. The body replaces
+         *     the whole configuration; only the password may be omitted, which keeps the stored one.
+         *     Send ``If-Match`` with the ETag from the read to make the write conditional; a stale
+         *     tag is refused with 412.
+         *
+         *     Args:
+         *         request: The HTTP request object.
+         *         mail_settings_attributes: Settings to update.
+         *         db: Database session.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
+         *
+         *     Returns:
+         *         Updated mail settings, without the password.
+         *
+         *     Raises:
+         *         InvalidInputError: 400 if the configuration is not usable.
+         *         ConflictError: 409 if a field is set by an environment variable.
+         *         PreconditionFailedError: 412 if the settings changed since the client read them.
+         */
+        put: operations["edit_mail_settings_api_v1_server_settings_email_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server-settings/email/test": {
         parameters: {
             query?: never;
             header?: never;
@@ -4270,10 +4508,9 @@ export interface paths {
          *
          *     Args:
          *         request: The HTTP request object.
+         *         token_user_id: The requesting admin's user ID, from the access token.
          *         mail: The platform mail provider.
-         *
-         *     Returns:
-         *         A confirmation message naming the recipient address.
+         *         db: Database session.
          *
          *     Raises:
          *         ServiceUnavailableError: 503 if email is not configured.
@@ -4286,37 +4523,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/server_settings/tile_maps_templates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Tile Maps Templates
-         * @description Retrieve available tile map templates for server settings.
-         *
-         *     This endpoint returns a list of all available tile map templates that can
-         *     be used for configuring map display options in server settings.
-         *
-         *     Returns:
-         *         List of tile map template configurations available for the server.
-         *
-         *     Raises:
-         *         HTTPException: If the user lacks the required 'server_settings:read'
-         *         scope.
-         */
-        get: operations["list_tile_maps_templates_api_v1_server_settings_tile_maps_templates_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/server_settings/upload/login": {
+    "/api/v1/server-settings/login-photo": {
         parameters: {
             query?: never;
             header?: never;
@@ -4332,31 +4539,33 @@ export interface paths {
          *     Requires admin authentication with server_settings:write scope.
          *
          *     Args:
+         *         request: The HTTP request object.
          *         file: Image file to upload.
+         *         storage: The platform storage provider.
+         *         db: Database session.
          *
          *     Returns:
-         *         Full file path where file was saved.
+         *         The stored photo's version.
          */
-        post: operations["upload_login_photo_api_v1_server_settings_upload_login_post"];
+        post: operations["upload_login_photo_api_v1_server_settings_login_photo_post"];
         /**
          * Delete Login Photo
          * @description Delete custom login page photo.
          *
          *     Requires admin authentication with server_settings:write scope.
          *
-         *     Returns:
-         *         Success confirmation message.
-         *
-         *     Raises:
-         *         HTTPException: If deletion fails.
+         *     Args:
+         *         request: The HTTP request object.
+         *         storage: The platform storage provider.
+         *         db: Database session.
          */
-        delete: operations["delete_login_photo_api_v1_server_settings_upload_login_delete"];
+        delete: operations["delete_login_photo_api_v1_server_settings_login_photo_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/user/{user_id}": {
+    "/api/v1/server-settings/logs": {
         parameters: {
             query?: never;
             header?: never;
@@ -4364,71 +4573,97 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Sessions User
-         * @description Retrieve all sessions associated with a specific user.
+         * Read Logs
+         * @description Read records from the end of the server log.
+         *
+         *     Requires admin authentication with server_settings:logs scope. Without ``after``
+         *     the newest matching records are returned; pass the returned ``cursor`` as
+         *     ``after`` to receive only what was written since.
          *
          *     Args:
-         *         user_id: The ID of the user whose sessions to retrieve.
-         *         _check_scope: Scope validation dependency.
-         *         db: Database session dependency.
+         *         limit: Most records to return.
+         *         level: Lowest severity to include.
+         *         search: Case-insensitive text a record must contain.
+         *         after: Cursor from an earlier page.
          *
          *     Returns:
-         *         List of session objects for the specified user.
+         *         The matching records, oldest first, and the cursor for the next call.
+         *
+         *     Raises:
+         *         NotFoundError: 404 if the log viewer is not available on this deployment.
          */
-        get: operations["read_sessions_user_api_v1_sessions_user__user_id__get"];
+        get: operations["read_logs_api_v1_server_settings_logs_get"];
         put?: never;
         post?: never;
         /**
-         * Delete Sessions User
-         * @description Delete every session for a user, optionally keeping one intact.
+         * Clear Logs
+         * @description Empty the server log and delete its rotated backups.
          *
-         *     Backs the "revoke other sessions" action: pass the caller's current
-         *     ``exclude_session_id`` to sign out every other device while staying
-         *     logged in, or omit it (an admin acting on another user) to revoke
-         *     all of that user's sessions.
+         *     Requires admin authentication with server_settings:logs_clear scope. The action is
+         *     recorded as the first line of the new log.
          *
          *     Args:
-         *         user_id: The ID of the user whose sessions to revoke.
-         *         _check_scope: Scope validation dependency.
-         *         db: Database session dependency.
-         *         exclude_session_id: Optional session to leave intact.
+         *         request: The HTTP request object.
+         *         token_user_id: The requesting admin's user ID, from the access token.
          *
-         *     Returns:
-         *         None.
+         *     Raises:
+         *         NotFoundError: 404 if the log viewer is not available on this deployment.
          */
-        delete: operations["delete_sessions_user_api_v1_sessions_user__user_id__delete"];
+        delete: operations["clear_logs_api_v1_server_settings_logs_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/{session_id}/user/{user_id}": {
+    "/api/v1/server-settings/logs/download": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        post?: never;
         /**
-         * Delete Session User
-         * @description Delete a user session.
+         * Download Logs
+         * @description Download the current log file.
          *
-         *     Args:
-         *         session_id: The ID of the session to delete.
-         *         user_id: The ID of the user who owns the session.
-         *         _check_scope: Scope validation dependency.
-         *         db: Database session dependency.
+         *     Requires admin authentication with server_settings:logs scope. Rotated backups
+         *     are not included.
          *
          *     Returns:
-         *         None.
+         *         The log file as plain text.
          *
          *     Raises:
-         *         HTTPException: If session not found or unauthorized.
+         *         NotFoundError: 404 if the log viewer is not available or no log has been written.
          */
-        delete: operations["delete_session_user_api_v1_sessions__session_id__user__user_id__delete"];
+        get: operations["download_logs_api_v1_server_settings_logs_download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server-settings/logs/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Logs Status
+         * @description Get whether the log viewer is available.
+         *
+         *     Requires admin authentication with server_settings:logs scope.
+         *
+         *     Returns:
+         *         Whether the log can be read through the API on this deployment.
+         */
+        get: operations["read_logs_status_api_v1_server_settings_logs_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4445,19 +4680,7 @@ export interface paths {
         put?: never;
         /**
          * Verify Email
-         * @description Verify user email via sign-up token.
-         *
-         *     Args:
-         *         request: Incoming HTTP request.
-         *         confirm_data: Token confirmation payload.
-         *         websocket_manager: WebSocket notification manager.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Verification result with message and optional flags.
-         *
-         *     Raises:
-         *         HTTPException: 412 if email verification is not enabled.
+         * @description Verify an account's email address using its one-time token; a sign-up also chooses its password.
          */
         post: operations["verify_email_api_v1_sign_up_confirm_post"];
         delete?: never;
@@ -4477,19 +4700,7 @@ export interface paths {
         put?: never;
         /**
          * Signup
-         * @description Handle user sign-up request.
-         *
-         *     Args:
-         *         request: Incoming HTTP request.
-         *         user: Sign-up payload with user info.
-         *         identity_service: Injected identity service.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Sign-up result with message and flags.
-         *
-         *     Raises:
-         *         HTTPException: 403 if sign-up is disabled.
+         * @description Create an account using the configured sign-up policy.
          */
         post: operations["signup_api_v1_sign_up_request_post"];
         delete?: never;
@@ -4505,6 +4716,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Strava Retrieve Activities Days
          * @description Queue a Strava sync of an explicit date range.
@@ -4513,9 +4726,7 @@ export interface paths {
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
-        get: operations["strava_retrieve_activities_days_api_v1_strava_activities_get"];
-        put?: never;
-        post?: never;
+        post: operations["strava_retrieve_activities_days_api_v1_strava_activities_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4530,7 +4741,21 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Strava Set User Client */
+        /**
+         * Strava Set User Client
+         * @description Store the user's Strava API client id and secret.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         client: The Strava application's client id and secret.
+         *         token_user_id: User ID from the access token.
+         *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition, the ``integrations_version`` the client read.
+         *
+         *     Returns:
+         *         A confirmation message.
+         */
         put: operations["strava_set_user_client_api_v1_strava_client_put"];
         post?: never;
         delete?: never;
@@ -4546,10 +4771,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Strava Retrieve Gear */
-        get: operations["strava_retrieve_gear_api_v1_strava_gear_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /**
+         * Strava Retrieve Gear
+         * @description Queue a sync of the user's Strava gear; a background job runs it.
+         *
+         *     Poll ``GET /strava/sync/gear`` for the outcome. A second request while one is
+         *     pending is answered 409.
+         */
+        post: operations["strava_retrieve_gear_api_v1_strava_gear_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4567,7 +4798,7 @@ export interface paths {
         put?: never;
         /**
          * Import Bikes From Strava Export
-         * @description Create the bikes listed in an uploaded Strava ``bikes.csv``.
+         * @description Create the bikes listed in an uploaded Strava ``bikes.csv`` and report how many.
          */
         post: operations["import_bikes_from_strava_export_api_v1_strava_import_bikes_post"];
         delete?: never;
@@ -4587,7 +4818,7 @@ export interface paths {
         put?: never;
         /**
          * Import Shoes From Strava Export
-         * @description Create the shoes listed in an uploaded Strava ``shoes.csv``.
+         * @description Create the shoes listed in an uploaded Strava ``shoes.csv`` and report how many.
          */
         post: operations["import_shoes_from_strava_export_api_v1_strava_import_shoes_post"];
         delete?: never;
@@ -4604,33 +4835,29 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Strava Link */
-        put: operations["strava_link_api_v1_strava_link_put"];
-        post?: never;
-        delete?: never;
+        put?: never;
+        /**
+         * Strava Link
+         * @description Queue the exchange of a Strava authorization code for tokens.
+         *
+         *     Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+         *     pending is answered 409.
+         */
+        post: operations["strava_link_api_v1_strava_link_post"];
+        /**
+         * Strava Unlink
+         * @description Queue the disconnection of the user's Strava account; a background job runs it.
+         *
+         *     The job revokes the authorization with Strava and deletes the activities and gear
+         *     imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
+         */
+        delete: operations["strava_unlink_api_v1_strava_link_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/strava/state/{state}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Strava Set User Unique State */
-        put: operations["strava_set_user_unique_state_api_v1_strava_state__state__put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/strava/unlink": {
+    "/api/v1/strava/state": {
         parameters: {
             query?: never;
             header?: never;
@@ -4639,9 +4866,38 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Strava Begin State
+         * @description Issue the one-time state that correlates the OAuth callback with the user.
+         *
+         *     Replaces any state the user issued earlier.
+         */
+        post: operations["strava_begin_state_api_v1_strava_state_post"];
+        /**
+         * Strava Clear User State
+         * @description Forget the user's pending OAuth state.
+         */
+        delete: operations["strava_clear_user_state_api_v1_strava_state_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/strava/sync/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Strava Sync Status
+         * @description Report where the authenticated user's queued link, gear sync or unlink is.
+         */
+        get: operations["strava_sync_status_api_v1_strava_sync__kind__get"];
+        put?: never;
         post?: never;
-        /** Strava Unlink */
-        delete: operations["strava_unlink_api_v1_strava_unlink_delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4659,16 +4915,14 @@ export interface paths {
          * @description Retrieve paginated list of all users.
          *
          *     Args:
-         *         _validate_pagination_values: Pagination validation.
-         *         _check_scopes: Authorization check.
          *         db: Database session dependency.
-         *         page_number: Optional page number to retrieve.
-         *         num_records: Optional number of records per page.
+         *         page: The requested page and page size.
          *         show_inactive: Optional filter by inactive status.
          *         show_email_unverified: Optional filter by email verification status.
          *         show_pending_approval: Optional filter by pending approval status.
          *         show_external_auth: Optional filter by external authentication status.
          *         show_local_auth: Optional filter by local authentication status.
+         *         username: Optional text the username must contain.
          *
          *     Returns:
          *         Paginated list of users with total count.
@@ -4680,9 +4934,8 @@ export interface paths {
          * @description Create a new user (admin operation).
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user: User creation data.
-         *         _check_scope: Authorization check.
-         *         identity_service: Identity service dependency.
          *         db: Database session dependency.
          *
          *     Returns:
@@ -4695,28 +4948,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/email/{email}": {
+    "/api/v1/users/email/lookup": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
-         * Read Users Email
-         * @description Get user by email address.
+         * Lookup User By Email
+         * @description Get a user by email address.
+         *
+         *     The address travels in the request body, so it never reaches access logs or proxy caches
+         *     through the URL.
          *
          *     Args:
-         *         email: Email address to search for.
-         *         _check_scopes: Authorization check.
+         *         request: The incoming request, read by the rate limiter.
+         *         lookup: The email address to search for.
          *         db: Database session dependency.
+         *         response: The response, which carries the user's ETag.
          *
          *     Returns:
-         *         User if found, None otherwise.
+         *         The user.
+         *
+         *     Raises:
+         *         NotFoundError: If there is no such user.
          */
-        get: operations["read_users_email_api_v1_users_email__email__get"];
-        put?: never;
-        post?: never;
+        post: operations["lookup_user_by_email_api_v1_users_email_lookup_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4732,18 +4992,39 @@ export interface paths {
         };
         /**
          * Read Users Id
-         * @description Get user by ID.
+         * @description Get a user's public projection by ID.
          *
          *     Args:
          *         user_id: User ID to retrieve.
-         *         _validate_id: User ID validation dependency.
-         *         _check_scopes: Authorization check.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         User if found, None otherwise.
+         *         The public projection.
+         *
+         *     Raises:
+         *         NotFoundError: If the user does not exist.
          */
         get: operations["read_users_id_api_v1_users_id__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/id/{user_id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Profile Overview
+         * @description Return the public profile and summary values the profile page displays.
+         */
+        get: operations["read_user_profile_overview_api_v1_users_id__user_id__overview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4761,15 +5042,15 @@ export interface paths {
         };
         /**
          * Read Users Contain Username
-         * @description Search users by partial username match.
+         * @description Search active users by partial username match, one page at a time.
          *
          *     Args:
          *         username: Partial username to search for.
-         *         _check_scopes: Authorization check.
+         *         page: The requested window of matches.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         List of users matching the search.
+         *         The page of matching users' public projections.
          */
         get: operations["read_users_contain_username_api_v1_users_username_contains__username__get"];
         put?: never;
@@ -4793,11 +5074,14 @@ export interface paths {
          *
          *     Args:
          *         username: Exact username to search for.
-         *         _check_scopes: Authorization check.
          *         db: Database session dependency.
+         *         response: The response, which carries the user's ETag.
          *
          *     Returns:
-         *         User if found, None otherwise.
+         *         The user.
+         *
+         *     Raises:
+         *         NotFoundError: If there is no such user.
          */
         get: operations["read_users_username_api_v1_users_username__username__get"];
         put?: never;
@@ -4815,17 +5099,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Users Full
+         * @description Get a user's full record by ID (admin operation).
+         *
+         *     Args:
+         *         user_id: User ID to retrieve.
+         *         db: Database session dependency.
+         *         response: The response, which carries the user's ETag.
+         *
+         *     Returns:
+         *         The full record.
+         *
+         *     Raises:
+         *         NotFoundError: If the user does not exist.
+         */
+        get: operations["read_users_full_api_v1_users__user_id__get"];
         /**
          * Edit User
          * @description Update user information.
          *
+         *     A change of email, access type or active flag signs the edited user out everywhere.
+         *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to update.
-         *         _validate_id: User ID validation dependency.
          *         user_attributtes: User data to update.
-         *         _check_scopes: Authorization check.
+         *         token_user_id: ID of the administrator making the edit.
          *         db: Database session dependency.
+         *         response: The response, which carries the new ETag.
+         *         if_match: The ``If-Match`` precondition.
          *
          *     Returns:
          *         Updated user data.
@@ -4834,18 +5137,70 @@ export interface paths {
         post?: never;
         /**
          * Delete User
-         * @description Delete user account.
+         * @description Queue the deletion of another user's account.
+         *
+         *     The user is signed out and deactivated at once and a background job erases their data. Poll
+         *     ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to delete.
-         *         _validate_id: User ID validation dependency.
-         *         _check_scopes: Authorization check.
+         *         token_user_id: ID of the administrator making the request.
+         *         states: Shared store of the deletion's state.
+         *         storage: The platform storage provider.
+         *         if_match: The ``If-Match`` precondition.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         None
+         *         The deletion's initial status.
+         *
+         *     Raises:
+         *         PermissionDeniedError: If the administrator targets their own account.
+         *         NotFoundError: If the user does not exist.
+         *         PreconditionFailedError: If the user changed since the client read it.
+         *         ConflictError: If the user is the only administrator, or a deletion is already pending.
          */
         delete: operations["delete_user_api_v1_users__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Activities
+         * @description List another user's visible activities, with the matching total.
+         */
+        get: operations["list_user_activities_api_v1_users__user_id__activities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/activities/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Activity Stats
+         * @description Aggregate per-sport stats for a user's current ``week`` or ``month``.
+         */
+        get: operations["read_user_activity_stats_api_v1_users__user_id__activities_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4859,20 +5214,125 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
         /**
          * Approve User
          * @description Approve pending user account.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to approve.
-         *         _validate_id: User ID validation dependency.
-         *         _check_scopes: Authorization check.
          *         db: Database session dependency.
+         */
+        post: operations["approve_user_api_v1_users__user_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Deletion Status
+         * @description Report where a user's account deletion is.
+         *
+         *     Args:
+         *         user_id: ID of the user being deleted.
+         *         states: Shared store of the deletion's state.
          *
          *     Returns:
-         *         Success message.
+         *         The deletion's status.
+         *
+         *     Raises:
+         *         NotFoundError: If no deletion is recorded or it has expired.
          */
-        put: operations["approve_user_api_v1_users__user_id__approve_put"];
+        get: operations["read_user_deletion_status_api_v1_users__user_id__deletion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/followers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Followers
+         * @description List a user's followers, with the matching total.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+         *     carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     returns), so a token with ``followers:read`` alone receives it too.
+         */
+        get: operations["list_user_followers_api_v1_users__user_id__followers_get"];
+        put?: never;
+        /**
+         * Follow User
+         * @description Add the authenticated user to ``user_id``'s followers.
+         *
+         *     Always created pending: a follow takes effect only once the target accepts
+         *     it, so the returned ``status`` is ``pending`` and the target is notified.
+         */
+        post: operations["follow_user_api_v1_users__user_id__followers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/followers/{follower_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Follow Relationship
+         * @description Delete the follow relationship where ``follower_id`` follows ``user_id``.
+         *
+         *     Serves both directions. Unfollowing is ``follower_id`` = the caller; removing
+         *     a follower is ``user_id`` = the caller. Either party may delete it, and the
+         *     caller must be one of them.
+         */
+        delete: operations["delete_follow_relationship_api_v1_users__user_id__followers__follower_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/following": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Following
+         * @description List who a user follows, with the matching total.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
+         *     carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     returns), so a token with ``followers:read`` alone receives it too.
+         */
+        get: operations["list_user_following_api_v1_users__user_id__following_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -4893,9 +5353,7 @@ export interface paths {
          *
          *     Args:
          *         user_id: ID of the user whose identity provider links to retrieve.
-         *         _validate_id: User ID validation dependency.
-         *         _check_scopes: Authorization check (users:read scope).
-         *         identity_service: Identity service dependency.
+         *         db: Database session.
          *
          *     Returns:
          *         The user's enriched identity provider links (empty list if none).
@@ -4921,14 +5379,14 @@ export interface paths {
         post?: never;
         /**
          * Delete User Identity Provider
-         * @description Unlink an identity provider from a specific user (admin).
+         * @description Unlink an identity provider from another user (admin).
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of the user to unlink the identity provider from.
          *         idp_id: ID of the identity provider to unlink.
-         *         _validate_id: User ID validation dependency.
-         *         _check_scopes: Authorization check (users:write scope).
-         *         identity_service: Identity service dependency.
+         *         token_user_id: ID of the administrator making the change.
+         *         db: Database session.
          *
          *     Returns:
          *         None
@@ -4939,7 +5397,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/{user_id}/image": {
+    "/api/v1/users/{user_id}/password/change": {
         parameters: {
             query?: never;
             header?: never;
@@ -4949,50 +5407,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Upload User Image
-         * @description Upload user profile image.
-         *
-         *     Args:
-         *         user_id: ID of user to upload image for.
-         *         _validate_id: User ID validation dependency.
-         *         file: Uploaded image file.
-         *         _check_scopes: Authorization check.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         Path to uploaded image.
-         */
-        post: operations["upload_user_image_api_v1_users__user_id__image_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/{user_id}/password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
          * Edit User Password
-         * @description Update user password.
+         * @description Update another user's password.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to update password for.
-         *         _validate_id: User ID validation dependency.
          *         user_attributes: New password data.
-         *         _check_scope: Authorization check.
-         *         identity_service: Identity service dependency.
-         *
-         *     Returns:
-         *         Success message.
+         *         token_user_id: ID of the administrator making the change.
+         *         db: Database session dependency.
          */
-        put: operations["edit_user_password_api_v1_users__user_id__password_put"];
-        post?: never;
+        post: operations["edit_user_password_api_v1_users__user_id__password_change_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5011,33 +5436,149 @@ export interface paths {
          * @description Serve a user's profile photo when the signed token is valid.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: The user whose photo to serve.
+         *         storage: The platform storage provider.
+         *         db: Database session dependency.
          *         token: The signed access token (``?t=``) minted at serialization time.
          *
          *     Returns:
          *         The image bytes.
-         *
-         *     Raises:
-         *         HTTPException: 404 when the token is invalid/forged or no photo exists
-         *             (a 404 — rather than 403 — avoids confirming the user id).
          */
         get: operations["read_user_photo_api_v1_users__user_id__photo_get"];
         put?: never;
-        post?: never;
+        /**
+         * Upload User Image
+         * @description Upload user profile image.
+         *
+         *     Args:
+         *         request: The incoming request, read by the rate limiter.
+         *         user_id: ID of user to upload image for.
+         *         file: Uploaded image file.
+         *         storage: The platform storage provider.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The servable URL of the new photo.
+         */
+        post: operations["upload_user_image_api_v1_users__user_id__photo_post"];
         /**
          * Delete User Photo
          * @description Delete user profile photo.
          *
          *     Args:
+         *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user whose photo to delete.
-         *         _validate_id: User ID validation dependency.
-         *         _check_scopes: Authorization check.
+         *         storage: The platform storage provider.
          *         db: Database session dependency.
          *
          *     Returns:
          *         None
          */
         delete: operations["delete_user_photo_api_v1_users__user_id__photo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/relationship": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Relationship
+         * @description Return the authenticated user's relationship with ``user_id``, both directions.
+         *
+         *     Reports the requester's outgoing follow of ``user_id`` and ``user_id``'s
+         *     incoming follow of the requester; only relationships the requester is part of
+         *     are ever exposed.
+         */
+        get: operations["read_user_relationship_api_v1_users__user_id__relationship_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Sessions User
+         * @description Retrieve one page of the sessions associated with a specific user.
+         *
+         *     Args:
+         *         user_id: The ID of the user whose sessions to retrieve.
+         *         page: The requested window.
+         *         db: Database session dependency.
+         *         request: Incoming request.
+         *
+         *     Returns:
+         *         The page of session objects for the specified user.
+         */
+        get: operations["read_sessions_user_api_v1_users__user_id__sessions_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Sessions User
+         * @description Delete every session for a user, optionally keeping one intact.
+         *
+         *     Backs the "revoke other sessions" action: pass the caller's current
+         *     ``exclude_session_id`` to sign out every other device while staying
+         *     logged in, or omit it (an admin acting on another user) to revoke
+         *     all of that user's sessions.
+         *
+         *     Args:
+         *         user_id: The ID of the user whose sessions to revoke.
+         *         db: Database session dependency.
+         *         exclude_session_id: Optional session to leave intact.
+         *         request: Incoming request.
+         *
+         *     Returns:
+         *         None.
+         */
+        delete: operations["delete_sessions_user_api_v1_users__user_id__sessions_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Session User
+         * @description Delete a user session.
+         *
+         *     Args:
+         *         session_id: The ID of the session to delete.
+         *         user_id: The ID of the user who owns the session.
+         *         db: Database session dependency.
+         *         request: Incoming request.
+         *
+         *     Returns:
+         *         None.
+         *
+         *     Raises:
+         *         HTTPException: If session not found or unauthorized.
+         */
+        delete: operations["delete_session_user_api_v1_users__user_id__sessions__session_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5062,42 +5603,14 @@ export interface paths {
          *     endpoint, so the real access token never appears in a URL.
          *
          *     Args:
+         *         request: The request, which the rate limiter keys on.
          *         user_id: Authenticated user ID from auth dependency.
          *         ticket_store: WsTicketStore for issuing tickets.
          *
          *     Returns:
-         *         JSON object with a single "ticket" key.
+         *         The ticket.
          */
         post: operations["issue_ws_ticket_api_v1_ws_ticket_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/server_images/{server_img}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Server Img Return
-         * @description Retrieves the file path for a given server image.
-         *
-         *     Args:
-         *         server_img (str): The identifier or filename of the server image.
-         *
-         *     Returns:
-         *         str: The file path to the server image.
-         *
-         *     Raises:
-         *         HTTPException: If the server image path cannot be found.
-         */
-        get: operations["server_img_return_server_images__server_img__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5141,6 +5654,37 @@ export interface components {
         ActivitiesBulkEdit: {
             /** Visibility */
             visibility?: number | null;
+        };
+        /**
+         * ActivitiesBulkEditStatus
+         * @description Where a queued bulk edit across a user's activities is.
+         *
+         *     Attributes:
+         *         status: Lifecycle state of the edit.
+         */
+        ActivitiesBulkEditStatus: {
+            /** @description Lifecycle state of the bulk edit */
+            status: components["schemas"]["SyncStatus"];
+        };
+        /**
+         * ActivityDetailRead
+         * @description An activity together with the first page of each child collection the detail view shows.
+         *
+         *     Each collection is the page envelope its own route returns, so a client that finds a ``next`` page
+         *     continues with that route. A collection hidden from the viewer, or one the activity has none of,
+         *     is an empty page.
+         *
+         *     Attributes:
+         *         activity: The activity, masked as the viewer may see it.
+         *         laps: The activity's laps.
+         *         sets: The activity's performed workout sets.
+         *         workout_steps: The activity's planned workout steps.
+         */
+        ActivityDetailRead: {
+            activity: components["schemas"]["ActivityRead"];
+            laps: components["schemas"]["Page_ActivityLapsRead_"];
+            sets: components["schemas"]["Page_ActivitySetsRead_"];
+            workout_steps: components["schemas"]["Page_ActivityWorkoutStepsRead_"];
         };
         /**
          * ActivityEdit
@@ -5229,6 +5773,34 @@ export interface components {
             wkt_step_name: string;
         };
         /**
+         * ActivityFeedPage
+         * @description One keyset slice of the following feed.
+         *
+         *     The feed takes inserts at the head continuously, so offset paging would repeat and skip rows
+         *     across requests.
+         *
+         *     Attributes:
+         *         users: The public profile of each owner on this slice, keyed by user ID, one entry per
+         *             owner however many of their activities the slice holds. It is the projection
+         *             ``GET /users/id/{user_id}`` returns, so the client needs no lookup per owner. An owner
+         *             who is inactive or awaiting approval has no entry.
+         */
+        ActivityFeedPage: {
+            /** Items */
+            items: components["schemas"]["ActivityRead"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Num Records */
+            num_records: number;
+            /**
+             * Users
+             * @description Public profile of each activity owner on this slice, keyed by user ID
+             */
+            users?: {
+                [key: string]: components["schemas"]["UserPublicRead"];
+            };
+        };
+        /**
          * ActivityIngestionJobRead
          * @description An accepted ingestion request and the current state of its import.
          *
@@ -5249,7 +5821,8 @@ export interface components {
          *             finished import with failures still ends ``completed``.
          *         provider: The one provider a refresh syncs; ``None`` when it syncs every
          *             linked provider.
-         *         status: Current lifecycle state.
+         *         status: Current lifecycle state. A refresh waiting for a provider's rate limit to clear is ``deferred``.
+         *         retry_after: When a deferred refresh runs again.
          *         error_code: Sanitized failure reason when ``status`` is failed.
          *         activity_ids: Ids created by the import once it completes.
          *         created_at: When the request was accepted.
@@ -5285,6 +5858,8 @@ export interface components {
             kind: components["schemas"]["IngestionJobKind"];
             /** Provider */
             provider?: string | null;
+            /** Retry After */
+            retry_after?: string | null;
             status: components["schemas"]["IngestionJobStatus"];
             /**
              * Updated At
@@ -5304,7 +5879,8 @@ export interface components {
          *     Attributes:
          *         id: Lap primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Lap start as a timezone-aware UTC instant.
+         *         start_time: Lap start as a timezone-aware UTC instant, or None when the
+         *             parent hides its start time from this viewer.
          */
         ActivityLapsRead: {
             /** Activity Id */
@@ -5363,11 +5939,8 @@ export interface components {
             start_position_lat?: number | null;
             /** Start Position Long */
             start_position_long?: number | null;
-            /**
-             * Start Time
-             * Format: date-time
-             */
-            start_time: string;
+            /** Start Time */
+            start_time: string | null;
             /** Sub Sport */
             sub_sport?: string | null;
             /** Total Ascent */
@@ -5553,7 +6126,8 @@ export interface components {
          *     Attributes:
          *         id: Activity set primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Set start as a timezone-aware UTC instant.
+         *         start_time: Set start as a timezone-aware UTC instant, or None when the
+         *             parent hides its start time from this viewer.
          */
         ActivitySetsRead: {
             /** Activity Id */
@@ -5570,11 +6144,8 @@ export interface components {
             repetitions?: number | null;
             /** Set Type */
             set_type: string;
-            /**
-             * Start Time
-             * Format: date-time
-             */
-            start_time: string;
+            /** Start Time */
+            start_time: string | null;
             /** Weight */
             weight?: number | null;
         };
@@ -5805,18 +6376,23 @@ export interface components {
             /** Username */
             username: string;
         };
-        /** Body_upload_login_photo_api_v1_server_settings_upload_login_post */
-        Body_upload_login_photo_api_v1_server_settings_upload_login_post: {
+        /** Body_upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post */
+        Body_upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_profile_image_api_v1_profile_image_post */
-        Body_upload_profile_image_api_v1_profile_image_post: {
+        /** Body_upload_login_photo_api_v1_server_settings_login_photo_post */
+        Body_upload_login_photo_api_v1_server_settings_login_photo_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_user_image_api_v1_users__user_id__image_post */
-        Body_upload_user_image_api_v1_users__user_id__image_post: {
+        /** Body_upload_profile_image_api_v1_profile_photo_post */
+        Body_upload_profile_image_api_v1_profile_photo_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_user_image_api_v1_users__user_id__photo_post */
+        Body_upload_user_image_api_v1_users__user_id__photo_post: {
             /** File */
             file: string;
         };
@@ -5835,6 +6411,17 @@ export interface components {
          * @enum {integer}
          */
         BristolType: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+        /**
+         * ChartBucket
+         * @description Calendar span one chart point aggregates.
+         *
+         *     Attributes:
+         *         DAY: One point per day.
+         *         WEEK: One point per ISO week, dated its Monday.
+         *         MONTH: One point per month, dated its first day.
+         * @enum {string}
+         */
+        ChartBucket: "day" | "week" | "month";
         /**
          * Color
          * @description Enumeration of common stool color descriptions.
@@ -5862,15 +6449,6 @@ export interface components {
          * @enum {string}
          */
         Currency: "euro" | "dollar" | "pound";
-        /** CursorPage[ActivityRead] */
-        CursorPage_ActivityRead_: {
-            /** Items */
-            items: components["schemas"]["ActivityRead"][];
-            /** Next Cursor */
-            next_cursor?: string | null;
-            /** Num Records */
-            num_records: number;
-        };
         /**
          * DaySummary
          * @description Daily activity summary within a week.
@@ -5916,11 +6494,45 @@ export interface components {
             total_elevation_gain: number;
         };
         /**
+         * EmailChange
+         * @description Self-service email change, authorised by step-up verification.
+         *
+         *     Attributes:
+         *         email: The new email address.
+         *         revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+         */
+        EmailChange: {
+            /**
+             * Current Password
+             * @description Current password (step-up verification). Required when the account has a local password.
+             */
+            current_password?: string | null;
+            /**
+             * Email
+             * Format: email
+             * @description The new email address
+             */
+            email: string;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
+            /**
+             * Mfa Code
+             * @description TOTP or backup code, required when MFA is enabled
+             */
+            mfa_code?: string | null;
+            /**
+             * Revoke Other Sessions
+             * @description When true, revoke all of the user's other sessions (keeping the current one) after the change
+             * @default false
+             */
+            revoke_other_sessions: boolean;
+        };
+        /**
          * EmailStatus
          * @description Whether outgoing email is usable, and why not when it is not.
          *
          *     Attributes:
-         *         configured: True when the SMTP settings are valid and email can be sent.
+         *         configured: True when the mail settings are valid and email can be sent.
          *         problems: Reasons email is disabled. Names settings, never their values.
          */
         EmailStatus: {
@@ -5929,6 +6541,21 @@ export interface components {
             /** Problems */
             problems: string[];
         };
+        /**
+         * ExportFailure
+         * @description Stable, sanitized reasons an export can fail.
+         *
+         *     A closed set: the underlying exception text can carry internals, so the client gets a code it
+         *     can translate.
+         * @enum {string}
+         */
+        ExportFailure: "timed_out" | "processing_failed";
+        /**
+         * ExportStatus
+         * @description Where a profile export is.
+         * @enum {string}
+         */
+        ExportStatus: "queued" | "running" | "completed" | "failed";
         /**
          * FastingStatus
          * @description Enumeration of fasting session statuses.
@@ -5958,6 +6585,35 @@ export interface components {
          * @enum {string}
          */
         FastingType: "16:8" | "18:6" | "20:4" | "OMAD" | "24h" | "36h" | "48h" | "72h" | "custom";
+        /**
+         * FollowRelationshipPage
+         * @description One page of follow relationships, in the envelope the activities lists use.
+         *
+         *     Attributes:
+         *         users: The public profile of the user on the other side of each row (the follower in a
+         *             followers list, the followee in a following list, the requester among pending requests),
+         *             keyed by user ID. It is the projection ``GET /users/id/{user_id}`` returns, so a list needs
+         *             no lookup per row. A user who is inactive or awaiting approval has no entry.
+         */
+        FollowRelationshipPage: {
+            /** Items */
+            items: components["schemas"]["FollowRelationshipRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+            /**
+             * Users
+             * @description Public profile of the user on the other side of each row, keyed by user ID
+             */
+            users?: {
+                [key: string]: components["schemas"]["UserPublicRead"];
+            };
+        };
         /**
          * FollowRelationshipRead
          * @description Serialized representation of a follow relationship.
@@ -6002,21 +6658,55 @@ export interface components {
          * @enum {string}
          */
         FollowStatus: "pending" | "accepted";
-        /** GarminLogin */
+        /**
+         * GarminLinkStatus
+         * @description Where a Garmin Connect link attempt is.
+         *
+         *     Attributes:
+         *         status: ``pending`` while logging in, ``mfa_required`` when the user must submit a code
+         *             through ``POST /garminconnect/mfa``, then ``completed`` or ``failed``.
+         *         reason: Why the attempt failed; set only when ``status`` is ``failed``.
+         */
+        GarminLinkStatus: {
+            reason?: components["schemas"]["LinkFailure"] | null;
+            status: components["schemas"]["LinkStatus"];
+        };
+        /**
+         * GarminLogin
+         * @description Credentials a user submits to link Garmin Connect.
+         */
         GarminLogin: {
             /**
              * Is Cn
              * @default false
              */
             is_cn: boolean;
-            /** Password */
+            /**
+             * Password
+             * Format: password
+             */
             password: string;
             /** Username */
             username: string;
         };
         /**
+         * GarminSyncStatus
+         * @description Where a queued Garmin Connect gear or health sync is.
+         *
+         *     Attributes:
+         *         kind: What the sync pulls.
+         *         status: ``queued`` until a worker picks it up, ``running``, then ``completed`` or ``failed``.
+         */
+        GarminSyncStatus: {
+            kind: components["schemas"]["modules__garmin__constants__SyncKind"];
+            status: components["schemas"]["SyncStatus"];
+        };
+        /**
          * GearComponentCreate
          * @description Schema for creating a gear component.
+         *
+         *     Attributes:
+         *         gear_id: Foreign key to gear table.
          */
         GearComponentCreate: {
             /**
@@ -6072,6 +6762,7 @@ export interface components {
          *     Attributes:
          *         id: Unique identifier.
          *         user_id: Foreign key to user.
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          *         current_distance: Accumulated distance.
          *         current_time: Accumulated time.
          */
@@ -6143,6 +6834,12 @@ export interface components {
              * @description Foreign key to user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             * @default 1
+             */
+            version: number;
         };
         /**
          * GearComponentTypesRead
@@ -6178,10 +6875,9 @@ export interface components {
         };
         /**
          * GearComponentUpdate
-         * @description Schema for updating a gear component.
+         * @description Partial update of a gear component: omit a field to keep it, send null to clear a nullable one.
          *
-         *     Attributes:
-         *         id: Unique identifier.
+         *     The component and its gear come from the path and cannot be changed.
          */
         GearComponentUpdate: {
             /**
@@ -6193,27 +6889,17 @@ export interface components {
              * Brand
              * @description Gear component brand
              */
-            brand: string;
+            brand?: string | null;
             /**
              * Expected Kms
              * @description Expected kilometers
              */
             expected_kms?: number | null;
             /**
-             * Gear Id
-             * @description Foreign key to gear
-             */
-            gear_id: number;
-            /**
-             * Id
-             * @description Unique identifier
-             */
-            id: number;
-            /**
              * Model
              * @description Gear component model
              */
-            model: string;
+            model?: string | null;
             /**
              * Purchase Date
              * @description Purchase date
@@ -6233,16 +6919,16 @@ export interface components {
              * Type
              * @description Type of gear component
              */
-            type: string;
+            type?: string | null;
         };
         /**
-         * GearCreate
-         * @description Schema for creating a gear record.
+         * GearCreateRequest
+         * @description Request body for creating a gear.
          *
-         *     Attributes:
-         *         user_id: Foreign key to user.
+         *     Provider gear IDs are not accepted: only the Strava and Garmin Connect syncs and
+         *     the profile import set them, so a client cannot forge a provider link.
          */
-        GearCreate: {
+        GearCreateRequest: {
             /**
              * Active
              * @description Whether the gear is active
@@ -6258,11 +6944,6 @@ export interface components {
              * @description Gear creation timestamp
              */
             created_at?: string | null;
-            /**
-             * Garminconnect Gear Id
-             * @description Garmin Connect gear ID
-             */
-            garminconnect_gear_id?: string | null;
             /** @description Gear type identifier */
             gear_type: components["schemas"]["GearType"];
             /**
@@ -6285,16 +6966,6 @@ export interface components {
              * @description Purchase value
              */
             purchase_value?: number | null;
-            /**
-             * Strava Gear Id
-             * @description Strava gear ID
-             */
-            strava_gear_id?: string | null;
-            /**
-             * User Id
-             * @description Foreign key to user
-             */
-            user_id?: number | null;
         };
         /**
          * GearDetailRead
@@ -6381,6 +7052,12 @@ export interface components {
              * @description Foreign key to user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             * @default 1
+             */
+            version: number;
         };
         /**
          * GearRead
@@ -6389,6 +7066,7 @@ export interface components {
          *     Attributes:
          *         id: Unique identifier.
          *         user_id: Foreign key to user.
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          */
         GearRead: {
             /**
@@ -6448,6 +7126,12 @@ export interface components {
              * @description Foreign key to user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             * @default 1
+             */
+            version: number;
         };
         /**
          * GearType
@@ -6467,10 +7151,9 @@ export interface components {
         GearType: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
         /**
          * GearUpdate
-         * @description Schema for updating a gear record.
+         * @description Partial update of a gear: omit a field to keep it, send null to clear a nullable one.
          *
-         *     Attributes:
-         *         id: Unique identifier.
+         *     The gear comes from the path; provider gear IDs cannot be changed.
          */
         GearUpdate: {
             /**
@@ -6488,18 +7171,8 @@ export interface components {
              * @description Gear creation timestamp
              */
             created_at?: string | null;
-            /**
-             * Garminconnect Gear Id
-             * @description Garmin Connect gear ID
-             */
-            garminconnect_gear_id?: string | null;
             /** @description Gear type identifier */
-            gear_type: components["schemas"]["GearType"];
-            /**
-             * Id
-             * @description Unique identifier
-             */
-            id: number;
+            gear_type?: components["schemas"]["GearType"] | null;
             /**
              * Initial Kms
              * @description Initial kilometers
@@ -6514,49 +7187,12 @@ export interface components {
              * Nickname
              * @description Gear display nickname
              */
-            nickname: string;
+            nickname?: string | null;
             /**
              * Purchase Value
              * @description Purchase value
              */
             purchase_value?: number | null;
-            /**
-             * Strava Gear Id
-             * @description Strava gear ID
-             */
-            strava_gear_id?: string | null;
-        };
-        /**
-         * GearsListResponse
-         * @description Response model for paginated gear listing.
-         *
-         *     Attributes:
-         *         total: Total number of gear records.
-         *         num_records: Number of records returned.
-         *         page_number: Current page number.
-         *         records: List of gear records.
-         */
-        GearsListResponse: {
-            /**
-             * Num Records
-             * @description Number of records returned
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of gear records
-             */
-            records: components["schemas"]["GearRead"][];
-            /**
-             * Total
-             * @description Total number of gear records
-             */
-            total: number;
         };
         /**
          * Gender
@@ -6569,6 +7205,17 @@ export interface components {
          * @enum {string}
          */
         Gender: "male" | "female" | "unspecified";
+        /**
+         * GeocodingService
+         * @description The reverse-geocoding service in use.
+         *
+         *     Attributes:
+         *         NOMINATIM: A Nominatim instance, the public one by default.
+         *         PHOTON: A Photon instance, the public one by default.
+         *         GEOCODE: geocode.maps.co, a fixed host that needs an API key.
+         * @enum {string}
+         */
+        GeocodingService: "nominatim" | "photon" | "geocode";
         /**
          * GoalType
          * @description Types of measurable user goals.
@@ -6595,6 +7242,36 @@ export interface components {
          */
         HRVStatus: "BALANCED" | "UNBALANCED" | "LOW" | "POOR";
         /**
+         * HealthChartPoint
+         * @description One aggregated point of a health chart.
+         *
+         *     Attributes:
+         *         date: First day of the bucket the point aggregates.
+         *         value: The bucket's aggregated value, in the metric's stored unit.
+         */
+        HealthChartPoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Value */
+            value: number;
+        };
+        /**
+         * HealthChartSeries
+         * @description A health metric aggregated over an interval, oldest bucket first.
+         *
+         *     Attributes:
+         *         bucket: The span each point aggregates.
+         *         points: The buckets that hold data.
+         */
+        HealthChartSeries: {
+            bucket: components["schemas"]["ChartBucket"];
+            /** Points */
+            points: components["schemas"]["HealthChartPoint"][];
+        };
+        /**
          * HealthDashboardResponse
          * @description Consolidated dashboard response with current health metrics.
          *
@@ -6605,6 +7282,7 @@ export interface components {
          *         fasting: Active or most recent fasting session.
          *         water: Today's water intake.
          *         poop: Today's bowel movement summary.
+         *         targets: The user's configured health targets.
          */
         HealthDashboardResponse: {
             /** @description Active or latest fasting session */
@@ -6615,6 +7293,8 @@ export interface components {
             sleep?: components["schemas"]["HealthSleepDashboard"] | null;
             /** @description Latest steps data */
             steps?: components["schemas"]["HealthStepsDashboard"] | null;
+            /** @description The user's health targets */
+            targets?: components["schemas"]["HealthTargetsRead"] | null;
             /** @description Today's water intake */
             water?: components["schemas"]["HealthWaterDashboard"] | null;
             /** @description Latest weight metrics */
@@ -6726,40 +7406,6 @@ export interface components {
             status: string;
         };
         /**
-         * HealthFastingListResponse
-         * @description Response model for listing health fasting records.
-         *
-         *     Extends the base HealthListResponse to provide a typed response containing
-         *     a list of fasting records. This model is used when returning multiple
-         *     fasting entries from API endpoints.
-         *
-         *     Attributes:
-         *         records: A list of HealthFastingRead objects representing individual
-         *         fasting records.
-         */
-        HealthFastingListResponse: {
-            /**
-             * Num Records
-             * @description Number of records in this response
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of fasting records
-             */
-            records: components["schemas"]["HealthFastingRead"][];
-            /**
-             * Total
-             * @description Total number of health records for the user
-             */
-            total: number;
-        };
-        /**
          * HealthFastingRead
          * @description Schema for reading a fasting record.
          *
@@ -6809,6 +7455,12 @@ export interface components {
              * @description Foreign key reference to the user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * HealthFastingStatsResponse
@@ -6856,9 +7508,10 @@ export interface components {
         };
         /**
          * HealthFastingUpdate
-         * @description Schema for updating a fasting record.
+         * @description Schema for the fields a PATCH changes on a fasting record.
          *
-         *     Inherits from HealthFastingRead for consistency with read operations.
+         *     The record is named by the path, so the body carries neither an id nor an owner; only the
+         *     fields present are changed.
          */
         HealthFastingUpdate: {
             /**
@@ -6879,11 +7532,6 @@ export interface components {
             /** @description Type of fasting protocol */
             fasting_type?: components["schemas"]["FastingType"] | null;
             /**
-             * Id
-             * @description Unique identifier for the fasting record
-             */
-            id: number;
-            /**
              * Notes
              * @description Optional notes about the fasting session
              */
@@ -6897,11 +7545,6 @@ export interface components {
              * @description Target fasting duration in seconds (max 72h)
              */
             target_duration_seconds?: number | null;
-            /**
-             * User Id
-             * @description Foreign key reference to the user
-             */
-            user_id: number;
         };
         /**
          * HealthPoopCreate
@@ -6942,36 +7585,6 @@ export interface components {
             count: number;
         };
         /**
-         * HealthPoopListResponse
-         * @description Response model for listing health poop records.
-         *
-         *     Attributes:
-         *         records: A list of HealthPoopRead objects representing
-         *             individual bowel movement records.
-         */
-        HealthPoopListResponse: {
-            /**
-             * Num Records
-             * @description Number of records in this response
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of health poop records
-             */
-            records: components["schemas"]["HealthPoopRead"][];
-            /**
-             * Total
-             * @description Total number of health records for the user
-             */
-            total: number;
-        };
-        /**
          * HealthPoopRead
          * @description Schema for reading a poop record.
          *
@@ -7006,13 +7619,19 @@ export interface components {
              * @description Foreign key reference to the user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * HealthPoopUpdate
-         * @description Schema for updating a poop record.
+         * @description Schema for the fields a PATCH changes on a poop record.
          *
-         *     Inherits from HealthPoopRead for consistency with read
-         *     operations while allowing modifications to poop data.
+         *     The record is named by the path, so the body carries neither an id nor an owner; only the
+         *     fields present are changed.
          */
         HealthPoopUpdate: {
             /** @description Bristol Stool Scale type (1-7) */
@@ -7025,29 +7644,38 @@ export interface components {
              */
             date_time?: string | null;
             /**
-             * Id
-             * @description Unique identifier for the poop record
-             */
-            id: number;
-            /**
              * Notes
              * @description Optional notes about the bowel movement
              */
             notes?: string | null;
             /** @description Source of the data */
             source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
+        };
+        /**
+         * HealthResponse
+         * @description Health of the dependencies this process needs.
+         *
+         *     Attributes:
+         *         status: ``ok``, or ``degraded`` when only the shared state backend is unreachable.
+         *         state: Whether the shared state backend (rate limits, claims, tickets) answers.
+         */
+        HealthResponse: {
             /**
-             * User Id
-             * @description Foreign key reference to the user
+             * State
+             * @enum {string}
              */
-            user_id: number;
+            state: "ok" | "unavailable";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "degraded";
         };
         /**
          * HealthSleepCreate
-         * @description Validator for HealthSleepCreate model that automatically sets the date field.
+         * @description Schema for creating a health sleep record.
          *
-         *     This validator runs after model initialization to ensure that if no date
-         *     is provided, it defaults to today's date.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthSleepCreate: {
             /**
@@ -7252,40 +7880,6 @@ export interface components {
             total_sleep_seconds?: number | null;
         };
         /**
-         * HealthSleepListResponse
-         * @description Response model for listing health sleep records.
-         *
-         *     Extends the base HealthListResponse to provide a typed response containing
-         *     a list of sleep records. This model is used when returning multiple sleep
-         *     entries from API endpoints.
-         *
-         *     Attributes:
-         *         records: A list of HealthSleepRead objects representing individual
-         *             sleep records.
-         */
-        HealthSleepListResponse: {
-            /**
-             * Num Records
-             * @description Number of records in this response
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of health sleep records
-             */
-            records: components["schemas"]["HealthSleepRead"][];
-            /**
-             * Total
-             * @description Total number of health records for the user
-             */
-            total: number;
-        };
-        /**
          * HealthSleepRead
          * @description Read schema for health sleep records.
          *
@@ -7475,6 +8069,12 @@ export interface components {
              * @description Foreign key reference to the user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * HealthSleepStage
@@ -7510,13 +8110,10 @@ export interface components {
         };
         /**
          * HealthSleepUpdate
-         * @description Schema for updating health sleep records.
+         * @description Schema for the fields a PATCH changes on a sleep record.
          *
-         *     Inherits all fields from HealthSleepRead, allowing clients to update
-         *     existing sleep data while maintaining consistency with the read schema.
-         *
-         *     Used in PUT/PATCH requests to modify sleep tracking information such as
-         *     sleep duration, quality, and related health metrics.
+         *     The record is named by the path, so the body carries neither an id nor an owner; only the
+         *     fields present are changed.
          */
         HealthSleepUpdate: {
             /**
@@ -7590,11 +8187,6 @@ export interface components {
             highest_spo2?: number | null;
             /** @description Heart rate variability status */
             hrv_status?: components["schemas"]["HRVStatus"] | null;
-            /**
-             * Id
-             * @description Unique identifier for the sleep record to update
-             */
-            id: number;
             /** @description Light sleep percentage score */
             light_percentage_score?: components["schemas"]["SleepScore"] | null;
             /**
@@ -7692,18 +8284,12 @@ export interface components {
              * @description Unmeasurable sleep duration in seconds
              */
             unmeasurable_sleep_seconds?: number | null;
-            /**
-             * User Id
-             * @description Foreign key reference to the user
-             */
-            user_id: number;
         };
         /**
          * HealthStepsCreate
-         * @description Validator for HealthStepsCreate model that automatically sets the date field.
+         * @description Schema for creating a health steps record.
          *
-         *     This validator runs after model initialization to ensure that if no date
-         *     is provided, it defaults to today's date.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthStepsCreate: {
             /**
@@ -7717,7 +8303,7 @@ export interface components {
              * Steps
              * @description Number of steps taken
              */
-            steps?: number | null;
+            steps: number;
         };
         /**
          * HealthStepsDashboard
@@ -7732,40 +8318,6 @@ export interface components {
              * @description Number of steps taken
              */
             steps?: number | null;
-        };
-        /**
-         * HealthStepsListResponse
-         * @description Response model for listing health steps records.
-         *
-         *     Extends the base HealthListResponse to provide a typed response containing
-         *     a list of steps records. This model is used when returning multiple steps
-         *     entries from API endpoints.
-         *
-         *     Attributes:
-         *         records: A list of HealthStepsRead objects representing individual
-         *             steps records.
-         */
-        HealthStepsListResponse: {
-            /**
-             * Num Records
-             * @description Number of records in this response
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of health steps records
-             */
-            records: components["schemas"]["HealthStepsRead"][];
-            /**
-             * Total
-             * @description Total number of health records for the user
-             */
-            total: number;
         };
         /**
          * HealthStepsRead
@@ -7801,14 +8353,19 @@ export interface components {
              * @description Foreign key reference to the user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * HealthStepsUpdate
-         * @description Schema for updating health steps records.
+         * @description Schema for the fields a PATCH changes on a steps record.
          *
-         *     Inherits from HealthStepsRead to maintain consistency with read operations
-         *     while allowing modifications to health steps data. This schema is used for
-         *     PUT/PATCH requests to update existing health steps entries.
+         *     The record is named by the path, so the body carries neither an id nor an owner; only the
+         *     fields present are changed.
          */
         HealthStepsUpdate: {
             /**
@@ -7816,11 +8373,6 @@ export interface components {
              * @description Calendar date of the steps
              */
             date?: string | null;
-            /**
-             * Id
-             * @description Unique identifier for the steps record to update
-             */
-            id: number;
             /** @description Source of the steps data */
             source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
@@ -7828,11 +8380,6 @@ export interface components {
              * @description Number of steps taken
              */
             steps?: number | null;
-            /**
-             * User Id
-             * @description Foreign key reference to the user
-             */
-            user_id: number;
         };
         /**
          * HealthTargetsRead
@@ -7841,6 +8388,7 @@ export interface components {
          *     Attributes:
          *         id: Unique identifier for the health target record.
          *         user_id: Foreign key reference to the user.
+         *         version: Optimistic-concurrency counter, also sent as the ETag.
          */
         HealthTargetsRead: {
             /**
@@ -7874,6 +8422,12 @@ export interface components {
              */
             user_id: number;
             /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
+            /**
              * Water Ml
              * @description Target daily water intake in milliliters
              */
@@ -7886,10 +8440,10 @@ export interface components {
         };
         /**
          * HealthTargetsUpdate
-         * @description Schema for updating health targets.
+         * @description Schema for the fields a PATCH changes on a user's health targets.
          *
-         *     Inherits all validation from HealthTargetsRead.
-         *     All fields are optional for partial updates.
+         *     The targets belong to the caller, so the body carries neither an id nor an owner; only the
+         *     fields present are changed.
          */
         HealthTargetsUpdate: {
             /**
@@ -7897,11 +8451,6 @@ export interface components {
              * @description Target fasting duration in seconds (max 72h)
              */
             fasting?: number | null;
-            /**
-             * Id
-             * @description Unique identifier for the health target
-             */
-            id: number;
             /**
              * Poop Count
              * @description Target daily bowel movement count
@@ -7918,11 +8467,6 @@ export interface components {
              */
             steps?: number | null;
             /**
-             * User Id
-             * @description Foreign key reference to the user
-             */
-            user_id: number;
-            /**
              * Water Ml
              * @description Target daily water intake in milliliters
              */
@@ -7937,14 +8481,14 @@ export interface components {
          * HealthWaterCreate
          * @description Schema for creating a new water intake record.
          *
-         *     Automatically sets the date to today if not provided.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthWaterCreate: {
             /**
              * Amount Ml
              * @description Water consumed in milliliters
              */
-            amount_ml?: number | null;
+            amount_ml: number;
             /**
              * Date
              * @description Calendar date of the water intake
@@ -7966,36 +8510,6 @@ export interface components {
              * @description Total water consumed today in ml
              */
             amount_ml?: number | null;
-        };
-        /**
-         * HealthWaterListResponse
-         * @description Response model for listing health water intake records.
-         *
-         *     Attributes:
-         *         records: A list of HealthWaterRead objects representing
-         *             individual water intake records.
-         */
-        HealthWaterListResponse: {
-            /**
-             * Num Records
-             * @description Number of records in this response
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of health water intake records
-             */
-            records: components["schemas"]["HealthWaterRead"][];
-            /**
-             * Total
-             * @description Total number of health records for the user
-             */
-            total: number;
         };
         /**
          * HealthWaterRead
@@ -8028,13 +8542,19 @@ export interface components {
              * @description Foreign key reference to the user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * HealthWaterUpdate
-         * @description Schema for updating a water intake record.
+         * @description Schema for the fields a PATCH changes on a water record.
          *
-         *     Inherits from HealthWaterRead for consistency with read
-         *     operations while allowing modifications to water intake data.
+         *     The record is named by the path, so the body carries neither an id nor an owner; only the
+         *     fields present are changed.
          */
         HealthWaterUpdate: {
             /**
@@ -8047,25 +8567,14 @@ export interface components {
              * @description Calendar date of the water intake
              */
             date?: string | null;
-            /**
-             * Id
-             * @description Unique identifier for the water intake record
-             */
-            id: number;
             /** @description Source of the water intake data */
             source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
-            /**
-             * User Id
-             * @description Foreign key reference to the user
-             */
-            user_id: number;
         };
         /**
          * HealthWeightCreate
-         * @description Validator for HealthWeightCreate model that automatically sets the date field.
+         * @description Schema for creating a health weight record.
          *
-         *     This validator runs after model initialization to ensure that if no date
-         *     is provided, it defaults to today's date.
+         *     The date is optional; ``service`` fills it in when the client sends none.
          */
         HealthWeightCreate: {
             /**
@@ -8119,7 +8628,7 @@ export interface components {
              * Weight
              * @description Weight in kilograms
              */
-            weight?: number | null;
+            weight: number;
         };
         /**
          * HealthWeightDashboard
@@ -8140,40 +8649,6 @@ export interface components {
              * @description Weight in kilograms
              */
             weight?: number | null;
-        };
-        /**
-         * HealthWeightListResponse
-         * @description Response model for listing health weight records.
-         *
-         *     Extends the base HealthListResponse to provide a typed response containing
-         *     a list of weight records. This model is used when returning multiple weight
-         *     entries from API endpoints.
-         *
-         *     Attributes:
-         *         records: A list of HealthWeightRead objects representing individual
-         *             weight records.
-         */
-        HealthWeightListResponse: {
-            /**
-             * Num Records
-             * @description Number of records in this response
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of health weight records
-             */
-            records: components["schemas"]["HealthWeightRead"][];
-            /**
-             * Total
-             * @description Total number of health records for the user
-             */
-            total: number;
         };
         /**
          * HealthWeightRead
@@ -8240,6 +8715,12 @@ export interface components {
              */
             user_id: number;
             /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
+            /**
              * Visceral Fat
              * @description Visceral fat
              */
@@ -8252,11 +8733,10 @@ export interface components {
         };
         /**
          * HealthWeightUpdate
-         * @description Schema for updating health weight records.
+         * @description Schema for the fields a PATCH changes on a weight record.
          *
-         *     Inherits from HealthWeightRead to maintain consistency with read operations
-         *     while allowing modifications to health weight data. This schema is used for
-         *     PUT/PATCH requests to update existing health weight entries.
+         *     The record is named by the path, so the body carries neither an id nor an owner; only the
+         *     fields present are changed.
          */
         HealthWeightUpdate: {
             /**
@@ -8285,11 +8765,6 @@ export interface components {
              */
             date?: string | null;
             /**
-             * Id
-             * @description Unique identifier for the weight record to update
-             */
-            id: number;
-            /**
              * Metabolic Age
              * @description Metabolic age
              */
@@ -8307,11 +8782,6 @@ export interface components {
             /** @description Source of the weight data */
             source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
-             * User Id
-             * @description Foreign key reference to the user
-             */
-            user_id: number;
-            /**
              * Visceral Fat
              * @description Visceral fat
              */
@@ -8323,7 +8793,243 @@ export interface components {
             weight?: number | null;
         };
         /**
-         * IdentityProvider
+         * IdentityProviderCreate
+         * @description Schema for creating a new Identity Provider.
+         *
+         *     Inherits from:
+         *         IdentityProviderBase
+         *
+         *     Attributes:
+         *         client_secret (str): OAuth2/OIDC client secret. Must be between 1 and 512 characters.
+         */
+        IdentityProviderCreate: {
+            /**
+             * Authorization Endpoint
+             * @description OAuth2/OIDC authorization endpoint
+             */
+            authorization_endpoint?: string | null;
+            /**
+             * Auto Create Users
+             * @description Auto-create users on first login
+             * @default true
+             */
+            auto_create_users: boolean;
+            /** Client Id */
+            client_id?: string | null;
+            /**
+             * Client Secret
+             * @description OAuth2/OIDC client secret
+             */
+            client_secret: string;
+            /**
+             * Enabled
+             * @description Whether this provider is enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Icon
+             * @description Built-in icon key
+             */
+            icon?: string | null;
+            /**
+             * Issuer Url
+             * @description OIDC issuer/discovery URL
+             */
+            issuer_url?: string | null;
+            /**
+             * Jwks Uri
+             * @description OIDC JWKS URI
+             */
+            jwks_uri?: string | null;
+            /**
+             * Name
+             * @description Display name of the IdP
+             */
+            name: string;
+            /**
+             * Provider Type
+             * @description Provider type: oidc, oauth2, or saml
+             * @default oidc
+             */
+            provider_type: string;
+            /**
+             * Scopes
+             * @description OAuth2/OIDC scopes
+             * @default openid profile email
+             */
+            scopes: string;
+            /**
+             * Slug
+             * @description URL-safe identifier
+             */
+            slug: string;
+            /**
+             * Sync User Info
+             * @description Sync user info on each login
+             * @default true
+             */
+            sync_user_info: boolean;
+            /**
+             * Token Endpoint
+             * @description OAuth2/OIDC token endpoint
+             */
+            token_endpoint?: string | null;
+            /**
+             * User Mapping
+             * @description Claims mapping configuration
+             */
+            user_mapping?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Userinfo Endpoint
+             * @description OIDC userinfo endpoint
+             */
+            userinfo_endpoint?: string | null;
+        };
+        /**
+         * IdentityProviderIconRead
+         * @description The state of a provider's uploaded icon after an upload.
+         *
+         *     Attributes:
+         *         version (int): The provider version that identifies the stored icon.
+         */
+        IdentityProviderIconRead: {
+            /** Version */
+            version: number;
+        };
+        /**
+         * IdentityProviderLinkRead
+         * @description Response schema with enriched identity provider details.
+         *
+         *     Extends Read schema with display fields added by API layer
+         *     for frontend convenience.
+         *
+         *     Attributes:
+         *         idp_name: Identity provider name (enriched).
+         *         idp_slug: Identity provider slug (enriched).
+         *         idp_icon: Identity provider icon (enriched).
+         *         idp_icon_uploaded: Whether an uploaded icon is shown instead of the icon (enriched).
+         *         idp_provider_type: Provider type (enriched).
+         */
+        IdentityProviderLinkRead: {
+            /**
+             * Id
+             * @description Link ID
+             */
+            id: number;
+            /**
+             * Idp Access Token Expires At
+             * @description Access token expiry
+             */
+            idp_access_token_expires_at?: string | null;
+            /**
+             * Idp Icon
+             * @description Identity provider icon
+             */
+            idp_icon?: string | null;
+            /**
+             * Idp Icon Uploaded
+             * @description Whether an uploaded icon is shown instead of the icon
+             * @default false
+             */
+            idp_icon_uploaded: boolean;
+            /**
+             * Idp Id
+             * @description Identity Provider ID
+             */
+            idp_id: number;
+            /**
+             * Idp Name
+             * @description Identity provider name
+             */
+            idp_name?: string | null;
+            /**
+             * Idp Provider Type
+             * @description Provider type
+             */
+            idp_provider_type?: string | null;
+            /**
+             * Idp Refresh Token Updated At
+             * @description Last refresh token update
+             */
+            idp_refresh_token_updated_at?: string | null;
+            /**
+             * Idp Slug
+             * @description Identity provider slug
+             */
+            idp_slug?: string | null;
+            /**
+             * Idp Subject
+             * @description Subject/ID from the identity provider
+             */
+            idp_subject: string;
+            /**
+             * Last Login
+             * @description Last login using this IdP
+             */
+            last_login?: string | null;
+            /**
+             * Linked At
+             * Format: date-time
+             * @description When linked
+             */
+            linked_at: string;
+            /**
+             * User Id
+             * @description User ID
+             */
+            user_id: number;
+        };
+        /**
+         * IdentityProviderLinkTokenRead
+         * @description Schema for IdP link token response.
+         */
+        IdentityProviderLinkTokenRead: {
+            /**
+             * Expires At
+             * Format: date-time
+             * @description Token expiration timestamp
+             */
+            expires_at: string;
+            /**
+             * Token
+             * @description One-time link token
+             */
+            token: string;
+        };
+        /**
+         * IdentityProviderPublicRead
+         * @description Represents the public-facing information of an identity provider.
+         *
+         *     Attributes:
+         *         id (int): Unique identifier of the identity provider.
+         *         name (str): Display name of the identity provider.
+         *         slug (str): URL-friendly unique identifier for the provider.
+         *         icon (str | None): URL or path to the provider's icon image.
+         *         icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
+         *
+         *     Config:
+         *         model_config (dict): Pydantic model configuration to allow population from ORM attributes.
+         */
+        IdentityProviderPublicRead: {
+            /** Icon */
+            icon?: string | null;
+            /**
+             * Icon Uploaded
+             * @default false
+             */
+            icon_uploaded: boolean;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * IdentityProviderRead
          * @description Represents an identity provider with decrypted client credentials.
          *
          *     Inherits from:
@@ -8331,8 +9037,10 @@ export interface components {
          *
          *     Attributes:
          *         id (int): Unique identifier of the identity provider.
+         *         icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
          *         created_at (datetime): Timestamp when the identity provider was created.
          *         updated_at (datetime): Timestamp when the identity provider was last updated.
+         *         version (int): Optimistic-concurrency counter, also sent as the ETag.
          *
          *     Config:
          *         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
@@ -8342,9 +9050,9 @@ export interface components {
          *         decrypt_client_id():
          *             Decrypts the `client_id` attribute after loading from the database.
          *
-         *                 IdentityProvider: The instance with the decrypted `client_id`.
+         *                 IdentityProviderRead: The instance with the decrypted `client_id`.
          */
-        IdentityProvider: {
+        IdentityProviderRead: {
             /**
              * Authorization Endpoint
              * @description OAuth2/OIDC authorization endpoint
@@ -8371,9 +9079,15 @@ export interface components {
             enabled: boolean;
             /**
              * Icon
-             * @description Icon name or URL
+             * @description Built-in icon key
              */
             icon?: string | null;
+            /**
+             * Icon Uploaded
+             * @description Whether an uploaded icon is shown instead of icon
+             * @default false
+             */
+            icon_uploaded: boolean;
             /** Id */
             id: number;
             /**
@@ -8436,128 +9150,15 @@ export interface components {
              * @description OIDC userinfo endpoint
              */
             userinfo_endpoint?: string | null;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
-         * IdentityProviderCreate
-         * @description Schema for creating a new Identity Provider.
-         *
-         *     Inherits from:
-         *         IdentityProviderBase
-         *
-         *     Attributes:
-         *         client_secret (str): OAuth2/OIDC client secret. Must be between 1 and 512 characters.
-         */
-        IdentityProviderCreate: {
-            /**
-             * Authorization Endpoint
-             * @description OAuth2/OIDC authorization endpoint
-             */
-            authorization_endpoint?: string | null;
-            /**
-             * Auto Create Users
-             * @description Auto-create users on first login
-             * @default true
-             */
-            auto_create_users: boolean;
-            /** Client Id */
-            client_id?: string | null;
-            /**
-             * Client Secret
-             * @description OAuth2/OIDC client secret
-             */
-            client_secret: string;
-            /**
-             * Enabled
-             * @description Whether this provider is enabled
-             * @default false
-             */
-            enabled: boolean;
-            /**
-             * Icon
-             * @description Icon name or URL
-             */
-            icon?: string | null;
-            /**
-             * Issuer Url
-             * @description OIDC issuer/discovery URL
-             */
-            issuer_url?: string | null;
-            /**
-             * Jwks Uri
-             * @description OIDC JWKS URI
-             */
-            jwks_uri?: string | null;
-            /**
-             * Name
-             * @description Display name of the IdP
-             */
-            name: string;
-            /**
-             * Provider Type
-             * @description Provider type: oidc, oauth2, or saml
-             * @default oidc
-             */
-            provider_type: string;
-            /**
-             * Scopes
-             * @description OAuth2/OIDC scopes
-             * @default openid profile email
-             */
-            scopes: string;
-            /**
-             * Slug
-             * @description URL-safe identifier
-             */
-            slug: string;
-            /**
-             * Sync User Info
-             * @description Sync user info on each login
-             * @default true
-             */
-            sync_user_info: boolean;
-            /**
-             * Token Endpoint
-             * @description OAuth2/OIDC token endpoint
-             */
-            token_endpoint?: string | null;
-            /**
-             * User Mapping
-             * @description Claims mapping configuration
-             */
-            user_mapping?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Userinfo Endpoint
-             * @description OIDC userinfo endpoint
-             */
-            userinfo_endpoint?: string | null;
-        };
-        /**
-         * IdentityProviderPublic
-         * @description Represents the public-facing information of an identity provider.
-         *
-         *     Attributes:
-         *         id (int): Unique identifier of the identity provider.
-         *         name (str): Display name of the identity provider.
-         *         slug (str): URL-friendly unique identifier for the provider.
-         *         icon (str | None): URL or path to the provider's icon image.
-         *
-         *     Config:
-         *         model_config (dict): Pydantic model configuration to allow population from ORM attributes.
-         */
-        IdentityProviderPublic: {
-            /** Icon */
-            icon?: string | null;
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Slug */
-            slug: string;
-        };
-        /**
-         * IdentityProviderTemplate
+         * IdentityProviderTemplateRead
          * @description Represents a template for an identity provider configuration.
          *
          *     Attributes:
@@ -8571,7 +9172,7 @@ export interface components {
          *         description (str): Description of this template.
          *         configuration_notes (str | None): Setup instructions for this identity provider.
          */
-        IdentityProviderTemplate: {
+        IdentityProviderTemplateRead: {
             /**
              * Configuration Notes
              * @description Setup instructions for this IdP
@@ -8636,7 +9237,7 @@ export interface components {
             enabled: boolean;
             /**
              * Icon
-             * @description Icon name or URL
+             * @description Built-in icon key
              */
             icon?: string | null;
             /**
@@ -8704,15 +9305,17 @@ export interface components {
          *     It must be gated by step-up verification: the caller MUST supply
          *     ``current_password``, and an MFA code when MFA is enabled.
          *
-         *     For SSO-only accounts (no local password set), the password field
-         *     may be omitted and the password check is skipped.
+         *     An account without a local password (it signs in through an identity
+         *     provider) proves a fresh sign-in with a linked provider instead, in
+         *     ``idp_reauth``.
          *
          *     Attributes:
          *         current_password: Caller's existing password (step-up verification).
-         *             Required when the account has a local password; may be omitted
-         *             for SSO-only accounts.
+         *             Required when the account has a local password.
          *         mfa_code: TOTP or backup code, required when MFA is enabled on
          *             the account.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         IdpLinkTokenRequest: {
             /**
@@ -8720,6 +9323,8 @@ export interface components {
              * @description Current password (step-up verification). Required when the account has a local password.
              */
             current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description TOTP or backup code, required when MFA is enabled
@@ -8727,22 +9332,46 @@ export interface components {
             mfa_code?: string | null;
         };
         /**
-         * IdpLinkTokenResponse
-         * @description Schema for IdP link token response.
+         * IdpReauthProof
+         * @description Proof that a password-less account signed in again with its identity provider.
+         *
+         *     The provider's callback hands the ticket to the browser that started the step-up; that browser also holds
+         *     the PKCE verifier whose challenge the ticket records, so a ticket alone cannot be redeemed.
+         *
+         *     Attributes:
+         *         ticket: The single-use step-up ticket.
+         *         code_verifier: The PKCE verifier the step-up was started with.
          */
-        IdpLinkTokenResponse: {
+        IdpReauthProof: {
             /**
-             * Expires At
-             * Format: date-time
-             * @description Token expiration timestamp
+             * Code Verifier
+             * @description PKCE verifier the step-up was started with
              */
-            expires_at: string;
+            code_verifier: string;
             /**
-             * Token
-             * @description One-time link token
+             * Ticket
+             * @description Single-use step-up ticket
              */
-            token: string;
+            ticket: string;
         };
+        /**
+         * ImportFailure
+         * @description Stable, sanitized reasons an import can fail.
+         *
+         *     A closed set: the underlying exception text can carry file names and parser internals, so the
+         *     client gets a code it can translate.
+         * @enum {string}
+         */
+        ImportFailure: "invalid_file" | "too_large" | "too_many_activities" | "timed_out" | "files_incomplete" | "processing_failed";
+        /**
+         * ImportStatus
+         * @description Where a profile import is.
+         *
+         *     ``RUNNING`` is the database part, which is one transaction, so a worker that dies there has
+         *     imported nothing. ``WRITING_FILES`` starts once those rows are committed.
+         * @enum {string}
+         */
+        ImportStatus: "queued" | "running" | "writing_files" | "completed" | "failed";
         /**
          * IngestionJobErrorCode
          * @description Stable, sanitized reasons an ingestion job can fail.
@@ -8765,7 +9394,7 @@ export interface components {
          * @description Lifecycle states of an ingestion job.
          * @enum {string}
          */
-        IngestionJobStatus: "pending" | "processing" | "completed" | "failed";
+        IngestionJobStatus: "pending" | "processing" | "deferred" | "completed" | "failed";
         /**
          * Interval
          * @description Recurrence intervals for user goals.
@@ -8884,18 +9513,110 @@ export interface components {
             type_breakdown?: components["schemas"]["TypeBreakdownItem"][] | null;
         };
         /**
-         * LogoutResponse
+         * LinkFailure
+         * @description Why a Garmin Connect link attempt failed, for the client to word.
+         * @enum {string}
+         */
+        LinkFailure: "invalid_credentials" | "incorrect_mfa" | "too_many_requests" | "internal";
+        /**
+         * LinkStatus
+         * @description Where a Garmin Connect link attempt is.
+         * @enum {string}
+         */
+        LinkStatus: "pending" | "mfa_required" | "completed" | "failed";
+        /**
+         * LogEntry
+         * @description One record of the application log.
+         *
+         *     Attributes:
+         *         timestamp: When the record was written, as the log wrote it, or null if unknown.
+         *         level: Severity of the record.
+         *         logger: Dotted name of the logger that emitted it, or null if unknown.
+         *         message: The log message.
+         *         request_id: ID of the HTTP request that produced it, or null.
+         *         context: Structured fields attached to the record, or null.
+         *         exception: Formatted traceback, or null.
+         */
+        LogEntry: {
+            /** Context */
+            context: {
+                [key: string]: unknown;
+            } | null;
+            /** Exception */
+            exception: string | null;
+            /** Level */
+            level: string;
+            /** Logger */
+            logger: string | null;
+            /** Message */
+            message: string;
+            /** Request Id */
+            request_id: string | null;
+            /** Timestamp */
+            timestamp: string | null;
+        };
+        /**
+         * LogLevel
+         * @description Log levels an admin can filter by, from least to most severe.
+         * @enum {string}
+         */
+        LogLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+        /**
+         * LogPage
+         * @description A slice of the application log.
+         *
+         *     Attributes:
+         *         entries: Matching records, oldest first.
+         *         cursor: Position to pass as ``after`` to receive only records written after this slice.
+         */
+        LogPage: {
+            /**
+             * Cursor
+             * @description Pass as `after` to read only newer records
+             */
+            cursor: number;
+            /** Entries */
+            entries: components["schemas"]["LogEntry"][];
+        };
+        /**
+         * LoginPhotoRead
+         * @description The login photo after an upload.
+         *
+         *     Attributes:
+         *         version: The server settings version that identifies the stored photo; the public photo route
+         *             sends it as the ``ETag``.
+         */
+        LoginPhotoRead: {
+            /**
+             * Version
+             * @description Version that identifies the stored photo
+             */
+            version: number;
+        };
+        /**
+         * LogoutRead
          * @description Response payload returned by the logout endpoint.
          *
          *     Attributes:
          *         message: Human-readable confirmation message.
          */
-        LogoutResponse: {
+        LogoutRead: {
             /** Message */
             message: string;
         };
         /**
-         * MFABackupCodeStatus
+         * LogsStatus
+         * @description Whether the log viewer is available on this deployment.
+         *
+         *     Attributes:
+         *         enabled: True when the application log can be read through the API.
+         */
+        LogsStatus: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /**
+         * MFABackupCodeStatusRead
          * @description Aggregate status of a user's MFA backup codes.
          *
          *     Attributes:
@@ -8905,7 +9626,7 @@ export interface components {
          *         used: Number of backup codes already consumed.
          *         created_at: Timestamp when the current set of codes was generated.
          */
-        MFABackupCodeStatus: {
+        MFABackupCodeStatusRead: {
             /** Created At */
             created_at?: string | null;
             /** Has Codes */
@@ -8918,14 +9639,14 @@ export interface components {
             used: number;
         };
         /**
-         * MFABackupCodesResponse
+         * MFABackupCodesRead
          * @description Response payload returned after generating MFA backup codes.
          *
          *     Attributes:
          *         codes: One-time backup codes shown to the user exactly once.
          *         created_at: Timestamp when the codes were generated.
          */
-        MFABackupCodesResponse: {
+        MFABackupCodesRead: {
             /**
              * Codes
              * @description One-time backup codes
@@ -8936,6 +9657,17 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * MFADisableRead
+         * @description Response returned after MFA is disabled.
+         *
+         *     Attributes:
+         *         message: Confirmation message.
+         */
+        MFADisableRead: {
+            /** Message */
+            message: string;
         };
         /**
          * MFADisableRequest
@@ -8949,16 +9681,17 @@ export interface components {
          *     the supplied input only and do not impose a policy on the
          *     stored password.
          *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
          *
          *     Attributes:
          *         current_password: Caller's existing password (step-up
          *             verification). Required when the account has a local
-         *             password; may be omitted for SSO-only accounts.
+         *             password.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         MFADisableRequest: {
             /**
@@ -8966,6 +9699,8 @@ export interface components {
              * @description Current password (step-up verification). Required when the account has a local password.
              */
             current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description MFA code (6-digit TOTP or XXXX-XXXX)
@@ -8973,34 +9708,51 @@ export interface components {
             mfa_code: string;
         };
         /**
+         * MFAEnableRead
+         * @description Response returned after MFA is enabled.
+         *
+         *     Attributes:
+         *         message: Confirmation message.
+         *         backup_codes: Newly generated one-time backup codes.
+         */
+        MFAEnableRead: {
+            /** Backup Codes */
+            backup_codes: string[];
+            /** Message */
+            message: string;
+        };
+        /**
          * MFALoginRequest
          * @description Schema for MFA login requests.
          *
          *     Attributes:
-         *         username: Username of the user attempting to log in.
+         *         mfa_challenge: The challenge the password step returned for this login.
          *         mfa_code: Either a 6-digit TOTP code or a backup code.
          */
         MFALoginRequest: {
+            /** Mfa Challenge */
+            mfa_challenge: string;
             /** Mfa Code */
             mfa_code: string;
-            /** Username */
-            username: string;
         };
         /**
-         * MFARequiredResponse
+         * MFARequiredRead
          * @description Response indicating MFA verification is required.
          *
          *     Attributes:
          *         mfa_required: Indicates whether MFA is required.
          *         username: Username for which MFA is required.
+         *         mfa_challenge: The challenge the MFA step must send back; it names this login.
          *         message: Message describing the requirement.
          */
-        MFARequiredResponse: {
+        MFARequiredRead: {
             /**
              * Message
              * @default MFA verification required
              */
             message: string;
+            /** Mfa Challenge */
+            mfa_challenge: string;
             /**
              * Mfa Required
              * @default true
@@ -9010,46 +9762,7 @@ export interface components {
             username: string;
         };
         /**
-         * MFASetupRequest
-         * @description Request model for MFA setup verification.
-         *
-         *     Enabling MFA binds a TOTP secret — just handed to the caller
-         *     by ``POST /profile/mfa/setup`` — to the account, and issues
-         *     backup codes. A stolen access token alone must not be enough
-         *     to complete this binding (otherwise the attacker enrols their
-         *     own authenticator and locks the legitimate user out), so the
-         *     request is gated by step-up verification: the caller must
-         *     re-prove their current password in addition to the freshly
-         *     enrolled TOTP code.
-         *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
-         *
-         *     Attributes:
-         *         mfa_code: The 6-digit TOTP code generated from the secret
-         *             returned by the setup endpoint, used to confirm the
-         *             authenticator app is correctly enrolled.
-         *         current_password: Caller's existing password (step-up
-         *             verification). Required when the account has a local
-         *             password; may be omitted for SSO-only accounts.
-         */
-        MFASetupRequest: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
-            /**
-             * Mfa Code
-             * @description 6-digit TOTP code
-             */
-            mfa_code: string;
-        };
-        /**
-         * MFASetupResponse
+         * MFASetupRead
          * @description Response model for MFA setup initialization.
          *
          *     Attributes:
@@ -9057,7 +9770,7 @@ export interface components {
          *         qr_code: Base64-encoded QR code image for setup.
          *         app_name: Application name for MFA setup.
          */
-        MFASetupResponse: {
+        MFASetupRead: {
             /**
              * App Name
              * @description Application name for MFA
@@ -9076,13 +9789,55 @@ export interface components {
             secret: string;
         };
         /**
-         * MFAStatusResponse
+         * MFASetupRequest
+         * @description Request model for MFA setup verification.
+         *
+         *     Enabling MFA binds a TOTP secret — just handed to the caller
+         *     by ``POST /profile/mfa/setup`` — to the account, and issues
+         *     backup codes. A stolen access token alone must not be enough
+         *     to complete this binding (otherwise the attacker enrols their
+         *     own authenticator and locks the legitimate user out), so the
+         *     request is gated by step-up verification: the caller must
+         *     re-prove their current password in addition to the freshly
+         *     enrolled TOTP code.
+         *
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
+         *
+         *     Attributes:
+         *         mfa_code: The 6-digit TOTP code generated from the secret
+         *             returned by the setup endpoint, used to confirm the
+         *             authenticator app is correctly enrolled.
+         *         current_password: Caller's existing password (step-up
+         *             verification). Required when the account has a local
+         *             password.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
+         */
+        MFASetupRequest: {
+            /**
+             * Current Password
+             * @description Current password (step-up verification). Required when the account has a local password.
+             */
+            current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
+            /**
+             * Mfa Code
+             * @description 6-digit TOTP code
+             */
+            mfa_code: string;
+        };
+        /**
+         * MFAStatusRead
          * @description Response model for MFA status.
          *
          *     Attributes:
          *         mfa_enabled: Whether MFA is enabled for the user.
          */
-        MFAStatusResponse: {
+        MFAStatusRead: {
             /**
              * Mfa Enabled
              * @description Whether MFA is enabled
@@ -9090,7 +9845,119 @@ export interface components {
             mfa_enabled: boolean;
         };
         /**
-         * MobileSessionResponse
+         * MFAVerifyRead
+         * @description Response returned after an MFA code is verified.
+         *
+         *     Attributes:
+         *         message: Confirmation message.
+         */
+        MFAVerifyRead: {
+            /** Message */
+            message: string;
+        };
+        /**
+         * MailSecurity
+         * @description How the connection to the mail server is secured.
+         *
+         *     Attributes:
+         *         STARTTLS: ``smtp://``, upgraded with STARTTLS (port 587 by default).
+         *         SSL: ``smtps://``, implicit TLS (port 465 typically).
+         *         NONE: ``smtp://`` in cleartext; a private or loopback relay only, without credentials.
+         * @enum {string}
+         */
+        MailSecurity: "starttls" | "ssl" | "none";
+        /**
+         * MailSettingsAdminRead
+         * @description Mail server settings response for admins; the password is never returned.
+         *
+         *     Attributes:
+         *         id: Unique identifier (always 1, singleton pattern).
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
+         *         host: Mail server hostname, or null when mail is disabled.
+         *         port: Mail server port.
+         *         security: Connection security.
+         *         username: Authentication username.
+         *         from_address: Sender address, or null when the username is used.
+         *         password_set: Whether a password is stored.
+         *         env_managed: Field name to the environment variable that sets it; those
+         *             fields cannot be edited while the variable is set.
+         */
+        MailSettingsAdminRead: {
+            /**
+             * Env Managed
+             * @description Field name to the environment variable that sets it (not editable while set)
+             */
+            env_managed: {
+                [key: string]: string;
+            };
+            /** From Address */
+            from_address: string | null;
+            /** Host */
+            host: string | null;
+            /** Id */
+            id: number;
+            /**
+             * Password Set
+             * @description Is a mail server password stored (true - yes, false - no)
+             */
+            password_set: boolean;
+            /** Port */
+            port: number;
+            security: components["schemas"]["MailSecurity"];
+            /** Username */
+            username: string | null;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             */
+            version: number;
+        };
+        /**
+         * MailSettingsEdit
+         * @description Request body for editing the mail server settings.
+         *
+         *     A full replacement except for the password.
+         *
+         *     Attributes:
+         *         host: Mail server hostname; empty or null disables mail.
+         *         port: Mail server port.
+         *         security: Connection security.
+         *         username: Authentication username.
+         *         from_address: Sender address; the username is used when empty.
+         *         password: Plain-text password; stored encrypted and never returned. Omit it
+         *             to keep the stored password; send null or an empty string to remove it.
+         */
+        MailSettingsEdit: {
+            /**
+             * From Address
+             * @description Sender address (empty - the username is used)
+             */
+            from_address: string | null;
+            /**
+             * Host
+             * @description Mail server hostname (empty - mail disabled)
+             */
+            host: string | null;
+            /**
+             * Password
+             * @description Mail server password (write-only); omit to keep, null or empty to remove
+             */
+            password?: string | null;
+            /**
+             * Port
+             * @description Mail server port
+             */
+            port: number;
+            /** @description Connection security (starttls, ssl, none) */
+            security: components["schemas"]["MailSecurity"];
+            /**
+             * Username
+             * @description Mail server authentication username
+             */
+            username: string | null;
+        };
+        /**
+         * MobileSessionRead
          * @description Response for mobile password login with PKCE exchange flow.
          *
          *     Attributes:
@@ -9098,7 +9965,7 @@ export interface components {
          *         mfa_required: Whether MFA is required.
          *         message: Instructions for the client on next steps.
          */
-        MobileSessionResponse: {
+        MobileSessionRead: {
             /**
              * Message
              * @default Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens
@@ -9212,6 +10079,7 @@ export interface components {
          *
          *     Attributes:
          *         id: Unique notification identifier.
+         *         type: Type of the notification.
          *         user_id: FK to user.
          *         read: Whether the notification has been read.
          *         created_at: Timestamp of creation.
@@ -9244,12 +10112,76 @@ export interface components {
              * Type
              * @description Type of the notification
              */
-            type?: number | null;
+            type: number;
             /**
              * User Id
              * @description FK to user
              */
             user_id: number;
+        };
+        /**
+         * OnboardingCreate
+         * @description Request to create the first administrator.
+         *
+         *     Carries only what the owner chooses; the access level and account state are never accepted.
+         *
+         *     Attributes:
+         *         token: The setup token printed in the server log.
+         */
+        OnboardingCreate: {
+            /**
+             * Email
+             * Format: email
+             * @description User's email address
+             */
+            email: string;
+            /**
+             * Name
+             * @description User's full name
+             */
+            name: string;
+            /**
+             * Password
+             * @description User's password
+             */
+            password: string;
+            /**
+             * Token
+             * @description Setup token printed in the server log
+             */
+            token: string;
+            /**
+             * Username
+             * @description Unique username (alphanumeric, dots, hyphen, underscore)
+             */
+            username: string;
+        };
+        /**
+         * OnboardingStatusRead
+         * @description Whether the installation still needs its first administrator.
+         *
+         *     Attributes:
+         *         onboarding_required: True while no account exists.
+         */
+        OnboardingStatusRead: {
+            /**
+             * Onboarding Required
+             * @description Whether no account exists yet
+             */
+            onboarding_required: boolean;
+        };
+        /** Page[ActivityExerciseTitlesRead] */
+        Page_ActivityExerciseTitlesRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityExerciseTitlesRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
         };
         /** Page[ActivityLapsRead] */
         Page_ActivityLapsRead_: {
@@ -9329,10 +10261,192 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[FollowRelationshipRead] */
-        Page_FollowRelationshipRead_: {
+        /** Page[GearComponentRead] */
+        Page_GearComponentRead_: {
             /** Items */
-            items: components["schemas"]["FollowRelationshipRead"][];
+            items: components["schemas"]["GearComponentRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[GearRead] */
+        Page_GearRead_: {
+            /** Items */
+            items: components["schemas"]["GearRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[HealthFastingRead] */
+        Page_HealthFastingRead_: {
+            /** Items */
+            items: components["schemas"]["HealthFastingRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[HealthPoopRead] */
+        Page_HealthPoopRead_: {
+            /** Items */
+            items: components["schemas"]["HealthPoopRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[HealthSleepRead] */
+        Page_HealthSleepRead_: {
+            /** Items */
+            items: components["schemas"]["HealthSleepRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[HealthStepsRead] */
+        Page_HealthStepsRead_: {
+            /** Items */
+            items: components["schemas"]["HealthStepsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[HealthWaterRead] */
+        Page_HealthWaterRead_: {
+            /** Items */
+            items: components["schemas"]["HealthWaterRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[HealthWeightRead] */
+        Page_HealthWeightRead_: {
+            /** Items */
+            items: components["schemas"]["HealthWeightRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[NotificationRead] */
+        Page_NotificationRead_: {
+            /** Items */
+            items: components["schemas"]["NotificationRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UserPublicRead] */
+        Page_UserPublicRead_: {
+            /** Items */
+            items: components["schemas"]["UserPublicRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UsersApiKeyRead] */
+        Page_UsersApiKeyRead_: {
+            /** Items */
+            items: components["schemas"]["UsersApiKeyRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UsersGoalProgress] */
+        Page_UsersGoalProgress_: {
+            /** Items */
+            items: components["schemas"]["UsersGoalProgress"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UsersGoalRead] */
+        Page_UsersGoalRead_: {
+            /** Items */
+            items: components["schemas"]["UsersGoalRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UsersRead] */
+        Page_UsersRead_: {
+            /** Items */
+            items: components["schemas"]["UsersRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UsersSessionsRead] */
+        Page_UsersSessionsRead_: {
+            /** Items */
+            items: components["schemas"]["UsersSessionsRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -9363,6 +10477,20 @@ export interface components {
             token: string;
         };
         /**
+         * PasswordResetRead
+         * @description Response schema for password reset operations.
+         *
+         *     Attributes:
+         *         message: Informational message for the client.
+         */
+        PasswordResetRead: {
+            /**
+             * Message
+             * @description Informational message for the client
+             */
+            message: string;
+        };
+        /**
          * PasswordResetRequest
          * @description Request schema for initiating a password reset.
          *
@@ -9376,20 +10504,6 @@ export interface components {
              * @description Email address for the reset
              */
             email: string;
-        };
-        /**
-         * PasswordResetResponse
-         * @description Response schema for password reset operations.
-         *
-         *     Attributes:
-         *         message: Informational message for the client.
-         */
-        PasswordResetResponse: {
-            /**
-             * Message
-             * @description Informational message for the client
-             */
-            message: string;
         };
         /**
          * PasswordType
@@ -9456,6 +10570,48 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ProfileExportStatus
+         * @description Where the authenticated user's profile export is.
+         *
+         *     Attributes:
+         *         status: Lifecycle state of the export.
+         *         failure: Why the export failed; set only when it failed.
+         *         size_bytes: Size of the archive; set only when it completed and can be downloaded.
+         */
+        ProfileExportStatus: {
+            /** @description Reason the export failed */
+            failure?: components["schemas"]["ExportFailure"] | null;
+            /**
+             * Size Bytes
+             * @description Archive size in bytes, once completed
+             */
+            size_bytes?: number | null;
+            /** @description Lifecycle state of the export */
+            status: components["schemas"]["ExportStatus"];
+        };
+        /**
+         * ProfileImportStatus
+         * @description Where the authenticated user's profile import is.
+         *
+         *     Attributes:
+         *         status: Lifecycle state of the import.
+         *         failure: Why the import failed; set only when it failed.
+         *         imported: How many items of each kind were imported; set only when it completed.
+         */
+        ProfileImportStatus: {
+            /** @description Reason the import failed */
+            failure?: components["schemas"]["ImportFailure"] | null;
+            /**
+             * Imported
+             * @description Items imported per kind, once completed
+             */
+            imported?: {
+                [key: string]: number;
+            } | null;
+            /** @description Lifecycle state of the import */
+            status: components["schemas"]["ImportStatus"];
+        };
+        /**
          * ProfileUpdate
          * @description Schema for self-service profile updates.
          *
@@ -9470,7 +10626,6 @@ export interface components {
          *     Attributes:
          *         name: User's full name.
          *         username: Unique username.
-         *         email: User's email address.
          *         city: User's city.
          *         birthdate: User's birthdate.
          *         preferred_language: Preferred application language.
@@ -9483,6 +10638,9 @@ export interface components {
          *         timezone: IANA timezone the athlete lives in.
          *
          *     Note:
+         *         ``email`` is deliberately absent. It is the address password resets go to, so changing
+         *         it needs fresh proof of identity and is :class:`EmailChange`.
+         *
          *         ``photo_path`` is deliberately absent. The photo is a
          *         server-issued storage key written only by the upload and
          *         delete endpoints, so accepting it here would let a caller
@@ -9494,8 +10652,6 @@ export interface components {
             /** City */
             city?: string | null;
             currency?: components["schemas"]["Currency"] | null;
-            /** Email */
-            email?: string | null;
             first_day_of_week?: components["schemas"]["WeekDay"] | null;
             gender?: components["schemas"]["Gender"] | null;
             /** Height */
@@ -9524,35 +10680,237 @@ export interface components {
             outgoing?: components["schemas"]["FollowRelationshipRead"] | null;
         };
         /**
-         * ServerSettingsEdit
-         * @description Edit schema for server settings updates.
-         *
-         *     Extends ServerSettings with signup requirement fields.
+         * ServerSettingsAdminRead
+         * @description Complete server settings response for admins; API keys are never returned.
          *
          *     Attributes:
+         *         id: Unique identifier (always 1, singleton pattern).
+         *         login_photo_set: Whether a custom login photo is configured.
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
+         *         tileserver_api_key_set: Whether a tile API key is stored.
+         *         geocoding_api_key_set: Whether a geocoding API key is stored.
+         *         env_managed: Field name to the environment variable that sets it; those
+         *             fields cannot be edited while the variable is set.
+         *         signup_require_admin_approval: Require admin approval for new sign-ups.
+         *         signup_require_email_verification: Require email verification for new sign-ups.
+         */
+        ServerSettingsAdminRead: {
+            /**
+             * Access Token Expire Minutes
+             * @description Access token lifetime in minutes
+             */
+            access_token_expire_minutes: number;
+            /** @description Currency (euro, dollar, pound) */
+            currency: components["schemas"]["Currency"];
+            /**
+             * Env Managed
+             * @description Field name to the environment variable that sets it (not editable while set)
+             */
+            env_managed: {
+                [key: string]: string;
+            };
+            /**
+             * Geocoding Api Key Set
+             * @description Is a geocoding API key stored (true - yes, false - no)
+             */
+            geocoding_api_key_set: boolean;
+            /**
+             * Geocoding Host
+             * @description Host of the geocoding service, e.g. nominatim.example.org:8080 (empty - the service's default)
+             */
+            geocoding_host: string | null;
+            /**
+             * Geocoding Rate Limit
+             * @description Maximum geocoding requests per second (0 disables throttling)
+             */
+            geocoding_rate_limit: number;
+            /** @description Reverse-geocoding service (nominatim, photon, geocode) */
+            geocoding_service: components["schemas"]["GeocodingService"];
+            /**
+             * Geocoding Use Https
+             * @description Address the geocoding host over HTTPS (true - yes, false - no)
+             */
+            geocoding_use_https: boolean;
+            /**
+             * Id
+             * @description Unique identifier for server settings (always 1)
+             */
+            id: number;
+            /**
+             * Local Login Enabled
+             * @description Allow local username/password login (true - yes, false - no)
+             */
+            local_login_enabled: boolean;
+            /**
+             * Login Photo Set
+             * @description Is login photo set (true - yes, false - no)
+             */
+            login_photo_set: boolean;
+            /**
+             * Map Background Color
+             * @description Background color for the map (hex format)
+             */
+            map_background_color: string;
+            /**
+             * Num Records Per Page
+             * @description Number of records per page in lists
+             */
+            num_records_per_page: number;
+            /**
+             * Password Length Admin Users
+             * @description Minimum password length for admin users
+             */
+            password_length_admin_users: number;
+            /**
+             * Password Length Regular Users
+             * @description Minimum password length for regular users
+             */
+            password_length_regular_users: number;
+            /** @description Password type policy (strict, length_only) */
+            password_type: components["schemas"]["PasswordType"];
+            /**
+             * Public Shareable Links
+             * @description Allow public shareable links (true - yes, false - no)
+             */
+            public_shareable_links: boolean;
+            /**
+             * Public Shareable Links User Info
+             * @description Allow show user info on public shareable links (true - yes, false - no)
+             */
+            public_shareable_links_user_info: boolean;
+            /**
+             * Read Notification Retention Days
+             * @description Days after which read notifications are purged (0 - never)
+             */
+            read_notification_retention_days: number;
+            /**
+             * Refresh Token Expire Days
+             * @description Refresh token lifetime in days
+             */
+            refresh_token_expire_days: number;
+            /**
+             * Session Absolute Timeout Hours
+             * @description Hours after which a session ends whatever its activity
+             */
+            session_absolute_timeout_hours: number;
+            /**
+             * Session Idle Timeout Enabled
+             * @description Enforce the session idle timeout (true - yes, false - no); the absolute timeout always applies
+             */
+            session_idle_timeout_enabled: boolean;
+            /**
+             * Session Idle Timeout Hours
+             * @description Hours of inactivity after which a session ends
+             */
+            session_idle_timeout_hours: number;
+            /**
+             * Signup Enabled
+             * @description Allow user sign-up registration (true - yes, false - no)
+             */
+            signup_enabled: boolean;
+            /**
+             * Signup Require Admin Approval
+             * @description Require admin approval for new sign-ups (true - yes, false - no)
+             */
+            signup_require_admin_approval: boolean;
+            /**
+             * Signup Require Email Verification
+             * @description Require email verification for new sign-ups (true - yes, false - no)
+             */
+            signup_require_email_verification: boolean;
+            /**
+             * Sso Auto Redirect
+             * @description Auto-redirect to SSO if only one IdP (true - yes, false - no)
+             */
+            sso_auto_redirect: boolean;
+            /**
+             * Sso Enabled
+             * @description Enable SSO/IdP login (true - yes, false - no)
+             */
+            sso_enabled: boolean;
+            /**
+             * Tileserver Api Key Set
+             * @description Is a tile server API key stored (true - yes, false - no)
+             */
+            tileserver_api_key_set: boolean;
+            /**
+             * Tileserver Attribution
+             * @description Attribution string for the map tileserver
+             */
+            tileserver_attribution: string;
+            /**
+             * Tileserver Regenerate Thumbnails On Change
+             * @description Delete and regenerate all activity thumbnails when tile server settings change
+             */
+            tileserver_regenerate_thumbnails_on_change: boolean;
+            /**
+             * Tileserver Url
+             * @description URL template for the map tileserver
+             */
+            tileserver_url: string;
+            /** @description Units (metric, imperial) */
+            units: components["schemas"]["Units"];
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             */
+            version: number;
+        };
+        /**
+         * ServerSettingsEdit
+         * @description Request body for editing the server settings.
+         *
+         *     A full replacement: every setting except the tile API key is required. The row
+         *     id and the login-photo flag are not here: the id is fixed (singleton) and the
+         *     flag is set only by the login-photo upload and delete routes, so a stale form
+         *     can never reset it.
+         *
+         *     Attributes:
+         *         tileserver_api_key: Plain-text API key for the tile server; stored encrypted
+         *             and never returned. Omit it to keep the stored key; send null or an
+         *             empty string to remove it.
          *         signup_require_admin_approval: Require admin approval for new sign-ups
          *             (true - yes, false - no).
          *         signup_require_email_verification: Require email verification for new
          *             sign-ups (true - yes, false - no).
+         *         geocoding_api_key: Plain-text API key for the geocoding service; same
+         *             write-only semantics as ``tileserver_api_key``.
          */
         ServerSettingsEdit: {
+            /**
+             * Access Token Expire Minutes
+             * @description Access token lifetime in minutes
+             */
+            access_token_expire_minutes: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
-             * Id
-             * @description Unique identifier for server settings (always 1)
+             * Geocoding Api Key
+             * @description API key for the geocoding service (write-only); omit to keep, null or empty to remove
              */
-            id: number;
+            geocoding_api_key?: string | null;
+            /**
+             * Geocoding Host
+             * @description Host of the geocoding service, e.g. nominatim.example.org:8080 (empty - the service's default)
+             */
+            geocoding_host: string | null;
+            /**
+             * Geocoding Rate Limit
+             * @description Maximum geocoding requests per second (0 disables throttling)
+             */
+            geocoding_rate_limit: number;
+            /** @description Reverse-geocoding service (nominatim, photon, geocode) */
+            geocoding_service: components["schemas"]["GeocodingService"];
+            /**
+             * Geocoding Use Https
+             * @description Address the geocoding host over HTTPS (true - yes, false - no)
+             */
+            geocoding_use_https: boolean;
             /**
              * Local Login Enabled
              * @description Allow local username/password login (true - yes, false - no)
              */
             local_login_enabled: boolean;
-            /**
-             * Login Photo Set
-             * @description Is login photo set (true - yes, false - no)
-             */
-            login_photo_set: boolean;
             /**
              * Map Background Color
              * @description Background color for the map (hex format)
@@ -9561,25 +10919,19 @@ export interface components {
             /**
              * Num Records Per Page
              * @description Number of records per page in lists
-             * @default 25
              */
             num_records_per_page: number;
             /**
              * Password Length Admin Users
              * @description Minimum password length for admin users
-             * @default 12
              */
             password_length_admin_users: number;
             /**
              * Password Length Regular Users
              * @description Minimum password length for regular users
-             * @default 8
              */
             password_length_regular_users: number;
-            /**
-             * @description Password type policy (strict, length_only)
-             * @default strict
-             */
+            /** @description Password type policy (strict, length_only) */
             password_type: components["schemas"]["PasswordType"];
             /**
              * Public Shareable Links
@@ -9591,6 +10943,31 @@ export interface components {
              * @description Allow show user info on public shareable links (true - yes, false - no)
              */
             public_shareable_links_user_info: boolean;
+            /**
+             * Read Notification Retention Days
+             * @description Days after which read notifications are purged (0 - never)
+             */
+            read_notification_retention_days: number;
+            /**
+             * Refresh Token Expire Days
+             * @description Refresh token lifetime in days
+             */
+            refresh_token_expire_days: number;
+            /**
+             * Session Absolute Timeout Hours
+             * @description Hours after which a session ends whatever its activity
+             */
+            session_absolute_timeout_hours: number;
+            /**
+             * Session Idle Timeout Enabled
+             * @description Enforce the session idle timeout (true - yes, false - no); the absolute timeout always applies
+             */
+            session_idle_timeout_enabled: boolean;
+            /**
+             * Session Idle Timeout Hours
+             * @description Hours of inactivity after which a session ends
+             */
+            session_idle_timeout_hours: number;
             /**
              * Signup Enabled
              * @description Allow user sign-up registration (true - yes, false - no)
@@ -9618,7 +10995,7 @@ export interface components {
             sso_enabled: boolean;
             /**
              * Tileserver Api Key
-             * @description API key encrypted for the tile server
+             * @description API key for the tile server (write-only); omit to keep, null or empty to remove
              */
             tileserver_api_key?: string | null;
             /**
@@ -9629,7 +11006,6 @@ export interface components {
             /**
              * Tileserver Regenerate Thumbnails On Change
              * @description Delete and regenerate all activity thumbnails when tile server settings change
-             * @default false
              */
             tileserver_regenerate_thumbnails_on_change: boolean;
             /**
@@ -9637,140 +11013,25 @@ export interface components {
              * @description URL template for the map tileserver
              */
             tileserver_url: string;
-            /**
-             * @description Units (metric, imperial)
-             * @default metric
-             */
-            units: components["schemas"]["Units"];
-        };
-        /**
-         * ServerSettingsRead
-         * @description Complete server settings response schema for API responses.
-         *
-         *     Read-only view of all server settings including administrative
-         *     signup configuration. Used for authenticated endpoints returning
-         *     complete server configuration.
-         */
-        ServerSettingsRead: {
-            /** @description Currency (euro, dollar, pound) */
-            currency: components["schemas"]["Currency"];
-            /**
-             * Id
-             * @description Unique identifier for server settings (always 1)
-             */
-            id: number;
-            /**
-             * Local Login Enabled
-             * @description Allow local username/password login (true - yes, false - no)
-             */
-            local_login_enabled: boolean;
-            /**
-             * Login Photo Set
-             * @description Is login photo set (true - yes, false - no)
-             */
-            login_photo_set: boolean;
-            /**
-             * Map Background Color
-             * @description Background color for the map (hex format)
-             */
-            map_background_color: string;
-            /**
-             * Num Records Per Page
-             * @description Number of records per page in lists
-             * @default 25
-             */
-            num_records_per_page: number;
-            /**
-             * Password Length Admin Users
-             * @description Minimum password length for admin users
-             * @default 12
-             */
-            password_length_admin_users: number;
-            /**
-             * Password Length Regular Users
-             * @description Minimum password length for regular users
-             * @default 8
-             */
-            password_length_regular_users: number;
-            /**
-             * @description Password type policy (strict, length_only)
-             * @default strict
-             */
-            password_type: components["schemas"]["PasswordType"];
-            /**
-             * Public Shareable Links
-             * @description Allow public shareable links (true - yes, false - no)
-             */
-            public_shareable_links: boolean;
-            /**
-             * Public Shareable Links User Info
-             * @description Allow show user info on public shareable links (true - yes, false - no)
-             */
-            public_shareable_links_user_info: boolean;
-            /**
-             * Signup Enabled
-             * @description Allow user sign-up registration (true - yes, false - no)
-             */
-            signup_enabled: boolean;
-            /**
-             * Signup Require Admin Approval
-             * @description Require admin approval for new sign-ups (true - yes, false - no)
-             */
-            signup_require_admin_approval: boolean;
-            /**
-             * Signup Require Email Verification
-             * @description Require email verification for new sign-ups (true - yes, false - no)
-             */
-            signup_require_email_verification: boolean;
-            /**
-             * Sso Auto Redirect
-             * @description Auto-redirect to SSO if only one IdP (true - yes, false - no)
-             */
-            sso_auto_redirect: boolean;
-            /**
-             * Sso Enabled
-             * @description Enable SSO/IdP login (true - yes, false - no)
-             */
-            sso_enabled: boolean;
-            /**
-             * Tileserver Api Key
-             * @description API key encrypted for the tile server
-             */
-            tileserver_api_key?: string | null;
-            /**
-             * Tileserver Attribution
-             * @description Attribution string for the map tileserver
-             */
-            tileserver_attribution: string;
-            /**
-             * Tileserver Regenerate Thumbnails On Change
-             * @description Delete and regenerate all activity thumbnails when tile server settings change
-             * @default false
-             */
-            tileserver_regenerate_thumbnails_on_change: boolean;
-            /**
-             * Tileserver Url
-             * @description URL template for the map tileserver
-             */
-            tileserver_url: string;
-            /**
-             * @description Units (metric, imperial)
-             * @default metric
-             */
+            /** @description Units (metric, imperial) */
             units: components["schemas"]["Units"];
         };
         /**
          * ServerSettingsReadPublic
          * @description Public-facing schema for unauthenticated server settings access.
          *
-         *     Provides only public-safe server settings, excluding sensitive
-         *     configuration like signup requirements. Used for the public API
+         *     Provides only public-safe server settings. Used for the public API
          *     endpoint that doesn't require authentication.
          *
          *     Inherits all safe fields from ServerSettingsBase but explicitly
-         *     excludes admin-level configuration fields.
+         *     excludes admin-level configuration fields. The email-verification
+         *     requirement is public because the sign-up form depends on it and the
+         *     sign-up response already discloses it; admin approval stays admin-only.
          *
          *     Attributes:
+         *         signup_require_email_verification: Whether a new sign-up must verify its email
+         *             address, which is also when the password is chosen.
+         *         login_photo_set: Whether a custom login photo is configured.
          *         allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
          *             SSO redirects may target, so the frontend validates the same allow-list
          *             as the backend.
@@ -9778,9 +11039,9 @@ export interface components {
         ServerSettingsReadPublic: {
             /**
              * Allowed Redirect Schemes
-             * @description Return the configured custom redirect schemes, sorted.
+             * @description Custom URI schemes SSO redirects may target
              */
-            readonly allowed_redirect_schemes: string[];
+            allowed_redirect_schemes: string[];
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
@@ -9801,25 +11062,19 @@ export interface components {
             /**
              * Num Records Per Page
              * @description Number of records per page in lists
-             * @default 25
              */
             num_records_per_page: number;
             /**
              * Password Length Admin Users
              * @description Minimum password length for admin users
-             * @default 12
              */
             password_length_admin_users: number;
             /**
              * Password Length Regular Users
              * @description Minimum password length for regular users
-             * @default 8
              */
             password_length_regular_users: number;
-            /**
-             * @description Password type policy (strict, length_only)
-             * @default strict
-             */
+            /** @description Password type policy (strict, length_only) */
             password_type: components["schemas"]["PasswordType"];
             /**
              * Public Shareable Links
@@ -9836,6 +11091,11 @@ export interface components {
              * @description Allow user sign-up registration (true - yes, false - no)
              */
             signup_enabled: boolean;
+            /**
+             * Signup Require Email Verification
+             * @description Require email verification for new sign-ups (true - yes, false - no)
+             */
+            signup_require_email_verification: boolean;
             /**
              * Sso Auto Redirect
              * @description Auto-redirect to SSO if only one IdP (true - yes, false - no)
@@ -9854,7 +11114,6 @@ export interface components {
             /**
              * Tileserver Regenerate Thumbnails On Change
              * @description Delete and regenerate all activity thumbnails when tile server settings change
-             * @default false
              */
             tileserver_regenerate_thumbnails_on_change: boolean;
             /**
@@ -9862,10 +11121,7 @@ export interface components {
              * @description URL template for the map tileserver
              */
             tileserver_url: string;
-            /**
-             * @description Units (metric, imperial)
-             * @default metric
-             */
+            /** @description Units (metric, imperial) */
             units: components["schemas"]["Units"];
         };
         /**
@@ -9874,8 +11130,11 @@ export interface components {
          *
          *     Attributes:
          *         token: The sign-up token received by user.
+         *         password: The password the user chooses while confirming a sign-up; omitted for an email change.
          */
         SignUpConfirm: {
+            /** Password */
+            password?: string | null;
             /**
              * Token
              * @description The sign-up token received by the user
@@ -9883,7 +11142,7 @@ export interface components {
             token: string;
         };
         /**
-         * SignUpResponse
+         * SignUpRead
          * @description Response schema for sign-up operations.
          *
          *     Attributes:
@@ -9891,7 +11150,7 @@ export interface components {
          *         email_verification_required: Whether email verification is required.
          *         admin_approval_required: Whether admin approval is required.
          */
-        SignUpResponse: {
+        SignUpRead: {
             /**
              * Admin Approval Required
              * @description Whether admin approval is required
@@ -9933,6 +11192,59 @@ export interface components {
          */
         SleepStageType: 0 | 1 | 2 | 3;
         /**
+         * StepUpAction
+         * @description A sensitive operation a step-up re-authentication can authorise, so a ticket for one cannot pay for another.
+         *
+         *     Attributes:
+         *         API_KEY_CREATE: Create an API key.
+         *         IDP_LINK: Mint a token that links an identity provider.
+         *         IDP_UNLINK: Unlink an identity provider.
+         *         EMAIL_CHANGE: Change the account's email address.
+         *         ACCOUNT_DELETE: Delete the account.
+         *         MFA_ENABLE: Enable MFA.
+         *         MFA_DISABLE: Disable MFA.
+         *         MFA_BACKUP_CODES: Regenerate MFA backup codes.
+         * @enum {string}
+         */
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes";
+        /**
+         * StepUpStartRead
+         * @description Where to send the browser for a step-up re-authentication.
+         *
+         *     Attributes:
+         *         authorization_url: The identity provider's authorization URL.
+         */
+        StepUpStartRead: {
+            /**
+             * Authorization Url
+             * @description Identity provider authorization URL
+             */
+            authorization_url: string;
+        };
+        /**
+         * StepUpStartRequest
+         * @description Start a step-up re-authentication with a linked identity provider.
+         *
+         *     Attributes:
+         *         code_challenge: S256 challenge of a PKCE verifier the browser keeps until it sends the sensitive request.
+         *         action: The sensitive operation the step-up authorises.
+         *         redirect: Relative frontend path the provider's callback returns to.
+         */
+        StepUpStartRequest: {
+            /** @description Sensitive operation the step-up authorises */
+            action: components["schemas"]["StepUpAction"];
+            /**
+             * Code Challenge
+             * @description PKCE S256 challenge
+             */
+            code_challenge: string;
+            /**
+             * Redirect
+             * @description Relative path to return to
+             */
+            redirect: string;
+        };
+        /**
          * StepUpVerification
          * @description Generic step-up verification payload.
          *
@@ -9940,18 +11252,18 @@ export interface components {
          *     creation, MFA backup-code regeneration, etc.) to require
          *     fresh proof of identity beyond a valid access token.
          *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
          *
          *     Attributes:
          *         current_password: Caller's existing password. Required
-         *             when the account has a local password; may be
-         *             omitted for SSO-only accounts.
+         *             when the account has a local password.
          *         mfa_code: TOTP or backup code, required when MFA is
          *             enabled on the account.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         StepUpVerification: {
             /**
@@ -9959,19 +11271,93 @@ export interface components {
              * @description Current password (step-up verification). Required when the account has a local password.
              */
             current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description TOTP or backup code, required when MFA is enabled
              */
             mfa_code?: string | null;
         };
-        /** StravaClient */
-        StravaClient: {
+        /**
+         * StravaClientCredentials
+         * @description A user's Strava API application credentials.
+         *
+         *     Attributes:
+         *         client_id: The Strava application's client id.
+         *         client_secret: The Strava application's client secret.
+         */
+        StravaClientCredentials: {
             /** Client Id */
-            client_id: number | null;
-            /** Client Secret */
-            client_secret: string | null;
+            client_id: number;
+            /**
+             * Client Secret
+             * Format: password
+             */
+            client_secret: string;
         };
+        /**
+         * StravaDetail
+         * @description The outcome of a Strava account request.
+         */
+        StravaDetail: {
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * StravaGearImportResult
+         * @description What a Strava gear CSV import created.
+         *
+         *     Attributes:
+         *         imported: How many gear entries the upload produced.
+         */
+        StravaGearImportResult: {
+            /** Imported */
+            imported: number;
+        };
+        /**
+         * StravaLinkRequest
+         * @description The OAuth callback values that complete a Strava link.
+         *
+         *     Attributes:
+         *         state: The one-time state stored before the OAuth round-trip.
+         *         code: The authorization code Strava returned.
+         */
+        StravaLinkRequest: {
+            /** Code */
+            code: string;
+            /** State */
+            state: string;
+        };
+        /**
+         * StravaState
+         * @description The one-time state the browser round-trips through Strava.
+         *
+         *     Attributes:
+         *         state: The opaque state, to be sent to Strava and handed back with the authorization code.
+         */
+        StravaState: {
+            /** State */
+            state: string;
+        };
+        /**
+         * StravaSyncStatus
+         * @description Where a queued Strava gear sync or unlink is.
+         *
+         *     Attributes:
+         *         kind: What the sync does.
+         *         status: Where it is.
+         */
+        StravaSyncStatus: {
+            kind: components["schemas"]["modules__strava__constants__SyncKind"];
+            status: components["schemas"]["SyncStatus"];
+        };
+        /**
+         * SyncStatus
+         * @description Where a queued provider sync is.
+         * @enum {string}
+         */
+        SyncStatus: "queued" | "running" | "completed" | "failed";
         /**
          * TileMapsTemplate
          * @description Schema representing available tile map templates.
@@ -10023,26 +11409,7 @@ export interface components {
             url_template: string;
         };
         /**
-         * TokenExchangeRequest
-         * @description Request schema for mobile PKCE token exchange.
-         *
-         *     After OAuth callback completes, mobile clients exchange the session_id
-         *     for actual JWT tokens by proving they possess the code_verifier that
-         *     matches the code_challenge sent during login initiation.
-         *
-         *     Attributes:
-         *         code_verifier (str): PKCE code verifier (43-128 chars, base64url).
-         *             Must hash to the code_challenge stored in OAuth state.
-         */
-        TokenExchangeRequest: {
-            /**
-             * Code Verifier
-             * @description PKCE code verifier (base64url, 43-128 chars)
-             */
-            code_verifier: string;
-        };
-        /**
-         * TokenExchangeResponse
+         * TokenExchangeRead
          * @description Response schema for successful PKCE token exchange.
          *
          *     Returns the actual JWT tokens that clients need for API access.
@@ -10059,7 +11426,7 @@ export interface components {
          *         refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
          *         token_type (str): Token type, always "Bearer".
          */
-        TokenExchangeResponse: {
+        TokenExchangeRead: {
             /**
              * Access Token
              * @description JWT access token
@@ -10100,7 +11467,33 @@ export interface components {
             token_type: string;
         };
         /**
-         * TokenResponseMobile
+         * TokenExchangeRequest
+         * @description Request schema for mobile PKCE token exchange.
+         *
+         *     After OAuth callback completes, mobile clients exchange the session_id
+         *     for actual JWT tokens by proving they possess the code_verifier that
+         *     matches the code_challenge sent during login initiation.
+         *
+         *     Attributes:
+         *         code_verifier (str): PKCE code verifier (43-128 chars, base64url).
+         *             Must hash to the code_challenge stored in OAuth state.
+         *         mfa_code (str | None): TOTP or backup code. Required when the session
+         *             came from an identity provider and the account has MFA enabled.
+         */
+        TokenExchangeRequest: {
+            /**
+             * Code Verifier
+             * @description PKCE code verifier (base64url, 43-128 chars)
+             */
+            code_verifier: string;
+            /**
+             * Mfa Code
+             * @description MFA code, required for an identity-provider session of an account with MFA enabled
+             */
+            mfa_code?: string | null;
+        };
+        /**
+         * TokenMobileRead
          * @description Token response payload for mobile clients.
          *
          *     Attributes:
@@ -10111,7 +11504,7 @@ export interface components {
          *         expires_in: Seconds until the access token expires.
          *         refresh_token_expires_in: Seconds until the refresh token expires.
          */
-        TokenResponseMobile: {
+        TokenMobileRead: {
             /** Access Token */
             access_token: string;
             /** Expires In */
@@ -10130,7 +11523,7 @@ export interface components {
             token_type: "bearer";
         };
         /**
-         * TokenResponseWeb
+         * TokenWebRead
          * @description Token response payload for web clients.
          *
          *     Attributes:
@@ -10141,7 +11534,7 @@ export interface components {
          *         expires_in: Seconds until the access token expires.
          *         refresh_token_expires_in: Seconds until the refresh token expires.
          */
-        TokenResponseWeb: {
+        TokenWebRead: {
             /** Access Token */
             access_token: string;
             /** Csrf Token */
@@ -10230,6 +11623,95 @@ export interface components {
          */
         UserAccessType: "regular" | "admin";
         /**
+         * UserDeletionStatus
+         * @description Where a queued account deletion is.
+         *
+         *     Attributes:
+         *         status: Lifecycle state of the deletion.
+         */
+        UserDeletionStatus: {
+            /** @description Lifecycle state of the account deletion */
+            status: components["schemas"]["SyncStatus"];
+        };
+        /**
+         * UserPhotoRead
+         * @description The photo a user has after an upload.
+         *
+         *     Attributes:
+         *         photo_path: Servable URL of the user's photo, or None when none is stored.
+         */
+        UserPhotoRead: {
+            /**
+             * Photo Path
+             * @description Servable URL of the user's photo
+             */
+            photo_path?: string | null;
+        };
+        /**
+         * UserProfileOverviewRead
+         * @description Public profile and summary metrics displayed on a user's profile page.
+         *
+         *     Attributes:
+         *         user: The profile's public user projection.
+         *         week_stats: Visible per-sport activity totals for the current week.
+         *         month_stats: Visible per-sport activity totals for the current month.
+         *         month_activity_count: Visible activity count for the current month.
+         *         followers_count: Accepted followers, or None when the viewer cannot see the network.
+         *         following_count: Accepted followees, or None when the viewer cannot see the network.
+         */
+        UserProfileOverviewRead: {
+            /** Followers Count */
+            followers_count?: number | null;
+            /** Following Count */
+            following_count?: number | null;
+            /** Month Activity Count */
+            month_activity_count: number;
+            month_stats: components["schemas"]["ActivityStatsRead"];
+            user: components["schemas"]["UserPublicRead"];
+            week_stats: components["schemas"]["ActivityStatsRead"];
+        };
+        /**
+         * UserPublicRead
+         * @description What any signed-in viewer, or an anonymous one on a shared link, may learn about a user.
+         *
+         *     A deliberate subset of :class:`UsersRead`: no email, birthdate, access level or account
+         *     state, so a lookup cannot be used to harvest personal data or to probe who is an admin.
+         *
+         *     Attributes:
+         *         id: User ID.
+         *         name: User's full name.
+         *         username: Unique username.
+         *         city: User's city.
+         *         photo_path: Servable URL of the user's photo.
+         */
+        UserPublicRead: {
+            /**
+             * City
+             * @description User's city
+             */
+            city?: string | null;
+            /**
+             * Id
+             * @description User ID
+             */
+            id: number;
+            /**
+             * Name
+             * @description User's full name
+             */
+            name: string;
+            /**
+             * Photo Path
+             * @description Servable URL of the user's photo
+             */
+            photo_path?: string | null;
+            /**
+             * Username
+             * @description Unique username
+             */
+            username: string;
+        };
+        /**
          * UsersAdminEditPassword
          * @description Schema for admin password reset operations.
          *
@@ -10257,11 +11739,10 @@ export interface components {
          *     verification. The caller MUST supply ``current_password``,
          *     and an MFA code when MFA is enabled on the account.
          *
-         *     For SSO-only accounts (no local password set), the password
-         *     field may be omitted and the password check is skipped — see
-         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-         *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
-         *     and the tracked SSO-only step-up gap.
+         *     An account without a local password (it signs in through an
+         *     identity provider) proves a fresh sign-in with a linked provider
+         *     instead: ``idp_reauth`` carries the ticket from
+         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
          *
          *     Attributes:
          *         name: User-friendly label for the key.
@@ -10270,10 +11751,11 @@ export interface components {
          *             None means the key never expires.
          *         current_password: Caller's existing password
          *             (step-up verification). Required when the account
-         *             has a local password; may be omitted for SSO-only
-         *             accounts.
+         *             has a local password.
          *         mfa_code: TOTP or backup code, required when MFA
          *             is enabled on the account.
+         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
+         *             when the account has no local password.
          */
         UsersApiKeyCreate: {
             /**
@@ -10286,6 +11768,8 @@ export interface components {
              * @description Optional expiration datetime. None means the key never expires.
              */
             expires_at?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description TOTP or backup code, required when MFA is enabled
@@ -10303,7 +11787,7 @@ export interface components {
             scopes: string[];
         };
         /**
-         * UsersApiKeyCreated
+         * UsersApiKeyCreatedRead
          * @description API key creation response schema.
          *
          *     Extends UsersApiKeyRead with the raw key, returned
@@ -10314,7 +11798,7 @@ export interface components {
          *         key: The full raw API key. Show to the user
          *             once and discard.
          */
-        UsersApiKeyCreated: {
+        UsersApiKeyCreatedRead: {
             /**
              * Created At
              * Format: date-time
@@ -10620,6 +12104,12 @@ export interface components {
              */
             user_id: number;
             /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
+            /**
              * Virtual Ride Gear Id
              * @description Default gear for virtual ride activities
              */
@@ -10644,8 +12134,8 @@ export interface components {
          * UsersDefaultGearUpdate
          * @description Schema for updating user default gear settings.
          *
-         *     Inherits all gear assignment fields from read schema.
-         *     All fields are optional for partial updates.
+         *     Carries only the gear assignments, all optional for partial updates. The record is the
+         *     authenticated user's own, so the body names neither the record nor the user.
          */
         UsersDefaultGearUpdate: {
             /**
@@ -10663,11 +12153,6 @@ export interface components {
              * @description Default gear for hike activities
              */
             hike_gear_id?: number | null;
-            /**
-             * Id
-             * @description Unique identifier
-             */
-            id: number;
             /**
              * Mtb Ride Gear Id
              * @description Default gear for MTB ride activities
@@ -10709,11 +12194,6 @@ export interface components {
              */
             trail_run_gear_id?: number | null;
             /**
-             * User Id
-             * @description User ID
-             */
-            user_id: number;
-            /**
              * Virtual Ride Gear Id
              * @description Default gear for virtual ride activities
              */
@@ -10733,6 +12213,112 @@ export interface components {
              * @description Default gear for windsurf activities
              */
             windsurf_gear_id?: number | null;
+        };
+        /**
+         * UsersEdit
+         * @description Users schema for an administrative edit.
+         *
+         *     The stored columns of a user and nothing a read adds: ``id`` is the path, and
+         *     ``external_auth_count`` and the pending email change are derived. ``photo_path`` and ``mfa_enabled`` are read-only
+         *     projections, so a write ignores them.
+         */
+        UsersEdit: {
+            /** @description User access level */
+            access_type: components["schemas"]["UserAccessType"];
+            /**
+             * Active
+             * @description Whether the user is active
+             */
+            active: boolean;
+            /**
+             * Birthdate
+             * @description User's birthdate
+             */
+            birthdate?: string | null;
+            /**
+             * City
+             * @description User's city
+             */
+            city?: string | null;
+            /**
+             * @description User currency (euro, dollar, pound)
+             * @default euro
+             */
+            currency: components["schemas"]["Currency"];
+            /**
+             * Email
+             * Format: email
+             * @description User's email address
+             */
+            email: string;
+            /**
+             * Email Verified
+             * @description Whether email is verified
+             * @default false
+             */
+            email_verified: boolean;
+            /**
+             * @description First day of the week
+             * @default monday
+             */
+            first_day_of_week: components["schemas"]["WeekDay"];
+            /**
+             * @description User's gender
+             * @default unspecified
+             */
+            gender: components["schemas"]["Gender"];
+            /**
+             * Height
+             * @description Height in centimeters
+             */
+            height?: number | null;
+            /**
+             * Max Heart Rate
+             * @description Maximum heart rate in bpm
+             */
+            max_heart_rate?: number | null;
+            /**
+             * Mfa Enabled
+             * @description Whether MFA is enabled
+             * @default false
+             */
+            mfa_enabled: boolean;
+            /**
+             * Name
+             * @description User's full name
+             */
+            name: string;
+            /**
+             * Pending Admin Approval
+             * @description Whether pending admin approval
+             * @default false
+             */
+            pending_admin_approval: boolean;
+            /**
+             * Photo Path
+             * @description Servable URL of the user's photo (read-only)
+             */
+            photo_path?: string | null;
+            /**
+             * @description Preferred language
+             * @default en
+             */
+            preferred_language: components["schemas"]["Language"];
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
+             * @description User units (metric, imperial)
+             * @default metric
+             */
+            units: components["schemas"]["Units"];
+            /**
+             * Username
+             * @description Unique username (alphanumeric, dots, hyphen, underscore)
+             */
+            username: string;
         };
         /**
          * UsersEditPassword
@@ -10772,6 +12358,20 @@ export interface components {
              * @default false
              */
             revoke_other_sessions: boolean;
+        };
+        /**
+         * UsersEmailLookup
+         * @description Schema for looking a user up by email address.
+         *
+         *     Attributes:
+         *         email: Email address to search for, case-insensitive.
+         */
+        UsersEmailLookup: {
+            /**
+             * Email
+             * @description Email address to search for
+             */
+            email: string;
         };
         /**
          * UsersGoalCreate
@@ -10962,12 +12562,19 @@ export interface components {
              * @description User who owns this goal
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * UsersGoalUpdate
-         * @description Schema for updating an existing users goal.
+         * @description Schema for replacing an existing users goal.
          *
-         *     Supports partial updates. Omitted fields remain unchanged.
+         *     The goal is named by the path, so the body carries neither an id nor an owner. It is the whole
+         *     goal, because the goal type decides which target field is required.
          */
         UsersGoalUpdate: {
             /** @description Type of activity for the goal */
@@ -10999,126 +12606,8 @@ export interface components {
             goal_elevation?: number | null;
             /** @description Type of goal metric being tracked */
             goal_type: components["schemas"]["GoalType"];
-            /**
-             * Id
-             * @description Unique identifier for the goal
-             */
-            id: number;
             /** @description Goal time interval */
             interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
-            /**
-             * User Id
-             * @description User who owns this goal
-             */
-            user_id: number;
-        };
-        /**
-         * UsersIdentityProviderResponse
-         * @description Response schema with enriched identity provider details.
-         *
-         *     Extends Read schema with display fields added by API layer
-         *     for frontend convenience.
-         *
-         *     Attributes:
-         *         idp_name: Identity provider name (enriched).
-         *         idp_slug: Identity provider slug (enriched).
-         *         idp_icon: Identity provider icon (enriched).
-         *         idp_provider_type: Provider type (enriched).
-         */
-        UsersIdentityProviderResponse: {
-            /**
-             * Id
-             * @description Link ID
-             */
-            id: number;
-            /**
-             * Idp Access Token Expires At
-             * @description Access token expiry
-             */
-            idp_access_token_expires_at?: string | null;
-            /**
-             * Idp Icon
-             * @description Identity provider icon
-             */
-            idp_icon?: string | null;
-            /**
-             * Idp Id
-             * @description Identity Provider ID
-             */
-            idp_id: number;
-            /**
-             * Idp Name
-             * @description Identity provider name
-             */
-            idp_name?: string | null;
-            /**
-             * Idp Provider Type
-             * @description Provider type
-             */
-            idp_provider_type?: string | null;
-            /**
-             * Idp Refresh Token Updated At
-             * @description Last refresh token update
-             */
-            idp_refresh_token_updated_at?: string | null;
-            /**
-             * Idp Slug
-             * @description Identity provider slug
-             */
-            idp_slug?: string | null;
-            /**
-             * Idp Subject
-             * @description Subject/ID from the identity provider
-             */
-            idp_subject: string;
-            /**
-             * Last Login
-             * @description Last login using this IdP
-             */
-            last_login?: string | null;
-            /**
-             * Linked At
-             * Format: date-time
-             * @description When linked
-             */
-            linked_at: string;
-            /**
-             * User Id
-             * @description User ID
-             */
-            user_id: number;
-        };
-        /**
-         * UsersListResponse
-         * @description Response model for paginated user listing.
-         *
-         *     Attributes:
-         *         total: Total number of user records.
-         *         num_records: Number of records in this response.
-         *         page_number: Current page number.
-         *         records: List of user records.
-         */
-        UsersListResponse: {
-            /**
-             * Num Records
-             * @description Number of records in this response
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of user records
-             */
-            records: components["schemas"]["UsersRead"][];
-            /**
-             * Total
-             * @description Total number of user records
-             */
-            total: number;
         };
         /**
          * UsersMe
@@ -11127,6 +12616,8 @@ export interface components {
          *     Includes privacy settings and integration status.
          *
          *     Attributes:
+         *         privacy_settings_version: Version of the privacy settings, for ``If-Match``.
+         *         integrations_version: Version of the integrations, for ``If-Match`` when the Strava client is set.
          *         is_strava_linked: Strava integration status.
          *         is_garminconnect_linked: Garmin Connect status.
          *         default_activity_visibility: Default visibility level.
@@ -11144,7 +12635,8 @@ export interface components {
          *             sets/steps.
          *         hide_activity_gear: Hide gear setting.
          *         has_local_password: Whether the account has a local
-         *             password (False for SSO-only accounts).
+         *             password (False for accounts that sign in through an
+         *             identity provider).
          */
         UsersMe: {
             /** @description User access level */
@@ -11204,9 +12696,9 @@ export interface components {
             gender: components["schemas"]["Gender"];
             /**
              * Has Local Password
-             * @description Whether the account has a local password set. False indicates an SSO-only account, in which case step-up flows must skip the password factor. The raw password hash is never exposed; only this derived boolean is returned.
+             * @description Whether the account has a local password set. False indicates an account that signs in through an identity provider; its step-up proves a fresh sign-in with that provider instead of a password. The raw password hash is never exposed; only this derived boolean is returned.
              */
-            has_local_password?: boolean | null;
+            has_local_password: boolean;
             /**
              * Height
              * @description Height in centimeters
@@ -11278,6 +12770,11 @@ export interface components {
              */
             id: number;
             /**
+             * Integrations Version
+             * @description Version of the integrations, sent back in If-Match when the Strava client is set
+             */
+            integrations_version?: number | null;
+            /**
              * Is Garminconnect Linked
              * @description Whether Garmin Connect is linked
              */
@@ -11310,6 +12807,16 @@ export interface components {
              */
             pending_admin_approval: boolean;
             /**
+             * Pending Email
+             * @description Email address awaiting confirmation, which replaces the current one once confirmed
+             */
+            pending_email?: string | null;
+            /**
+             * Pending Email Expires At
+             * @description When the confirmation link for the pending email address expires
+             */
+            pending_email_expires_at?: string | null;
+            /**
              * Photo Path
              * @description Servable URL of the user's photo (read-only)
              */
@@ -11319,6 +12826,11 @@ export interface components {
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
+            /**
+             * Privacy Settings Version
+             * @description Version of the privacy settings, sent back in If-Match when they are edited
+             */
+            privacy_settings_version?: number | null;
             /**
              * Timezone
              * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
@@ -11334,6 +12846,115 @@ export interface components {
              * @description Unique username (alphanumeric, dots, hyphen, underscore)
              */
             username: string;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
+        };
+        /**
+         * UsersPrivacySettingsRead
+         * @description Schema for reading user privacy settings.
+         *
+         *     Attributes:
+         *         id: Unique identifier for the privacy settings record.
+         *         user_id: Foreign key reference to the user.
+         */
+        UsersPrivacySettingsRead: {
+            /**
+             * @description Default activity visibility (public, followers, private)
+             * @default public
+             */
+            default_activity_visibility: components["schemas"]["ActivityVisibility"] | null;
+            /**
+             * Hide Activity Cadence
+             * @description Hide activity cadence
+             * @default false
+             */
+            hide_activity_cadence: boolean | null;
+            /**
+             * Hide Activity Elevation
+             * @description Hide activity elevation
+             * @default false
+             */
+            hide_activity_elevation: boolean | null;
+            /**
+             * Hide Activity Gear
+             * @description Hide activity gear
+             * @default false
+             */
+            hide_activity_gear: boolean | null;
+            /**
+             * Hide Activity Hr
+             * @description Hide activity heart rate
+             * @default false
+             */
+            hide_activity_hr: boolean | null;
+            /**
+             * Hide Activity Laps
+             * @description Hide activity laps
+             * @default false
+             */
+            hide_activity_laps: boolean | null;
+            /**
+             * Hide Activity Location
+             * @description Hide activity location
+             * @default false
+             */
+            hide_activity_location: boolean | null;
+            /**
+             * Hide Activity Map
+             * @description Hide activity map
+             * @default false
+             */
+            hide_activity_map: boolean | null;
+            /**
+             * Hide Activity Pace
+             * @description Hide activity pace
+             * @default false
+             */
+            hide_activity_pace: boolean | null;
+            /**
+             * Hide Activity Power
+             * @description Hide activity power
+             * @default false
+             */
+            hide_activity_power: boolean | null;
+            /**
+             * Hide Activity Speed
+             * @description Hide activity speed
+             * @default false
+             */
+            hide_activity_speed: boolean | null;
+            /**
+             * Hide Activity Start Time
+             * @description Hide activity start time
+             * @default false
+             */
+            hide_activity_start_time: boolean | null;
+            /**
+             * Hide Activity Workout Sets Steps
+             * @description Hide activity workout sets and steps
+             * @default false
+             */
+            hide_activity_workout_sets_steps: boolean | null;
+            /**
+             * Id
+             * @description Unique identifier for privacy settings
+             */
+            id: number;
+            /**
+             * User Id
+             * @description Foreign key reference to the user
+             */
+            user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * UsersPrivacySettingsUpdate
@@ -11428,6 +13049,8 @@ export interface components {
          *     Attributes:
          *         id: User ID.
          *         external_auth_count: Number of external auth providers.
+         *         pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
+         *         pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
          */
         UsersRead: {
             /** @description User access level */
@@ -11513,6 +13136,16 @@ export interface components {
              */
             pending_admin_approval: boolean;
             /**
+             * Pending Email
+             * @description Email address awaiting confirmation, which replaces the current one once confirmed
+             */
+            pending_email?: string | null;
+            /**
+             * Pending Email Expires At
+             * @description When the confirmation link for the pending email address expires
+             */
+            pending_email_expires_at?: string | null;
+            /**
              * Photo Path
              * @description Servable URL of the user's photo (read-only)
              */
@@ -11537,6 +13170,12 @@ export interface components {
              * @description Unique username (alphanumeric, dots, hyphen, underscore)
              */
             username: string;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter, also sent as the ETag
+             * @default 1
+             */
+            version: number;
         };
         /**
          * UsersSessionsRead
@@ -11607,27 +13246,18 @@ export interface components {
         };
         /**
          * UsersSignup
-         * @description Users schema for signup operations.
+         * @description Users schema for a public sign-up request: only what an account needs.
+         *
+         *     The rest of the profile starts from the ``UsersBase`` defaults and is edited after signing in.
          *
          *     Attributes:
-         *         password: User's password (min 8 chars).
+         *         name: User's full name (1-250 chars).
+         *         username: Unique username (1-250 chars, alphanumeric and dots).
+         *         email: User's email address (max 250 chars).
+         *         password: User's password (min 8 chars). Absent when the password is chosen at email verification.
+         *         preferred_language: Language of the account's emails and interface.
          */
         UsersSignup: {
-            /**
-             * Birthdate
-             * @description User's birthdate
-             */
-            birthdate?: string | null;
-            /**
-             * City
-             * @description User's city
-             */
-            city?: string | null;
-            /**
-             * @description User currency (euro, dollar, pound)
-             * @default euro
-             */
-            currency: components["schemas"]["Currency"];
             /**
              * Email
              * Format: email
@@ -11635,69 +13265,22 @@ export interface components {
              */
             email: string;
             /**
-             * @description First day of the week
-             * @default monday
-             */
-            first_day_of_week: components["schemas"]["WeekDay"];
-            /**
-             * @description User's gender
-             * @default unspecified
-             */
-            gender: components["schemas"]["Gender"];
-            /**
-             * Height
-             * @description Height in centimeters
-             */
-            height?: number | null;
-            /**
-             * Max Heart Rate
-             * @description Maximum heart rate in bpm
-             */
-            max_heart_rate?: number | null;
-            /**
              * Name
              * @description User's full name
              */
             name: string;
-            /**
-             * Password
-             * @description User's password
-             */
-            password: string;
+            /** Password */
+            password?: string | null;
             /**
              * @description Preferred language
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
             /**
-             * Timezone
-             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
-             */
-            timezone?: string | null;
-            /**
-             * @description User units (metric, imperial)
-             * @default metric
-             */
-            units: components["schemas"]["Units"];
-            /**
              * Username
              * @description Unique username (alphanumeric, dots, hyphen, underscore)
              */
             username: string;
-        };
-        /**
-         * VisibilityUpdateRead
-         * @description Result of a bulk visibility change across a user's activities.
-         *
-         *     Attributes:
-         *         detail: Human-readable outcome of the operation.
-         *         updated: Number of activities whose visibility changed.
-         */
-        VisibilityUpdateRead: {
-            /** Detail */
-            detail: string;
-            /** Updated */
-            updated: number;
         };
         /**
          * WeekDay
@@ -11809,6 +13392,17 @@ export interface components {
             type_breakdown?: components["schemas"]["TypeBreakdownItem"][] | null;
         };
         /**
+         * WsTicketRead
+         * @description A single-use ticket that authenticates a websocket handshake.
+         *
+         *     Attributes:
+         *         ticket: Opaque, URL-safe ticket, valid for a short time and for one connection.
+         */
+        WsTicketRead: {
+            /** Ticket */
+            ticket: string;
+        };
+        /**
          * YearlyPeriodSummary
          * @description Yearly activity summary within lifetime view.
          *
@@ -11917,7 +13511,16 @@ export interface components {
              */
             mfa_code: string;
         };
-        /** MFARequest */
+        /**
+         * SyncKind
+         * @description What a queued Garmin Connect sync pulls.
+         * @enum {string}
+         */
+        modules__garmin__constants__SyncKind: "gear" | "health";
+        /**
+         * MFARequest
+         * @description The MFA code a user submits to finish a link attempt.
+         */
         modules__garmin__schema__MFARequest: {
             /** Mfa Code */
             mfa_code: string;
@@ -11991,6 +13594,12 @@ export interface components {
          * @enum {string}
          */
         modules__health__health_weight__schema__Source: "garmin";
+        /**
+         * SyncKind
+         * @description What a queued Strava sync does.
+         * @enum {string}
+         */
+        modules__strava__constants__SyncKind: "link" | "gear" | "unlink";
         /**
          * Interval
          * @description Recurrence intervals for user goals.
@@ -12102,12 +13711,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["VisibilityUpdateRead"];
+                    "application/json": components["schemas"]["ActivitiesBulkEditStatus"];
                 };
             };
             /** @description Validation Error */
@@ -12117,6 +13726,35 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_bulk_edit_status_api_v1_activities_bulk_edit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivitiesBulkEditStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -12216,9 +13854,12 @@ export interface operations {
             };
         };
     };
-    list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get: {
+    list_activity_exercise_titles_api_v1_activities_exercise_titles_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12231,7 +13872,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitlesRead"][];
+                    "application/json": components["schemas"]["Page_ActivityExerciseTitlesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -12263,50 +13913,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CursorPage_ActivityRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    list_gear_activities_api_v1_activities_gears__gear_id__get: {
-        parameters: {
-            query?: {
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                    "application/json": components["schemas"]["ActivityFeedPage"];
                 };
             };
             /** @description Validation Error */
@@ -12524,99 +14131,6 @@ export interface operations {
             };
         };
     };
-    list_user_activities_api_v1_activities_users__user_id__get: {
-        parameters: {
-            query?: {
-                type?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name?: string | null;
-                sort_by?: components["schemas"]["ActivitySortField"] | null;
-                sort_order?: components["schemas"]["ActivitySortOrder"] | null;
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ActivityRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_user_activity_stats_api_v1_activities_users__user_id__stats_get: {
-        parameters: {
-            query?: {
-                period?: string;
-                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
-                date?: string | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStatsRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     read_activity_api_v1_activities__activity_id__get: {
         parameters: {
             query?: never;
@@ -12660,7 +14174,9 @@ export interface operations {
     delete_activity_api_v1_activities__activity_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 activity_id: number;
             };
@@ -12719,6 +14235,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_activity_detail_api_v1_activities__activity_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityDetailRead"];
                 };
             };
             /** @description Validation Error */
@@ -13191,7 +14747,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFARequiredResponse"] | components["schemas"]["MobileSessionResponse"] | components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
+                    "application/json": components["schemas"]["MFARequiredRead"] | components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
             /** @description Validation Error */
@@ -13229,7 +14785,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LogoutResponse"];
+                    "application/json": components["schemas"]["LogoutRead"];
                 };
             };
             /** @description Unexpected error */
@@ -13265,7 +14821,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MobileSessionResponse"] | components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
+                    "application/json": components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
             /** @description Validation Error */
@@ -13303,7 +14859,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
+                    "application/json": components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
             /** @description Unexpected error */
@@ -13335,7 +14891,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
                 };
             };
             /** @description Validation Error */
@@ -13440,214 +14996,7 @@ export interface operations {
             };
         };
     };
-    list_user_followers_api_v1_followers_users__user_id__followers_get: {
-        parameters: {
-            query?: {
-                accepted_only?: boolean;
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    follow_user_api_v1_followers_users__user_id__followers_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FollowRelationshipRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-                follower_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    list_user_following_api_v1_followers_users__user_id__following_get: {
-        parameters: {
-            query?: {
-                accepted_only?: boolean;
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_user_relationship_api_v1_followers_users__user_id__relationship_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RelationshipRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    garminconnect_retrieve_activities_days_api_v1_garminconnect_activities_get: {
+    garminconnect_retrieve_activities_days_api_v1_garmin_activities_post: {
         parameters: {
             query: {
                 start_date: string;
@@ -13688,7 +15037,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_gear_api_v1_garminconnect_gear_get: {
+    garminconnect_retrieve_gear_api_v1_garmin_gear_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -13703,7 +15052,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["GarminSyncStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -13717,7 +15066,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_health_days_api_v1_garminconnect_health_get: {
+    garminconnect_retrieve_health_days_api_v1_garmin_health_post: {
         parameters: {
             query: {
                 start_date: string;
@@ -13735,7 +15084,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["GarminSyncStatus"];
                 };
             };
             /** @description Validation Error */
@@ -13758,7 +15107,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_link_api_v1_garminconnect_link_post: {
+    garminconnect_link_api_v1_garmin_link_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -13772,12 +15121,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["GarminLinkStatus"];
                 };
             };
             /** @description Validation Error */
@@ -13800,36 +15149,21 @@ export interface operations {
             };
         };
     };
-    garminconnect_mfa_code_api_v1_garminconnect_mfa_post: {
+    garminconnect_unlink_api_v1_garmin_link_delete: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["modules__garmin__schema__MFARequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {
@@ -13842,7 +15176,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_unlink_api_v1_garminconnect_unlink_delete: {
+    garminconnect_link_status_api_v1_garmin_link_status_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -13857,7 +15191,87 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["GarminLinkStatus"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    garminconnect_mfa_code_api_v1_garmin_mfa_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["modules__garmin__schema__MFARequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    garminconnect_sync_status_api_v1_garmin_sync__kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["modules__garmin__constants__SyncKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GarminSyncStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -13873,7 +15287,10 @@ export interface operations {
     };
     read_gear_components_api_v1_gear_components_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13886,40 +15303,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearComponentRead"][] | null;
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    edit_gear_component_api_v1_gear_components_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GearComponentUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearComponentRead"];
+                    "application/json": components["schemas"]["Page_GearComponentRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13984,48 +15368,6 @@ export interface operations {
             };
         };
     };
-    read_gear_components_gear_id_api_v1_gear_components_gear_id__gear_id__get: {
-        parameters: {
-            query?: {
-                active?: boolean | null;
-            };
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearComponentRead"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     read_gear_component_types_api_v1_gear_components_types_get: {
         parameters: {
             query?: never;
@@ -14058,7 +15400,9 @@ export interface operations {
     delete_component_gear_api_v1_gear_components__gear_component_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 gear_component_id: number;
             };
@@ -14093,21 +15437,22 @@ export interface operations {
             };
         };
     };
-    read_gears_user_all_pagination_api_v1_gears_get: {
+    edit_gear_component_api_v1_gear_components__gear_component_id__patch: {
         parameters: {
-            query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
-                /** @description Filter by inactive status */
-                show_inactive?: boolean | null;
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
             };
-            header?: never;
-            path?: never;
+            path: {
+                gear_component_id: number;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GearComponentUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -14115,7 +15460,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearsListResponse"];
+                    "application/json": components["schemas"]["GearComponentRead"];
                 };
             };
             /** @description Validation Error */
@@ -14138,11 +15483,184 @@ export interface operations {
             };
         };
     };
-    edit_gear_api_v1_gears_put: {
+    list_gears_api_v1_gears_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by inactive status */
+                show_inactive?: boolean | null;
+                /** @description Keep only gears of this type */
+                gear_type?: components["schemas"]["GearType"] | null;
+                /** @description Keep only gears whose nickname contains this text */
+                nickname_contains?: string | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GearRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    create_gear_api_v1_gears_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GearCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GearRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_gear_id_api_v1_gears__gear_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gear_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GearDetailRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_gear_api_v1_gears__gear_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                gear_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_gear_api_v1_gears__gear_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                gear_id: number;
+            };
             cookie?: never;
         };
         requestBody: {
@@ -14180,51 +15698,12 @@ export interface operations {
             };
         };
     };
-    create_gear_api_v1_gears_post: {
+    list_gear_activities_api_v1_gears__gear_id__activities_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GearCreate"];
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
             };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_gear_id_api_v1_gears_id__gear_id__get: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
                 gear_id: number;
@@ -14239,7 +15718,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearDetailRead"] | null;
+                    "application/json": components["schemas"]["Page_ActivityRead_"];
                 };
             };
             /** @description Validation Error */
@@ -14262,129 +15741,13 @@ export interface operations {
             };
         };
     };
-    read_gear_user_contains_nickname_api_v1_gears_nickname_contains__nickname__get: {
+    read_gear_components_gear_id_api_v1_gears__gear_id__components_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                nickname: string;
+            query?: {
+                active?: boolean | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_gear_user_by_nickname_api_v1_gears_nickname__nickname__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                nickname: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearRead"] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_gear_user_by_type_api_v1_gears_type__gear_type__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_type: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_gear_api_v1_gears__gear_id__delete: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
                 gear_id: number;
@@ -14394,11 +15757,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Page_GearComponentRead_"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -14435,9 +15800,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
             /** @description Unexpected error */
@@ -14454,12 +15817,10 @@ export interface operations {
     read_health_fasting_all_pagination_api_v1_health_fasting_get: {
         parameters: {
             query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
                 /** @description Filter by goal interval */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -14473,49 +15834,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthFastingListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    edit_health_fasting_api_v1_health_fasting_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HealthFastingUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthFastingRead"];
+                    "application/json": components["schemas"]["Page_HealthFastingRead_"];
                 };
             };
             /** @description Validation Error */
@@ -14681,7 +16000,9 @@ export interface operations {
     delete_health_fasting_api_v1_health_fasting__health_fasting_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_fasting_id: number;
             };
@@ -14716,10 +16037,58 @@ export interface operations {
             };
         };
     };
+    edit_health_fasting_api_v1_health_fasting__health_fasting_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                health_fasting_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthFastingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthFastingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     complete_health_fasting_api_v1_health_fasting__health_fasting_id__complete_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_fasting_id: number;
             };
@@ -14763,12 +16132,10 @@ export interface operations {
     read_health_poop_all_pagination_api_v1_health_poop_get: {
         parameters: {
             query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
                 /** @description Filter by goal interval */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -14782,49 +16149,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthPoopListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    edit_health_poop_api_v1_health_poop_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HealthPoopUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthPoopRead"];
+                    "application/json": components["schemas"]["Page_HealthPoopRead_"];
                 };
             };
             /** @description Validation Error */
@@ -14867,6 +16192,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthPoopRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_health_poop_chart_api_v1_health_poop_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
                 };
             };
             /** @description Validation Error */
@@ -14932,7 +16298,9 @@ export interface operations {
     delete_health_poop_api_v1_health_poop__health_poop_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_poop_id: number;
             };
@@ -14967,21 +16335,22 @@ export interface operations {
             };
         };
     };
-    read_health_sleep_all_pagination_api_v1_health_sleep_get: {
+    edit_health_poop_api_v1_health_poop__health_poop_id__patch: {
         parameters: {
-            query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
-                /** @description Filter by goal interval */
-                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
             };
-            header?: never;
-            path?: never;
+            path: {
+                health_poop_id: number;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthPoopUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -14989,7 +16358,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthSleepListResponse"];
+                    "application/json": components["schemas"]["HealthPoopRead"];
                 };
             };
             /** @description Validation Error */
@@ -15012,18 +16381,19 @@ export interface operations {
             };
         };
     };
-    edit_health_sleep_api_v1_health_sleep_put: {
+    read_health_sleep_all_pagination_api_v1_health_sleep_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter by goal interval */
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HealthSleepUpdate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -15031,7 +16401,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthSleepRead"];
+                    "application/json": components["schemas"]["Page_HealthSleepRead_"];
                 };
             };
             /** @description Validation Error */
@@ -15096,10 +16466,94 @@ export interface operations {
             };
         };
     };
+    read_health_sleep_chart_api_v1_health_sleep_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_health_sleep_resting_heart_rate_chart_api_v1_health_sleep_chart_resting_heart_rate_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_sleep_id: number;
             };
@@ -15113,6 +16567,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_health_sleep_api_v1_health_sleep__health_sleep_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                health_sleep_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthSleepUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthSleepRead"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -15166,12 +16666,10 @@ export interface operations {
     read_health_steps_all_pagination_api_v1_health_steps_get: {
         parameters: {
             query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
                 /** @description Filter by goal interval */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -15185,49 +16683,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthStepsListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    edit_health_steps_api_v1_health_steps_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HealthStepsUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthStepsRead"];
+                    "application/json": components["schemas"]["Page_HealthStepsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -15292,10 +16748,53 @@ export interface operations {
             };
         };
     };
+    read_health_steps_chart_api_v1_health_steps_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_steps_api_v1_health_steps__health_steps_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_steps_id: number;
             };
@@ -15309,6 +16808,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_health_steps_api_v1_health_steps__health_steps_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                health_steps_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthStepsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthStepsRead"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -15359,10 +16904,12 @@ export interface operations {
             };
         };
     };
-    update_health_targets_api_v1_health_targets_put: {
+    update_health_targets_api_v1_health_targets_patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -15404,12 +16951,10 @@ export interface operations {
     read_health_water_all_pagination_api_v1_health_water_get: {
         parameters: {
             query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
                 /** @description Filter by goal interval */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -15423,49 +16968,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthWaterListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    edit_health_water_api_v1_health_water_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HealthWaterUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthWaterRead"];
+                    "application/json": components["schemas"]["Page_HealthWaterRead_"];
                 };
             };
             /** @description Validation Error */
@@ -15530,10 +17033,53 @@ export interface operations {
             };
         };
     };
+    read_health_water_chart_api_v1_health_water_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_water_api_v1_health_water__health_water_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_water_id: number;
             };
@@ -15568,21 +17114,22 @@ export interface operations {
             };
         };
     };
-    read_health_weight_all_pagination_api_v1_health_weight_get: {
+    edit_health_water_api_v1_health_water__health_water_id__patch: {
         parameters: {
-            query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
-                /** @description Filter by goal interval */
-                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
             };
-            header?: never;
-            path?: never;
+            path: {
+                health_water_id: number;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthWaterUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -15590,7 +17137,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthWeightListResponse"];
+                    "application/json": components["schemas"]["HealthWaterRead"];
                 };
             };
             /** @description Validation Error */
@@ -15613,18 +17160,19 @@ export interface operations {
             };
         };
     };
-    edit_health_weight_api_v1_health_weight_put: {
+    read_health_weight_all_pagination_api_v1_health_weight_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter by goal interval */
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HealthWeightUpdate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -15632,7 +17180,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthWeightRead"];
+                    "application/json": components["schemas"]["Page_HealthWeightRead_"];
                 };
             };
             /** @description Validation Error */
@@ -15697,10 +17245,53 @@ export interface operations {
             };
         };
     };
+    read_health_weight_chart_api_v1_health_weight_chart_get: {
+        parameters: {
+            query?: {
+                /** @description Interval to chart */
+                interval?: components["schemas"]["modules__health__constants__Interval"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_weight_api_v1_health_weight__health_weight_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 health_weight_id: number;
             };
@@ -15735,7 +17326,53 @@ export interface operations {
             };
         };
     };
-    list_identity_providers_api_v1_idp_get: {
+    edit_health_weight_api_v1_health_weight__health_weight_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                health_weight_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthWeightUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthWeightRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_identity_providers_api_v1_identity_providers_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -15750,7 +17387,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProvider"][];
+                    "application/json": components["schemas"]["IdentityProviderRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -15764,7 +17401,7 @@ export interface operations {
             };
         };
     };
-    create_identity_provider_api_v1_idp_post: {
+    create_identity_provider_api_v1_identity_providers_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -15780,10 +17417,12 @@ export interface operations {
             /** @description Successful Response */
             201: {
                 headers: {
+                    /** @description The version of this identity provider */
+                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProvider"];
+                    "application/json": components["schemas"]["IdentityProviderRead"];
                 };
             };
             /** @description Validation Error */
@@ -15806,7 +17445,7 @@ export interface operations {
             };
         };
     };
-    list_idp_templates_api_v1_idp_templates_get: {
+    list_idp_templates_api_v1_identity_providers_templates_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -15821,7 +17460,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderTemplate"][];
+                    "application/json": components["schemas"]["IdentityProviderTemplateRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -15835,10 +17474,12 @@ export interface operations {
             };
         };
     };
-    update_identity_provider_api_v1_idp__idp_id__put: {
+    update_identity_provider_api_v1_identity_providers__idp_id__put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 idp_id: number;
             };
@@ -15853,10 +17494,114 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description The new version of this identity provider */
+                    ETag?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProvider"];
+                    "application/json": components["schemas"]["IdentityProviderRead"];
+                };
+            };
+            /** @description The identity provider has changed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description If-Match is required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_identity_provider_api_v1_identity_providers__idp_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                idp_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idp_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProviderIconRead"];
                 };
             };
             /** @description Validation Error */
@@ -15879,7 +17624,7 @@ export interface operations {
             };
         };
     };
-    delete_identity_provider_api_v1_idp__idp_id__delete: {
+    delete_identity_provider_icon_api_v1_identity_providers__idp_id__icon_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -15917,9 +17662,13 @@ export interface operations {
             };
         };
     };
-    mark_all_notifications_as_read_api_v1_notifications_mark_all_as_read_put: {
+    read_notifications_user_pagination_api_v1_notifications_get: {
         parameters: {
-            query?: never;
+            query?: {
+                unread_only?: boolean;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -15927,11 +17676,22 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Page_NotificationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
             /** @description Unexpected error */
             default: {
@@ -15973,35 +17733,21 @@ export interface operations {
             };
         };
     };
-    read_notifications_user_pagination_api_v1_notifications_page_number__page_number__num_records__num_records__get: {
+    mark_all_notifications_as_read_api_v1_notifications_read_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                page_number: number;
-                num_records: number;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["NotificationRead"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {
@@ -16031,7 +17777,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificationRead"] | null;
+                    "application/json": components["schemas"]["NotificationRead"];
                 };
             };
             /** @description Validation Error */
@@ -16054,7 +17800,7 @@ export interface operations {
             };
         };
     };
-    mark_notification_as_read_api_v1_notifications__notification_id__mark_as_read_put: {
+    mark_notification_as_read_api_v1_notifications__notification_id__read_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -16111,7 +17857,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PasswordResetResponse"];
+                    "application/json": components["schemas"]["PasswordResetRead"];
                 };
             };
             /** @description Validation Error */
@@ -16153,7 +17899,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PasswordResetResponse"];
+                    "application/json": components["schemas"]["PasswordResetRead"];
                 };
             };
             /** @description Validation Error */
@@ -16205,10 +17951,12 @@ export interface operations {
             };
         };
     };
-    edit_user_api_v1_profile_put: {
+    edit_user_api_v1_profile_patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -16224,9 +17972,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UsersMe"];
                 };
             };
             /** @description Validation Error */
@@ -16249,9 +17995,12 @@ export interface operations {
             };
         };
     };
-    get_user_api_keys_api_v1_profile_api_keys_get: {
+    list_user_api_keys_api_v1_profile_api_keys_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -16264,7 +18013,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersApiKeyRead"][];
+                    "application/json": components["schemas"]["Page_UsersApiKeyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -16297,7 +18055,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersApiKeyCreated"];
+                    "application/json": components["schemas"]["UsersApiKeyCreatedRead"];
                 };
             };
             /** @description Validation Error */
@@ -16358,7 +18116,7 @@ export interface operations {
             };
         };
     };
-    revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_patch: {
+    revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -16425,10 +18183,12 @@ export interface operations {
             };
         };
     };
-    edit_user_default_gear_api_v1_profile_default_gear_put: {
+    edit_user_default_gear_api_v1_profile_default_gear_patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -16467,7 +18227,203 @@ export interface operations {
             };
         };
     };
-    export_profile_data_api_v1_profile_export_get: {
+    delete_my_account_api_v1_profile_delete_account_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpVerification"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDeletionStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_profile_email_api_v1_profile_email_change_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersMe"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    cancel_profile_email_change_api_v1_profile_email_change_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    resend_profile_email_change_api_v1_profile_email_change_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_profile_export_status_api_v1_profile_export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileExportStatus"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    export_profile_data_api_v1_profile_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileExportStatus"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    download_profile_export_api_v1_profile_export_download_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16503,6 +18459,8 @@ export interface operations {
                 activity_type?: components["schemas"]["ActivityType"] | null;
                 /** @description Filter by goal type */
                 goal_type?: components["schemas"]["GoalType"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -16516,49 +18474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersGoalRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    update_user_goal_api_v1_profile_goals_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UsersGoalUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UsersGoalRead"];
+                    "application/json": components["schemas"]["Page_UsersGoalRead_"];
                 };
             };
             /** @description Validation Error */
@@ -16625,7 +18541,10 @@ export interface operations {
     };
     get_user_goals_results_api_v1_profile_goals_results_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -16638,7 +18557,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersGoalProgress"][] | null;
+                    "application/json": components["schemas"]["Page_UsersGoalProgress_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    update_user_goal_api_v1_profile_goals__goal_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                goal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsersGoalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersGoalRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -16655,7 +18629,9 @@ export interface operations {
     delete_user_goal_api_v1_profile_goals__goal_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 goal_id: number;
             };
@@ -16690,7 +18666,7 @@ export interface operations {
             };
         };
     };
-    get_my_identity_providers_api_v1_profile_idp_get: {
+    get_my_identity_providers_api_v1_profile_identity_providers_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16705,7 +18681,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersIdentityProviderResponse"][];
+                    "application/json": components["schemas"]["IdentityProviderLinkRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -16719,7 +18695,7 @@ export interface operations {
             };
         };
     };
-    link_identity_provider_api_v1_profile_idp__idp_id__link_get: {
+    link_identity_provider_api_v1_profile_identity_providers__idp_id__link_get: {
         parameters: {
             query: {
                 link_token: string;
@@ -16761,7 +18737,7 @@ export interface operations {
             };
         };
     };
-    generate_link_token_api_v1_profile_idp__idp_id__link_token_post: {
+    generate_link_token_api_v1_profile_identity_providers__idp_id__link_token_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -16782,7 +18758,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdpLinkTokenResponse"];
+                    "application/json": components["schemas"]["IdentityProviderLinkTokenRead"];
                 };
             };
             /** @description Validation Error */
@@ -16805,7 +18781,51 @@ export interface operations {
             };
         };
     };
-    delete_my_identity_provider_api_v1_profile_idp__idp_id__unlink_post: {
+    start_idp_step_up_api_v1_profile_identity_providers__idp_id__step_up_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idp_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepUpStartRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -16847,35 +18867,22 @@ export interface operations {
             };
         };
     };
-    upload_profile_image_api_v1_profile_image_post: {
+    read_profile_import_status_api_v1_profile_import_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_profile_image_api_v1_profile_image_post"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/json": components["schemas"]["ProfileImportStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -16903,14 +18910,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ProfileImportStatus"];
                 };
             };
             /** @description Validation Error */
@@ -16952,7 +18957,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFABackupCodesResponse"];
+                    "application/json": components["schemas"]["MFABackupCodesRead"];
                 };
             };
             /** @description Validation Error */
@@ -16990,7 +18995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFABackupCodeStatus"];
+                    "application/json": components["schemas"]["MFABackupCodeStatusRead"];
                 };
             };
             /** @description Unexpected error */
@@ -17004,7 +19009,7 @@ export interface operations {
             };
         };
     };
-    disable_mfa_api_v1_profile_mfa_disable_put: {
+    disable_mfa_api_v1_profile_mfa_disable_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -17023,9 +19028,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MFADisableRead"];
                 };
             };
             /** @description Validation Error */
@@ -17048,7 +19051,7 @@ export interface operations {
             };
         };
     };
-    enable_mfa_api_v1_profile_mfa_enable_put: {
+    enable_mfa_api_v1_profile_mfa_enable_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -17067,9 +19070,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MFAEnableRead"];
                 };
             };
             /** @description Validation Error */
@@ -17107,7 +19108,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFASetupResponse"];
+                    "application/json": components["schemas"]["MFASetupRead"];
                 };
             };
             /** @description Unexpected error */
@@ -17136,7 +19137,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFAStatusResponse"];
+                    "application/json": components["schemas"]["MFAStatusRead"];
                 };
             };
             /** @description Unexpected error */
@@ -17169,9 +19170,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["MFAVerifyRead"];
                 };
             };
             /** @description Validation Error */
@@ -17194,7 +19193,7 @@ export interface operations {
             };
         };
     };
-    edit_profile_password_api_v1_profile_password_put: {
+    edit_profile_password_api_v1_profile_password_change_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -17208,14 +19207,52 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    upload_profile_image_api_v1_profile_photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_profile_image_api_v1_profile_photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPhotoRead"];
                 };
             };
             /** @description Validation Error */
@@ -17238,7 +19275,7 @@ export interface operations {
             };
         };
     };
-    delete_profile_photo_api_v1_profile_photo_put: {
+    delete_profile_photo_api_v1_profile_photo_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -17265,10 +19302,12 @@ export interface operations {
             };
         };
     };
-    edit_profile_privacy_settings_api_v1_profile_privacy_put: {
+    edit_profile_privacy_settings_api_v1_profile_privacy_patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -17284,9 +19323,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UsersPrivacySettingsRead"];
                 };
             };
             /** @description Validation Error */
@@ -17311,7 +19348,10 @@ export interface operations {
     };
     read_sessions_me_api_v1_profile_sessions_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17324,7 +19364,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersSessionsRead"][];
+                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -17403,9 +19452,12 @@ export interface operations {
             };
         };
     };
-    list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get: {
+    list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17418,7 +19470,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitlesRead"][];
+                    "application/json": components["schemas"]["Page_ActivityExerciseTitlesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -17450,6 +19511,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_public_activity_detail_api_v1_public_activities__activity_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityDetailRead"];
                 };
             };
             /** @description Validation Error */
@@ -17700,7 +19801,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderPublic"][];
+                    "application/json": components["schemas"]["IdentityProviderPublicRead"][];
                 };
             };
             /** @description Unexpected error */
@@ -17718,7 +19819,9 @@ export interface operations {
         parameters: {
             query: {
                 /** @description Authorization code from IdP */
-                code: string;
+                code?: string | null;
+                /** @description Error the IdP returned instead of a code */
+                error?: string | null;
                 /** @description State parameter for CSRF protection */
                 state: string;
             };
@@ -17735,9 +19838,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -17782,9 +19883,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -17827,7 +19926,126 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenExchangeResponse"];
+                    "application/json": components["schemas"]["TokenExchangeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_identity_provider_icon_api_v1_public_idp__idp_slug__icon_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idp_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/*": unknown;
+                };
+            };
+            /** @description Not modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_onboarding_status_api_v1_public_onboarding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusRead"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    complete_onboarding_api_v1_public_onboarding_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersRead"];
                 };
             };
             /** @description Validation Error */
@@ -17867,6 +20085,43 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServerSettingsReadPublic"];
                 };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_login_photo_api_v1_public_server_settings_login_photo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/*": unknown;
+                };
+            };
+            /** @description Not modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {
@@ -17925,7 +20180,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"] | null;
+                    "application/json": components["schemas"]["UserPublicRead"];
                 };
             };
             /** @description Validation Error */
@@ -17963,7 +20218,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ServerSettingsRead"];
+                    "application/json": components["schemas"]["ServerSettingsAdminRead"];
                 };
             };
             /** @description Unexpected error */
@@ -17980,7 +20235,9 @@ export interface operations {
     edit_server_settings_api_v1_server_settings_put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -17996,7 +20253,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ServerSettingsRead"];
+                    "application/json": components["schemas"]["ServerSettingsAdminRead"];
                 };
             };
             /** @description Validation Error */
@@ -18048,6 +20305,79 @@ export interface operations {
             };
         };
     };
+    read_mail_settings_api_v1_server_settings_email_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailSettingsAdminRead"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_mail_settings_api_v1_server_settings_email_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MailSettingsEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MailSettingsAdminRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     send_test_email_api_v1_server_settings_email_test_post: {
         parameters: {
             query?: never;
@@ -18058,15 +20388,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
+                content?: never;
             };
             /** @description Unexpected error */
             default: {
@@ -18079,36 +20405,7 @@ export interface operations {
             };
         };
     };
-    list_tile_maps_templates_api_v1_server_settings_tile_maps_templates_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TileMapsTemplate"][];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    upload_login_photo_api_v1_server_settings_upload_login_post: {
+    upload_login_photo_api_v1_server_settings_login_photo_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -18117,7 +20414,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_login_photo_api_v1_server_settings_upload_login_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_login_photo_api_v1_server_settings_login_photo_post"];
             };
         };
         responses: {
@@ -18127,9 +20424,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["LoginPhotoRead"];
                 };
             };
             /** @description Validation Error */
@@ -18152,7 +20447,7 @@ export interface operations {
             };
         };
     };
-    delete_login_photo_api_v1_server_settings_upload_login_delete: {
+    delete_login_photo_api_v1_server_settings_login_photo_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -18179,13 +20474,20 @@ export interface operations {
             };
         };
     };
-    read_sessions_user_api_v1_sessions_user__user_id__get: {
+    read_logs_api_v1_server_settings_logs_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
+            query?: {
+                /** @description Most records to return */
+                limit?: number;
+                /** @description Lowest severity to include */
+                level?: components["schemas"]["LogLevel"] | null;
+                /** @description Text a record must contain */
+                search?: string | null;
+                /** @description Cursor from an earlier page, to read only newer records */
+                after?: number | null;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -18196,7 +20498,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersSessionsRead"][];
+                    "application/json": components["schemas"]["LogPage"];
                 };
             };
             /** @description Validation Error */
@@ -18219,55 +20521,11 @@ export interface operations {
             };
         };
     };
-    delete_sessions_user_api_v1_sessions_user__user_id__delete: {
-        parameters: {
-            query?: {
-                /** @description Session to keep intact (e.g. the caller's current session) */
-                exclude_session_id?: string | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_session_user_api_v1_sessions__session_id__user__user_id__delete: {
+    clear_logs_api_v1_server_settings_logs_delete: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                session_id: string;
-                user_id: number;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -18279,13 +20537,62 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    download_logs_api_v1_server_settings_logs_download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current log file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": unknown;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_logs_status_api_v1_server_settings_logs_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogsStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -18318,7 +20625,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignUpResponse"];
+                    "application/json": components["schemas"]["SignUpRead"];
                 };
             };
             /** @description Validation Error */
@@ -18360,7 +20667,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignUpResponse"];
+                    "application/json": components["schemas"]["SignUpRead"];
                 };
             };
             /** @description Validation Error */
@@ -18383,7 +20690,7 @@ export interface operations {
             };
         };
     };
-    strava_retrieve_activities_days_api_v1_strava_activities_get: {
+    strava_retrieve_activities_days_api_v1_strava_activities_post: {
         parameters: {
             query: {
                 start_date: string;
@@ -18427,13 +20734,15 @@ export interface operations {
     strava_set_user_client_api_v1_strava_client_put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StravaClient"];
+                "application/json": components["schemas"]["StravaClientCredentials"];
             };
         };
         responses: {
@@ -18443,7 +20752,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaDetail"];
                 };
             };
             /** @description Validation Error */
@@ -18466,7 +20775,7 @@ export interface operations {
             };
         };
     };
-    strava_retrieve_gear_api_v1_strava_gear_get: {
+    strava_retrieve_gear_api_v1_strava_gear_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -18476,12 +20785,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -18514,7 +20823,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaGearImportResult"];
                 };
             };
             /** @description Validation Error */
@@ -18556,7 +20865,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaGearImportResult"];
                 };
             };
             /** @description Validation Error */
@@ -18579,12 +20888,51 @@ export interface operations {
             };
         };
     };
-    strava_link_api_v1_strava_link_put: {
+    strava_link_api_v1_strava_link_post: {
         parameters: {
-            query: {
-                state: string;
-                code: string;
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StravaLinkRequest"];
             };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StravaSyncStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    strava_unlink_api_v1_strava_link_delete: {
+        parameters: {
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -18592,21 +20940,12 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -18620,12 +20959,68 @@ export interface operations {
             };
         };
     };
-    strava_set_user_unique_state_api_v1_strava_state__state__put: {
+    strava_begin_state_api_v1_strava_state_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StravaState"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    strava_clear_user_state_api_v1_strava_state_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    strava_sync_status_api_v1_strava_sync__kind__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                state: string | null;
+                kind: components["schemas"]["modules__strava__constants__SyncKind"];
             };
             cookie?: never;
         };
@@ -18637,7 +21032,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description Validation Error */
@@ -18647,35 +21042,6 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    strava_unlink_api_v1_strava_unlink_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Unexpected error */
@@ -18692,10 +21058,6 @@ export interface operations {
     read_users_all_pagination_api_v1_users_get: {
         parameters: {
             query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
                 /** @description Filter by inactive status */
                 show_inactive?: boolean | null;
                 /** @description Filter by email verification status */
@@ -18706,6 +21068,10 @@ export interface operations {
                 show_external_auth?: boolean | null;
                 /** @description Filter by local authentication status */
                 show_local_auth?: boolean | null;
+                /** @description Keep only users whose username contains this text */
+                username?: string | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -18719,7 +21085,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersListResponse"];
+                    "application/json": components["schemas"]["Page_UsersRead_"];
                 };
             };
             /** @description Validation Error */
@@ -18784,16 +21150,18 @@ export interface operations {
             };
         };
     };
-    read_users_email_api_v1_users_email__email__get: {
+    lookup_user_by_email_api_v1_users_email_lookup_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                email: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsersEmailLookup"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -18801,7 +21169,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"] | null;
+                    "application/json": components["schemas"]["UsersRead"];
                 };
             };
             /** @description Validation Error */
@@ -18841,7 +21209,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"] | null;
+                    "application/json": components["schemas"]["UserPublicRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_profile_overview_api_v1_users_id__user_id__overview_get: {
+        parameters: {
+            query?: {
+                /** @description The viewer's local calendar date for current-week and current-month values. */
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileOverviewRead"];
                 };
             };
             /** @description Validation Error */
@@ -18866,7 +21277,10 @@ export interface operations {
     };
     read_users_contain_username_api_v1_users_username_contains__username__get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 username: string;
@@ -18881,7 +21295,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"][] | null;
+                    "application/json": components["schemas"]["Page_UserPublicRead_"];
                 };
             };
             /** @description Validation Error */
@@ -18921,7 +21335,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"] | null;
+                    "application/json": components["schemas"]["UsersRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_users_full_api_v1_users__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersRead"];
                 };
             };
             /** @description Validation Error */
@@ -18947,7 +21401,9 @@ export interface operations {
     edit_user_api_v1_users__user_id__put: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 user_id: number;
             };
@@ -18955,7 +21411,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersRead"];
+                "application/json": components["schemas"]["UsersEdit"];
             };
         };
         responses: {
@@ -18989,6 +21445,141 @@ export interface operations {
         };
     };
     delete_user_api_v1_users__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDeletionStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_activities_api_v1_users__user_id__activities_get: {
+        parameters: {
+            query?: {
+                type?: number | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                name?: string | null;
+                sort_by?: components["schemas"]["ActivitySortField"] | null;
+                sort_order?: components["schemas"]["ActivitySortOrder"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_activity_stats_api_v1_users__user_id__activities_stats_get: {
+        parameters: {
+            query?: {
+                period?: string;
+                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityStatsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    approve_user_api_v1_users__user_id__approve_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -19026,7 +21617,7 @@ export interface operations {
             };
         };
     };
-    approve_user_api_v1_users__user_id__approve_put: {
+    read_user_deletion_status_api_v1_users__user_id__deletion_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -19043,9 +21634,174 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["UserDeletionStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_followers_api_v1_users__user_id__followers_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    follow_user_api_v1_users__user_id__followers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_follow_relationship_api_v1_users__user_id__followers__follower_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+                follower_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_following_api_v1_users__user_id__following_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
                 };
             };
             /** @description Validation Error */
@@ -19085,7 +21841,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersIdentityProviderResponse"][];
+                    "application/json": components["schemas"]["IdentityProviderLinkRead"][];
                 };
             };
             /** @description Validation Error */
@@ -19147,51 +21903,7 @@ export interface operations {
             };
         };
     };
-    upload_user_image_api_v1_users__user_id__image_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_user_image_api_v1_users__user_id__image_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    edit_user_password_api_v1_users__user_id__password_put: {
+    edit_user_password_api_v1_users__user_id__password_change_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -19207,15 +21919,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -19281,11 +21989,218 @@ export interface operations {
             };
         };
     };
+    upload_user_image_api_v1_users__user_id__photo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_user_image_api_v1_users__user_id__photo_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_user_photo_api_v1_users__user_id__photo_delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_relationship_api_v1_users__user_id__relationship_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_sessions_user_api_v1_users__user_id__sessions_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_sessions_user_api_v1_users__user_id__sessions_delete: {
+        parameters: {
+            query?: {
+                /** @description Session to keep intact (e.g. the caller's current session) */
+                exclude_session_id?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_session_user_api_v1_users__user_id__sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
                 user_id: number;
             };
             cookie?: never;
@@ -19334,47 +22249,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    server_img_return_server_images__server_img__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                server_img: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/json": components["schemas"]["WsTicketRead"];
                 };
             };
             /** @description Unexpected error */

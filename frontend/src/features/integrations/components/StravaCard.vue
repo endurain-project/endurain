@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown } from '@lucide/vue'
 
@@ -20,6 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
+import { queryKeys } from '@/services/queryKeys'
 import {
   useRetrieveStravaActivitiesMutation,
   useRetrieveStravaGearMutation,
@@ -28,16 +31,20 @@ import {
 import {
   buildStravaAuthUrl,
   setStravaClient,
-  setStravaState,
+  beginStravaState,
+  clearStravaState,
 } from '@/features/integrations/services/strava'
 
 const props = defineProps<{
   /** Whether a Strava account is currently connected. */
   linked: boolean
+  /** The integrations row version the profile was read at, sent as `If-Match` with the client. */
+  integrationsVersion: number
 }>()
 
 const { t } = useI18n()
 const toasts = useToasts()
+const queryClient = useQueryClient()
 
 const activitiesMutation = useRetrieveStravaActivitiesMutation()
 const gearMutation = useRetrieveStravaGearMutation()
@@ -49,29 +56,28 @@ const isUnlinkOpen = ref(false)
 // Held true through the full-page redirect so the dialog button stays busy.
 const isConnecting = ref(false)
 
-/** Generates an opaque CSRF state to correlate the OAuth callback. */
-function generateState(): string {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
 /**
- * Stores the state + client credentials, then sends the browser to Strava's
+ * Obtains the state, stores the client credentials, then sends the browser to Strava's
  * OAuth page. Strava redirects back to `/strava/callback` to finish linking.
  */
 async function connectStrava(input: StravaClientInput): Promise<void> {
   isConnecting.value = true
   try {
-    const state = generateState()
-    await setStravaState(state)
-    await setStravaClient(input)
+    const state = await beginStravaState()
+    await setStravaClient(input, props.integrationsVersion)
     window.location.assign(buildStravaAuthUrl(state, input.clientId))
-  } catch {
+  } catch (error) {
     isConnecting.value = false
-    toasts.error(t('settings.integrations.strava.connectError'))
+    if (isStaleWrite(error)) {
+      // The integrations row changed since the profile was read; reload it so the retry carries the
+      // current version.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
+      toasts.error(t('app.staleError'))
+    } else {
+      toasts.error(t('settings.integrations.strava.connectError'))
+    }
     // Best-effort: clear the half-set state so a retry starts clean.
-    void setStravaState(null).catch(() => undefined)
+    void clearStravaState().catch(() => undefined)
   }
 }
 

@@ -19,19 +19,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
 import { shiftWeeks, todayIsoDate, weekEnd, weekStart } from '@/utils/datetime'
-import { usePublicUserQuery } from '@/features/users/composables/usePublicUser'
+import { useUserProfileOverviewQuery } from '@/features/users/composables/usePublicUser'
 import {
-  useActivityStatsQuery,
   useGoalResultsQuery,
-  useUserMonthlyActivityCountQuery,
   useUserWeekActivitiesQuery,
 } from '@/features/home/composables/useHome'
-import {
-  useFollowersCountQuery,
-  useFollowersQuery,
-  useFollowingCountQuery,
-  useFollowingQuery,
-} from '@/features/followers/composables/useFollowers'
+import { useFollowersQuery, useFollowingQuery } from '@/features/followers/composables/useFollowers'
 
 type TabKey = 'activities' | 'following' | 'followers'
 
@@ -54,15 +47,16 @@ const isSelf = computed(
   () => currentUserId.value !== null && currentUserId.value === profileId.value,
 )
 
-const userQuery = usePublicUserQuery(profileId)
-const user = computed(() => userQuery.data.value ?? null)
+const userQuery = useUserProfileOverviewQuery(profileId)
+const overview = computed(() => userQuery.data.value)
+const user = computed(() => overview.value?.user ?? null)
 
 // --- Sidebar stats ---
-const weekStats = useActivityStatsQuery(profileId, 'week')
-const monthStats = useActivityStatsQuery(profileId, 'month')
-const monthCount = useUserMonthlyActivityCountQuery(profileId)
-const followersCount = useFollowersCountQuery(profileId)
-const followingCount = useFollowingCountQuery(profileId)
+const weekStats = computed(() => overview.value?.weekStats)
+const monthStats = computed(() => overview.value?.monthStats)
+const monthCount = computed(() => overview.value?.monthActivityCount ?? 0)
+const followersCount = computed(() => overview.value?.followersCount ?? 0)
+const followingCount = computed(() => overview.value?.followingCount ?? 0)
 
 // --- Sidebar goals (own profile only; the backend scopes goals to the viewer) ---
 const goalResults = useGoalResultsQuery(() => isSelf.value)
@@ -128,8 +122,8 @@ function refetchActivities(): void {
 }
 
 // --- Following / followers lists ---
-const followingQuery = useFollowingQuery(profileId)
-const followersQuery = useFollowersQuery(profileId)
+const followingQuery = useFollowingQuery(profileId, () => activeTab.value === 'following')
+const followersQuery = useFollowersQuery(profileId, () => activeTab.value === 'followers')
 const followingEdges = computed(() => followingQuery.data.value ?? [])
 const followerEdges = computed(() => followersQuery.data.value ?? [])
 
@@ -202,26 +196,26 @@ function refetchFollowers(): void {
       <!-- Summary counts -->
       <Card class="flex flex-col gap-3">
         <div class="text-center">
-          <p class="text-metric">{{ monthCount.data.value ?? 0 }}</p>
+          <p class="text-metric">{{ monthCount }}</p>
           <p class="text-caption">{{ t('userProfile.stats.thisMonth') }}</p>
         </div>
         <div class="grid grid-cols-2 gap-2 border-t border-border pt-3 text-center">
           <button type="button" class="cursor-pointer" @click="activeTab = 'following'">
-            <p class="text-metric">{{ followingCount.data.value ?? 0 }}</p>
+            <p class="text-metric">{{ followingCount }}</p>
             <p class="text-caption">{{ t('userProfile.stats.following') }}</p>
           </button>
           <button type="button" class="cursor-pointer" @click="activeTab = 'followers'">
-            <p class="text-metric">{{ followersCount.data.value ?? 0 }}</p>
+            <p class="text-metric">{{ followersCount }}</p>
             <p class="text-caption">{{ t('userProfile.stats.followers') }}</p>
           </button>
         </div>
       </Card>
 
       <UserDistanceStats
-        :week-stats="weekStats.data.value"
-        :month-stats="monthStats.data.value"
+        :week-stats="weekStats"
+        :month-stats="monthStats"
         :units="units"
-        :is-loading="weekStats.isLoading.value || monthStats.isLoading.value"
+        :is-loading="userQuery.isLoading.value"
       />
 
       <UserGoalResults

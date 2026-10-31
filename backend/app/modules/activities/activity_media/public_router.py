@@ -9,34 +9,29 @@ caller does not own.
 
 from typing import Annotated
 
-import jasil.providers as platform_providers
-from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Request, Response
 
-import core.database as core_database
 import core.dependencies as core_dependencies
+import core.http_cache as core_http_cache
+import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_media.service as activity_media_service
 
 router = APIRouter()
-
-# Browser cache for the (stable, signed) media URL, in seconds.
-_CACHE_MAX_AGE = 3600
 
 
 @router.get(
     "/{activity_id}/media/{media_id}/file",
     responses={200: {"content": {"image/*": {}}}},
 )
+@core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def read_activity_media_file(
+    request: Request,
     activity_id: activity_dependencies.ActivityId,
     media_id: core_dependencies.PositiveId,
     token: Annotated[str, Query(alias="t", description="Signed media access token")],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    storage: Annotated[
-        platform_providers.StorageProvider,
-        Depends(core_dependencies.get_storage),
-    ],
+    db: core_dependencies.DbSession,
+    storage: core_dependencies.Storage,
 ) -> Response:
     """Serve an activity media blob when the signed token is valid.
 
@@ -48,5 +43,5 @@ def read_activity_media_file(
     return Response(
         content=data,
         media_type=content_type,
-        headers={"Cache-Control": f"private, max-age={_CACHE_MAX_AGE}"},
+        headers={"Cache-Control": f"private, max-age={core_http_cache.SIGNED_URL_CACHE_MAX_AGE}"},
     )

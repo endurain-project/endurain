@@ -31,6 +31,7 @@
       "admin": "Beheerder",
       "inactive": "Inactief",
       "unverified": "E-mail niet bevestigd",
+      "pendingEmail": "E-mailwijziging in behandeling",
       "pending": "Wacht op goedkeuring",
       "externalAuth": "Externe authenticatie"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "E-mail is verplicht",
       "emailInvalid": "Voer een geldig e-mailadres in",
+      "emailChangeHint": "Er wordt een bevestigingslink naar het nieuwe adres gestuurd en het vervangt het huidige adres zodra het is bevestigd. De gebruiker wordt op alle apparaten afgemeld. Markeer het nieuwe adres als geverifieerd om het nu direct toe te passen.",
       "accessType": "Toegangstype",
       "accessTypeRegular": "Gewone gebruiker",
       "accessTypeAdmin": "Beheerder",
       "password": "Wachtwoord",
       "passwordHint": "Minimaal 8 tekens",
-      "passwordHintStrict": "Minimaal {min} tekens, met hoofdletter, kleine letter, een cijfer en een speciaal teken",
-      "passwordHintLength": "Minimaal {min} tekens",
       "passwordRequired": "Wachtwoord is verplicht",
-      "passwordInvalid": "Dat wachtwoord voldoet niet aan de vereisten",
       "confirmPassword": "Wachtwoord bevestigen",
       "confirmPasswordRequired": "Wachtwoord bevestigen",
-      "passwordMismatch": "Wachtwoorden komen niet overeen",
       "preferredLanguage": "Voorkeurstaal",
       "languages": {
         "ca": "Catalaans",
@@ -149,6 +147,8 @@
       "statusLegend": "Accountstatus",
       "active": "Actief",
       "emailVerified": "E-mail bevestigd",
+      "emailVerifiedCurrentHint": "Dit is de status van het huidige adres.",
+      "newEmailVerified": "Markeer het nieuwe adres als geverifieerd",
       "pendingAdminApproval": "Wacht op beheerdergoedkeuring",
       "requiredField": "Verplicht veld",
       "create": "Gebruiker toevoegen",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Terug naar gebruikers",
+      "pendingEmail": "E-mailwijziging naar {email} in behandeling, link verloopt op {date}",
       "notFoundTitle": "Gebruiker niet gevonden",
       "notFoundDescription": "Dit account is mogelijk verwijderd",
       "securityTitle": "Beveiliging",
@@ -186,16 +187,12 @@
       "title": "Wachtwoord opnieuw instellen",
       "description": "Stel een nieuw wachtwoord in voor {username}",
       "newLabel": "Nieuw wachtwoord",
-      "hintLength": "Minimaal {min} tekens",
-      "hintStrict": "Minimaal {min} tekens, met hoofdletter, kleine letter, een cijfer en een speciaal teken",
       "confirmLabel": "Nieuw wachtwoord bevestigen",
-      "mismatch": "Wachtwoorden komen niet overeen",
       "required": "Wachtwoord is verplicht",
       "submit": "Wachtwoord opnieuw instellen",
       "cancel": "Annuleren",
       "close": "Sluiten",
       "success": "Wachtwoord bijgewerkt",
-      "invalid": "Dat wachtwoord voldoet niet aan de vereisten",
       "error": "Wachtwoord kon niet worden bijgewerkt. Probeer het opnieuw."
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "Test-e-mail verzonden",
       "failed": "De test-e-mail kon niet worden verzonden",
       "failedUnknown": "Bekijk de serverlogs voor details."
+    },
+    "envLocked": "Ingesteld door {name}",
+    "envSection": "Sommige instellingen hier worden ingesteld door omgevingsvariabelen ({names}). Verwijder ze uit de omgeving om die instellingen hier te bewerken.",
+    "unsaved": "Niet-opgeslagen wijzigingen",
+    "discard": "Verwerpen",
+    "tabs": {
+      "label": "Secties van de serverinstellingen",
+      "general": "Algemeen",
+      "access": "Toegang en beveiliging",
+      "maps": "Kaarten en locatie",
+      "email": "E-mail",
+      "unsaved": "Bevat niet-opgeslagen wijzigingen"
+    },
+    "search": {
+      "placeholder": "Instellingen zoeken…",
+      "noResults": "Geen instellingen gevonden"
+    },
+    "leave": {
+      "title": "Verlaten zonder op te slaan?",
+      "description": "Je hebt niet-opgeslagen wijzigingen. Als je deze pagina verlaat, gaan ze verloren.",
+      "confirm": "Verlaten zonder op te slaan",
+      "stay": "Op de pagina blijven",
+      "close": "Sluiten"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "Scopes mogen maximaal 500 tekens zijn",
       "icon": "Pictogram",
       "iconNone": "Geen",
-      "iconCustom": "Aangepaste URL",
-      "customIconUrl": "Aangepaste pictogram-URL",
-      "customIconUrlHint": "Link naar een afbeelding op de inlogknop",
       "enabled": "Ingeschakeld",
       "autoCreateUsers": "Gebruikers automatisch aanmaken bij eerste aanmelding",
       "syncUserInfo": "Profielinformatie synchroniseren bij elke aanmelding",
@@ -559,9 +576,6 @@
       "current": "Huidig wachtwoord",
       "new": "Nieuw wachtwoord",
       "confirm": "Nieuw wachtwoord bevestigen",
-      "requirementsStrict": "Minimaal {length} tekens, inclusief een hoofdletter, kleine letter, een cijfer en een symbool.",
-      "requirementsLength": "Minimaal {length} tekens.",
-      "mismatch": "De wachtwoorden komen niet overeen.",
       "revokeOthers": "Uitloggen op alle andere apparaten",
       "submit": "Wachtwoord wijzigen",
       "success": "Wachtwoord gewijzigd",
@@ -650,6 +664,20 @@
       "invalidCredentials": "Je wachtwoord of code is onjuist.",
       "alreadyLinked": "Dat account is al gekoppeld.",
       "lastMethodError": "Je kunt je enige inlogmethode niet ontkoppelen. Stel eerst een wachtwoord in."
+    },
+    "email": {
+      "subtitle": "Hier worden wachtwoordherstellingen en meldingen naartoe gestuurd. Voor een wijziging moet je je identiteit bevestigen, en het nieuwe adres gaat pas in zodra je het bevestigt via een link die we ernaartoe sturen.",
+      "sameAsCurrent": "Dit is al je e-mailadres.",
+      "success": "Bevestigingslink verzonden naar het nieuwe adres. Je e-mailadres wijzigt zodra je het bevestigt.",
+      "appliedSuccess": "E-mailadres gewijzigd.",
+      "pending": "Wijziging naar {email} in behandeling",
+      "pendingExpires": "De bevestigingslink verloopt op {date}.",
+      "resend": "Link opnieuw versturen",
+      "cancel": "Wijziging annuleren",
+      "resendSuccess": "Als er een wijziging in behandeling is, is er een nieuwe link onderweg naar het nieuwe adres.",
+      "resendError": "De link kon niet opnieuw worden verstuurd. Probeer het opnieuw.",
+      "cancelSuccess": "E-mailwijziging geannuleerd.",
+      "cancelError": "De wijziging kon niet worden geannuleerd. Probeer het opnieuw."
     },
     "apiKeys": {
       "title": "API-sleutels",
@@ -923,7 +951,6 @@
       "invalidType": "Kies een .zip-archief.",
       "exportSuccess": "Export gereed, je download begint binnenkort",
       "exportError": "Gegevens konden niet worden geëxporteerd. Probeer het opnieuw.",
-      "importSuccess": "Gegevens geïmporteerd",
       "importError": "Archief kon niet worden geïmporteerd. Controleer het bestand en probeer het opnieuw."
     }
   }

@@ -58,7 +58,7 @@ export function mapUserProfile(dto: UserProfileDto): User {
     avatarUrl: resolveAvatarUrl(dto.photo_path),
     isStravaLinked: toBoolean(dto.is_strava_linked),
     isGarminConnectLinked: toBoolean(dto.is_garminconnect_linked),
-    hasLocalPassword: dto.has_local_password ?? false,
+    hasLocalPassword: dto.has_local_password,
     units: dto.units,
     currency: dto.currency,
     firstDayOfWeek: dto.first_day_of_week ?? 'monday',

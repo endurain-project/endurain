@@ -11,12 +11,11 @@ class TestReadActivityThumbnailUnit:
         from modules.activities.activity_thumbnail.public_router import read_activity_thumbnail
 
         mock_signing.verify_thumbnail_token.return_value = True
-        mock_signing.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
         mock_signing.thumbnail_key.return_value = "1.webp"
         storage = MagicMock()
         storage.get.return_value = b"webpdata"
 
-        resp = read_activity_thumbnail(1, "tok", storage)
+        resp = read_activity_thumbnail(MagicMock(), 1, "tok", storage)
 
         assert resp.status_code == 200
         assert resp.media_type == "image/webp"
@@ -34,7 +33,7 @@ class TestReadActivityThumbnailUnit:
         storage = MagicMock()
 
         with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_thumbnail(1, "bad", storage)
+            read_activity_thumbnail(MagicMock(), 1, "bad", storage)
 
         storage.get.assert_not_called()
 
@@ -48,7 +47,7 @@ class TestReadActivityThumbnailUnit:
         storage.get.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_thumbnail(1, "tok", storage)
+            read_activity_thumbnail(MagicMock(), 1, "tok", storage)
 
 
 class TestReadActivityThumbnailEndToEnd:

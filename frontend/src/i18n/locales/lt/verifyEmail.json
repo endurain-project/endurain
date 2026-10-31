@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Palaukite, kol patvirtinsime jūsų adresą.",
+  "choosePasswordTitle": "Pasirinkite slaptažodį",
+  "choosePasswordBody": "Jūsų el. paštas bus patvirtintas, kai nustatysite paskyros slaptažodį.",
+  "submitPassword": "Nustatyti slaptažodį",
+  "submittingPassword": "Slaptažodis išsaugomas",
   "successTitle": "El. paštas patvirtintas",
   "successBody": "Jūsų el. pašto adresas buvo patvirtintas.",
   "adminApprovalBody": "Jūsų paskyra dabar laukia administratoriaus patvirtinimo.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Patvirtinimas nepavyko",
   "missingTokenBody": "Šiai patvirtinimo nuorodai trūksta žetono.",
   "errorInvalidToken": "Ši patvirtinimo nuoroda negalioja arba baigė galioti.",
+  "errorEmailTaken": "Šį el. pašto adresą dabar naudoja kita paskyra, todėl jo patvirtinti negalima.",
   "errorNotFound": "Nepavyko rasti paskyros pagal šią nuorodą.",
   "errorGeneral": "Nepavyko patvirtinti jūsų el. pašto. Bandykite dar kartą.",
   "retry": "Bandyti dar kartą",

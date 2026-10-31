@@ -74,7 +74,7 @@ class TestUpdateUserMFADualWrite:
         mfa_row = _make_mock_mfa_row()
         self._setup_db(mock_db, user, mfa_row)
 
-        auth_mfa_crud.update_user_mfa(1, mock_db, "enc_secret")
+        auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc_secret")
 
         # user mock attributes stay at their initial values
         assert user.mfa_enabled is False
@@ -88,20 +88,21 @@ class TestUpdateUserMFADualWrite:
         mfa_row = _make_mock_mfa_row()
         self._setup_db(mock_db, user, mfa_row)
 
-        auth_mfa_crud.update_user_mfa(1, mock_db, "enc_secret")
+        auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc_secret")
 
         assert mfa_row.mfa_enabled is True
         assert mfa_row.mfa_secret == "enc_secret"
 
-    def test_enable_commits(self, mock_db):
-        """db.commit() is called after enable."""
+    def test_enable_stages_without_committing(self, mock_db):
+        """CRUD stages the MFA update and leaves the transaction open."""
         user = _make_mock_user()
         mfa_row = _make_mock_mfa_row()
         self._setup_db(mock_db, user, mfa_row)
 
-        auth_mfa_crud.update_user_mfa(1, mock_db, "enc_secret")
+        auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc_secret")
 
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     # ------------------------------------------------------------------
     # Disable MFA — existing users_mfa row present
@@ -143,15 +144,16 @@ class TestUpdateUserMFADualWrite:
         assert mfa_row.mfa_enabled is False
         assert mfa_row.mfa_secret is None
 
-    def test_disable_commits(self, mock_db):
-        """db.commit() is called after disable."""
+    def test_disable_stages_without_committing(self, mock_db):
+        """CRUD stages the MFA update and leaves the transaction open."""
         user = _make_mock_user()
         mfa_row = _make_mock_mfa_row()
         self._setup_db(mock_db, user, mfa_row)
 
         auth_mfa_crud.update_user_mfa(1, mock_db)
 
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     # ------------------------------------------------------------------
     # users_mfa row missing (fresh install before backfill)
@@ -176,7 +178,7 @@ class TestUpdateUserMFADualWrite:
                 return_value=mock_new_row,
             ) as mock_class,
         ):
-            auth_mfa_crud.update_user_mfa(1, mock_db, "enc_secret")
+            auth_mfa_crud.update_user_mfa(1, mock_db, encrypted_secret="enc_secret")
 
             mock_class.assert_called_once_with(
                 user_id=1,

@@ -19,8 +19,10 @@ cannot drift. What an agent most often gets wrong:
 - `__init__.py` is a docstring and nothing else; never register contributors, subscribers or providers as an import side effect.
 - If a rule blocks you, add the operation to the owner's `integration_service`; do not widen an allowlist.
 - Resolve providers (`get_active_platform()`) only at entry points; below that, take the provider as an argument.
-- Never import `jasil.backends` or `jasil._core`; identity comes only from `modules.auth.dependencies` and `modules.auth.identity_service`.
-- KISS, YAGNI, DRY: search the module and `core` for an existing helper first; add no parameter, wrapper, base class or `integration_service` operation without a current caller; extract on the third repetition.
+- Never import `jasil.backends` or `jasil._core`; request identity comes from `modules.auth.dependencies`, while behavior crosses auth package boundaries through the owning child's `integration_service.py`.
+- A new editable resource follows `docs/developer-guide/optimistic-concurrency.md` ("Adding a versioned resource"); `TestVersionedAndOwnedRoutes` fails a `PUT`/`PATCH` without `IfMatch`.
+- Never block a request or hold a database session across a provider or network call; hand the work to a job or `core.local_pool` and answer 202.
+- KISS, YAGNI, DRY: search the module and `core` for an existing helper first; add no parameter, wrapper, base class or `integration_service` operation without a current caller; extract on the second repetition.
 - Comments and docstrings say what the code does now and why; history goes in the commit message.
 
 ## Read on demand
@@ -33,6 +35,7 @@ cannot drift. What an agent most often gets wrong:
 | Raising errors, endpoints, pagination, rate limits, API changes | `references/errors-and-api.md` |
 | Handling uploads, access control, secrets, outbound requests | `references/security.md` |
 | Writing or fixing tests | `references/testing.md` |
+| Reviewing code for horizontal scaling (replicas, shared state, durable work) | `references/scaling-review.md` |
 
 ## Before finishing a structural change
 
@@ -42,6 +45,9 @@ PYTHONPATH=app uv run lint-imports
 uv run pytest tests/architecture -q --no-cov
 uv run ruff format --check . && uv run ruff check .
 ```
+
+CI runs the full `uv run pytest` with the 80% coverage gate, so run it without `--no-cov` before a PR.
+`uv run hatch run typecheck` (mypy) is available but is not a CI gate.
 
 ## Repo hygiene
 

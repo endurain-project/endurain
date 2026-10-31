@@ -73,13 +73,6 @@ class TestHealthTargetsModel:
         assert health_targets_models.HealthTargets.steps.type.python_type is int
         assert health_targets_models.HealthTargets.sleep.type.python_type is int
 
-    def test_health_targets_model_relationship(self):
-        """
-        Test HealthTargets model has relationship to User.
-        """
-        # Assert
-        assert hasattr(health_targets_models.HealthTargets, "users")
-
     def test_health_targets_model_weight_precision(self):
         """
         Test HealthTargets model weight field has correct precision.

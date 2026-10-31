@@ -9,6 +9,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { compose, required } from '@/utils/validators'
@@ -59,10 +60,9 @@ function defaultValues(): StepsFormValues {
   }
 }
 
-/** Converts a raw steps string to a rounded whole-number count (or `null`). */
-function stepsToCount(raw: string): number | null {
-  const value = toNumberOrNull(raw)
-  return value === null ? null : Math.round(value)
+/** Converts a validated steps string to a rounded whole-number count. */
+function stepsToCount(raw: string): number {
+  return Math.round(Number(raw.trim()))
 }
 
 /** Converts the string-based form values into the clean {@link StepsEntryInput}. */
@@ -86,7 +86,7 @@ async function submitForm(values: StepsFormValues): Promise<void> {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.steps.form.updateSuccess'))
@@ -95,8 +95,8 @@ async function submitForm(values: StepsFormValues): Promise<void> {
       emit('success', t('health.steps.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.steps.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.steps.form.saveError'))
   }
 }
 

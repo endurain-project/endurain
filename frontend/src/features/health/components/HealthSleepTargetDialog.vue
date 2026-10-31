@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { useUpdateSleepTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -50,14 +51,13 @@ function targetToSeconds(formValues: TargetFormValues): number | null {
 async function submitForm(formValues: TargetFormValues): Promise<void> {
   try {
     await updateTargetMutation.mutateAsync({
-      id: props.targets.id,
-      userId: props.targets.userId,
+      version: props.targets.version,
       sleepSeconds: targetToSeconds(formValues),
     })
     emit('success', t('health.sleep.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.sleep.target.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.sleep.target.saveError'))
   }
 }
 

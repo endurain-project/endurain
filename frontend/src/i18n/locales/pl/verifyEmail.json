@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Poczekaj chwilę, potwierdzamy Twój adres.",
+  "choosePasswordTitle": "Wybierz hasło",
+  "choosePasswordBody": "Twój adres e-mail zostanie potwierdzony po ustawieniu hasła do konta.",
+  "submitPassword": "Ustaw hasło",
+  "submittingPassword": "Zapisywanie hasła",
   "successTitle": "E-mail zweryfikowany",
   "successBody": "Twój adres e-mail został potwierdzony.",
   "adminApprovalBody": "Twoje konto oczekuje teraz na zatwierdzenie przez administratora.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Weryfikacja nie powiodła się",
   "missingTokenBody": "W tym linku weryfikacyjnym brakuje tokenu.",
   "errorInvalidToken": "Ten link weryfikacyjny jest nieprawidłowy lub wygasł.",
+  "errorEmailTaken": "Ten adres e-mail jest już używany przez inne konto, więc nie można go potwierdzić.",
   "errorNotFound": "Nie udało się znaleźć konta dla tego linku.",
   "errorGeneral": "Nie udało się zweryfikować Twojego e-maila. Spróbuj ponownie.",
   "retry": "Spróbuj ponownie",

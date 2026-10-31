@@ -18,6 +18,7 @@
     "help": "Tarkista, että ENDURAIN_HOST osoittaa osoitteeseen, josta Endurain-instanssisi on tavoitettavissa (esimerkiksi https://endurain.example.com) ja että taustapalvelu on käynnissä, ja lataa sitten sivu uudelleen.",
     "reload": "Lataa uudelleen"
   },
+  "staleError": "Tätä muutettiin muualla, kun katselit sitä, joten mitään ei tallennettu. Nykyinen versio on ladattu. Tarkista se ja yritä uudelleen.",
   "dismiss": "Hylkää",
   "language": "Kieli",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Muokkaa",
     "supported": "Markdown tuettu",
     "empty": "Ei mitään esikatseltavaa"
+  },
+  "password": {
+    "hintLength": "Vähintään {min} merkkiä.",
+    "hintStrict": "Vähintään {min} merkkiä, sisältäen ison kirjaimen, pienen kirjaimen, numeron ja erikoismerkin.",
+    "invalid": "Salasana ei täytä vaatimuksia",
+    "mismatch": "Salasanat eivät täsmää"
   }
 }

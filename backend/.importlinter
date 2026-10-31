@@ -13,27 +13,6 @@ root_packages =
 # its own copy. What stays below is what import-linter is good at: external
 # packages, the platform direction, and named design seams.
 
-[importlinter:contract:auth-boundary]
-name = Auth boundary: non-auth must not import auth internals directly
-type = forbidden
-allow_indirect_imports = True
-source_modules =
-    modules.users
-    modules.activities
-    core
-    modules.followers
-    modules.garmin
-    modules.gears
-    modules.health
-    modules.notifications
-    modules.server_settings
-    modules.strava
-    modules.websocket
-forbidden_modules =
-    modules.auth._internal
-    modules.auth.*.crud
-    modules.auth.*.*.crud
-
 # The substrate is the external ``jasil`` package, which enforces its own
 # ports-and-adapters direction and its own no-domain rule upstream. Which part of
 # it application code may touch is still this repository's rule, but it cannot be
@@ -44,9 +23,6 @@ forbidden_modules =
 # domain to ask what work exists. Each module declares its own ``scheduled_jobs``,
 # and the composition root (``main``) hands the collected list to
 # ``start_scheduler``.
-# One exception is recorded here so it is reviewed rather than assumed:
-# ``core.middleware`` reads the server-settings SCHEMA (a data shape, not
-# behaviour) to type the settings it stamps onto the request.
 [importlinter:contract:core-not-domain]
 name = Core must not import domain modules
 type = forbidden
@@ -55,8 +31,6 @@ source_modules =
     core
 forbidden_modules =
     modules
-ignore_imports =
-    core.middleware -> modules.server_settings.schema
 
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis
@@ -86,7 +60,7 @@ forbidden_modules =
 #   * ``activity_ingestion.provider_registry`` — a provider registers a fetch
 #     callable at startup; the refresh path names no provider.
 #   * ``activity_ingestion.contracts.BulkImportSource`` — a provider export
-#     subclasses it (``modules.strava.bulk_import_source``) instead of the base
+#     subclasses it (``modules.strava.bulk_import_service``) instead of the base
 #     class branching on ``strava_activities``.
 #   * ``GarminSource.gear_id`` — the provider resolves its own synced gear and
 #     passes the id, so enrichment only answers "and if not, what is the default?".
@@ -191,7 +165,7 @@ forbidden_modules =
 # adapters are for app/migrations only and must never become a general-purpose
 # domain dependency.
 [importlinter:contract:activities-migration-surfaces-are-private]
-name = Activity migration services are consumed only by application migrations
+name = Module migration services are consumed only by application migrations
 type = forbidden
 allow_indirect_imports = True
 source_modules =
@@ -199,6 +173,10 @@ source_modules =
     core
 forbidden_modules =
     modules.activities.*.migration_service
+    modules.garmin.migration_service
+    modules.strava.migration_service
+    modules.health.*.migration_service
+    modules.users.*.migration_service
 
 # Provider modules describe users data with the read schemas the users CRUD actually
 # returns, never the ORM models: the runtime value is already a DTO, so naming the

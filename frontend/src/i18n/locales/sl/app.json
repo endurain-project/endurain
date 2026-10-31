@@ -18,6 +18,7 @@
     "help": "Preverite, ali ENDURAIN_HOST kaže na URL, kjer je vaša instanca Endurain dosegljiva (na primer https://endurain.example.com), in ali zaledje deluje, nato pa znova naložite stran.",
     "reload": "Znova naloži"
   },
+  "staleError": "To je bilo spremenjeno drugje, medtem ko ste si to ogledovali, zato ničesar ni bilo shranjeno. Naložena je trenutna različica. Preglejte jo in poskusite znova.",
   "dismiss": "Zapri",
   "language": "Jezik",
   "theme": {
@@ -35,5 +36,11 @@
     "edit": "Uredi",
     "supported": "Markdown podprt",
     "empty": "Ni ničesar za predogled"
+  },
+  "password": {
+    "hintLength": "Vsaj {min} znakov.",
+    "hintStrict": "Vsaj {min} znakov, z veliko in malo črko, številko in posebnim znakom.",
+    "invalid": "Geslo ne izpolnjuje zahtev",
+    "mismatch": "Gesli se ne ujemata"
   }
 }

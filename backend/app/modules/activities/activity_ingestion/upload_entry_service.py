@@ -284,7 +284,7 @@ def process_staged_upload(
         KeyError,
         TypeError,
     ) as err:
-        logger.error(
+        logger.debug(
             "Error processing a staged activity upload",
             exc_info=err,
             extra=core_logger.context(user_id=token_user_id),

@@ -31,6 +31,7 @@
       "admin": "管理員",
       "inactive": "未啟用",
       "unverified": "電子郵件未驗證",
+      "pendingEmail": "電子郵件變更待處理",
       "pending": "待審核",
       "externalAuth": "外部驗證"
     },
@@ -64,18 +65,15 @@
       "email": "電子郵件",
       "emailRequired": "電子郵件為必填",
       "emailInvalid": "請輸入有效的電子郵件地址",
+      "emailChangeHint": "系統會向新信箱寄送確認連結，確認後將取代目前的信箱。該使用者將在所有裝置上登出。若要立即套用，請將新信箱標示為已驗證。",
       "accessType": "存取類型",
       "accessTypeRegular": "一般使用者",
       "accessTypeAdmin": "管理員",
       "password": "密碼",
       "passwordHint": "至少 8 個字元",
-      "passwordHintStrict": "至少 {min} 個字元，包含大寫字母、小寫字母、數字和特殊字元",
-      "passwordHintLength": "至少 {min} 個字元",
       "passwordRequired": "密碼為必填",
-      "passwordInvalid": "該密碼不符合要求",
       "confirmPassword": "確認密碼",
       "confirmPasswordRequired": "確認密碼",
-      "passwordMismatch": "兩次輸入的密碼不符",
       "preferredLanguage": "偏好語言",
       "languages": {
         "ca": "加泰隆尼亞語",
@@ -149,6 +147,8 @@
       "statusLegend": "帳戶狀態",
       "active": "啟用",
       "emailVerified": "電子郵件已驗證",
+      "emailVerifiedCurrentHint": "這是目前信箱的狀態。",
+      "newEmailVerified": "將新信箱標示為已驗證",
       "pendingAdminApproval": "待管理員審核",
       "requiredField": "必填欄位",
       "create": "新增使用者",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "返回使用者列表",
+      "pendingEmail": "待處理的信箱變更為 {email}，連結將於 {date} 過期",
       "notFoundTitle": "找不到使用者",
       "notFoundDescription": "此帳戶可能已被刪除",
       "securityTitle": "安全性",
@@ -186,16 +187,12 @@
       "title": "重設密碼",
       "description": "為 {username} 設定新密碼",
       "newLabel": "新密碼",
-      "hintLength": "至少 {min} 個字元",
-      "hintStrict": "至少 {min} 個字元，包含大寫字母、小寫字母、數字和特殊字元",
       "confirmLabel": "確認新密碼",
-      "mismatch": "兩次輸入的密碼不符",
       "required": "密碼為必填",
       "submit": "重設密碼",
       "cancel": "取消",
       "close": "關閉",
       "success": "密碼已更新",
-      "invalid": "該密碼不符合要求",
       "error": "無法更新密碼，請再試一次。"
     },
     "sessions": {
@@ -367,6 +364,29 @@
       "sent": "測試郵件已寄出",
       "failed": "無法寄出測試郵件",
       "failedUnknown": "請查看伺服器日誌了解詳情。"
+    },
+    "envLocked": "由 {name} 設定",
+    "envSection": "此處的部分設定由環境變數（{names}）決定。請從環境中移除這些變數，以便在此處編輯相應設定。",
+    "unsaved": "未儲存的變更",
+    "discard": "捨棄",
+    "tabs": {
+      "label": "伺服器設定分區",
+      "general": "一般",
+      "access": "存取與安全性",
+      "maps": "地圖與位置",
+      "email": "電子郵件",
+      "unsaved": "有未儲存的變更"
+    },
+    "search": {
+      "placeholder": "搜尋設定…",
+      "noResults": "找不到設定"
+    },
+    "leave": {
+      "title": "不儲存就離開？",
+      "description": "你有未儲存的變更。離開此頁面後這些變更將會遺失。",
+      "confirm": "不儲存並離開",
+      "stay": "留在此頁面",
+      "close": "關閉"
     }
   },
   "idp": {
@@ -442,9 +462,6 @@
       "scopesTooLong": "範圍不得超過 500 個字元",
       "icon": "圖示",
       "iconNone": "無",
-      "iconCustom": "自訂 URL",
-      "customIconUrl": "自訂圖示 URL",
-      "customIconUrlHint": "顯示於登入按鈕上的圖片連結",
       "enabled": "已啟用",
       "autoCreateUsers": "首次登入時自動建立使用者",
       "syncUserInfo": "每次登入時同步個人資料",
@@ -559,9 +576,6 @@
       "current": "目前密碼",
       "new": "新密碼",
       "confirm": "確認新密碼",
-      "requirementsStrict": "至少 {length} 個字元，包含大寫字母、小寫字母、數字和符號。",
-      "requirementsLength": "至少 {length} 個字元。",
-      "mismatch": "兩次輸入的密碼不符。",
       "revokeOthers": "登出所有其他裝置",
       "submit": "變更密碼",
       "success": "密碼已變更",
@@ -650,6 +664,20 @@
       "invalidCredentials": "您的密碼或驗證碼不正確。",
       "alreadyLinked": "該帳戶已連結。",
       "lastMethodError": "您無法取消連結唯一的登入方式，請先設定密碼。"
+    },
+    "email": {
+      "subtitle": "密碼重設與通知會寄送至此信箱。變更時需要驗證您的身分，新信箱必須透過我們寄送至該信箱的連結確認後才會生效。",
+      "sameAsCurrent": "這已經是您的信箱地址。",
+      "success": "確認連結已寄送至新信箱。確認後，您的信箱將會變更。",
+      "appliedSuccess": "電子郵件已變更。",
+      "pending": "待處理的變更：{email}",
+      "pendingExpires": "確認連結將於 {date} 過期。",
+      "resend": "重新寄送連結",
+      "cancel": "取消變更",
+      "resendSuccess": "如果有待處理的變更，新連結將寄送至新信箱。",
+      "resendError": "無法重新寄送連結，請再試一次。",
+      "cancelSuccess": "已取消信箱變更。",
+      "cancelError": "無法取消變更，請再試一次。"
     },
     "apiKeys": {
       "title": "API 金鑰",
@@ -923,7 +951,6 @@
       "invalidType": "請選擇 .zip 壓縮檔。",
       "exportSuccess": "匯出完成，您的下載應即將開始",
       "exportError": "無法匯出您的資料，請再試一次。",
-      "importSuccess": "資料已匯入",
       "importError": "無法匯入壓縮檔，請確認檔案後再試一次。"
     }
   }

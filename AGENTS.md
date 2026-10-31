@@ -12,10 +12,14 @@ Deployment: Docker multi-stage image (amd64, arm64).
 | Backend code or tests | `.agents/skills/endurain-backend/SKILL.md` |
 | Frontend code or tests | `.agents/skills/endurain-frontend/SKILL.md` |
 | Converting a module to the module structure | `.agents/skills/convert-module/SKILL.md` |
+| Fixing a bug, failing test or CI failure | `.agents/skills/debugging/SKILL.md` |
 | Commit messages and PRs | `.agents/skills/conventional-commits/SKILL.md` |
 | Writing or editing a skill | `.agents/skills/skill-authoring/SKILL.md` |
 | Module rules and file roles | `docs/developer-guide/module-structure.md` |
 | Identity and auth boundary | `docs/developer-guide/auth-boundary.md` |
+| Events, subscribers and reconciliation nets | `docs/developer-guide/events-and-subscribers.md` |
+| Versioned writes (`ETag`, `If-Match`) | `docs/developer-guide/optimistic-concurrency.md` |
+| Activity ingestion pipeline | `docs/developer-guide/activity-ingestion.md` |
 | Visual design | `docs/developer-guide/brand-and-ux-guidelines.md` |
 | Scaling, jobs, storage settings | `docs/getting-started/scaling-and-background-jobs.md` |
 
@@ -55,9 +59,9 @@ npm run gen:api      # after backend API changes
 
 - Do only what was asked; no extra docs, summaries, READMEs or "helpful" files.
 - Prefer existing patterns, utilities and files over new ones.
-- KISS: pick the simplest design that works; no indirection, abstraction layer or option without a current need.
-- YAGNI: build only what the task needs now; no speculative parameters, flags, hooks, config or extension points.
-- DRY: reuse an existing helper, schema, composable or primitive before writing another; extract shared code at the third repetition, not the second, and only when the copies change for the same reason.
+- KISS: pick the simplest design that solves the underlying problem; no indirection, abstraction layer or option without a current need. Simple means few moving parts, not a small diff or a patch over the symptom.
+- YAGNI: build only what the task needs now; no speculative parameters, flags, hooks, config or extension points. What you do build must be complete and proper, not a stub or shortcut.
+- DRY: reuse an existing helper, schema, composable or primitive before writing another; extract shared code at the second repetition, and only when the copies change for the same reason.
 - Do not change Dockerfiles, CI workflows, port numbers, environment variables or framework versions unless asked.
 - Never run `git commit` (or any commit-creating command) unless the user explicitly asks; staging for inspection is fine.
 - Commit messages and PR titles follow Conventional Commits (enforced in CI); see the `conventional-commits` skill.
@@ -65,6 +69,33 @@ npm run gen:api      # after backend API changes
 - All `UploadFile` handling goes through `backend/app/core/file_uploads.py`; never build filesystem paths from user filenames.
 - No hardcoded secrets; read configuration from environment variables.
 - Ask for clarification when scope is unclear instead of assuming extra deliverables.
+- A change touching more than one module or both stacks starts with a short task list in chat for approval; keep plans in chat or `devdocs/`, never in tracked files.
+- Bug fixes and new behavior start with a failing test.
+- An API change is done only when `npm run gen:api` was run and `npm run check` passes, so both stacks agree.
+- Done means the checks that apply to what changed ran and their output was read; say which ran and which did not (stack checks do not apply to docs, `AGENTS.md` or skill-only changes).
+- Before reporting a larger change done, compare the diff to the request and remove anything not asked for.
+
+## Fixing problems
+
+- Fix the root cause, not the symptom. Before changing code, state the cause you found and the evidence for it.
+- Do not add workarounds: no special-case branches, swallowed exceptions, retries or sleeps to hide a failure, `type: ignore` / `# noqa`, test skips or loosened assertions, or defensive checks that mask bad state upstream.
+- If the proper fix is larger than the request (touches other modules, changes a boundary, needs a refactor), stop and ask before editing. Present the options:
+  1. Proper fix: what it changes and why it is the right one.
+  2. Minimal fix: what it leaves broken or the debt it creates.
+
+  Recommend one. Never apply the minimal option without the user's choice.
+- If unsure whether a fix is a workaround, treat it as one and ask.
+
+## Building features
+
+- Build the feature the way the architecture intends: correct module, layering and boundaries per the developer guide, even when a shortcut would be quicker.
+- Do not take shortcuts: no placeholder or stubbed logic, hardcoded values, TODOs standing in for required behavior, copy-pasted code instead of reuse, logic in the wrong layer, or skipped tests, validation, error handling, migrations, i18n or generated API types.
+- Before writing code, state the approach and the files it touches. If more than one reasonable design exists, or the proper design is larger than the request implies, stop and ask. Present the options:
+  1. Proper design: what it involves and why it fits the architecture.
+  2. Simpler design: what it cuts or defers, and the debt it creates.
+
+  Recommend one. Never apply the simpler option without the user's choice.
+- Scope still applies: complete means done properly, not bigger. Do not add features, options or files that were not requested.
 
 ## Backend invariants
 
@@ -73,6 +104,11 @@ npm run gen:api      # after backend API changes
 - Storage, events, jobs and geocoding come from `jasil` ports; resolve a provider at the entry point and pass it down.
 - Comments state what the code does now, not what it used to do.
 - Enforced by `backend/.importlinter` and `backend/tests/architecture/`.
+- A client-editable resource is versioned: reads carry an `ETag`, `PUT`/`PATCH` require `If-Match` (`core_dependencies.IfMatch`), a stale write is 412, and an HTTP route never accepts `*` (`docs/developer-guide/optimistic-concurrency.md`).
+- Nothing blocks an API request: provider calls, large uploads, exports and bulk deletes run as a job or bounded pool and answer 202, and no database session stays open across a network call.
+- A route that names another user (`{user_id}`) requires an admin scope or checks ownership against `CurrentUserId`; `users:read` and `profile` belong to every user.
+- State shared across requests or replicas (rate limits, OAuth state, tickets, claims) goes through the platform `StateProvider`, never a module-level dict, lock or cache; review against `.agents/skills/endurain-backend/references/scaling-review.md`.
+- A provider rate-limit response becomes `TooManyRequestsError` with `retry_at`, so ingestion defers the work instead of burning retries.
 - Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them on converted modules).
 
 ## Frontend invariants
@@ -81,3 +117,4 @@ npm run gen:api      # after backend API changes
 - Types come from the generated API client (`src/types/api.generated.ts`, never hand-edited).
 - Semantic Tailwind tokens and shadcn-vue primitives; no hardcoded hex values; every string through vue-i18n.
 - Never use `v-html` on user data.
+- A write to a versioned resource sends the `ETag` it read as `If-Match` (`src/services/ifMatch.ts`), never `*`; handle 412 by refetching.

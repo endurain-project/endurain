@@ -21,15 +21,11 @@ unchanged.
 """
 
 import core.signing as core_signing
+import modules.users.users.constants as users_constants
 
 # Namespaces this signer from the activity-thumbnail and activity-media signers,
 # all of which bind a bare integer id.
 _SIGNER = core_signing.CapabilitySigner(salt="user-image")
-
-# Domain-owned storage namespace. For the ``local`` backend this maps to
-# ``{DATA_DIR}/user_images`` — the directory the photos already live in — so an
-# existing install needs no data migration; for S3 it is the object key prefix.
-USER_IMAGE_STORAGE_AREA = "user_images"
 
 
 def sign_user_image_token(user_id: int) -> str:
@@ -70,7 +66,7 @@ def user_image_url(key: str | None, user_id: int | None) -> str | None:
     if not key or user_id is None:
         return None
     return core_signing.blob_url(
-        USER_IMAGE_STORAGE_AREA,
+        users_constants.USER_IMAGE_STORAGE_AREA,
         key,
         local_path=f"/users/{user_id}/photo",
         token=sign_user_image_token(user_id),
