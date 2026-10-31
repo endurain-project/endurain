@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Pujant…",
     "success": "Activitat pujada correctament",
-    "error": "No s'ha pogut pujar el fitxer d'activitat"
+    "error": "No s'ha pogut pujar el fitxer d'activitat",
+    "timeout": "El teu fitxer encara s'està important. Apareixerà quan acabi.",
+    "failed": {
+      "unsupported_format": "Aquest tipus de fitxer no és compatible",
+      "invalid_file": "No s'ha pogut llegir aquest fitxer",
+      "no_activities_found": "No s'ha trobat cap activitat en aquest fitxer",
+      "processing_failed": "No s'ha pogut importar el fitxer d'activitat"
+    }
   },
   "refresh": {
     "label": "Actualitza",

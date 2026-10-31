@@ -1,0 +1,11 @@
+"""The parser operations exposed only to data migrations."""
+
+import modules.activities.activity_file_import.fit_frames as activity_file_import_fit_frames
+import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
+
+generate_activity_laps = activity_file_import_parser_utils.generate_activity_laps
+parse_frame_session = activity_file_import_fit_frames.parse_frame_session
+parse_frame_lap = activity_file_import_fit_frames.parse_frame_lap
+parse_frame_workout_step = activity_file_import_fit_frames.parse_frame_workout_step
+parse_frame_exercise_title = activity_file_import_fit_frames.parse_frame_exercise_title
+parse_frame_set = activity_file_import_fit_frames.parse_frame_set

@@ -586,9 +586,6 @@
       "edit": "Redaguoti badavimą",
       "delete": "Ištrinti badavimą"
     },
-    "list": {
-      "notesLabel": "Pastabos"
-    },
     "form": {
       "addTitle": "Pradėti badavimą",
       "editTitle": "Redaguoti badavimo sesiją",
@@ -596,7 +593,6 @@
       "type": "Badavimo protokolas",
       "customDuration": "Pasirinktinė trukmė",
       "customDurationHint": "Badavimo trukmė valandomis (1–72).",
-      "hours": "valandos",
       "startTime": "Pradžios laikas",
       "startTimeRequired": "Pasirinkite pradžios laiką.",
       "endTime": "Pabaigos laikas",

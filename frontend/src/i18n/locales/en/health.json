@@ -586,9 +586,6 @@
       "edit": "Edit fast",
       "delete": "Delete fast"
     },
-    "list": {
-      "notesLabel": "Notes"
-    },
     "form": {
       "addTitle": "Start fasting",
       "editTitle": "Edit fasting session",
@@ -596,7 +593,6 @@
       "type": "Fasting protocol",
       "customDuration": "Custom duration",
       "customDurationHint": "Length of the fast, in hours (1–72).",
-      "hours": "hours",
       "startTime": "Start time",
       "startTimeRequired": "Please choose a start time.",
       "endTime": "End time",

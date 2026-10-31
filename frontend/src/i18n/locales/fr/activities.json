@@ -39,7 +39,6 @@
       "distance": "Distance",
       "duration": "Durée",
       "pace": "Allure",
-      "speed": "Vitesse",
       "paceSpeed": "Allure / Vitesse",
       "elevation": "Dénivelé",
       "calories": "Calories",
@@ -66,7 +65,6 @@
     "recenter": "Recentrer la carte"
   },
   "metrics": {
-    "title": "Métriques",
     "time": "Temps",
     "distance": "Distance",
     "movingTime": "Temps en mouvement",
@@ -109,7 +107,12 @@
     "elevation": "Dénivelé",
     "strokeRate": "Cadence de nage",
     "cycles": "Cycles",
-    "hr": "Fréquence cardiaque"
+    "strokes": "Mouvements",
+    "revolutions": "Révolutions",
+    "strides": "Foulées",
+    "jumps": "Sauts",
+    "hr": "Fréquence cardiaque",
+    "activeSummary": "Total actif"
   },
   "workout": {
     "title": "Séance",
@@ -157,7 +160,6 @@
     "deleteError": "Impossible de supprimer l'activité"
   },
   "media": {
-    "title": "Photos",
     "alt": "Photo de l'activité",
     "addMedia": "Ajouter une photo",
     "uploadSuccess": "Photo téléversée",
@@ -170,7 +172,8 @@
     "close": "Fermer",
     "deleteSuccess": "Photo supprimée",
     "deleteError": "Impossible de supprimer la photo",
-    "expand": "Voir en plein écran"
+    "expand": "Voir en plein écran",
+    "thumbnailPending": "Génération de l'aperçu de la carte…"
   },
   "gallery": {
     "previous": "Précédent",
@@ -204,7 +207,8 @@
     "hideWorkoutSetsSteps": "Masquer les séries et étapes de séance",
     "hideGear": "Masquer l'équipement",
     "success": "Activité mise à jour",
-    "error": "Impossible de mettre à jour l'activité"
+    "error": "Impossible de mettre à jour l'activité",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Cette activité est masquée. Seul vous pouvez la voir.",
@@ -266,6 +270,7 @@
     "sailing": "Voile",
     "snowShoeing": "Raquettes",
     "inlineSkating": "Roller",
-    "hiit": "HIIT"
+    "hiit": "HIIT",
+    "jumpRope": "Saut à la corde"
   }
 }

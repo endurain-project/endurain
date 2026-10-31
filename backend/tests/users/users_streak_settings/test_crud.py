@@ -2,8 +2,8 @@
 
 import pytest
 
-import users.users_streak_settings.crud as streak_settings_crud
-import users.users_streak_settings.schema as streak_settings_schema
+import modules.users.users_streak_settings.crud as streak_settings_crud
+import modules.users.users_streak_settings.schema as streak_settings_schema
 from tests._helpers.db import create_sqlite_session
 
 

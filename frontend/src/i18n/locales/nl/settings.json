@@ -48,7 +48,6 @@
       "title": "Nog geen gebruikers",
       "description": "Voeg het eerste account toe voor deze instantie",
       "searchTitle": "Geen gebruikers gevonden",
-      "searchDescription": "Geen gebruikers komen overeen met die gebruikersnaam",
       "filteredTitle": "Geen gebruikers komen overeen met de geselecteerde filters"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Minimaal {min} tekens, met hoofdletter, kleine letter, een cijfer en een speciaal teken",
       "passwordHintLength": "Minimaal {min} tekens",
       "passwordRequired": "Wachtwoord is verplicht",
-      "passwordTooShort": "Wachtwoord moet minimaal 8 tekens zijn",
       "passwordInvalid": "Dat wachtwoord voldoet niet aan de vereisten",
       "confirmPassword": "Wachtwoord bevestigen",
       "confirmPasswordRequired": "Wachtwoord bevestigen",
@@ -135,6 +133,8 @@
         "pound": "Pond"
       },
       "firstDayOfWeek": "Eerste dag van de week",
+      "timezone": "Tijdzone",
+      "timezoneHint": "Wordt gebruikt voor activiteiten die zonder GPS zijn opgenomen, zoals hardlopen op de loopband en binnenfietsen.",
       "weekdays": {
         "sunday": "Zondag",
         "monday": "Maandag",
@@ -354,6 +354,19 @@
       "deleteError": "Inlogfoto kon niet worden verwijderd. Probeer het opnieuw.",
       "cancel": "Annuleren",
       "close": "Sluiten"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain verstuurt e-mails voor het opnieuw instellen van het wachtwoord en voor registratie via de SMTP-server die in de omgeving is geconfigureerd.",
+      "statusLoadError": "De e-mailconfiguratie kon niet worden gecontroleerd.",
+      "configured": "E-mail is geconfigureerd.",
+      "notConfigured": "E-mail is niet geconfigureerd:",
+      "send": "Test-e-mail verzenden",
+      "sending": "Verzenden…",
+      "sendHint": "De test-e-mail wordt naar je eigen adres gestuurd.",
+      "sent": "Test-e-mail verzonden",
+      "failed": "De test-e-mail kon niet worden verzonden",
+      "failedUnknown": "Bekijk de serverlogs voor details."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Sla je herstelcodes op",
       "description": "Gebruik een herstelcode om in te loggen als je geen toegang meer hebt tot je authenticator-app.",
-      "warning": "Deze codes worden maar één keer getoond. Bewaar ze op een veilige plek — elke code werkt maar één keer.",
+      "warning": "Deze codes worden maar één keer getoond. Bewaar ze op een veilige plek, elke code werkt maar één keer.",
       "copy": "Kopiëren",
       "copied": "Herstelcodes gekopiëerd",
       "copyError": "Codes konden niet worden gekopiëerd.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Bulkimport",
       "subtitle": "Importeer activiteitsbestanden in de bulkimportmap van de server",
-      "button": "Activiteiten importeren",
+      "uploadButton": "ZIP uploaden",
+      "folderButton": "Importeren uit map",
       "started": "Activiteiten worden op de achtergrond geïmporteerd…",
+      "alreadyRunning": "Er loopt al een bulkimport. Wacht tot die klaar is.",
       "error": "Import kon niet worden gestart. Probeer het opnieuw."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava-fietsen geïmporteerd",
       "bikesError": "Strava-fietsen konden niet worden geïmporteerd. Probeer het opnieuw.",
       "shoesSuccess": "Strava-schoenen geïmporteerd",
-      "shoesError": "Strava-schoenen konden niet worden geïmporteerd. Probeer het opnieuw."
+      "shoesError": "Strava-schoenen konden niet worden geïmporteerd. Probeer het opnieuw.",
+      "activitiesUpload": "Activiteiten importeren (ZIP uploaden)",
+      "activitiesFolder": "Activiteiten importeren (servermap)"
+    },
+    "job": {
+      "preparing": "Import voorbereiden…",
+      "progress": "{done} van {total} bestanden geïmporteerd ({failed} mislukt)…",
+      "finished": "Import voltooid: {done} van {total} bestanden geïmporteerd, {failed} mislukt.",
+      "failed": "De import kon niet worden voltooid."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Gegevens exporteren",
       "import": "Gegevens importeren",
       "invalidType": "Kies een .zip-archief.",
-      "exportSuccess": "Export gereed — je download begint binnenkort",
+      "exportSuccess": "Export gereed, je download begint binnenkort",
       "exportError": "Gegevens konden niet worden geëxporteerd. Probeer het opnieuw.",
       "importSuccess": "Gegevens geïmporteerd",
       "importError": "Archief kon niet worden geïmporteerd. Controleer het bestand en probeer het opnieuw."

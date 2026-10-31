@@ -3,7 +3,7 @@
 import pytest
 from fastapi import HTTPException, status
 
-import users.users_profile.exceptions as profile_exceptions
+import modules.users.users_profile.exceptions as profile_exceptions
 
 
 class TestProfileOperationError:

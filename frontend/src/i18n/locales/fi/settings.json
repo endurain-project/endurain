@@ -48,7 +48,6 @@
       "title": "Ei vielä käyttäjiä",
       "description": "Lisää tämän instanssin ensimmäinen tili",
       "searchTitle": "Käyttäjiä ei löytynyt",
-      "searchDescription": "Mikään käyttäjä ei vastaa tätä käyttäjänimeä",
       "filteredTitle": "Mikään käyttäjä ei vastaa valittuja suodattimia"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Vähintään {min} merkkiä, sisältäen ison kirjaimen, pienen kirjaimen, numeron ja erikoismerkin",
       "passwordHintLength": "Vähintään {min} merkkiä",
       "passwordRequired": "Salasana on pakollinen",
-      "passwordTooShort": "Salasanan on oltava vähintään 8 merkkiä",
       "passwordInvalid": "Tämä salasana ei täytä vaatimuksia",
       "confirmPassword": "Vahvista salasana",
       "confirmPasswordRequired": "Vahvista salasana",
@@ -135,6 +133,8 @@
         "pound": "Punta"
       },
       "firstDayOfWeek": "Viikon ensimmäinen päivä",
+      "timezone": "Aikavyöhyke",
+      "timezoneHint": "Käytetään aktiviteeteille, jotka on tallennettu ilman GPS:ää, kuten juoksumattoharjoituksille ja sisäpyöräilylle.",
       "weekdays": {
         "sunday": "Sunnuntai",
         "monday": "Maanantai",
@@ -354,6 +354,19 @@
       "deleteError": "Kirjautumiskuvaa ei voitu poistaa. Yritä uudelleen.",
       "cancel": "Peruuta",
       "close": "Sulje"
+    },
+    "email": {
+      "title": "Sähköposti",
+      "description": "Endurain lähettää salasanan palautus- ja rekisteröitymisviestit ympäristössä määritetyn SMTP-palvelimen kautta.",
+      "statusLoadError": "Sähköpostin määrityksiä ei voitu tarkistaa.",
+      "configured": "Sähköposti on määritetty.",
+      "notConfigured": "Sähköpostia ei ole määritetty:",
+      "send": "Lähetä testisähköposti",
+      "sending": "Lähetetään…",
+      "sendHint": "Testisähköposti lähetetään omaan osoitteeseesi.",
+      "sent": "Testisähköposti lähetetty",
+      "failed": "Testisähköpostia ei voitu lähettää",
+      "failedUnknown": "Katso lisätiedot palvelimen lokeista."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Tallenna varakoodisi",
       "description": "Käytä varakoodia kirjautuaksesi sisään, jos menetät pääsyn todennussovellukseesi.",
-      "warning": "Nämä koodit näytetään vain kerran. Säilytä ne turvallisessa paikassa \u2014 jokainen koodi toimii vain kerran.",
+      "warning": "Nämä koodit näytetään vain kerran. Säilytä ne turvallisessa paikassa, jokainen koodi toimii vain kerran.",
       "copy": "Kopioi",
       "copied": "Varakoodit kopioitu",
       "copyError": "Koodeja ei voitu kopioida.",
@@ -720,12 +733,12 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Stravaan ei voitu yhdistää. Tarkista tietosi ja yritä uudelleen.",
-      "completing": "Viimeistellään Strava-yhteyttä\u2026",
+      "completing": "Viimeistellään Strava-yhteyttä…",
       "linkSuccess": "Strava yhdistetty",
       "retrieveActivitiesTitle": "Hae Strava-aktiviteetit",
-      "retrievingActivities": "Haetaan Strava-aktiviteettejasi taustalla\u2026",
+      "retrievingActivities": "Haetaan Strava-aktiviteettejasi taustalla…",
       "retrieveActivitiesError": "Strava-aktiviteettien hakemista ei voitu aloittaa. Yritä uudelleen.",
-      "retrievingGear": "Haetaan Strava-varusteitasi taustalla\u2026",
+      "retrievingGear": "Haetaan Strava-varusteitasi taustalla…",
       "retrieveGearError": "Strava-varusteiden hakemista ei voitu aloittaa. Yritä uudelleen.",
       "unlinkTitle": "Katkaistaanko Strava-yhteys?",
       "unlinkBody": "Endurain lopettaa tuonnin Stravasta. Olemassa olevat aktiviteettisi säilytetään.",
@@ -749,13 +762,13 @@
       "linkError": "Garmin Connectiin ei voitu yhdistää. Yritä uudelleen.",
       "mfaError": "Koodia ei voitu lähettää. Yritä uudelleen.",
       "retrieveActivitiesTitle": "Hae Garmin Connect -aktiviteetit",
-      "retrievingActivities": "Haetaan Garmin Connect -aktiviteettejasi taustalla\u2026",
+      "retrievingActivities": "Haetaan Garmin Connect -aktiviteettejasi taustalla…",
       "retrieveActivitiesError": "Garmin Connect -aktiviteettien hakemista ei voitu aloittaa. Yritä uudelleen.",
-      "retrievingGear": "Haetaan Garmin Connect -varusteitasi taustalla\u2026",
+      "retrievingGear": "Haetaan Garmin Connect -varusteitasi taustalla…",
       "retrieveGearError": "Garmin Connect -varusteiden hakemista ei voitu aloittaa. Yritä uudelleen.",
       "retrieveHealth": "Hae terveystiedot",
       "retrieveHealthTitle": "Hae Garmin Connect -terveystiedot",
-      "retrievingHealth": "Haetaan Garmin Connect -terveystietojasi taustalla\u2026",
+      "retrievingHealth": "Haetaan Garmin Connect -terveystietojasi taustalla…",
       "retrieveHealthError": "Garmin Connect -terveystietojen hakemista ei voitu aloittaa. Yritä uudelleen.",
       "unlinkTitle": "Katkaistaanko Garmin Connect -yhteys?",
       "unlinkBody": "Endurain lopettaa tuonnin Garmin Connectista. Olemassa olevat tietosi säilytetään.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Joukkotuonti",
       "subtitle": "Tuo palvelimen joukkotuonti-kansioon sijoitetut aktiviteettitiedostot",
-      "button": "Tuo aktiviteetit",
-      "started": "Tuodaan aktiviteetteja taustalla\u2026",
+      "uploadButton": "Lähetä ZIP",
+      "folderButton": "Tuo kansiosta",
+      "started": "Tuodaan aktiviteetteja taustalla…",
+      "alreadyRunning": "Massatuonti on jo käynnissä. Odota, että se päättyy.",
       "error": "Tuontia ei voitu aloittaa. Yritä uudelleen."
     },
     "strava": {
@@ -781,12 +796,20 @@
       "activities": "Tuo aktiviteetit",
       "bikes": "Tuo pyörät",
       "shoes": "Tuo kengät",
-      "activitiesQueued": "Strava-aktiviteetit jonossa tuontia varten; katso tila lokeista\u2026",
+      "activitiesQueued": "Strava-aktiviteetit jonossa tuontia varten; katso tila lokeista…",
       "activitiesError": "Strava-aktiviteettien tuontia ei voitu lisätä jonoon. Yritä uudelleen.",
       "bikesSuccess": "Strava-pyörät tuotu",
       "bikesError": "Strava-pyöriä ei voitu tuoda. Yritä uudelleen.",
       "shoesSuccess": "Strava-kengät tuotu",
-      "shoesError": "Strava-kenkiä ei voitu tuoda. Yritä uudelleen."
+      "shoesError": "Strava-kenkiä ei voitu tuoda. Yritä uudelleen.",
+      "activitiesUpload": "Tuo aktiviteetit (lähetä ZIP)",
+      "activitiesFolder": "Tuo aktiviteetit (palvelimen kansio)"
+    },
+    "job": {
+      "preparing": "Valmistellaan tuontia…",
+      "progress": "Tuotu {done} / {total} tiedostoa ({failed} epäonnistui)…",
+      "finished": "Tuonti valmis: {done} / {total} tiedostoa tuotu, {failed} epäonnistui.",
+      "failed": "Tuontia ei voitu suorittaa loppuun."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Vie tiedot",
       "import": "Tuo tiedot",
       "invalidType": "Valitse .zip-arkisto.",
-      "exportSuccess": "Vienti valmis — latauksesi pitäisi alkaa pian",
+      "exportSuccess": "Vienti valmis, latauksesi pitäisi alkaa pian",
       "exportError": "Tietojasi ei voitu viedä. Yritä uudelleen.",
       "importSuccess": "Tiedot tuotu",
       "importError": "Arkistoa ei voitu tuoda. Tarkista tiedosto ja yritä uudelleen."

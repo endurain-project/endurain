@@ -1,6 +1,6 @@
 # Setup a dev environment
 
-Bellow are the steps to create a dev environment. Examples bellow will use Endurain repo, but you should adapt those for your scenario (forked repo, etc).
+Below are the steps to create a dev environment. Examples below will use Endurain repo, but you should adapt those for your scenario (forked repo, etc).
 
 - Clone the repo to your dev machine:
 
@@ -12,13 +12,13 @@ git clone https://github.com/endurain-project/endurain.git # this will clone the
 ## Docker image and backend logic
 Make sure Docker is installed, more info [here](https://docs.docker.com/get-started/introduction/get-docker-desktop/).
 
-- On the project root folder, create a new Docker image, the example bellow uses `unified-image` as the image name:
+- On the project root folder, create a new Docker image, the example below uses `unified-image` as the image name:
 
 ```bash
 docker build -f docker/Dockerfile -t unified-image .
 ```
 
-- Go to the project root folder and create a file called `docker-compose.yml` and adapt it to your needs. Example bellow:
+- Go to the project root folder and create a file called `docker-compose.yml` and adapt it to your needs. Example below:
 
 ```conf
 services:
@@ -102,10 +102,22 @@ docker compose down
 docker image remove unified-image
 ```
 
-- Backend uses **uv** (Python package/project manager) and **hatch** (test runner / script orchestrator, installed as a dev dependency via `uv sync`). You may need to install Python and uv globally if dependency management is necessary.
+## Backend tooling
+
+The backend (Python 3.13) uses [uv](https://docs.astral.sh/uv/) for dependencies and [hatch](https://hatch.pypa.io/) for scripts. Install Python 3.13 and uv on your machine, then work from the `backend/` folder:
+
+```bash
+cd backend
+uv sync                                       # install dependencies
+PYTHONPATH=app uv run lint-imports            # check module boundaries
+uv run pytest tests/<area> -q                 # run tests for one area
+uv run ruff format --check . && uv run ruff check .   # format and lint
+```
+
+Hatch scripts group the common checks, for example `uv run hatch run check` runs lint, format, tests and type checks without changing files. Backend code changes in the mounted `backend/app` folder apply after a container restart.
 
 ## Frontend
-Make sure you have an up-to-date version of [Node.js](https://nodejs.org/) installed.
+Make sure you have Node.js 24 (or 22.18+) installed ([nodejs.org](https://nodejs.org/)).
 
 - Go to the root of the project and move to frontend folder and install the dependencies:
 
@@ -126,7 +138,7 @@ VITE_ENDURAIN_HOST=http://localhost:8080 # Adapt this based on the docker compos
 npm run dev
 ```
 
-- After the frontend starts running, it should be available in the port `5173`. You should now be able to access the dev environment at `http://localhost:5173`. Screenshot bellow shows the output from the `npm run dev`. Adapt the port based on the command output.
+- After the frontend starts running, it should be available in the port `5173`. You should now be able to access the dev environment at `http://localhost:5173`. Screenshot below shows the output from the `npm run dev`. Adapt the port based on the command output.
 
 ![Frontend running](../assets/developer-guide/npm_run_dev.png)
 

@@ -10,15 +10,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, status
 
-import server_settings.models as server_settings_models
-import server_settings.schema as server_settings_schema
-import server_settings.utils as server_settings_utils
+import modules.server_settings.models as server_settings_models
+import modules.server_settings.schema as server_settings_schema
+import modules.server_settings.utils as server_settings_utils
 
 
 class TestGetServerSettings:
     """Test suite for get_server_settings_or_404 utility function."""
 
-    @patch("server_settings.utils.server_settings_crud.get_server_settings")
+    @patch("modules.server_settings.utils.server_settings_crud.get_server_settings")
     def test_get_server_settings_success(self, mock_crud_get_settings, mock_db):
         """Test successful retrieval of server settings."""
         # Arrange
@@ -34,7 +34,7 @@ class TestGetServerSettings:
         assert result == mock_settings
         mock_crud_get_settings.assert_called_once_with(mock_db)
 
-    @patch("server_settings.utils.server_settings_crud.get_server_settings")
+    @patch("modules.server_settings.utils.server_settings_crud.get_server_settings")
     def test_get_server_settings_not_found(self, mock_crud_get_settings, mock_db):
         """Test 404 when server settings not found."""
         # Arrange
@@ -69,7 +69,7 @@ class TestGetTileMapsTemplates:
         openstreetmap = next((t for t in result if t.template_id == "openstreetmap"), None)
         assert openstreetmap is not None
         assert openstreetmap.name == "OpenStreetMap"
-        assert openstreetmap.url_template == "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        assert openstreetmap.url_template == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         assert openstreetmap.requires_api_key_frontend is False
         assert openstreetmap.requires_api_key_backend is False
 
@@ -170,6 +170,17 @@ class TestExtractDomainFromTileUrl:
         # Assert
         assert result == "https://*.openstreetmap.org"
 
+    def test_extract_domain_without_subdomain(self):
+        """Test the default single-host OSM URL maps to a wildcard covering its host."""
+        # Arrange
+        url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+
+        # Act
+        result = server_settings_utils.extract_domain_from_tile_url(url)
+
+        # Assert
+        assert result == "https://*.openstreetmap.org"
+
     def test_extract_domain_with_s_placeholder(self):
         """Test domain extraction handles {s} placeholder."""
         # Arrange
@@ -258,7 +269,7 @@ class TestExtractDomainFromTileUrl:
         # Assert
         assert result is None
 
-    @patch("server_settings.utils.urlparse")
+    @patch("modules.server_settings.utils.urlparse")
     def test_extract_domain_exception_handling(self, mock_urlparse):
         """Test that exceptions during parsing are handled gracefully."""
         # Arrange
@@ -275,7 +286,7 @@ class TestExtractDomainFromTileUrl:
 class TestGetAllowedTileDomains:
     """Test suite for get_allowed_tile_domains function."""
 
-    @patch("server_settings.utils.get_server_settings_or_404")
+    @patch("modules.server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_with_custom_domain(self, mock_get_settings, mock_db):
         """Test that custom tile domain is added to allowed list."""
         # Arrange
@@ -292,7 +303,7 @@ class TestGetAllowedTileDomains:
         assert "https://*.tiles.com" in result
         assert len(result) == 3
 
-    @patch("server_settings.utils.get_server_settings_or_404")
+    @patch("modules.server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_with_builtin_domain(self, mock_get_settings, mock_db):
         """Test that builtin domains are not duplicated."""
         # Arrange
@@ -310,7 +321,7 @@ class TestGetAllowedTileDomains:
         assert result.count("https://*.stadiamaps.com") == 1
         assert len(result) == 2
 
-    @patch("server_settings.utils.get_server_settings_or_404")
+    @patch("modules.server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_with_localhost(self, mock_get_settings, mock_db):
         """Test that localhost URLs are added correctly."""
         # Arrange
@@ -327,7 +338,7 @@ class TestGetAllowedTileDomains:
         assert "http://localhost:8080" in result
         assert len(result) == 3
 
-    @patch("server_settings.utils.get_server_settings_or_404")
+    @patch("modules.server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_no_custom_domain(self, mock_get_settings, mock_db):
         """Test that only builtins are returned when no custom domain."""
         # Arrange
@@ -343,7 +354,7 @@ class TestGetAllowedTileDomains:
         assert "https://*.stadiamaps.com" in result
         assert len(result) == 2
 
-    @patch("server_settings.utils.get_server_settings_or_404")
+    @patch("modules.server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_invalid_url(self, mock_get_settings, mock_db):
         """Test that invalid custom URLs are ignored."""
         # Arrange
@@ -359,7 +370,7 @@ class TestGetAllowedTileDomains:
         assert "https://*.stadiamaps.com" in result
         assert len(result) == 2
 
-    @patch("server_settings.utils.get_server_settings_or_404")
+    @patch("modules.server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_db_error(self, mock_get_settings, mock_db):
         """Test that DB errors are handled gracefully."""
         # Arrange

@@ -2,7 +2,9 @@
   "repository": "Repozitorij",
   "documentation": "Dokumentacija",
   "mastodon": "Mastodon račun Enduraina",
+  "bluesky": "Bluesky profil Enduraina",
   "discord": "Discord strežnik Enduraina",
+  "linkedin": "LinkedIn stran Enduraina",
   "compatibleStrava": "Združljivo s Strava",
   "worksGarmin": "Deluje z Garmin Connect"
 }

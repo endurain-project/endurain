@@ -48,7 +48,6 @@
       "title": "Inga användare än",
       "description": "Lägg till det första kontot för den här instansen",
       "searchTitle": "Inga användare hittades",
-      "searchDescription": "Inga användare matchar det användarnamnet",
       "filteredTitle": "Inga användare matchar de valda filtren"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Minst {min} tecken, med versaler, gemener, en siffra och ett specialtecken",
       "passwordHintLength": "Minst {min} tecken",
       "passwordRequired": "Lösenord krävs",
-      "passwordTooShort": "Lösenordet måste vara minst 8 tecken",
       "passwordInvalid": "Det lösenordet uppfyller inte kraven",
       "confirmPassword": "Bekräfta lösenord",
       "confirmPasswordRequired": "Bekräfta lösenord",
@@ -135,6 +133,8 @@
         "pound": "Pund"
       },
       "firstDayOfWeek": "Veckans första dag",
+      "timezone": "Tidszon",
+      "timezoneHint": "Används för aktiviteter som registrerats utan GPS, till exempel löpning på löpband och inomhuscykling.",
       "weekdays": {
         "sunday": "Söndag",
         "monday": "Måndag",
@@ -354,6 +354,19 @@
       "deleteError": "Kunde inte ta bort inloggningsbilden. Försök igen.",
       "cancel": "Avbryt",
       "close": "Stäng"
+    },
+    "email": {
+      "title": "E-post",
+      "description": "Endurain skickar e-post för återställning av lösenord och registrering via den SMTP-server som är konfigurerad i miljön.",
+      "statusLoadError": "E-postkonfigurationen kunde inte kontrolleras.",
+      "configured": "E-post är konfigurerad.",
+      "notConfigured": "E-post är inte konfigurerad:",
+      "send": "Skicka test-e-post",
+      "sending": "Skickar…",
+      "sendHint": "Test-e-posten skickas till din egen adress.",
+      "sent": "Test-e-post skickad",
+      "failed": "Test-e-posten kunde inte skickas",
+      "failedUnknown": "Se serverloggarna för mer information."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Massimport",
       "subtitle": "Importera aktivitetsfiler placerade i serverns massimportmapp",
-      "button": "Importera aktiviteter",
+      "uploadButton": "Ladda upp ZIP",
+      "folderButton": "Importera från mapp",
       "started": "Importerar aktiviteter i bakgrunden…",
+      "alreadyRunning": "En massimport pågår redan. Vänta tills den är klar.",
       "error": "Kunde inte starta importen. Försök igen."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava-cyklar importerade",
       "bikesError": "Kunde inte importera Strava-cyklar. Försök igen.",
       "shoesSuccess": "Strava-skor importerade",
-      "shoesError": "Kunde inte importera Strava-skor. Försök igen."
+      "shoesError": "Kunde inte importera Strava-skor. Försök igen.",
+      "activitiesUpload": "Importera aktiviteter (ladda upp ZIP)",
+      "activitiesFolder": "Importera aktiviteter (servermapp)"
+    },
+    "job": {
+      "preparing": "Förbereder importen…",
+      "progress": "{done} av {total} filer importerade ({failed} misslyckades)…",
+      "finished": "Importen är klar: {done} av {total} filer importerade, {failed} misslyckades.",
+      "failed": "Importen kunde inte slutföras."
     }
   },
   "profile": {

@@ -2,7 +2,9 @@
   "repository": "Koodivarasto",
   "documentation": "Dokumentaatio",
   "mastodon": "Endurainin Mastodon-tili",
+  "bluesky": "Endurainin Bluesky-profiili",
   "discord": "Endurainin Discord-palvelin",
+  "linkedin": "Endurainin LinkedIn-sivu",
   "compatibleStrava": "Yhteensopiva Stravan kanssa",
   "worksGarmin": "Toimii Garmin Connectin kanssa"
 }

@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "A carregar…",
     "success": "Atividade carregada com sucesso",
-    "error": "Não foi possível carregar o ficheiro de atividade"
+    "error": "Não foi possível carregar o ficheiro de atividade",
+    "timeout": "O teu ficheiro ainda está a ser importado. Vai aparecer quando terminar.",
+    "failed": {
+      "unsupported_format": "Este tipo de ficheiro não é suportado",
+      "invalid_file": "Não foi possível ler este ficheiro",
+      "no_activities_found": "Não foi encontrada nenhuma atividade neste ficheiro",
+      "processing_failed": "Não foi possível importar o ficheiro de atividade"
+    }
   },
   "refresh": {
     "label": "Atualizar",

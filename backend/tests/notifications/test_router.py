@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -5,11 +6,11 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
     import core.dependencies as core_deps
-    import notifications.dependencies as notif_deps
-    import notifications.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.notifications.dependencies as notif_deps
+    import modules.notifications.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/notifications")
@@ -29,7 +30,7 @@ def _build_app(mock_db):
 
 
 class TestReadNotificationsNumber:
-    @patch("notifications.router.notifications_crud.get_user_notifications_count")
+    @patch("modules.notifications.router.notifications_crud.get_user_notifications_count")
     def test_number_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = 5
@@ -38,7 +39,7 @@ class TestReadNotificationsNumber:
         assert response.status_code == 200
         assert response.json() == 5
 
-    @patch("notifications.router.notifications_crud.get_user_notifications_count")
+    @patch("modules.notifications.router.notifications_crud.get_user_notifications_count")
     def test_number_zero(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = 0
@@ -49,9 +50,9 @@ class TestReadNotificationsNumber:
 
 
 class TestReadNotificationById:
-    @patch("notifications.router.notifications_crud.get_user_notification_by_id")
+    @patch("modules.notifications.router.notifications_crud.get_user_notification_by_id")
     def test_success(self, mock_get, mock_db):
-        from notifications.schema import NotificationRead
+        from modules.notifications.schema import NotificationRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = NotificationRead(id=1, user_id=1, read=False)
@@ -60,7 +61,18 @@ class TestReadNotificationById:
         assert response.status_code == 200
         assert response.json()["id"] == 1
 
-    @patch("notifications.router.notifications_crud.get_user_notification_by_id")
+    @patch("modules.notifications.router.notifications_crud.get_user_notification_by_id")
+    def test_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
+        from modules.notifications.schema import NotificationRead
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = NotificationRead(id=1, user_id=1, read=False, created_at=datetime(2026, 7, 16, 10, 30))
+
+        response = client.get("/notifications/1", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 200
+        assert response.json()["created_at"] == "2026-07-16T10:30:00Z"
+
+    @patch("modules.notifications.router.notifications_crud.get_user_notification_by_id")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -71,9 +83,9 @@ class TestReadNotificationById:
 
 
 class TestReadNotificationsPagination:
-    @patch("notifications.router.notifications_crud.get_user_notifications_with_pagination")
+    @patch("modules.notifications.router.notifications_crud.get_user_notifications_with_pagination")
     def test_pagination_success(self, mock_get, mock_db):
-        from notifications.schema import NotificationRead
+        from modules.notifications.schema import NotificationRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [NotificationRead(id=1, user_id=1, read=False)]
@@ -81,9 +93,22 @@ class TestReadNotificationsPagination:
         response = client.get("/notifications/page_number/1/num_records/10", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
+    @patch("modules.notifications.router.notifications_crud.get_user_notifications_with_pagination")
+    def test_pagination_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
+        from modules.notifications.schema import NotificationRead
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = [
+            NotificationRead(id=1, user_id=1, read=False, created_at=datetime(2026, 7, 16, 10, 30, tzinfo=UTC))
+        ]
+
+        response = client.get("/notifications/page_number/1/num_records/10", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 200
+        assert response.json()[0]["created_at"] == "2026-07-16T10:30:00Z"
+
 
 class TestMarkNotificationAsRead:
-    @patch("notifications.router.notifications_crud.mark_notification_as_read")
+    @patch("modules.notifications.router.notifications_crud.mark_notification_as_read")
     def test_mark_read_success(self, mock_mark, mock_db):
         client = TestClient(_build_app(mock_db))
 
@@ -92,7 +117,7 @@ class TestMarkNotificationAsRead:
 
 
 class TestMarkAllNotificationsAsRead:
-    @patch("notifications.router.notifications_crud.mark_all_notifications_as_read")
+    @patch("modules.notifications.router.notifications_crud.mark_all_notifications_as_read")
     def test_mark_all_read_success(self, mock_mark, mock_db):
         client = TestClient(_build_app(mock_db))
 

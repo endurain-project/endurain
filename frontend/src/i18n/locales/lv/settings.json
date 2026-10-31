@@ -48,7 +48,6 @@
       "title": "Vēl nav lietotāju",
       "description": "Pievienojiet pirmo kontu šai instancei",
       "searchTitle": "Lietotāji nav atrasti",
-      "searchDescription": "Neviens lietotājs neatbilst šim lietotājvārdam",
       "filteredTitle": "Neviens lietotājs neatbilst atlasītajiem filtriem"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Vismaz {min} rakstzīmes, ar lielādiem un maziem burtiem, ciparu un īpašu rakstzīmi",
       "passwordHintLength": "Vismaz {min} rakstzīmes",
       "passwordRequired": "Parole ir obligāta",
-      "passwordTooShort": "Parolei jābūt vismaz 8 rakstzīmju garai",
       "passwordInvalid": "Šī parole neatbilst prasībām",
       "confirmPassword": "Apstiprināt paroli",
       "confirmPasswordRequired": "Apstiprināt paroli",
@@ -135,6 +133,8 @@
         "pound": "Mārciņa"
       },
       "firstDayOfWeek": "Nedēļas pirmā diena",
+      "timezone": "Laika josla",
+      "timezoneHint": "Izmanto aktivitātēm, kas ierakstītas bez GPS, piemēram, skriešanai uz skrejceļa un riteņbraukšanai telpās.",
       "weekdays": {
         "sunday": "Svētdiena",
         "monday": "Pirmdiena",
@@ -354,6 +354,19 @@
       "deleteError": "Neizdevās noņemt pieteikšanās fotoattēlu. Lūdzu, mēģiniet vēlreiz.",
       "cancel": "Atcelt",
       "close": "Aizvērt"
+    },
+    "email": {
+      "title": "E-pasts",
+      "description": "Endurain paroles atiestatīšanas un reģistrācijas e-pastus sūta, izmantojot vidē konfigurēto SMTP serveri.",
+      "statusLoadError": "Neizdevās pārbaudīt e-pasta konfigurāciju.",
+      "configured": "E-pasts ir konfigurēts.",
+      "notConfigured": "E-pasts nav konfigurēts:",
+      "send": "Nosūtīt testa e-pastu",
+      "sending": "Sūta…",
+      "sendHint": "Testa e-pasts tiek nosūtīts uz jūsu pašu adresi.",
+      "sent": "Testa e-pasts nosūtīts",
+      "failed": "Testa e-pastu neizdevās nosūtīt",
+      "failedUnknown": "Sīkāku informāciju skatiet servera žurnālos."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Saglabājiet savus rezerves kodus",
       "description": "Izmantojiet rezerves kodu, lai pieteiktos, ja zaudējat piekļuvi savai autentifikatora lietotnei.",
-      "warning": "Šie kodi tiek rādīti tikai vienreiz. Glabājiet tos drošā vietā — katrs kods darbojas vienu reizi.",
+      "warning": "Šie kodi tiek rādīti tikai vienreiz. Glabājiet tos drošā vietā, katrs kods darbojas vienu reizi.",
       "copy": "Kopēt",
       "copied": "Rezerves kodi nokopēti",
       "copyError": "Neizdevās nokopēt kodus.",
@@ -720,12 +733,12 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Klienta noslēpums",
       "connectError": "Neizdevās savienoties ar Strava. Lūdzu, pārbaudiet savus datus un mēģiniet vēlreiz.",
-      "completing": "Notiek Strava savienojuma pabeigšana\u2026",
+      "completing": "Notiek Strava savienojuma pabeigšana…",
       "linkSuccess": "Strava savienots",
       "retrieveActivitiesTitle": "Iegūt Strava aktivitātes",
-      "retrievingActivities": "Notiek jūsu Strava aktivitāšu iegūšana fonā\u2026",
+      "retrievingActivities": "Notiek jūsu Strava aktivitāšu iegūšana fonā…",
       "retrieveActivitiesError": "Neizdevās sākt Strava aktivitāšu iegūšanu. Lūdzu, mēģiniet vēlreiz.",
-      "retrievingGear": "Notiek jūsu Strava inventāra iegūšana fonā\u2026",
+      "retrievingGear": "Notiek jūsu Strava inventāra iegūšana fonā…",
       "retrieveGearError": "Neizdevās sākt Strava inventāra iegūšanu. Lūdzu, mēģiniet vēlreiz.",
       "unlinkTitle": "Atvienot Strava?",
       "unlinkBody": "Endurain pārtrauks importēšanu no Strava. Jūsu esošās aktivitātes tiek saglabātas.",
@@ -749,13 +762,13 @@
       "linkError": "Neizdevās savienoties ar Garmin Connect. Lūdzu, mēģiniet vēlreiz.",
       "mfaError": "Neizdevās iesniegt kodu. Lūdzu, mēģiniet vēlreiz.",
       "retrieveActivitiesTitle": "Iegūt Garmin Connect aktivitātes",
-      "retrievingActivities": "Notiek jūsu Garmin Connect aktivitāšu iegūšana fonā\u2026",
+      "retrievingActivities": "Notiek jūsu Garmin Connect aktivitāšu iegūšana fonā…",
       "retrieveActivitiesError": "Neizdevās sākt Garmin Connect aktivitāšu iegūšanu. Lūdzu, mēģiniet vēlreiz.",
-      "retrievingGear": "Notiek jūsu Garmin Connect inventāra iegūšana fonā\u2026",
+      "retrievingGear": "Notiek jūsu Garmin Connect inventāra iegūšana fonā…",
       "retrieveGearError": "Neizdevās sākt Garmin Connect inventāra iegūšanu. Lūdzu, mēģiniet vēlreiz.",
       "retrieveHealth": "Iegūt veselības datus",
       "retrieveHealthTitle": "Iegūt Garmin Connect veselības datus",
-      "retrievingHealth": "Notiek jūsu Garmin Connect veselības datu iegūšana fonā\u2026",
+      "retrievingHealth": "Notiek jūsu Garmin Connect veselības datu iegūšana fonā…",
       "retrieveHealthError": "Neizdevās sākt Garmin Connect veselības datu iegūšanu. Lūdzu, mēģiniet vēlreiz.",
       "unlinkTitle": "Atvienot Garmin Connect?",
       "unlinkBody": "Endurain pārtrauks importēšanu no Garmin Connect. Jūsu esošie dati tiek saglabāti.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Lielapjoma imports",
       "subtitle": "Importējiet aktivitāšu failus, kas ievietoti servera lielapjoma importa mapē",
-      "button": "Importēt aktivitātes",
-      "started": "Notiek aktivitāšu importēšana fonā\u2026",
+      "uploadButton": "Augšupielādēt ZIP",
+      "folderButton": "Importēt no mapes",
+      "started": "Notiek aktivitāšu importēšana fonā…",
+      "alreadyRunning": "Masveida imports jau darbojas. Uzgaidiet, līdz tas beigsies.",
       "error": "Neizdevās sākt importu. Lūdzu, mēģiniet vēlreiz."
     },
     "strava": {
@@ -781,12 +796,20 @@
       "activities": "Importēt aktivitātes",
       "bikes": "Importēt velosipēdus",
       "shoes": "Importēt apavus",
-      "activitiesQueued": "Strava aktivitātes ievietotas rindā importēšanai; statusu skatiet žurnālos\u2026",
+      "activitiesQueued": "Strava aktivitātes ievietotas rindā importēšanai; statusu skatiet žurnālos…",
       "activitiesError": "Neizdevās ievietot rindā Strava aktivitāšu importu. Lūdzu, mēģiniet vēlreiz.",
       "bikesSuccess": "Strava velosipēdi importēti",
       "bikesError": "Neizdevās importēt Strava velosipēdus. Lūdzu, mēģiniet vēlreiz.",
       "shoesSuccess": "Strava apavi importēti",
-      "shoesError": "Neizdevās importēt Strava apavus. Lūdzu, mēģiniet vēlreiz."
+      "shoesError": "Neizdevās importēt Strava apavus. Lūdzu, mēģiniet vēlreiz.",
+      "activitiesUpload": "Importēt aktivitātes (augšupielādēt ZIP)",
+      "activitiesFolder": "Importēt aktivitātes (servera mape)"
+    },
+    "job": {
+      "preparing": "Tiek sagatavots imports…",
+      "progress": "Importēti {done} no {total} failiem (neizdevās {failed})…",
+      "finished": "Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}.",
+      "failed": "Importu neizdevās pabeigt."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Eksportēt datus",
       "import": "Importēt datus",
       "invalidType": "Lūdzu, izvēlieties .zip arhīvu.",
-      "exportSuccess": "Eksports gatavs — jūsu lejupielāde drīz sāksies",
+      "exportSuccess": "Eksports gatavs, jūsu lejupielāde drīz sāksies",
       "exportError": "Neizdevās eksportēt jūsu datus. Lūdzu, mēģiniet vēlreiz.",
       "importSuccess": "Dati importēti",
       "importError": "Neizdevās importēt arhīvu. Lūdzu, pārbaudiet failu un mēģiniet vēlreiz."

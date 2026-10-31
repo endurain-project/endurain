@@ -2,7 +2,9 @@
   "repository": "Tárhely",
   "documentation": "Dokumentáció",
   "mastodon": "Az Endurain Mastodon-fiókja",
+  "bluesky": "Az Endurain Bluesky-profilja",
   "discord": "Az Endurain Discord-szervere",
+  "linkedin": "Az Endurain LinkedIn-oldala",
   "compatibleStrava": "Strava-kompatibilis",
   "worksGarmin": "Működik a Garmin Connecttel"
 }

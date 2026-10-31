@@ -3,12 +3,18 @@ Sanitization utilities for user-generated content.
 
 Provides functions to sanitize markdown and HTML content
 to prevent XSS attacks while preserving safe formatting.
+
+Backed by ``nh3`` (Rust ``ammonia``) rather than ``bleach``, which is
+unmaintained. Beyond maintenance, ``nh3`` validates attribute *values* and not
+only their names: ``bleach`` let ``<a href="javascript:...">`` through, because
+``href`` was on the allowed-attribute list regardless of the scheme it carried.
+:data:`ALLOWED_URL_SCHEMES` is the explicit allowlist that replaces it.
 """
 
-import bleach
+import nh3
 
 # Allowed HTML tags for markdown content
-ALLOWED_TAGS = [
+ALLOWED_TAGS = {
     "h1",
     "h2",
     "h3",
@@ -34,12 +40,18 @@ ALLOWED_TAGS = [
     "tr",
     "th",
     "td",
-]
-
-# Allowed HTML attributes for markdown content
-ALLOWED_ATTRIBUTES = {
-    "a": ["href", "title", "target", "rel"],
 }
+
+# Allowed HTML attributes for markdown content. ``rel`` is deliberately absent:
+# ``link_rel`` below sets it on every link, and nh3 refuses to let a document
+# also supply its own so the guard cannot be overridden from the content.
+ALLOWED_ATTRIBUTES = {
+    "a": {"href", "title", "target"},
+}
+
+# URL schemes an ``href`` may carry. Anything else — ``javascript:``, ``data:``,
+# ``vbscript:``, ``file:`` — has the attribute dropped.
+ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 
 # Maximum length for markdown fields
 MAX_MARKDOWN_LENGTH = 2500
@@ -68,15 +80,13 @@ def sanitize_markdown(content: str | None) -> str | None:
     # Strip content that exceeds max length
     content = content[:MAX_MARKDOWN_LENGTH]
 
-    # Use bleach to sanitize HTML/markdown content
-    sanitized = bleach.clean(
+    return nh3.clean(
         content,
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
-        strip=True,
+        url_schemes=ALLOWED_URL_SCHEMES,
+        link_rel="noopener noreferrer",
     )
-
-    return sanitized
 
 
 def sanitize_plain_text(content: str | None) -> str | None:
@@ -97,9 +107,7 @@ def sanitize_plain_text(content: str | None) -> str | None:
         return None
 
     # Strip all HTML tags
-    sanitized = bleach.clean(content, tags=[], strip=True)
-
-    return sanitized
+    return nh3.clean(content, tags=set(), attributes={})
 
 
 def sanitize_attribution(content: str | None) -> str | None:
@@ -122,12 +130,10 @@ def sanitize_attribution(content: str | None) -> str | None:
     if not isinstance(content, str):
         return None
 
-    # Use bleach to sanitize - only allow <a> tags
-    sanitized = bleach.clean(
+    return nh3.clean(
         content,
-        tags=["a"],
-        attributes={"a": ["href", "title", "target", "rel"]},
-        strip=True,
+        tags={"a"},
+        attributes={"a": {"href", "title", "target"}},
+        url_schemes=ALLOWED_URL_SCHEMES,
+        link_rel="noopener noreferrer",
     )
-
-    return sanitized

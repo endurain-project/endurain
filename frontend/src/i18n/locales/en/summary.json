@@ -38,7 +38,6 @@
     "title": "Activities in this period"
   },
   "empty": {
-    "title": "No activity in this period",
     "description": "No activities match the selected period and type."
   },
   "error": {

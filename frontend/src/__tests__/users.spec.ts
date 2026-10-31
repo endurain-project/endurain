@@ -48,7 +48,7 @@ function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
     birthdate: '1815-12-10',
     height: 170,
     max_heart_rate: 190,
-    photo_path: '/app/backend/data/user_images/7.png',
+    photo_path: '/api/v1/users/7/photo?t=sig',
     ...overrides,
   }
 }
@@ -69,8 +69,8 @@ describe('mapManagedUser', () => {
       units: 'metric',
       currency: 'euro',
       firstDayOfWeek: 'monday',
-      photoPath: '/app/backend/data/user_images/7.png',
-      avatarUrl: 'https://cdn.test/user_images/7.png',
+      photoPath: '/api/v1/users/7/photo?t=sig',
+      avatarUrl: 'https://cdn.test/api/v1/users/7/photo?t=sig',
     })
   })
 
@@ -205,7 +205,6 @@ describe('users service requests', () => {
         birthdate: '1815-12-10',
         height: 170,
         max_heart_rate: 190,
-        photo_path: '/app/backend/data/user_images/7.png',
       }),
     })
   })

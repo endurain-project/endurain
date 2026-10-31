@@ -586,9 +586,6 @@
       "edit": "Vasten bewerken",
       "delete": "Vasten verwijderen"
     },
-    "list": {
-      "notesLabel": "Notities"
-    },
     "form": {
       "addTitle": "Vasten starten",
       "editTitle": "Vastensessie bewerken",
@@ -596,7 +593,6 @@
       "type": "Vastenprotocol",
       "customDuration": "Aangepaste duur",
       "customDurationHint": "Duur van het vasten in uren (1–72).",
-      "hours": "uur",
       "startTime": "Starttijd",
       "startTimeRequired": "Kies een starttijd.",
       "endTime": "Eindtijd",

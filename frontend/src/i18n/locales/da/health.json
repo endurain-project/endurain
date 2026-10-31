@@ -586,9 +586,6 @@
       "edit": "Redigér faste",
       "delete": "Slet faste"
     },
-    "list": {
-      "notesLabel": "Noter"
-    },
     "form": {
       "addTitle": "Start faste",
       "editTitle": "Redigér fastesession",
@@ -596,7 +593,6 @@
       "type": "Fasteprotokol",
       "customDuration": "Tilpasset varighed",
       "customDurationHint": "Fastens længde i timer (1–72).",
-      "hours": "timer",
       "startTime": "Starttidspunkt",
       "startTimeRequired": "Vælg venligst et starttidspunkt.",
       "endTime": "Sluttidspunkt",

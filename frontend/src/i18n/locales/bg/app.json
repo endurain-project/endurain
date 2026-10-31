@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Лого на Endurain",
-  "title": "Основата на дизайн системата е активна",
-  "subtitle": "Tailwind v4, shadcn-vue, строг TypeScript и цветовата палитра на Endurain са свързани",
-  "primaryAction": "Основно действие",
   "notFound": {
     "title": "Страницата не е намерена",
     "message": "Страницата, която търсите, не съществува или е преместена",

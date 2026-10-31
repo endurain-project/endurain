@@ -39,7 +39,6 @@
       "distance": "Distancia",
       "duration": "Duración",
       "pace": "Ritmo",
-      "speed": "Velocidad",
       "paceSpeed": "Ritmo / Velocidad",
       "elevation": "Desnivel",
       "calories": "Calorías",
@@ -66,7 +65,6 @@
     "recenter": "Centrar mapa"
   },
   "metrics": {
-    "title": "Métricas",
     "time": "Tiempo",
     "distance": "Distancia",
     "movingTime": "Tiempo en movimiento",
@@ -109,7 +107,12 @@
     "elevation": "Desnivel",
     "strokeRate": "Cadencia de brazada",
     "cycles": "Ciclos",
-    "hr": "Frecuencia cardíaca"
+    "strokes": "Brazadas",
+    "revolutions": "Revoluciones",
+    "strides": "Zancadas",
+    "jumps": "Saltos",
+    "hr": "Frecuencia cardíaca",
+    "activeSummary": "Total activo"
   },
   "workout": {
     "title": "Entrenamiento",
@@ -126,7 +129,7 @@
   "gear": {
     "title": "Equipamiento",
     "notSet": "Sin equipamiento asignado",
-    "loading": "Cargando\u2026",
+    "loading": "Cargando…",
     "add": "Añadir equipamiento",
     "change": "Cambiar equipamiento",
     "remove": "Eliminar equipamiento",
@@ -157,7 +160,6 @@
     "deleteError": "No se pudo eliminar la actividad"
   },
   "media": {
-    "title": "Fotos",
     "alt": "Foto de la actividad",
     "addMedia": "Añadir foto",
     "uploadSuccess": "Foto subida",
@@ -170,7 +172,8 @@
     "close": "Cerrar",
     "deleteSuccess": "Foto eliminada",
     "deleteError": "No se pudo eliminar la foto",
-    "expand": "Ver a tamaño completo"
+    "expand": "Ver a tamaño completo",
+    "thumbnailPending": "Generando la vista previa del mapa…"
   },
   "gallery": {
     "previous": "Anterior",
@@ -204,7 +207,8 @@
     "hideWorkoutSetsSteps": "Ocultar series y pasos del entrenamiento",
     "hideGear": "Ocultar equipamiento",
     "success": "Actividad actualizada",
-    "error": "No se pudo actualizar la actividad"
+    "error": "No se pudo actualizar la actividad",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Esta actividad está oculta. Solo tú puedes verla.",

@@ -11,16 +11,16 @@ from pathlib import Path
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from fastapi import HTTPException  # noqa: E402
 from hypothesis import given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
+import core.exceptions as core_exceptions  # noqa: E402
 from core.file_uploads import _resolve_upload_path  # noqa: E402
 
 # Filenames may contain anything a multipart parser could surface:
 # arbitrary unicode, NUL bytes, separators, leading dots, control
 # characters. The resolver MUST either return a path strictly under
-# ``upload_dir`` or raise HTTPException 400.
+# ``upload_dir`` or raise a domain error (400).
 _FILENAME_STRATEGY = st.text(
     alphabet=st.characters(min_codepoint=0, max_codepoint=0x2FFF),
     min_size=0,
@@ -35,7 +35,7 @@ def test_resolve_upload_path_never_escapes(tmp_path_factory, filename):
     upload_dir = tmp_path_factory.mktemp("uploads")
     try:
         resolved = _resolve_upload_path(str(upload_dir), filename)
-    except HTTPException as err:
+    except core_exceptions.DomainError as err:
         assert err.status_code == 400
         return
     # Accepted: must resolve strictly under the upload directory.

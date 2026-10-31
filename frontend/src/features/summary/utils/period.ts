@@ -10,7 +10,14 @@
  * day of the week.
  */
 
-import { shiftWeeks, todayIsoDate, weekEnd, weekStart } from '@/utils/datetime'
+import {
+  parseIsoDate,
+  shiftWeeks,
+  todayIsoDate,
+  toIsoDate,
+  weekEnd,
+  weekStart,
+} from '@/utils/datetime'
 
 export { shiftWeeks, weekEnd, weekStart }
 
@@ -20,23 +27,6 @@ export interface PeriodRange {
   startDate: string
   /** Inclusive last day of the period. */
   endDate: string
-}
-
-/** Parses a `YYYY-MM-DD` string into a UTC `Date` at midnight. */
-function parseIsoDate(iso: string): Date {
-  const parts = iso.split('-')
-  const year = Number(parts[0])
-  const month = Number(parts[1] ?? 1)
-  const day = Number(parts[2] ?? 1)
-  return new Date(Date.UTC(year, month - 1, day))
-}
-
-/** Formats a `Date` as a `YYYY-MM-DD` string using its UTC fields. */
-function toIsoDate(date: Date): string {
-  const year = date.getUTCFullYear()
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 /** Parses a `YYYY-MM` string into its numeric year and 1-based month. */

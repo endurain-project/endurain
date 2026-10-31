@@ -586,9 +586,6 @@
       "edit": "Editar jejum",
       "delete": "Eliminar jejum"
     },
-    "list": {
-      "notesLabel": "Notas"
-    },
     "form": {
       "addTitle": "Iniciar jejum",
       "editTitle": "Editar sessão de jejum",
@@ -596,7 +593,6 @@
       "type": "Protocolo de jejum",
       "customDuration": "Duração personalizada",
       "customDurationHint": "Duração do jejum, em horas (1–72).",
-      "hours": "horas",
       "startTime": "Hora de início",
       "startTimeRequired": "Escolhe uma hora de início.",
       "endTime": "Hora de fim",

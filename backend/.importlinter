@@ -1,64 +1,215 @@
 [importlinter]
 # Run from backend/ with: PYTHONPATH=app uv run lint-imports
+include_external_packages = True
 root_packages =
-    auth
-    users
-    activities
+    modules
     core
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
+
+# Layer rules (ORM ownership, transport delegation, persistence purity, outbound
+# reach through a published surface, dependency direction) are enforced by
+# ``tests/architecture/test_module_boundaries.py::TestLayerRules``. They are stated
+# there once, by file role, because contracts here match exact module names: a
+# qualified stem (``pipeline_service``) escaped them and every flat module needed
+# its own copy. What stays below is what import-linter is good at: external
+# packages, the platform direction, and named design seams.
 
 [importlinter:contract:auth-boundary]
 name = Auth boundary: non-auth must not import auth internals directly
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    users
-    activities
+    modules.users
+    modules.activities
     core
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
+    modules.followers
+    modules.garmin
+    modules.gears
+    modules.health
+    modules.notifications
+    modules.server_settings
+    modules.strava
+    modules.websocket
 forbidden_modules =
-    auth.internal_dependencies
-    auth.password_hasher
-    auth.token_manager
+    modules.auth._internal
+    modules.auth.*.crud
+    modules.auth.*.*.crud
 
-[importlinter:contract:auth-low-level-ownership]
-name = Auth boundary: non-auth must not import low-level auth ownership modules directly
+# The substrate is the external ``jasil`` package, which enforces its own
+# ports-and-adapters direction and its own no-domain rule upstream. Which part of
+# it application code may touch is still this repository's rule, but it cannot be
+# stated here: import-linter rejects a subpackage of an external package as a
+# forbidden module. It lives in ``tests/architecture/test_jasil_boundary.py``.
+
+# The same rule one layer up, for ``core``: the platform never reaches into the
+# domain to ask what work exists. Each module declares its own ``scheduled_jobs``,
+# and the composition root (``main``) hands the collected list to
+# ``start_scheduler``.
+# One exception is recorded here so it is reviewed rather than assumed:
+# ``core.middleware`` reads the server-settings SCHEMA (a data shape, not
+# behaviour) to type the settings it stamps onto the request.
+[importlinter:contract:core-not-domain]
+name = Core must not import domain modules
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    users
-    activities
     core
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
 forbidden_modules =
-    auth.password_reset_tokens.crud
-    auth.sign_up_tokens.crud
-    auth.sessions.crud
-    auth.mfa.crud
-    auth.mfa.backup_codes.crud
-    auth.identity_providers.links.crud
-    auth.identity_providers.link_tokens.crud
-    auth.credentials.crud
-    auth.security_stores
-    auth.services
+    modules
+ignore_imports =
+    core.middleware -> modules.server_settings.schema
+
+[importlinter:contract:redis-owned-by-platform]
+name = Only the platform Redis capability may import redis
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules
+    core
+forbidden_modules =
+    redis
+
+# A layers contract (not a denylist) that states the substrate's internal direction
+# once: the composition root (container) sits above the adapters (backends), which sit
+# above the ports (providers) and the event envelope (events). Higher layers may import
+# lower ones, never the reverse — so a port importing an adapter (the ports-and-adapters
+# inversion the forbidden contracts above do NOT catch) is rejected here.
+# The substrate's internal layering is an import contract in the ``jasil``
+# repository, verified on its releases rather than on ours.
+
+# The whole activities module is provider-agnostic, not just its core. Strava and
+# Garmin depend on activities — they parse a provider payload and hand it to the
+# ingestion seam — and activities must not depend on them back, or neither side
+# could be built, tested or extracted without the other.
+#
+# The direction is one-way, via three seams activities owns and providers plug
+# into:
+#   * ``activity_ingestion.provider_registry`` — a provider registers a fetch
+#     callable at startup; the refresh path names no provider.
+#   * ``activity_ingestion.contracts.BulkImportSource`` — a provider export
+#     subclasses it (``modules.strava.bulk_import_source``) instead of the base
+#     class branching on ``strava_activities``.
+#   * ``GarminSource.gear_id`` — the provider resolves its own synced gear and
+#     passes the id, so enrichment only answers "and if not, what is the default?".
+#
+# Stating the rule over the whole module means a new sub-package inherits it
+# instead of having to be added to a list.
+[importlinter:contract:activities-provider-agnostic]
+name = The activities module must not import a provider — providers register with it
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities
+forbidden_modules =
+    modules.strava
+    modules.garmin
+
+# The activities core (activity/) is parsing-agnostic: it exposes the typed
+# ParsedActivity contract + ingestion_service.store_parsed_activity, but never
+# imports a file parser. All format knowledge lives in the sibling
+# activity_ingestion/ package, which produces the contract and calls the core.
+# Direct imports only (allow_indirect_imports): the rule is that the core must
+# not reach for a parser directly, not that it must avoid transitive shared
+# dependencies. The provider half of this boundary is the module-wide
+# ``activities-provider-agnostic`` contract above.
+[importlinter:contract:activities-parsing-boundary]
+name = Activities core must not import file parsers
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity
+forbidden_modules =
+    modules.activities.activity_file_import
+
+# The ingestion PIPELINE is provider-agnostic, the same way it is already
+# format-agnostic. It owns "validate -> parse -> enrich -> store -> retain" and nothing
+# about where a file came from: the export specifics (which duplicate listings to
+# skip, what metadata to apply, the sidecar photos) are answered by the source object it
+# is handed. ``contracts.py`` is deliberately NOT in scope here: defining the seam a
+# provider export subclasses *is* its job.
+# Superseded in the provider dimension by ``activities-provider-agnostic`` above;
+# kept because it also forbids the pipeline reaching for the *parsers*, which is a
+# different rule with the same shape.
+[importlinter:contract:ingestion-pipeline-format-agnostic]
+name = The ingestion pipeline must not import a parser directly — the registry resolves one
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity_ingestion.upload_entry_service
+    modules.activities.activity_ingestion.provider_entry_service
+    modules.activities.activity_ingestion.bulk_import_service
+    modules.activities.activity_ingestion.service
+    modules.activities.activity_ingestion.contracts
+forbidden_modules =
+    modules.activities.activity_file_import
+
+# The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
+# db, privacy, gear, provider, or exercise-title-crud coupling. Domain
+# resolution (default/Garmin gear, privacy defaults, exercise-title persistence)
+# lives in the sibling activity_ingestion/ enrichment seam, which legitimately
+# owns db + provider knowledge — so a parser is unit-testable with bytes alone. The parsers may still import the activities SCHEMAS (activity.schema /
+# activity_exercise_titles.schema / activity_workout_steps.schema) — data shapes, not crud.
+[importlinter:contract:activity-file-import-purity]
+name = Activity file parsers must be pure (no db / domain / provider / crud / HTTP imports)
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity_file_import
+forbidden_modules =
+    modules.gears
+    modules.users
+    modules.garmin
+    modules.strava
+    modules.activities.*.crud
+    modules.activities.*.*.crud
+    sqlalchemy
+    fastapi
+
+# The activities module performs no raw network egress. Reverse geocoding goes
+# through the platform GeocodingProvider, with the SSRF host checks (OWASP A10)
+# in core.network where a future outbound integration inherits them. This
+# contract is what keeps egress code out of the domain: an outbound call from
+# activities must be added as a platform provider.
+# Note: ``urllib`` is deliberately not listed. import-linter cannot forbid a
+# single subpackage of an external/stdlib package, and activities legitimately
+# uses ``urllib.parse`` for URL decoding — banning the parent would reject that
+# too. The HTTP clients actually in use here are covered.
+[importlinter:contract:activities-no-raw-egress]
+name = The activities module must not make raw network calls
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities
+forbidden_modules =
+    requests
+    httpx
+    socket
+    staticmap
+
+# Data migrations are historical orchestration, but that does not grant them
+# unrestricted access to every package implementation. Each package exposes the
+# exact legacy operations it supports through ``migration_service.py``; those
+# adapters are for app/migrations only and must never become a general-purpose
+# domain dependency.
+[importlinter:contract:activities-migration-surfaces-are-private]
+name = Activity migration services are consumed only by application migrations
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules
+    core
+forbidden_modules =
+    modules.activities.*.migration_service
+
+# Provider modules describe users data with the read schemas the users CRUD actually
+# returns, never the ORM models: the runtime value is already a DTO, so naming the
+# ORM classes would only keep a users-ORM import alive inside Strava/Garmin.
+[importlinter:contract:providers-no-users-orm]
+name = Provider modules must not import the users ORM models
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.strava
+    modules.garmin
+forbidden_modules =
+    modules.users.users_integrations.models
+    modules.users.users_privacy_settings.models

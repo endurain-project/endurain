@@ -586,9 +586,6 @@
       "edit": "Rediger faste",
       "delete": "Slett faste"
     },
-    "list": {
-      "notesLabel": "Notater"
-    },
     "form": {
       "addTitle": "Start faste",
       "editTitle": "Rediger fasteøkt",
@@ -596,7 +593,6 @@
       "type": "Fasteprotokoll",
       "customDuration": "Egendefinert varighet",
       "customDurationHint": "Lengden på fasten, i timer (1–72).",
-      "hours": "timer",
       "startTime": "Starttidspunkt",
       "startTimeRequired": "Vennligst velg et starttidspunkt.",
       "endTime": "Sluttidspunkt",

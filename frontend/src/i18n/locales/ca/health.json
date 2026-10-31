@@ -586,9 +586,6 @@
       "edit": "Edita el dejuni",
       "delete": "Elimina el dejuni"
     },
-    "list": {
-      "notesLabel": "Notes"
-    },
     "form": {
       "addTitle": "Inicia el dejuni",
       "editTitle": "Edita la sessió de dejuni",
@@ -596,7 +593,6 @@
       "type": "Protocol de dejuni",
       "customDuration": "Durada personalitzada",
       "customDurationHint": "Durada del dejuni, en hores (1–72).",
-      "hours": "hores",
       "startTime": "Hora d'inici",
       "startTimeRequired": "Tria una hora d'inici.",
       "endTime": "Hora de fi",

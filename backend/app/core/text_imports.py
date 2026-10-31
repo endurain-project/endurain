@@ -19,6 +19,8 @@ from fastapi import HTTPException, status
 
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 # Hard ceiling on a single CSV file size and row count. Strava
 # exports of bikes/shoes are tiny in practice (kilobytes / dozens of
 # rows). The defaults below are deliberately generous so legitimate
@@ -97,11 +99,7 @@ def read_bounded_csv(
                     )
                 yield row
     except OSError as err:
-        core_logger.print_to_log(
-            f"read_bounded_csv failed to open {file_path.name}: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"read_bounded_csv failed to open {file_path.name}: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail={

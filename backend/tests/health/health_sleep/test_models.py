@@ -1,6 +1,6 @@
 from datetime import date as datetime_date
 
-import health.health_sleep.models as health_sleep_models
+import modules.health.health_sleep.models as health_sleep_models
 
 
 class TestHealthSleepModel:

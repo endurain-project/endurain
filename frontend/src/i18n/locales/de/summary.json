@@ -38,7 +38,6 @@
     "title": "Aktivitäten in diesem Zeitraum"
   },
   "empty": {
-    "title": "Keine Aktivität in diesem Zeitraum",
     "description": "Keine Aktivitäten entsprechen dem ausgewählten Zeitraum und Typ."
   },
   "error": {

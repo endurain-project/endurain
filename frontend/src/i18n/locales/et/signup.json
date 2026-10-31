@@ -7,8 +7,6 @@
   "password": "Parool",
   "confirmPassword": "Kinnita parool",
   "passwordMismatch": "Paroolid ei kattu",
-  "showPassword": "Näita parooli",
-  "hidePassword": "Peida parool",
   "showOptionalFields": "Näita valikulisi välju",
   "hideOptionalFields": "Peida valikulised väljad",
   "preferredLanguage": "Eelistatud keel",

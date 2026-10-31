@@ -77,6 +77,10 @@ You can stop a recording, revoke location permission, or disable location servic
 
 The App retains local activity records, GPX files, preferences, and diagnostics until you delete them, clear the App's data, or uninstall the App. Authentication sessions can be cleared by signing out.
 
+If you opt in to remote crash reporting, sanitized crash reports are retained on Endurain's managed diagnostics endpoint for up to 90 days and are then automatically deleted. They are used only to diagnose and fix App errors and are not shared with third parties. Turning remote crash reporting off in Settings stops further reports from being sent. To request earlier deletion of a report already sent, contact us at the email address below.
+
+The App does not retain your data on any Endurain-operated server other than the optional crash reports described above. Activity, account, and health data you upload is stored only on the Endurain server you selected.
+
 For information stored on an Endurain server, use the server's activity, account, and deletion controls or contact that server's operator. The App cannot delete data held by a server that it does not operate.
 
 ## Security

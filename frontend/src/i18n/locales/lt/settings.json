@@ -48,7 +48,6 @@
       "title": "Naudotojų dar nėra",
       "description": "Pridėkite pirmąją šios instancijos paskyrą",
       "searchTitle": "Naudotojų nerasta",
-      "searchDescription": "Joks naudotojas neatitinka šio naudotojo vardo",
       "filteredTitle": "Joks naudotojas neatitinka pasirinktų filtrų"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Bent {min} simbolių, su didžiąja, mažąja raide, skaičiumi ir specialiu simboliu",
       "passwordHintLength": "Bent {min} simbolių",
       "passwordRequired": "Slaptažodis yra privalomas",
-      "passwordTooShort": "Slaptažodį turi sudaryti bent 8 simboliai",
       "passwordInvalid": "Šis slaptažodis neatitinka reikalavimų",
       "confirmPassword": "Patvirtinti slaptažodį",
       "confirmPasswordRequired": "Patvirtinti slaptažodį",
@@ -135,6 +133,8 @@
         "pound": "Svaras"
       },
       "firstDayOfWeek": "Pirmoji savaitės diena",
+      "timezone": "Laiko juosta",
+      "timezoneHint": "Naudojama veikloms, įrašytoms be GPS, pavyzdžiui, bėgimui bėgimo takeliu ir važiavimui patalpose.",
       "weekdays": {
         "sunday": "Sekmadienis",
         "monday": "Pirmadienis",
@@ -354,6 +354,19 @@
       "deleteError": "Nepavyko pašalinti prisijungimo nuotraukos. Bandykite dar kartą.",
       "cancel": "Atšaukti",
       "close": "Uždaryti"
+    },
+    "email": {
+      "title": "El. paštas",
+      "description": "Endurain slaptažodžio atkūrimo ir registracijos laiškus siunčia per aplinkoje sukonfigūruotą SMTP serverį.",
+      "statusLoadError": "Nepavyko patikrinti el. pašto konfigūracijos.",
+      "configured": "El. paštas sukonfigūruotas.",
+      "notConfigured": "El. paštas nesukonfigūruotas:",
+      "send": "Siųsti bandomąjį laišką",
+      "sending": "Siunčiama…",
+      "sendHint": "Bandomasis laiškas siunčiamas jūsų pačių adresu.",
+      "sent": "Bandomasis laiškas išsiųstas",
+      "failed": "Bandomojo laiško nepavyko išsiųsti",
+      "failedUnknown": "Daugiau informacijos rasite serverio žurnaluose."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Išsaugokite savo atsarginius kodus",
       "description": "Naudokite atsarginį kodą prisijungti, jei prarasite prieigą prie autentifikatoriaus programėlės.",
-      "warning": "Šie kodai rodomi tik vieną kartą. Saugokite juos saugioje vietoje — kiekvienas kodas veikia tik vieną kartą.",
+      "warning": "Šie kodai rodomi tik vieną kartą. Saugokite juos saugioje vietoje, kiekvienas kodas veikia tik vieną kartą.",
       "copy": "Kopijuoti",
       "copied": "Atsarginiai kodai nukopijuoti",
       "copyError": "Nepavyko nukopijuoti kodų.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Masinis importavimas",
       "subtitle": "Importuokite veiklų failus, įdėtus į serverio masinio importavimo aplanką",
-      "button": "Importuoti veiklas",
+      "uploadButton": "Įkelti ZIP",
+      "folderButton": "Importuoti iš aplanko",
       "started": "Veiklos importuojamos fone…",
+      "alreadyRunning": "Masinis importavimas jau vyksta. Palaukite, kol jis baigsis.",
       "error": "Nepavyko pradėti importavimo. Bandykite dar kartą."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava dviračiai importuoti",
       "bikesError": "Nepavyko importuoti Strava dviračių. Bandykite dar kartą.",
       "shoesSuccess": "Strava batai importuoti",
-      "shoesError": "Nepavyko importuoti Strava batų. Bandykite dar kartą."
+      "shoesError": "Nepavyko importuoti Strava batų. Bandykite dar kartą.",
+      "activitiesUpload": "Importuoti veiklas (įkelti ZIP)",
+      "activitiesFolder": "Importuoti veiklas (serverio aplankas)"
+    },
+    "job": {
+      "preparing": "Ruošiamas importavimas…",
+      "progress": "Importuota {done} iš {total} failų (nepavyko {failed})…",
+      "finished": "Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}.",
+      "failed": "Importavimo užbaigti nepavyko."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Eksportuoti duomenis",
       "import": "Importuoti duomenis",
       "invalidType": "Pasirinkite .zip archyvą.",
-      "exportSuccess": "Eksportas paruoštas — atsisiuntimas netrukus prasidės",
+      "exportSuccess": "Eksportas paruoštas, atsisiuntimas netrukus prasidės",
       "exportError": "Nepavyko eksportuoti jūsų duomenų. Bandykite dar kartą.",
       "importSuccess": "Duomenys importuoti",
       "importError": "Nepavyko importuoti archyvo. Patikrinkite failą ir bandykite dar kartą."

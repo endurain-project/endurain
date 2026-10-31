@@ -39,7 +39,6 @@
       "distance": "Разстояние",
       "duration": "Продължителност",
       "pace": "Темпо",
-      "speed": "Скорост",
       "paceSpeed": "Темпо / Скорост",
       "elevation": "Изкачване",
       "calories": "Калории",
@@ -66,7 +65,6 @@
     "recenter": "Центрирай картата"
   },
   "metrics": {
-    "title": "Показатели",
     "time": "Време",
     "distance": "Разстояние",
     "movingTime": "Време в движение",
@@ -109,7 +107,12 @@
     "elevation": "Изкачване",
     "strokeRate": "Честота на загребванията",
     "cycles": "Цикли",
-    "hr": "Пулс"
+    "strokes": "Загребвания",
+    "revolutions": "Обороти",
+    "strides": "Крачки",
+    "jumps": "Скокове",
+    "hr": "Пулс",
+    "activeSummary": "Общо активно"
   },
   "workout": {
     "title": "Тренировка",
@@ -157,7 +160,6 @@
     "deleteError": "Активността не можа да се изтрие"
   },
   "media": {
-    "title": "Снимки",
     "alt": "Снимка на активността",
     "addMedia": "Добави снимка",
     "uploadSuccess": "Снимката е качена",
@@ -170,7 +172,8 @@
     "close": "Затвори",
     "deleteSuccess": "Снимката е изтрита",
     "deleteError": "Снимката не можа да се изтрие",
-    "expand": "Виж в пълен размер"
+    "expand": "Виж в пълен размер",
+    "thumbnailPending": "Генериране на преглед на картата…"
   },
   "gallery": {
     "previous": "Предишна",
@@ -204,7 +207,8 @@
     "hideWorkoutSetsSteps": "Скрий сериите и стъпките от тренировката",
     "hideGear": "Скрий екипировката",
     "success": "Активността е обновена",
-    "error": "Активността не можа да се обнови"
+    "error": "Активността не можа да се обнови",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Тази активност е скрита. Само вие можете да я виждате.",

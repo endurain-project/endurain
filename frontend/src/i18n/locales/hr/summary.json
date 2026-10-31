@@ -38,7 +38,6 @@
     "title": "Aktivnosti u ovom razdoblju"
   },
   "empty": {
-    "title": "Nema aktivnosti u ovom razdoblju",
     "description": "Nijedna aktivnost ne odgovara odabranom razdoblju i vrsti."
   },
   "error": {

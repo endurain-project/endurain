@@ -4,12 +4,14 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-import activities.activity.crud as activities_crud
-import activities.activity.utils as activities_utils
-import activities.activity_streams.constants as activity_streams_constants
-import activities.activity_streams.crud as activity_streams_crud
 import core.logger as core_logger
 import migrations.crud as migrations_crud
+import modules.activities.activity.migration_service as activities_crud
+import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.migration_service as activity_streams_crud
+import modules.activities.computation as activities_computation
+
+logger = core_logger.get_logger(__name__)
 
 
 def _optional_float_to_int(value: float | None) -> int | None:
@@ -32,22 +34,24 @@ def process_migration_1(db: Session) -> None:
     Raises:
         Exception: Logs errors per-activity; does not re-raise.
     """
-    core_logger.print_to_log_and_console("Started migration 1")
+    logger.info("Started migration 1", extra=core_logger.context(console=True))
 
     activities_processed_with_no_errors = True
 
     try:
         activities = activities_crud.get_all_activities(db)
     except Exception as err:
-        core_logger.print_to_log_and_console(f"Migration 1 - Error fetching activities: {err}", "error", exc=err)
+        logger.error(
+            f"Migration 1 - Error fetching activities: {err}", exc_info=err, extra=core_logger.context(console=True)
+        )
         return
 
     if activities:
         for activity in activities:
             if not activity.user_id or not activity.id or not activity.start_time or not activity.end_time:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Migration 1 - Skipping activity with missing user_id, id, start_time, or end_time: {activity}",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             try:
@@ -72,20 +76,20 @@ def process_migration_1(db: Session) -> None:
 
                 # Get activity streams
                 try:
-                    activity_streams = activity_streams_crud.get_activity_streams(activity.id, activity.user_id, db)
+                    activity_streams = activity_streams_crud.get_activity_streams(activity.id, db)
                 except Exception as err:
-                    core_logger.print_to_log_and_console(
+                    logger.warning(
                         f"Migration 1 - Failed to fetch streams for activity {activity.id}: {err}",
-                        "warning",
-                        exc=err,
+                        exc_info=err,
+                        extra=core_logger.context(console=True),
                     )
                     activities_processed_with_no_errors = False
                     continue
 
                 if not activity_streams:
-                    core_logger.print_to_log_and_console(
+                    logger.info(
                         f"Migration 1 - No streams found for activity {activity.id}. Skipping stream processing.",
-                        "info",
+                        extra=core_logger.context(console=True),
                     )
                     continue
 
@@ -105,13 +109,13 @@ def process_migration_1(db: Session) -> None:
                     proc = stream_processing.get(stream_type)
                     if proc is not None:
                         attr_avg, attr_max, stream_key = proc[:3]
-                        metrics[attr_avg], metrics[attr_max] = activities_utils.calculate_avg_and_max(
+                        metrics[attr_avg], metrics[attr_max] = activities_computation.calculate_avg_and_max(
                             stream.stream_waypoints,
                             stream_key,
                         )
                         # Special handling for normalized power
                         if stream_type == activity_streams_constants.STREAM_TYPE_POWER:
-                            metrics["np"] = activities_utils.calculate_np(stream.stream_waypoints)
+                            metrics["np"] = activities_computation.calculate_np(stream.stream_waypoints)
 
                 # Calculate elapsed time once
                 elapsed_time_seconds = round((activity.end_time - activity.start_time).total_seconds())
@@ -128,16 +132,17 @@ def process_migration_1(db: Session) -> None:
                 activity.max_cad = _optional_float_to_int(metrics["max_cadence"])
 
                 # Update the activity in the database
-                activities_crud.edit_activity(activity.user_id, activity, db)
-                core_logger.print_to_log_and_console(
-                    f"Migration 1 - Processed activity: {activity.id} - {activity.name}"
+                activities_crud.edit_activity(activity.user_id, activity.id, activity, db)
+                logger.info(
+                    f"Migration 1 - Processed activity: {activity.id} - {activity.name}",
+                    extra=core_logger.context(console=True),
                 )
             except Exception as err:
                 activities_processed_with_no_errors = False
-                core_logger.print_to_log_and_console(
+                logger.error(
                     f"Migration 1 - Failed to process activity {activity.id}: {err}",
-                    "error",
-                    exc=err,
+                    exc_info=err,
+                    extra=core_logger.context(console=True),
                 )
 
     # Mark migration as executed
@@ -145,16 +150,16 @@ def process_migration_1(db: Session) -> None:
         try:
             migrations_crud.set_migration_as_executed(1, db)
         except Exception as err:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Migration 1 - Failed to set migration as executed: {err}",
-                "error",
-                exc=err,
+                exc_info=err,
+                extra=core_logger.context(console=True),
             )
             return
     else:
-        core_logger.print_to_log_and_console(
+        logger.error(
             "Migration 1 failed to process all activities. Will try again later.",
-            "error",
+            extra=core_logger.context(console=True),
         )
 
-    core_logger.print_to_log_and_console("Finished migration 1")
+    logger.info("Finished migration 1", extra=core_logger.context(console=True))

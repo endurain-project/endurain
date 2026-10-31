@@ -99,7 +99,11 @@ describe('buildActivityMetrics', () => {
   })
 
   it('shows only calories/time/HR for non-distance activities (e.g. strength)', () => {
-    const tiles = buildActivityMetrics(makeActivity({ activityType: 19 }), 'metric', visible)
+    const tiles = buildActivityMetrics(
+      makeActivity({ activityType: 19, totalElapsedTime: 3500 }),
+      'metric',
+      visible,
+    )
     const keys = tiles.map((tile) => tile.key)
     expect(keys).toEqual(['calories', 'time', 'avgHr'])
     expect(keys).not.toContain('distance')

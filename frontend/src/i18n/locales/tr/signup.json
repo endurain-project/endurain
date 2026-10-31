@@ -7,8 +7,6 @@
   "password": "Parola",
   "confirmPassword": "Parolayı onayla",
   "passwordMismatch": "Parolalar eşleşmiyor",
-  "showPassword": "Parolayı göster",
-  "hidePassword": "Parolayı gizle",
   "showOptionalFields": "İsteğe bağlı alanları göster",
   "hideOptionalFields": "İsteğe bağlı alanları gizle",
   "preferredLanguage": "Tercih edilen dil",

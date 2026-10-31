@@ -220,7 +220,7 @@ Look for authentication-related errors that can help identify configuration issu
 
 ## Additional Resources
 
-- [Authentication Developer Guide](../developer-guide/authentication.md) - Technical details about Endurain's authentication system
-- [Getting Started Guide](../getting-started/getting-started.md) - General setup instructions
+- [Authentication Developer Guide](../integrate/authentication.md) - Technical details about Endurain's authentication system
+- [Getting Started Guide](../getting-started/quick-start.md) - General setup instructions
 - [OAuth 2.0 Specification](https://oauth.net/2/) - Official OAuth 2.0 documentation
 - [OpenID Connect Specification](https://openid.net/connect/) - Official OIDC documentation

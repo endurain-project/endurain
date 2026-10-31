@@ -48,7 +48,6 @@
       "title": "Zatím žádní uživatelé",
       "description": "Přidejte první účet pro tuto instanci",
       "searchTitle": "Žádní uživatelé nenalezeni",
-      "searchDescription": "Tomuto uživatelskému jménu neodpovídají žádní uživatelé",
       "filteredTitle": "Vybraným filtrům neodpovídají žádní uživatelé"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Alespoň {min} znaků, s velkým písmenem, malým písmenem, číslicí a speciálním znakem",
       "passwordHintLength": "Alespoň {min} znaků",
       "passwordRequired": "Heslo je povinné",
-      "passwordTooShort": "Heslo musí mít alespoň 8 znaků",
       "passwordInvalid": "Toto heslo nesplňuje požadavky",
       "confirmPassword": "Potvrďte heslo",
       "confirmPasswordRequired": "Potvrďte heslo",
@@ -135,6 +133,8 @@
         "pound": "Libra"
       },
       "firstDayOfWeek": "První den v týdnu",
+      "timezone": "Časové pásmo",
+      "timezoneHint": "Používá se pro aktivity zaznamenané bez GPS, například běh na pásu nebo jízdu na trenažéru.",
       "weekdays": {
         "sunday": "Neděle",
         "monday": "Pondělí",
@@ -354,6 +354,19 @@
       "deleteError": "Nepodařilo se odebrat fotografii přihlášení. Zkuste to prosím znovu.",
       "cancel": "Zrušit",
       "close": "Zavřít"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain odesílá e-maily pro obnovení hesla a registraci přes SMTP server nakonfigurovaný v prostředí.",
+      "statusLoadError": "Nepodařilo se zkontrolovat konfiguraci e-mailu.",
+      "configured": "E-mail je nakonfigurován.",
+      "notConfigured": "E-mail není nakonfigurován:",
+      "send": "Odeslat testovací e-mail",
+      "sending": "Odesílání…",
+      "sendHint": "Testovací e-mail se odešle na vaši vlastní adresu.",
+      "sent": "Testovací e-mail odeslán",
+      "failed": "Testovací e-mail se nepodařilo odeslat",
+      "failedUnknown": "Podrobnosti najdete v logech serveru."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Uložte si své záložní kódy",
       "description": "Použijte záložní kód k přihlášení, pokud ztratíte přístup k aplikaci autentizátoru.",
-      "warning": "Tyto kódy se zobrazují pouze jednou. Uložte je na bezpečné místo \u2014 každý kód funguje pouze jednou.",
+      "warning": "Tyto kódy se zobrazují pouze jednou. Uložte je na bezpečné místo, každý kód funguje pouze jednou.",
       "copy": "Kopírovat",
       "copied": "Záložní kódy zkopírovány",
       "copyError": "Nepodařilo se zkopírovat kódy.",
@@ -720,12 +733,12 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Nepodařilo se připojit ke službě Strava. Zkontrolujte prosím své údaje a zkuste to znovu.",
-      "completing": "Dokončování připojení ke službě Strava\u2026",
+      "completing": "Dokončování připojení ke službě Strava…",
       "linkSuccess": "Strava připojena",
       "retrieveActivitiesTitle": "Načíst aktivity ze služby Strava",
-      "retrievingActivities": "Načítání vašich aktivit ze služby Strava na pozadí\u2026",
+      "retrievingActivities": "Načítání vašich aktivit ze služby Strava na pozadí…",
       "retrieveActivitiesError": "Nepodařilo se zahájit načítání aktivit ze služby Strava. Zkuste to prosím znovu.",
-      "retrievingGear": "Načítání vašeho vybavení ze služby Strava na pozadí\u2026",
+      "retrievingGear": "Načítání vašeho vybavení ze služby Strava na pozadí…",
       "retrieveGearError": "Nepodařilo se zahájit načítání vybavení ze služby Strava. Zkuste to prosím znovu.",
       "unlinkTitle": "Odpojit službu Strava?",
       "unlinkBody": "Endurain přestane importovat ze služby Strava. Vaše stávající aktivity zůstanou zachovány.",
@@ -749,13 +762,13 @@
       "linkError": "Nepodařilo se připojit ke Garmin Connect. Zkuste to prosím znovu.",
       "mfaError": "Nepodařilo se odeslat kód. Zkuste to prosím znovu.",
       "retrieveActivitiesTitle": "Načíst aktivity z Garmin Connect",
-      "retrievingActivities": "Načítání vašich aktivit z Garmin Connect na pozadí\u2026",
+      "retrievingActivities": "Načítání vašich aktivit z Garmin Connect na pozadí…",
       "retrieveActivitiesError": "Nepodařilo se zahájit načítání aktivit z Garmin Connect. Zkuste to prosím znovu.",
-      "retrievingGear": "Načítání vašeho vybavení z Garmin Connect na pozadí\u2026",
+      "retrievingGear": "Načítání vašeho vybavení z Garmin Connect na pozadí…",
       "retrieveGearError": "Nepodařilo se zahájit načítání vybavení z Garmin Connect. Zkuste to prosím znovu.",
       "retrieveHealth": "Načíst zdravotní data",
       "retrieveHealthTitle": "Načíst zdravotní data z Garmin Connect",
-      "retrievingHealth": "Načítání vašich zdravotních dat z Garmin Connect na pozadí\u2026",
+      "retrievingHealth": "Načítání vašich zdravotních dat z Garmin Connect na pozadí…",
       "retrieveHealthError": "Nepodařilo se zahájit načítání zdravotních dat z Garmin Connect. Zkuste to prosím znovu.",
       "unlinkTitle": "Odpojit Garmin Connect?",
       "unlinkBody": "Endurain přestane importovat z Garmin Connect. Vaše stávající data zůstanou zachována.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Hromadný import",
       "subtitle": "Importujte soubory aktivit umístěné ve složce serveru pro hromadný import",
-      "button": "Importovat aktivity",
-      "started": "Importování aktivit na pozadí\u2026",
+      "uploadButton": "Nahrát ZIP",
+      "folderButton": "Importovat ze složky",
+      "started": "Importování aktivit na pozadí…",
+      "alreadyRunning": "Hromadný import již probíhá. Počkejte, až skončí.",
       "error": "Nepodařilo se zahájit import. Zkuste to prosím znovu."
     },
     "strava": {
@@ -781,12 +796,20 @@
       "activities": "Importovat aktivity",
       "bikes": "Importovat kola",
       "shoes": "Importovat boty",
-      "activitiesQueued": "Aktivity ze služby Strava zařazeny do fronty pro import; stav najdete v protokolech\u2026",
+      "activitiesQueued": "Aktivity ze služby Strava zařazeny do fronty pro import; stav najdete v protokolech…",
       "activitiesError": "Nepodařilo se zařadit import aktivit ze služby Strava do fronty. Zkuste to prosím znovu.",
       "bikesSuccess": "Kola ze služby Strava importována",
       "bikesError": "Nepodařilo se importovat kola ze služby Strava. Zkuste to prosím znovu.",
       "shoesSuccess": "Boty ze služby Strava importovány",
-      "shoesError": "Nepodařilo se importovat boty ze služby Strava. Zkuste to prosím znovu."
+      "shoesError": "Nepodařilo se importovat boty ze služby Strava. Zkuste to prosím znovu.",
+      "activitiesUpload": "Importovat aktivity (nahrát ZIP)",
+      "activitiesFolder": "Importovat aktivity (složka na serveru)"
+    },
+    "job": {
+      "preparing": "Příprava importu…",
+      "progress": "Importováno {done} z {total} souborů ({failed} se nezdařilo)…",
+      "finished": "Import dokončen: importováno {done} z {total} souborů, {failed} se nezdařilo.",
+      "failed": "Import se nepodařilo dokončit."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Exportovat data",
       "import": "Importovat data",
       "invalidType": "Vyberte prosím archiv .zip.",
-      "exportSuccess": "Export připraven — vaše stahování by mělo brzy začít",
+      "exportSuccess": "Export připraven, vaše stahování by mělo brzy začít",
       "exportError": "Nepodařilo se exportovat vaše data. Zkuste to prosím znovu.",
       "importSuccess": "Data importována",
       "importError": "Nepodařilo se importovat archiv. Zkontrolujte prosím soubor a zkuste to znovu."

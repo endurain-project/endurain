@@ -38,5 +38,12 @@
   "signup_approved.intro": "Dobre novice! Vaš račun je bil odobren in je zdaj aktiven.",
   "signup_approved.username_label": "Uporabniško ime:",
   "signup_approved.login_intro": "Zdaj se lahko prijavite in začnete uporabljati Endurain:",
-  "signup_approved.cta": "Prijava v Endurain"
+  "signup_approved.cta": "Prijava v Endurain",
+
+  "test_email.subject": "Endurain - Testna e-pošta",
+  "test_email.heading": "E-pošta deluje",
+  "test_email.greeting": "Pozdravljeni {name},",
+  "test_email.intro": "To je testna e-pošta, poslana iz nastavitev strežnika Endurain. Če jo berete, lahko Endurain pošilja e-pošto prek vašega strežnika SMTP.",
+  "test_email.detail_label": "Strežnik SMTP:",
+  "test_email.ignore": "Nobeno dejanje ni potrebno."
 }

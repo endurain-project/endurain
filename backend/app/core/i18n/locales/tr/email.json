@@ -38,5 +38,12 @@
   "signup_approved.intro": "İyi haber! Hesabınız onaylandı ve artık aktif.",
   "signup_approved.username_label": "Kullanıcı adı:",
   "signup_approved.login_intro": "Artık giriş yapabilir ve Endurain'i kullanmaya başlayabilirsiniz:",
-  "signup_approved.cta": "Endurain'e Giriş Yap"
+  "signup_approved.cta": "Endurain'e Giriş Yap",
+
+  "test_email.subject": "Endurain - Test e-postası",
+  "test_email.heading": "E-posta çalışıyor",
+  "test_email.greeting": "Merhaba {name},",
+  "test_email.intro": "Bu, Endurain sunucu ayarlarından gönderilen bir test e-postasıdır. Bunu okuyorsanız Endurain, SMTP sunucunuz üzerinden e-posta gönderebilir.",
+  "test_email.detail_label": "SMTP sunucusu:",
+  "test_email.ignore": "Herhangi bir işlem gerekmez."
 }

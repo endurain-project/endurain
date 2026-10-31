@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
-    import users.users_default_gear.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.users.users_default_gear.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/user_default_gear")
@@ -21,9 +21,9 @@ def _build_app(mock_db):
 
 
 class TestReadUserDefaultGear:
-    @patch("users.users_default_gear.router.user_default_gear_crud.get_user_default_gear_by_user_id")
+    @patch("modules.users.users_default_gear.router.user_default_gear_crud.get_user_default_gear_by_user_id")
     def test_read_success(self, mock_get, mock_db):
-        from users.users_default_gear.schema import UsersDefaultGearRead
+        from modules.users.users_default_gear.schema import UsersDefaultGearRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = UsersDefaultGearRead(id=1, user_id=1)
@@ -33,9 +33,9 @@ class TestReadUserDefaultGear:
 
 
 class TestEditUserDefaultGear:
-    @patch("users.users_default_gear.router.user_default_gear_crud.edit_user_default_gear")
+    @patch("modules.users.users_default_gear.router.user_default_gear_crud.edit_user_default_gear")
     def test_edit_success(self, mock_edit, mock_db):
-        from users.users_default_gear.schema import UsersDefaultGearRead
+        from modules.users.users_default_gear.schema import UsersDefaultGearRead
 
         client = TestClient(_build_app(mock_db))
         mock_edit.return_value = UsersDefaultGearRead(id=1, user_id=1, run_gear_id=2, ride_gear_id=1)

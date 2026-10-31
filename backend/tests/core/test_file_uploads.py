@@ -11,7 +11,7 @@ import zlib
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 from safeuploads.exceptions import (
     CompressionSecurityError,
     ExtensionSecurityError,
@@ -27,20 +27,25 @@ from safeuploads.exceptions import (
     ZipBombError,
 )
 
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 from core.file_uploads import (
     UploadKind,
     _resolve_upload_path,
     _stream_to_path,
-    _to_http_exception,
+    _to_domain_error,
+    ensure_within,
     extract_validated_zip,
     move_within,
+    read_validated_upload_sync,
     resolve_storage_path,
     safe_remove_within,
     save_file,
     save_validated_bytes,
     save_validated_upload,
+    save_validated_upload_sync,
     validate_bytes,
+    validate_local_file_sync,
     validate_upload,
 )
 
@@ -111,7 +116,7 @@ _KIND_CASES = [
 
 
 # ---------------------------------------------------------------------------
-# _to_http_exception: one branch per mapped exception class
+# _to_domain_error: one branch per mapped exception class
 # ---------------------------------------------------------------------------
 
 
@@ -131,13 +136,12 @@ _KIND_CASES = [
         (FileProcessingError("oops"), 500),
     ],
 )
-def test_to_http_exception_mapping(err, expected_status):
+def test_to_domain_error_mapping(err, expected_status):
     """Each safeuploads exception maps to the documented status."""
-    http_err = _to_http_exception(err)
-    assert isinstance(http_err, HTTPException)
-    assert http_err.status_code == expected_status
-    assert isinstance(http_err.detail, dict)
-    assert "message" in http_err.detail
+    domain_err = _to_domain_error(err)
+    assert isinstance(domain_err, core_exceptions.DomainError)
+    assert domain_err.status_code == expected_status
+    assert domain_err.detail
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +160,7 @@ def test_to_http_exception_mapping(err, expected_status):
 )
 def test_resolve_upload_path_rejects_unsafe(tmp_path: Path, bad_name: str):
     """Traversal, absolute, and nested names are rejected with 400."""
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         _resolve_upload_path(str(tmp_path), bad_name)
     assert exc.value.status_code == 400
 
@@ -184,11 +188,25 @@ async def test_validate_upload_accepts_valid_payload(kind: UploadKind, filename:
 
 
 @pytest.mark.asyncio
+async def test_validate_upload_accepts_zip_with_gzip_entries():
+    """A ZIP holding ``.gz`` activities (Strava bulk export layout) validates."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("activities.csv", b"Activity ID\n1\n")
+        zf.writestr("activities/1.gpx.gz", _make_gzip_bytes())
+    upload = _upload("export.zip", buf.getvalue())
+    try:
+        await validate_upload(upload, kind=UploadKind.ZIP)
+    finally:
+        await upload.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("kind,filename,_b", _KIND_CASES)
 async def test_validate_upload_rejects_garbage(kind: UploadKind, filename: str, _b):
     """Garbage bytes with a valid extension are rejected."""
     upload = _upload(filename, b"not a real payload")
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         try:
             await validate_upload(upload, kind=kind)
         finally:
@@ -225,7 +243,7 @@ async def test_stream_to_path_aborts_on_oversize(tmp_path: Path):
     payload = b"y" * (2 * 1024 * 1024)
     upload = _upload("over.bin", payload)
     destination = tmp_path / "over.bin"
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         try:
             await _stream_to_path(upload, destination, max_bytes=1024)
         finally:
@@ -280,7 +298,7 @@ async def test_save_validated_upload_streamed_activity(tmp_path: Path):
 async def test_save_validated_upload_traversal_rejected(tmp_path: Path):
     """A traversal filename never produces a file on disk."""
     upload = _upload("ride.gpx", _make_gpx_bytes())
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         try:
             await save_validated_upload(
                 upload,
@@ -302,7 +320,7 @@ async def test_save_validated_upload_signature_mismatch_no_partial(
 ):
     """Failed validation must not leave any file behind."""
     upload = _upload("evil.png", b"this is not a png")
-    with pytest.raises(HTTPException):
+    with pytest.raises(core_exceptions.DomainError):
         try:
             await save_validated_upload(
                 upload,
@@ -323,7 +341,7 @@ async def test_save_validated_upload_signature_mismatch_no_partial(
 def test_module_exposes_singleton_validator():
     """The application uses one shared FileValidator instance."""
     assert core_file_uploads.file_validator is not None
-    # Limits configured per the unification plan.
+    # Limits configured on the shared validator.
     limits = core_file_uploads.file_validator.config.limits
     assert limits.max_activity_file_size == 200 * 1024 * 1024
     assert limits.max_gzip_size == 200 * 1024 * 1024
@@ -337,7 +355,7 @@ async def test_failed_validation_emits_audit_record(caplog):
     upload = _upload("evil.png", b"this is not a png")
     caplog.set_level(logging.WARNING, logger="safeuploads.audit")
 
-    with pytest.raises(HTTPException):
+    with pytest.raises(core_exceptions.DomainError):
         try:
             await validate_upload(upload, kind=UploadKind.IMAGE)
         finally:
@@ -365,7 +383,7 @@ async def test_validate_bytes_accepts_valid_payload(kind: UploadKind, filename: 
 @pytest.mark.asyncio
 async def test_validate_bytes_rejects_garbage():
     """Garbage bytes with a valid extension are rejected."""
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await validate_bytes(b"not a real zip", kind=UploadKind.ZIP, filename="x.zip")
     assert exc.value.status_code in {400, 413}
 
@@ -401,7 +419,7 @@ async def test_save_validated_bytes_preserves_existing_on_replace_error(
 
     monkeypatch.setattr(core_file_uploads.os, "replace", fail_replace)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await save_validated_bytes(
             _make_zip_bytes(),
             kind=UploadKind.ZIP,
@@ -417,7 +435,7 @@ async def test_save_validated_bytes_preserves_existing_on_replace_error(
 @pytest.mark.asyncio
 async def test_save_validated_bytes_rejects_bad_filename(tmp_path: Path):
     """Server-generated filename guard still applies for byte writes."""
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await save_validated_bytes(
             _make_zip_bytes(),
             kind=UploadKind.ZIP,
@@ -472,7 +490,7 @@ async def test_extract_validated_zip_rejects_zip_slip(tmp_path: Path):
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
     # No file should have leaked outside dest.
@@ -489,7 +507,7 @@ async def test_extract_validated_zip_rejects_absolute_entry(
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
@@ -504,7 +522,7 @@ async def test_extract_validated_zip_rejects_windows_drive_entry(
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
@@ -524,7 +542,7 @@ async def test_extract_validated_zip_cleans_previous_entries_on_error(
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
     assert not (dest / "good.gpx").exists()
@@ -544,7 +562,7 @@ async def test_extract_validated_zip_refuses_existing_target(
     zip_path = tmp_path / "overwrite.zip"
     zip_path.write_bytes(payload)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
 
     assert exc.value.status_code == 400
@@ -567,7 +585,7 @@ async def test_extract_validated_zip_rejects_duplicate_target(
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
 
     assert exc.value.status_code == 400
@@ -609,7 +627,7 @@ async def test_extract_validated_zip_max_entries_enforced(tmp_path: Path):
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest, max_entries=2)
     assert exc.value.status_code == 400
     # Nothing should have been extracted on entry-count rejection.
@@ -640,7 +658,7 @@ def test_move_within_rejects_unsafe_filename(tmp_path: Path):
     src.write_bytes(b"payload")
     dest_dir = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         move_within(src, dest_dir, filename="../evil.bin")
     assert exc.value.status_code == 400
     assert src.exists()
@@ -654,7 +672,7 @@ def test_move_within_rejects_source_outside_base(tmp_path: Path):
     outside.write_bytes(b"payload")
     dest_dir = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         move_within(
             outside,
             dest_dir,
@@ -663,6 +681,28 @@ def test_move_within_rejects_source_outside_base(tmp_path: Path):
         )
     assert exc.value.status_code == 400
     assert outside.exists()
+
+
+def test_ensure_within_returns_resolved_inside(tmp_path: Path):
+    """A path inside the base dir resolves and is returned."""
+    base = tmp_path / "base"
+    base.mkdir()
+    target = base / "sub" / "file.bin"
+
+    resolved = ensure_within(target, base)
+
+    assert resolved == target.resolve()
+
+
+def test_ensure_within_rejects_escape(tmp_path: Path):
+    """A path outside the base dir is rejected with HTTP 400."""
+    base = tmp_path / "base"
+    base.mkdir()
+    outside = tmp_path / "outside.bin"
+
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        ensure_within(outside, base)
+    assert exc.value.status_code == 400
 
 
 def test_safe_remove_within_removes_inside(tmp_path: Path):
@@ -681,7 +721,7 @@ def test_safe_remove_within_refuses_outside(tmp_path: Path):
     outside = tmp_path / "outside.bin"
     outside.write_bytes(b"x")
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         safe_remove_within(outside, base_dir=base)
     assert exc.value.status_code == 400
     assert outside.exists()
@@ -721,15 +761,15 @@ def test_max_bytes_for_unknown_kind():
 
 
 # ---------------------------------------------------------------------------
-# _to_http_exception: fallback branch
+# _to_domain_error: fallback branch
 # ---------------------------------------------------------------------------
 
 
-def test_to_http_exception_fallback():
+def test_to_domain_error_fallback():
     """A plain FileSecurityError maps to 500."""
     err = FileSecurityError("generic security error")
-    http_err = _to_http_exception(err)
-    assert http_err.status_code == 500
+    domain_err = _to_domain_error(err)
+    assert domain_err.status_code == 500
 
 
 # ---------------------------------------------------------------------------
@@ -739,14 +779,14 @@ def test_to_http_exception_fallback():
 
 def test_resolve_upload_path_rejects_dotdot(tmp_path: Path):
     """A bare '..' filename escapes via relative_to failure."""
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         _resolve_upload_path(str(tmp_path), "..")
     assert exc.value.status_code == 400
 
 
 def test_resolve_upload_path_rejects_nul_byte(tmp_path: Path):
     """Filename containing NUL byte is rejected."""
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         _resolve_upload_path(str(tmp_path), "bad\x00file")
     assert exc.value.status_code == 400
 
@@ -772,14 +812,14 @@ async def test_save_file_with_bytes(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_save_file_generic_error(tmp_path: Path, monkeypatch):
-    """Non-HTTPException in save_file raises 500."""
+    """Non-domain error in save_file raises 500."""
 
     async def fail_makedirs(*args: object, **kwargs: object) -> None:
         raise OSError("disk full")
 
     monkeypatch.setattr(core_file_uploads.aiofiles.os, "makedirs", fail_makedirs)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await save_file(b"data", str(tmp_path), "fail.bin")
     assert exc.value.status_code == 500
 
@@ -792,7 +832,7 @@ async def test_save_file_generic_error(tmp_path: Path, monkeypatch):
 def test_bytes_to_path_sync_oversize(tmp_path: Path):
     """Data exceeding max_bytes raises 413."""
     destination = tmp_path / "test.bin"
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         core_file_uploads._bytes_to_path_sync(b"x" * 100, destination, max_bytes=10)
     assert exc.value.status_code == 413
 
@@ -816,7 +856,7 @@ async def test_bytes_to_path_cleans_part_on_oserror(tmp_path: Path, monkeypatch)
 
     monkeypatch.setattr(Path, "unlink", fail_unlink)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await save_validated_bytes(
             gpx_bytes,
             kind=UploadKind.ACTIVITY,
@@ -866,7 +906,7 @@ async def test_stream_to_path_handles_cleanup_oserror(tmp_path: Path, monkeypatc
 
 @pytest.mark.asyncio
 async def test_save_validated_upload_generic_error(tmp_path: Path, monkeypatch):
-    """Non-HTTPException in save_validated_upload is wrapped in 500."""
+    """Non-domain error in save_validated_upload is wrapped in 500."""
 
     async def fail_makedirs(*args: object, **kwargs: object) -> None:
         raise OSError("disk full")
@@ -874,7 +914,7 @@ async def test_save_validated_upload_generic_error(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(core_file_uploads.aiofiles.os, "makedirs", fail_makedirs)
 
     upload = _upload("ride.gpx", _make_gpx_bytes())
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         try:
             await save_validated_upload(
                 upload,
@@ -885,7 +925,7 @@ async def test_save_validated_upload_generic_error(tmp_path: Path, monkeypatch):
         finally:
             await upload.close()
     assert exc.value.status_code == 500
-    assert "FILE_SAVE_FAILED" in str(exc.value.detail)
+    assert exc.value.detail == "Failed to save file"
 
 
 # ---------------------------------------------------------------------------
@@ -983,7 +1023,7 @@ async def test_extract_validated_zip_rejects_symlink(tmp_path: Path):
     zip_path.write_bytes(buf.getvalue())
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
@@ -997,7 +1037,7 @@ async def test_extract_validated_zip_entry_size_exceeded(tmp_path: Path, monkeyp
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 413
 
@@ -1017,7 +1057,7 @@ async def test_extract_validated_zip_total_size_exceeded(tmp_path: Path, monkeyp
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 413
 
@@ -1029,7 +1069,7 @@ async def test_extract_validated_zip_bad_file(tmp_path: Path):
     zip_path.write_bytes(b"not a zip file")
     dest = tmp_path / "out"
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
@@ -1054,7 +1094,7 @@ async def test_extract_validated_zip_promotion_failure(tmp_path: Path, monkeypat
         fail_promote,
     )
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         await extract_validated_zip(zip_path, dest_dir=dest)
     assert exc.value.status_code == 500
 
@@ -1073,7 +1113,7 @@ def test_move_within_existing_destination(tmp_path: Path):
     existing = dest_dir / "moved.bin"
     existing.write_bytes(b"existing")
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         move_within(src, dest_dir, filename="moved.bin")
     assert exc.value.status_code == 400
     assert src.exists()
@@ -1091,7 +1131,7 @@ def test_move_within_oserror(tmp_path: Path, monkeypatch):
 
     monkeypatch.setattr(core_file_uploads.shutil, "move", fail_move)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(core_exceptions.DomainError) as exc:
         move_within(src, dest_dir, filename="moved.bin")
     assert exc.value.status_code == 500
 
@@ -1141,3 +1181,183 @@ def test_safe_remove_within_oserror_handling(tmp_path: Path, monkeypatch):
 
     result = safe_remove_within(target, base_dir=tmp_path)
     assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Synchronous entry points: save_validated_upload_sync / validate_local_file_sync
+# ---------------------------------------------------------------------------
+
+
+def test_save_validated_upload_sync_happy_path(tmp_path: Path):
+    """A valid activity is validated then streamed to disk synchronously."""
+    upload = _upload("ride.gpx", _make_gpx_bytes())
+    path = save_validated_upload_sync(
+        upload,
+        kind=UploadKind.ACTIVITY,
+        upload_dir=str(tmp_path),
+        filename="server.gpx",
+    )
+    assert path == str(tmp_path / "server.gpx")
+    assert Path(path).read_bytes() == _make_gpx_bytes()
+    assert not (tmp_path / "server.gpx.part").exists()
+
+
+def test_save_validated_upload_sync_rejects_garbage(tmp_path: Path):
+    """Garbage bytes with a valid extension are rejected before any write."""
+    upload = _upload("ride.gpx", b"not a real activity file")
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        save_validated_upload_sync(
+            upload,
+            kind=UploadKind.ACTIVITY,
+            upload_dir=str(tmp_path),
+            filename="server.gpx",
+        )
+    assert exc.value.status_code in {400, 413}
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_save_validated_upload_sync_traversal_rejected(tmp_path: Path):
+    """A traversal filename never produces a file on disk (validation passes first)."""
+    upload = _upload("ride.gpx", _make_gpx_bytes())
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        save_validated_upload_sync(
+            upload,
+            kind=UploadKind.ACTIVITY,
+            upload_dir=str(tmp_path),
+            filename="../escape.gpx",
+        )
+    assert exc.value.status_code == 400
+    assert list(tmp_path.iterdir()) == []
+    assert not (tmp_path.parent / "escape.gpx").exists()
+
+
+def test_validate_local_file_sync_accepts_valid(tmp_path: Path):
+    """A valid on-disk activity validates without raising."""
+    path = tmp_path / "ride.gpx"
+    path.write_bytes(_make_gpx_bytes())
+    validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
+
+
+def test_read_validated_upload_sync_returns_bytes(tmp_path: Path):
+    """A valid image is validated and returned without touching the filesystem."""
+    png = _make_png_bytes()
+    data = read_validated_upload_sync(_upload("photo.png", png), kind=UploadKind.IMAGE)
+    assert data == png
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_read_validated_upload_sync_rejects_garbage():
+    """Garbage bytes with a valid extension are rejected rather than returned."""
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        read_validated_upload_sync(_upload("photo.png", b"not a real image"), kind=UploadKind.IMAGE)
+    assert exc.value.status_code in {400, 413}
+
+
+def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
+    """Garbage on-disk content is rejected with a 4xx/413."""
+    path = tmp_path / "ride.gpx"
+    path.write_bytes(b"not a real activity file")
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
+    assert exc.value.status_code in {400, 413}
+
+
+# ---------------------------------------------------------------------------
+# Generic on-disk file helpers (moved here from the activity ingestion
+# orchestrator, which had reimplemented them for its own use)
+# ---------------------------------------------------------------------------
+
+
+def test_sha256_file_matches_hashlib(tmp_path: Path):
+    """The streamed digest matches a one-shot hash of the same bytes."""
+    import hashlib
+
+    from core.file_uploads import sha256_file
+
+    path = tmp_path / "activity.gpx"
+    payload = b"<gpx>some deterministic content</gpx>"
+    path.write_bytes(payload)
+
+    assert sha256_file(path) == hashlib.sha256(payload).hexdigest()
+
+
+def test_sha256_file_is_stable_across_reads(tmp_path: Path):
+    """The same bytes hash identically every time (what makes re-import a no-op)."""
+    from core.file_uploads import sha256_file
+
+    path = tmp_path / "activity.fit"
+    path.write_bytes(b"\x00\x01\x02repeatable\xff")
+
+    assert sha256_file(path) == sha256_file(path)
+
+
+def test_remove_files_removes_only_existing(tmp_path: Path):
+    """Existing files are removed; missing ones are silently skipped."""
+    from core.file_uploads import remove_files
+
+    present = tmp_path / "a"
+    present.write_bytes(b"x")
+    missing = tmp_path / "b"
+
+    remove_files([present, missing])
+
+    assert not present.exists()
+
+
+def test_remove_files_swallows_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A removal failure is logged, never raised — cleanup must not mask the real error."""
+    import core.file_uploads as file_uploads
+
+    present = tmp_path / "a"
+    present.write_bytes(b"x")
+
+    def _boom(_path):
+        raise OSError("Permission denied")
+
+    monkeypatch.setattr(file_uploads.os, "remove", _boom)
+
+    file_uploads.remove_files([present])
+
+
+def test_decompress_gzip_returns_inner_payload(tmp_path: Path):
+    """A ``.gz`` is expanded to a temp file; the caller owns removing both files."""
+    from core.file_uploads import decompress_gzip
+
+    payload = _make_gpx_bytes()
+    archive = tmp_path / "activity_123.gpx.gz"
+    archive.write_bytes(gzip.compress(payload))
+
+    temp_path, extension = decompress_gzip(archive)
+
+    try:
+        assert extension == ".gpx"
+        assert Path(temp_path).read_bytes() == payload
+        # Left in place: a failed import still needs the user's original.
+        assert archive.exists()
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
+
+
+def test_decompress_gzip_rejects_invalid_archive(tmp_path: Path):
+    """Non-gzip content is a 400, not a traceback."""
+    from core.file_uploads import decompress_gzip
+
+    archive = tmp_path / "bad.gpx.gz"
+    archive.write_bytes(b"definitely not gzip")
+
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        decompress_gzip(archive)
+    assert exc.value.status_code == 400
+
+
+def test_decompress_gzip_rejects_decompression_bomb(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Output beyond the activity cap is a 413 and leaves no temp file behind."""
+    import core.file_uploads as file_uploads
+
+    archive = tmp_path / "big.gpx.gz"
+    archive.write_bytes(gzip.compress(b"x" * 4096))
+    monkeypatch.setattr(file_uploads, "_MAX_ACTIVITY_BYTES", 16)
+
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        file_uploads.decompress_gzip(archive)
+    assert exc.value.status_code == 413

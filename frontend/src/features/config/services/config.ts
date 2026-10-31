@@ -1,5 +1,6 @@
 import type { AppConfig, PublicServerSettings } from '@/features/config/types'
 
+import { DEFAULT_MAP_CONFIG } from '../defaults'
 import { fetchPublicServerSettings } from './serverSettings'
 
 /**
@@ -16,11 +17,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   branding: {
     appName: 'Endurain',
   },
-  map: {
-    tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
+  map: DEFAULT_MAP_CONFIG,
   enabledLocales: null,
 }
 

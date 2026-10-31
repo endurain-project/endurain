@@ -1,0 +1,387 @@
+"""Pure activity metric computations, published by the activities module.
+
+Turn raw waypoint streams into activity metrics (speed, elevation, pace,
+averages, normalized power). Side-effect-free: no network, database or
+filesystem I/O, and no import of any other module.
+
+Module-level rather than inside a sub-package because three different consumers
+need them — the file parsers, the Strava adapter, and the data migrations — and
+the Strava one is outside this module. Living in ``activity_file_import`` made
+that a reach into a package whose whole contract is "parsers only"; living here
+says the activities namespace publishes its metric maths alongside its explicit
+composition and contributor surfaces.
+"""
+
+import statistics
+from datetime import UTC, datetime
+from itertools import pairwise
+from statistics import mean
+
+from geopy.distance import geodesic
+
+
+def _elapsed_seconds(start: datetime, end: datetime) -> float:
+    """Return real elapsed seconds between two timestamps.
+
+    Both bounds are converted to UTC first. Subtracting them as-is is not enough:
+    when two aware datetimes share a ``tzinfo`` **object**, Python documents that
+    the offsets are ignored and the result is a plain wall-clock difference — so
+    an activity spanning a DST transition reported an hour more (or less) than it
+    actually took. Naive inputs are assumed UTC, which is the convention every
+    parser writes timestamps in.
+
+    Args:
+        start: Start timestamp.
+        end: End timestamp.
+
+    Returns:
+        Elapsed seconds.
+    """
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=UTC)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=UTC)
+    return (end.astimezone(UTC) - start.astimezone(UTC)).total_seconds()
+
+
+def append_if_not_none(
+    waypoint_list: list[dict],
+    waypoint_time,
+    value,
+    key: str,
+) -> None:
+    """Append ``{time, key: value}`` to ``waypoint_list`` if value is set.
+
+    Args:
+        waypoint_list: List to mutate in place.
+        waypoint_time: Timestamp associated with the value.
+        value: The value to record; ignored when ``None``.
+        key: Dict key under which ``value`` is stored.
+    """
+    if value is not None:
+        waypoint_list.append({"time": waypoint_time, key: value})
+
+
+def calculate_instant_speed(
+    prev_time,
+    waypoint_time,
+    latitude: float,
+    longitude: float,
+    prev_latitude: float | None,
+    prev_longitude: float | None,
+) -> float:
+    """Compute m/s speed between two GPS waypoints.
+
+    Args:
+        prev_time: Previous waypoint timestamp; ``None`` returns 0.
+        waypoint_time: Current waypoint timestamp.
+        latitude: Current latitude (decimal degrees).
+        longitude: Current longitude (decimal degrees).
+        prev_latitude: Previous latitude (decimal degrees).
+        prev_longitude: Previous longitude (decimal degrees).
+
+    Returns:
+        Instantaneous speed in m/s, or 0 when the time delta is
+        non-positive or ``prev_time`` is missing. Deltas shorter than one
+        second count as one second so near-simultaneous fixes cannot inflate
+        the speed.
+    """
+    if prev_time is None or prev_latitude is None or prev_longitude is None:
+        return 0
+
+    time_difference = (waypoint_time - prev_time).total_seconds()
+
+    if time_difference <= 0:
+        return 0
+
+    distance = geodesic(
+        (prev_latitude, prev_longitude),
+        (latitude, longitude),
+    ).meters
+    return distance / max(time_difference, 1)
+
+
+ELEVATION_MEDIAN_WINDOW = 9
+ELEVATION_AVG_WINDOW = 21
+ELEVATION_THRESHOLD = 0.1
+
+
+def _median_filter(values: list[float], window_size: int) -> list[float]:
+    """Smooth a series with a centred sliding median.
+
+    Args:
+        values: Samples to smooth.
+        window_size: Window width; below 2 returns a copy.
+
+    Returns:
+        The filtered series, the same length as the input.
+    """
+    if window_size < 2:
+        return values[:]
+    half = window_size // 2
+    n = len(values)
+    return [statistics.median(values[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]
+
+
+def _moving_average(values: list[float], window_size: int) -> list[float]:
+    """Smooth a series with a centred sliding mean.
+
+    Args:
+        values: Samples to smooth.
+        window_size: Window width; below 2 returns a copy.
+
+    Returns:
+        The smoothed series, the same length as the input.
+    """
+    if window_size < 2:
+        return values[:]
+    half = window_size // 2
+    n = len(values)
+    return [statistics.mean(values[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]
+
+
+def _smooth_elevations(
+    values: list[float],
+    median_window: int,
+    avg_window: int,
+) -> list[float]:
+    """Apply the median filter followed by the moving average.
+
+    Args:
+        values: Elevation samples in meters.
+        median_window: Window size for the median pre-filter.
+        avg_window: Window size for the moving-average smoother.
+
+    Returns:
+        The smoothed series, the same length as the input.
+    """
+    return _moving_average(_median_filter(values, median_window), avg_window)
+
+
+def smooth_elevation_stream(
+    elevations: list[dict],
+    median_window: int = ELEVATION_MEDIAN_WINDOW,
+    avg_window: int = ELEVATION_AVG_WINDOW,
+) -> list[dict]:
+    """Return an elevation stream with ``ele`` smoothed and other keys unchanged.
+
+    Uses the same series that :func:`compute_elevation_gain_and_loss` sums, so the
+    stored stream and the gain/loss agree. The whole stream is filtered at once.
+
+    Args:
+        elevations: List of dicts with ``time`` and ``ele`` keys (meters).
+        median_window: Window size for the median pre-filter.
+        avg_window: Window size for the moving-average smoother.
+
+    Returns:
+        New list of dicts with smoothed ``ele``; the input unchanged if any
+        ``ele`` value is missing or not numeric.
+    """
+    try:
+        values = [float(waypoint["ele"]) for waypoint in elevations]
+    except (ValueError, KeyError, TypeError):
+        return elevations
+    smoothed = _smooth_elevations(values, median_window, avg_window)
+    return [{**waypoint, "ele": ele} for waypoint, ele in zip(elevations, smoothed, strict=True)]
+
+
+def sum_elevation_deltas(
+    elevations: list[dict],
+    threshold: float = ELEVATION_THRESHOLD,
+) -> tuple[float, float]:
+    """Sum per-step elevation deltas above ``threshold``.
+
+    Expects an already-smoothed series and applies no smoothing itself. Laps
+    slice the stream smoothed once by :func:`smooth_elevation_stream`:
+    re-smoothing each slice clips gain at every lap boundary through filter
+    edge effects, so per-lap sums would no longer partition the activity total.
+
+    Args:
+        elevations: List of dicts with an ``ele`` key (meters).
+        threshold: Minimum |delta| (m) counted toward gain/loss.
+
+    Returns:
+        Tuple of (gain_m, loss_m); (0.0, 0.0) for empty input.
+    """
+    total_gain = 0.0
+    total_loss = 0.0
+    for previous, current in pairwise(elevations):
+        diff = current["ele"] - previous["ele"]
+        if diff > threshold:
+            total_gain += diff
+        elif diff < -threshold:
+            total_loss -= diff
+    return total_gain, total_loss
+
+
+def compute_elevation_gain_and_loss(
+    elevations: list[dict],
+    median_window: int = ELEVATION_MEDIAN_WINDOW,
+    avg_window: int = ELEVATION_AVG_WINDOW,
+    threshold: float = ELEVATION_THRESHOLD,
+) -> tuple[float, float] | tuple[None, None]:
+    """Compute total elevation gain/loss in meters from waypoints.
+
+    Applies a median filter then a moving-average smoother before
+    summing per-step deltas above ``threshold``.
+
+    Args:
+        elevations: List of dicts with an ``ele`` key (meters).
+        median_window: Window size for the median pre-filter.
+        avg_window: Window size for the moving-average smoother.
+        threshold: Minimum |delta| (m) counted toward gain/loss.
+
+    Returns:
+        Tuple of (gain_m, loss_m); (0.0, 0.0) for a flat stream, and
+        (None, None) when the stream is empty or holds no valid values.
+    """
+    try:
+        values = [float(waypoint["ele"]) for waypoint in elevations]
+    except (ValueError, KeyError, TypeError):
+        return None, None
+    if not values:
+        return None, None
+
+    filtered = _smooth_elevations(values, median_window, avg_window)
+    return sum_elevation_deltas([{"ele": ele} for ele in filtered], threshold)
+
+
+def calculate_pace(
+    distance: float,
+    first_waypoint_time,
+    last_waypoint_time,
+) -> float:
+    """Compute average pace (seconds per meter).
+
+    Args:
+        distance: Total distance in meters.
+        first_waypoint_time: Datetime of the first waypoint.
+        last_waypoint_time: Datetime of the last waypoint.
+
+    Returns:
+        Pace in s/m, or 0 when ``distance`` is 0.
+    """
+    # If the distance is 0, return 0
+    if distance == 0:
+        return 0
+
+    total_time_in_seconds = _elapsed_seconds(first_waypoint_time, last_waypoint_time)
+
+    # Calculate pace in seconds per meter
+    pace_seconds_per_meter = total_time_in_seconds / distance
+
+    # Return the pace
+    return pace_seconds_per_meter
+
+
+def calculate_pace_from_duration(
+    distance: float,
+    duration_seconds: float,
+) -> float:
+    """Compute average pace (seconds per meter) from an active duration.
+
+    Mirrors the FIT importer semantics (pace = timer time / distance) so
+    GPX/TCX imports exclude recording pauses from pace (issue #571).
+
+    Args:
+        distance: Total distance in meters.
+        duration_seconds: Active (timer) time in seconds.
+
+    Returns:
+        Pace in s/m, or 0 when ``distance`` is 0 or the duration is not
+        positive.
+    """
+    if distance == 0 or duration_seconds <= 0:
+        return 0
+
+    return duration_seconds / distance
+
+
+def calculate_avg_and_max(data: list[dict], stream_type: str, exclude_zeros: bool = False) -> tuple[float, float]:
+    """Compute the mean and max of ``stream_type`` across waypoints.
+
+    Zero values are always excluded when ``stream_type`` is ``"hr"`` because
+    zero is not a physiologically valid heart rate — it is a sentinel emitted
+    by sensors when they lose signal. Callers may also set ``exclude_zeros``
+    explicitly for other stream types.
+
+    Args:
+        data: List of waypoint dicts.
+        stream_type: Key to read from each waypoint.
+        exclude_zeros: When ``True``, values equal to zero are excluded.
+            Automatically ``True`` when ``stream_type`` is ``"hr"``.
+
+    Returns:
+        Tuple of (avg, max), or (0, 0) when no values are present.
+    """
+    try:
+        # Get the values from the data
+        values = [float(waypoint[stream_type]) for waypoint in data if waypoint.get(stream_type) is not None]
+    except (ValueError, KeyError, TypeError):
+        # If there are no valid values, return 0
+        return 0, 0
+
+    if exclude_zeros or stream_type == "hr":
+        values = [v for v in values if v != 0]
+
+    if not values:
+        return 0, 0
+
+    # Calculate the average and max values
+    avg_value = mean(values)
+    max_value = max(values)
+
+    return avg_value, max_value
+
+
+def calculate_robust_max(values: list[float], window: int = 5) -> float:
+    """Return the maximum of the sliding-window medians of ``values``.
+
+    A single GPS glitch never becomes the maximum because every candidate is the
+    median of ``window`` consecutive samples. Only full windows are considered;
+    the algorithm mirrors the mobile app so both report the same value.
+
+    Args:
+        values: Samples in chronological order.
+        window: Number of consecutive samples per median.
+
+    Returns:
+        The robust maximum, the plain maximum when fewer than ``window``
+        samples exist, or 0 when ``values`` is empty.
+    """
+    if not values:
+        return 0
+    if len(values) < window:
+        return max(values)
+    return max(statistics.median(values[i : i + window]) for i in range(len(values) - window + 1))
+
+
+def calculate_np(data: list[dict]) -> float:
+    """Compute Normalized Power (NP) from power waypoints.
+
+    Args:
+        data: List of waypoint dicts with a ``power`` key.
+
+    Returns:
+        Normalized Power in watts, or 0 when no values are present.
+    """
+    try:
+        # Get the power values from the data
+        values = [float(waypoint["power"]) for waypoint in data if waypoint["power"] is not None]
+    except (ValueError, KeyError, TypeError):
+        # If there are no valid values, return 0
+        return 0
+
+    if not values:
+        return 0
+
+    # Calculate the fourth power of each power value
+    fourth_powers = [p**4 for p in values]
+
+    # Calculate the average of the fourth powers
+    avg_fourth_power = sum(fourth_powers) / len(fourth_powers)
+
+    # Take the fourth root of the average of the fourth powers to get Normalized Power
+    normalized_power = avg_fourth_power ** (1 / 4)
+
+    return normalized_power

@@ -5,8 +5,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-import users.users_streak_settings.router as streak_settings_router
-import users.users_streak_settings.schema as streak_settings_schema
+import modules.users.users_streak_settings.router as streak_settings_router
+import modules.users.users_streak_settings.schema as streak_settings_schema
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def client(fast_api_app) -> TestClient:
 
 
 class TestStreakSettingsRouter:
-    @patch("users.users_streak_settings.router.streak_settings_crud.get_streak_settings_by_user_id")
+    @patch("modules.users.users_streak_settings.router.streak_settings_crud.get_streak_settings_by_user_id")
     def test_read(self, mock_get, client):
         """Returns the stored settings for the authenticated user."""
         mock_get.return_value = streak_settings_schema.UsersStreakSettingsRead(user_id=1, min_activities_per_week=2)
@@ -34,7 +34,7 @@ class TestStreakSettingsRouter:
         }
         assert mock_get.call_args.args[0] == 1
 
-    @patch("users.users_streak_settings.router.streak_settings_crud.upsert_streak_settings")
+    @patch("modules.users.users_streak_settings.router.streak_settings_crud.upsert_streak_settings")
     def test_update(self, mock_upsert, client):
         """Passes the validated payload and user ID to the upsert."""
         mock_upsert.return_value = streak_settings_schema.UsersStreakSettingsRead(

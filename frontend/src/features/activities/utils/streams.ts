@@ -32,6 +32,7 @@ import {
   speedUnitLabel,
   type Units,
 } from './format'
+import { activityDuration, distinctElapsedTime } from './metrics'
 
 /** Maps a numeric stream type to its metric kind. */
 const METRIC_BY_TYPE: Record<number, StreamMetric> = {
@@ -232,7 +233,7 @@ function buildDistanceLabels(pointCount: number, totalMeters: number, units: Uni
   return labels
 }
 
-/** Builds evenly-spaced elapsed-time labels (H:MM:SS) aligned to the sample count. */
+/** Builds evenly-spaced time labels (H:MM:SS) aligned to the sample count. */
 function buildTimeLabels(pointCount: number, totalSeconds: number): string[] {
   if (pointCount <= 0 || totalSeconds <= 0) {
     return []
@@ -247,7 +248,7 @@ function buildTimeLabels(pointCount: number, totalSeconds: number): string[] {
 
 /**
  * Builds the x-axis labels and their unit for a chart: distance (km/mi) when the
- * activity covers ground, otherwise elapsed time (strength/indoor sessions have
+ * activity covers ground, otherwise the activity duration (strength/indoor sessions have
  * no distance), falling back to sample indices so a line always renders. An
  * empty label array leaves the category axis with no slots, so the line would
  * not draw at all — this is why strength activities showed an empty HR chart.
@@ -269,8 +270,8 @@ function buildChartXAxis(
       unit: units === 'imperial' ? 'mi' : 'km',
     }
   }
-  const seconds = activity.totalElapsedTime ?? activity.totalTimerTime ?? 0
-  if (seconds > 0) {
+  const seconds = activityDuration(activity)
+  if (seconds !== null) {
     return { labels: buildTimeLabels(pointCount, seconds), unit: '' }
   }
   const labels: string[] = []
@@ -313,6 +314,18 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
   }
   const watts = (labelKey: string, value: number): void => {
     stats.push({ labelKey, value: String(Math.round(value)), unit: 'W' })
+  }
+  // The summary "Time" tile already shows the activity duration, so the speed
+  // and pace rows add elapsed time only when stops make it longer.
+  const pushElapsedTime = (): void => {
+    const elapsed = distinctElapsedTime(activity)
+    if (elapsed !== null) {
+      stats.push({
+        labelKey: 'activities.metrics.elapsedTime',
+        value: formatHmsDuration(elapsed),
+        unit: '',
+      })
+    }
   }
 
   switch (metric) {
@@ -374,18 +387,13 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
       if (statPresent(activity.maxSpeed)) {
         push('activities.metrics.maxSpeed', formatSpeed(activity.maxSpeed, type, units))
       }
+      pushElapsedTime()
       break
     case 'pace':
       if (statPresent(activity.pace)) {
         push('activities.metrics.avgPace', formatPace(activity.pace, type, units))
       }
-      if (statPresent(activity.totalTimerTime)) {
-        stats.push({
-          labelKey: 'activities.metrics.movingTime',
-          value: formatHmsDuration(activity.totalTimerTime),
-          unit: '',
-        })
-      }
+      pushElapsedTime()
       break
     case 'temperature':
       break

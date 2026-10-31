@@ -6,8 +6,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from auth.identity_providers.links import crud as identity_links_crud
-from auth.identity_providers.links.models import IdentityLink
+import core.exceptions as core_exceptions
+from modules.auth.identity_providers.links import crud as identity_links_crud
+from modules.auth.identity_providers.links.models import IdentityLink
 
 
 class TestCheckUserIdentityProvidersByIdpId:
@@ -58,7 +59,7 @@ class TestCheckUserIdentityProvidersByIdpId:
         """
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             identity_links_crud.check_user_identity_providers_by_idp_id(1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -120,7 +121,7 @@ class TestGetUserIdentityProvidersByUserId:
         """
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             identity_links_crud.get_user_identity_providers_by_user_id(1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -174,7 +175,7 @@ class TestGetUserIdentityProviderByUserIdAndIdpId:
         """
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(1, 2, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -235,7 +236,7 @@ class TestCreateUserIdentityProvider:
         mock_db.refresh.side_effect = lambda obj: None
 
         with patch(
-            "auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
+            "modules.auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
             return_value=mock_link,
         ):
             result = identity_links_crud.create_user_identity_provider(
@@ -261,7 +262,7 @@ class TestCreateUserIdentityProvider:
         """
         mock_db.add.side_effect = SQLAlchemyError("db error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             identity_links_crud.create_user_identity_provider(1, 2, "sub-abc", mock_db)
 
         assert exc_info.value.status_code == 500
@@ -282,7 +283,7 @@ class TestCreateUserIdentityProvider:
 
         with (
             patch(
-                "auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
+                "modules.auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
                 return_value=mock_link,
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -346,7 +347,7 @@ class TestDeleteUserIdentityProvider:
         """
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             identity_links_crud.delete_user_identity_provider(1, 2, mock_db)
 
         assert exc_info.value.status_code == 500

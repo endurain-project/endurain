@@ -48,7 +48,6 @@
       "title": "Todavía no hay usuarios",
       "description": "Añade la primera cuenta para esta instancia",
       "searchTitle": "No se encontraron usuarios",
-      "searchDescription": "Ningún usuario coincide con ese nombre de usuario",
       "filteredTitle": "Ningún usuario coincide con los filtros seleccionados"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Al menos {min} caracteres, con mayúscula, minúscula, un número y un carácter especial",
       "passwordHintLength": "Al menos {min} caracteres",
       "passwordRequired": "La contraseña es obligatoria",
-      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
       "passwordInvalid": "Esa contraseña no cumple los requisitos",
       "confirmPassword": "Confirmar contraseña",
       "confirmPasswordRequired": "Confirmar contraseña",
@@ -135,6 +133,8 @@
         "pound": "Libra"
       },
       "firstDayOfWeek": "Primer día de la semana",
+      "timezone": "Zona horaria",
+      "timezoneHint": "Se usa para actividades registradas sin GPS, como carreras en cinta o ciclismo en interior.",
       "weekdays": {
         "sunday": "Domingo",
         "monday": "Lunes",
@@ -354,6 +354,19 @@
       "deleteError": "No se pudo eliminar la foto de inicio de sesión. Inténtalo de nuevo.",
       "cancel": "Cancelar",
       "close": "Cerrar"
+    },
+    "email": {
+      "title": "Correo electrónico",
+      "description": "Endurain envía los correos de restablecimiento de contraseña y de registro a través del servidor SMTP configurado en el entorno.",
+      "statusLoadError": "No se pudo comprobar la configuración del correo electrónico.",
+      "configured": "El correo electrónico está configurado.",
+      "notConfigured": "El correo electrónico no está configurado:",
+      "send": "Enviar correo de prueba",
+      "sending": "Enviando…",
+      "sendHint": "El correo de prueba se envía a tu propia dirección.",
+      "sent": "Correo de prueba enviado",
+      "failed": "No se pudo enviar el correo de prueba",
+      "failedUnknown": "Consulta los registros del servidor para más detalles."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Guarda tus códigos de respaldo",
       "description": "Usa un código de respaldo para iniciar sesión si pierdes acceso a tu app de autenticación.",
-      "warning": "Estos códigos se muestran una sola vez. Guárdalos en un lugar seguro — cada código funciona una única vez.",
+      "warning": "Estos códigos se muestran una sola vez. Guárdalos en un lugar seguro, cada código funciona una única vez.",
       "copy": "Copiar",
       "copied": "Códigos de respaldo copiados",
       "copyError": "No se pudieron copiar los códigos.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Importación masiva",
       "subtitle": "Importa archivos de actividad colocados en la carpeta de importación masiva del servidor",
-      "button": "Importar actividades",
+      "uploadButton": "Subir ZIP",
+      "folderButton": "Importar desde carpeta",
       "started": "Importando actividades en segundo plano…",
+      "alreadyRunning": "Ya hay una importación masiva en curso. Espera a que termine.",
       "error": "No se pudo iniciar la importación. Inténtalo de nuevo."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Bicicletas de Strava importadas",
       "bikesError": "No se pudieron importar las bicicletas de Strava. Inténtalo de nuevo.",
       "shoesSuccess": "Zapatillas de Strava importadas",
-      "shoesError": "No se pudieron importar las zapatillas de Strava. Inténtalo de nuevo."
+      "shoesError": "No se pudieron importar las zapatillas de Strava. Inténtalo de nuevo.",
+      "activitiesUpload": "Importar actividades (subir ZIP)",
+      "activitiesFolder": "Importar actividades (carpeta del servidor)"
+    },
+    "job": {
+      "preparing": "Preparando la importación…",
+      "progress": "Importados {done} de {total} archivos ({failed} con error)…",
+      "finished": "Importación finalizada: {done} de {total} archivos importados, {failed} con error.",
+      "failed": "No se pudo completar la importación."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Exportar datos",
       "import": "Importar datos",
       "invalidType": "Elige un archivo .zip.",
-      "exportSuccess": "Exportación lista — tu descarga debería comenzar pronto",
+      "exportSuccess": "Exportación lista, tu descarga debería comenzar pronto",
       "exportError": "No se pudieron exportar tus datos. Inténtalo de nuevo.",
       "importSuccess": "Datos importados",
       "importError": "No se pudo importar el archivo. Comprueba el archivo e inténtalo de nuevo."

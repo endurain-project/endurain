@@ -48,7 +48,6 @@
       "title": "尚無使用者",
       "description": "為此執行個體新增第一個帳戶",
       "searchTitle": "找不到使用者",
-      "searchDescription": "沒有符合該使用者名稱的使用者",
       "filteredTitle": "沒有符合所選篩選條件的使用者"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "至少 {min} 個字元，包含大寫字母、小寫字母、數字和特殊字元",
       "passwordHintLength": "至少 {min} 個字元",
       "passwordRequired": "密碼為必填",
-      "passwordTooShort": "密碼至少須有 8 個字元",
       "passwordInvalid": "該密碼不符合要求",
       "confirmPassword": "確認密碼",
       "confirmPasswordRequired": "確認密碼",
@@ -135,6 +133,8 @@
         "pound": "英鎊"
       },
       "firstDayOfWeek": "每週第一天",
+      "timezone": "時區",
+      "timezoneHint": "用於沒有 GPS 記錄的活動，例如跑步機跑步與室內騎乘。",
       "weekdays": {
         "sunday": "星期日",
         "monday": "星期一",
@@ -354,6 +354,19 @@
       "deleteError": "無法移除登入照片，請再試一次。",
       "cancel": "取消",
       "close": "關閉"
+    },
+    "email": {
+      "title": "電子郵件",
+      "description": "Endurain 透過環境中設定的 SMTP 伺服器寄送重設密碼與註冊郵件。",
+      "statusLoadError": "無法檢查電子郵件設定。",
+      "configured": "電子郵件已設定。",
+      "notConfigured": "電子郵件尚未設定：",
+      "send": "寄送測試郵件",
+      "sending": "寄送中…",
+      "sendHint": "測試郵件將寄到您自己的電子郵件地址。",
+      "sent": "測試郵件已寄出",
+      "failed": "無法寄出測試郵件",
+      "failedUnknown": "請查看伺服器日誌了解詳情。"
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "儲存您的備用碼",
       "description": "若您無法存取驗證器應用程式，請使用備用碼登入。",
-      "warning": "這些驗證碼只會顯示一次，請將其儲存在安全的地方——每組驗證碼只能使用一次。",
+      "warning": "這些驗證碼只會顯示一次，請將其儲存在安全的地方，每組驗證碼只能使用一次。",
       "copy": "複製",
       "copied": "備用碼已複製",
       "copyError": "無法複製驗證碼。",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "批量匯入",
       "subtitle": "匯入放置於伺服器批量匯入資料夾中的活動檔案",
-      "button": "匯入活動",
+      "uploadButton": "上傳 ZIP",
+      "folderButton": "從資料夾匯入",
       "started": "正在背景匯入活動…",
+      "alreadyRunning": "批量匯入正在進行中，請等待其完成。",
       "error": "無法開始匯入，請再試一次。"
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava 自行車已匯入",
       "bikesError": "無法匯入 Strava 自行車，請再試一次。",
       "shoesSuccess": "Strava 跑鞋已匯入",
-      "shoesError": "無法匯入 Strava 跑鞋，請再試一次。"
+      "shoesError": "無法匯入 Strava 跑鞋，請再試一次。",
+      "activitiesUpload": "匯入活動（上傳 ZIP）",
+      "activitiesFolder": "匯入活動（伺服器資料夾）"
+    },
+    "job": {
+      "preparing": "正在準備匯入…",
+      "progress": "已匯入 {done}/{total} 個檔案（{failed} 個失敗）…",
+      "finished": "匯入完成：共 {total} 個檔案，已匯入 {done} 個，{failed} 個失敗。",
+      "failed": "匯入無法完成。"
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "匯出資料",
       "import": "匯入資料",
       "invalidType": "請選擇 .zip 壓縮檔。",
-      "exportSuccess": "匯出完成——您的下載應即將開始",
+      "exportSuccess": "匯出完成，您的下載應即將開始",
       "exportError": "無法匯出您的資料，請再試一次。",
       "importSuccess": "資料已匯入",
       "importError": "無法匯入壓縮檔，請確認檔案後再試一次。"

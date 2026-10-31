@@ -19,13 +19,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     restart: unless-stopped
 
    # postgres logic
   postgres:
-    image: docker.io/postgres:18@sha256:8ff36f3c66371cba71d20ceedccfc3de9669a68737607888c4ef0af93abe8e39
+    image: docker.io/postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     container_name: endurain-postgres
     env_file:
       - .env
@@ -36,18 +34,4 @@ services:
       retries: 5
     volumes:
       - ${LOCAL_PATH:-/var/opt/endurain}/postgres:/var/lib/postgresql/data:Z
-    restart: unless-stopped
-
-  # redis for rate-limiting and auth security storage
-  redis:
-    image: redis:8-alpine@sha256:09160599abd229764c0fb44cb6be640294e1d360a54b19985ab4843dcf2d90f1
-    container_name: redis
-    command: ["redis-server", "--appendonly", "yes"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - ${LOCAL_PATH:-/var/opt/endurain}/redis:/data:Z
     restart: unless-stopped

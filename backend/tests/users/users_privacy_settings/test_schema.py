@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-import users.users_privacy_settings.schema as user_privacy_settings_schema
+import modules.users.users_privacy_settings.schema as user_privacy_settings_schema
 
 
 class TestActivityVisibilityEnum:

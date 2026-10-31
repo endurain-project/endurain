@@ -5,8 +5,8 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from auth.identity_providers.schema import IdentityProviderTemplate
-from auth.identity_providers.utils import (
+from modules.auth.identity_providers.schema import IdentityProviderTemplate
+from modules.auth.identity_providers.utils import (
     _secure_compare,
     get_idp_template,
     get_idp_templates,
@@ -560,7 +560,7 @@ class TestValidateRedirectUrl:
             - No exception when scheme is in allowed set
         """
         with patch(
-            "auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
+            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
             {"endurain"},
         ):
             validate_redirect_url("endurain://endurain/oauth/callback")
@@ -572,7 +572,7 @@ class TestValidateRedirectUrl:
             - ENDURAIN:// is allowed when 'endurain' configured
         """
         with patch(
-            "auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
+            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
             {"endurain"},
         ):
             validate_redirect_url("ENDURAIN://endurain/callback")
@@ -585,7 +585,7 @@ class TestValidateRedirectUrl:
         """
         schemes = {"endurain", "myapp"}
         with patch(
-            "auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
+            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
             schemes,
         ):
             validate_redirect_url("endurain://callback")
@@ -633,7 +633,7 @@ class TestValidateRedirectUrl:
         """
         with (
             patch(
-                "auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
+                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
                 set(),
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -650,7 +650,7 @@ class TestValidateRedirectUrl:
         """
         with (
             patch(
-                "auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
+                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
                 {"endurain"},
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -686,6 +686,21 @@ class TestValidateRedirectUrl:
         """
         with pytest.raises(HTTPException) as exc_info:
             validate_redirect_url("/path\\to\\file")
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.parametrize(
+        "redirect",
+        ["/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/ok\x00", "/ok\x7f", "/a\tb", "\t/dashboard", "/dashboard\n"],
+    )
+    def test_control_characters_are_rejected(self, redirect):
+        """A browser drops tab, CR and LF inside a URL, so "/<tab>/host" becomes "//host".
+
+        Asserts:
+            - HTTPException 400 for control characters anywhere in the value, including
+              leading and trailing ones that ``strip()`` would otherwise hide
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url(redirect)
         assert exc_info.value.status_code == 400
 
     def test_double_slash_protocol_relative_is_rejected(self):

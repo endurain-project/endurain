@@ -38,7 +38,6 @@
     "title": "Selle perioodi tegevused"
   },
   "empty": {
-    "title": "Sel perioodil pole tegevust",
     "description": "Ükski tegevus ei vasta valitud perioodile ja tüübile."
   },
   "error": {

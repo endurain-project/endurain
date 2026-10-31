@@ -63,3 +63,11 @@ devscripts/
 
 # local data
 endurain_data/
+
+# activity files
+*.gpx
+*.fit
+*.tcx
+*.gz
+# generated at docs build time
+docs/integrate/openapi.json

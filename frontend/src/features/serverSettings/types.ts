@@ -105,3 +105,6 @@ export interface TileMapsTemplate {
  * which round-trip from the freshest server state at save time.
  */
 export type ServerSettingsFormValues = Omit<ServerSettings, 'id' | 'loginPhotoSet'>
+
+/** Raw email-status payload (the SMTP settings are valid, or why they are not). */
+export type EmailStatusDto = Schemas['EmailStatus']

@@ -50,6 +50,44 @@ function has(value: number | null | undefined): value is number {
 }
 
 /**
+ * The activity's headline duration: moving (timer) time, matching the source app
+ * and the activity list, or elapsed time when the timer time is missing or 0
+ * (some imports and manual entries record no timer time).
+ *
+ * @param activity - The activity domain model.
+ * @returns The duration in seconds, or `null` when neither time is positive.
+ */
+export function activityDuration(activity: Activity): number | null {
+  for (const seconds of [activity.totalTimerTime, activity.totalElapsedTime]) {
+    if (has(seconds) && seconds > 0) {
+      return seconds
+    }
+  }
+  return null
+}
+
+/**
+ * The activity's elapsed (wall-clock) time when it differs from
+ * {@link activityDuration}, e.g. a ride with long stops.
+ *
+ * @param activity - The activity domain model.
+ * @returns The elapsed time in seconds, or `null` when absent or equal to the duration.
+ */
+export function distinctElapsedTime(activity: Activity): number | null {
+  const elapsed = activity.totalElapsedTime
+  const duration = activityDuration(activity)
+  if (
+    !has(elapsed) ||
+    elapsed <= 0 ||
+    duration === null ||
+    Math.round(elapsed) === Math.round(duration)
+  ) {
+    return null
+  }
+  return elapsed
+}
+
+/**
  * Builds the curated summary metric tiles for an activity, mirroring v1: at most
  * six type-specific stats for distance-based activities, and just calories/time/
  * avg-HR for non-distance sessions (gym/strength/racquet). Privacy-hidden stats
@@ -58,7 +96,7 @@ function has(value: number | null | undefined): value is number {
  * @param activity - The activity domain model.
  * @param units - The user's unit system.
  * @param visibility - Which privacy-gated metrics the viewer may see.
- * @returns The ordered tiles to render (≤ 6 for distance activities, 3 otherwise).
+ * @returns The ordered tiles to render (≤ 6 for distance activities, up to 5 otherwise).
  */
 export function buildActivityMetrics(
   activity: Activity,
@@ -68,13 +106,26 @@ export function buildActivityMetrics(
   const type = activity.activityType
   const tiles: MetricTile[] = []
 
-  // v1 uses elapsed time for the summary "Time" stat (falls back to moving time).
   const pushTime = (): void => {
-    const elapsed = activity.totalElapsedTime ?? activity.totalTimerTime
-    if (has(elapsed)) {
+    const duration = activityDuration(activity)
+    if (duration !== null) {
       tiles.push({
         key: 'time',
         labelKey: 'activities.metrics.time',
+        value: formatHmsDuration(duration),
+        unit: '',
+        accent: 'ink',
+      })
+    }
+  }
+  // Distance sessions show a distinct elapsed time on their pace/speed charts;
+  // non-distance sessions have no such chart, so it gets a tile of its own.
+  const pushElapsed = (): void => {
+    const elapsed = distinctElapsedTime(activity)
+    if (elapsed !== null) {
+      tiles.push({
+        key: 'elapsedTime',
+        labelKey: 'activities.metrics.elapsedTime',
         value: formatHmsDuration(elapsed),
         unit: '',
         accent: 'ink',
@@ -181,6 +232,7 @@ export function buildActivityMetrics(
     pushJumps()
     pushCalories()
     pushTime()
+    pushElapsed()
     pushAvgHr()
     return tiles
   }

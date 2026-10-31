@@ -149,9 +149,9 @@ describe('workout mappers', () => {
 
 describe('workout fetchers', () => {
   it('fetches workout steps from the authenticated endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([])
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], next: null })
     await fetchActivityWorkoutSteps(5, { authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities_workout_steps/activity_id/5/all', {
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5/workout-steps?page_number=1', {
       auth: true,
       signal: undefined,
     })
@@ -160,7 +160,7 @@ describe('workout fetchers', () => {
   it('fetches workout sets from the public endpoint when anonymous', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     const sets = await fetchActivitySets(5, { authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith('/public/activities_sets/activity_id/5/all', {
+    expect(apiFetch).toHaveBeenCalledWith('/public/activities/5/sets?page_number=1', {
       auth: false,
       signal: undefined,
     })
@@ -170,7 +170,7 @@ describe('workout fetchers', () => {
   it('fetches the exercise-title catalogue (authenticated)', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([])
     await fetchActivityExerciseTitles({ authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities_exercise_titles/all', {
+    expect(apiFetch).toHaveBeenCalledWith('/activities/exercise-titles/all', {
       auth: true,
       signal: undefined,
     })
@@ -179,7 +179,7 @@ describe('workout fetchers', () => {
   it('fetches the public exercise-title catalogue when anonymous', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     const titles = await fetchActivityExerciseTitles({ authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith('/public/activities_exercise_titles/all', {
+    expect(apiFetch).toHaveBeenCalledWith('/public/activities/exercise-titles/all', {
       auth: false,
       signal: undefined,
     })

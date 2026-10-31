@@ -1,10 +1,15 @@
 """Core metadata and static fallback routes."""
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.database as core_database
 import core.utils as core_utils
 
 # Define the API router
@@ -68,31 +73,28 @@ async def about() -> AboutResponse:
     )
 
 
-@router.get("/user_images/{user_img}", response_class=FileResponse)
-def user_img_return(
-    user_img: str,
-) -> FileResponse:
+@router.get(core_config.ROOT_PATH + "/health", status_code=status.HTTP_200_OK)
+def health(db: Annotated[Session, Depends(core_database.get_db)]) -> dict[str, str]:
     """
-    Retrieves the file path for a user's image.
+    Liveness check that needs a database connection.
+
+    Unlike ``/about``, this fails when the connection pool is exhausted or the
+    database is unreachable, so orchestrators can detect a wedged instance.
 
     Args:
-        user_img (str): The filename or identifier of the user's image.
+        db: Database session.
 
     Returns:
-        str: The file path to the user's image.
+        ``{"status": "ok"}`` when the database answers.
 
     Raises:
-        HTTPException: If the image path cannot be found.
+        HTTPException: 503 when no connection can be obtained or the query fails.
     """
-    path = core_utils.return_user_img_path(user_img)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User image not found",
-        )
-
-    return path
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database unavailable") from err
+    return {"status": "ok"}
 
 
 @router.get("/server_images/{server_img}", response_class=FileResponse)
@@ -122,58 +124,12 @@ def server_img_return(
     return path
 
 
-@router.get("/activity_media/{media}", response_class=FileResponse)
-def activity_media_return(
-    media: str,
-) -> FileResponse:
-    """
-    Retrieves the server path for a given activity media file.
-
-    Args:
-        media (str): The name or identifier of the activity media file.
-
-    Returns:
-        str: The server path to the activity media file.
-
-    Raises:
-        HTTPException: If the media file is not found.
-    """
-    path = core_utils.return_activity_media_path(media)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity media not found",
-        )
-
-    return path
-
-
-@router.get("/activity_thumbnails/{thumbnail}", response_class=FileResponse)
-def activity_thumbnail_return(
-    thumbnail: str,
-) -> FileResponse:
-    """
-    Retrieves the server path for a given activity thumbnail.
-
-    Args:
-        thumbnail (str): The name or identifier of the activity thumbnail.
-
-    Returns:
-        str: The server path to the activity thumbnail.
-
-    Raises:
-        HTTPException: If the thumbnail is not found.
-    """
-    path = core_utils.return_activity_thumbnail_path(thumbnail)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity thumbnail not found",
-        )
-
-    return path
+# NOTE: there is deliberately no ``/user_images/{user_img}``,
+# ``/activity_media/{media}`` or ``/activity_thumbnails/{thumbnail}`` route here.
+# All three serve private user data and are reachable only through their
+# token-gated routes. A filename-addressed route beside them is a full bypass of
+# that gate, which is what these used to be — and for user photos, stored as
+# ``{user_id}.{ext}``, it enumerated the entire user base.
 
 
 @router.get(

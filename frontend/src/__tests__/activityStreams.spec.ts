@@ -45,14 +45,69 @@ describe('buildStreamChart', () => {
   it('falls back to time labels when the activity has no distance (e.g. strength)', () => {
     const chart = buildStreamChart(
       stream(1, [{ hr: 120 }, { hr: 140 }, { hr: 130 }]),
-      makeActivity({ activityType: 19, distance: 0, totalElapsedTime: 600 }),
+      makeActivity({ activityType: 19, distance: 0, totalTimerTime: null, totalElapsedTime: 600 }),
       'metric',
     )
-    // Without distance the x-axis falls back to elapsed time; labels must be
+    // Without distance the x-axis falls back to the activity duration; labels must be
     // non-empty and aligned to the sample count or the line never draws.
     expect(chart?.render.labels).toEqual(['00:00', '05:00', '10:00'])
     expect(chart?.render.xUnit).toBe('')
     expect(chart?.render.series[0]?.data).toEqual([120, 140, 130])
+  })
+
+  it('spans the time axis over the timer time, or elapsed time when the timer time is 0', () => {
+    const hr = stream(1, [{ hr: 120 }, { hr: 140 }, { hr: 130 }])
+    const timer = buildStreamChart(
+      hr,
+      makeActivity({ activityType: 19, distance: 0, totalTimerTime: 600, totalElapsedTime: 1200 }),
+      'metric',
+    )
+    expect(timer?.render.labels).toEqual(['00:00', '05:00', '10:00'])
+
+    const elapsed = buildStreamChart(
+      hr,
+      makeActivity({ activityType: 19, distance: 0, totalTimerTime: 0, totalElapsedTime: 1200 }),
+      'metric',
+    )
+    expect(elapsed?.render.labels).toEqual(['00:00', '10:00', '20:00'])
+  })
+
+  it('adds elapsed time to the pace stats only when it differs from the timer time', () => {
+    const paceStream = stream(6, [{ pace: 0.3 }])
+    const withStops = buildStreamChart(
+      paceStream,
+      makeActivity({ activityType: 1, totalTimerTime: 3500, totalElapsedTime: 3600 }),
+      'metric',
+    )
+    expect(withStops?.stats.map((stat) => stat.labelKey)).toEqual([
+      'activities.metrics.avgPace',
+      'activities.metrics.elapsedTime',
+    ])
+    expect(withStops?.stats[1]?.value).toBe('1:00:00')
+
+    const noStops = buildStreamChart(
+      paceStream,
+      makeActivity({ activityType: 1, totalTimerTime: 3600, totalElapsedTime: 3600 }),
+      'metric',
+    )
+    expect(noStops?.stats.map((stat) => stat.labelKey)).toEqual(['activities.metrics.avgPace'])
+  })
+
+  it('adds elapsed time to the speed stats when it differs from the timer time', () => {
+    const chart = buildStreamChart(
+      stream(5, [{ vel: 8 }]),
+      makeActivity({
+        activityType: 4,
+        averageSpeed: 8,
+        totalTimerTime: 3500,
+        totalElapsedTime: 3600,
+      }),
+      'metric',
+    )
+    expect(chart?.stats.map((stat) => stat.labelKey)).toEqual([
+      'activities.metrics.avgSpeed',
+      'activities.metrics.elapsedTime',
+    ])
   })
 
   it('falls back to sample indices when there is neither distance nor time', () => {

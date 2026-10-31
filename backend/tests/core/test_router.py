@@ -1,11 +1,12 @@
 """Tests for core.router — metadata and static-fallback routes."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.testclient import TestClient
 
+from core.database import get_db
 from core.router import router
 
 app = FastAPI()
@@ -29,6 +30,29 @@ class TestAbout:
         assert data["license"]["url"] == LICENSE_URL
 
 
+class TestHealth:
+    """Tests for GET {ROOT_PATH}/health — database-backed liveness."""
+
+    def test_returns_ok_when_database_answers(self):
+        app.dependency_overrides[get_db] = lambda: MagicMock()
+        try:
+            response = client.get("/api/v1/health")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+    def test_returns_503_when_database_fails(self):
+        db = MagicMock()
+        db.execute.side_effect = TimeoutError("pool exhausted")
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            response = client.get("/api/v1/health")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+        assert response.status_code == 503
+
+
 class _FileResponseTestMixin:
     """Mixin providing a helper to create a real FileResponse via tmp_path."""
 
@@ -37,23 +61,6 @@ class _FileResponseTestMixin:
         path = tmp_path / "test.txt"
         path.write_text("content")
         return FileResponse(str(path))
-
-
-class TestUserImages(_FileResponseTestMixin):
-    """Tests for GET /user_images/{user_img}."""
-
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_user_img_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/user_images/test.jpg")
-            assert response.status_code == 200
-
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_user_img_path") as mock:
-            mock.return_value = None
-            response = client.get("/user_images/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "User image not found"
 
 
 class TestServerImages(_FileResponseTestMixin):
@@ -72,39 +79,42 @@ class TestServerImages(_FileResponseTestMixin):
             assert response.status_code == 404
             assert response.json()["detail"] == "Server image not found"
 
+    def test_a_nul_byte_in_the_name_is_a_404_not_a_server_error(self, tmp_path):
+        """``%00`` reaches the handler as a real NUL; the route is unauthenticated."""
+        (tmp_path / "logo.png").write_text("image")
+        with patch("core.utils.core_config.SERVER_IMAGES_DIR", str(tmp_path)):
+            response = client.get("/server_images/logo.png%00.jpg")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Server image not found"
 
-class TestActivityMedia(_FileResponseTestMixin):
-    """Tests for GET /activity_media/{media}."""
 
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_activity_media_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/activity_media/test.jpg")
-            assert response.status_code == 200
+class TestPrivateBlobsAreNotServedByFilename(_FileResponseTestMixin):
+    """Activity media and thumbnails must not be reachable by filename.
 
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_activity_media_path") as mock:
+    Both used to have an unauthenticated ``GET /<dir>/{name}`` route here, which
+    was a complete bypass of the signed-token gates that guard them. The catch-all
+    frontend fallback answers these paths now, so the assertion is that no image
+    is returned — not merely that the status is non-200.
+    """
+
+    def test_activity_media_is_not_served_by_filename(self):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
             mock.return_value = None
-            response = client.get("/activity_media/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Activity media not found"
+            response = client.get("/activity_media/5_abc123.jpg")
+        assert response.status_code == 404
 
-
-class TestActivityThumbnails(_FileResponseTestMixin):
-    """Tests for GET /activity_thumbnails/{thumbnail}."""
-
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_activity_thumbnail_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/activity_thumbnails/test.jpg")
-            assert response.status_code == 200
-
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_activity_thumbnail_path") as mock:
+    def test_activity_thumbnail_is_not_served_by_filename(self):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
             mock.return_value = None
-            response = client.get("/activity_thumbnails/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Activity thumbnail not found"
+            response = client.get("/activity_thumbnails/5.webp")
+        assert response.status_code == 404
+
+    def test_user_photo_is_not_served_by_filename(self):
+        """Photos are stored as ``{user_id}.{ext}`` — this path enumerated users."""
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = None
+            response = client.get("/user_images/1.png")
+        assert response.status_code == 404
 
 
 class TestCatchAll(_FileResponseTestMixin):

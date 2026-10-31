@@ -38,5 +38,12 @@
   "signup_approved.intro": "Gode nyheter! Kontoen din er godkjent og er nå aktiv.",
   "signup_approved.username_label": "Brukernavn:",
   "signup_approved.login_intro": "Du kan nå logge inn og begynne å bruke Endurain:",
-  "signup_approved.cta": "Logg inn på Endurain"
+  "signup_approved.cta": "Logg inn på Endurain",
+
+  "test_email.subject": "Endurain - Test-e-post",
+  "test_email.heading": "E-posten fungerer",
+  "test_email.greeting": "Hei {name},",
+  "test_email.intro": "Dette er en test-e-post sendt fra Endurains serverinnstillinger. Hvis du leser den, kan Endurain sende e-post via SMTP-serveren din.",
+  "test_email.detail_label": "SMTP-server:",
+  "test_email.ignore": "Ingen handling er nødvendig."
 }

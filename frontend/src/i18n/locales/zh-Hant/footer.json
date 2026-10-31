@@ -2,7 +2,9 @@
   "repository": "程式碼儲存庫",
   "documentation": "說明文件",
   "mastodon": "Endurain 的 Mastodon 帳號",
+  "bluesky": "Endurain 的 Bluesky 個人檔案",
   "discord": "Endurain 的 Discord 伺服器",
+  "linkedin": "Endurain 的 LinkedIn 頁面",
   "compatibleStrava": "與 Strava 相容",
   "worksGarmin": "支援 Garmin Connect"
 }

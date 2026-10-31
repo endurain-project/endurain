@@ -7,8 +7,6 @@
   "password": "Lösenord",
   "confirmPassword": "Bekräfta lösenord",
   "passwordMismatch": "Lösenorden matchar inte",
-  "showPassword": "Visa lösenord",
-  "hidePassword": "Dölj lösenord",
   "showOptionalFields": "Visa valfria fält",
   "hideOptionalFields": "Dölj valfria fält",
   "preferredLanguage": "Föredraget språk",

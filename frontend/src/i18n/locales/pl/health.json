@@ -586,9 +586,6 @@
       "edit": "Edytuj post",
       "delete": "Usuń post"
     },
-    "list": {
-      "notesLabel": "Notatki"
-    },
     "form": {
       "addTitle": "Rozpocznij post",
       "editTitle": "Edytuj sesję postu",
@@ -596,7 +593,6 @@
       "type": "Protokół postu",
       "customDuration": "Niestandardowy czas trwania",
       "customDurationHint": "Długość postu w godzinach (1–72).",
-      "hours": "godziny",
       "startTime": "Czas rozpoczęcia",
       "startTimeRequired": "Wybierz czas rozpoczęcia.",
       "endTime": "Czas zakończenia",

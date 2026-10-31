@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "上传中…",
     "success": "活动上传成功",
-    "error": "无法上传活动文件"
+    "error": "无法上传活动文件",
+    "timeout": "您的文件仍在导入中，完成后将会显示。",
+    "failed": {
+      "unsupported_format": "不支持该文件类型",
+      "invalid_file": "无法读取该文件",
+      "no_activities_found": "在该文件中未找到任何活动",
+      "processing_failed": "无法导入活动文件"
+    }
   },
   "refresh": {
     "label": "刷新",

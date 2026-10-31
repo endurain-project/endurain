@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "上傳中…",
     "success": "活動已成功上傳",
-    "error": "無法上傳活動檔案"
+    "error": "無法上傳活動檔案",
+    "timeout": "您的檔案仍在匯入中，完成後將會顯示。",
+    "failed": {
+      "unsupported_format": "不支援此檔案類型",
+      "invalid_file": "無法讀取此檔案",
+      "no_activities_found": "在此檔案中找不到任何活動",
+      "processing_failed": "無法匯入活動檔案"
+    }
   },
   "refresh": {
     "label": "重新整理",

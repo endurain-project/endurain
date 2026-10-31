@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Üleslaadimine…",
     "success": "Tegevus laaditi edukalt üles",
-    "error": "Tegevuse faili ei õnnestunud üles laadida"
+    "error": "Tegevuse faili ei õnnestunud üles laadida",
+    "timeout": "Sinu faili imporditakse veel. See ilmub, kui import on lõppenud.",
+    "failed": {
+      "unsupported_format": "Seda failitüüpi ei toetata",
+      "invalid_file": "Seda faili ei õnnestunud lugeda",
+      "no_activities_found": "Selles failis ei leitud ühtegi tegevust",
+      "processing_failed": "Tegevusfaili importimine ebaõnnestus"
+    }
   },
   "refresh": {
     "label": "Värskenda",

@@ -7,8 +7,6 @@
   "password": "Password",
   "confirmPassword": "确认密码",
   "passwordMismatch": "两次密码不一致",
-  "showPassword": "Show password",
-  "hidePassword": "Hide password",
   "showOptionalFields": "Show optional fields",
   "hideOptionalFields": "Hide optional fields",
   "preferredLanguage": "Preferred language",

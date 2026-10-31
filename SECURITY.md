@@ -4,21 +4,23 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.19.X   | :white_check_mark: |
-| 0.18.X and earlier   | :x:                |
+| 0.20.X   | :white_check_mark: |
+| 0.19.X and earlier   | :x: |
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please follow these steps:
+Please **do not** open a public issue.
 
-1. **Do not** open a public issue;
-2. Send an email to joao@endurain.com with the details of the vulnerability;
-3. Include the following in your report:
+Report privately through GitHub: go to the **Security** tab and click **Report a vulnerability**
+(https://github.com/endurain-project/endurain/security/advisories/new).
+
+If you can't use GitHub, send an email to joao@endurain.com instead.
+
+Please include:
 - Steps to reproduce the vulnerability;
 - Potential impact;
 - Any suggested fixes, if available.
-4. I will provide an acknowledgment when possible.
 
-Please include as much information as possible to help me resolve the issue promptly.
+I will provide an acknowledgment when possible. Reporters are credited in the published advisory unless they prefer otherwise.
 
 Thank you for helping keep this project secure!

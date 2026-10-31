@@ -38,7 +38,6 @@
     "title": "Tämän jakson aktiviteetit"
   },
   "empty": {
-    "title": "Ei aktiviteetteja tällä jaksolla",
     "description": "Mikään aktiviteetti ei vastaa valittua jaksoa ja tyyppiä."
   },
   "error": {

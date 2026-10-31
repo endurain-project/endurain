@@ -7,8 +7,6 @@
   "password": "Contrasenya",
   "confirmPassword": "Confirma la contrasenya",
   "passwordMismatch": "Les contrasenyes no coincideixen",
-  "showPassword": "Mostra la contrasenya",
-  "hidePassword": "Amaga la contrasenya",
   "showOptionalFields": "Mostra els camps opcionals",
   "hideOptionalFields": "Amaga els camps opcionals",
   "preferredLanguage": "Idioma preferit",

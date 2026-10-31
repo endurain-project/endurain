@@ -39,7 +39,6 @@
       "distance": "Táv",
       "duration": "Időtartam",
       "pace": "Tempó",
-      "speed": "Sebesség",
       "paceSpeed": "Tempó / Sebesség",
       "elevation": "Szintemelkedés",
       "calories": "Kalória",
@@ -66,7 +65,6 @@
     "recenter": "Térkép középre igazítása"
   },
   "metrics": {
-    "title": "Mutatók",
     "time": "Idő",
     "distance": "Táv",
     "movingTime": "Mozgásidő",
@@ -109,7 +107,12 @@
     "elevation": "Szintemelkedés",
     "strokeRate": "Tempószám",
     "cycles": "Ciklusok",
-    "hr": "Pulzusszám"
+    "strokes": "Tempók",
+    "revolutions": "Fordulatok",
+    "strides": "Lépések",
+    "jumps": "Ugrások",
+    "hr": "Pulzusszám",
+    "activeSummary": "Aktív összesen"
   },
   "workout": {
     "title": "Edzés",
@@ -157,7 +160,6 @@
     "deleteError": "Nem sikerült törölni a tevékenységet"
   },
   "media": {
-    "title": "Fényképek",
     "alt": "Tevékenység fényképe",
     "addMedia": "Fénykép hozzáadása",
     "uploadSuccess": "Fénykép feltöltve",
@@ -170,7 +172,8 @@
     "close": "Bezárás",
     "deleteSuccess": "Fénykép törölve",
     "deleteError": "Nem sikerült törölni a fényképet",
-    "expand": "Megtekintés teljes méretben"
+    "expand": "Megtekintés teljes méretben",
+    "thumbnailPending": "Térképelőnézet készítése…"
   },
   "gallery": {
     "previous": "Előző",
@@ -204,7 +207,8 @@
     "hideWorkoutSetsSteps": "Edzéssorozatok és -lépések elrejtése",
     "hideGear": "Felszerelés elrejtése",
     "success": "Tevékenység frissítve",
-    "error": "Nem sikerült frissíteni a tevékenységet"
+    "error": "Nem sikerült frissíteni a tevékenységet",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Ez a tevékenység rejtett. Csak te láthatod.",

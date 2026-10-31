@@ -47,9 +47,14 @@ function toggleScope(scope: string, granted: boolean): void {
 
 /** The earliest selectable expiry: tomorrow (a key must outlive today). */
 const minExpiry = computed(() => {
+  // Local calendar, not UTC: reading the UTC day let a viewer at UTC+13 pick a
+  // key already expiring today, and stopped one at UTC-11 picking tomorrow.
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
-  return tomorrow.toISOString().slice(0, 10)
+  const year = tomorrow.getFullYear()
+  const month = String(tomorrow.getMonth() + 1).padStart(2, '0')
+  const day = String(tomorrow.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 })
 
 const canSubmit = computed(

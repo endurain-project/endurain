@@ -586,9 +586,6 @@
       "edit": "Modifica digiuno",
       "delete": "Elimina digiuno"
     },
-    "list": {
-      "notesLabel": "Note"
-    },
     "form": {
       "addTitle": "Inizia il digiuno",
       "editTitle": "Modifica sessione di digiuno",
@@ -596,7 +593,6 @@
       "type": "Protocollo di digiuno",
       "customDuration": "Durata personalizzata",
       "customDurationHint": "Durata del digiuno, in ore (1–72).",
-      "hours": "ore",
       "startTime": "Ora di inizio",
       "startTimeRequired": "Scegli un'ora di inizio.",
       "endTime": "Ora di fine",

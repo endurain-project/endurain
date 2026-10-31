@@ -2,7 +2,39 @@
 
 from typing import Annotated
 
-from fastapi import HTTPException, Query, status
+import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
+from fastapi import HTTPException, Path, Query, status
+
+#: A path-parameter id that must be positive. Declared on the parameter's type, so FastAPI rejects a
+#: bad value with the standard validation problem document and publishes the bound in OpenAPI.
+PositiveId = Annotated[int, Path(gt=0)]
+
+
+def get_storage() -> platform_providers.StorageProvider:
+    """
+    Return the active platform's blob-storage provider.
+
+    Routers declare it with ``Depends`` so the provider reaches services as an
+    argument and a test can override it without patching the runtime.
+
+    Returns:
+        The storage provider.
+    """
+    return platform_runtime.get_active_platform().storage
+
+
+def get_mail() -> platform_providers.MailProvider:
+    """
+    Return the active platform's outbound-mail provider.
+
+    Routers declare it with ``Depends`` so the provider reaches services as an
+    argument and a test can override it without patching the runtime.
+
+    Returns:
+        The mail provider.
+    """
+    return platform_runtime.get_active_platform().mail
 
 
 def validate_id(identifier: int, min_value: int, message: str) -> None:

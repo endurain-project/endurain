@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-import users.users_streak_settings.schema as streak_settings_schema
+import modules.users.users_streak_settings.schema as streak_settings_schema
 
 
 class TestUsersStreakSettingsUpdate:

@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Caricamento…",
     "success": "Attività caricata con successo",
-    "error": "Impossibile caricare il file dell'attività"
+    "error": "Impossibile caricare il file dell'attività",
+    "timeout": "Il tuo file è ancora in fase di importazione. Apparirà al termine.",
+    "failed": {
+      "unsupported_format": "Questo tipo di file non è supportato",
+      "invalid_file": "Impossibile leggere questo file",
+      "no_activities_found": "Nessuna attività trovata in questo file",
+      "processing_failed": "Impossibile importare il file dell'attività"
+    }
   },
   "refresh": {
     "label": "Aggiorna",

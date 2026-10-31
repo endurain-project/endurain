@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Učitavanje…",
     "success": "Aktivnost je uspješno učitana",
-    "error": "Nije moguće učitati datoteku aktivnosti"
+    "error": "Nije moguće učitati datoteku aktivnosti",
+    "timeout": "Vaša se datoteka još uvozi. Pojavit će se kad završi.",
+    "failed": {
+      "unsupported_format": "Ova vrsta datoteke nije podržana",
+      "invalid_file": "Ova datoteka nije mogla biti pročitana",
+      "no_activities_found": "U ovoj datoteci nije pronađena nijedna aktivnost",
+      "processing_failed": "Datoteku aktivnosti nije moguće uvesti"
+    }
   },
   "refresh": {
     "label": "Osvježi",

@@ -406,6 +406,21 @@ export const queryKeys = {
     detail: () => ['server-settings', 'detail'] as const,
     /** The static catalogue of selectable tile-server presets. */
     tileTemplates: () => ['server-settings', 'tile-templates'] as const,
+    /** Whether outgoing email is usable (SMTP settings valid). */
+    email: () => ['server-settings', 'email'] as const,
+  },
+
+  /**
+   * Bulk imports. A running import is one ingestion job polled until it is
+   * terminal; it creates activities rather than caching any, so it has no
+   * invalidation role of its own.
+   */
+  bulkImport: {
+    /**
+     * @param jobId - The ingestion job returned when the import was accepted.
+     * @returns A query key for that job's progress.
+     */
+    job: (jobId: string) => ['bulk-import', 'job', jobId] as const,
   },
 
   /**

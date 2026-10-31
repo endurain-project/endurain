@@ -1,6 +1,6 @@
 """Tests for user_integrations.models module."""
 
-from users.users_integrations.models import UsersIntegrations
+from modules.users.users_integrations.models import UsersIntegrations
 
 
 class TestUsersIntegrationsModel:

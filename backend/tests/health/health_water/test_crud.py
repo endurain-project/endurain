@@ -4,9 +4,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 
-import health.health_water.crud as health_water_crud
-import health.health_water.models as health_water_models
-import health.health_water.schema as health_water_schema
+import modules.health.health_water.crud as health_water_crud
+import modules.health.health_water.models as health_water_models
+import modules.health.health_water.schema as health_water_schema
 
 
 class TestGetHealthWaterNumber:

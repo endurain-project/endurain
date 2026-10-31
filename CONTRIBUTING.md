@@ -46,6 +46,11 @@ PRs that are too large to review efficiently will be asked to be split before th
 - Improvements to the docs site, inline code comments, and the README all count
 - Keep the same tone and structure as existing docs
 
+### Login Photos
+
+- Suggest photos with the [Login photo suggestion](https://github.com/endurain-project/endurain/issues/new?template=login_photo_suggestion.md) issue template
+- Photos must be your own and licensed under CC0 (preferred) or CC BY 4.0, see the [docs](https://docs.endurain.com/developer-guide/login-photos/)
+
 ### Translations
 
 - Endurain uses [Codeberg Translate](https://translate.codeberg.org/projects/endurain/) for i18n

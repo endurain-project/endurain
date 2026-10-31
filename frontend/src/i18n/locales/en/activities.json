@@ -39,7 +39,6 @@
       "distance": "Distance",
       "duration": "Duration",
       "pace": "Pace",
-      "speed": "Speed",
       "paceSpeed": "Pace / Speed",
       "elevation": "Elevation",
       "calories": "Calories",
@@ -66,7 +65,6 @@
     "recenter": "Recenter map"
   },
   "metrics": {
-    "title": "Metrics",
     "time": "Time",
     "distance": "Distance",
     "movingTime": "Moving time",
@@ -162,7 +160,6 @@
     "deleteError": "Couldn't delete the activity"
   },
   "media": {
-    "title": "Photos",
     "alt": "Activity photo",
     "addMedia": "Add photo",
     "uploadSuccess": "Photo uploaded",
@@ -175,7 +172,8 @@
     "close": "Close",
     "deleteSuccess": "Photo deleted",
     "deleteError": "Couldn't delete the photo",
-    "expand": "View full size"
+    "expand": "View full size",
+    "thumbnailPending": "Generating map preview…"
   },
   "gallery": {
     "previous": "Previous",
@@ -209,7 +207,8 @@
     "hideWorkoutSetsSteps": "Hide workout sets & steps",
     "hideGear": "Hide gear",
     "success": "Activity updated",
-    "error": "Couldn't update the activity"
+    "error": "Couldn't update the activity",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "This activity is hidden. Only you can see it.",

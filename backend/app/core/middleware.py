@@ -9,10 +9,28 @@ from starlette.responses import Response
 from starlette.types import ASGIApp
 
 import core.config as core_config
-import server_settings.schema as server_settings_schema
+import modules.server_settings.schema as server_settings_schema
 
 _DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+#: Request headers a browser client may send cross-origin. A header missing from
+#: this list is not merely stripped — the browser's preflight fails outright, so
+#: the request never happens. Declared here rather than inline in ``create_app``
+#: so a test can check it against the headers the routes actually declare.
+CORS_ALLOW_HEADERS: tuple[str, ...] = (
+    "Authorization",
+    "Content-Type",
+    "Idempotency-Key",
+    "If-Match",
+    "X-Client-Type",
+    "X-CSRF-Token",
+)
+
+#: Response headers a browser client may read. Anything not listed is invisible
+#: to JavaScript even though it is on the wire — which is why ``ETag`` belongs
+#: here: it is the tag the client echoes back in ``If-Match``.
+CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID")
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -71,6 +89,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
             tile_domains_str = " ".join(allowed_tile_domains)
 
+            # Object storage serves blobs (thumbnails, photos, media) from its
+            # own origin through presigned URLs; local storage is same-origin.
+            storage_origin = getattr(request.app.state, "storage_origin", None)
+            blob_src = f" {storage_origin}" if storage_origin else ""
+
             # Extra connect-src origins for deployments behind a
             # forward-auth reverse proxy that redirects API calls
             # to its own domain (see CSP_ADDITIONAL_CONNECT_SRC).
@@ -81,12 +104,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
-                f"img-src 'self' data: {tile_domains_str} "
+                f"img-src 'self' data: {tile_domains_str}{blob_src} "
                 "https://fastapi.tiangolo.com; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 f"connect-src {connect_src}; "
-                "media-src 'self' data:"
+                f"media-src 'self' data:{blob_src}"
             )
 
         if "Server" in response.headers:

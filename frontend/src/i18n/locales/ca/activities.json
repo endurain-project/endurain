@@ -39,7 +39,6 @@
       "distance": "Distància",
       "duration": "Durada",
       "pace": "Ritme",
-      "speed": "Velocitat",
       "paceSpeed": "Ritme / Velocitat",
       "elevation": "Elevació",
       "calories": "Calories",
@@ -66,11 +65,10 @@
     "recenter": "Centra el mapa"
   },
   "metrics": {
-    "title": "Mètriques",
     "time": "Temps",
     "distance": "Distància",
     "movingTime": "Temps en moviment",
-    "elapsedTime": "Temps total",
+    "elapsedTime": "Temps transcorregut",
     "avgPace": "Ritme mitjà",
     "avgSpeed": "Velocitat mitjana",
     "maxSpeed": "Velocitat màxima",
@@ -109,7 +107,12 @@
     "elevation": "Elevació",
     "strokeRate": "Freqüència de braçada",
     "cycles": "Cicles",
-    "hr": "Freqüència cardíaca"
+    "strokes": "Braçades",
+    "revolutions": "Revolucions",
+    "strides": "Gambades",
+    "jumps": "Salts",
+    "hr": "Freqüència cardíaca",
+    "activeSummary": "Total actiu"
   },
   "workout": {
     "title": "Entrenament",
@@ -157,7 +160,6 @@
     "deleteError": "No s'ha pogut eliminar l'activitat"
   },
   "media": {
-    "title": "Fotos",
     "alt": "Foto de l'activitat",
     "addMedia": "Afegeix foto",
     "uploadSuccess": "Foto pujada",
@@ -170,7 +172,8 @@
     "close": "Tanca",
     "deleteSuccess": "Foto eliminada",
     "deleteError": "No s'ha pogut eliminar la foto",
-    "expand": "Veure a mida completa"
+    "expand": "Veure a mida completa",
+    "thumbnailPending": "Generant la vista prèvia del mapa…"
   },
   "gallery": {
     "previous": "Anterior",
@@ -204,7 +207,8 @@
     "hideWorkoutSetsSteps": "Amaga les sèries i passos de l'entrenament",
     "hideGear": "Amaga l'equipament",
     "success": "Activitat actualitzada",
-    "error": "No s'ha pogut actualitzar l'activitat"
+    "error": "No s'ha pogut actualitzar l'activitat",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Aquesta activitat està oculta. Només tu la pots veure.",

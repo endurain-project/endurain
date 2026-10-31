@@ -2,16 +2,25 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { PublicServerSettings } from '@/features/config/types'
 
+import { DEFAULT_MAP_CONFIG } from '@/features/config/defaults'
 import {
   DEFAULT_APP_CONFIG,
   fetchAppConfig,
   mapServerSettingsToAppConfig,
 } from '@/features/config/services/config'
-import { fetchPublicServerSettings } from '@/features/config/services/serverSettings'
+import {
+  DEFAULT_PUBLIC_SERVER_SETTINGS,
+  fetchPublicServerSettings,
+} from '@/features/config/services/serverSettings'
 
-vi.mock('@/features/config/services/serverSettings', () => ({
-  fetchPublicServerSettings: vi.fn<typeof fetchPublicServerSettings>(),
-}))
+vi.mock('@/features/config/services/serverSettings', async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import('@/features/config/services/serverSettings')>()
+  return {
+    ...original,
+    fetchPublicServerSettings: vi.fn<typeof original.fetchPublicServerSettings>(),
+  }
+})
 
 const publicSettings: PublicServerSettings = {
   login_photo_set: false,
@@ -27,7 +36,18 @@ const publicSettings: PublicServerSettings = {
   num_records_per_page: 25,
   tileserver_url: 'https://tiles.test/{z}/{x}/{y}.png',
   tileserver_attribution: '&copy; Test tiles',
+  allowed_redirect_schemes: ['endurain'],
 }
+
+describe('default map configuration', () => {
+  it('is shared by app and public server fallbacks', () => {
+    expect(DEFAULT_APP_CONFIG.map).toBe(DEFAULT_MAP_CONFIG)
+    expect(DEFAULT_PUBLIC_SERVER_SETTINGS.tileserver_url).toBe(DEFAULT_MAP_CONFIG.tileUrl)
+    expect(DEFAULT_PUBLIC_SERVER_SETTINGS.tileserver_attribution).toBe(
+      DEFAULT_MAP_CONFIG.attribution,
+    )
+  })
+})
 
 describe('mapServerSettingsToAppConfig', () => {
   it('maps the signUp feature flag from the server signup flag', () => {

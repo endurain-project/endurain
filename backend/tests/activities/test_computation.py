@@ -1,0 +1,373 @@
+"""Tests for the published activity metric computations.
+
+The stream maths moved out of the activities core, then out of the parser
+package once the Strava adapter needed it too — it is a module-level surface now.
+"""
+
+import itertools
+import math
+from datetime import datetime, timedelta
+
+import pytest
+from geopy.distance import geodesic
+
+from modules.activities.computation import (
+    append_if_not_none,
+    calculate_avg_and_max,
+    calculate_instant_speed,
+    calculate_np,
+    calculate_pace,
+    calculate_pace_from_duration,
+    calculate_robust_max,
+    compute_elevation_gain_and_loss,
+    smooth_elevation_stream,
+    sum_elevation_deltas,
+)
+
+
+class TestCalculateInstantSpeed:
+    def test_returns_zero_when_prev_time_none(self):
+        t = datetime(2024, 1, 15, 8, 0, 5)
+        result = calculate_instant_speed(
+            prev_time=None,
+            waypoint_time=t,
+            latitude=38.0,
+            longitude=-9.0,
+            prev_latitude=38.001,
+            prev_longitude=-9.001,
+        )
+        assert result == 0
+
+    def test_returns_zero_when_prev_coords_none(self):
+        t = datetime(2024, 1, 15, 8, 0, 5)
+        result = calculate_instant_speed(
+            prev_time=datetime(2024, 1, 15, 8, 0, 0),
+            waypoint_time=t,
+            latitude=38.0,
+            longitude=-9.0,
+            prev_latitude=None,
+            prev_longitude=None,
+        )
+        assert result == 0
+
+    def test_returns_zero_when_time_delta_zero(self):
+        t = datetime(2024, 1, 15, 8, 0, 0)
+        result = calculate_instant_speed(
+            prev_time=t,
+            waypoint_time=t,
+            latitude=38.0,
+            longitude=-9.0,
+            prev_latitude=38.001,
+            prev_longitude=-9.001,
+        )
+        assert result == 0
+
+    def test_returns_positive_speed(self):
+        result = calculate_instant_speed(
+            prev_time=datetime(2024, 1, 15, 8, 0, 0),
+            waypoint_time=datetime(2024, 1, 15, 8, 1, 0),
+            latitude=38.001,
+            longitude=-9.001,
+            prev_latitude=38.0,
+            prev_longitude=-9.0,
+        )
+        assert result > 0
+
+    def test_subsecond_delta_counts_as_one_second(self):
+        start = datetime(2024, 1, 15, 8, 0, 0)
+        distance = geodesic((0.0, 0.0), (0.0, 0.000135)).meters  # ~15 m
+        result = calculate_instant_speed(
+            prev_time=start,
+            waypoint_time=start + timedelta(milliseconds=300),
+            latitude=0.0,
+            longitude=0.000135,
+            prev_latitude=0.0,
+            prev_longitude=0.0,
+        )
+        assert result == pytest.approx(distance)
+        assert 14 < result < 16
+
+
+class TestCalculateRobustMax:
+    def test_empty_returns_zero(self):
+        assert calculate_robust_max([]) == 0
+
+    def test_fewer_than_window_returns_plain_max(self):
+        assert calculate_robust_max([1.0, 9.0, 2.0, 3.0]) == 9.0
+
+    def test_single_spike_is_ignored(self):
+        assert calculate_robust_max([3.0] * 10 + [50.0] + [3.0] * 10) == 3.0
+
+    def test_two_consecutive_spikes_are_ignored(self):
+        assert calculate_robust_max([3.0] * 10 + [50.0, 48.0] + [3.0] * 10) == 3.0
+
+    def test_sustained_fast_stretch_is_reported(self):
+        assert calculate_robust_max([3.0] * 10 + [8.0, 8.0, 8.0] + [3.0] * 10) == 8.0
+
+    def test_trailing_edge_is_not_clamped(self):
+        assert calculate_robust_max([3.0] * 10 + [50.0]) == 3.0
+
+
+class TestComputeElevationGainAndLoss:
+    def test_returns_none_for_empty_list(self):
+        assert compute_elevation_gain_and_loss([]) == (None, None)
+
+    @pytest.mark.parametrize("waypoints", [[{"no_ele": 100}], [{"ele": "n/a"}], [{"ele": None}]])
+    def test_returns_none_for_invalid_data(self, waypoints):
+        assert compute_elevation_gain_and_loss(waypoints) == (None, None)
+
+    def test_flat_elevation_returns_zero(self):
+        result = compute_elevation_gain_and_loss([{"ele": 100}, {"ele": 100}, {"ele": 100}])
+        assert result == (0.0, 0.0)
+
+    def test_computes_gain(self):
+        gain, loss = compute_elevation_gain_and_loss(
+            [{"ele": 100}, {"ele": 110}, {"ele": 120}],
+            median_window=1,
+            avg_window=1,
+            threshold=0.1,
+        )
+        assert gain == 20.0
+        assert loss == 0.0
+
+    def test_computes_loss(self):
+        gain, loss = compute_elevation_gain_and_loss(
+            [{"ele": 120}, {"ele": 110}, {"ele": 100}],
+            median_window=1,
+            avg_window=1,
+            threshold=0.1,
+        )
+        assert gain == 0.0
+        assert loss == 20.0
+
+    def test_computes_gain_and_loss_with_threshold(self):
+        gain, loss = compute_elevation_gain_and_loss(
+            [{"ele": 100}, {"ele": 100.05}, {"ele": 120}, {"ele": 100}],
+            median_window=1,
+            avg_window=1,
+            threshold=0.1,
+        )
+        assert gain > 0
+        assert loss > 0
+
+    def test_median_window_large_handles_small_list(self):
+        gain, loss = compute_elevation_gain_and_loss([{"ele": 100}], median_window=10, avg_window=10, threshold=0.1)
+        assert gain == 0.0
+        assert loss == 0.0
+
+
+class TestSumElevationDeltas:
+    def test_flat_series_returns_zero_zero(self):
+        assert sum_elevation_deltas([{"ele": 100.0}, {"ele": 100.0}, {"ele": 100.0}]) == (0.0, 0.0)
+
+    def test_empty_returns_zero_zero(self):
+        assert sum_elevation_deltas([]) == (0.0, 0.0)
+
+    def test_composition_equals_compute_elevation_gain_and_loss(self):
+        # Synthetic noisy climb: linear trend + sinusoid + alternating jitter.
+        elevations = [{"ele": 100 + i * 0.5 + math.sin(i / 5) * 3 + (0.5 if i % 2 else -0.5)} for i in range(200)]
+        expected = compute_elevation_gain_and_loss(elevations)
+        assert sum_elevation_deltas(smooth_elevation_stream(elevations)) == expected
+
+
+class TestCalculatePace:
+    def test_returns_zero_when_distance_zero(self):
+        t = datetime(2024, 1, 15, 8, 0, 0)
+        result = calculate_pace(distance=0, first_waypoint_time=t, last_waypoint_time=t)
+        assert result == 0
+
+    def test_calculates_pace_correctly(self):
+        result = calculate_pace(
+            distance=10000,
+            first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
+            last_waypoint_time=datetime(2024, 1, 15, 9, 0, 0),
+        )
+        assert result == 3600.0 / 10000
+
+    def test_calculates_pace_with_fractional_distance(self):
+        result = calculate_pace(
+            distance=5000,
+            first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
+            last_waypoint_time=datetime(2024, 1, 15, 8, 25, 0),
+        )
+        assert result == 1500.0 / 5000
+
+
+class TestCalculatePaceFromDuration:
+    def test_returns_zero_when_distance_zero(self):
+        assert calculate_pace_from_duration(distance=0, duration_seconds=600) == 0
+
+    def test_returns_zero_when_duration_non_positive(self):
+        assert calculate_pace_from_duration(distance=5000, duration_seconds=0) == 0
+        assert calculate_pace_from_duration(distance=5000, duration_seconds=-10) == 0
+
+    def test_calculates_pace_correctly(self):
+        result = calculate_pace_from_duration(distance=10000, duration_seconds=3600)
+        assert result == 3600.0 / 10000
+
+    def test_calculates_pace_with_fractional_duration(self):
+        result = calculate_pace_from_duration(distance=5000, duration_seconds=1500)
+        assert result == 1500.0 / 5000
+
+
+class TestCalculateAvgAndMax:
+    def test_returns_zero_for_empty_data(self):
+        assert calculate_avg_and_max([], "hr") == (0.0, 0.0)
+
+    def test_returns_zero_for_all_none_values(self):
+        assert calculate_avg_and_max([{"hr": None}, {"hr": None}], "hr") == (0.0, 0.0)
+
+    def test_returns_zero_for_missing_key(self):
+        assert calculate_avg_and_max([{"other": 100}], "hr") == (0.0, 0.0)
+
+    def test_computes_avg_and_max(self):
+        avg, max_val = calculate_avg_and_max([{"hr": 140}, {"hr": 150}, {"hr": 160}], "hr")
+        assert avg == 150.0
+        assert max_val == 160.0
+
+    def test_handles_mixed_none_and_values(self):
+        avg, max_val = calculate_avg_and_max([{"hr": 140}, {"hr": None}, {"hr": 160}], "hr")
+        assert avg == 150.0
+        assert max_val == 160.0
+
+    def test_single_value(self):
+        avg, max_val = calculate_avg_and_max([{"hr": 145}], "hr")
+        assert avg == 145.0
+        assert max_val == 145.0
+
+    def test_returns_zero_on_value_error(self):
+        result = calculate_avg_and_max([{"hr": "not_a_number"}], "hr")
+        assert result == (0.0, 0.0)
+
+    def test_hr_zeros_are_excluded_from_avg_and_max(self):
+        # Zero is a sensor-off sentinel; the filter must drop it so
+        # only the real readings [150, 160] contribute.
+        avg, max_val = calculate_avg_and_max(
+            [{"hr": 0}, {"hr": 0}, {"hr": 150}, {"hr": 160}],
+            "hr",
+        )
+        assert avg == 155.0
+        assert max_val == 160.0
+
+    def test_all_hr_zeros_returns_zero_pair(self):
+        # After filtering all zeros the value list is empty → (0, 0).
+        assert calculate_avg_and_max([{"hr": 0}, {"hr": 0}], "hr") == (0.0, 0.0)
+
+    def test_exclude_zeros_flag_strips_zeros_for_non_hr_stream(self):
+        avg, max_val = calculate_avg_and_max(
+            [{"power": 0}, {"power": 200}, {"power": 300}],
+            "power",
+            exclude_zeros=True,
+        )
+        assert avg == 250.0
+        assert max_val == 300.0
+
+
+class TestCalculateNP:
+    def test_returns_zero_for_empty_data(self):
+        assert calculate_np([]) == 0
+
+    def test_returns_zero_for_missing_power_key(self):
+        assert calculate_np([{"hr": 140}]) == 0
+
+    def test_returns_zero_for_none_power(self):
+        assert calculate_np([{"power": None}]) == 0
+
+    def test_normalized_power_single_value(self):
+        assert calculate_np([{"power": 200}]) == 200.0
+
+    def test_normalized_power_multiple_values(self):
+        data = [{"power": 200}, {"power": 150}, {"power": 250}]
+        result = calculate_np(data)
+        expected = (200**4 + 150**4 + 250**4) / 3
+        expected = expected ** (1 / 4)
+        assert result == expected
+
+    def test_returns_zero_on_value_error(self):
+        result = calculate_np([{"power": "not_a_number"}])
+        assert result == 0
+
+    def test_returns_zero_on_key_error(self):
+        result = calculate_np([{"no_power": 200}])
+        assert result == 0
+
+
+class TestAppendIfNotNone:
+    def test_appends_when_value_not_none(self):
+        waypoints = []
+        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=145, key="hr")
+        assert len(waypoints) == 1
+        assert waypoints[0]["hr"] == 145
+
+    def test_does_not_append_when_none(self):
+        waypoints = []
+        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=None, key="hr")
+        assert len(waypoints) == 0
+
+
+class TestCalculatePaceAcrossDstAndOffsets:
+    """Duration math must run on the aware instants, not on stripped wall clocks.
+
+    Reformatting both bounds through ``strftime``/``fromisoformat`` dropped their
+    offsets purely to make them subtractable, which silently produced the wrong
+    elapsed time whenever the two carried different offsets.
+    """
+
+    def test_duration_is_correct_across_a_dst_transition(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        import modules.activities.computation as computation
+
+        lisbon = ZoneInfo("Europe/Lisbon")
+        # Lisbon springs forward 01:00 -> 02:00 on 2024-03-31: the wall clock
+        # advances 2h while only 1h of real time elapses.
+        start = datetime(2024, 3, 31, 0, 30, tzinfo=lisbon)
+        end = datetime(2024, 3, 31, 2, 30, tzinfo=lisbon)
+
+        pace = computation.calculate_pace(1000, start, end)
+
+        assert pace == 3600 / 1000  # one real hour, not two
+
+    def test_duration_is_correct_for_mixed_offsets(self):
+        from datetime import UTC, datetime, timedelta, timezone
+
+        import modules.activities.computation as computation
+
+        start = datetime(2024, 1, 15, 10, 0, tzinfo=timezone(timedelta(hours=2)))
+        end = datetime(2024, 1, 15, 8, 30, tzinfo=UTC)  # 30 minutes after 08:00Z
+
+        pace = computation.calculate_pace(600, start, end)
+
+        assert pace == 1800 / 600
+
+    def test_zero_distance_returns_zero(self):
+        from datetime import UTC, datetime
+
+        import modules.activities.computation as computation
+
+        now = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
+        assert computation.calculate_pace(0, now, now) == 0
+
+
+class TestElevationSmoothing:
+    def test_parity_with_mobile_app(self):
+        elevations = [100 + 0.5 * i + (4 if i % 2 == 0 else -4) for i in range(60)]
+        gain, loss = compute_elevation_gain_and_loss([{"ele": e} for e in elevations])
+        assert gain == pytest.approx(22.3956043956, abs=1e-6)
+        assert loss == 0
+
+    def test_stream_smoothing_keeps_time_and_matches_gain(self):
+        elevations = [100 + 0.5 * i + (4 if i % 2 == 0 else -4) for i in range(60)]
+        stream = [{"time": f"t{i}", "ele": e} for i, e in enumerate(elevations)]
+        smoothed = smooth_elevation_stream(stream)
+        assert [w["time"] for w in smoothed] == [w["time"] for w in stream]
+        assert max(abs(b["ele"] - a["ele"]) for a, b in itertools.pairwise(smoothed)) < 1.3
+        gain, _ = compute_elevation_gain_and_loss(stream, median_window=1, avg_window=1)
+        assert gain > 100
+        smoothed_gain, _ = compute_elevation_gain_and_loss(smoothed, median_window=1, avg_window=1)
+        assert smoothed_gain == pytest.approx(22.3956043956, abs=1e-6)
+
+    def test_stream_smoothing_returns_input_on_invalid_data(self):
+        stream = [{"time": "t", "ele": None}]
+        assert smooth_elevation_stream(stream) == stream

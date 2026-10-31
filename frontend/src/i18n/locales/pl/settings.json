@@ -48,7 +48,6 @@
       "title": "Brak użytkowników",
       "description": "Dodaj pierwsze konto na tej instancji",
       "searchTitle": "Nie znaleziono użytkowników",
-      "searchDescription": "Żaden użytkownik nie pasuje do tej nazwy",
       "filteredTitle": "Żaden użytkownik nie pasuje do wybranych filtrów"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym",
       "passwordHintLength": "Co najmniej {min} znaków",
       "passwordRequired": "Hasło jest wymagane",
-      "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków",
       "passwordInvalid": "To hasło nie spełnia wymagań",
       "confirmPassword": "Potwierdź hasło",
       "confirmPasswordRequired": "Potwierdź hasło",
@@ -135,6 +133,8 @@
         "pound": "Funt"
       },
       "firstDayOfWeek": "Pierwszy dzień tygodnia",
+      "timezone": "Strefa czasowa",
+      "timezoneHint": "Używana dla aktywności zarejestrowanych bez GPS, takich jak bieganie na bieżni i jazda na rowerze w pomieszczeniu.",
       "weekdays": {
         "sunday": "Niedziela",
         "monday": "Poniedziałek",
@@ -354,6 +354,19 @@
       "deleteError": "Nie udało się usunąć zdjęcia logowania. Spróbuj ponownie.",
       "cancel": "Anuluj",
       "close": "Zamknij"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain wysyła e-maile z resetowaniem hasła i rejestracją przez serwer SMTP skonfigurowany w środowisku.",
+      "statusLoadError": "Nie udało się sprawdzić konfiguracji e-maila.",
+      "configured": "E-mail jest skonfigurowany.",
+      "notConfigured": "E-mail nie jest skonfigurowany:",
+      "send": "Wyślij wiadomość testową",
+      "sending": "Wysyłanie…",
+      "sendHint": "Wiadomość testowa jest wysyłana na Twój własny adres.",
+      "sent": "Wiadomość testowa wysłana",
+      "failed": "Nie udało się wysłać wiadomości testowej",
+      "failedUnknown": "Szczegóły znajdziesz w logach serwera."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Zapisz swoje kody zapasowe",
       "description": "Użyj kodu zapasowego, aby się zalogować, jeśli stracisz dostęp do aplikacji uwierzytelniającej.",
-      "warning": "Te kody są wyświetlane tylko raz. Przechowuj je w bezpiecznym miejscu \u2014 każdy kod działa jednorazowo.",
+      "warning": "Te kody są wyświetlane tylko raz. Przechowuj je w bezpiecznym miejscu, każdy kod działa jednorazowo.",
       "copy": "Kopiuj",
       "copied": "Skopiowano kody zapasowe",
       "copyError": "Nie udało się skopiować kodów.",
@@ -720,12 +733,12 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Sekret klienta",
       "connectError": "Nie udało się połączyć ze Strava. Sprawdź swoje dane i spróbuj ponownie.",
-      "completing": "Finalizowanie połączenia ze Strava\u2026",
+      "completing": "Finalizowanie połączenia ze Strava…",
       "linkSuccess": "Połączono Strava",
       "retrieveActivitiesTitle": "Pobierz aktywności ze Strava",
-      "retrievingActivities": "Pobieranie Twoich aktywności ze Strava w tle\u2026",
+      "retrievingActivities": "Pobieranie Twoich aktywności ze Strava w tle…",
       "retrieveActivitiesError": "Nie udało się rozpocząć pobierania aktywności ze Strava. Spróbuj ponownie.",
-      "retrievingGear": "Pobieranie Twojego sprzętu ze Strava w tle\u2026",
+      "retrievingGear": "Pobieranie Twojego sprzętu ze Strava w tle…",
       "retrieveGearError": "Nie udało się rozpocząć pobierania sprzętu ze Strava. Spróbuj ponownie.",
       "unlinkTitle": "Rozłączyć Strava?",
       "unlinkBody": "Endurain przestanie importować ze Strava. Twoje istniejące aktywności zostaną zachowane.",
@@ -749,13 +762,13 @@
       "linkError": "Nie udało się połączyć z Garmin Connect. Spróbuj ponownie.",
       "mfaError": "Nie udało się przesłać kodu. Spróbuj ponownie.",
       "retrieveActivitiesTitle": "Pobierz aktywności z Garmin Connect",
-      "retrievingActivities": "Pobieranie Twoich aktywności z Garmin Connect w tle\u2026",
+      "retrievingActivities": "Pobieranie Twoich aktywności z Garmin Connect w tle…",
       "retrieveActivitiesError": "Nie udało się rozpocząć pobierania aktywności z Garmin Connect. Spróbuj ponownie.",
-      "retrievingGear": "Pobieranie Twojego sprzętu z Garmin Connect w tle\u2026",
+      "retrievingGear": "Pobieranie Twojego sprzętu z Garmin Connect w tle…",
       "retrieveGearError": "Nie udało się rozpocząć pobierania sprzętu z Garmin Connect. Spróbuj ponownie.",
       "retrieveHealth": "Pobierz dane o zdrowiu",
       "retrieveHealthTitle": "Pobierz dane o zdrowiu z Garmin Connect",
-      "retrievingHealth": "Pobieranie Twoich danych o zdrowiu z Garmin Connect w tle\u2026",
+      "retrievingHealth": "Pobieranie Twoich danych o zdrowiu z Garmin Connect w tle…",
       "retrieveHealthError": "Nie udało się rozpocząć pobierania danych o zdrowiu z Garmin Connect. Spróbuj ponownie.",
       "unlinkTitle": "Rozłączyć Garmin Connect?",
       "unlinkBody": "Endurain przestanie importować z Garmin Connect. Twoje istniejące dane zostaną zachowane.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Import zbiorczy",
       "subtitle": "Importuj pliki aktywności umieszczone w folderze importu zbiorczego serwera",
-      "button": "Importuj aktywności",
-      "started": "Importowanie aktywności w tle\u2026",
+      "uploadButton": "Prześlij ZIP",
+      "folderButton": "Importuj z folderu",
+      "started": "Importowanie aktywności w tle…",
+      "alreadyRunning": "Import zbiorczy jest już w toku. Poczekaj, aż się zakończy.",
       "error": "Nie udało się rozpocząć importu. Spróbuj ponownie."
     },
     "strava": {
@@ -781,12 +796,20 @@
       "activities": "Importuj aktywności",
       "bikes": "Importuj rowery",
       "shoes": "Importuj buty",
-      "activitiesQueued": "Aktywności Strava dodane do kolejki importu; sprawdź logi, aby poznać status\u2026",
+      "activitiesQueued": "Aktywności Strava dodane do kolejki importu; sprawdź logi, aby poznać status…",
       "activitiesError": "Nie udało się dodać importu aktywności Strava do kolejki. Spróbuj ponownie.",
       "bikesSuccess": "Zaimportowano rowery ze Strava",
       "bikesError": "Nie udało się zaimportować rowerów ze Strava. Spróbuj ponownie.",
       "shoesSuccess": "Zaimportowano buty ze Strava",
-      "shoesError": "Nie udało się zaimportować butów ze Strava. Spróbuj ponownie."
+      "shoesError": "Nie udało się zaimportować butów ze Strava. Spróbuj ponownie.",
+      "activitiesUpload": "Importuj aktywności (prześlij ZIP)",
+      "activitiesFolder": "Importuj aktywności (folder na serwerze)"
+    },
+    "job": {
+      "preparing": "Przygotowywanie importu…",
+      "progress": "Zaimportowano {done} z {total} plików ({failed} nie powiodło się)…",
+      "finished": "Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się.",
+      "failed": "Nie udało się ukończyć importu."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Eksportuj dane",
       "import": "Importuj dane",
       "invalidType": "Wybierz archiwum .zip.",
-      "exportSuccess": "Eksport gotowy — pobieranie powinno się wkrótce rozpocząć",
+      "exportSuccess": "Eksport gotowy, pobieranie powinno się wkrótce rozpocząć",
       "exportError": "Nie udało się wyeksportować danych. Spróbuj ponownie.",
       "importSuccess": "Zaimportowano dane",
       "importError": "Nie udało się zaimportować archiwum. Sprawdź plik i spróbuj ponownie."

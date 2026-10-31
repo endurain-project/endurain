@@ -76,7 +76,8 @@ function toUserWire(user: ManagedUser): Omit<UserDto, 'mfa_enabled' | 'external_
     birthdate: user.birthdate,
     height: user.height,
     max_heart_rate: user.maxHeartRate,
-    photo_path: user.photoPath,
+    // photo_path is deliberately not sent: it is a server-issued, signed URL
+    // derived from a storage key, and the backend ignores it on write.
   }
 }
 

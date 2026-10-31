@@ -1,0 +1,521 @@
+"""Utilities for parsing TCX files into activity data."""
+
+from pathlib import Path
+from typing import Any
+
+import tcxreader
+
+import core.exceptions as core_exceptions
+import core.logger as core_logger
+import core.timezone as core_timezone
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.contracts as activity_contracts
+import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
+import modules.activities.computation as activities_computation
+
+logger = core_logger.get_logger(__name__)
+
+
+def _parse_lap_power(
+    lap: Any,
+) -> tuple[float | None, float | None, float | None]:
+    """Extract power metrics from a single TCX lap.
+
+    Args:
+        lap: A TCX lap object from tcxreader.
+
+    Returns:
+        Tuple of (avg_power, max_power, normalized_power),
+        each None when no power data is available.
+    """
+    power_waypoints: list[dict] = []
+    for trackpoint in lap.trackpoints:
+        if hasattr(trackpoint, "tpx_ext") and "Watts" in trackpoint.tpx_ext and trackpoint.time is not None:
+            power_waypoints.append(
+                {
+                    "time": core_timezone.format_utc(trackpoint.time),
+                    "power": trackpoint.tpx_ext["Watts"],
+                }
+            )
+
+    if not power_waypoints:
+        return None, None, None
+
+    return activity_file_import_parser_utils.calculate_power_metrics(power_waypoints)
+
+
+def _parse_laps(
+    tcx_file: Any,
+    smoothed_ele_waypoints: list[dict],
+) -> list[dict]:
+    """Parse all TCX laps into structured dicts.
+
+    Args:
+        tcx_file: Parsed TCX file object.
+        smoothed_ele_waypoints: Full elevation stream, already smoothed
+            once (see smooth_elevation_stream).
+
+    Returns:
+        List of lap dicts with metrics.
+    """
+    laps: list[dict] = []
+
+    for lap in tcx_file.laps:
+        if lap.start_time is None:
+            continue
+
+        lap_avg_pw, lap_max_pw, lap_np = _parse_lap_power(lap)
+
+        max_spd_val = lap.tpx_ext_stats.get("Speed", {}).get("max", 0)
+
+        # tcxreader's lap.ascent/descent are raw positive/negative delta sums,
+        # which GPS altitude noise inflates several-fold, so lap elevation is
+        # summed from the smoothed stream instead.
+        lap_ascent, lap_descent = None, None
+        if smoothed_ele_waypoints and lap.end_time is not None:
+            lap_ele = activity_file_import_parser_utils.slice_lap_elevation(
+                smoothed_ele_waypoints,
+                core_timezone.format_utc(lap.start_time),
+                core_timezone.format_utc(lap.end_time),
+            )
+            if lap_ele:
+                lap_gain, lap_loss = activities_computation.sum_elevation_deltas(lap_ele)
+                lap_ascent, lap_descent = round(lap_gain), round(lap_loss)
+
+        lap_elapsed = (lap.end_time - lap.start_time).total_seconds() if lap.start_time and lap.end_time else None
+        # Timer time excludes recording pauses (issue #571); fall back to
+        # elapsed for laps without usable trackpoint timestamps.
+        lap_moving = activity_file_import_parser_utils.compute_moving_time_from_times(
+            [tp.time for tp in lap.trackpoints if tp.time is not None]
+        )
+
+        laps.append(
+            {
+                "start_time": core_timezone.to_utc_aware(lap.start_time),
+                "start_position_lat": (lap.trackpoints[0].latitude),
+                "start_position_long": (lap.trackpoints[0].longitude),
+                "end_position_lat": (lap.trackpoints[-1].latitude),
+                "end_position_long": (lap.trackpoints[-1].longitude),
+                "total_elapsed_time": lap_elapsed,
+                "total_timer_time": lap_moving if lap_moving > 0 else lap_elapsed,
+                "total_distance": (round(lap.distance) if lap.distance else None),
+                "total_calories": (round(lap.calories) if lap.calories else None),
+                "avg_heart_rate": (round(lap.hr_avg) if lap.hr_avg else None),
+                "max_heart_rate": (round(lap.hr_max) if lap.hr_max else None),
+                "avg_cadence": (round(lap.cadence_avg) if lap.cadence_avg else None),
+                "max_cadence": (round(lap.cadence_max) if lap.cadence_max else None),
+                "avg_power": (round(lap_avg_pw) if lap_avg_pw else None),
+                "max_power": (round(lap_max_pw) if lap_max_pw else None),
+                "total_ascent": lap_ascent,
+                "total_descent": lap_descent,
+                "normalized_power": (round(lap_np) if lap_np else None),
+                "enhanced_avg_pace": (1 / lap.avg_speed if lap.avg_speed and lap.avg_speed != 0 else None),
+                "enhanced_avg_speed": (lap.avg_speed if lap.avg_speed else None),
+                "enhanced_max_pace": (1 / max_spd_val if max_spd_val and max_spd_val != 0 else None),
+                "enhanced_max_speed": (max_spd_val if max_spd_val else None),
+            }
+        )
+
+    return laps
+
+
+def _extract_waypoints(
+    trackpoints: list[dict],
+    tcx_file: Any,
+) -> dict:
+    """Extract typed waypoint lists from trackpoints.
+
+    Args:
+        trackpoints: Trackpoints as dicts from
+            tcx_file.trackpoints_to_dict().
+        tcx_file: Parsed TCX file object.
+
+    Returns:
+        Dict with lat_lon, hr, cad, ele, power, vel, and pace waypoint
+        lists, plus pause-split ``lat_lon_segments`` and the accumulated
+        ``moving_time`` in seconds.
+    """
+    hr_waypoints = [
+        {
+            "time": core_timezone.format_utc(tp["time"]),
+            "hr": tp["hr_value"],
+        }
+        for tp in trackpoints
+        if "hr_value" in tp and tp.get("time") is not None
+    ]
+
+    cad_waypoints = [
+        {
+            "time": core_timezone.format_utc(tp["time"]),
+            "cad": tp["cadence"],
+        }
+        for tp in trackpoints
+        if tp.get("cadence") is not None and tp.get("time") is not None
+    ]
+    if not cad_waypoints:
+        cad_waypoints = [
+            {
+                "time": core_timezone.format_utc(tp.time),
+                "cad": tp.tpx_ext["RunCadence"],
+            }
+            for tp in tcx_file.trackpoints
+            if (hasattr(tp, "tpx_ext") and "RunCadence" in tp.tpx_ext and tp.time is not None)
+        ]
+
+    ele_waypoints = [
+        {
+            "time": core_timezone.format_utc(tp["time"]),
+            "ele": tp["elevation"],
+        }
+        for tp in trackpoints
+        if tp.get("elevation") is not None and tp.get("time") is not None
+    ]
+
+    power_waypoints = [
+        {
+            "time": core_timezone.format_utc(tp.time),
+            "power": tp.tpx_ext["Watts"],
+        }
+        for tp in tcx_file.trackpoints
+        if (hasattr(tp, "tpx_ext") and "Watts" in tp.tpx_ext and tp.time is not None)
+    ]
+
+    lat_lon_waypoints: list[dict] = []
+    lat_lon_segments: list[list[dict]] = []
+    vel_waypoints: list[dict] = []
+    pace_waypoints: list[dict] = []
+    moving_time = 0.0
+    pause_threshold = activity_file_import_parser_utils.pause_threshold_seconds(
+        [tp["time"] for tp in trackpoints if tp["time"] is not None]
+    )
+    segment_start_idx = 0
+    last_time = None
+    prev_lat = None
+    prev_lon = None
+
+    def _close_segment() -> int:
+        """Flush the open pause-split sub-segment when it has two points."""
+        segment_waypoints = lat_lon_waypoints[segment_start_idx:]
+        if len(segment_waypoints) >= 2:
+            lat_lon_segments.append(segment_waypoints)
+        return len(lat_lon_waypoints)
+
+    for tp in trackpoints:
+        lat = tp["latitude"]
+        lon = tp["longitude"]
+        time_val = tp["time"]
+
+        if time_val is None:
+            continue
+
+        if last_time is not None:
+            delta = (time_val - last_time).total_seconds()
+            if delta > pause_threshold:
+                # Recording pause (issue #571): split the GPS track so the
+                # gap contributes neither distance nor speed, and keep the
+                # gap out of the moving time.
+                segment_start_idx = _close_segment()
+                last_time = None
+                prev_lat = None
+                prev_lon = None
+            elif delta > 0:
+                moving_time += delta
+            # Non-positive deltas (duplicate/out-of-order timestamps) add
+            # nothing and leave the previous point as the baseline below.
+
+        timestamp = core_timezone.format_utc(time_val)
+
+        lat_lon_waypoints.append(
+            {
+                "time": timestamp,
+                "lat": lat,
+                "lon": lon,
+            }
+        )
+
+        instant_speed = activities_computation.calculate_instant_speed(
+            last_time,
+            time_val,
+            lat,
+            lon,
+            prev_lat,
+            prev_lon,
+        )
+
+        instant_pace = 1 / instant_speed if instant_speed > 0 else 0
+
+        activities_computation.append_if_not_none(
+            vel_waypoints,
+            timestamp,
+            instant_speed,
+            "vel",
+        )
+        activities_computation.append_if_not_none(
+            pace_waypoints,
+            timestamp,
+            instant_pace,
+            "pace",
+        )
+
+        if last_time is None or time_val > last_time:
+            prev_lat, prev_lon, last_time = (
+                lat,
+                lon,
+                time_val,
+            )
+
+    _close_segment()
+
+    return {
+        "lat_lon_waypoints": lat_lon_waypoints,
+        "lat_lon_segments": lat_lon_segments,
+        "moving_time": moving_time,
+        "hr_waypoints": hr_waypoints,
+        "cad_waypoints": cad_waypoints,
+        "ele_waypoints": ele_waypoints,
+        "power_waypoints": power_waypoints,
+        "vel_waypoints": vel_waypoints,
+        "pace_waypoints": pace_waypoints,
+    }
+
+
+def _build_activity(
+    tcx_file: Any,
+    user_id: int,
+    activity_name: str,
+    activity_type: int,
+    distance: int,
+    timezone: str,
+    pace: float | None,
+    city: str | None,
+    town: str | None,
+    country: str | None,
+    avg_power: float | None,
+    max_power: float | None,
+    norm_power: float | None,
+    elevation_gain: int | None = None,
+    elevation_loss: int | None = None,
+    timer_time: float | None = None,
+) -> activity_contracts.ActivityCore:
+    """Construct an ActivityCore ingestion contract from parsed TCX data.
+
+    Domain fields (privacy, gear, provider ids) are intentionally left unset —
+    the ``activity_ingestion`` enrichment seam populates them after parsing so
+    the parser stays pure.
+
+    Args:
+        tcx_file: Parsed TCX file object.
+        user_id: ID of the owning user.
+        activity_name: Name for the activity.
+        activity_type: Numeric activity type.
+        distance: Total distance in metres.
+        timezone: IANA timezone string.
+        pace: Overall pace value or None.
+        city: City name or None.
+        town: Town name or None.
+        country: Country name or None.
+        avg_power: Average power or None.
+        max_power: Maximum power or None.
+        norm_power: Normalized power or None.
+        elevation_gain: Smoothed elevation gain in metres or None.
+        elevation_loss: Smoothed elevation loss in metres or None.
+        timer_time: Active (moving) time in seconds, or None to fall back
+            to the wall-clock elapsed time.
+
+    Returns:
+        Populated Activity Pydantic schema.
+    """
+    elapsed = (
+        (tcx_file.end_time - tcx_file.start_time).total_seconds() if tcx_file.start_time and tcx_file.end_time else None
+    )
+
+    # An activity without a start/end is not importable. Rejecting it here gives
+    # a clear reason instead of a pydantic ValidationError raised deep inside
+    # ``ActivityCore`` construction.
+    start_time = core_timezone.to_utc_second(tcx_file.start_time)
+    end_time = core_timezone.to_utc_second(tcx_file.end_time)
+    if start_time is None or end_time is None:
+        raise core_exceptions.InvalidInputError("Invalid TCX file - no activity start or end time found")
+
+    return activity_contracts.ActivityCore(
+        user_id=user_id,
+        name=activity_name,
+        distance=distance,
+        activity_type=activity_type,
+        timezone=timezone,
+        start_time=start_time,
+        end_time=end_time,
+        total_elapsed_time=elapsed,
+        total_timer_time=timer_time if timer_time else elapsed,
+        city=city,
+        town=town,
+        country=country,
+        elevation_gain=elevation_gain,
+        elevation_loss=elevation_loss,
+        pace=pace,
+        average_power=(round(avg_power) if avg_power else None),
+        max_power=(round(max_power) if max_power else None),
+        normalized_power=(round(norm_power) if norm_power else None),
+        average_hr=(round(tcx_file.hr_avg) if tcx_file.hr_avg else None),
+        max_hr=(round(tcx_file.hr_max) if tcx_file.hr_max else None),
+        average_cad=(round(tcx_file.cadence_avg) if tcx_file.cadence_avg else None),
+        max_cad=(round(tcx_file.cadence_max) if tcx_file.cadence_max else None),
+        calories=(tcx_file.calories if tcx_file.calories else None),
+    )
+
+
+def parse_tcx_file(
+    file: str,
+    user_id: int,
+    *,
+    activity_name_input: str | None = None,
+    default_timezone: str,
+) -> dict:
+    """Parse a TCX file and return activity data.
+
+    Args:
+        file: Path to the TCX file.
+        user_id: ID of the owning user.
+        activity_name_input: Optional custom activity
+            name.
+        default_timezone: The owner's IANA timezone, used only when the file yields
+            none of its own.
+
+    Returns:
+        Dict with activity, waypoints, laps and
+        associated metadata.
+
+    Raises:
+        ProcessingError: When the TCX file cannot be
+            parsed or processed.
+    """
+    try:
+        logger.debug("TCX parse start", extra=core_logger.context(file=Path(file).name, user_id=user_id))
+        tcx_file = tcxreader.TCXReader().read(file)
+        trackpoints = tcx_file.trackpoints_to_dict()
+
+        # Only used when the file carries no GPS track to resolve a zone from.
+        timezone = default_timezone
+        pace: float | None = None
+        city: str | None = None
+        town: str | None = None
+        country: str | None = None
+        activity_name = activity_name_input if activity_name_input else "Workout"
+        avg_power: float | None = None
+        max_power: float | None = None
+        norm_power: float | None = None
+
+        activity_type = activity_constants.define_activity_type(tcx_file.activity_type)
+
+        waypoints = _extract_waypoints(trackpoints, tcx_file)
+
+        # Activity and lap elevation both come from the altitude stream smoothed
+        # once, mirroring the GPX importer; tcxreader's ascent/descent are raw
+        # delta sums inflated by GPS noise.
+        ele_wp = waypoints["ele_waypoints"]
+        smoothed_ele_wp = activities_computation.smooth_elevation_stream(ele_wp) if ele_wp else []
+        elevation_gain, elevation_loss = None, None
+        if smoothed_ele_wp:
+            ele_gain, ele_loss = activities_computation.sum_elevation_deltas(smoothed_ele_wp)
+            elevation_gain, elevation_loss = round(ele_gain), round(ele_loss)
+
+        laps = _parse_laps(tcx_file, smoothed_ele_wp)
+
+        lat_lon_wp = waypoints["lat_lon_waypoints"]
+        power_wp = waypoints["power_waypoints"]
+        # Pause-derived values are parser-internal: keep them out of the
+        # payload's waypoint streams.
+        lat_lon_segments = waypoints.pop("lat_lon_segments")
+        moving_time = waypoints.pop("moving_time", 0.0)
+
+        distance = round(tcx_file.distance) if tcx_file.distance else 0
+        if not distance and lat_lon_wp:
+            # Some TCX sources omit the summary Distance element even when a
+            # GPS track is present. Fall back to the geodesic sum over the
+            # pause-split track segments, mirroring the FIT/GPX importers
+            # (issue #571: the hop across a pause is not travelled distance).
+            distance = round(
+                sum(
+                    activity_file_import_parser_utils.compute_distance_from_waypoints(segment_waypoints)
+                    for segment_waypoints in lat_lon_segments
+                )
+            )
+
+        timer_time = moving_time
+        if not timer_time and tcx_file.start_time and tcx_file.end_time:
+            timer_time = (tcx_file.end_time - tcx_file.start_time).total_seconds()
+
+        if lat_lon_wp:
+            pace = activities_computation.calculate_pace_from_duration(
+                distance,
+                timer_time,
+            )
+
+            timezone = activity_file_import_parser_utils.resolve_timezone_from_lat_lon(
+                trackpoints[0]["latitude"],
+                trackpoints[0]["longitude"],
+                timezone,
+            )
+
+        if power_wp:
+            avg_power, max_power, norm_power = activity_file_import_parser_utils.calculate_power_metrics(power_wp)
+
+        # Recompute avg/max HR from waypoints, excluding zeros (zero is not a
+        # valid HR value — it means the sensor was disconnected). This overrides
+        # the device-computed value from the TCX file which may include zeros.
+        hr_wp = waypoints.get("hr_waypoints", [])
+        if hr_wp:
+            recomputed_avg, recomputed_max = activities_computation.calculate_avg_and_max(
+                hr_wp,
+                "hr",
+            )
+            if recomputed_avg:
+                tcx_file.hr_avg = recomputed_avg
+            if recomputed_max:
+                tcx_file.hr_max = recomputed_max
+
+        activity = _build_activity(
+            tcx_file=tcx_file,
+            user_id=user_id,
+            activity_name=activity_name,
+            activity_type=activity_type,
+            distance=distance,
+            timezone=timezone,
+            pace=pace,
+            city=city,
+            town=town,
+            country=country,
+            avg_power=avg_power,
+            max_power=max_power,
+            norm_power=norm_power,
+            elevation_gain=elevation_gain,
+            elevation_loss=elevation_loss,
+            timer_time=moving_time,
+        )
+
+        waypoints_combined = {
+            **waypoints,
+            "power_waypoints": power_wp,
+            "lat_lon_waypoints": lat_lon_wp,
+        }
+        logger.debug(
+            "TCX parse complete",
+            extra=core_logger.context(
+                user_id=user_id,
+                activity_type=activity_type,
+                distance_m=distance,
+                laps=len(laps),
+                gps_points=len(lat_lon_wp),
+                has_hr=bool(hr_wp),
+                has_power=bool(power_wp),
+            ),
+        )
+        return activity_file_import_parser_utils.build_activity_file_payload(activity, waypoints_combined, laps)
+
+    except core_exceptions.DomainError:
+        raise
+    except Exception as err:
+        # The exception text can carry file paths / parser internals, so it is
+        # logged but never returned to the caller (OWASP A09).
+        logger.error("Error in parse_tcx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.ProcessingError("Can't open TCX file") from err

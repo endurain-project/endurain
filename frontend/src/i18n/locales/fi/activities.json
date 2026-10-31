@@ -39,7 +39,6 @@
       "distance": "Matka",
       "duration": "Kesto",
       "pace": "Tahti",
-      "speed": "Nopeus",
       "paceSpeed": "Tahti / Nopeus",
       "elevation": "Nousu",
       "calories": "Kalorit",
@@ -66,11 +65,10 @@
     "recenter": "Keskitä kartta uudelleen"
   },
   "metrics": {
-    "title": "Mittarit",
     "time": "Aika",
     "distance": "Matka",
     "movingTime": "Liikkumisaika",
-    "elapsedTime": "Kokonaisaika",
+    "elapsedTime": "Kulunut aika",
     "avgPace": "Keskitahti",
     "avgSpeed": "Keskinopeus",
     "maxSpeed": "Maksiminopeus",
@@ -109,7 +107,12 @@
     "elevation": "Nousu",
     "strokeRate": "Vetotiheys",
     "cycles": "Syklit",
-    "hr": "Syke"
+    "strokes": "Vedot",
+    "revolutions": "Kierrokset",
+    "strides": "Askeleet",
+    "jumps": "Hypyt",
+    "hr": "Syke",
+    "activeSummary": "Aktiivinen yhteensä"
   },
   "workout": {
     "title": "Harjoitus",
@@ -157,7 +160,6 @@
     "deleteError": "Aktiviteettia ei voitu poistaa"
   },
   "media": {
-    "title": "Valokuvat",
     "alt": "Aktiviteetin valokuva",
     "addMedia": "Lisää valokuva",
     "uploadSuccess": "Valokuva ladattu",
@@ -170,7 +172,8 @@
     "close": "Sulje",
     "deleteSuccess": "Valokuva poistettu",
     "deleteError": "Valokuvaa ei voitu poistaa",
-    "expand": "Näytä täysikokoisena"
+    "expand": "Näytä täysikokoisena",
+    "thumbnailPending": "Luodaan karttaesikatselua…"
   },
   "gallery": {
     "previous": "Edellinen",
@@ -204,7 +207,8 @@
     "hideWorkoutSetsSteps": "Piilota harjoituksen sarjat ja vaiheet",
     "hideGear": "Piilota varusteet",
     "success": "Aktiviteetti päivitetty",
-    "error": "Aktiviteettia ei voitu päivittää"
+    "error": "Aktiviteettia ei voitu päivittää",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Tämä aktiviteetti on piilotettu. Vain sinä näet sen.",

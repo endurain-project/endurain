@@ -1,6 +1,9 @@
 import type { PublicServerSettings } from '@/features/config/types'
 
+import { setAllowedRedirectSchemes } from '@/composables/useSafeRedirect'
 import { apiFetch } from '@/services/http'
+
+import { DEFAULT_MAP_CONFIG } from '../defaults'
 
 /** Defaults used when public server settings cannot be reached. */
 export const DEFAULT_PUBLIC_SERVER_SETTINGS: PublicServerSettings = {
@@ -15,20 +18,23 @@ export const DEFAULT_PUBLIC_SERVER_SETTINGS: PublicServerSettings = {
   password_length_regular_users: 8,
   password_length_admin_users: 12,
   num_records_per_page: 25,
-  tileserver_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  tileserver_attribution:
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  tileserver_url: DEFAULT_MAP_CONFIG.tileUrl,
+  tileserver_attribution: DEFAULT_MAP_CONFIG.attribution,
+  allowed_redirect_schemes: ['endurain'],
 }
 
 /**
- * Fetches public server settings needed by unauthenticated pages.
+ * Fetches public server settings needed by unauthenticated pages and applies the
+ * server's allowed redirect schemes.
  *
  * @returns Public server settings.
  * @throws {HttpError} When the endpoint cannot be reached.
  */
-export function fetchPublicServerSettings(): Promise<PublicServerSettings> {
-  return apiFetch<PublicServerSettings>('/public/server_settings', {
+export async function fetchPublicServerSettings(): Promise<PublicServerSettings> {
+  const settings = await apiFetch<PublicServerSettings>('/public/server_settings', {
     auth: false,
     retryOnUnauthorized: false,
   })
+  setAllowedRedirectSchemes(settings.allowed_redirect_schemes)
+  return settings
 }

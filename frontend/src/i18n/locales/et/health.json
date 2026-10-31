@@ -586,9 +586,6 @@
       "edit": "Muuda paastu",
       "delete": "Kustuta paast"
     },
-    "list": {
-      "notesLabel": "Märkmed"
-    },
     "form": {
       "addTitle": "Alusta paastu",
       "editTitle": "Muuda paastuseanssi",
@@ -596,7 +593,6 @@
       "type": "Paastuprotokoll",
       "customDuration": "Kohandatud kestus",
       "customDurationHint": "Paastu pikkus tundides (1–72).",
-      "hours": "tundi",
       "startTime": "Algusaeg",
       "startTimeRequired": "Palun vali algusaeg.",
       "endTime": "Lõpuaeg",

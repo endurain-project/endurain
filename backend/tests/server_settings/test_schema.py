@@ -8,7 +8,7 @@ including validation rules and field constraints.
 import pytest
 from pydantic import ValidationError
 
-import server_settings.schema as server_settings_schema
+import modules.server_settings.schema as server_settings_schema
 
 
 class TestUnitsEnum:
@@ -55,7 +55,7 @@ class TestServerSettingsBase:
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
-            tileserver_url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             map_background_color="#dddddd",
             password_type="strict",
@@ -133,6 +133,28 @@ class TestServerSettingsBase:
             password_length_admin_users=12,
         )
         assert settings.tileserver_url == "http://localhost:8080/{z}/{x}/{y}.png"
+
+    def test_tileserver_url_subdomain_placeholder_allowed(self):
+        """Test custom providers may still use the {s} subdomain placeholder."""
+        settings = server_settings_schema.ServerSettingsBase(
+            units=server_settings_schema.Units.METRIC,
+            public_shareable_links=False,
+            public_shareable_links_user_info=False,
+            login_photo_set=False,
+            currency=server_settings_schema.Currency.EURO,
+            num_records_per_page=25,
+            signup_enabled=False,
+            sso_enabled=False,
+            local_login_enabled=True,
+            sso_auto_redirect=False,
+            tileserver_url="https://{s}.tiles.example.com/{z}/{x}/{y}.png",
+            tileserver_attribution="Test",
+            map_background_color="#dddddd",
+            password_type="strict",
+            password_length_regular_users=8,
+            password_length_admin_users=12,
+        )
+        assert settings.tileserver_url == "https://{s}.tiles.example.com/{z}/{x}/{y}.png"
 
     def test_tileserver_url_missing_placeholders(self):
         """Test validation fails when required placeholders missing."""
@@ -217,7 +239,7 @@ class TestServerSettingsBase:
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
-            tileserver_url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution="Test",
             map_background_color="#FF0000",
             password_type="strict",
@@ -240,7 +262,7 @@ class TestServerSettingsBase:
                 sso_enabled=False,
                 local_login_enabled=True,
                 sso_auto_redirect=False,
-                tileserver_url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 tileserver_attribution="Test",
                 map_background_color="red",
                 password_type="strict",
@@ -262,7 +284,7 @@ class TestServerSettingsBase:
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
-            tileserver_url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution='&copy; <a href="https://example.com">Example</a>',
             map_background_color="#dddddd",
             password_type="strict",
@@ -290,7 +312,7 @@ class TestServerSettings:
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
-            tileserver_url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
@@ -319,7 +341,7 @@ class TestServerSettingsEdit:
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
-            tileserver_url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution="Test",
             map_background_color="#dddddd",
             password_type="strict",
@@ -338,7 +360,7 @@ class TestTileMapsTemplate:
         template = server_settings_schema.TileMapsTemplate(
             template_id="openstreetmap",
             name="OpenStreetMap",
-            url_template="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             map_background_color="#e8e8e8",
             requires_api_key_frontend=False,

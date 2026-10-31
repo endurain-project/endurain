@@ -48,7 +48,6 @@
       "title": "Še ni uporabnikov",
       "description": "Dodaj prvi račun za to instanco",
       "searchTitle": "Ni najdenih uporabnikov",
-      "searchDescription": "Nobeno uporabniško ime ne ustreza iskanju",
       "filteredTitle": "Noben uporabnik ne ustreza izbranim filtrom"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Vsaj {min} znakov, z veliko in malo črko, številko in posebnim znakom",
       "passwordHintLength": "Vsaj {min} znakov",
       "passwordRequired": "Geslo je obvezno",
-      "passwordTooShort": "Geslo mora biti vsaj 8 znakov",
       "passwordInvalid": "To geslo ne izpolnjuje zahtev",
       "confirmPassword": "Potrdi geslo",
       "confirmPasswordRequired": "Potrdi geslo",
@@ -135,6 +133,8 @@
         "pound": "Funt"
       },
       "firstDayOfWeek": "Prvi dan tedna",
+      "timezone": "Časovni pas",
+      "timezoneHint": "Uporablja se za aktivnosti, posnete brez GPS, na primer tek na tekaški stezi in kolesarjenje v zaprtih prostorih.",
       "weekdays": {
         "sunday": "Nedelja",
         "monday": "Ponedeljek",
@@ -354,6 +354,19 @@
       "deleteError": "Fotografije za prijavo ni bilo mogoče odstraniti. Prosim, poskusi znova.",
       "cancel": "Prekliči",
       "close": "Zapri"
+    },
+    "email": {
+      "title": "E-pošta",
+      "description": "Endurain pošilja e-pošto za ponastavitev gesla in registracijo prek strežnika SMTP, nastavljenega v okolju.",
+      "statusLoadError": "Nastavitve e-pošte ni bilo mogoče preveriti.",
+      "configured": "E-pošta je nastavljena.",
+      "notConfigured": "E-pošta ni nastavljena:",
+      "send": "Pošlji testno e-pošto",
+      "sending": "Pošiljanje …",
+      "sendHint": "Testna e-pošta se pošlje na tvoj lastni naslov.",
+      "sent": "Testna e-pošta poslana",
+      "failed": "Testne e-pošte ni bilo mogoče poslati",
+      "failedUnknown": "Podrobnosti poiščite v dnevnikih strežnika."
     }
   },
   "idp": {
@@ -589,7 +602,7 @@
     "backupCodes": {
       "title": "Shrani varnostne kode",
       "description": "Uporabi varnostno kodo za prijavo, če izgubiš dostop do aplikacije za preverjanje pristnosti.",
-      "warning": "Te kode so prikazane samo enkrat. Shrani jih na varno mesto — vsaka koda deluje samo enkrat.",
+      "warning": "Te kode so prikazane samo enkrat. Shrani jih na varno mesto, vsaka koda deluje samo enkrat.",
       "copy": "Kopiraj",
       "copied": "Varnostne kode kopirane",
       "copyError": "Kod ni bilo mogoče kopirati.",
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Množični uvoz",
       "subtitle": "Uvozi datoteke aktivnosti iz mape za množični uvoz na strežniku",
-      "button": "Uvozi aktivnosti",
+      "uploadButton": "Naloži ZIP",
+      "folderButton": "Uvozi iz mape",
       "started": "Uvažanje aktivnosti v ozadju…",
+      "alreadyRunning": "Množični uvoz že poteka. Počakaj, da se konča.",
       "error": "Uvoza ni bilo mogoče začeti. Prosim, poskusi znova."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava kolesa uvožena",
       "bikesError": "Strava koles ni bilo mogoče uvoziti. Prosim, poskusi znova.",
       "shoesSuccess": "Strava čevlji uvoženi",
-      "shoesError": "Strava čevljev ni bilo mogoče uvoziti. Prosim, poskusi znova."
+      "shoesError": "Strava čevljev ni bilo mogoče uvoziti. Prosim, poskusi znova.",
+      "activitiesUpload": "Uvozi aktivnosti (naloži ZIP)",
+      "activitiesFolder": "Uvozi aktivnosti (mapa na strežniku)"
+    },
+    "job": {
+      "preparing": "Priprava uvoza …",
+      "progress": "Uvoženih {done} od {total} datotek ({failed} neuspešnih) …",
+      "finished": "Uvoz je končan: uvoženih {done} od {total} datotek, {failed} neuspešnih.",
+      "failed": "Uvoza ni bilo mogoče dokončati."
     }
   },
   "profile": {
@@ -898,7 +921,7 @@
       "export": "Izvozi podatke",
       "import": "Uvozi podatke",
       "invalidType": "Prosim, izberi .zip arhiv.",
-      "exportSuccess": "Izvoz pripravljen — prenos bi se moral kmalu začeti",
+      "exportSuccess": "Izvoz pripravljen, prenos bi se moral kmalu začeti",
       "exportError": "Tvojih podatkov ni bilo mogoče izvoziti. Prosim, poskusi znova.",
       "importSuccess": "Podatki uvoženi",
       "importError": "Arhiva ni bilo mogoče uvoziti. Prosim, preveri datoteko in poskusi znova."

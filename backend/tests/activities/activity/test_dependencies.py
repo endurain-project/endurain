@@ -1,93 +1,78 @@
-import pytest
-from fastapi import HTTPException
+"""The typed request parameters reject a bad value through FastAPI's own validation (422)."""
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+import core.exceptions as core_exceptions
+import modules.activities.activity.dependencies as activity_dependencies
 
 
-class TestValidateWeekNumber:
-    def test_validate_week_number_valid(self):
-        from activities.activity.dependencies import validate_week_number
+def _client() -> TestClient:
+    app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
 
-        validate_week_number(0)
-        validate_week_number(52)
+    @app.get("/list")
+    def list_activities(
+        activity_type: activity_dependencies.ActivityTypeFilter = None,
+        sort_by: activity_dependencies.SortBy = None,
+        sort_order: activity_dependencies.SortOrder = None,
+    ) -> dict:
+        return {
+            "type": activity_type,
+            "sort_by": sort_by.value if sort_by else None,
+            "sort_order": sort_order.value if sort_order else None,
+        }
 
-    def test_validate_week_number_invalid(self):
-        from activities.activity.dependencies import validate_week_number
+    @app.get("/{activity_id}")
+    def read(activity_id: activity_dependencies.ActivityId) -> dict:
+        return {"id": activity_id}
 
-        with pytest.raises(HTTPException):
-            validate_week_number(-1)
-
-
-class TestValidateActivityType:
-    def test_validate_valid_type(self):
-        from activities.activity.dependencies import validate_activity_type
-
-        validate_activity_type(1)
-        validate_activity_type(None)
-
-    def test_validate_invalid_type(self):
-        from activities.activity.dependencies import validate_activity_type
-
-        with pytest.raises(HTTPException) as exc:
-            validate_activity_type(9999)
-        assert exc.value.status_code == 422
+    return TestClient(app)
 
 
-class TestValidateSortBy:
-    def test_validate_valid_sort_by(self):
-        from activities.activity.dependencies import validate_sort_by
+class TestActivityTypeFilter:
+    def test_a_known_type_and_no_filter_are_accepted(self):
+        client = _client()
 
-        validate_sort_by("name")
-        validate_sort_by("distance")
-        validate_sort_by("average_hr")
-        validate_sort_by(None)
+        assert client.get("/list", params={"type": 1}).json()["type"] == 1
+        assert client.get("/list").json()["type"] is None
 
-    def test_validate_invalid_sort_by(self):
-        from activities.activity.dependencies import validate_sort_by
+    def test_an_unknown_type_is_a_validation_error(self):
+        response = _client().get("/list", params={"type": 9999})
 
-        with pytest.raises(HTTPException) as exc:
-            validate_sort_by("invalid_field")
-        assert exc.value.status_code == 422
+        assert response.status_code == 422
+        assert response.json()["errors"][0]["field"] == "query.type"
 
 
-class TestValidateSortOrder:
-    def test_validate_valid_sort_order(self):
-        from activities.activity.dependencies import validate_sort_order
+class TestSortParameters:
+    def test_known_sort_keys_and_directions_are_accepted(self):
+        client = _client()
 
-        validate_sort_order("asc")
-        validate_sort_order("desc")
-        validate_sort_order(None)
+        for key in ("name", "distance", "average_hr"):
+            assert client.get("/list", params={"sort_by": key}).status_code == 200
+        assert client.get("/list", params={"sort_order": "desc"}).json()["sort_order"] == "desc"
 
-    def test_validate_invalid_sort_order(self):
-        from activities.activity.dependencies import validate_sort_order
+    def test_an_unknown_sort_key_is_rejected(self):
+        assert _client().get("/list", params={"sort_by": "nope"}).status_code == 422
 
-        with pytest.raises(HTTPException) as exc:
-            validate_sort_order("invalid")
-        assert exc.value.status_code == 422
+    def test_an_unknown_sort_direction_is_rejected(self):
+        assert _client().get("/list", params={"sort_order": "sideways"}).status_code == 422
 
+    def test_every_sort_field_is_accepted(self):
+        import modules.activities.activity.constants as activity_constants
 
-class TestValidateVisibility:
-    def test_validate_valid_visibility(self):
-        from activities.activity.dependencies import validate_visibility
-
-        validate_visibility(0)
-        validate_visibility(1)
-        validate_visibility(2)
-
-    def test_validate_invalid_visibility(self):
-        from activities.activity.dependencies import validate_visibility
-
-        with pytest.raises(HTTPException):
-            validate_visibility(5)
+        client = _client()
+        assert set(activity_constants.ACTIVITY_SORT_FIELDS) == set(activity_constants.ActivitySortField)
+        for key in activity_constants.ACTIVITY_SORT_FIELDS:
+            assert client.get("/list", params={"sort_by": key}).status_code == 200
 
 
-class TestValidateActivityID:
-    def test_validate_valid_activity_id(self):
-        import activities.activity.dependencies as deps
+class TestActivityId:
+    def test_a_positive_id_is_accepted(self):
+        assert _client().get("/7").json() == {"id": 7}
 
-        deps.validate_activity_id(1)
-        deps.validate_activity_id(100)
+    def test_zero_and_negative_ids_are_rejected(self):
+        client = _client()
 
-    def test_validate_invalid_activity_id(self):
-        import activities.activity.dependencies as deps
-
-        with pytest.raises(HTTPException):
-            deps.validate_activity_id(-1)
+        assert client.get("/0").status_code == 422
+        assert client.get("/-3").status_code == 422
