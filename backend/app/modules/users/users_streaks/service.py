@@ -36,13 +36,11 @@ def get_weekly_streak(
     Returns:
         The weekly streak response.
     """
-    activity_types = set(settings.activity_types) if settings.activity_types else None
+    activity_types = settings.activity_types or None
     local_dates = [
         local_date
-        for activity in activity_integration.list_user_activities(user_id, db)
-        if not activity.is_hidden
-        and (activity_types is None or activity.activity_type in activity_types)
-        and (local_date := streak_utils.local_start_date(activity.start_time, activity.timezone)) is not None
+        for activity in activity_integration.list_user_activity_starts(user_id, db, activity_types=activity_types)
+        if (local_date := streak_utils.local_start_date(activity.start_time, activity.timezone)) is not None
     ]
 
     current_week_start = core_calendar.get_week_start(today, first_day_of_week)

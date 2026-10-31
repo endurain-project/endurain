@@ -156,6 +156,16 @@ describe('WeeklyStreakCard', () => {
     expect(wrapper.text()).toContain('Personal best')
   })
 
+  it('caps the progressbar value at the weekly target', () => {
+    const wrapper = mountCard({
+      streak: makeStreak({ currentWeekCount: 5, currentWeekMet: true, atRisk: false }),
+    })
+    const bar = wrapper.get('[role="progressbar"]')
+    expect(bar.attributes('aria-valuenow')).toBe('2')
+    expect(bar.attributes('aria-valuemax')).toBe('2')
+    expect(wrapper.get('[data-testid="streak-status"]').text()).toContain('5 of 2')
+  })
+
   it('invites the user to start a streak when there is none', () => {
     const wrapper = mountCard({
       streak: makeStreak({

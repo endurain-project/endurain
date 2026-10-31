@@ -72,6 +72,27 @@ def list_user_activities(user_id: int, db: Session) -> list[activity_schema.Acti
     return activity_crud.get_user_activities(user_id, db, user_is_owner=True)
 
 
+def list_user_activity_starts(
+    user_id: int,
+    db: Session,
+    *,
+    activity_types: Sequence[int] | None = None,
+) -> list[activity_contracts.ActivityStartRef]:
+    """Return the start time and timezone of a user's non-hidden activities.
+
+    Used by the weekly streak, which only needs each activity's local start date.
+
+    Args:
+        user_id: The owning user id.
+        db: Database session.
+        activity_types: Sport type codes to include, or ``None`` for all.
+
+    Returns:
+        The matching start references, empty when there are none.
+    """
+    return activity_crud.get_user_activity_starts(user_id, db, activity_types=activity_types)
+
+
 def list_user_activities_with_garminconnect_gear(
     user_id: int,
     db: Session,

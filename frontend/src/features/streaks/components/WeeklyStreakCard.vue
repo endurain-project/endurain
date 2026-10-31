@@ -157,7 +157,7 @@ const isPersonalBest = computed(
           <div
             class="h-2 w-full overflow-hidden rounded-full bg-muted-foreground/15"
             role="progressbar"
-            :aria-valuenow="streak.currentWeekCount"
+            :aria-valuenow="Math.min(streak.currentWeekCount, streak.minActivitiesPerWeek)"
             aria-valuemin="0"
             :aria-valuemax="streak.minActivitiesPerWeek"
             :aria-label="t('home.streak.thisWeek')"

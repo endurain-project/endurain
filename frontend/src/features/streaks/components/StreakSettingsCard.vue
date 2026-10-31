@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
@@ -17,7 +17,7 @@ import { MAX_ACTIVITIES_PER_WEEK } from '@/features/streaks/types'
 import { useUpdateStreakSettingsMutation } from '@/features/streaks/composables/useStreaks'
 
 const props = defineProps<{
-  /** The loaded settings; seeds the form (mounted only after load). */
+  /** The loaded settings; seeds the form and refreshes its unedited fields. */
   settings: StreakSettings
 }>()
 
@@ -40,13 +40,31 @@ const typeOptions = computed(() =>
     .sort((a, b) => a.label.localeCompare(b.label)),
 )
 
+/**
+ * Maps stored settings to the form shape.
+ *
+ * @param settings - The stored settings.
+ * @returns Fresh form values (the type list is copied).
+ */
+function toForm(settings: StreakSettings): StreakForm {
+  return {
+    minActivitiesPerWeek: settings.minActivitiesPerWeek,
+    countAllTypes: settings.activityTypes === null,
+    activityTypes: [...(settings.activityTypes ?? [])],
+    showOnProfile: settings.showOnProfile,
+  }
+}
+
+/** Compares two form values; type lists by content. */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((item, index) => item === b[index])
+  }
+  return a === b
+}
+
 const { values, errors, isSubmitting, handleSubmit } = useForm<StreakForm>({
-  initialValues: {
-    minActivitiesPerWeek: props.settings.minActivitiesPerWeek,
-    countAllTypes: props.settings.activityTypes === null,
-    activityTypes: [...(props.settings.activityTypes ?? [])],
-    showOnProfile: props.settings.showOnProfile,
-  },
+  initialValues: toForm(props.settings),
   validators: {
     minActivitiesPerWeek: (value) =>
       Number.isInteger(value) && value >= 1 && value <= MAX_ACTIVITIES_PER_WEEK
@@ -55,6 +73,23 @@ const { values, errors, isSubmitting, handleSubmit } = useForm<StreakForm>({
   },
   onSubmit: submit,
 })
+
+// The card stays mounted while the settings query refreshes (e.g. after a save
+// in another tab). Adopt the new stored values for every field the user has not
+// edited, so a later save cannot write back a stale value such as an old
+// `showOnProfile`.
+watch(
+  () => props.settings,
+  (next, previous) => {
+    const nextForm = toForm(next)
+    const previousForm = toForm(previous)
+    for (const key of Object.keys(nextForm) as (keyof StreakForm)[]) {
+      if (sameValue(values[key], previousForm[key])) {
+        Object.assign(values, { [key]: nextForm[key] })
+      }
+    }
+  },
+)
 
 /** Shown when "all types" is off but no type is ticked. */
 const typesError = ref<string | null>(null)

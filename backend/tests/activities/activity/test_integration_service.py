@@ -46,6 +46,18 @@ class TestIntegrationService:
         mock_crud.get_user_activities.assert_called_once_with(3, db, user_is_owner=True)
 
     @patch("modules.activities.activity.integration_service.activity_crud")
+    def test_list_user_activity_starts_delegates(self, mock_crud):
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_crud.get_user_activity_starts.return_value = ["a"]
+
+        result = integration_service.list_user_activity_starts(3, db, activity_types=[1])
+
+        assert result == ["a"]
+        mock_crud.get_user_activity_starts.assert_called_once_with(3, db, activity_types=[1])
+
+    @patch("modules.activities.activity.integration_service.activity_crud")
     def test_list_user_activities_with_garminconnect_gear_delegates(self, mock_crud):
         from modules.activities.activity import integration_service
 

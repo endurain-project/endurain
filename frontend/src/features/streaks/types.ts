@@ -4,8 +4,11 @@
  * A week "counts" toward the streak when it holds at least
  * `minActivitiesPerWeek` activities of the selected types. The backend owns the
  * calculation; these are the clean, camel-cased models the UI consumes. The raw
- * snake_case DTOs live here too but never leave the service module.
+ * snake_case DTOs live here too, derived from the generated OpenAPI schemas,
+ * but never leave the service module.
  */
+
+import type { Schemas } from '@/types'
 
 /** One week of the streak history strip. */
 export interface StreakWeek {
@@ -59,32 +62,13 @@ export interface StreakSettings {
 export const MAX_ACTIVITIES_PER_WEEK = 21
 
 /** Wire format of a history week. */
-export interface StreakWeekDto {
-  week_start: string
-  activity_count: number
-  met: boolean
-}
+export type StreakWeekDto = Schemas['StreakWeek']
 
 /** Wire format of `GET /activities_streaks`. */
-export interface WeeklyStreakDto {
-  current_streak: number
-  current_streak_start: string | null
-  longest_streak: number
-  longest_streak_start: string | null
-  longest_streak_end: string | null
-  current_week_start: string
-  current_week_count: number
-  current_week_met: boolean
-  at_risk: boolean
-  min_activities_per_week: number
-  activity_types: number[] | null
-  recent_weeks: StreakWeekDto[]
-}
+export type WeeklyStreakDto = Schemas['WeeklyStreakResponse']
 
-/** Wire format of `GET/PUT /profile/streak_settings`. */
-export interface StreakSettingsDto {
-  user_id?: number
-  min_activities_per_week: number
-  activity_types: number[] | null
-  show_on_profile: boolean
-}
+/** Wire format of `GET /profile/streak_settings` and the `PUT` response. */
+export type StreakSettingsReadDto = Schemas['UsersStreakSettingsRead']
+
+/** Request body of `PUT /profile/streak_settings`. */
+export type StreakSettingsUpdateDto = Schemas['UsersStreakSettingsUpdate']

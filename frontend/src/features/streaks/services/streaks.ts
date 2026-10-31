@@ -6,7 +6,8 @@
 
 import type {
   StreakSettings,
-  StreakSettingsDto,
+  StreakSettingsReadDto,
+  StreakSettingsUpdateDto,
   WeeklyStreak,
   WeeklyStreakDto,
 } from '@/features/streaks/types'
@@ -46,7 +47,7 @@ export function mapWeeklyStreak(dto: WeeklyStreakDto): WeeklyStreak {
  * @param dto - Raw settings payload from the backend.
  * @returns The normalized settings model.
  */
-export function mapStreakSettings(dto: StreakSettingsDto): StreakSettings {
+export function mapStreakSettings(dto: StreakSettingsReadDto): StreakSettings {
   return {
     minActivitiesPerWeek: dto.min_activities_per_week,
     activityTypes: dto.activity_types && dto.activity_types.length > 0 ? dto.activity_types : null,
@@ -93,7 +94,7 @@ export async function fetchUserWeeklyStreak(
  * @throws {HttpError} When the request fails.
  */
 export async function fetchStreakSettings(signal?: AbortSignal): Promise<StreakSettings> {
-  const dto = await apiFetch<StreakSettingsDto>('/profile/streak_settings', { signal })
+  const dto = await apiFetch<StreakSettingsReadDto>('/profile/streak_settings', { signal })
   return mapStreakSettings(dto)
 }
 
@@ -105,13 +106,13 @@ export async function fetchStreakSettings(signal?: AbortSignal): Promise<StreakS
  * @throws {HttpError} When the request fails (e.g. validation).
  */
 export async function updateStreakSettings(settings: StreakSettings): Promise<StreakSettings> {
-  const payload: StreakSettingsDto = {
+  const payload: StreakSettingsUpdateDto = {
     min_activities_per_week: settings.minActivitiesPerWeek,
     activity_types:
       settings.activityTypes && settings.activityTypes.length > 0 ? settings.activityTypes : null,
     show_on_profile: settings.showOnProfile,
   }
-  const dto = await apiFetch<StreakSettingsDto>('/profile/streak_settings', {
+  const dto = await apiFetch<StreakSettingsReadDto>('/profile/streak_settings', {
     method: 'PUT',
     body: JSON.stringify(payload),
   })

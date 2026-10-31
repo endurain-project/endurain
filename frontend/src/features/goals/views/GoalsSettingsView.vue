@@ -253,8 +253,11 @@ function confirmDelete(): void {
       v-if="streakSettingsQuery.data.value"
       :settings="streakSettingsQuery.data.value"
     />
-    <Card v-else-if="streakSettingsQuery.isError.value">
+    <Card v-else-if="streakSettingsQuery.isError.value" class="flex flex-col items-start gap-3">
       <p class="text-hint">{{ t('settings.goals.streak.loadError') }}</p>
+      <Button variant="outline" size="sm" @click="streakSettingsQuery.refetch()">
+        {{ t('settings.goals.error.retry') }}
+      </Button>
     </Card>
     <Card v-else class="flex flex-col gap-3" aria-busy="true">
       <Skeleton class="h-5 w-40" />
