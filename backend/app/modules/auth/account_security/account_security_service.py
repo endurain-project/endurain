@@ -114,7 +114,8 @@ def stage_change_own_password(
     mfa_code: str | None,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
-    revoke_other_sessions: bool = False,
+    *,
+    revoke_other_sessions: bool,
     current_session_id: str | None = None,
 ) -> None:
     """Stage a change of a user's own password after step-up verification; the caller commits.

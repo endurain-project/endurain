@@ -3662,10 +3662,10 @@ export interface paths {
          *     token alone from being parlayed into permanent account
          *     takeover.
          *
-         *     When ``revoke_other_sessions`` is set on the request, all of
-         *     the user's other sessions are revoked after the change while
-         *     the current session is preserved, so a password change can
-         *     evict a suspected attacker without logging the caller out.
+         *     All of the user's other sessions are revoked after the change
+         *     while the current session is preserved, unless the request sets
+         *     ``revoke_other_sessions`` to false, so a password change evicts
+         *     a suspected attacker without logging the caller out.
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
@@ -12360,8 +12360,8 @@ export interface components {
             password: string;
             /**
              * Revoke Other Sessions
-             * @description When true, revoke all of the user's other sessions (keeping the current one) after the password change. Use this to evict an attacker when changing a password because of a suspected compromise.
-             * @default false
+             * @description After the password change, all of the user's other sessions (keeping the current one) are revoked unless the client sends false.
+             * @default true
              */
             revoke_other_sessions: boolean;
         };

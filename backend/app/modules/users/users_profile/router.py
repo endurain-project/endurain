@@ -294,10 +294,10 @@ def edit_profile_password(
     token alone from being parlayed into permanent account
     takeover.
 
-    When ``revoke_other_sessions`` is set on the request, all of
-    the user's other sessions are revoked after the change while
-    the current session is preserved, so a password change can
-    evict a suspected attacker without logging the caller out.
+    All of the user's other sessions are revoked after the change
+    while the current session is preserved, unless the request sets
+    ``revoke_other_sessions`` to false, so a password change evicts
+    a suspected attacker without logging the caller out.
 
     Args:
         request: The incoming request, read by the rate limiter.

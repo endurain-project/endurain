@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import modules.auth.account_security.account_security_service as account_security_service
 
 
@@ -56,6 +58,7 @@ class TestChangeOwnPassword:
                 mfa_code="123456",
                 step_up_store=step_up_store,
                 db=mock_db,
+                revoke_other_sessions=False,
             )
 
         mock_verify.assert_called_once_with(
@@ -116,9 +119,42 @@ class TestChangeOwnPassword:
                 mfa_code=None,
                 step_up_store=step_up_store,
                 db=mock_db,
+                revoke_other_sessions=False,
             )
 
         mock_hash_password.assert_called_once_with(mock_settings, "admin", "new-pass", mock_db)
+
+    @pytest.mark.parametrize("revoke", [True, False])
+    def test_revokes_other_sessions_only_when_asked(self, revoke, mock_db):
+        """Other sessions are deleted, keeping the current one, only when the caller asks."""
+        mock_user = MagicMock()
+        mock_user.access_type = "regular"
+        prefix = "modules.auth.account_security.account_security_service."
+        with (
+            patch(prefix + "step_up_service.verify_step_up_credentials"),
+            patch(prefix + "mfa_integration.clear_pending_mfa_for_user"),
+            patch(prefix + "server_settings_integration.get_server_settings"),
+            patch(prefix + "credentials_integration.has_local_password", return_value=True),
+            patch(prefix + "users_integration.require_user", return_value=mock_user),
+            patch(prefix + "credentials_integration.validate_and_hash_password_for_user", return_value="hashed"),
+            patch(prefix + "credentials_integration.set_local_password_hash"),
+            patch(prefix + "sessions_integration.delete_sessions_by_user") as mock_delete_sessions,
+        ):
+            account_security_service.stage_change_own_password(
+                user_id=7,
+                current_password="old-pass",
+                new_password="new-pass",
+                mfa_code=None,
+                step_up_store=MagicMock(),
+                db=mock_db,
+                revoke_other_sessions=revoke,
+                current_session_id="session-1",
+            )
+
+        if revoke:
+            mock_delete_sessions.assert_called_once_with(7, mock_db, exclude_session_id="session-1")
+        else:
+            mock_delete_sessions.assert_not_called()
 
 
 class TestChangeManagedUserPassword:

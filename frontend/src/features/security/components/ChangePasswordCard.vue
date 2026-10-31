@@ -32,7 +32,7 @@ const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const mfaCode = ref('')
-const revokeOtherSessions = ref(false)
+const revokeOtherSessions = ref(true)
 
 const { hint: requirementsHint, isValid: isValidPassword } = usePasswordPolicy(
   () => props.accessType,
@@ -63,7 +63,7 @@ function resetForm(): void {
   newPassword.value = ''
   confirmPassword.value = ''
   mfaCode.value = ''
-  revokeOtherSessions.value = false
+  revokeOtherSessions.value = true
 }
 
 /** Submits the change-password request and reports the outcome. */

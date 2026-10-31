@@ -52,7 +52,7 @@ def change_own_password(
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
     *,
-    revoke_other_sessions: bool = False,
+    revoke_other_sessions: bool,
     current_session_id: str | None = None,
 ) -> None:
     """Stage a change of a user's password after step-up verification."""

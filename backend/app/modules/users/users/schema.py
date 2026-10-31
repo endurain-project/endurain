@@ -586,12 +586,10 @@ class UsersEditPassword(BaseModel):
         description="TOTP or backup code, required when MFA is enabled",
     )
     revoke_other_sessions: StrictBool = Field(
-        default=False,
+        default=True,
         description=(
-            "When true, revoke all of the user's other sessions "
-            "(keeping the current one) after the password change. "
-            "Use this to evict an attacker when changing a password "
-            "because of a suspected compromise."
+            "After the password change, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
         ),
     )
 

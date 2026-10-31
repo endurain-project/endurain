@@ -21,6 +21,14 @@ def test_changing_the_password_stages_through_account_security_then_commits(mock
     mock_db.commit.assert_called_once()
 
 
+def test_changing_the_password_revokes_other_sessions_unless_the_client_opts_out(mock_db):
+    change = users_schema.UsersEditPassword(current_password="old-password", password="new-password-1", mfa_code=None)
+    with patch(_ACCOUNT_SECURITY) as account_security:
+        profile_service.change_password(5, change, "sid", MagicMock(), mock_db)
+
+    assert account_security.change_own_password.call_args.kwargs["revoke_other_sessions"] is True
+
+
 def test_starting_a_browser_link_commits_the_staged_state_before_building_the_provider_url(mock_db):
     staged = MagicMock(browser_binding="binding-secret")
     order = MagicMock()
