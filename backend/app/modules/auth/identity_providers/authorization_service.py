@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
+import core.network as core_network
 import modules.auth.computation as auth_computation
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.constants as idp_constants
@@ -212,6 +213,8 @@ class AuthorizationService:
 
         Raises:
             UpstreamError: If the provider's authorization endpoint cannot be resolved.
+            InvalidInputError: If the endpoint is plain http to a host outside SSRF_ALLOWED_HOSTS, or resolves
+                to a non-public address.
         """
         extra: dict[str, str] = {}
         if staged.purpose == oauth_state_constants.OAuthStatePurpose.STEP_UP:
@@ -240,6 +243,8 @@ class AuthorizationService:
 
         Raises:
             UpstreamError: If the endpoint is not configured and discovery cannot provide it.
+            InvalidInputError: If the endpoint is plain http to a host outside SSRF_ALLOWED_HOSTS, or resolves
+                to a non-public address.
         """
         authorization_endpoint = idp.authorization_endpoint
         if not authorization_endpoint and idp.issuer_url:
@@ -254,6 +259,7 @@ class AuthorizationService:
                 "private network, add its host or CIDR to "
                 "SSRF_ALLOWED_HOSTS."
             )
+        core_network.reject_private_url(authorization_endpoint, purpose="oidc_authorization", require_tls=True)
         redirect_uri = identity_provider_utils.build_redirect_uri(self._frontend_host, idp.slug)
         scopes = idp.scopes or "openid profile email"
         with OAuth2Client(

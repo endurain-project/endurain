@@ -138,11 +138,17 @@ Save the generated **Client ID** and **Client Secret**.
 | **Provider Name** | Display name shown on login button | `Google`, `GitHub`, etc. |
 | **Slug** | URL-safe identifier (lowercase, hyphens) | `google`, `github` |
 | **Provider Type** | Protocol type | `OIDC` or `OAuth2` |
-| **Issuer URL** | Provider's base URL (no trailing slash) | `https://accounts.google.com` |
+| **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document; a trailing slash is ignored | `https://accounts.google.com` |
 | **Client ID** | OAuth client identifier | From Step 1 |
 | **Client Secret** | OAuth client secret | From Step 1 |
 | **Scopes** | Space-separated OAuth scopes | `openid profile email` |
 | **Icon** | Logo on the login button: a built-in logo or an uploaded image | `Keycloak`, `Upload an image` |
+
+#### HTTPS and private networks
+
+- Every provider URL must use `https://`: the issuer and any endpoint you enter, and the endpoints the provider's discovery document lists. Endurain checks this when you save the provider and before every call to it.
+- A provider on a private network, or one served over plain `http://`, must have its host listed in [`SSRF_ALLOWED_HOSTS`](../getting-started/advanced-setup.md). Plain `http://` is accepted only for a listed host.
+- Saving a provider applies the change at once. When the provider rotates its signing keys, Endurain fetches the new keys on the next sign-in.
 
 #### Choosing an icon
 
@@ -231,9 +237,15 @@ If **Allow local username and password login** is enabled, the auto-redirect is 
 - **Cause**: **Auto-redirect to SSO** is enabled and **Allow local username and password login** is disabled.
 - **Solution**: Visit the login page with `?forceLocalLogin=true` appended, e.g. `https://endurain.mydomain.com/?forceLocalLogin=true`. See [Auto-redirect to SSO](#auto-redirect-to-sso) above.
 
-**Problem**: "Invalid issuer URL" error
+**Problem**: "The provider URL was refused" when saving a provider
 
-- **Solution**: Ensure the Issuer URL does not have a trailing slash and is the correct base URL for your identity provider
+- **Cause**: A URL uses plain `http://`, does not resolve from the Endurain server, or resolves to a private address, and its host is not in `SSRF_ALLOWED_HOSTS`.
+- **Solution**: Use the provider's `https://` URL. For a provider on a private network, add its host or CIDR to `SSRF_ALLOWED_HOSTS`. See [HTTPS and private networks](#https-and-private-networks).
+
+**Problem**: SSO sign-in fails and the log shows "OIDC discovery document for ... names issuer ..., expected ..."
+
+- **Cause**: The provider's discovery document names a different issuer than the configured **Issuer URL**, so Endurain does not trust it.
+- **Solution**: Set the **Issuer URL** to the `issuer` value from `https://<your-provider>/.well-known/openid-configuration`.
 
 ### Logs
 
@@ -250,7 +262,7 @@ Look for authentication-related errors that can help identify configuration issu
 ## Security Considerations
 
 !!! warning "Security Best Practices"
-    - Always use **HTTPS** for both Endurain and your identity provider
+    - Always use **HTTPS** for Endurain. Endurain requires it for your identity provider unless the provider's host is in `SSRF_ALLOWED_HOSTS`
     - Keep your **Client Secret** confidential and never commit it to version control
     - Regularly rotate client secrets
     - Use strong, randomly generated secrets

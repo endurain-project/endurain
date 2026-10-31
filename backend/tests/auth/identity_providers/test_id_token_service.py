@@ -161,6 +161,38 @@ class TestVerifyIdTokenKeyResolution:
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "unknown key" in exc_info.value.detail.lower()
 
+    def test_a_kid_missing_from_the_cached_set_is_looked_up_in_a_fresh_set(self, service, rsa_key):
+        token = _sign(rsa_key, _valid_claims())
+        stale = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
+        fetch = MagicMock(side_effect=[stale, _public_jwks(rsa_key)])
+        with patch.object(service, "fetch_jwks", fetch):
+            claims = _verify(service, token, JWKS_URI, ISS, AUD)
+        assert claims["sub"] == "user-1"
+        assert fetch.call_args_list[0].args == (JWKS_URI,)
+        assert fetch.call_args_list[0].kwargs == {}
+        assert fetch.call_args_list[1].args == (JWKS_URI,)
+        assert fetch.call_args_list[1].kwargs == {"refresh": True}
+
+    def test_a_kid_missing_from_the_fresh_set_too_is_an_unknown_key(self, service, rsa_key):
+        token = _sign(rsa_key, _valid_claims())
+        stale = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
+        fetch = MagicMock(return_value=stale)
+        with (
+            patch.object(service, "fetch_jwks", fetch),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "unknown key" in exc_info.value.detail.lower()
+        assert fetch.call_count == 2
+
+    def test_a_known_kid_does_not_refetch(self, service, rsa_key):
+        token = _sign(rsa_key, _valid_claims())
+        fetch = MagicMock(return_value=_public_jwks(rsa_key))
+        with patch.object(service, "fetch_jwks", fetch):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        fetch.assert_called_once_with(JWKS_URI)
+
     def test_unsupported_key_type_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{"kid": KID, "kty": "UNKNOWN"}]}

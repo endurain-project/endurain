@@ -380,6 +380,7 @@ _NON_PUBLIC = "resolves to a non-public address"
 _RESOLUTION_BUSY = "hostname resolution is busy, try again"
 _RESOLUTION_TIMED_OUT = "hostname resolution timed out"
 _NOT_AN_AUTHORITY = "is not a bare host[:port] authority"
+_TLS_REQUIRED = "must use https unless its host is in SSRF_ALLOWED_HOSTS"
 
 
 def _resolve_checked_addresses(
@@ -504,16 +505,35 @@ def _outbound_url_hostname(url: str) -> tuple[str | None, str | None]:
     return parsed.hostname, None
 
 
+def _plaintext_http_allowed(hostname: str, addresses: tuple[str, ...]) -> bool:
+    """Return True when ``SSRF_ALLOWED_HOSTS`` covers the host by name or every resolved address.
+
+    Args:
+        hostname: The URL's hostname.
+        addresses: The addresses the hostname resolved to.
+
+    Returns:
+        True when the operator allowlisted the host, so plain ``http`` may be dialed.
+    """
+    hosts, networks = _load_ssrf_allowlist()
+    if hostname.lower() in hosts:
+        return True
+    return all(any(ipaddress.ip_address(address) in network for network in networks) for address in addresses)
+
+
 def resolve_url_addresses(
     url: str,
     *,
     purpose: str | None = None,
+    require_tls: bool = False,
 ) -> tuple[tuple[str, ...], str | None]:
     """Resolve an outbound URL to validated addresses or a rejection reason.
 
     Args:
         url: Fully-qualified outbound URL.
         purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse an ``http`` URL unless its host is allowlisted by name or every address it
+            resolves to is covered by ``SSRF_ALLOWED_HOSTS``.
 
     Returns:
         Validated addresses and ``None``, or no addresses and a safe reason.
@@ -523,24 +543,29 @@ def resolve_url_addresses(
         return (), reason
 
     addresses, reason = _resolve_checked_addresses(hostname, purpose=purpose)
-    return addresses, f"URL {reason}" if reason is not None else None
+    if reason is not None:
+        return addresses, f"URL {reason}"
+    if require_tls and urlparse(url).scheme.lower() == "http" and not _plaintext_http_allowed(hostname, addresses):
+        return (), f"URL {_TLS_REQUIRED}"
+    return addresses, None
 
 
-def url_rejection_reason(url: str, *, purpose: str | None = None) -> str | None:
+def url_rejection_reason(url: str, *, purpose: str | None = None, require_tls: bool = False) -> str | None:
     """Return why an outbound URL must not be dialed, or ``None``.
 
     Args:
         url: Fully-qualified outbound URL.
         purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse plain ``http`` unless the host is in ``SSRF_ALLOWED_HOSTS``.
 
     Returns:
         A safe client-facing reason, or ``None`` when the URL may be dialed.
     """
-    _, reason = resolve_url_addresses(url, purpose=purpose)
+    _, reason = resolve_url_addresses(url, purpose=purpose, require_tls=require_tls)
     return reason
 
 
-def reject_private_url(url: str, *, purpose: str | None = None) -> None:
+def reject_private_url(url: str, *, purpose: str | None = None, require_tls: bool = False) -> None:
     """Refuse to dial URLs that resolve to private/internal hosts.
 
     Mitigates Server-Side Request Forgery (SSRF) by
@@ -571,15 +596,20 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
             destination is allowed via
             ``SSRF_ALLOWED_HOSTS``; never trusted as a
             security boundary.
+        require_tls: Also refuse an ``http`` URL unless its
+            host is allowlisted by name or every address it
+            resolves to is covered by ``SSRF_ALLOWED_HOSTS``.
 
     Raises:
         InvalidInputError: If the URL is malformed,
             uses a forbidden scheme, has no hostname,
-            or resolves to any non-public address that
+            resolves to any non-public address that
             is not covered by the
-            ``SSRF_ALLOWED_HOSTS`` allowlist.
+            ``SSRF_ALLOWED_HOSTS`` allowlist, or is plain
+            ``http`` while ``require_tls`` is set and its
+            host is not allowlisted.
     """
-    reason = url_rejection_reason(url, purpose=purpose)
+    reason = url_rejection_reason(url, purpose=purpose, require_tls=require_tls)
     if reason is not None:
         raise core_exceptions.InvalidInputError(reason)
 
@@ -610,7 +640,7 @@ def shutdown_ssrf_dns_executor() -> None:
     _ssrf_dns_executor = None
 
 
-def url_rejection_reason_bounded(url: str, *, purpose: str | None = None) -> str | None:
+def url_rejection_reason_bounded(url: str, *, purpose: str | None = None, require_tls: bool = False) -> str | None:
     """Return why an outbound URL must not be dialed, bounding the DNS wait.
 
     For a caller that must not sit in an unbounded ``getaddrinfo``: the lookup runs on
@@ -622,6 +652,7 @@ def url_rejection_reason_bounded(url: str, *, purpose: str | None = None) -> str
     Args:
         url: Fully-qualified outbound URL.
         purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse plain ``http`` unless the host is in ``SSRF_ALLOWED_HOSTS``.
 
     Returns:
         A safe client-facing reason, or ``None`` when the URL may be dialed.
@@ -636,7 +667,9 @@ def url_rejection_reason_bounded(url: str, *, purpose: str | None = None) -> str
         )
         return f"URL {_RESOLUTION_BUSY}"
     try:
-        future = _get_ssrf_dns_executor().submit(partial(url_rejection_reason, url, purpose=purpose))
+        future = _get_ssrf_dns_executor().submit(
+            partial(url_rejection_reason, url, purpose=purpose, require_tls=require_tls)
+        )
     except BaseException:
         _ssrf_dns_slots.release()
         raise

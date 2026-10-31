@@ -8,6 +8,7 @@ import pytest
 from authlib.oauth2.rfc7636 import create_s256_code_challenge
 
 import core.exceptions as core_exceptions
+import core.network as core_network
 import modules.auth.identity_providers.authorization_service as authorization_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 
@@ -111,6 +112,7 @@ def test_the_authorization_url_carries_the_s256_challenge_of_the_states_verifier
     )
     state = SimpleNamespace(nonce="nonce-1", idp_code_verifier=verifier)
     with (
+        patch.object(authorization_service.core_network, "reject_private_url"),
         patch.object(oidc, "decrypt_client_id", return_value="cid"),
         patch.object(
             authorization_service.oauth_state_integration, "get_oauth_state_by_id_and_not_used", return_value=state
@@ -121,3 +123,42 @@ def test_the_authorization_url_carries_the_s256_challenge_of_the_states_verifier
     query = parse_qs(urlsplit(url).query)
     assert query["code_challenge"] == [create_s256_code_challenge(verifier)]
     assert query["code_challenge_method"] == ["S256"]
+
+
+class TestAuthorizationEndpointGuard:
+    """The browser is only sent to an authorization endpoint the server would itself be willing to dial over TLS."""
+
+    @staticmethod
+    def _url(service, endpoint):
+        idp = _idp(authorization_endpoint=endpoint, scopes=None, issuer_url=None)
+        with patch.object(service._oidc, "decrypt_client_id", return_value="cid"):
+            staged = SimpleNamespace(idp=idp, purpose=None, state_id="state-1", nonce="nonce-1", idp_code_verifier=None)
+            return service.authorization_url(staged)
+
+    @pytest.fixture
+    def service(self):
+        return authorization_service.AuthorizationService(MagicMock(), HOST)
+
+    def test_plain_http_to_a_public_host_is_refused(self, service):
+        with (
+            patch("core.network.socket.getaddrinfo", return_value=[(2, 1, 0, "", ("8.8.8.8", 0))]),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+            pytest.raises(core_exceptions.InvalidInputError, match="must use https"),
+        ):
+            self._url(service, "http://idp.example.com/authorize")
+
+    def test_plain_http_to_an_allowlisted_host_is_allowed(self, service):
+        with (
+            patch("core.network.socket.getaddrinfo", return_value=[(2, 1, 0, "", ("10.0.0.5", 0))]),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
+        ):
+            url = self._url(service, "http://idp.example.com/authorize")
+        assert url.startswith("http://idp.example.com/authorize?")
+
+    def test_https_to_a_public_host_is_allowed(self, service):
+        with (
+            patch("core.network.socket.getaddrinfo", return_value=[(2, 1, 0, "", ("8.8.8.8", 0))]),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            url = self._url(service, "https://idp.example.com/authorize")
+        assert url.startswith("https://idp.example.com/authorize?")

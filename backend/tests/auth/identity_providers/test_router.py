@@ -11,8 +11,11 @@ import core.database as core_database
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.router as idp_router
 import modules.auth.identity_providers.schema as idp_schema
+
+OIDC = MagicMock()
 
 
 def _client() -> TestClient:
@@ -22,6 +25,7 @@ def _client() -> TestClient:
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
+    app.dependency_overrides[idp_dependencies.get_oidc_client_service] = lambda: OIDC
     return TestClient(app)
 
 
@@ -86,7 +90,20 @@ def test_update_identity_provider_requires_if_match_and_returns_new_etag(service
     assert response.status_code == 200
     assert response.headers["etag"] == '"2"'
     service.update_identity_provider.assert_called_once()
+    assert service.update_identity_provider.call_args.args[2] is OIDC
     assert service.update_identity_provider.call_args.kwargs["if_match"] == '"1"'
+
+
+def test_create_returns_400_for_a_refused_url(service):
+    service.create_identity_provider.side_effect = core_exceptions.InvalidInputError("issuer_url: URL must use https")
+
+    response = _client().post(
+        "/auth/identity_providers",
+        json={"name": "Google", "slug": "google", "client_id": "client", "client_secret": "secret"},
+        headers={"Authorization": "Bearer x"},
+    )
+
+    assert response.status_code == 400
 
 
 def test_update_requires_if_match_before_calling_service(service):
@@ -145,6 +162,7 @@ def test_delete_identity_provider_delegates_to_service(service):
     assert response.status_code == 204
     service.delete_identity_provider.assert_called_once()
     assert service.delete_identity_provider.call_args.args[0] == 1
+    assert service.delete_identity_provider.call_args.args[2] is OIDC
     assert service.delete_identity_provider.call_args.kwargs == {"if_match": '"2"'}
 
 

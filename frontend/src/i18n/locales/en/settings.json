@@ -536,6 +536,7 @@
       "issuerUrl": "Issuer URL",
       "issuerUrlHint": "The provider's OIDC issuer or discovery URL",
       "issuerUrlRequired": "Issuer URL is required",
+      "issuerUrlRefused": "The provider URL was refused. It must use https:// and resolve from the server, and a provider on a private network must be listed in SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Issuer URL must be 500 characters or fewer",
       "clientId": "Client ID",
       "clientIdRequired": "Client ID is required",

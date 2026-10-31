@@ -126,7 +126,8 @@ class TestAuthorizationUrl:
             idp_code_verifier="v" * 86,
             browser_binding="binding",
         )
-        return parse_qs(urlsplit(service.authorization_url(staged)).query)
+        with patch.object(authorization_service.core_network, "reject_private_url"):
+            return parse_qs(urlsplit(service.authorization_url(staged)).query)
 
     def test_a_step_up_asks_for_a_new_sign_in_within_the_freshness_limit(self, service):
         query = self._query(service, oauth_state_constants.OAuthStatePurpose.STEP_UP)

@@ -2312,8 +2312,9 @@ export interface paths {
          *         The newly created identity provider.
          *
          *     Raises:
-         *         HTTPException: 409 if the slug already exists, 500 on
-         *             database errors.
+         *         HTTPException: 400 if a URL is plain http to a host outside
+         *             SSRF_ALLOWED_HOSTS or non-public, 409 if the slug already
+         *             exists, 500 on database errors.
          */
         post: operations["create_identity_provider_api_v1_identity_providers_post"];
         delete?: never;
@@ -2367,8 +2368,9 @@ export interface paths {
          *         The updated identity provider.
          *
          *     Raises:
-         *         HTTPException: 404 if the provider is not found, 409 on slug
-         *             conflict, 500 on database errors.
+         *         HTTPException: 400 if a URL is plain http to a host outside
+         *             SSRF_ALLOWED_HOSTS or non-public, 404 if the provider is not
+         *             found, 409 on slug conflict, 500 on database errors.
          */
         put: operations["update_identity_provider_api_v1_identity_providers__idp_id__put"];
         post?: never;
@@ -2382,6 +2384,7 @@ export interface paths {
          *         if_match: The ``If-Match`` precondition.
          *         db: SQLAlchemy database session dependency.
          *         storage: The platform storage provider.
+         *         oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
          *
          *     Raises:
          *         HTTPException: 404 if the provider is not found, 409 if users

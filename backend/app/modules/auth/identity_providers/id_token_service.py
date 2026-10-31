@@ -49,8 +49,16 @@ ID_TOKEN_ALLOWED_ALGORITHMS: frozenset[str] = frozenset(
 )
 
 
+def _find_key(jwks: dict[str, Any], kid: str) -> dict[str, Any] | None:
+    """Return the key with the given ``kid`` from a JWKS, or None."""
+    for key_data in jwks.get("keys", []):
+        if key_data.get("kid") == kid:
+            return key_data
+    return None
+
+
 def verify_id_token(
-    fetch_jwks: Callable[[str], dict[str, Any]],
+    fetch_jwks: Callable[..., dict[str, Any]],
     id_token: str,
     jwks_uri: str,
     expected_issuer: str,
@@ -62,7 +70,7 @@ def verify_id_token(
     This method performs comprehensive JWT verification following OIDC Core 1.0 spec:
     1. Fetches the JWKS (public keys) from the IdP
     2. Extracts the 'kid' (key ID) from the JWT header
-    3. Finds the matching public key in the JWKS
+    3. Finds the matching public key in the JWKS, fetching the set afresh once when the key is not in it
     4. Imports the key based on its type (RSA, EC, or Oct)
     5. Verifies the JWT signature using joserfc
     6. Validates standard claims (iss, aud, sub, exp, iat), allowing a small clock skew, and the authorized party
@@ -71,7 +79,8 @@ def verify_id_token(
     This replaces the insecure manual JWT decode that was previously used.
 
     Args:
-        fetch_jwks: Returns the provider's JWKS for a JWKS URI; called only once the token header is accepted
+        fetch_jwks: Returns the provider's JWKS for a JWKS URI and, called with ``refresh=True``, a freshly fetched
+            one; called only once the token header is accepted
         id_token: The ID token JWT string from the token response
         jwks_uri: The JWKS endpoint URL to fetch public keys
         expected_issuer: Expected 'iss' claim value (from OIDC discovery)
@@ -134,12 +143,11 @@ def verify_id_token(
         # Step 2: Fetch JWKS from IdP
         jwks = fetch_jwks(jwks_uri)
 
-        # Step 3: Find the matching key in JWKS
-        matching_key = None
-        for key_data in jwks.get("keys", []):
-            if key_data.get("kid") == kid:
-                matching_key = key_data
-                break
+        # Step 3: Find the matching key in JWKS. A kid the cached set lacks may be a key the provider added since,
+        # so the set is fetched afresh once before the token is refused.
+        matching_key = _find_key(jwks, kid)
+        if matching_key is None:
+            matching_key = _find_key(fetch_jwks(jwks_uri, refresh=True), kid)
 
         if not matching_key:
             logger.warning("No matching key found in JWKS for kid=<kid>", extra=core_logger.context(kid=kid))

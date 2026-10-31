@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import httpx2
 import pytest
 from fastapi import status
+from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
@@ -31,6 +32,10 @@ class _MemoryState:
     def set(self, key: str, value: bytes, *, ttl_seconds: int) -> None:
         self.values[key] = value
         self.expiry[key] = time.monotonic() + ttl_seconds
+
+    def delete(self, key: str) -> None:
+        self.values.pop(key, None)
+        self.expiry.pop(key, None)
 
 
 @pytest.fixture
@@ -91,6 +96,29 @@ class TestFetchJwks:
             result = service.fetch_jwks(JWKS_URI)
             assert result == jwks
             assert service._jwks_key(JWKS_URI) in service._state.values
+
+    def test_refresh_skips_the_cache_and_replaces_it(self, service, state_provider):
+        stale = {"keys": [{"kid": "old", "kty": "RSA"}]}
+        fresh = {"keys": [{"kid": KID, "kty": "RSA"}]}
+        state_provider.values[service._jwks_key(JWKS_URI)] = json.dumps(stale).encode()
+        state_provider.expiry[service._jwks_key(JWKS_URI)] = time.monotonic() + 60
+        client = self._client_returning(json_value=fresh)
+        with (
+            patch("modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url"),
+            patch.object(service, "http_client", MagicMock(return_value=client)),
+        ):
+            assert service.fetch_jwks(JWKS_URI, refresh=True) == fresh
+            assert service.fetch_jwks(JWKS_URI) == fresh
+        client.get.assert_called_once()
+
+    def test_the_guard_requires_tls(self, service):
+        client = self._client_returning(json_value={"keys": []})
+        with (
+            patch("modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url") as guard,
+            patch.object(service, "http_client", MagicMock(return_value=client)),
+        ):
+            service.fetch_jwks(JWKS_URI)
+        guard.assert_called_once_with(JWKS_URI, purpose="oidc_jwks", require_tls=True)
 
     def test_invalid_structure_is_rejected(self, service):
         client = self._client_returning(json_value={"no_keys": True})
@@ -165,6 +193,95 @@ class TestGetOidcConfigurationGuardFailures:
         assert result is None
         assert "was rejected" in message
         assert "SSRF_ALLOWED_HOSTS" in message
+
+
+class TestDiscoveryIssuer:
+    """OIDC Discovery 1.0 section 4.3: the document must name the issuer it was requested for."""
+
+    GUARD = "modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url"
+
+    @staticmethod
+    def _idp(issuer_url="https://idp.example.com"):
+        idp = MagicMock(id=5, issuer_url=issuer_url)
+        idp.name = "Test IdP"
+        return idp
+
+    @staticmethod
+    def _client(document):
+        client = MagicMock()
+        client.__enter__.return_value = client
+        client.get.return_value.json.return_value = document
+        client.get.return_value.raise_for_status.return_value = None
+        return client
+
+    @pytest.mark.parametrize(
+        ("configured", "advertised"),
+        [
+            ("https://idp.example.com", "https://idp.example.com"),
+            ("https://idp.example.com/", "https://idp.example.com"),
+            ("https://idp.example.com", "https://idp.example.com/"),
+            ("https://idp.example.com/realm/", "https://idp.example.com/realm/"),
+        ],
+    )
+    def test_a_matching_issuer_is_returned_and_cached(self, service, state_provider, configured, advertised):
+        idp = self._idp(configured)
+        document = {"issuer": advertised, "jwks_uri": JWKS_URI}
+        with patch(self.GUARD), patch.object(service, "http_client", return_value=self._client(document)):
+            assert service.get_oidc_configuration(idp) == document
+        assert service._discovery_key(idp.id) in state_provider.values
+
+    @pytest.mark.parametrize(
+        "document", [{"issuer": "https://evil.example.com"}, {"jwks_uri": JWKS_URI}, {"issuer": 3}]
+    )
+    def test_a_different_or_missing_issuer_is_refused_and_not_cached(self, service, state_provider, document):
+        idp = self._idp()
+        with (
+            patch(self.GUARD),
+            patch.object(service, "http_client", return_value=self._client(document)),
+            patch("modules.auth.identity_providers.oidc_client_service.logger") as mock_logger,
+        ):
+            assert service.get_oidc_configuration(idp) is None
+        assert service._discovery_key(idp.id) not in state_provider.values
+        mock_logger.warning.assert_called_once()
+
+    def test_a_cached_document_with_a_different_issuer_is_refused(self, service, state_provider):
+        idp = self._idp()
+        key = service._discovery_key(idp.id)
+        state_provider.values[key] = json.dumps({"issuer": "https://evil.example.com"}).encode()
+        state_provider.expiry[key] = time.monotonic() + 60
+        with patch.object(service, "http_client") as http_client:
+            assert service.get_oidc_configuration(idp) is None
+        http_client.assert_not_called()
+
+    def test_the_guard_requires_tls(self, service):
+        document = {"issuer": "https://idp.example.com"}
+        with patch(self.GUARD) as guard, patch.object(service, "http_client", return_value=self._client(document)):
+            service.get_oidc_configuration(self._idp())
+        guard.assert_called_once_with(
+            "https://idp.example.com/.well-known/openid-configuration", purpose="oidc_discovery", require_tls=True
+        )
+
+
+class TestForgetDiscovery:
+    def test_it_deletes_the_cached_document(self, service, state_provider):
+        key = service._discovery_key(9)
+        state_provider.values[key] = b"{}"
+        state_provider.expiry[key] = time.monotonic() + 60
+        other = service._discovery_key(10)
+        state_provider.values[other] = b"{}"
+
+        service.forget_discovery(9)
+
+        assert key not in state_provider.values
+        assert other in state_provider.values
+
+    def test_a_state_outage_is_logged_and_swallowed(self):
+        state = MagicMock()
+        state.delete.side_effect = StateBackendUnavailableError("down")
+        service = oidc_client_service.OidcClientService(state, "test")
+        with patch("modules.auth.identity_providers.oidc_client_service.logger") as mock_logger:
+            service.forget_discovery(9)
+        mock_logger.warning.assert_called_once()
 
 
 def test_discovery_cache_is_shared_between_services_and_refetches_after_expiry(state_provider):

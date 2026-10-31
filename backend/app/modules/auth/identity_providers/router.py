@@ -7,6 +7,7 @@ import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.provider_service as idp_provider_service
 import modules.auth.identity_providers.schema as idp_schema
@@ -61,8 +62,9 @@ def list_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
         "Returns:\n"
         "    The newly created identity provider.\n\n"
         "Raises:\n"
-        "    HTTPException: 409 if the slug already exists, 500 on\n"
-        "        database errors."
+        "    HTTPException: 400 if a URL is plain http to a host outside\n"
+        "        SSRF_ALLOWED_HOSTS or non-public, 409 if the slug already\n"
+        "        exists, 500 on database errors."
     ),
     responses={
         status.HTTP_201_CREATED: {
@@ -95,8 +97,8 @@ def create_identity_provider(
         The newly created identity provider.
 
     Raises:
-        HTTPException: 409 if the slug already exists, 500 on
-            database errors.
+        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 409 if the
+            slug already exists, 500 on database errors.
     """
     provider = idp_provider_service.create_identity_provider(idp_data, db)
     core_etag.set_etag(response, provider.version)
@@ -117,8 +119,9 @@ def create_identity_provider(
         "Returns:\n"
         "    The updated identity provider.\n\n"
         "Raises:\n"
-        "    HTTPException: 404 if the provider is not found, 409 on slug\n"
-        "        conflict, 500 on database errors."
+        "    HTTPException: 400 if a URL is plain http to a host outside\n"
+        "        SSRF_ALLOWED_HOSTS or non-public, 404 if the provider is not\n"
+        "        found, 409 on slug conflict, 500 on database errors."
     ),
     responses={
         status.HTTP_200_OK: {
@@ -142,6 +145,7 @@ def update_identity_provider(
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
+    oidc: idp_dependencies.OidcClientService,
 ) -> idp_schema.IdentityProviderRead:
     """Update an existing identity provider.
 
@@ -152,15 +156,16 @@ def update_identity_provider(
         request: Incoming request.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition the client read.
+        oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
 
     Returns:
         The updated identity provider.
 
     Raises:
-        HTTPException: 404 if the provider is not found, 409 on slug conflict,
-            412 if the provider changed, or 500 on database errors.
+        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 404 if the
+            provider is not found, 409 on slug conflict, 412 if the provider changed, or 500 on database errors.
     """
-    provider = idp_provider_service.update_identity_provider(idp_id, idp_data, db, if_match=if_match)
+    provider = idp_provider_service.update_identity_provider(idp_id, idp_data, oidc, db, if_match=if_match)
     core_etag.set_etag(response, provider.version)
     return provider
 
@@ -178,6 +183,7 @@ def delete_identity_provider(
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,
+    oidc: idp_dependencies.OidcClientService,
 ) -> None:
     """Delete an identity provider by ID.
 
@@ -187,13 +193,14 @@ def delete_identity_provider(
         if_match: The ``If-Match`` precondition.
         db: SQLAlchemy database session dependency.
         storage: The platform storage provider.
+        oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
 
     Raises:
         HTTPException: 404 if the provider is not found, 409 if users
             are still linked to the provider, 412 if the provider changed
             since the client read it.
     """
-    idp_provider_service.delete_identity_provider(idp_id, storage, db, if_match=if_match)
+    idp_provider_service.delete_identity_provider(idp_id, storage, oidc, db, if_match=if_match)
 
 
 @router.post(

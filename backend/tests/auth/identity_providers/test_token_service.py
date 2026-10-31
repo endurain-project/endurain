@@ -368,7 +368,7 @@ class TestRevokeIdpToken:
         result, guard, http_client, service = self._revoke()
 
         assert result is True
-        guard.assert_called_once_with("http://10.0.0.5/revoke", purpose="oidc_revocation")
+        guard.assert_called_once_with("http://10.0.0.5/revoke", purpose="oidc_revocation", require_tls=True)
         http_client.post.assert_called_once()
         service._oidc.http_client.assert_called_once_with()
 

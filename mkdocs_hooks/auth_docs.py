@@ -45,7 +45,7 @@ def _api_key_endpoints() -> str:
     if prefix is None:
         raise LookupError("API key router prefix not found in api.py")
     rows = ""
-    for node in ast.parse((APP / "modules/auth/api_keys/router.py").read_text()).body:
+    for node in ast.parse((APP / "modules/auth/account_security/api_keys_router.py").read_text()).body:
         if not isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):
             continue
         for deco in node.decorator_list:

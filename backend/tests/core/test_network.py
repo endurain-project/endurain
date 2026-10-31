@@ -520,6 +520,67 @@ class TestRejectPrivateUrl:
             assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
 
 
+class TestRequireTls:
+    """``require_tls`` refuses plain http unless SSRF_ALLOWED_HOSTS covers the host."""
+
+    @staticmethod
+    def _resolves_to(*ips):
+        return patch(
+            "core.network.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 0, "", (ip, 0)) for ip in ips],
+        )
+
+    @staticmethod
+    def _allowlist(*entries):
+        return patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", list(entries))
+
+    def test_http_to_a_public_host_is_refused(self):
+        with (
+            self._resolves_to("8.8.8.8"),
+            self._allowlist(),
+            pytest.raises(core_exceptions.InvalidInputError) as exc,
+        ):
+            core_network.reject_private_url("http://idp.example.com", require_tls=True)
+        assert exc.value.detail == "URL must use https unless its host is in SSRF_ALLOWED_HOSTS"
+
+    def test_http_to_a_host_allowlisted_by_name_is_allowed(self):
+        with self._resolves_to("8.8.8.8"), self._allowlist("idp.example.com"):
+            core_network.reject_private_url("http://IDP.example.com", require_tls=True)
+
+    def test_http_to_a_host_allowlisted_by_cidr_is_allowed(self):
+        with self._resolves_to("10.0.0.1", "10.0.0.2"), self._allowlist("10.0.0.0/8"):
+            core_network.reject_private_url("http://idp.example.com", require_tls=True)
+
+    def test_http_is_refused_when_only_some_addresses_are_allowlisted(self):
+        with self._resolves_to("10.0.0.1", "8.8.8.8"), self._allowlist("10.0.0.0/8"):
+            reason = core_network.url_rejection_reason("http://idp.example.com", require_tls=True)
+        assert reason == "URL must use https unless its host is in SSRF_ALLOWED_HOSTS"
+
+    def test_https_is_unchanged(self):
+        with self._resolves_to("8.8.8.8"), self._allowlist():
+            core_network.reject_private_url("https://idp.example.com", require_tls=True)
+
+    def test_https_to_a_private_host_is_still_refused(self):
+        with self._resolves_to("10.0.0.1"), self._allowlist():
+            reason = core_network.url_rejection_reason("https://idp.example.com", require_tls=True)
+        assert reason == "URL resolves to a non-public address"
+
+    def test_default_allows_http_to_a_public_host(self):
+        with self._resolves_to("8.8.8.8"), self._allowlist():
+            core_network.reject_private_url("http://idp.example.com")
+            assert core_network.url_rejection_reason("http://idp.example.com") is None
+
+    def test_bounded_form_passes_require_tls_through(self):
+        with self._resolves_to("8.8.8.8"), self._allowlist(), patch.object(core_network, "_ssrf_dns_executor", None):
+            try:
+                reason = core_network.url_rejection_reason_bounded("http://idp.example.com", require_tls=True)
+                allowed = core_network.url_rejection_reason_bounded("http://idp.example.com")
+            finally:
+                core_network.shutdown_ssrf_dns_executor()
+        assert reason == "URL must use https unless its host is in SSRF_ALLOWED_HOSTS"
+        assert allowed is None
+
+
 class TestHostRejectionReason:
     """The host-authority SSRF guard, for config-supplied ``host[:port]`` values.
 
@@ -629,7 +690,7 @@ class TestUrlRejectionReasonBounded:
         release = threading.Event()
         calls: list[str] = []
 
-        def guard(url, *, purpose=None):
+        def guard(url, *, purpose=None, require_tls=False):
             calls.append(url)
             release.wait(5)
 
@@ -654,7 +715,7 @@ class TestUrlRejectionReasonBounded:
         assert calls == ["https://stuck.example.com"]
 
     def test_shutdown_stops_the_pool_and_the_next_lookup_starts_a_new_one(self):
-        with patch.object(core_network, "url_rejection_reason", lambda url, *, purpose=None: None):
+        with patch.object(core_network, "url_rejection_reason", lambda url, *, purpose=None, require_tls=False: None):
             core_network.url_rejection_reason_bounded("https://idp.example.com")
             first_pool = core_network._ssrf_dns_executor
             assert first_pool is not None
@@ -669,7 +730,7 @@ class TestUrlRejectionReasonBounded:
     def test_returns_the_guard_reason_from_the_dedicated_pool(self):
         seen = {}
 
-        def guard(url, *, purpose=None):
+        def guard(url, *, purpose=None, require_tls=False):
             seen["thread"] = threading.current_thread().name
             return "URL resolves to a non-public address"
 
@@ -682,7 +743,7 @@ class TestUrlRejectionReasonBounded:
     def test_a_lookup_that_never_returns_is_refused_not_awaited(self):
         release = threading.Event()
 
-        def guard(url, *, purpose=None):
+        def guard(url, *, purpose=None, require_tls=False):
             release.wait(5)
 
         with (

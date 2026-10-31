@@ -156,8 +156,9 @@ async function syncUploadedIcon(id: number, values: ProviderFormValues): Promise
 
 /**
  * Persists the provider, emitting the outcome to the parent and closing on
- * success. A duplicate slug (`409`) is surfaced as a specific message; other
- * failures fall back to a generic one so the dialog stays open for correction.
+ * success. A duplicate slug (`409`) and a refused issuer URL (`400`) are surfaced
+ * as specific messages; other failures fall back to a generic one so the dialog
+ * stays open for correction.
  *
  * @param values - The validated form values.
  */
@@ -188,6 +189,8 @@ async function submitForm(values: ProviderFormValues): Promise<void> {
       emit('error', t('settings.idp.form.staleError'))
     } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.idp.form.slugConflict'))
+    } else if (error instanceof HttpError && error.status === 400) {
+      emit('error', t('settings.idp.form.issuerUrlRefused'))
     } else {
       emit('error', t('settings.idp.form.saveError'))
     }

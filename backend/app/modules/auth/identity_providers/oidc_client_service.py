@@ -68,6 +68,19 @@ class OidcClientService:
         except (StateBackendUnavailableError, TypeError, ValueError) as err:
             logger.warning("OIDC cache write failed", exc_info=err)
 
+    def forget_discovery(self, idp_id: int) -> None:
+        """Drop a provider's cached discovery document so the next use fetches it afresh.
+
+        A state outage is logged and ignored: the cached document then expires with its TTL.
+
+        Args:
+            idp_id: The provider whose cached discovery document is dropped.
+        """
+        try:
+            self._state.delete(self._discovery_key(idp_id))
+        except StateBackendUnavailableError as err:
+            logger.warning("OIDC cache delete failed", exc_info=err)
+
     @contextmanager
     def http_client(self) -> Generator[httpx2.Client]:
         """Open a short-lived HTTP client for one outbound request.
@@ -82,7 +95,7 @@ class OidcClientService:
         ) as client:
             yield client
 
-    def fetch_jwks(self, jwks_uri: str) -> dict[str, Any]:
+    def fetch_jwks(self, jwks_uri: str, *, refresh: bool = False) -> dict[str, Any]:
         """Fetches the JSON Web Key Set (JWKS) from the identity provider.
 
         This method retrieves the public keys used to verify JWT signatures from the IdP's
@@ -95,6 +108,8 @@ class OidcClientService:
 
         Args:
             jwks_uri: The JWKS endpoint URL from OIDC discovery (e.g., https://idp.example.com/jwks)
+            refresh: Skip the cached key set, fetch a fresh one and cache that instead; used when a token names
+                a key the cached set lacks, as after the provider rotated its keys.
 
         Returns:
             A dictionary containing the JWKS response with 'keys' array
@@ -115,10 +130,11 @@ class OidcClientService:
             ]
         }
         """
-        cached = self._read_cache(self._jwks_key(jwks_uri))
-        if cached is not None:
-            logger.debug("Using cached JWKS")
-            return cached
+        if not refresh:
+            cached = self._read_cache(self._jwks_key(jwks_uri))
+            if cached is not None:
+                logger.debug("Using cached JWKS")
+                return cached
 
         # Fetch JWKS from IdP
         try:
@@ -130,7 +146,7 @@ class OidcClientService:
             # attacker pivot via signed token replay.
             # Self-hosted IdPs on private networks can
             # be opted in via SSRF_ALLOWED_HOSTS.
-            core_network.reject_private_url(jwks_uri, purpose="oidc_jwks")
+            core_network.reject_private_url(jwks_uri, purpose="oidc_jwks", require_tls=True)
             logger.debug("Fetching JWKS from <jwks_uri>", extra=core_logger.context(jwks_uri=jwks_uri))
             with self.http_client() as client:
                 response = client.get(jwks_uri)
@@ -188,6 +204,28 @@ class OidcClientService:
             )
             raise core_exceptions.ProcessingError("Failed to retrieve signing keys from identity provider") from err
 
+    @staticmethod
+    def _issuer_matches(idp: identity_provider_contracts.IdentityProviderState, config: Any) -> bool:
+        """Check that a discovery document names the issuer the provider is configured with.
+
+        A trailing slash on either side is ignored.
+
+        Args:
+            idp: The provider whose issuer URL the document must name.
+            config: The discovery document.
+
+        Returns:
+            True when the document's ``issuer`` equals the configured issuer URL.
+        """
+        issuer = config.get("issuer") if isinstance(config, dict) else None
+        if isinstance(issuer, str) and issuer.removesuffix("/") == idp.issuer_url.removesuffix("/"):
+            return True
+        logger.warning(
+            "OIDC discovery document for <name> names issuer <issuer>, expected <expected>",
+            extra=core_logger.context(name=idp.name, issuer=issuer, expected=idp.issuer_url),
+        )
+        return False
+
     def get_oidc_configuration(self, idp: identity_provider_contracts.IdentityProviderState) -> dict[str, Any] | None:
         """Retrieves the OpenID Connect (OIDC) discovery configuration for a given identity provider.
 
@@ -195,6 +233,8 @@ class OidcClientService:
         It uses an in-memory cache to avoid redundant network requests and respects a cache TTL (time-to-live).
         If the configuration is cached and not expired, it is returned directly from the cache.
         Otherwise, it fetches the configuration over HTTP, caches it, and returns the result.
+        A document whose ``issuer`` is not the configured issuer URL (OIDC Discovery 1.0, section 4.3) is
+        never returned or cached, whether it was just fetched or found in the cache.
 
         Args:
             idp (identity_provider_contracts.IdentityProviderState): The identity provider instance containing the
@@ -202,7 +242,7 @@ class OidcClientService:
 
         Returns:
             dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if
-            fetching fails or the issuer URL is not provided.
+            fetching fails, the issuer URL is not provided or the document names a different issuer.
 
         Raises:
             Does not raise exceptions directly; logs errors and returns None on failure.
@@ -213,7 +253,7 @@ class OidcClientService:
         # Check cache
         cached = self._read_cache(self._discovery_key(idp.id))
         if cached is not None:
-            return cached
+            return cached if self._issuer_matches(idp, cached) else None
 
         # Construct the discovery URL
         discovery_url = f"{idp.issuer_url.rstrip('/')}/.well-known/openid-configuration"
@@ -221,13 +261,16 @@ class OidcClientService:
         try:
             # SSRF guard for the admin-supplied issuer
             # URL: see jwks_uri rationale above.
-            core_network.reject_private_url(discovery_url, purpose="oidc_discovery")
+            core_network.reject_private_url(discovery_url, purpose="oidc_discovery", require_tls=True)
             # Fetch the configuration
             with self.http_client() as client:
                 response = client.get(discovery_url)
 
             response.raise_for_status()
             config = response.json()
+
+            if not self._issuer_matches(idp, config):
+                return None
 
             self._write_cache(self._discovery_key(idp.id), config)
 
@@ -381,7 +424,7 @@ class OidcClientService:
         # re-validated), so a trusted issuer could still advertise an
         # internal target. Refuse private/internal addresses unless
         # explicitly opted in via SSRF_ALLOWED_HOSTS.
-        core_network.reject_private_url(token_endpoint, purpose="oidc_token")
+        core_network.reject_private_url(token_endpoint, purpose="oidc_token", require_tls=True)
 
         return token_endpoint
 
@@ -476,7 +519,7 @@ class OidcClientService:
             # explicitly opted in via SSRF_ALLOWED_HOSTS. Raised outside the
             # try/except below so the guard's 4xx is not swallowed as a
             # userinfo fetch failure.
-            core_network.reject_private_url(userinfo_endpoint, purpose="oidc_userinfo")
+            core_network.reject_private_url(userinfo_endpoint, purpose="oidc_userinfo", require_tls=True)
             try:
                 # Use the access token to fetch userinfo
                 access_token = token_response.get("access_token")
