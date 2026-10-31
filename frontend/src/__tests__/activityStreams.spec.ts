@@ -67,6 +67,7 @@ describe('buildStreamChart', () => {
       'metric',
     )
     expect(timer?.render.xValues).toEqual([0, 300, 600])
+    expect(timer?.render.xFormat?.(600)).toBe('10:00')
 
     const elapsed = buildStreamChart(
       hr,
@@ -284,6 +285,19 @@ describe('buildXAxisResolver', () => {
     expect(resolver.basis).toBe('time')
     expect(resolver.values(s.waypoints)).toEqual([0, 30, 120])
     expect(resolver.format(90)).toBe('01:30')
+  })
+
+  it('measures every stream from the earliest timestamp of the activity', () => {
+    const hr = stream(1, [
+      { hr: 100, time: '2024-05-01T07:00:00' },
+      { hr: 110, time: '2024-05-01T07:01:00' },
+    ])
+    const cadence = stream(3, [
+      { cad: 80, time: '2024-05-01T07:00:30' },
+      { cad: 82, time: '2024-05-01T07:01:00' },
+    ])
+    const resolver = buildXAxisResolver([hr, cadence], activityNoTotals(), 'metric', 'time')
+    expect(resolver.values(cadence.waypoints)).toEqual([30, 60])
   })
 
   it('treats numeric timestamps as second-offsets (Strava)', () => {

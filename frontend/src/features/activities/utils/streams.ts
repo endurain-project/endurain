@@ -493,11 +493,10 @@ export function buildXAxisResolver(
     label: text.time,
     values: (waypoints) => {
       const count = waypoints.length
-      const localOrigin = waypoints.map((w) => waypointSeconds(w.time)).find((s) => s !== null)
       return waypoints.map((waypoint, index) => {
         const seconds = waypointSeconds(waypoint.time)
-        if (seconds !== null && localOrigin != null) {
-          return seconds - localOrigin
+        if (seconds !== null) {
+          return seconds - origin
         }
         return count <= 1 ? 0 : (index / (count - 1)) * totalSeconds
       })
