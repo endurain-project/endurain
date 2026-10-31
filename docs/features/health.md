@@ -12,7 +12,7 @@ Health records belong to your account. Unlike activities, they have no visibilit
 
 | Metric | What a record holds | Records per day |
 | ------ | ------------------- | --------------- |
-| Weight | Weight in kg, and optionally body fat, body water, bone mass, muscle mass, visceral fat, physique rating and metabolic age | One |
+| Weight | Weight in kilograms or pounds, and optionally body fat, body water, bone mass, muscle mass, visceral fat, physique rating and metabolic age | One |
 | Steps | Step count | One |
 | Sleep | Start and end, total, deep, light, REM and awake time, awakenings, stress, heart rate, SpO2, respiration, HRV status and the [sleep scores](sleep-scoring.md) | One |
 | Water | A total in millilitres | One total, built up by intakes |
@@ -39,6 +39,8 @@ The dashboard reads each metric for your today and shows only what exists:
 A card with no data is empty rather than zero.
 
 ## Weight and BMI
+
+Weight is shown in kilograms or pounds, chosen under **Settings → My profile → Edit profile → Weight units**. Left on **Follow units** it uses your account's units, so a metric account can weigh itself in pounds while distance, pace and elevation stay metric.
 
 BMI is worked out from the weight and the height in your profile when you do not supply one. Without a height there is no BMI. When you change your height, the stored BMI of your weight records is recalculated.
 
@@ -79,7 +81,7 @@ The fasting page also shows statistics over your history:
 
 ## Targets
 
-Set a target for any metric under the metric's page: weight (kg), daily steps, sleep duration, fasting duration, daily water (ml) and daily bowel movements. Targets appear as goal lines in the charts. They are stored together, and changing one keeps the others.
+Set a target for any metric under the metric's page: weight (kg or lbs), daily steps, sleep duration, fasting duration, daily water (ml) and daily bowel movements. Targets appear as goal lines in the charts. They are stored together, and changing one keeps the others.
 
 ## History
 

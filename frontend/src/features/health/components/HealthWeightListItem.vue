@@ -18,8 +18,8 @@ import {
 const props = defineProps<{
   /** The weight entry to render. */
   entry: WeightEntry
-  /** The viewer's measurement system. */
-  units: Schemas['Units']
+  /** The measurement system used to present body mass (kg or lbs). */
+  weightUnits: Schemas['Units']
 }>()
 const emit = defineEmits<{ edit: [entry: WeightEntry]; delete: [entry: WeightEntry] }>()
 
@@ -39,7 +39,7 @@ const hasDetails = computed(
 
 /** Primary weight string, or an em dash when the entry carries no weight. */
 const weightLabel = computed(() =>
-  props.entry.weightKg === null ? '—' : formatWeight(props.entry.weightKg, props.units),
+  props.entry.weightKg === null ? '—' : formatWeight(props.entry.weightKg, props.weightUnits),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))
@@ -108,11 +108,11 @@ const fromGarmin = computed(() => props.entry.source === 'garmin')
       </div>
       <div v-if="entry.boneMassKg !== null">
         <dt class="text-caption">{{ t('health.weight.detail.boneMass') }}</dt>
-        <dd class="text-hint">{{ formatBodyMass(entry.boneMassKg, units) }}</dd>
+        <dd class="text-hint">{{ formatBodyMass(entry.boneMassKg, weightUnits) }}</dd>
       </div>
       <div v-if="entry.muscleMassKg !== null">
         <dt class="text-caption">{{ t('health.weight.detail.muscleMass') }}</dt>
-        <dd class="text-hint">{{ formatBodyMass(entry.muscleMassKg, units) }}</dd>
+        <dd class="text-hint">{{ formatBodyMass(entry.muscleMassKg, weightUnits) }}</dd>
       </div>
     </dl>
   </div>

@@ -17,8 +17,8 @@ const props = defineProps<{
   series: HealthChartSeries
   /** The user's weight target in kilograms, drawn as a flat reference line. */
   targetKg: number | null
-  /** The viewer's measurement system, controlling the displayed unit. */
-  units: Schemas['Units']
+  /** The measurement system used to present body mass (kg or lbs). */
+  weightUnits: Schemas['Units']
 }>()
 
 const { t, locale } = useI18n()
@@ -28,11 +28,11 @@ const TARGET_COLOR = themeColor('--color-goal')
 
 /** Converts a stored kg value into the viewer's display unit. */
 function toDisplay(kg: number): number {
-  return props.units === 'imperial' ? kgToLbs(kg) : kg
+  return props.weightUnits === 'imperial' ? kgToLbs(kg) : kg
 }
 
 /** Unit suffix shown on the y-axis ticks and tooltip. */
-const unitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const unitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lbs' : 'kg'))
 
 /** Render options for the chart provider: a weight line plus an optional target line. */
 const chartRender = computed<ChartRenderOptions>(() => {

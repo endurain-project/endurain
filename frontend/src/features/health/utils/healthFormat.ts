@@ -67,11 +67,11 @@ export function formatSkinTempDeviation(celsius: number): string {
  *
  * @param weightKg - Weight in kilograms.
  * @param units - The user's unit system.
- * @returns The formatted weight (`72.0 kg` or `158.7 lb`).
+ * @returns The formatted weight (`72.0 kg` or `158.7 lbs`).
  */
 export function formatWeight(weightKg: number, units: Units): string {
   if (units === 'imperial') {
-    return `${kgToLbs(weightKg).toFixed(1)} lb`
+    return `${kgToLbs(weightKg).toFixed(1)} lbs`
   }
   return `${weightKg.toFixed(1)} kg`
 }
@@ -82,11 +82,11 @@ export function formatWeight(weightKg: number, units: Units): string {
  *
  * @param massKg - Mass in kilograms.
  * @param units - The user's unit system.
- * @returns The formatted mass (`5.20 kg` or `11.46 lb`).
+ * @returns The formatted mass (`5.20 kg` or `11.46 lbs`).
  */
 export function formatBodyMass(massKg: number, units: Units): string {
   if (units === 'imperial') {
-    return `${kgToLbs(massKg).toFixed(2)} lb`
+    return `${kgToLbs(massKg).toFixed(2)} lbs`
   }
   return `${massKg.toFixed(2)} kg`
 }

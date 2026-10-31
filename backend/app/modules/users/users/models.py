@@ -22,6 +22,8 @@ class Users(Base):
         preferred_language: Preferred language code.
         gender: User's gender (male, female, unspecified).
         units: Measurement units (metric, imperial).
+        weight_units: Weight units override (metric - kg, imperial - lb),
+            null follows units.
         height: User's height in centimeters.
         max_heart_rate: User maximum heart rate (bpm).
         access_type: User type (regular, admin).
@@ -100,6 +102,11 @@ class Users(Base):
         default="metric",
         nullable=False,
         comment="User units (metric, imperial)",
+    )
+    weight_units: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="User weight units override (metric - kg, imperial - lb), null follows units",
     )
     height: Mapped[int | None] = mapped_column(
         nullable=True,

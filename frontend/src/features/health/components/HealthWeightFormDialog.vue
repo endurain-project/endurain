@@ -26,8 +26,8 @@ const props = withDefaults(
   defineProps<{
     /** The weight entry being edited, or `null`/absent when logging a new one. */
     entry?: WeightEntry | null
-    /** The viewer's measurement system, used for the mass field units. */
-    units: Schemas['Units']
+    /** The measurement system used to present body mass (kg or lbs). */
+    weightUnits: Schemas['Units']
   }>(),
   { entry: null },
 )
@@ -79,14 +79,14 @@ function displayMassFromKg(kg: number | null): string {
   if (kg === null) {
     return ''
   }
-  const value = props.units === 'imperial' ? kgToLbs(kg) : kg
+  const value = props.weightUnits === 'imperial' ? kgToLbs(kg) : kg
   return String(Math.round(value * 100) / 100)
 }
 
 /** Converts a validated display-unit mass string back to kilograms for the wire. */
 function massToKg(raw: string): number {
   const value = Number(raw.trim())
-  const kg = props.units === 'imperial' ? lbsToKg(value) : value
+  const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
 }
 
@@ -147,7 +147,7 @@ const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.weight.form.editTitle') : t('health.weight.form.addTitle'),
 )
-const massUnitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lbs' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.form.weight')} (${massUnitLabel.value})`)
 const boneMassLabel = computed(() => `${t('health.weight.form.boneMass')} (${massUnitLabel.value})`)
 const muscleMassLabel = computed(

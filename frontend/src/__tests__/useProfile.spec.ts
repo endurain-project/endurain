@@ -21,6 +21,7 @@ const profileInput: ProfileEditInput = {
   birthdate: null,
   gender: 'unspecified',
   units: 'metric',
+  weightUnits: null,
   currency: 'euro',
   height: null,
   maxHeartRate: null,

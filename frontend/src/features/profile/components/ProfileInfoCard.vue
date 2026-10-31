@@ -59,6 +59,15 @@ const fields = computed<{ label: string; value: string | null }[]>(() => [
         ? t('settings.users.form.unitsMetric')
         : t('settings.users.form.unitsImperial'),
   },
+  // Weight units follow the units setting above unless an override is set.
+  {
+    label: t('settings.users.form.weightUnits'),
+    value: t(
+      (props.profile.weightUnits ?? props.profile.units) === 'imperial'
+        ? 'settings.users.form.weightUnitsImperial'
+        : 'settings.users.form.weightUnitsMetric',
+    ),
+  },
   {
     label: t('settings.users.form.currency'),
     value: t(`settings.users.form.currencies.${props.profile.currency}`),

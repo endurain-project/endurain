@@ -56,6 +56,7 @@ interface ProfileFormValues {
   birthdate: string
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: 'default' | Schemas['Units']
   currency: Schemas['Currency']
   heightCm: number | null
   heightFeet: number | null
@@ -103,6 +104,7 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     birthdate: values.birthdate || null,
     gender: values.gender,
     units: values.units,
+    weightUnits: values.weightUnits === 'default' ? null : values.weightUnits,
     currency: values.currency,
     height: resolveHeightCm(values),
     // `v-model.number` leaves a stale '' in place instead of `null` when a
@@ -142,6 +144,7 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
       birthdate: '',
       gender: 'unspecified',
       units: 'metric',
+      weightUnits: 'default',
       currency: 'euro',
       heightCm: null,
       heightFeet: null,
@@ -199,6 +202,7 @@ function populate(): void {
   values.birthdate = profile.birthdate ?? ''
   values.gender = profile.gender
   values.units = profile.units
+  values.weightUnits = profile.weightUnits ?? 'default'
   values.currency = profile.currency
   values.heightCm = profile.height
   values.maxHeartRate = profile.maxHeartRate
@@ -363,6 +367,16 @@ watch(open, (isOpen) => {
           <Select :id="fieldId" v-model="values.units" :disabled="isSubmitting">
             <option value="metric">{{ t('settings.users.form.unitsMetric') }}</option>
             <option value="imperial">{{ t('settings.users.form.unitsImperial') }}</option>
+          </Select>
+        </template>
+      </FormField>
+
+      <FormField :label="t('settings.users.form.weightUnits')">
+        <template #default="{ fieldId }">
+          <Select :id="fieldId" v-model="values.weightUnits" :disabled="isSubmitting">
+            <option value="default">{{ t('settings.users.form.weightUnitsDefault') }}</option>
+            <option value="metric">{{ t('settings.users.form.weightUnitsMetric') }}</option>
+            <option value="imperial">{{ t('settings.users.form.weightUnitsImperial') }}</option>
           </Select>
         </template>
       </FormField>

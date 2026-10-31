@@ -19,8 +19,8 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{
   /** The current health targets, providing the record id, owner, and weight. */
   targets: HealthTargets
-  /** The viewer's measurement system, used for the target field unit. */
-  units: Schemas['Units']
+  /** The measurement system used to present the target body mass (kg or lbs). */
+  weightUnits: Schemas['Units']
 }>()
 
 const emit = defineEmits<{
@@ -42,7 +42,7 @@ function displayMassFromKg(kg: number | null): string {
   if (kg === null) {
     return ''
   }
-  const value = props.units === 'imperial' ? kgToLbs(kg) : kg
+  const value = props.weightUnits === 'imperial' ? kgToLbs(kg) : kg
   return String(Math.round(value * 100) / 100)
 }
 
@@ -52,7 +52,7 @@ function targetToKg(raw: string): number | null {
   if (value === null || value <= 0) {
     return null
   }
-  const kg = props.units === 'imperial' ? lbsToKg(value) : value
+  const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
 }
 
@@ -80,7 +80,7 @@ const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>(
   onSubmit: submitForm,
 })
 
-const massUnitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() => (props.weightUnits === 'imperial' ? 'lbs' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.target.weight')} (${massUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */

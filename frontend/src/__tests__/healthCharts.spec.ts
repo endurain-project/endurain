@@ -74,13 +74,13 @@ describe('health charts plot the aggregated series', () => {
     const metric = mountChart(HealthWeightChart, {
       series: weekly(70.04),
       targetKg: null,
-      units: 'metric',
+      weightUnits: 'metric',
     })
     vi.clearAllMocks()
     const imperial = mountChart(HealthWeightChart, {
       series: weekly(70),
       targetKg: null,
-      units: 'imperial',
+      weightUnits: 'imperial',
     })
 
     expect(metric.series[0]!.data).toEqual([70])

@@ -10631,6 +10631,7 @@ export interface components {
          *         preferred_language: Preferred application language.
          *         gender: User's gender.
          *         units: Preferred unit system.
+         *         weight_units: Preferred weight units, independent of units; null follows units.
          *         height: User's height in centimeters.
          *         max_heart_rate: Maximum heart rate in bpm.
          *         first_day_of_week: First day of the week.
@@ -10666,6 +10667,7 @@ export interface components {
             units?: components["schemas"]["Units"] | null;
             /** Username */
             username?: string | null;
+            weight_units?: components["schemas"]["Units"] | null;
         };
         /**
          * RelationshipRead
@@ -12026,6 +12028,8 @@ export interface components {
              * @description Unique username (alphanumeric, dots, hyphen, underscore)
              */
             username: string;
+            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
+            weight_units?: components["schemas"]["Units"] | null;
         };
         /**
          * UsersDefaultGearRead
@@ -12319,6 +12323,8 @@ export interface components {
              * @description Unique username (alphanumeric, dots, hyphen, underscore)
              */
             username: string;
+            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
+            weight_units?: components["schemas"]["Units"] | null;
         };
         /**
          * UsersEditPassword
@@ -12852,6 +12858,8 @@ export interface components {
              * @default 1
              */
             version: number;
+            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
+            weight_units?: components["schemas"]["Units"] | null;
         };
         /**
          * UsersPrivacySettingsRead
@@ -13176,6 +13184,8 @@ export interface components {
              * @default 1
              */
             version: number;
+            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
+            weight_units?: components["schemas"]["Units"] | null;
         };
         /**
          * UsersSessionsRead

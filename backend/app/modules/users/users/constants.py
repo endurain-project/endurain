@@ -21,6 +21,7 @@ PROFILE_SELF_SERVICE_FIELDS: frozenset[str] = frozenset(
         "preferred_language",
         "gender",
         "units",
+        "weight_units",
         "height",
         "max_heart_rate",
         "first_day_of_week",

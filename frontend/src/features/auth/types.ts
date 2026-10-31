@@ -18,6 +18,8 @@ import type { AuthTokenResponse, Schemas } from '@/types'
  * @property isGarminConnectLinked - Whether a Garmin Connect integration is linked.
  * @property hasLocalPassword - Whether the account has a local password.
  * @property units - Measurement system used to present distances and heights.
+ * @property weightUnits - Measurement system used to present body weight; falls
+ *   back to `units` when the user has not set an explicit override.
  * @property currency - Preferred currency for monetary values.
  * @property firstDayOfWeek - First day used for calendar week boundaries.
  */
@@ -35,6 +37,7 @@ export interface User {
   isGarminConnectLinked: boolean
   hasLocalPassword: boolean
   units: Schemas['Units']
+  weightUnits: Schemas['Units']
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
 }
@@ -61,6 +64,7 @@ export type UserProfileDto = Pick<
   | 'is_garminconnect_linked'
   | 'has_local_password'
   | 'units'
+  | 'weight_units'
   | 'currency'
   | 'first_day_of_week'
 >

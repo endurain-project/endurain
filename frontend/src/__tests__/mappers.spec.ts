@@ -22,6 +22,7 @@ const baseDto: UserProfileDto = {
   is_garminconnect_linked: 0,
   has_local_password: true,
   units: 'metric',
+  weight_units: null,
   currency: 'euro',
   first_day_of_week: 'sunday',
 }
@@ -44,9 +45,17 @@ describe('mapUserProfile', () => {
       isGarminConnectLinked: false,
       hasLocalPassword: true,
       units: 'metric',
+      weightUnits: 'metric',
       currency: 'euro',
       firstDayOfWeek: 'sunday',
     })
+  })
+
+  it('resolves weightUnits from the explicit override, falling back to units', () => {
+    expect(mapUserProfile({ ...baseDto, weight_units: 'imperial' }).weightUnits).toBe('imperial')
+    expect(mapUserProfile({ ...baseDto, units: 'imperial', weight_units: null }).weightUnits).toBe(
+      'imperial',
+    )
   })
 
   it('coerces number-encoded link flags to booleans', () => {
