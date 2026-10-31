@@ -65,7 +65,7 @@ class TokenManager:
         create_token(session_id: str, user: users_schema.UsersRead, token_type: TokenType, ttl: timedelta) -> tuple[datetime, str]:
         create_csrf_token() -> str:
             Generates a secure random CSRF (Cross-Site Request Forgery) token.
-        UnauthenticatedError: Raised for invalid, expired, or missing claims in JWT tokens.
+        InvalidTokenError: Raised for invalid, expired, or missing claims in JWT tokens.
         ValueError: Raised for missing or invalid parameters during token creation.
     """
 
@@ -100,7 +100,7 @@ class TokenManager:
                 be a string, list of strings, or integer.
 
         Raises:
-            UnauthenticatedError: If the claim is not found in the token or if there
+            InvalidTokenError: If the claim is not found in the token or if there
                 is an error retrieving the claim.
         """
         try:
@@ -114,7 +114,7 @@ class TokenManager:
                 "Requested token claim is missing",
                 extra=core_logger.context(credential="token", claim=claim),
             )
-            raise core_exceptions.UnauthenticatedError(f"Claim '{claim}' is missing in the token.") from err
+            raise core_exceptions.InvalidTokenError(f"Claim '{claim}' is missing in the token.") from err
         except core_exceptions.UnauthenticatedError:
             # decode_token already raised a properly-formed 401; re-raise as-is.
             raise
@@ -124,7 +124,7 @@ class TokenManager:
                 exc_info=err,
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Unable to retrieve claim") from err
+            raise core_exceptions.InvalidTokenError("Unable to retrieve claim") from err
 
     def decode_token(self, token: str) -> Token:
         """Decodes a JWT token and returns the parsed Token object.
@@ -137,7 +137,7 @@ class TokenManager:
                 payload claims).
 
         Raises:
-            UnauthenticatedError: If the token cannot be decoded, raises an HTTP 401
+            InvalidTokenError: If the token cannot be decoded, raises an HTTP 401
                 Unauthorized exception.
         """
         try:
@@ -148,21 +148,21 @@ class TokenManager:
                 "Invalid token payload",
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Invalid token payload") from payload_err
+            raise core_exceptions.InvalidTokenError("Invalid token payload") from payload_err
         except JoseError as decode_err:
             # A malformed, forged or unsupported token (bad signature, algorithm or header) is client input.
             logger.warning(
                 "Error decoding token",
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Unable to decode token") from decode_err
+            raise core_exceptions.InvalidTokenError("Unable to decode token") from decode_err
         except Exception as err:
             logger.error(
                 "Unexpected error decoding token",
                 exc_info=err,
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Unable to decode token") from err
+            raise core_exceptions.InvalidTokenError("Unable to decode token") from err
 
     def validate_token_expiration(
         self,
@@ -183,7 +183,7 @@ class TokenManager:
                 ``TokenType.REFRESH``).
 
         Raises:
-            UnauthenticatedError: If the token is missing required claims, expired,
+            InvalidTokenError: If the token is missing required claims, expired,
                 not yet valid, contains invalid claims, or has the wrong type.
         """
         try:
@@ -220,27 +220,27 @@ class TokenManager:
                 "JWT is missing required claims",
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Token is missing required claims.") from missing_err
+            raise core_exceptions.InvalidTokenError("Token is missing required claims.") from missing_err
         except ExpiredTokenError as expired_err:
-            raise core_exceptions.UnauthenticatedError("Token is expired.") from expired_err
+            raise core_exceptions.InvalidTokenError("Token is expired.") from expired_err
         except InvalidTokenError as invalid_err:
             logger.warning(
                 "JWT is not valid yet",
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Token is not valid yet.") from invalid_err
+            raise core_exceptions.InvalidTokenError("Token is not valid yet.") from invalid_err
         except InsecureClaimError as insecure_err:
             logger.warning(
                 "JWT contains an insecure claim",
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Token has insecure claims.") from insecure_err
+            raise core_exceptions.InvalidTokenError("Token has insecure claims.") from insecure_err
         except InvalidClaimError as claims_err:
             logger.warning(
                 "JWT claim validation failed",
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Token has invalid claims.") from claims_err
+            raise core_exceptions.InvalidTokenError("Token has invalid claims.") from claims_err
         except core_exceptions.UnauthenticatedError:
             # decode_token already raised a properly-formed 401; re-raise as-is.
             raise
@@ -250,7 +250,7 @@ class TokenManager:
                 exc_info=err,
                 extra=core_logger.context(credential="token"),
             )
-            raise core_exceptions.UnauthenticatedError("Token expired or invalid.") from err
+            raise core_exceptions.InvalidTokenError("Token expired or invalid.") from err
 
     def validate_access_expiration_logged(self, access_token: str) -> None:
         """Validate an access token's expiration and log failures consistently.
@@ -259,14 +259,14 @@ class TokenManager:
         applies the shared logging policy used by the access-token validation
         dependency and principal resolution: a refused token is an expected 401, so
         it logs at ``debug`` here (the manager already warned about anything but an
-        expiry). The original :class:`core_exceptions.UnauthenticatedError` is re-raised
+        expiry). The original :class:`core_exceptions.InvalidTokenError` is re-raised
         unchanged so callers keep the same 401 semantics.
 
         Args:
             access_token: The raw JWT access token to validate.
 
         Raises:
-            UnauthenticatedError: 401 if the token is missing claims, expired, not
+            InvalidTokenError: 401 if the token is missing claims, expired, not
                 yet valid, or otherwise invalid.
         """
         try:

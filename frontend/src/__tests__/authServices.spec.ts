@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { confirmPasswordReset, requestPasswordReset } from '@/features/auth/services/passwordReset'
 import { completeOnboarding, fetchOnboardingStatus } from '@/features/auth/services/onboarding'
+import { refreshSession } from '@/features/auth/services/session'
+import { getAccessToken, getCsrfToken } from '@/services/authTokens'
 import { confirmSignUp } from '@/features/auth/services/signUp'
 
 vi.mock('@/services/runtime', () => ({
@@ -108,5 +110,19 @@ describe('onboarding service', () => {
     expect(call?.[0]).toContain('/public/onboarding')
     expect(call?.[1].method).toBe('POST')
     expect(call?.[1].body).toBe(JSON.stringify(request))
+  })
+})
+
+describe('session service', () => {
+  it('refreshes without the CSRF token even when one is held', async () => {
+    vi.mocked(getAccessToken).mockReturnValueOnce('access-old')
+    vi.mocked(getCsrfToken).mockReturnValueOnce('csrf-old')
+    fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: 'a', csrf_token: 'c' }))
+
+    await refreshSession()
+
+    const [url, init] = fetchMock.mock.calls[0] ?? ['', {}]
+    expect(url).toContain('/auth/refresh')
+    expect((init.headers as Headers).get('X-CSRF-Token')).toBeNull()
   })
 })

@@ -9,6 +9,11 @@ export const API_BASE_URL = getApiBaseUrl()
 
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
+const REFRESH_PATH = '/auth/refresh'
+
+/** Problem type of a 401 caused by the bearer token itself (missing, expired, malformed, session ended). */
+const INVALID_TOKEN_PROBLEM = 'urn:endurain:error:invalid-token'
+
 /**
  * Default per-request timeout. Caps a hung backend so requests fail fast
  * instead of leaving the UI (and TanStack Query) waiting forever. Override or
@@ -110,10 +115,11 @@ async function parseError(response: Response): Promise<ParsedError> {
 /**
  * Builds request headers shared by every API call.
  *
+ * @param path - Path relative to {@link API_BASE_URL}.
  * @param init - Fetch options supplied by the caller.
  * @returns A normalized mutable `Headers` instance.
  */
-function buildHeaders(init: ApiFetchOptions): Headers {
+function buildHeaders(path: string, init: ApiFetchOptions): Headers {
   const headers = new Headers(init.headers)
   const method = (init.method ?? 'GET').toUpperCase()
 
@@ -137,7 +143,9 @@ function buildHeaders(init: ApiFetchOptions): Headers {
     if (accessToken) {
       headers.set('Authorization', `Bearer ${accessToken}`)
     }
-    if (csrfToken && STATE_CHANGING_METHODS.has(method)) {
+    // The refresh is authorised by the HttpOnly SameSite=Strict cookie and the backend accepts it
+    // without the header. Another tab may have rotated the CSRF token, so a stale one would fail it.
+    if (csrfToken && STATE_CHANGING_METHODS.has(method) && path !== REFRESH_PATH) {
       headers.set('X-CSRF-Token', csrfToken)
     }
   }
@@ -172,7 +180,7 @@ let refreshPromise: Promise<AuthTokenResponse> | null = null
  * @throws {HttpError} When the refresh session is invalid or expired.
  */
 async function refreshAuthTokens(): Promise<AuthTokenResponse> {
-  refreshPromise ??= rawApiFetch<AuthTokenResponse>('/auth/refresh', {
+  refreshPromise ??= rawApiFetch<AuthTokenResponse>(REFRESH_PATH, {
     method: 'POST',
     retryOnUnauthorized: false,
   })
@@ -205,7 +213,7 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: 'include',
-    headers: buildHeaders(init),
+    headers: buildHeaders(path, init),
     signal: buildSignal(init),
   })
 
@@ -250,6 +258,11 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
  * auth cookies travel with the request, and throws {@link HttpError} on
  * non-2xx responses.
  *
+ * A 401 whose problem type is `urn:endurain:error:invalid-token` (the bearer token itself is
+ * missing, expired, malformed or its session ended) refreshes the tokens once and replays the
+ * request. Any other 401, such as a wrong step-up password, is thrown as-is. Opt out with
+ * `auth: false` or `retryOnUnauthorized: false`; `/auth/refresh` never retries.
+ *
  * @typeParam T - Expected shape of the parsed JSON response.
  * @param path - Path relative to {@link API_BASE_URL} (e.g. `/config`).
  * @param init - Standard `fetch` options plus auth/retry options.
@@ -262,12 +275,10 @@ export async function apiFetch<T>(path: string, init: ApiFetchOptions = {}): Pro
   } catch (error) {
     const shouldRetry =
       error instanceof HttpError &&
-      error.status === 401 &&
+      error.type === INVALID_TOKEN_PROBLEM &&
       init.auth !== false &&
       init.retryOnUnauthorized !== false &&
-      path !== '/auth/login' &&
-      path !== '/auth/mfa/verify' &&
-      path !== '/auth/refresh'
+      path !== REFRESH_PATH
 
     if (!shouldRetry) {
       throw error

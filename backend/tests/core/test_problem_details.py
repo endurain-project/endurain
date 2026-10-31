@@ -225,3 +225,38 @@ class TestDatabaseErrorBoundary:
 
     def test_the_statement_and_parameters_are_not_disclosed(self):
         assert "hunter2" not in _client().get("/commit-failed").text
+
+
+class TestInvalidTokenError:
+    """``InvalidTokenError`` is the only 401 a client answers by refreshing its tokens."""
+
+    @staticmethod
+    def _raising_client(error: core_exceptions.UnauthenticatedError) -> TestClient:
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/token")
+        def _token():
+            raise error
+
+        return TestClient(app)
+
+    def test_default_challenge_names_invalid_token(self):
+        response = self._raising_client(core_exceptions.InvalidTokenError("Token is expired.")).get("/token")
+
+        assert response.status_code == 401
+        assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
+        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert response.json()["detail"] == "Token is expired."
+
+    def test_request_without_token_gets_a_bare_challenge(self):
+        response = self._raising_client(core_exceptions.InvalidTokenError("Missing", scheme="Bearer")).get("/token")
+
+        assert response.status_code == 401
+        assert response.headers["www-authenticate"] == "Bearer"
+        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+
+    def test_other_unauthorized_errors_keep_their_own_type(self):
+        response = self._raising_client(core_exceptions.UnauthenticatedError("Wrong password")).get("/token")
+
+        assert response.json()["type"] == "urn:endurain:error:unauthorized"

@@ -133,16 +133,18 @@ def get_token(
     """Select a credential source according to client and token type."""
     if token_type == access_tokens_integration.TokenType.ACCESS:
         if non_cookie_token is None:
-            raise core_exceptions.UnauthenticatedError("Access token missing from Authorization header")
+            raise core_exceptions.InvalidTokenError("Access token missing from Authorization header", scheme="Bearer")
         return non_cookie_token
     if token_type == access_tokens_integration.TokenType.REFRESH:
         if client_type == "web":
             if cookie_token is None:
-                raise core_exceptions.UnauthenticatedError("Refresh token missing from cookie")
+                raise core_exceptions.InvalidTokenError("Refresh token missing from cookie", scheme="Bearer")
             return cookie_token
         if client_type == "mobile":
             if non_cookie_token is None:
-                raise core_exceptions.UnauthenticatedError("Refresh token missing from Authorization header")
+                raise core_exceptions.InvalidTokenError(
+                    "Refresh token missing from Authorization header", scheme="Bearer"
+                )
             return non_cookie_token
     logger.warning("Token lookup refused: unsupported client type or token type")
     raise core_exceptions.PermissionDeniedError("Invalid client type or token type")
@@ -201,7 +203,7 @@ def get_sub_from_refresh_token(
     """Return the decimal subject claim from a refresh token."""
     sub = token_manager.get_token_claim(refresh_token, "sub")
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
-        raise core_exceptions.UnauthenticatedError("Invalid token: 'sub' claim must be a decimal string")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a decimal string")
     return int(sub)
 
 
@@ -215,7 +217,7 @@ def get_sid_from_refresh_token(
     """Return the session identifier claim from a refresh token."""
     sid = token_manager.get_token_claim(refresh_token, "sid")
     if not isinstance(sid, str):
-        raise core_exceptions.UnauthenticatedError("Invalid token: 'sid' claim must be a string")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
     return sid
 
 
@@ -229,7 +231,7 @@ def get_exp_from_refresh_token(
     """Return the expiry claim of a refresh token as a timezone-aware UTC instant."""
     exp = token_manager.get_token_claim(refresh_token, "exp")
     if not isinstance(exp, int):
-        raise core_exceptions.UnauthenticatedError("Invalid token: 'exp' claim must be an integer")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'exp' claim must be an integer")
     return datetime.fromtimestamp(exp, UTC)
 
 

@@ -33,7 +33,7 @@ Clients that only read `detail` keep working. Some errors carry extra members, s
 
 <!-- generated:error-types -->
 
-A request validation failure is `422` with `urn:endurain:error:validation-failed` and an `errors` list. Exceeding a rate limit is `429` with `urn:endurain:error:rate-limited`. A sensitive request from an account without a local password that carries no `idp_reauth` is `401` with `urn:endurain:error:idp-reauth-required` and a `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` header. An error raised without a specific type uses a slug of the HTTP status phrase.
+A request validation failure is `422` with `urn:endurain:error:validation-failed` and an `errors` list. Exceeding a rate limit is `429` with `urn:endurain:error:rate-limited`. A sensitive request from an account without a local password that carries no `idp_reauth` is `401` with `urn:endurain:error:idp-reauth-required` and a `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` header. A missing, expired or malformed access token, or one whose session has ended, is `401` with `urn:endurain:error:invalid-token`: refresh the tokens and send the request again. Any other `401` is final, so do not refresh or retry it. An error raised without a specific type uses a slug of the HTTP status phrase.
 
 ### Authentication errors
 

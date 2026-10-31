@@ -74,20 +74,20 @@ def resolve_from_access_token(
             :class:`~auth.contracts.AccessTokenCred`.
 
     Raises:
-        UnauthenticatedError: If the token is expired,
-            invalid, its session no longer exists, or the user is not found.
+        InvalidTokenError: If the token is expired,
+            invalid, or its session no longer exists.
     """
     token_manager.validate_access_expiration_logged(access_token)
 
     sub = token_manager.get_token_claim(access_token, "sub")
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
         logger.warning("Access token refused: malformed 'sub' claim")
-        raise core_exceptions.UnauthenticatedError("Invalid token: 'sub' claim must be a decimal string")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a decimal string")
 
     sid = token_manager.get_token_claim(access_token, "sid")
     if not isinstance(sid, str):
         logger.warning("Access token refused: malformed 'sid' claim")
-        raise core_exceptions.UnauthenticatedError("Invalid token: 'sid' claim must be a string")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
 
     user = users_integration.require_user(int(sub), db)
     users_integration.require_active_user(user)
@@ -100,7 +100,7 @@ def resolve_from_access_token(
             "Access token refused: its session is no longer valid for user <user_id>",
             extra=core_logger.context(user_id=user.id),
         )
-        raise core_exceptions.UnauthenticatedError("Session is no longer valid", scheme="Bearer")
+        raise core_exceptions.InvalidTokenError("Session is no longer valid")
 
     # Scopes follow the user's current access type, not the claim minted into the token, so a demotion
     # takes effect on the next request.

@@ -37,7 +37,7 @@ def get_access_token(
 ) -> str:
     """Require an access token from the Authorization header."""
     if access_token is None:
-        raise core_exceptions.UnauthenticatedError("Access token missing from Authorization header")
+        raise core_exceptions.InvalidTokenError("Access token missing from Authorization header", scheme="Bearer")
     return access_token
 
 
@@ -133,7 +133,9 @@ def validate_access_token_or_api_key(
             )
             raw_key = api_key_query
         if raw_key is None:
-            raise core_exceptions.UnauthenticatedError("Not authenticated. Provide a Bearer token or an API key.")
+            raise core_exceptions.InvalidTokenError(
+                "Not authenticated. Provide a Bearer token or an API key.", scheme="Bearer"
+            )
         principal = authentication_integration.resolve_from_api_key(raw_key, request, db)
         auth_type = "api_key"
     request.state.principal = principal

@@ -128,6 +128,28 @@ class UnauthenticatedError(DomainError):
         self.headers = {"WWW-Authenticate": scheme}
 
 
+class InvalidTokenError(UnauthenticatedError):
+    """The bearer token is missing, expired, malformed or its session ended.
+
+    Clients branch on the ``invalid-token`` problem type to refresh their tokens and send the request again; every
+    other ``401`` is final. The challenge follows RFC 6750: ``error="invalid_token"``, and no error code when the
+    request carried no token.
+    """
+
+    code = "invalid-token"
+    default_detail = "Invalid or expired token"
+
+    def __init__(self, detail: str | None = None, *, scheme: str = 'Bearer error="invalid_token"') -> None:
+        """Initialise the error with the authentication challenge to return.
+
+        Args:
+            detail: Message returned to the client.
+            scheme: Authentication challenge for ``WWW-Authenticate``; pass ``"Bearer"`` when the request carried
+                no token.
+        """
+        super().__init__(detail, scheme=scheme)
+
+
 class InvalidInputError(DomainError):
     """The request is well-formed but semantically unusable."""
 
