@@ -23,7 +23,12 @@ describe('useChartProvider', () => {
   it('registers a concrete provider and reports available', () => {
     const fake: ChartProvider = {
       name: 'fake-chart',
-      mount: () => ({ update: () => {}, destroy: () => {} }),
+      mount: () => ({
+        update: () => {},
+        fractionAt: () => null,
+        cursorGeometry: () => null,
+        destroy: () => {},
+      }),
     }
     setChartProvider(fake)
     const { provider, isAvailable } = useChartProvider()
@@ -41,6 +46,8 @@ describe('useMapProvider', () => {
     expect(() => {
       instance.update({ track: { points: [] } })
       instance.recenter()
+      instance.setCursor(null)
+      instance.setTrackHover(null)
       instance.destroy()
     }).not.toThrow()
   })
@@ -48,7 +55,13 @@ describe('useMapProvider', () => {
   it('registers a concrete provider and reports available', () => {
     const fake: MapProvider = {
       name: 'fake-map',
-      mount: () => ({ update: () => {}, recenter: () => {}, destroy: () => {} }),
+      mount: () => ({
+        update: () => {},
+        recenter: () => {},
+        setCursor: () => {},
+        setTrackHover: () => {},
+        destroy: () => {},
+      }),
     }
     setMapProvider(fake)
     const { provider, isAvailable } = useMapProvider()

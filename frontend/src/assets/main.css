@@ -70,6 +70,11 @@
   top: calc(env(safe-area-inset-top) + 3.5rem + 0.75rem);
 }
 
+/* Same navbar clearance, without the toast gap, so a sticky map sits flush under it. */
+@utility top-below-nav {
+  top: calc(env(safe-area-inset-top) + 3.5rem);
+}
+
 /*
  * Semantic typography scale — single source of truth for the recurring text
  * roles across screens. See devdocs/UX_INCREMENTAL_MIGRATION_PLAN.md § 12.

@@ -36,12 +36,19 @@ export interface MapRenderOptions {
   interactive?: boolean
 }
 
+/** Called with a fraction along the route, or `null` when the pointer leaves it. */
+export type TrackHoverHandler = (fraction: number | null) => void
+
 /** Imperative handle to a mounted map, returned by {@link MapProvider.mount}. */
 export interface MapInstance {
   /** Re-renders the map with new options (e.g. after data refresh). */
   update(options: MapRenderOptions): void
   /** Re-fits the viewport to the current track (e.g. after the user panned). */
   recenter(): void
+  /** Moves the route cursor. `null` removes it. Does not refit the map. */
+  setCursor(point: GeoPoint | null): void
+  /** Receives hover along the route line. `null` stops listening. */
+  setTrackHover(handler: TrackHoverHandler | null): void
   /** Tears down the map and releases resources. */
   destroy(): void
 }
@@ -67,6 +74,8 @@ const noopMapProvider: MapProvider = {
     return {
       update() {},
       recenter() {},
+      setCursor() {},
+      setTrackHover() {},
       destroy() {},
     }
   },

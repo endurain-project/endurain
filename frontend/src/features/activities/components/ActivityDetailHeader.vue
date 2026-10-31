@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { SafeHtml } from '@/components/federation'
 import UserAvatar from '@/components/UserAvatar.vue'
 import ActivityActionsMenu from '@/features/activities/components/ActivityActionsMenu.vue'
+import ActivityGearCard from '@/features/activities/components/ActivityGearCard.vue'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import {
   activityTypeIsVirtual,
@@ -67,6 +68,21 @@ const locationLabel = computed(() => {
   return [place, props.activity.country].filter(Boolean).join(', ') || null
 })
 
+/** Recording device, without repeating a manufacturer the model already contains. */
+const deviceLabel = computed(() => {
+  const manufacturer = props.activity.trackerManufacturer?.trim() || ''
+  const model = props.activity.trackerModel?.trim() || ''
+  if (manufacturer && model) {
+    const maker = manufacturer.toLowerCase()
+    const device = model.toLowerCase()
+    if (device.startsWith(maker) || maker.includes(device)) {
+      return model.length >= manufacturer.length ? model : manufacturer
+    }
+    return `${manufacturer} ${model}`
+  }
+  return manufacturer || model || null
+})
+
 const stravaUrl = computed(() =>
   props.activity.stravaActivityId
     ? `https://www.strava.com/activities/${props.activity.stravaActivityId}`
@@ -87,9 +103,9 @@ const showPrivateNotes = computed(
 
 <template>
   <header class="flex flex-col gap-3">
-    <!-- Athlete photo + name + meta on the left, external links on the right. -->
-    <div class="flex items-start justify-between gap-3">
-      <div class="flex min-w-0 items-center gap-3">
+    <!-- Identity on the left. Gear fills the right. The menu stays at the name line. -->
+    <div class="relative flex flex-col items-start justify-between gap-3 md:flex-row">
+      <div class="flex min-w-0 items-center gap-3 max-md:pe-9">
         <UserAvatar
           :src="owner?.avatarUrl"
           :alt="owner?.name ?? ''"
@@ -113,36 +129,48 @@ const showPrivateNotes = computed(
               t('activities.hidden')
             }}</Badge>
           </div>
-          <p v-if="dateTimeLabel || locationLabel" class="text-caption mt-1.5">
+          <p v-if="dateTimeLabel || deviceLabel || locationLabel" class="text-hint mt-1.5">
             <span v-if="dateTimeLabel">{{ dateTimeLabel }}</span>
-            <span v-if="dateTimeLabel && locationLabel"> · </span>
+            <span v-if="dateTimeLabel && deviceLabel"> · </span>
+            <span v-if="deviceLabel">{{ deviceLabel }}</span>
+            <span v-if="(dateTimeLabel || deviceLabel) && locationLabel"> · </span>
             <span v-if="locationLabel">{{ locationLabel }}</span>
           </p>
         </div>
       </div>
 
-      <div class="flex shrink-0 items-center gap-2">
-        <a
-          v-if="isOwner && stravaUrl"
-          :href="stravaUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="t('activities.openInStrava')"
-          class="rounded-input p-1 hover:bg-accent"
+      <!-- Gear is first, then the actions, in a normal row. Tab follows that order.
+           On a phone the actions stay on the name line. -->
+      <div
+        v-if="isOwner"
+        class="flex w-full flex-row flex-wrap items-center justify-end gap-2 md:w-auto md:max-w-[55%]"
+      >
+        <ActivityGearCard :activity="activity" />
+        <div
+          class="flex flex-row items-center gap-1 max-md:absolute max-md:top-0 max-md:end-0 max-md:z-10"
         >
-          <img :src="INTEGRATION_LOGOS.stravaMark" alt="" class="size-5 object-contain" />
-        </a>
-        <a
-          v-if="isOwner && garminUrl"
-          :href="garminUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="t('activities.openInGarmin')"
-          class="rounded-input p-1 hover:bg-accent"
-        >
-          <img :src="INTEGRATION_LOGOS.garminApp" alt="" class="size-5 rounded object-contain" />
-        </a>
-        <ActivityActionsMenu v-if="isOwner" :activity="activity" />
+          <a
+            v-if="isOwner && stravaUrl"
+            :href="stravaUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="t('activities.openInStrava')"
+            class="rounded-input p-1 hover:bg-accent"
+          >
+            <img :src="INTEGRATION_LOGOS.stravaMark" alt="" class="size-5 object-contain" />
+          </a>
+          <a
+            v-if="isOwner && garminUrl"
+            :href="garminUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="t('activities.openInGarmin')"
+            class="rounded-input p-1 hover:bg-accent"
+          >
+            <img :src="INTEGRATION_LOGOS.garminApp" alt="" class="size-5 rounded object-contain" />
+          </a>
+          <ActivityActionsMenu v-if="isOwner" :activity="activity" />
+        </div>
       </div>
     </div>
 

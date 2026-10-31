@@ -7,7 +7,6 @@ import { Pencil, Plus, Trash2 } from '@lucide/vue'
 import type { Activity } from '@/features/activities/types'
 
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -19,6 +18,7 @@ import {
 } from '@/features/activities/composables/useActivityDetail'
 import { activityTypeToGearType } from '@/features/activities/utils/activityType'
 import { useGearQuery } from '@/features/gears/composables/useGears'
+import { presentGearType } from '@/features/gears/utils/gearType'
 
 const props = defineProps<{
   /** The activity whose gear association is shown and (owner-only) edited. */
@@ -45,9 +45,14 @@ const isPickerOpen = ref(false)
 const isRemoveOpen = ref(false)
 const selectedGearId = ref<number | null>(props.activity.gearId)
 
-// Whether the card has anything to show: the activity supports gear, or one is
-// already set (e.g. after the activity type changed). Otherwise it is hidden.
+// Hidden when this activity family has no gear and none is already set.
 const showCard = computed(() => gearType.value !== null || gearId.value !== null)
+
+/** Icon for the activity's gear family: shoes for a walk or run, a bike for a ride. */
+const gearIcon = computed(() => {
+  const type = gearType.value ?? currentGear.value?.gearType
+  return type == null ? null : presentGearType(type).icon
+})
 const canSubmit = computed(() => selectedGearId.value !== null)
 
 // Re-seed the picker with the activity's current gear each time it opens.
@@ -84,45 +89,43 @@ async function removeGear(): Promise<void> {
 </script>
 
 <template>
-  <Card v-if="showCard" class="flex flex-col gap-3">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-card-heading">{{ t('activities.gear.title') }}</h2>
-      <div v-if="activity.gearId" class="flex items-center gap-1">
-        <Button
-          v-if="gearType !== null"
-          variant="ghost"
-          size="sm"
-          :aria-label="t('activities.gear.change')"
-          @click="isPickerOpen = true"
-        >
-          <Pencil class="size-4" />
-        </Button>
-        <Button
-          variant="ghostDestructive"
-          size="sm"
-          :aria-label="t('activities.gear.remove')"
-          @click="isRemoveOpen = true"
-        >
-          <Trash2 class="size-4" />
-        </Button>
-      </div>
-    </div>
-
-    <RouterLink
-      v-if="activity.gearId"
-      :to="{ name: 'gear', params: { id: String(activity.gearId) } }"
-      class="self-start text-body text-brand hover:underline"
-    >
-      {{ currentGear?.nickname ?? t('activities.gear.loading') }}
-    </RouterLink>
-
-    <div v-else class="flex flex-col items-start gap-3">
-      <p class="text-hint">{{ t('activities.gear.notSet') }}</p>
-      <Button v-if="gearType !== null" variant="outline" size="sm" @click="isPickerOpen = true">
-        <Plus class="size-4" />
-        {{ t('activities.gear.add') }}
+  <div v-if="showCard" class="min-w-0">
+    <div v-if="activity.gearId" class="flex min-w-0 items-center gap-1">
+      <component
+        v-if="gearIcon"
+        :is="gearIcon"
+        class="size-4 shrink-0 text-muted-foreground"
+        aria-hidden="true"
+      />
+      <RouterLink
+        :to="{ name: 'gear', params: { id: String(activity.gearId) } }"
+        class="max-w-48 truncate text-sm text-brand hover:underline"
+      >
+        {{ currentGear?.nickname ?? t('activities.gear.loading') }}
+      </RouterLink>
+      <Button
+        v-if="gearType !== null"
+        variant="ghost"
+        size="icon-sm"
+        :aria-label="t('activities.gear.change')"
+        @click="isPickerOpen = true"
+      >
+        <Pencil class="size-3.5" />
+      </Button>
+      <Button
+        variant="ghostDestructive"
+        size="icon-sm"
+        :aria-label="t('activities.gear.remove')"
+        @click="isRemoveOpen = true"
+      >
+        <Trash2 class="size-3.5" />
       </Button>
     </div>
+
+    <Button v-else-if="gearType !== null" variant="outline" size="sm" @click="isPickerOpen = true">
+      <Plus class="size-3.5" />
+      {{ t('activities.gear.add') }}
+    </Button>
 
     <!-- Add / change gear -->
     <FormDialog
@@ -164,5 +167,5 @@ async function removeGear(): Promise<void> {
       :pending="isSaving"
       @confirm="removeGear"
     />
-  </Card>
+  </div>
 </template>
