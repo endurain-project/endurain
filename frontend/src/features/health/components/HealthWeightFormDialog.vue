@@ -85,9 +85,9 @@ function displayMassFromKg(kg: number | null): string {
   return String(Math.round(value * 100) / 100)
 }
 
-/** Converts a validated display-unit mass string back to kilograms for the wire. */
-function massToKg(raw: string): number {
-  const value = Number(raw.trim())
+/** Converts a validated display-unit mass back to kilograms for the wire. A typed `type=number` value is a number. */
+function massToKg(raw: string | number): number {
+  const value = toNumberOrNull(raw) ?? 0
   const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
 }
