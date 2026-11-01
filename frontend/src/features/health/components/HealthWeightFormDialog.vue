@@ -85,9 +85,15 @@ function displayMassFromKg(kg: number | null): string {
   return String(Math.round(value * 100) / 100)
 }
 
-/** Converts a validated display-unit mass string back to kilograms for the wire. */
-function massToKg(raw: string): number {
-  const value = Number(raw.trim())
+/**
+ * Converts a display-unit mass back to kilograms for the wire, or `null` when
+ * empty. A number input bound with `v-model` gives a number, not a string.
+ */
+function massToKg(raw: string | number): number | null {
+  const value = toNumberOrNull(raw)
+  if (value === null) {
+    return null
+  }
   const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
 }
@@ -96,7 +102,8 @@ function massToKg(raw: string): number {
 function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
     date: values.date || null,
-    weightKg: massToKg(values.weight),
+    // the weight validators only let a positive number through
+    weightKg: massToKg(values.weight) as number,
     bmi: toNumberOrNull(values.bmi),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
