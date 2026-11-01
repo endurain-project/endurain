@@ -63,12 +63,12 @@ export interface AppConfig {
  *
  * @property login_photo_set - Whether the instance has a custom login image.
  * @property signup_enabled - Whether sign-up should be offered.
+ * @property signup_require_email_verification - Whether sign-up passwords are chosen from the emailed link.
  * @property sso_enabled - Whether SSO login is enabled.
  * @property local_login_enabled - Whether username/password login is enabled.
  * @property sso_auto_redirect - Whether to redirect automatically when a single SSO provider exists.
  * @property units - Default unit system used to seed the sign-up form.
  * @property currency - Default currency used to seed the sign-up form.
- * @property password_type - Password policy enforcement level for client-side hints.
  * @property password_length_regular_users - Minimum password length for regular users.
  * @property password_length_admin_users - Minimum password length for admin users.
  * @property num_records_per_page - Page size the server enforces for paginated lists.
@@ -80,12 +80,12 @@ export type PublicServerSettings = Pick<
   Schemas['ServerSettingsReadPublic'],
   | 'login_photo_set'
   | 'signup_enabled'
+  | 'signup_require_email_verification'
   | 'sso_enabled'
   | 'local_login_enabled'
   | 'sso_auto_redirect'
   | 'units'
   | 'currency'
-  | 'password_type'
   | 'password_length_regular_users'
   | 'password_length_admin_users'
   | 'num_records_per_page'

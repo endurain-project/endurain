@@ -222,6 +222,33 @@ class TestDeploymentProfileEnforcement:
         assert settings.resolved_state_uri == "redis://localhost:6379/0"
         assert settings.resolved_events_uri == "redis://localhost:6379/0"
 
+    def test_log_viewer_enabled_for_single_local_process(self):
+        settings = core_config.Settings(_env_file=None, ENVIRONMENT="production")
+        assert settings.single_log_writer is True
+        assert settings.logs_viewer_enabled is True
+
+    def test_log_viewer_disabled_in_demo(self):
+        assert core_config.Settings(_env_file=None, ENVIRONMENT="demo").logs_viewer_enabled is False
+
+    def test_log_viewer_disabled_with_several_web_workers(self):
+        settings = core_config.Settings(
+            _env_file=None, ENVIRONMENT="production", WEB_WORKERS=2, REDIS_URL="redis://localhost:6379/0"
+        )
+        assert settings.single_log_writer is False
+        assert settings.logs_viewer_enabled is False
+
+    def test_log_viewer_disabled_for_distributed_profile(self):
+        settings = core_config.Settings(
+            _env_file=None,
+            ENVIRONMENT="production",
+            DEPLOYMENT_PROFILE="distributed",
+            JOBS_ENABLED=True,
+            REDIS_URL="redis://localhost:6379/0",
+            STORAGE_URI="s3://bucket/thumbs",
+            LOCK_URI="postgres-advisory://",
+        )
+        assert settings.logs_viewer_enabled is False
+
     def test_distributed_noop_lock_fails_fast(self):
         # State, events, and storage are all shared; an explicit noop lock is the
         # remaining misconfiguration — fatal because replicas would each run jobs.

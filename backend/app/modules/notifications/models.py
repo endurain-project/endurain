@@ -1,21 +1,17 @@
 """Notification database models."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, UniqueConstraint, text
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class Notification(Base):
-    """
-    User notification data.
+    """User notification data.
 
     Attributes:
         id: Primary key.
@@ -24,11 +20,12 @@ class Notification(Base):
         options: Notification options (JSON).
         read: Whether the notification has been read.
         created_at: Notification creation date.
-        users: Relationship to Users model.
     """
 
     __tablename__ = "notifications"
     __table_args__ = (
+        Index("ix_notifications_user_id_created_at", "user_id", "created_at"),
+        Index("ix_notifications_read_created_at", "created_at", postgresql_where=text("read")),
         UniqueConstraint(
             "source_event_id",
             "user_id",
@@ -44,7 +41,6 @@ class Notification(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="User ID that the notification belongs to",
     )
     type: Mapped[int] = mapped_column(
@@ -72,6 +68,3 @@ class Notification(Base):
         default=func.now(),
         comment=("Notification creation date (DateTime)"),
     )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="notifications")

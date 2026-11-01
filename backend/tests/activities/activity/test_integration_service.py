@@ -34,28 +34,16 @@ class TestIntegrationService:
         mock_crud.get_activity_by_garminconnect_id_from_user_id.assert_called_once_with(222, 3, db)
 
     @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_list_user_activities_delegates(self, mock_crud):
+    def test_list_garminconnect_gear_activity_refs_delegates(self, mock_crud):
         from modules.activities.activity import integration_service
 
         db = MagicMock()
-        mock_crud.get_user_activities.return_value = ["a"]
+        mock_crud.get_garminconnect_gear_activity_refs.return_value = ["a"]
 
-        result = integration_service.list_user_activities(3, db)
-
-        assert result == ["a"]
-        mock_crud.get_user_activities.assert_called_once_with(3, db, user_is_owner=True)
-
-    @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_list_user_activities_with_garminconnect_gear_delegates(self, mock_crud):
-        from modules.activities.activity import integration_service
-
-        db = MagicMock()
-        mock_crud.get_user_activities_by_user_id_and_garminconnect_gear_set.return_value = ["a"]
-
-        result = integration_service.list_user_activities_with_garminconnect_gear(3, db)
+        result = integration_service.list_garminconnect_gear_activity_refs(3, db, after_id=5, limit=10)
 
         assert result == ["a"]
-        mock_crud.get_user_activities_by_user_id_and_garminconnect_gear_set.assert_called_once_with(3, db)
+        mock_crud.get_garminconnect_gear_activity_refs.assert_called_once_with(3, db, after_id=5, limit=10)
 
     @patch("modules.activities.activity.integration_service.activity_service")
     def test_bulk_set_activities_gear_delegates(self, mock_service):
@@ -80,24 +68,24 @@ class TestIntegrationService:
         db = MagicMock()
         mock_service.delete_all_strava_activities.return_value = 5
 
-        result = integration_service.delete_all_strava_activities(3, db)
+        result = integration_service.delete_all_strava_activities(3, db, limit=500)
 
         assert result == 5
         mock_service.delete_all_strava_activities.assert_called_once_with(
-            3, db, source="api:delete_all_strava_activities"
+            3, db, source="api:delete_all_strava_activities", limit=500
         )
 
     @patch("modules.activities.activity.integration_service.activity_service")
-    def test_delete_all_activities_for_user_delegates(self, mock_service):
+    def test_delete_activities_batch_for_user_delegates(self, mock_service):
         from modules.activities.activity import integration_service
 
         db = MagicMock()
-        mock_service.delete_all_activities_for_user.return_value = 2
+        mock_service.delete_activities_batch_for_user.return_value = 2
 
-        result = integration_service.delete_all_activities_for_user(7, db)
+        result = integration_service.delete_activities_batch_for_user(7, 50, db)
 
         assert result == 2
-        mock_service.delete_all_activities_for_user.assert_called_once_with(7, db, source="api:delete_user")
+        mock_service.delete_activities_batch_for_user.assert_called_once_with(7, 50, db, source="api:delete_user")
 
 
 class TestDerivedArtifactWritesStageOnly:
@@ -140,3 +128,25 @@ class TestDerivedArtifactWritesStageOnly:
 
         mock_crud.update_activity_location.assert_called_with(999, "Lisbon", None, "Portugal", db)
         db.commit.assert_not_called()
+
+
+class TestReadableActivity:
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_the_requesters_activity_reads_through_the_service(self, mock_service):
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_service.get_activity.return_value = "activity"
+
+        assert integration_service.get_readable_activity(5, 1, db) == "activity"
+        mock_service.get_activity.assert_called_once_with(5, 1, db)
+
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_the_public_activity_reads_through_the_service(self, mock_service):
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_service.get_public_activity.return_value = "public"
+
+        assert integration_service.get_public_activity(5, db) == "public"
+        mock_service.get_public_activity.assert_called_once_with(5, db)

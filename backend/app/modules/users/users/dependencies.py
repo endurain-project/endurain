@@ -1,35 +1,30 @@
-"""User-specific request validation dependencies."""
+"""Request-parameter types for the user routes."""
+
+from typing import Annotated
+
+from fastapi import Depends, Path
 
 import core.dependencies as core_dependencies
+import modules.users.users.deletion_state_store as users_deletion_state_store
+
+#: A username path segment: required, as long as the column allows, and decoded and lower-cased by the lookup.
+Username = Annotated[str, Path(min_length=1, max_length=250)]
 
 
-def validate_user_id(user_id: int) -> None:
-    """
-    Validate that user ID is positive.
-
-    Args:
-        user_id: User ID to validate.
-
-    Returns:
-        None
-
-    Raises:
-        HTTPException: 400 if user ID is invalid (≤ 0).
-    """
-    core_dependencies.validate_id(identifier=user_id, min_value=0, message="Invalid user ID")
-
-
-def validate_target_user_id(target_user_id: int) -> None:
-    """
-    Validate that target user ID is positive.
+def get_user_deletion_state_store(
+    state: core_dependencies.PlatformState,
+) -> users_deletion_state_store.UserDeletionStateStore:
+    """Return the account deletion state store over the platform state provider.
 
     Args:
-        target_user_id: Target user ID to validate.
+        state: The platform state provider.
 
     Returns:
-        None
-
-    Raises:
-        HTTPException: 400 if target user ID is invalid (≤ 0).
+        The deletion state store.
     """
-    core_dependencies.validate_id(identifier=target_user_id, min_value=0, message="Invalid target user ID")
+    return users_deletion_state_store.UserDeletionStateStore(state)
+
+
+UserDeletionStateStoreDep = Annotated[
+    users_deletion_state_store.UserDeletionStateStore, Depends(get_user_deletion_state_store)
+]

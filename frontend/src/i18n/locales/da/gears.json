@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtre",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Cykel",
     "shoes": "Sko",
@@ -91,7 +89,6 @@
     "unsupported": "Denne udstyrstype registrerer ikke komponenter.",
     "noneActive": "Alle komponenter er inaktive. Aktivér \"Vis inaktive\" for at se dem.",
     "inactive": "Inaktiv",
-    "unitHours": "t",
     "purchasedOn": "Købt {date}",
     "wearLabel": "{name} slid",
     "actions": {

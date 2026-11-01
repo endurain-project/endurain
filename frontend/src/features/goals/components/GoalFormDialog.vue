@@ -16,6 +16,8 @@ import { FormField } from '@/components/ui/form-field'
 import { Select } from '@/components/ui/select'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import {
   ACTIVITY_TYPE_LABEL_KEYS,
@@ -51,6 +53,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGoalMutation()
 const updateMutation = useUpdateGoalMutation()
@@ -145,15 +148,15 @@ async function submitForm(values: GoalFormValues): Promise<void> {
   const input = buildInput(values)
   try {
     if (props.goal) {
-      await updateMutation.mutateAsync({ id: props.goal.id, userId: props.goal.userId, input })
+      await updateMutation.mutateAsync({ id: props.goal.id, input, version: props.goal.version })
       emit('success', t('settings.goals.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)
       emit('success', t('settings.goals.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('settings.goals.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('settings.goals.form.saveError'))
   }
 }
 
@@ -173,12 +176,8 @@ const canSubmit = computed(() => {
   return base !== null && base > 0
 })
 
-const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.miles') : t('settings.goals.unit.km'),
-)
-const elevationUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.feet') : t('settings.goals.unit.meters'),
-)
+const distanceUnit = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
+const elevationUnit = computed(() => unitLabel(props.units === 'imperial' ? 'ft' : 'm'))
 const distanceLabel = computed(
   () => `${t('settings.goals.metric.distance')} (${distanceUnit.value})`,
 )
@@ -186,7 +185,7 @@ const elevationLabel = computed(
   () => `${t('settings.goals.metric.elevation')} (${elevationUnit.value})`,
 )
 const caloriesLabel = computed(
-  () => `${t('settings.goals.metric.calories')} (${t('settings.goals.unit.calories')})`,
+  () => `${t('settings.goals.metric.calories')} (${unitLabel('kcal')})`,
 )
 
 /** Seeds the form from the goal being edited, or pristine defaults. */

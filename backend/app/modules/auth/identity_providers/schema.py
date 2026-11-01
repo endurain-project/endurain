@@ -16,11 +16,11 @@ from pydantic import (
 )
 
 import core.cryptography as core_cryptography
+import modules.auth.identity_providers.constants as idp_constants
 
 
 class IdentityProviderBase(BaseModel):
-    """
-    Base schema for an Identity Provider (IdP) configuration.
+    """Base schema for an Identity Provider (IdP) configuration.
 
     Attributes:
         name (str): Display name of the IdP (1-100 characters).
@@ -33,7 +33,7 @@ class IdentityProviderBase(BaseModel):
         userinfo_endpoint (str | None): OIDC userinfo endpoint (max 500 characters).
         jwks_uri (str | None): OIDC JWKS URI (max 500 characters).
         scopes (str): OAuth2/OIDC scopes (max 500 characters). Defaults to "openid profile email".
-        icon (str | None): Icon name or URL (max 100 characters).
+        icon (str | None): Built-in icon key; any other logo is uploaded instead.
         auto_create_users (bool): Whether to auto-create users on first login. Defaults to True.
         sync_user_info (bool): Whether to sync user info on each login. Defaults to True.
         user_mapping (Dict[str, Any] | None): Claims mapping configuration.
@@ -42,6 +42,7 @@ class IdentityProviderBase(BaseModel):
     Validators:
         - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens.
         - provider_type: Ensures the provider type is one of the allowed values.
+        - icon: Ensures the icon is a built-in icon key.
     """
 
     name: StrictStr = Field(..., max_length=100, min_length=1, description="Display name of the IdP")
@@ -60,7 +61,7 @@ class IdentityProviderBase(BaseModel):
         max_length=500,
         description="OAuth2/OIDC scopes",
     )
-    icon: StrictStr | None = Field(default=None, max_length=100, description="Icon name or URL")
+    icon: StrictStr | None = Field(default=None, description="Built-in icon key")
     auto_create_users: StrictBool = Field(default=True, description="Auto-create users on first login")
     sync_user_info: StrictBool = Field(default=True, description="Sync user info on each login")
     user_mapping: dict[str, Any] | None = Field(default=None, description="Claims mapping configuration")
@@ -69,8 +70,7 @@ class IdentityProviderBase(BaseModel):
     @field_validator("slug")
     @classmethod
     def validate_slug(cls, v: str) -> str:
-        """
-        Validates that the provided slug contains only lowercase letters, numbers, and hyphens.
+        """Validates that the provided slug contains only lowercase letters, numbers, and hyphens.
 
         Args:
             v (str): The slug string to validate.
@@ -85,11 +85,28 @@ class IdentityProviderBase(BaseModel):
             raise ValueError("Slug must contain only lowercase letters, numbers, and hyphens")
         return v
 
+    @field_validator("icon")
+    @classmethod
+    def validate_icon(cls, v: str | None) -> str | None:
+        """Validates that the icon is one of the built-in icon keys.
+
+        Args:
+            v (str | None): The icon key to validate.
+
+        Returns:
+            str | None: The validated icon key.
+
+        Raises:
+            ValueError: If the icon is not a built-in icon key.
+        """
+        if v is not None and v not in idp_constants.BUILTIN_ICONS:
+            raise ValueError(f"Icon must be one of: {', '.join(sorted(idp_constants.BUILTIN_ICONS))}")
+        return v
+
     @field_validator("provider_type")
     @classmethod
     def validate_provider_type(cls, v: str) -> str:
-        """
-        Validates that the given provider type is one of the allowed values.
+        """Validates that the given provider type is one of the allowed values.
 
         Args:
             v (str): The provider type to validate.
@@ -107,8 +124,7 @@ class IdentityProviderBase(BaseModel):
 
 
 class IdentityProviderCreate(IdentityProviderBase):
-    """
-    Schema for creating a new Identity Provider.
+    """Schema for creating a new Identity Provider.
 
     Inherits from:
         IdentityProviderBase
@@ -119,10 +135,11 @@ class IdentityProviderCreate(IdentityProviderBase):
 
     client_secret: StrictStr = Field(..., min_length=1, max_length=512, description="OAuth2/OIDC client secret")
 
+    model_config = ConfigDict(extra="forbid")
+
 
 class IdentityProviderUpdate(IdentityProviderBase):
-    """
-    Schema for updating an existing Identity Provider.
+    """Schema for updating an existing Identity Provider.
 
     Inherits from:
         IdentityProviderBase
@@ -133,18 +150,21 @@ class IdentityProviderUpdate(IdentityProviderBase):
 
     client_secret: StrictStr | None = Field(default=None, min_length=1, max_length=512)
 
+    model_config = ConfigDict(extra="forbid")
 
-class IdentityProvider(IdentityProviderBase):
-    """
-    Represents an identity provider with decrypted client credentials.
+
+class IdentityProviderRead(IdentityProviderBase):
+    """Represents an identity provider with decrypted client credentials.
 
     Inherits from:
         IdentityProviderBase
 
     Attributes:
         id (int): Unique identifier of the identity provider.
+        icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
         created_at (datetime): Timestamp when the identity provider was created.
         updated_at (datetime): Timestamp when the identity provider was last updated.
+        version (int): Optimistic-concurrency counter, also sent as the ETag.
 
     Config:
         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
@@ -154,12 +174,18 @@ class IdentityProvider(IdentityProviderBase):
         decrypt_client_id():
             Decrypts the `client_id` attribute after loading from the database.
 
-                IdentityProvider: The instance with the decrypted `client_id`.
+                IdentityProviderRead: The instance with the decrypted `client_id`.
     """
 
     id: StrictInt
+    icon_uploaded: StrictBool = Field(default=False, description="Whether an uploaded icon is shown instead of icon")
     created_at: datetime
     updated_at: datetime
+    version: StrictInt = Field(
+        default=1,
+        ge=1,
+        description="Optimistic-concurrency counter, also sent as the ETag",
+    )
 
     model_config = ConfigDict(from_attributes=True, extra="forbid", validate_assignment=True)
 
@@ -171,15 +197,27 @@ class IdentityProvider(IdentityProviderBase):
         return value
 
 
-class IdentityProviderPublic(BaseModel):
+class IdentityProviderIconRead(BaseModel):
+    """The state of a provider's uploaded icon after an upload.
+
+    Attributes:
+        version (int): The provider version that identifies the stored icon.
     """
-    Represents the public-facing information of an identity provider.
+
+    version: StrictInt
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class IdentityProviderPublicRead(BaseModel):
+    """Represents the public-facing information of an identity provider.
 
     Attributes:
         id (int): Unique identifier of the identity provider.
         name (str): Display name of the identity provider.
         slug (str): URL-friendly unique identifier for the provider.
         icon (str | None): URL or path to the provider's icon image.
+        icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
 
     Config:
         model_config (dict): Pydantic model configuration to allow population from ORM attributes.
@@ -189,13 +227,13 @@ class IdentityProviderPublic(BaseModel):
     name: StrictStr
     slug: StrictStr
     icon: StrictStr | None = None
+    icon_uploaded: StrictBool = False
 
     model_config = ConfigDict(from_attributes=True, extra="forbid", validate_assignment=True)
 
 
-class IdentityProviderTemplate(BaseModel):
-    """
-    Represents a template for an identity provider configuration.
+class IdentityProviderTemplateRead(BaseModel):
+    """Represents a template for an identity provider configuration.
 
     Attributes:
         template_id (str): Template identifier (e.g., 'keycloak', 'authentik').
@@ -220,69 +258,46 @@ class IdentityProviderTemplate(BaseModel):
     configuration_notes: StrictStr | None = Field(default=None, description="Setup instructions for this IdP")
 
 
-class TokenExchangeRequest(BaseModel):
-    """
-    Request schema for mobile PKCE token exchange.
+class IdpReauthProof(BaseModel):
+    """Proof that a password-less account signed in again with its identity provider.
 
-    After OAuth callback completes, mobile clients exchange the session_id
-    for actual JWT tokens by proving they possess the code_verifier that
-    matches the code_challenge sent during login initiation.
+    The provider's callback hands the ticket to the browser that started the step-up; that browser also holds
+    the PKCE verifier whose challenge the ticket records, so a ticket alone cannot be redeemed.
 
     Attributes:
-        code_verifier (str): PKCE code verifier (43-128 chars, base64url).
-            Must hash to the code_challenge stored in OAuth state.
+        ticket: The single-use step-up ticket.
+        code_verifier: The PKCE verifier the step-up was started with.
     """
 
+    ticket: StrictStr = Field(..., min_length=43, max_length=64, description="Single-use step-up ticket")
     code_verifier: StrictStr = Field(
-        ...,
-        min_length=43,
-        max_length=128,
-        description="PKCE code verifier (base64url, 43-128 chars)",
+        ..., min_length=43, max_length=128, description="PKCE verifier the step-up was started with"
     )
 
-    @field_validator("code_verifier")
-    @classmethod
-    def validate_code_verifier(cls, v: str) -> str:
-        """
-        Validate PKCE code_verifier format according to RFC 7636.
-
-        Args:
-            v (str): The code verifier string.
-
-        Returns:
-            str: The validated code verifier.
-
-        Raises:
-            ValueError: If format is invalid (wrong length or characters).
-        """
-        if not re.match(r"^[A-Za-z0-9_-]+$", v):
-            raise ValueError("code_verifier must be valid base64url")
-        return v
+    model_config = ConfigDict(extra="forbid")
 
 
-class TokenExchangeResponse(BaseModel):
-    """
-    Response schema for successful PKCE token exchange.
-
-    Returns the actual JWT tokens that clients need for API access.
-    Response format varies by client type:
-    - Web clients: access_token, csrf_token (refresh_token in httpOnly cookie)
-    - Mobile clients: access_token, refresh_token (no CSRF token)
+class StepUpStartRequest(BaseModel):
+    """Start a step-up re-authentication with a linked identity provider.
 
     Attributes:
-        session_id (str): Session identifier.
-        access_token (str): JWT access token (15-minute expiry).
-        refresh_token (str | None): JWT refresh token (7-day expiry). Only for mobile clients.
-        csrf_token (str | None): CSRF protection token. Only for web clients.
-        expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
-        refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
-        token_type (str): Token type, always "Bearer".
+        code_challenge: S256 challenge of a PKCE verifier the browser keeps until it sends the sensitive request.
+        action: The sensitive operation the step-up authorises.
+        redirect: Relative frontend path the provider's callback returns to.
     """
 
-    session_id: StrictStr = Field(..., description="Session identifier")
-    access_token: StrictStr = Field(..., description="JWT access token")
-    refresh_token: StrictStr | None = Field(default=None, description="JWT refresh token (mobile only)")
-    csrf_token: StrictStr | None = Field(default=None, description="CSRF protection token (web only)")
-    expires_in: StrictInt = Field(default=900, description="Access token lifetime in seconds")
-    refresh_token_expires_in: StrictInt = Field(default=604800, description="Refresh token lifetime in seconds")
-    token_type: StrictStr = Field(default="Bearer", description="Token type")
+    code_challenge: StrictStr = Field(..., min_length=43, max_length=128, description="PKCE S256 challenge")
+    action: idp_constants.StepUpAction = Field(..., description="Sensitive operation the step-up authorises")
+    redirect: StrictStr = Field(..., min_length=1, max_length=500, description="Relative path to return to")
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class StepUpStartRead(BaseModel):
+    """Where to send the browser for a step-up re-authentication.
+
+    Attributes:
+        authorization_url: The identity provider's authorization URL.
+    """
+
+    authorization_url: StrictStr = Field(..., description="Identity provider authorization URL")

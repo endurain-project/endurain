@@ -47,3 +47,34 @@ jobs:
       - name: Format check
         working-directory: backend
         run: uv run --no-sync ruff format --check .
+
+  typecheck-backend:
+    name: Backend (${{ matrix.tool }}, non-blocking)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: mypy
+            command: mypy
+          - tool: ty
+            command: ty check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: backend
+
+      - name: Sync dependencies
+        working-directory: backend
+        run: uv sync --frozen --no-dev --group typecheck --no-install-project
+
+      - name: Type check
+        continue-on-error: true
+        working-directory: backend
+        run: uv run --no-sync ${{ matrix.command }}

@@ -9,10 +9,12 @@ from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+
+import core.exceptions as core_exceptions
 
 _ROUTER = "modules.users.users.photo_router"
 _SIGNING = "modules.users.users.signing"
+_SERVICE = "modules.users.users.photo_service"
 
 
 class TestUserImageTokenSigning:
@@ -77,61 +79,127 @@ class TestUserImageUrl:
 
 
 class TestReadUserPhoto:
-    @patch(f"{_ROUTER}.platform_runtime")
-    @patch(f"{_ROUTER}.users_signing")
-    def test_serves_the_first_matching_extension(self, mock_signing, mock_runtime):
+    @patch(f"{_ROUTER}.users_photo_service")
+    def test_serves_the_photo_the_service_returns(self, mock_service):
         from modules.users.users.photo_router import read_user_photo
 
-        mock_signing.verify_user_image_token.return_value = True
-        mock_signing.USER_IMAGE_STORAGE_AREA = "user_images"
-        storage = mock_runtime.get_active_platform.return_value.storage
-        storage.get.side_effect = lambda _area, key: b"png" if key == "7.png" else None
+        mock_service.read_photo.return_value = (b"png", "image/png")
+        storage = MagicMock()
+        db = MagicMock()
 
-        response = read_user_photo(7, "tok")
+        response = read_user_photo(MagicMock(), 7, storage, db, "tok")
 
         assert response.status_code == 200
         assert response.media_type == "image/png"
         assert response.body == b"png"
         assert response.headers["Cache-Control"] == "private, max-age=3600"
+        mock_service.read_photo.assert_called_once_with(7, "tok", storage, db)
 
-    @patch(f"{_ROUTER}.platform_runtime")
-    @patch(f"{_ROUTER}.users_signing")
-    def test_404_for_an_invalid_token_without_touching_storage(self, mock_signing, mock_runtime):
+    @patch(f"{_ROUTER}.users_photo_service")
+    def test_an_unknown_photo_propagates_as_not_found(self, mock_service):
         from modules.users.users.photo_router import read_user_photo
 
-        mock_signing.verify_user_image_token.return_value = False
+        mock_service.read_photo.side_effect = core_exceptions.NotFoundError("User photo not found")
 
-        with pytest.raises(HTTPException) as exc:
-            read_user_photo(7, "forged")
+        with pytest.raises(core_exceptions.NotFoundError):
+            read_user_photo(MagicMock(), 7, MagicMock(), MagicMock(), "forged")
 
-        assert exc.value.status_code == 404
-        mock_runtime.get_active_platform.assert_not_called()
 
-    @patch(f"{_ROUTER}.platform_runtime")
-    @patch(f"{_ROUTER}.users_signing")
-    def test_404_when_no_photo_is_stored(self, mock_signing, mock_runtime):
-        from modules.users.users.photo_router import read_user_photo
+class TestReadPhoto:
+    @patch(f"{_SERVICE}.users_crud")
+    @patch(f"{_SERVICE}.users_signing")
+    def test_serves_the_blob_the_row_names(self, mock_signing, mock_crud, mock_db):
+        from modules.users.users.photo_service import read_photo
 
         mock_signing.verify_user_image_token.return_value = True
-        mock_runtime.get_active_platform.return_value.storage.get.return_value = None
+        mock_crud.get_photo_key.return_value = "7.png"
+        storage = MagicMock()
+        storage.get.return_value = b"png"
 
-        with pytest.raises(HTTPException) as exc:
-            read_user_photo(7, "tok")
+        assert read_photo(7, "tok", storage, mock_db) == (b"png", "image/png")
+        storage.get.assert_called_once_with("user_images", "7.png")
 
-        assert exc.value.status_code == 404
+    @patch(f"{_SERVICE}.users_crud")
+    @patch(f"{_SERVICE}.users_signing")
+    def test_a_blob_left_under_another_extension_is_never_served(self, mock_signing, mock_crud, mock_db):
+        from modules.users.users.photo_service import read_photo
+
+        mock_signing.verify_user_image_token.return_value = True
+        mock_crud.get_photo_key.return_value = "7.png"
+        storage = MagicMock()
+        storage.get.side_effect = lambda _area, key: b"old" if key == "7.jpg" else b"new"
+
+        assert read_photo(7, "tok", storage, mock_db)[0] == b"new"
+
+    @patch(f"{_SERVICE}.users_crud")
+    @patch(f"{_SERVICE}.users_signing")
+    def test_the_read_transaction_ends_before_the_storage_call(self, mock_signing, mock_crud, mock_db):
+        from modules.users.users.photo_service import read_photo
+
+        mock_signing.verify_user_image_token.return_value = True
+        mock_crud.get_photo_key.return_value = "7.png"
+        storage = MagicMock()
+        order = MagicMock()
+        order.attach_mock(mock_db.commit, "commit")
+        order.attach_mock(storage.get, "storage")
+
+        read_photo(7, "tok", storage, mock_db)
+
+        assert [call[0] for call in order.mock_calls] == ["commit", "storage"]
+
+    @patch(f"{_SERVICE}.users_crud")
+    @patch(f"{_SERVICE}.users_signing")
+    def test_404_for_an_invalid_token_without_touching_the_database_or_storage(self, mock_signing, mock_crud, mock_db):
+        from modules.users.users.photo_service import read_photo
+
+        mock_signing.verify_user_image_token.return_value = False
+        storage = MagicMock()
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            read_photo(7, "forged", storage, mock_db)
+
+        storage.get.assert_not_called()
+        mock_crud.get_photo_key.assert_not_called()
+
+    @patch(f"{_SERVICE}.users_crud")
+    @patch(f"{_SERVICE}.users_signing")
+    def test_404_when_the_user_has_no_photo(self, mock_signing, mock_crud, mock_db):
+        from modules.users.users.photo_service import read_photo
+
+        mock_signing.verify_user_image_token.return_value = True
+        mock_crud.get_photo_key.return_value = None
+        storage = MagicMock()
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            read_photo(7, "tok", storage, mock_db)
+
+        storage.get.assert_not_called()
+
+    @patch(f"{_SERVICE}.users_crud")
+    @patch(f"{_SERVICE}.users_signing")
+    def test_404_when_the_blob_is_missing(self, mock_signing, mock_crud, mock_db):
+        from modules.users.users.photo_service import read_photo
+
+        mock_signing.verify_user_image_token.return_value = True
+        mock_crud.get_photo_key.return_value = "7.png"
+        storage = MagicMock()
+        storage.get.return_value = None
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            read_photo(7, "tok", storage, mock_db)
 
 
 class TestUserReadSerialization:
     def test_photo_path_is_resolved_to_a_url(self):
         """The row stores a key; a client must receive an address."""
-        import modules.users.users.crud as users_crud
+        import modules.users.users.serializers as users_serializers
 
         row = MagicMock()
         row.id = 7
         row.photo_path = "7.png"
 
-        with patch.object(users_crud.users_schema.UsersRead, "model_validate") as validate:
+        with patch.object(users_serializers.users_schema.UsersRead, "model_validate") as validate:
             validate.return_value = MagicMock(photo_path="7.png")
-            result = users_crud._to_read_schema(row)
+            result = users_serializers.to_read_schema(row)
 
         assert "/users/7/photo?t=" in result.photo_path

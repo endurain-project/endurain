@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Așteaptă puțin cât confirmăm adresa ta.",
+  "choosePasswordTitle": "Alegeți parola",
+  "choosePasswordBody": "Adresa dvs. de e-mail este confirmată după ce setați o parolă pentru cont.",
+  "submitPassword": "Setează parola",
+  "submittingPassword": "Se salvează parola",
   "successTitle": "E-mail verificat",
   "successBody": "Adresa ta de e-mail a fost confirmată.",
   "adminApprovalBody": "Contul tău așteaptă acum aprobarea administratorului.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verificarea a eșuat",
   "missingTokenBody": "Acestui link de verificare îi lipsește tokenul.",
   "errorInvalidToken": "Acest link de verificare este invalid sau a expirat.",
+  "errorEmailTaken": "Această adresă de e-mail este acum folosită de alt cont, așa că nu poate fi confirmată.",
   "errorNotFound": "Nu am putut găsi un cont pentru acest link.",
   "errorGeneral": "Nu am putut verifica adresa ta de e-mail. Te rugăm să încerci din nou.",
   "retry": "Încearcă din nou",

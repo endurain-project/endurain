@@ -1,5 +1,6 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
+import pytest
 from pydantic import ValidationError
 
 
@@ -36,7 +37,7 @@ class TestHealthFastingCompleteSchema:
         from modules.health.health_fasting.schema import FastingStatus, HealthFastingComplete
 
         data = HealthFastingComplete(fast_end_time=datetime(2024, 1, 15, 16, 0, 0))
-        assert data.status == FastingStatus.COMPLETED
+        assert data.status == FastingStatus.COMPLETED.value
 
 
 class TestHealthFastingStatsResponse:
@@ -65,3 +66,21 @@ class TestEnums:
 
         assert FastingStatus.IN_PROGRESS.value == "in_progress"
         assert FastingStatus.COMPLETED.value == "completed"
+
+
+class TestCompleteStatus:
+    def test_a_fast_cannot_be_completed_as_still_in_progress(self):
+        from modules.health.health_fasting import schema as health_fasting_schema
+
+        with pytest.raises(ValidationError):
+            health_fasting_schema.HealthFastingComplete(
+                fast_end_time=datetime(2024, 1, 16, 8, 0, 0, tzinfo=UTC), status="in_progress"
+            )
+
+    @pytest.mark.parametrize("status", ["completed", "broken", "cancelled"])
+    def test_the_ways_a_fast_can_end_are_accepted(self, status):
+        from modules.health.health_fasting import schema as health_fasting_schema
+
+        health_fasting_schema.HealthFastingComplete(
+            fast_end_time=datetime(2024, 1, 16, 8, 0, 0, tzinfo=UTC), status=status
+        )

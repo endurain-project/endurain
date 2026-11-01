@@ -8,6 +8,7 @@ call sits behind this host-owned seam next to the ``core.network`` host checks
 it enforces.
 """
 
+import re
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
@@ -48,6 +49,40 @@ class RouteMapRenderRequest:
 
 class UnsafeTileServerError(ValueError):
     """Raised when a tile URL violates the shared outbound-network policy."""
+
+
+def normalise_tile_url(url: str) -> str:
+    """Convert a Leaflet tile URL template to staticmap format.
+
+    staticmap uses Python's str.format() with only {z}, {x}, {y}
+    substitutions. Any other placeholders (e.g. {s} for subdomains,
+    {r} for retina tiles) cause a KeyError at render time.
+
+    This function:
+    - Replaces {s} with the literal subdomain 'a'
+    - Removes {r} (retina suffix — not needed for thumbnails)
+    - Escapes any remaining unknown placeholders so they are
+      passed through as literal strings.
+
+    Args:
+        url: Leaflet-style tile URL template.
+
+    Returns:
+        Tile URL safe for use with staticmap.
+    """
+    # The OSM default no longer uses {s}, but custom providers and older
+    # stored URLs may; staticmap can't rotate subdomains, so pin it to 'a'.
+    url = re.sub(r"\{s\}", "a", url, flags=re.IGNORECASE)
+    # Remove {r} retina placeholder (e.g. Stadia Maps)
+    url = re.sub(r"\{r\}", "", url, flags=re.IGNORECASE)
+    # Escape any remaining unknown {placeholders} that are not
+    # the three staticmap knows about ({z}, {x}, {y})
+    url = re.sub(
+        r"\{(?!z\}|x\}|y\})([^{}]+)\}",
+        lambda m: "{{" + m.group(1) + "}}",
+        url,
+    )
+    return url
 
 
 def _ensure_safe_url(url: str) -> tuple[str, ...]:

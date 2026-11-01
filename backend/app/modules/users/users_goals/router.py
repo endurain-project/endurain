@@ -2,17 +2,16 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
-import core.database as core_database
-import core.timezone as core_timezone
+import core.dependencies as core_dependencies
+import core.etag as core_etag
+import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.users.users.utils as users_utils
-import modules.users.users_goals.crud as user_goals_crud
-import modules.users.users_goals.dependencies as user_goals_dependencies
+import modules.users.users_goals.progress_service as user_goals_progress_service
 import modules.users.users_goals.schema as user_goals_schema
-import modules.users.users_goals.utils as user_goals_utils
+import modules.users.users_goals.service as user_goals_service
 
 # Define the API router
 router = APIRouter()
@@ -20,12 +19,13 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=list[user_goals_schema.UsersGoalRead],
-    status_code=status.HTTP_200_OK,
+    response_model=user_goals_schema.UsersGoalPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def get_user_goals(
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+def get_user_goals(
+    token_user_id: auth_dependencies.CurrentUserId,
+    page: core_pagination.ListPage,
+    db: core_dependencies.DbSession,
     interval: Annotated[
         user_goals_schema.Interval | None,
         Query(description="Filter by goal interval"),
@@ -38,23 +38,24 @@ async def get_user_goals(
         user_goals_schema.GoalType | None,
         Query(description="Filter by goal type"),
     ] = None,
-) -> list[user_goals_schema.UsersGoalRead]:
-    """
-    Retrieve goals for the authenticated user with optional filters.
+) -> user_goals_schema.UsersGoalPage:
+    """Retrieve one page of goals for the authenticated user with optional filters.
 
     Args:
         token_user_id: User ID from access token.
+        page: The requested window.
         db: Database session dependency.
         interval: Optional filter by goal interval.
         activity_type: Optional filter by activity type.
         goal_type: Optional filter by goal type.
 
     Returns:
-        List of user goal objects matching the filters.
+        The page of user goals matching the filters.
     """
-    return user_goals_crud.get_user_goals_by_user_id(
+    return user_goals_service.list_goals(
         user_id=token_user_id,
         db=db,
+        page=page,
         interval=interval,
         activity_type=activity_type,
         goal_type=goal_type,
@@ -63,42 +64,47 @@ async def get_user_goals(
 
 @router.get(
     "/results",
-    response_model=list[user_goals_schema.UsersGoalProgress] | None,
-    status_code=status.HTTP_200_OK,
+    response_model=user_goals_schema.UsersGoalProgressPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def get_user_goals_results(
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[user_goals_schema.UsersGoalProgress] | None:
-    """
-    Calculate and retrieve goal progress for authenticated user.
+@core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
+def get_user_goals_results(
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    page: core_pagination.ListPage,
+    db: core_dependencies.DbSession,
+) -> user_goals_schema.UsersGoalProgressPage:
+    """Calculate and retrieve one page of goal progress for the authenticated user.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         token_user_id: User ID from access token.
+        page: The requested window.
         db: Database session dependency.
 
     Returns:
-        List of goal progress objects, or None if no goals.
+        The page of goal progress objects, empty if no goals.
     """
-    user = users_utils.get_user_by_id_or_404(token_user_id, db)
-    today = core_timezone.today_in(users_utils.timezone_or_default(user.timezone))
-    return user_goals_utils.calculate_user_goals(token_user_id, today.strftime("%Y-%m-%d"), db, user.first_day_of_week)
+    return user_goals_progress_service.get_goals_progress(token_user_id, page, db)
 
 
 @router.post(
     "",
     response_model=user_goals_schema.UsersGoalRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def create_user_goal(
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def create_user_goal(
+    request: Request,
     user_goal: user_goals_schema.UsersGoalCreate,
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> user_goals_schema.UsersGoalRead:
-    """
-    Create a new goal for the authenticated user.
+    """Create a new goal for the authenticated user.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         user_goal: Goal data to create.
         token_user_id: User ID from access token.
         db: Database session dependency.
@@ -106,46 +112,67 @@ async def create_user_goal(
     Returns:
         The created goal object.
     """
-    return user_goals_crud.create_user_goal(token_user_id, user_goal, db)
+    return user_goals_service.create_goal(token_user_id, user_goal, db)
 
 
 @router.put(
-    "",
-    status_code=status.HTTP_200_OK,
+    "/{goal_id}",
     response_model=user_goals_schema.UsersGoalRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-async def update_user_goal(
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def update_user_goal(
+    request: Request,
+    goal_id: core_dependencies.PositiveId,
     user_goal: user_goals_schema.UsersGoalUpdate,
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> user_goals_schema.UsersGoalRead:
-    """
-    Update an existing goal for the authenticated user.
+    """Replace an existing goal for the authenticated user.
 
     Args:
-        user_goal: Updated goal data.
+        request: The incoming request, read by the rate limiter.
+        goal_id: ID of the goal to replace.
+        user_goal: The goal's new values.
         token_user_id: User ID from access token.
         db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         The updated goal object.
     """
-    return user_goals_crud.update_user_goal(token_user_id, user_goal, db)
+    updated = user_goals_service.update_goal(token_user_id, goal_id, user_goal, db, if_match=if_match)
+    core_etag.set_etag(response, updated.version)
+    return updated
 
 
-@router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-async def delete_user_goal(
-    goal_id: int,
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    _: None = Depends(user_goals_dependencies.validate_goal_id),
+@router.delete(
+    "/{goal_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_user_goal(
+    request: Request,
+    goal_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
+    db: core_dependencies.DbSession,
 ) -> None:
-    """
-    Delete a goal for the authenticated user.
+    """Delete a goal for the authenticated user.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         goal_id: ID of the goal to delete.
         token_user_id: User ID from access token.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
+
+    Raises:
+        PreconditionFailedError: If the goal changed since the client read it.
     """
-    return user_goals_crud.delete_user_goal(token_user_id, goal_id, db)
+    user_goals_service.delete_goal(token_user_id, goal_id, db, if_match=if_match)

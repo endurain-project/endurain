@@ -16,10 +16,12 @@ import json
 import os
 import time
 import zipfile
+from collections.abc import Callable
 from io import BytesIO
 from typing import Any
 
-import jasil.runtime as platform_runtime
+import jasil.providers as platform_providers
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -31,27 +33,37 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.contributor_registry as activities_contributor_registry
-import modules.gears.gear.crud as gear_crud
+import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear.schema as gear_schema
-import modules.gears.gear_components.crud as gear_components_crud
+import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.gears.gear_components.schema as gear_components_schema
-import modules.health.health_targets.crud as health_targets_crud
+import modules.health.health_fasting.integration_service as health_fasting_integration
+import modules.health.health_fasting.schema as health_fasting_schema
+import modules.health.health_poop.integration_service as health_poop_integration
+import modules.health.health_poop.schema as health_poop_schema
+import modules.health.health_sleep.integration_service as health_sleep_integration
+import modules.health.health_sleep.schema as health_sleep_schema
+import modules.health.health_steps.integration_service as health_steps_integration
+import modules.health.health_steps.schema as health_steps_schema
+import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_targets.schema as health_targets_schema
-import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_water.integration_service as health_water_integration
+import modules.health.health_water.schema as health_water_schema
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.health_weight.schema as health_weight_schema
-import modules.users.users.crud as users_crud
+import modules.users.users.constants as users_constants
+import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
-import modules.users.users.signing as users_signing
-import modules.users.users_default_gear.crud as user_default_gear_crud
+import modules.users.users_default_gear.integration_service as users_default_gear_integration
 import modules.users.users_default_gear.schema as user_default_gear_schema
-import modules.users.users_goals.crud as user_goals_crud
+import modules.users.users_goals.integration_service as users_goals_integration
 import modules.users.users_goals.schema as user_goals_schema
-import modules.users.users_integrations.crud as user_integrations_crud
+import modules.users.users_integrations.constants as users_integrations_constants
+import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_integrations.schema as users_integrations_schema
-import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
+import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 import modules.users.users_profile.utils as profile_utils
-import modules.websocket.manager as websocket_manager
 from modules.users.users_profile.exceptions import (
     ActivityLimitError,
     FileFormatError,
@@ -63,20 +75,48 @@ from modules.users.users_profile.exceptions import (
 
 logger = core_logger.get_logger(__name__)
 
-# Extensions accepted for a profile photo restored from an archive. Anything
-# else drops the photo rather than minting a key the upload path can't produce.
-_IMPORTABLE_IMAGE_EXTENSIONS = frozenset({"png", "jpg", "jpeg"})
+#: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import writes.
+_ROW_IDENTITY = frozenset({"id", "user_id", "version"})
+
+#: The health record kinds imported beside weight, each with its schema and the call that stages one
+#: for a user. The call returns whether it stored the record, so a record the user already has is not counted.
+_HEALTH_RECORD_IMPORTS: dict[str, tuple[type[BaseModel], Callable[[int, Any, Session], Any]]] = {
+    "health_sleep": (health_sleep_schema.HealthSleepCreate, health_sleep_integration.upsert_health_sleep),
+    "health_steps": (health_steps_schema.HealthStepsCreate, health_steps_integration.upsert_health_steps),
+    "health_water": (health_water_schema.HealthWaterCreate, health_water_integration.upsert_health_water),
+    "health_fasting": (health_fasting_schema.HealthFastingCreate, health_fasting_integration.import_health_fasting),
+    "health_poop": (health_poop_schema.HealthPoopCreate, health_poop_integration.import_health_poop),
+}
+
+#: Archive folders holding the files written after the database rows are committed.
+_FILE_FOLDERS = ("activity_files/", "activity_media/", "user_images/")
+
+
+def _without_row_identity(data: dict[str, Any]) -> dict[str, Any]:
+    """Drop the row identity an archive carries, leaving the fields an import writes.
+
+    Args:
+        data: One exported row.
+
+    Returns:
+        The row without its id, owner and version.
+    """
+    return {key: value for key, value in data.items() if key not in _ROW_IDENTITY}
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
-    """
-    Performance configuration for import operations.
+    """Performance configuration for import operations.
 
     Attributes:
         batch_size: Number of items per batch.
         max_memory_mb: Maximum memory in megabytes.
-        max_file_size_mb: Maximum file size in megabytes.
+        max_file_size_mb: Maximum archive size in megabytes; the upload limit, so no tier raises it.
+        max_json_mb: Maximum size of one JSON data entry in megabytes; parsing it takes several
+            times that in memory.
         max_activities: Maximum number of activities.
+        max_entries: Maximum number of entries in the archive.
+        max_uncompressed_mb: Maximum decompressed bytes read from the archive, in megabytes, whatever
+            the archive declares.
         timeout_seconds: Operation timeout in seconds.
         chunk_size: Data chunk size in bytes.
         enable_memory_monitoring: Enable memory monitoring.
@@ -86,12 +126,16 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
         self,
         batch_size: int = 125,
         max_memory_mb: int = 1024,
-        max_file_size_mb: int = 1000,
+        max_file_size_mb: int = 500,
+        max_json_mb: int = 128,
         max_activities: int = 10000,
+        max_entries: int = 100000,
+        max_uncompressed_mb: int = 2048,
         timeout_seconds: int = 3600,
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
     ):
+        """Set the import limits; unset values come from the auto-detected tier."""
         super().__init__(
             batch_size=batch_size,
             max_memory_mb=max_memory_mb,
@@ -100,12 +144,14 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
             enable_memory_monitoring=enable_memory_monitoring,
         )
         self.max_file_size_mb = max_file_size_mb
+        self.max_json_mb = max_json_mb
         self.max_activities = max_activities
+        self.max_entries = max_entries
+        self.max_uncompressed_mb = max_uncompressed_mb
 
     @classmethod
     def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
-        """
-        Get tier-specific configuration dictionaries.
+        """Get tier-specific configuration dictionaries.
 
         Returns:
             Dictionary mapping tier names to config dicts.
@@ -114,7 +160,7 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
             "high": {
                 "batch_size": 250,
                 "max_memory_mb": 2048,
-                "max_file_size_mb": 2000,
+                "max_json_mb": 256,
                 "max_activities": 20000,
                 "timeout_seconds": 7200,
                 "chunk_size": 8192,
@@ -123,7 +169,7 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
             "medium": {
                 "batch_size": 125,
                 "max_memory_mb": 1024,
-                "max_file_size_mb": 1000,
+                "max_json_mb": 128,
                 "max_activities": 10000,
                 "timeout_seconds": 3600,
                 "chunk_size": 8192,
@@ -132,7 +178,7 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
             "low": {
                 "batch_size": 50,
                 "max_memory_mb": 512,
-                "max_file_size_mb": 500,
+                "max_json_mb": 64,
                 "max_activities": 5000,
                 "timeout_seconds": 1800,
                 "chunk_size": 8192,
@@ -142,13 +188,12 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
 
 class ImportService:
-    """
-    Service for importing user profile data from ZIP archive.
+    """Service for importing user profile data from ZIP archive.
 
     Attributes:
         user_id: ID of user to import data for.
+        storage: The platform storage provider.
         db: Database session.
-        websocket_manager: WebSocket manager for updates.
         counts: Dictionary tracking imported item counts.
         performance_config: Performance configuration.
     """
@@ -156,29 +201,47 @@ class ImportService:
     def __init__(
         self,
         user_id: int,
+        storage: platform_providers.StorageProvider,
         db: Session,
-        websocket_manager: websocket_manager.WebSocketManager,
         performance_config: ImportPerformanceConfig | None = None,
+        on_database_committed: Callable[[], None] | None = None,
     ):
+        """Bind the import to a user, the platform storage and a database session.
+
+        Args:
+            user_id: The user the archive is imported into.
+            storage: The platform storage provider.
+            db: Database session.
+            performance_config: Limits for this import; derived from the machine when omitted.
+            on_database_committed: Called once the database rows are committed and the files
+                are about to be written, so a caller can record that point.
+        """
         self.user_id = user_id
+        self.storage = storage
         self.db = db
-        self.websocket_manager = websocket_manager
+        self.on_database_committed = on_database_committed
         self.counts = profile_utils.initialize_operation_counts(include_user_count=False)
+        self._uncompressed_bytes = 0
         self.performance_config: ImportPerformanceConfig = (
             performance_config or ImportPerformanceConfig.get_auto_config()
         )
 
-        logger.info(
-            f"ImportService initialized with performance config: "
-            f"batch_size={self.performance_config.batch_size}, "
-            f"max_memory_mb={self.performance_config.max_memory_mb}, "
-            f"max_file_size_mb={self.performance_config.max_file_size_mb}, "
-            f"timeout_seconds={self.performance_config.timeout_seconds}"
+        logger.debug(
+            "ImportService initialized",
+            extra=core_logger.context(
+                batch_size=self.performance_config.batch_size,
+                max_memory_mb=self.performance_config.max_memory_mb,
+                max_file_size_mb=self.performance_config.max_file_size_mb,
+                timeout_seconds=self.performance_config.timeout_seconds,
+            ),
         )
 
     async def import_from_zip_data(self, zip_data: bytes) -> dict[str, Any]:
-        """
-        Import profile data from ZIP file bytes.
+        """Import profile data from ZIP file bytes.
+
+        The database part is one transaction, committed once before the files are written, so a
+        failure before that point leaves nothing imported and the archive can simply be imported
+        again. A failure while writing files leaves the rows in place with some files missing.
 
         Args:
             zip_data: ZIP file content as bytes.
@@ -210,9 +273,15 @@ class ImportService:
             self.performance_config.enable_memory_monitoring,
         )
 
+        committed = False
         try:
             with zipfile.ZipFile(BytesIO(zip_data)) as zipf:
                 file_list = set(zipf.namelist())
+                if len(zipf.infolist()) > self.performance_config.max_entries:
+                    raise FileSizeError(
+                        f"ZIP file has {len(zipf.infolist())} entries, more than the "
+                        f"{self.performance_config.max_entries} allowed"
+                    )
 
                 # Create ID mappings for relationships
                 gears_id_mapping: dict[int, int] = {}
@@ -272,7 +341,32 @@ class ImportService:
                 await self.collect_and_import_health_weight(health_weight_data, health_targets_data)
                 del health_weight_data, health_targets_data
 
-                # Import files and media
+                health_records = {
+                    name: self._load_single_json(zipf, f"data/{name}.json") for name in _HEALTH_RECORD_IMPORTS
+                }
+                await self.collect_and_import_health_records(health_records)
+                del health_records
+
+                # Guard: if nothing was imported and there are no files to write, fail visibly
+                # instead of returning a misleading "success" with zero counts.
+                has_files = any(name.startswith(_FILE_FOLDERS) for name in file_list)
+                if not has_files and all(v == 0 for v in self.counts.values()):
+                    raise FileFormatError(
+                        "Import completed with zero items imported. The ZIP file contains no importable data."
+                    )
+
+                # Everything above only staged rows, so the database part of the import is one unit:
+                # it lands together here or, on any failure, not at all.
+                self.db.commit()
+                committed = True
+                if self.on_database_committed is not None:
+                    self.on_database_committed()
+                logger.info(
+                    "Profile import committed its database rows", extra=core_logger.context(user_id=self.user_id)
+                )
+
+                # Files, media and the photo come after the commit because they need the new
+                # ids. They are keyed by those ids, so writing them again overwrites in place.
                 profile_utils.check_timeout(timeout_seconds, start_time, ImportTimeoutError, "Import")
                 await self.add_activity_files_from_zip(zipf, file_list, activities_id_mapping)
                 await self.add_activity_media_from_zip(zipf, file_list, activities_id_mapping)
@@ -282,19 +376,17 @@ class ImportService:
             raise FileFormatError(f"Invalid ZIP file format: {e!s}") from e
         except OSError as e:
             raise FileSystemError(f"File system error during import: {e!s}") from e
-
-        # Guard: if nothing was imported, fail visibly instead of
-        # returning a misleading "success" with zero counts.
-        if all(v == 0 for v in self.counts.values()):
-            raise FileFormatError(
-                "Import completed with zero items imported. The ZIP file contains no importable data."
-            )
+        finally:
+            if not committed:
+                self.db.rollback()
+                logger.warning(
+                    "Profile import rolled back; nothing was imported", extra=core_logger.context(user_id=self.user_id)
+                )
 
         return {"detail": "Import completed", "imported": self.counts}
 
     def _load_single_json(self, zipf: zipfile.ZipFile, filename: str, check_memory: bool = True) -> list[Any]:
-        """
-        Load and parse JSON file from ZIP archive.
+        """Load and parse JSON file from ZIP archive.
 
         Args:
             zipf: ZipFile instance to read from.
@@ -310,16 +402,21 @@ class ImportService:
         try:
             file_list = set(zipf.namelist())
             if filename not in file_list:
-                logger.warning(f"Expected data file {filename} not found in ZIP archive")
+                logger.warning(
+                    "Expected data file not found in ZIP archive", extra=core_logger.context(filename=filename)
+                )
                 return []
 
             data = json.loads(self._read_zip_entry(zipf, filename))
 
             if not isinstance(data, list):
-                logger.warning(f"Expected list in {filename}, got {type(data).__name__}, returning empty list")
+                logger.warning(
+                    "Expected a list in a data file, returning an empty list",
+                    extra=core_logger.context(filename=filename, found_type=type(data).__name__),
+                )
                 return []
 
-            logger.debug(f"Loaded {len(data)} items from {filename}")
+            logger.debug("Loaded items from a data file", extra=core_logger.context(count=len(data), filename=filename))
 
             if check_memory:
                 profile_utils.check_memory_usage(
@@ -330,9 +427,7 @@ class ImportService:
 
             return data
         except json.JSONDecodeError as err:
-            error_msg = f"Failed to parse JSON from {filename}: {err}"
-            logger.error(error_msg)
-            raise JSONParseError(error_msg) from err
+            raise JSONParseError(f"Failed to parse JSON from {filename}: {err}") from err
 
     def _restore_global_activity_components(self, zipf: zipfile.ZipFile) -> None:
         """Load and restore every global activity contribution once."""
@@ -340,8 +435,7 @@ class ImportService:
             records = self._load_single_json(zipf, contributor.archive_path, check_memory=False)
             restored = contributor.restore(records, self.db)
             self.counts[contributor.count_key] += restored
-        # The restore functions stage; the importer owns the commit.
-        self.db.commit()
+        logger.debug("Restored the global activity components", extra=core_logger.context(user_id=self.user_id))
 
     def _read_zip_entry(
         self,
@@ -350,14 +444,13 @@ class ImportService:
         *,
         max_bytes: int | None = None,
     ) -> bytes:
-        """
-        Read a ZIP entry after checking its declared size.
+        """Read a ZIP entry after checking its declared size.
 
         Args:
             zipf: ZipFile instance to read from.
             filename: Name of the entry to read.
             max_bytes: Optional byte cap for this entry. Defaults
-                to the import performance file-size cap.
+                to the import performance JSON cap.
 
         Returns:
             Entry bytes.
@@ -365,7 +458,7 @@ class ImportService:
         Raises:
             FileSizeError: If the entry exceeds the allowed size.
         """
-        limit = max_bytes if max_bytes is not None else self.performance_config.max_file_size_mb * 1024 * 1024
+        limit = max_bytes if max_bytes is not None else self.performance_config.max_json_mb * 1024 * 1024
         info = zipf.getinfo(filename)
         # ``info.file_size`` comes from the central directory and a
         # malicious archive can lie. The declared-size check below
@@ -389,12 +482,16 @@ class ImportService:
                     raise FileSizeError(
                         f"ZIP entry {filename} decompressed size exceeds maximum allowed ({limit} bytes)"
                     )
+                self._uncompressed_bytes += len(chunk)
+                if self._uncompressed_bytes > self.performance_config.max_uncompressed_mb * 1024 * 1024:
+                    raise FileSizeError(
+                        f"The archive's uncompressed size exceeds {self.performance_config.max_uncompressed_mb}MB"
+                    )
                 chunks.append(chunk)
         return b"".join(chunks)
 
     async def collect_and_import_gears_data(self, gears_data: list[Any]) -> dict[int, int]:
-        """
-        Import gear data and create ID mappings.
+        """Import gear data and create ID mappings.
 
         Args:
             gears_data: List of gear data dictionaries.
@@ -405,50 +502,91 @@ class ImportService:
         gears_id_mapping: dict[int, int] = {}
 
         if not gears_data:
-            logger.info("No gears data to import")
+            logger.debug("No gears data to import")
             return gears_id_mapping
 
         for gear_data in gears_data:
             gear_data["user_id"] = self.user_id
             original_id = gear_data.get("id")
             gear_data.pop("id", None)
+            gear_data.pop("version", None)
 
-            gear = gear_schema.GearCreate(**gear_data)
-            new_gear = gear_crud.create_gear(gear, self.user_id, self.db)
-            gears_id_mapping[original_id] = new_gear.id
+            try:
+                gear = gear_schema.GearCreate(**gear_data)
+            except ValidationError:
+                logger.warning("Skipped an invalid gear")
+                continue
+            gears_id_mapping[original_id] = self._import_gear(gear)
             self.counts["gears"] += 1
 
-        logger.info(f"Imported {self.counts['gears']} gears")
+        logger.debug("Imported gears", extra=core_logger.context(count=self.counts["gears"]))
         return gears_id_mapping
+
+    def _import_gear(self, gear: gear_schema.GearCreate) -> int:
+        """Import one gear, tolerating what the user already has.
+
+        A gear whose nickname the user already has maps onto that gear. A provider gear
+        ID the user already holds on another gear is dropped, so the archive cannot make
+        the import fail.
+
+        Args:
+            gear: The gear from the archive.
+
+        Returns:
+            The ID of the gear the archived one maps to.
+        """
+        existing = gear_integration.get_gear_user_by_nickname(self.user_id, gear.nickname, self.db)
+        if existing is not None:
+            return existing.id
+        try:
+            with self.db.begin_nested():
+                return gear_integration.create_gear(gear, self.user_id, self.db).id
+        except core_exceptions.ConflictError:
+            existing = gear_integration.get_gear_user_by_nickname(self.user_id, gear.nickname, self.db)
+            if existing is not None:
+                return existing.id
+            logger.warning("Dropped the provider gear IDs of an imported gear that are already taken")
+        without_ids = gear.model_copy(update={"strava_gear_id": None, "garminconnect_gear_id": None})
+        with self.db.begin_nested():
+            return gear_integration.create_gear(without_ids, self.user_id, self.db).id
 
     async def collect_and_import_gear_components_data(
         self, gear_components_data: list[Any], gears_id_mapping: dict[int, int]
     ) -> None:
-        """
-        Import gear components data with ID remapping.
+        """Import gear components data with ID remapping.
 
         Args:
             gear_components_data: List of component dicts.
             gears_id_mapping: Mapping of old to new gear IDs.
         """
         if not gear_components_data:
-            logger.info("No gear components data to import")
+            logger.debug("No gear components data to import")
             return
 
         for gear_component_data in gear_components_data:
-            gear_component_data["gear_id"] = (
-                gears_id_mapping.get(gear_component_data["gear_id"])
-                if gear_component_data.get("gear_id") in gears_id_mapping
-                else None
-            )
+            new_gear_id = gears_id_mapping.get(gear_component_data.get("gear_id"))
+            if new_gear_id is None:
+                logger.warning("Skipped a gear component whose gear is not in the archive")
+                continue
+            gear_component_data["gear_id"] = new_gear_id
 
-            gear_component_data.pop("id", None)
+            for owner_or_derived in ("id", "version", "user_id", "current_distance", "current_time"):
+                gear_component_data.pop(owner_or_derived, None)
 
-            gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
-            gear_components_crud.create_gear_component(gear_component, self.user_id, self.db)
+            try:
+                gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
+            except ValidationError:
+                logger.warning("Skipped an invalid gear component")
+                continue
+            if not gear_components_schema.is_retired_after_purchase(
+                gear_component.purchase_date, gear_component.retired_date
+            ):
+                logger.warning("Skipped a gear component retired on or before its purchase date")
+                continue
+            gear_components_integration.create_gear_component(gear_component, self.user_id, self.db)
             self.counts["gear_components"] += 1
 
-        logger.info(f"Imported {self.counts['gear_components']} gear components")
+        logger.debug("Imported gear components", extra=core_logger.context(count=self.counts["gear_components"]))
 
     async def collect_and_import_user_data(
         self,
@@ -459,8 +597,7 @@ class ImportService:
         user_privacy_settings_data: list[Any],
         gears_id_mapping: dict[int, int],
     ) -> None:
-        """
-        Import user profile and related settings.
+        """Import user profile and related settings.
 
         Args:
             user_data: User profile data.
@@ -475,18 +612,6 @@ class ImportService:
             user_profile = user_data[0]
             user_profile["id"] = self.user_id
 
-            # The archive carries the exporter's photo key (or, for
-            # archives predating storage keys, an absolute filesystem path).
-            # Either way only the extension is trusted: the key is rebuilt for
-            # the importing user so a crafted ZIP cannot repoint the avatar at
-            # somebody else's blob.
-            photo_path = user_profile.get("photo_path")
-            extension = os.path.splitext(photo_path)[1].lstrip(".").lower() if isinstance(photo_path, str) else ""
-            if extension in _IMPORTABLE_IMAGE_EXTENSIONS:
-                user_profile["photo_path"] = f"{self.user_id}.{extension}"
-            else:
-                user_profile["photo_path"] = None
-
             # Strict allow-list before persistence: profile import is a
             # self-service operation and MUST NOT be a back door for
             # privilege escalation. Even if the source ZIP was crafted
@@ -495,13 +620,13 @@ class ImportService:
             # ``pending_admin_approval``, those fields are dropped here
             # before reaching the database.
             sanitized = {
-                key: value for key, value in user_profile.items() if key in users_crud.PROFILE_SELF_SERVICE_FIELDS
+                key: value for key, value in user_profile.items() if key in users_constants.PROFILE_SELF_SERVICE_FIELDS
             }
             profile_payload = users_schema.ProfileUpdate.model_validate(sanitized)
-            await users_crud.edit_profile_user(self.user_id, profile_payload, self.db)
+            users_integration.edit_profile(self.user_id, profile_payload, self.db, if_match="*")
             self.counts["user"] += 1
         else:
-            logger.info("No user data to import, but continuing with sub-settings")
+            logger.debug("No user data to import, but continuing with sub-settings")
 
         # Import user-related settings — always attempt, even if
         # user_data was empty, so that sub-setting data loaded from
@@ -514,26 +639,23 @@ class ImportService:
     async def collect_and_import_user_default_gear(
         self, user_default_gear_data: list[Any], gears_id_mapping: dict[int, int]
     ) -> None:
-        """
-        Import user default gear settings with ID remapping.
+        """Import user default gear settings with ID remapping.
 
         Args:
             user_default_gear_data: Default gear data.
             gears_id_mapping: Mapping of old to new gear IDs.
         """
         if not user_default_gear_data:
-            logger.info("No user default gear data to import")
+            logger.debug("No user default gear data to import")
             return
 
-        current_user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(self.user_id, self.db)
-
-        if current_user_default_gear is None:
-            logger.info("No existing user default gear, creating new record")
-            current_user_default_gear = user_default_gear_crud.create_user_default_gear(self.user_id, self.db)
+        if users_default_gear_integration.get_default_gear(self.user_id, self.db) is None:
+            logger.debug("No existing user default gear, creating new record")
+            users_default_gear_integration.create_default_gear(self.user_id, self.db)
 
         gear_data = user_default_gear_data[0]
-        gear_data["id"] = current_user_default_gear.id
-        gear_data["user_id"] = self.user_id
+        # The archive's record and owner are the exporting account's; the update names neither.
+        gear_data = _without_row_identity(gear_data)
 
         # Map gear IDs
         gear_fields = [
@@ -558,70 +680,96 @@ class ImportService:
             old_gear_id = gear_data.get(field)
             gear_data[field] = gears_id_mapping.get(old_gear_id)
 
-        user_default_gear = user_default_gear_schema.UsersDefaultGearUpdate(**gear_data)
-        user_default_gear_crud.edit_user_default_gear(user_default_gear, self.user_id, self.db)
-        logger.info("Imported user default gear")
+        try:
+            user_default_gear = user_default_gear_schema.UsersDefaultGearUpdate(**gear_data)
+        except ValidationError:
+            logger.warning("Skipped invalid user default gear")
+            return
+        users_default_gear_integration.edit_default_gear(user_default_gear, self.user_id, self.db, if_match="*")
+        logger.debug("Imported user default gear")
         self.counts["user_default_gear"] += 1
 
     async def collect_and_import_user_integrations(self, user_integrations_data: list[Any]) -> None:
-        """
-        Import user integration settings.
+        """Import user integration settings.
 
         Args:
             user_integrations_data: Integration data.
         """
         if not user_integrations_data:
-            logger.info("No user integrations data to import")
+            logger.debug("No user integrations data to import")
             return
 
-        integrations_data = user_integrations_data[0]
-        integrations_data.pop("id", None)
-        integrations_data.pop("user_id", None)
+        # Strict allow-list: an archive may carry the sync preferences only. Tokens, client
+        # credentials and OAuth state belong to the account that linked them; a crafted ZIP
+        # must not be able to plant them on the importing account.
+        integrations_data = {
+            key: value
+            for key, value in user_integrations_data[0].items()
+            if key in users_integrations_constants.PORTABLE_INTEGRATION_FIELDS
+        }
+        if not integrations_data:
+            logger.debug("No importable user integrations data")
+            return
 
-        user_integrations = users_integrations_schema.UsersIntegrationsUpdate(**integrations_data)
-        user_integrations_crud.edit_user_integrations(user_integrations, self.user_id, self.db)
-        logger.info("Imported user integrations")
+        try:
+            user_integrations = users_integrations_schema.UsersIntegrationsUpdate(**integrations_data)
+        except ValidationError:
+            logger.warning("Skipped invalid user integrations")
+            return
+        user_integrations_integration.edit_integrations(user_integrations, self.user_id, self.db)
+        logger.debug("Imported user integrations")
         self.counts["user_integrations"] += 1
 
     async def collect_and_import_user_goals(self, user_goals_data: list[Any]) -> None:
-        """
-        Import user goals data.
+        """Import user goals data.
 
         Args:
             user_goals_data: List of user goal dictionaries.
         """
         if not user_goals_data:
-            logger.info("No user goals data to import")
+            logger.debug("No user goals data to import")
             return
 
         for goal_data in user_goals_data:
-            goal_data.pop("id", None)
-            goal_data.pop("user_id", None)
+            goal_data = _without_row_identity(goal_data)
 
-            goal = user_goals_schema.UsersGoalCreate(**goal_data)
-            user_goals_crud.create_user_goal(self.user_id, goal, self.db)
+            try:
+                goal = user_goals_schema.UsersGoalCreate(**goal_data)
+            except ValidationError:
+                logger.warning("Skipped an invalid user goal")
+                continue
+            try:
+                with self.db.begin_nested():
+                    users_goals_integration.create_goal(self.user_id, goal, self.db)
+            except core_exceptions.ConflictError:
+                logger.debug("Skipped a user goal the user already has")
+                continue
             self.counts["user_goals"] += 1
 
-        logger.info(f"Imported {self.counts['user_goals']} user goals")
+        logger.debug("Imported user goals", extra=core_logger.context(count=self.counts["user_goals"]))
 
     async def collect_and_import_user_privacy_settings(self, user_privacy_settings_data: list[Any]) -> None:
-        """
-        Import user privacy settings.
+        """Import user privacy settings.
 
         Args:
             user_privacy_settings_data: Privacy settings data.
         """
         if not user_privacy_settings_data:
-            logger.info("No user privacy settings data to import")
+            logger.debug("No user privacy settings data to import")
             return
 
         privacy_data = user_privacy_settings_data[0]
-        privacy_data.pop("id", None)
-        privacy_data.pop("user_id", None)
+        privacy_data = _without_row_identity(privacy_data)
 
-        user_privacy_settings = users_privacy_settings_schema.UsersPrivacySettingsUpdate(**privacy_data)
-        users_privacy_settings_crud.edit_user_privacy_settings(self.user_id, user_privacy_settings, self.db)
-        logger.info("Imported user privacy settings")
+        try:
+            user_privacy_settings = users_privacy_settings_schema.UsersPrivacySettingsUpdate(**privacy_data)
+        except ValidationError:
+            logger.warning("Skipped invalid user privacy settings")
+            return
+        users_privacy_settings_integration.edit_privacy_settings(
+            self.user_id, user_privacy_settings, self.db, if_match="*"
+        )
+        logger.debug("Imported user privacy settings")
         self.counts["user_privacy_settings"] += 1
 
     async def collect_and_import_activity_components(
@@ -654,8 +802,7 @@ class ImportService:
         start_time: float,
         timeout_seconds: int,
     ) -> dict[int, int]:
-        """
-        Import activities in batches to manage memory.
+        """Import activities in batches to manage memory.
 
         Args:
             zipf: ZipFile instance to read from.
@@ -676,7 +823,7 @@ class ImportService:
         # Load activities list
         activities_data = self._load_single_json(zipf, "data/activities.json")
         if not activities_data:
-            logger.info("No activities data to import")
+            logger.debug("No activities data to import")
             return activities_id_mapping
 
         # Check activity count limit
@@ -702,7 +849,9 @@ class ImportService:
                     check_memory=False,
                 )
 
-        logger.info(f"Importing {len(activities_data)} activities with batched component loading")
+        logger.debug(
+            "Importing activities with batched component loading", extra=core_logger.context(count=len(activities_data))
+        )
 
         # Process activities in batches
         batch_size = self.performance_config.batch_size
@@ -712,8 +861,11 @@ class ImportService:
             batch_end = min(batch_start + batch_size, len(activities_data))
             activities_batch = activities_data[batch_start:batch_end]
 
-            logger.info(
-                f"Processing activities batch {batch_start // batch_size + 1}: activities {batch_start}-{batch_end}"
+            logger.debug(
+                "Processing an activities batch",
+                extra=core_logger.context(
+                    batch_number=batch_start // batch_size + 1, batch_start=batch_start, batch_end=batch_end
+                ),
             )
 
             batch_components: dict[str, list[dict[str, Any]]] = {}
@@ -758,9 +910,6 @@ class ImportService:
                         new_activity,
                     )
 
-                # The activity and its components are one unit: the restore
-                # functions stage, and the importer commits them together.
-                self.db.commit()
                 self.counts["activities"] += 1
 
             # Clear batch data from memory
@@ -771,7 +920,7 @@ class ImportService:
                 self.performance_config.enable_memory_monitoring,
             )
 
-        logger.info(f"Imported {self.counts['activities']} activities")
+        logger.debug("Imported activities", extra=core_logger.context(count=self.counts["activities"]))
         return activities_id_mapping
 
     @staticmethod
@@ -788,8 +937,7 @@ class ImportService:
         return [record for record in records if isinstance(record, dict) and record.get("activity_id") in activity_ids]
 
     def _get_split_files_list(self, file_list: set[str], base_filename: str) -> list[str]:
-        """
-        Get list of split component files from ZIP.
+        """Get list of split component files from ZIP.
 
         Args:
             file_list: Set of all file paths in ZIP.
@@ -814,8 +962,7 @@ class ImportService:
         activities_batch: list[Any],
         component_name: str,
     ) -> list[Any]:
-        """
-        Load components only for activities in current batch.
+        """Load components only for activities in current batch.
 
         Args:
             zipf: ZipFile instance to read from.
@@ -839,7 +986,10 @@ class ImportService:
             try:
                 components = json.loads(self._read_zip_entry(zipf, filename))
                 if not isinstance(components, list):
-                    logger.warning(f"Expected list in {filename}, got {type(components).__name__}")
+                    logger.warning(
+                        "Expected a list in a component file",
+                        extra=core_logger.context(filename=filename, found_type=type(components).__name__),
+                    )
                     continue
                 # Only keep components for activities in this batch
                 filtered = [
@@ -850,19 +1000,30 @@ class ImportService:
                 all_components.extend(filtered)
 
                 if filtered:
-                    logger.debug(f"Loaded {len(filtered)}/{len(components)} {component_name} from {filename} for batch")
+                    logger.debug(
+                        "Loaded components for the batch",
+                        extra=core_logger.context(
+                            count=len(filtered),
+                            total_count=len(components),
+                            component_name=component_name,
+                            filename=filename,
+                        ),
+                    )
             except json.JSONDecodeError as err:
-                logger.warning(f"Failed to parse {filename}: {err}")
+                logger.warning(
+                    "Failed to parse a component file", extra=core_logger.context(filename=filename, error=err)
+                )
             except (FileFormatError, FileSizeError, OSError) as err:
-                logger.warning(f"Error loading {filename}: {err}")
+                logger.warning(
+                    "Error loading a component file", extra=core_logger.context(filename=filename, error=err)
+                )
 
         return all_components
 
     async def collect_and_import_health_weight(
         self, health_weight_data: list[Any], health_targets_data: list[Any]
     ) -> None:
-        """
-        Import health data and targets.
+        """Import health data and targets.
 
         Args:
             health_weight_data: List of health data records.
@@ -871,8 +1032,7 @@ class ImportService:
         # Import health data
         if health_weight_data:
             for health_weight in health_weight_data:
-                health_weight.pop("id", None)
-                health_weight.pop("user_id", None)
+                health_weight = _without_row_identity(health_weight)
 
                 # Convert string numeric values to floats
                 numeric_fields = [
@@ -900,18 +1060,22 @@ class ImportService:
                         except (ValueError, TypeError):
                             health_weight[field] = None
 
-                data = health_weight_schema.HealthWeightCreate(**health_weight)
-                health_weight_crud.create_health_weight(self.user_id, data, self.db)
+                try:
+                    data = health_weight_schema.HealthWeightCreate(**health_weight)
+                except ValidationError:
+                    logger.warning("Skipped an invalid health weight record")
+                    continue
+                health_weight_integration.upsert_health_weight(self.user_id, data, self.db)
                 self.counts["health_weight"] += 1
-            logger.info(f"Imported {self.counts['health_weight']} health weight records")
+            logger.debug(
+                "Imported health weight records", extra=core_logger.context(count=self.counts["health_weight"])
+            )
         else:
             logger.debug("No health weight data to import")
 
         # Import health targets
         if health_targets_data:
             for target_data in health_targets_data:
-                current_health_target = health_targets_crud.get_health_targets_by_user_id(self.user_id, self.db)
-
                 # Convert string numeric values to floats/ints
                 if isinstance(target_data.get("weight"), str):
                     try:
@@ -927,18 +1091,38 @@ class ImportService:
                         except (ValueError, TypeError):
                             target_data[field] = None
 
-                target_data["user_id"] = self.user_id
-                if current_health_target is not None:
-                    target_data["id"] = current_health_target.id
-                else:
-                    target_data.pop("id", None)
-
-                target = health_targets_schema.HealthTargetsUpdate(**target_data)
-                health_targets_crud.edit_health_target(target, self.user_id, self.db)
+                # Only the editable fields: the export also carries the row's id, owner and version.
+                editable = health_targets_schema.HealthTargetsUpdate.model_fields
+                try:
+                    target = health_targets_schema.HealthTargetsUpdate(
+                        **{key: value for key, value in target_data.items() if key in editable}
+                    )
+                except ValidationError:
+                    logger.warning("Skipped invalid health targets")
+                    continue
+                health_targets_integration.edit_health_targets(target, self.user_id, self.db)
                 self.counts["health_targets"] += 1
-            logger.info(f"Imported {self.counts['health_targets']} health targets")
+            logger.debug("Imported health targets", extra=core_logger.context(count=self.counts["health_targets"]))
         else:
             logger.debug("No health targets to import")
+
+    async def collect_and_import_health_records(self, records: dict[str, list[Any]]) -> None:
+        """Import sleep, steps, water, fasting and poop records.
+
+        Args:
+            records: The exported rows of each kind, keyed by kind (``health_sleep``, ...).
+        """
+        for name, rows in records.items():
+            schema, stage = _HEALTH_RECORD_IMPORTS[name]
+            for row in rows:
+                try:
+                    record = schema.model_validate(_without_row_identity(row))
+                except ValidationError:
+                    logger.warning("Skipped an invalid health record", extra=core_logger.context(kind=name))
+                    continue
+                if stage(self.user_id, record, self.db):
+                    self.counts[name] += 1
+            logger.debug("Imported health records", extra=core_logger.context(kind=name, count=self.counts[name]))
 
     async def add_activity_files_from_zip(
         self,
@@ -946,8 +1130,7 @@ class ImportService:
         file_list: set,
         activities_id_mapping: dict[int, int],
     ) -> None:
-        """
-        Extract and import activity files from ZIP.
+        """Extract and import activity files from ZIP.
 
         Args:
             zipf: ZipFile instance to read from.
@@ -969,40 +1152,45 @@ class ImportService:
                 ext = os.path.splitext(path)[1]
                 try:
                     file_id_int = int(file_id_str)
-                    new_id = activities_id_mapping.get(file_id_int)
-
-                    if new_id is None:
-                        continue
-
-                    new_file_name = f"{new_id}{ext}"
-
-                    # Read bytes from ZIP, validate as an activity file, then
-                    # persist through the platform StorageProvider (the same store
-                    # the ingestion path writes to) rather than the local
-                    # processed directory. The blocking save is offloaded so it
-                    # never stalls the import's event loop.
-                    activity_limit = file_uploads.file_validator.config.limits.max_activity_file_size
-                    file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=activity_limit)
-                    try:
-                        await file_uploads.validate_bytes(
-                            file_bytes,
-                            kind=file_uploads.UploadKind.ACTIVITY,
-                            filename=new_file_name,
-                        )
-                    except core_exceptions.DomainError as err:
-                        logger.warning(f"Profile import dropped invalid activity file {new_file_name}: {err.detail}")
-                        continue
-                    await asyncio.to_thread(
-                        activity_file_storage_integration.store_activity_file,
-                        new_id,
-                        ext,
-                        file_bytes,
-                        platform_runtime.get_active_platform().storage,
-                    )
-                    self.counts["activity_files"] += 1
                 except ValueError:
-                    # Skip files that don't have numeric activity IDs
+                    logger.debug(
+                        "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
+                    )
                     continue
+                new_id = activities_id_mapping.get(file_id_int)
+
+                if new_id is None:
+                    continue
+
+                new_file_name = f"{new_id}{ext}"
+
+                # Read bytes from ZIP, validate as an activity file, then
+                # persist through the platform StorageProvider (the same store
+                # the ingestion path writes to) rather than the local
+                # processed directory. The blocking save is offloaded so it
+                # never stalls the import's event loop.
+                activity_limit = file_uploads.file_validator.config.limits.max_activity_file_size
+                file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=activity_limit)
+                try:
+                    await file_uploads.validate_bytes(
+                        file_bytes,
+                        kind=file_uploads.UploadKind.ACTIVITY,
+                        filename=new_file_name,
+                    )
+                except core_exceptions.DomainError as err:
+                    logger.warning(
+                        "Profile import dropped an invalid activity file",
+                        extra=core_logger.context(file_name=new_file_name, detail=err.detail),
+                    )
+                    continue
+                await asyncio.to_thread(
+                    activity_file_storage_integration.store_activity_file,
+                    new_id,
+                    ext,
+                    file_bytes,
+                    self.storage,
+                )
+                self.counts["activity_files"] += 1
 
     async def add_activity_media_from_zip(
         self,
@@ -1010,8 +1198,7 @@ class ImportService:
         file_list: set,
         activities_id_mapping: dict[int, int],
     ) -> None:
-        """
-        Extract and import activity media from ZIP.
+        """Extract and import activity media from ZIP.
 
         Args:
             zipf: ZipFile instance to read from.
@@ -1036,49 +1223,52 @@ class ImportService:
                     orig_id_str, suffix = base_name.split("_", 1)
                     try:
                         orig_id_int = int(orig_id_str)
-                        new_id = activities_id_mapping.get(orig_id_int)
-
-                        if new_id is None:
-                            continue
-
-                        new_file_name = f"{new_id}_{suffix}{ext}"
-
-                        # Read bytes from ZIP and validate them as an image
-                        # before storing, then write through the platform
-                        # StorageProvider under the media area (the same place
-                        # an upload lands) rather than to a local directory.
-                        image_limit = file_uploads.file_validator.config.limits.max_image_size
-                        file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=image_limit)
-                        try:
-                            await file_uploads.validate_bytes(
-                                file_bytes,
-                                kind=file_uploads.UploadKind.IMAGE,
-                                filename=new_file_name,
-                            )
-                        except core_exceptions.DomainError as err:
-                            logger.warning(
-                                f"Profile import dropped invalid activity media {new_file_name}: {err.detail}"
-                            )
-                            continue
-                        activity_media_integration.store_media_blob(
-                            new_id,
-                            suffix,
-                            ext,
-                            file_bytes,
-                            platform_runtime.get_active_platform().storage,
-                        )
-                        self.counts["media"] += 1
                     except ValueError:
-                        # Skip files that don't have numeric activity IDs
+                        logger.debug(
+                            "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
+                        )
                         continue
+                    new_id = activities_id_mapping.get(orig_id_int)
+
+                    if new_id is None:
+                        continue
+
+                    new_file_name = f"{new_id}_{suffix}{ext}"
+
+                    # Read bytes from ZIP and validate them as an image
+                    # before storing, then write through the platform
+                    # StorageProvider under the media area (the same place
+                    # an upload lands) rather than to a local directory.
+                    image_limit = file_uploads.file_validator.config.limits.max_image_size
+                    file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=image_limit)
+                    try:
+                        await file_uploads.validate_bytes(
+                            file_bytes,
+                            kind=file_uploads.UploadKind.IMAGE,
+                            filename=new_file_name,
+                        )
+                    except core_exceptions.DomainError as err:
+                        logger.warning(
+                            "Profile import dropped invalid activity media",
+                            extra=core_logger.context(file_name=new_file_name, detail=err.detail),
+                        )
+                        continue
+                    await asyncio.to_thread(
+                        activity_media_integration.store_media_blob,
+                        new_id,
+                        suffix,
+                        ext,
+                        file_bytes,
+                        self.storage,
+                    )
+                    self.counts["media"] += 1
 
     async def add_user_images_from_zip(
         self,
         zipf: zipfile.ZipFile,
         file_list: set,
     ) -> None:
-        """
-        Extract and import user images from ZIP.
+        """Extract and import user images from ZIP.
 
         Args:
             zipf: ZipFile instance to read from.
@@ -1094,9 +1284,11 @@ class ImportService:
             path = file_path.replace("\\", "/")
 
             # Import user images
-            if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith("user_images/"):
-                logger.debug(f"Processing user image file: {file_path}")
-                ext = os.path.splitext(path)[1]
+            if path.lower().endswith(tuple(users_constants.ALLOWED_USER_IMAGE_EXTENSIONS)) and path.startswith(
+                "user_images/"
+            ):
+                logger.debug("Processing a user image file", extra=core_logger.context(file_path=file_path))
+                ext = os.path.splitext(path)[1].lower()
                 new_file_name = f"{self.user_id}{ext}"
 
                 # Read bytes from ZIP and save through the unified
@@ -1111,11 +1303,12 @@ class ImportService:
                         filename=new_file_name,
                     )
                 except core_exceptions.DomainError as err:
-                    logger.warning(f"Profile import dropped invalid user image {new_file_name}: {err.detail}")
+                    logger.warning(
+                        "Profile import dropped an invalid user image",
+                        extra=core_logger.context(file_name=new_file_name, detail=err.detail),
+                    )
                     continue
-                platform_runtime.get_active_platform().storage.save(
-                    users_signing.USER_IMAGE_STORAGE_AREA,
-                    new_file_name,
-                    file_bytes,
+                await asyncio.to_thread(
+                    users_integration.store_user_photo, self.user_id, ext, file_bytes, self.storage, self.db
                 )
                 self.counts["user_images"] += 1

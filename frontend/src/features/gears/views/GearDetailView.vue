@@ -18,6 +18,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { presentGearType } from '@/features/gears/utils/gearType'
 import { useDeleteGearMutation, useGearQuery } from '@/features/gears/composables/useGears'
 
@@ -70,16 +71,18 @@ function confirmDelete(): void {
   if (!target) {
     return
   }
-  deleteMutation.mutate(target.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('gears.delete.success'))
-      void router.push({ name: 'gears' })
+  deleteMutation.mutate(
+    { id: target.id, version: target.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('gears.delete.success'))
+        void router.push({ name: 'gears' })
+      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error')),
     },
-    onError: () => {
-      toasts.error(t('gears.delete.error'))
-    },
-  })
+  )
 }
 </script>
 

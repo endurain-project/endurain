@@ -11,10 +11,11 @@ from pydantic import (
     StrictStr,
 )
 
+import modules.auth.oauth_state.constants as oauth_state_constants
+
 
 class OAuthStateCreate(BaseModel):
-    """
-    Request to create OAuth state.
+    """Request to create OAuth state.
 
     Used internally when initiating OAuth flow. Contains all
     data needed to create a new OAuth state in database.
@@ -41,12 +42,20 @@ class OAuthStateCreate(BaseModel):
     client_type: StrictStr = Field(..., pattern="^(web|mobile)$", description="Client type: web or mobile")
     ip_address: StrictStr | None = Field(None, max_length=45, description="Client IP address")
     expires_at: datetime = Field(..., description="Expiry timestamp")
-    user_id: StrictInt | None = Field(None, description="User ID (for link mode)")
+    user_id: StrictInt | None = Field(None, description="Signed-in user of a link or step-up flow")
+    browser_binding_hash: StrictStr | None = Field(
+        None, min_length=64, max_length=64, description="SHA-256 of the browser binding (link and step-up flows)"
+    )
+    idp_code_verifier: StrictStr | None = Field(
+        None, min_length=43, max_length=128, description="PKCE verifier sent to the identity provider"
+    )
+    purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
+    session_id: StrictStr | None = Field(None, max_length=36, description="Session that started a step-up flow")
+    action: StrictStr | None = Field(None, max_length=32, description="Operation a step-up flow authorises")
 
 
 class OAuthStateRead(BaseModel):
-    """
-    Response with OAuth state details.
+    """Response with OAuth state details.
 
     Returned when querying OAuth state from database.
     """
@@ -64,4 +73,9 @@ class OAuthStateRead(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
     expires_at: datetime = Field(..., description="Expiry timestamp")
     used: StrictBool = Field(..., description="Whether state has been used")
-    user_id: StrictInt | None = Field(None, description="User ID if link mode")
+    user_id: StrictInt | None = Field(None, description="Signed-in user of a link or step-up flow")
+    browser_binding_hash: StrictStr | None = Field(None, description="SHA-256 of the browser binding")
+    idp_code_verifier: StrictStr | None = Field(None, description="PKCE verifier sent to the identity provider")
+    purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
+    session_id: StrictStr | None = Field(None, description="Session that started a step-up flow")
+    action: StrictStr | None = Field(None, description="Operation a step-up flow authorises")

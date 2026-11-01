@@ -20,12 +20,22 @@ import jasil.settings as jasil_settings
 
 import core.config as core_config
 
+#: The Redis Pub/Sub channel carrying realtime hints, namespaced to Endurain.
+REALTIME_CHANNEL = "endurain:realtime"
 
-def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.JasilSettings:
+
+def build_jasil_settings(
+    settings: core_config.Settings,
+    *,
+    plain_areas: frozenset[str],
+) -> jasil_settings.JasilSettings:
     """Build the substrate configuration from the application settings.
 
     Args:
         settings: The application settings to translate.
+        plain_areas: Storage areas the local backend keeps as browsable
+            ``{data_dir}/{area}/{key}`` files. The composition root supplies the
+            areas the owning modules declare; S3 ignores them.
 
     Returns:
         The equivalent :class:`~jasil.settings.JasilSettings`.
@@ -39,32 +49,18 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
         storage_uri=settings.substrate_storage_uri,
         events_uri=settings.substrate_events_uri,
         lock_uri=settings.substrate_lock_uri,
+        # Redis Pub/Sub channels are server-wide, so a deployment names its own.
+        realtime_channel=REALTIME_CHANNEL,
         jobs=_build_job_settings(settings),
         job_worker_mode=settings.job_worker_mode,
         event_log=jasil_settings.EventLogSettings(
             enabled=settings.EVENT_LOG_ENABLED,
             retention_days=settings.EVENT_LOG_RETENTION_DAYS,
         ),
-        geocoding=_build_geocoding_settings(settings),
-        mail=_build_mail_settings(settings),
+        # Every area uses the readable flat layout on local storage, so the older
+        # hashed objects are read natively alongside it and retired on overwrite or delete.
+        storage=jasil_settings.StorageSettings(local_plain_areas=plain_areas),
         network=jasil_settings.NetworkSettings(ssrf_allowed_hosts=tuple(settings.SSRF_ALLOWED_HOSTS)),
-    )
-
-
-def _build_mail_settings(settings: core_config.Settings) -> jasil_settings.MailSettings:
-    """Map the SMTP variables onto ``MailSettings``; unset when mail is disabled."""
-    uri = settings.smtp_uri
-    if uri is None:
-        return jasil_settings.MailSettings()
-    sender = settings.smtp_sender or ""
-    # A bare address gets the product name as display name; "Name <addr>" is kept.
-    from_address = sender if "<" in sender else f"Endurain <{sender}>"
-    return jasil_settings.MailSettings(
-        uri=uri,
-        from_address=from_address,
-        secure=settings.SMTP_SECURE,
-        username=settings.SMTP_USERNAME,
-        password=core_config.read_secret("SMTP_PASSWORD") if settings.SMTP_USERNAME else None,
     )
 
 
@@ -79,23 +75,4 @@ def _build_job_settings(settings: core_config.Settings) -> jasil_settings.JobSet
         poll_interval_seconds=settings.JOBS_POLL_INTERVAL_SECONDS,
         max_attempts=settings.JOBS_MAX_ATTEMPTS,
         retention_days=settings.JOBS_RETENTION_DAYS,
-    )
-
-
-def _build_geocoding_settings(settings: core_config.Settings) -> jasil_settings.GeocodingSettings:
-    """Map the reverse-geocoding variables onto ``GeocodingSettings``.
-
-    The ``changeme`` placeholder becomes an unset key so JASIL disables the
-    capability for the same reason the previous container did.
-    """
-    api_key = settings.GEOCODES_MAPS_API
-    return jasil_settings.GeocodingSettings(
-        provider=settings.REVERSE_GEO_PROVIDER,
-        rate_limit=settings.REVERSE_GEO_RATE_LIMIT,
-        api_key=None if api_key == "changeme" else api_key,
-        nominatim_host=settings.NOMINATIM_API_HOST,
-        nominatim_use_https=settings.NOMINATIM_API_USE_HTTPS,
-        photon_host=settings.PHOTON_API_HOST,
-        photon_use_https=settings.PHOTON_API_USE_HTTPS,
-        user_agent=f"Endurain/{core_config.API_VERSION} (ReverseGeocoding)",
     )

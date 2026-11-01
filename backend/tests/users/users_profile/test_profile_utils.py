@@ -259,7 +259,7 @@ class TestInitializeOperationCounts:
         assert counts["media"] == 0
         assert counts["activities"] == 0
         assert counts["user"] == 0
-        assert len(counts) == 20
+        assert len(counts) == 25
 
     def test_with_user_count(self):
         counts = profile_utils.initialize_operation_counts(include_user_count=True)
@@ -281,6 +281,11 @@ class TestInitializeOperationCounts:
             "gear_components",
             "health_weight",
             "health_targets",
+            "health_sleep",
+            "health_steps",
+            "health_water",
+            "health_fasting",
+            "health_poop",
             "user_images",
             "user",
             "user_default_gear",
@@ -332,3 +337,57 @@ class TestDetectSystemMemoryTier:
         tier, mb = profile_utils.detect_system_memory_tier()
         assert tier == "medium"
         assert mb == 1024
+
+
+class TestWriteJsonArrayToZip:
+    """The streamed entry is what ``write_json_to_zip`` writes for the same items, held a batch at a time."""
+
+    @staticmethod
+    def _entry(write) -> tuple[str, dict[str, int]]:
+        import io
+        import zipfile
+
+        buf = io.BytesIO()
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+            write(archive, counts)
+        with zipfile.ZipFile(buf) as archive:
+            return archive.read("data/items.json").decode(), counts
+
+    def test_matches_the_in_memory_writer_byte_for_byte(self):
+        items = [{"id": 1, "name": "Corrida ☀"}, {"id": 2, "when": __import__("datetime").date(2026, 1, 2)}, {"id": 3}]
+
+        streamed, streamed_counts = self._entry(
+            lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", [items[:2], items[2:]], c)
+        )
+        whole, whole_counts = self._entry(lambda z, c: profile_utils.write_json_to_zip(z, "data/items.json", items, c))
+
+        assert streamed == whole
+        assert streamed_counts == whole_counts == {"items": 3}
+
+    def test_no_batches_is_an_empty_array(self):
+        raw, counts = self._entry(lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", [], c))
+
+        assert raw == "[]"
+        assert counts == {"items": 0}
+
+    def test_empty_batches_are_ignored(self):
+        raw, counts = self._entry(
+            lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", [[], [{"id": 1}], []], c)
+        )
+
+        assert raw == '[{"id": 1}]'
+        assert counts == {"items": 1}
+
+    def test_batches_are_read_lazily(self):
+        seen: list[str] = []
+
+        def batches():
+            seen.append("first")
+            yield [{"id": 1}]
+            seen.append("second")
+            yield [{"id": 2}]
+
+        self._entry(lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", batches(), c))
+
+        assert seen == ["first", "second"]

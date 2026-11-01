@@ -31,6 +31,7 @@
       "admin": "Administrators",
       "inactive": "Neaktīvs",
       "unverified": "Neverificēts e-pasts",
+      "pendingEmail": "Gaida e-pasta maiņu",
       "pending": "Gaida apstiprinājumu",
       "externalAuth": "Ārējā autentifikācija"
     },
@@ -64,18 +65,15 @@
       "email": "E-pasts",
       "emailRequired": "E-pasts ir obligāts",
       "emailInvalid": "Ievadiet derīgu e-pasta adresi",
+      "emailChangeHint": "Uz jauno adresi tiek nosūtīta apstiprinājuma saite, un pēc apstiprināšanas tā aizstāj esošo. Lietotājs tiek izrakstīts no visām ierīcēm. Lai to piemērotu tūlīt, atzīmējiet jauno adresi kā verificētu.",
       "accessType": "Piekļuves veids",
       "accessTypeRegular": "Parasts lietotājs",
       "accessTypeAdmin": "Administrators",
       "password": "Parole",
       "passwordHint": "Vismaz 8 rakstzīmes",
-      "passwordHintStrict": "Vismaz {min} rakstzīmes, ar lielādiem un maziem burtiem, ciparu un īpašu rakstzīmi",
-      "passwordHintLength": "Vismaz {min} rakstzīmes",
       "passwordRequired": "Parole ir obligāta",
-      "passwordInvalid": "Šī parole neatbilst prasībām",
       "confirmPassword": "Apstiprināt paroli",
       "confirmPasswordRequired": "Apstiprināt paroli",
-      "passwordMismatch": "Paroles nesakrīt",
       "preferredLanguage": "Vēlamā valoda",
       "languages": {
         "ca": "Katalāņu",
@@ -118,14 +116,14 @@
       "units": "Mērvienības",
       "unitsMetric": "Metriskā",
       "unitsImperial": "Imperiskā",
+      "weightUnits": "Svara mērvienības",
+      "weightUnitsDefault": "Pēc mērvienībām",
+      "weightUnitsMetric": "Kilogrami (kg)",
+      "weightUnitsImperial": "Mārciņas (lb)",
       "height": "Augums",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Pēdām jābūt no 0 līdz 10",
       "inchesInvalid": "Collām jābūt no 0 līdz 11",
       "maxHeartRate": "Maks. sirdsdarbība",
-      "unitBpm": "bpm",
       "currency": "Valūta",
       "currencies": {
         "euro": "Eiro",
@@ -149,6 +147,8 @@
       "statusLegend": "Konta statuss",
       "active": "Aktīvs",
       "emailVerified": "E-pasts verificēts",
+      "emailVerifiedCurrentHint": "Šī ir pašreizējās adreses statuss.",
+      "newEmailVerified": "Atzīmēt jauno adresi kā verificētu",
       "pendingAdminApproval": "Gaida administratora apstiprinājumu",
       "requiredField": "Obligāts lauks",
       "create": "Pievienot lietotāju",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Atpakaļ uz lietotājiem",
+      "pendingEmail": "Gaida e-pasta maiņu uz {email}, saite beigsies {date}",
       "notFoundTitle": "Lietotājs nav atrasts",
       "notFoundDescription": "Šis konts, iespējams, ir dzēsts",
       "securityTitle": "Drošība",
@@ -186,16 +187,12 @@
       "title": "Atiestatīt paroli",
       "description": "Iestatiet jaunu paroli lietotājam {username}",
       "newLabel": "Jaunā parole",
-      "hintLength": "Vismaz {min} rakstzīmes",
-      "hintStrict": "Vismaz {min} rakstzīmes, ar lielādiem un maziem burtiem, ciparu un īpašu rakstzīmi",
       "confirmLabel": "Apstiprināt jauno paroli",
-      "mismatch": "Paroles nesakrīt",
       "required": "Parole ir obligāta",
       "submit": "Atiestatīt paroli",
       "cancel": "Atcelt",
       "close": "Aizvērt",
       "success": "Parole atjaunināta",
-      "invalid": "Šī parole neatbilst prasībām",
       "error": "Neizdevās atjaunināt paroli. Lūdzu, mēģiniet vēlreiz."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Paroles politika",
-      "type": "Politika",
-      "typeStrict": "Stingra (nepieciešama sarežģītība)",
-      "typeLengthOnly": "Tikai garums",
       "lengthRegular": "Minimālais garums parastajiem lietotājiem",
       "lengthAdmin": "Minimālais garums administratoriem"
     },
@@ -367,6 +361,29 @@
       "sent": "Testa e-pasts nosūtīts",
       "failed": "Testa e-pastu neizdevās nosūtīt",
       "failedUnknown": "Sīkāku informāciju skatiet servera žurnālos."
+    },
+    "envLocked": "Iestatīts ar {name}",
+    "envSection": "Dažus šeit redzamos iestatījumus nosaka vides mainīgie ({names}). Noņemiet tos no vides, lai šos iestatījumus varētu labot šeit.",
+    "unsaved": "Nesaglabātas izmaiņas",
+    "discard": "Atmest",
+    "tabs": {
+      "label": "Servera iestatījumu sadaļas",
+      "general": "Vispārīgi",
+      "access": "Piekļuve un drošība",
+      "maps": "Kartes un atrašanās vieta",
+      "email": "E-pasts",
+      "unsaved": "Ir nesaglabātas izmaiņas"
+    },
+    "search": {
+      "placeholder": "Meklēt iestatījumus…",
+      "noResults": "Iestatījumi nav atrasti"
+    },
+    "leave": {
+      "title": "Pamest lapu bez saglabāšanas?",
+      "description": "Jums ir nesaglabātas izmaiņas. Ja pametīsiet šo lapu, tās tiks zaudētas.",
+      "confirm": "Pamest bez saglabāšanas",
+      "stay": "Palikt lapā",
+      "close": "Aizvērt"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Tvērumiem jābūt 500 rakstzīmju vai īsākiem",
       "icon": "Ikona",
       "iconNone": "Nav",
-      "iconCustom": "Pielāgots URL",
-      "customIconUrl": "Pielāgots ikonas URL",
-      "customIconUrlHint": "Saite uz attēlu, kas tiek rādīts pieteikšanās pogā",
       "enabled": "Iespējots",
       "autoCreateUsers": "Automātiski izveidot lietotājus pirmajā pieteikšanās reizē",
       "syncUserInfo": "Sinhronizēt profila informāciju katrā pieteikšanās reizē",
@@ -491,13 +505,6 @@
       "distance": "Distance",
       "elevation": "Augstuma ieguvums",
       "duration": "Ilgums"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Rediģēt mērķi {name}",
@@ -559,9 +566,6 @@
       "current": "Pašreizējā parole",
       "new": "Jaunā parole",
       "confirm": "Apstiprināt jauno paroli",
-      "requirementsStrict": "Vismaz {length} rakstzīmes, tostarp lielais burts, mazais burts, cipars un simbols.",
-      "requirementsLength": "Vismaz {length} rakstzīmes.",
-      "mismatch": "Paroles nesakrīt.",
       "revokeOthers": "Izrakstīties no visām pārējām ierīcēm",
       "submit": "Mainīt paroli",
       "success": "Parole mainīta",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Jūsu parole vai kods ir nepareizs.",
       "alreadyLinked": "Šis konts jau ir saistīts.",
       "lastMethodError": "Jūs nevarat atsaistīt savu vienīgo pieteikšanās metodi. Vispirms iestatiet paroli."
+    },
+    "email": {
+      "subtitle": "Šeit tiek sūtītas paroles atjaunošanas saites un paziņojumi. Lai to mainītu, jāapstiprina sava identitāte, un jaunā adrese stāsies spēkā tikai pēc tam, kad to apstiprināsi, izmantojot uz to nosūtīto saiti.",
+      "sameAsCurrent": "Šī jau ir jūsu e-pasta adrese.",
+      "success": "Apstiprinājuma saite nosūtīta uz jauno adresi. Jūsu e-pasts mainīsies pēc apstiprināšanas.",
+      "appliedSuccess": "E-pasta adrese nomainīta.",
+      "pending": "Gaidāma maiņa uz {email}",
+      "pendingExpires": "Apstiprinājuma saite beigsies {date}.",
+      "resend": "Nosūtīt saiti atkārtoti",
+      "cancel": "Atcelt maiņu",
+      "resendSuccess": "Ja ir gaidāma maiņa, uz jauno adresi ir ceļā jauna saite.",
+      "resendError": "Nevarēja atkārtoti nosūtīt saiti. Lūdzu, mēģiniet vēlreiz.",
+      "cancelSuccess": "E-pasta maiņa atcelta.",
+      "cancelError": "Nevarēja atcelt maiņu. Lūdzu, mēģiniet vēlreiz."
     },
     "apiKeys": {
       "title": "API atslēgas",
@@ -923,7 +941,6 @@
       "invalidType": "Lūdzu, izvēlieties .zip arhīvu.",
       "exportSuccess": "Eksports gatavs, jūsu lejupielāde drīz sāksies",
       "exportError": "Neizdevās eksportēt jūsu datus. Lūdzu, mēģiniet vēlreiz.",
-      "importSuccess": "Dati importēti",
       "importError": "Neizdevās importēt arhīvu. Lūdzu, pārbaudiet failu un mēģiniet vēlreiz."
     }
   }

@@ -8,6 +8,7 @@ import type { FastingEntry, FastingStatus } from '@/features/health/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatElapsedClock, formatHoursMinutes } from '@/features/health/utils/healthFormat'
 import { formatMediumDateTime } from '@/utils/datetime'
 
@@ -21,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{ complete: [status: FastingStatus] }>()
 
 const { t, locale } = useI18n()
+const { duration, percent } = useUnitFormat()
 
 // Ticking clock: a 1s interval drives `now` so the elapsed time updates live.
 const now = ref(Date.now())
@@ -76,7 +78,9 @@ const startedLabel = computed(() =>
   props.entry.fastStartTime ? formatMediumDateTime(props.entry.fastStartTime, locale.value) : '',
 )
 const targetLabel = computed(() =>
-  hasTarget.value ? formatHoursMinutes(props.entry.targetDurationSeconds as number) : null,
+  hasTarget.value
+    ? formatHoursMinutes(props.entry.targetDurationSeconds as number, duration)
+    : null,
 )
 </script>
 
@@ -102,7 +106,7 @@ const targetLabel = computed(() =>
     <div v-if="hasTarget" class="flex flex-col gap-1">
       <div class="flex items-center justify-between text-hint">
         <span>{{ t('health.fasting.active.target') }}: {{ targetLabel }}</span>
-        <span class="tabular-nums">{{ progressPct }}%</span>
+        <span class="tabular-nums">{{ percent(progressPct) }}</span>
       </div>
       <div
         class="h-2 overflow-hidden rounded-full bg-muted"

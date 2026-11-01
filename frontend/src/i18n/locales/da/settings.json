@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inaktiv",
       "unverified": "Ubekræftet e-mail",
+      "pendingEmail": "Afventende ændring af e-mail",
       "pending": "Afventer godkendelse",
       "externalAuth": "Ekstern godkendelse"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "E-mail er påkrævet",
       "emailInvalid": "Indtast en gyldig e-mailadresse",
+      "emailChangeHint": "Et bekræftelseslink sendes til den nye adresse, og den erstatter den nuværende, når den er bekræftet. Brugeren logges ud af alle enheder. Markér i stedet den nye adresse som bekræftet for at anvende den med det samme.",
       "accessType": "Adgangstype",
       "accessTypeRegular": "Almindelig bruger",
       "accessTypeAdmin": "Administrator",
       "password": "Adgangskode",
       "passwordHint": "Mindst 8 tegn",
-      "passwordHintStrict": "Mindst {min} tegn med store bogstaver, små bogstaver, et tal og et specialtegn",
-      "passwordHintLength": "Mindst {min} tegn",
       "passwordRequired": "Adgangskode er påkrævet",
-      "passwordInvalid": "Den adgangskode opfylder ikke kravene",
       "confirmPassword": "Bekræft adgangskode",
       "confirmPasswordRequired": "Bekræft adgangskode",
-      "passwordMismatch": "Adgangskoderne stemmer ikke overens",
       "preferredLanguage": "Foretrukket sprog",
       "languages": {
         "ca": "Catalansk",
@@ -118,14 +116,14 @@
       "units": "Enheder",
       "unitsMetric": "Metrisk",
       "unitsImperial": "Imperisk",
+      "weightUnits": "Vægtenheder",
+      "weightUnitsDefault": "Følg enheder",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pund (lb)",
       "height": "Højde",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Fod skal være mellem 0 og 10",
       "inchesInvalid": "Tommer skal være mellem 0 og 11",
       "maxHeartRate": "Maks. puls",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-mail bekræftet",
+      "emailVerifiedCurrentHint": "Dette er status for den nuværende adresse.",
+      "newEmailVerified": "Markér den nye adresse som bekræftet",
       "pendingAdminApproval": "Afventer administratorgodkendelse",
       "requiredField": "Påkrævet felt",
       "create": "Tilføj bruger",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Tilbage til brugere",
+      "pendingEmail": "Afventende ændring af e-mail til {email}, linket udløber {date}",
       "notFoundTitle": "Bruger ikke fundet",
       "notFoundDescription": "Denne konto er muligvis blevet slettet",
       "securityTitle": "Sikkerhed",
@@ -186,16 +187,12 @@
       "title": "Nulstil adgangskode",
       "description": "Sæt en ny adgangskode for {username}",
       "newLabel": "Ny adgangskode",
-      "hintLength": "Mindst {min} tegn",
-      "hintStrict": "Mindst {min} tegn med store bogstaver, små bogstaver, et tal og et specialtegn",
       "confirmLabel": "Bekræft ny adgangskode",
-      "mismatch": "Adgangskoderne stemmer ikke overens",
       "required": "Adgangskode er påkrævet",
       "submit": "Nulstil adgangskode",
       "cancel": "Annullér",
       "close": "Luk",
       "success": "Adgangskode opdateret",
-      "invalid": "Den adgangskode opfylder ikke kravene",
       "error": "Kunne ikke opdatere adgangskoden. Prøv venligst igen."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Adgangskodepolitik",
-      "type": "Politik",
-      "typeStrict": "Streng (kompleksitet krævet)",
-      "typeLengthOnly": "Kun længde",
       "lengthRegular": "Minimumslængde for almindelige brugere",
       "lengthAdmin": "Minimumslængde for administratorbrugere"
     },
@@ -367,6 +361,29 @@
       "sent": "Test-e-mail sendt",
       "failed": "Test-e-mailen kunne ikke sendes",
       "failedUnknown": "Se serverlogfilerne for detaljer."
+    },
+    "envLocked": "Angivet af {name}",
+    "envSection": "Nogle indstillinger her angives af miljøvariabler ({names}). Fjern dem fra miljøet for at redigere dem her.",
+    "unsaved": "Ugemte ændringer",
+    "discard": "Kassér",
+    "tabs": {
+      "label": "Sektioner i serverindstillingerne",
+      "general": "Generelt",
+      "access": "Adgang og sikkerhed",
+      "maps": "Kort og placering",
+      "email": "E-mail",
+      "unsaved": "Har ugemte ændringer"
+    },
+    "search": {
+      "placeholder": "Søg i indstillinger…",
+      "noResults": "Ingen indstillinger fundet"
+    },
+    "leave": {
+      "title": "Forlad uden at gemme?",
+      "description": "Du har ugemte ændringer. Hvis du forlader siden, går de tabt.",
+      "confirm": "Forlad uden at gemme",
+      "stay": "Bliv på siden",
+      "close": "Luk"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Scopes må højst være 500 tegn",
       "icon": "Ikon",
       "iconNone": "Ingen",
-      "iconCustom": "Tilpasset URL",
-      "customIconUrl": "Tilpasset ikon-URL",
-      "customIconUrlHint": "Link til et billede vist på login-knappen",
       "enabled": "Aktiveret",
       "autoCreateUsers": "Opret automatisk brugere ved første login",
       "syncUserInfo": "Synkronisér profilinfo ved hvert login",
@@ -491,13 +505,6 @@
       "distance": "Distance",
       "elevation": "Højdemeter",
       "duration": "Varighed"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Redigér {name}-mål",
@@ -559,9 +566,6 @@
       "current": "Nuværende adgangskode",
       "new": "Ny adgangskode",
       "confirm": "Bekræft ny adgangskode",
-      "requirementsStrict": "Mindst {length} tegn, herunder et stort bogstav, et lille bogstav, et tal og et symbol.",
-      "requirementsLength": "Mindst {length} tegn.",
-      "mismatch": "Adgangskoderne stemmer ikke overens.",
       "revokeOthers": "Log ud af alle andre enheder",
       "submit": "Skift adgangskode",
       "success": "Adgangskode ændret",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Din adgangskode eller kode er forkert.",
       "alreadyLinked": "Den konto er allerede tilknyttet.",
       "lastMethodError": "Du kan ikke fjerne tilknytningen af din eneste login-metode. Sæt en adgangskode først."
+    },
+    "email": {
+      "subtitle": "Det er her, nulstillinger af adgangskode og meddelelser sendes. Ved ændring skal du bekræfte din identitet, og den nye adresse træder i kraft, når du bekræfter den via et link, vi sender dertil.",
+      "sameAsCurrent": "Dette er allerede din e-mailadresse.",
+      "success": "Bekræftelseslink er sendt til den nye adresse. Din e-mail ændres, når du bekræfter den.",
+      "appliedSuccess": "E-mail ændret.",
+      "pending": "Afventende ændring til {email}",
+      "pendingExpires": "Bekræftelseslinket udløber {date}.",
+      "resend": "Send linket igen",
+      "cancel": "Annullér ændringen",
+      "resendSuccess": "Hvis en ændring afventer, er et nyt link på vej til den nye adresse.",
+      "resendError": "Linket kunne ikke sendes igen. Prøv venligst igen.",
+      "cancelSuccess": "Ændringen af e-mail er annulleret.",
+      "cancelError": "Ændringen kunne ikke annulleres. Prøv venligst igen."
     },
     "apiKeys": {
       "title": "API-nøgler",
@@ -923,7 +941,6 @@
       "invalidType": "Vælg venligst et .zip-arkiv.",
       "exportSuccess": "Eksport klar, dit download bør begynde snart",
       "exportError": "Kunne ikke eksportere dine data. Prøv venligst igen.",
-      "importSuccess": "Data importeret",
       "importError": "Kunne ikke importere arkivet. Tjek venligst filen, og prøv igen."
     }
   }

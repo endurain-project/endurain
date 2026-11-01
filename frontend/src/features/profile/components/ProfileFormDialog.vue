@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 
 import type { ProfileDetails, ProfileEditInput } from '@/features/profile/types'
 import type { Schemas } from '@/types'
@@ -12,9 +13,10 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
-import { compose, email, maxLength, pattern, required } from '@/utils/validators'
+import { compose, maxLength, pattern, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
@@ -50,11 +52,11 @@ const updateMutation = useUpdateProfileMutation()
 interface ProfileFormValues {
   name: string
   username: string
-  email: string
   city: string
   birthdate: string
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: 'default' | Schemas['Units']
   currency: Schemas['Currency']
   heightCm: number | null
   heightFeet: number | null
@@ -89,7 +91,7 @@ function detectBrowserTimezone(): string {
 
 /**
  * Persists the profile, emitting the outcome to the parent and closing on
- * success. A duplicate username/email (`409`) is surfaced specifically; other
+ * success. A duplicate username (`409`) is surfaced specifically; other
  * failures fall back to a generic message so the dialog stays open.
  *
  * @param values - The validated form values.
@@ -98,11 +100,11 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
   const input: ProfileEditInput = {
     name: values.name.trim(),
     username: values.username.trim(),
-    email: values.email.trim(),
     city: values.city.trim() ? values.city.trim() : null,
     birthdate: values.birthdate || null,
     gender: values.gender,
     units: values.units,
+    weightUnits: values.weightUnits === 'default' ? null : values.weightUnits,
     currency: values.currency,
     height: resolveHeightCm(values),
     // `v-model.number` leaves a stale '' in place instead of `null` when a
@@ -113,11 +115,13 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     timezone: values.timezone || null,
   }
   try {
-    await updateMutation.mutateAsync(input)
+    await updateMutation.mutateAsync({ input, version: props.profile.version })
     emit('success', t('settings.profile.edit.success'))
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (isStaleWrite(error)) {
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.profile.edit.conflict'))
     } else {
       emit('error', t('settings.profile.edit.error'))
@@ -136,11 +140,11 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
     initialValues: {
       name: '',
       username: '',
-      email: '',
       city: '',
       birthdate: '',
       gender: 'unspecified',
       units: 'metric',
+      weightUnits: 'default',
       currency: 'euro',
       heightCm: null,
       heightFeet: null,
@@ -159,10 +163,6 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
         required(t('settings.users.form.usernameRequired')),
         maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
         pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
-      ),
-      email: compose(
-        required(t('settings.users.form.emailRequired')),
-        email(t('settings.users.form.emailInvalid')),
       ),
       // Height is captured per unit system and only the active system's inputs
       // are rendered. Skip the imperial validators in metric mode (and vice
@@ -198,11 +198,11 @@ function populate(): void {
   const profile = props.profile
   values.name = profile.name
   values.username = profile.username
-  values.email = profile.email
   values.city = profile.city ?? ''
   values.birthdate = profile.birthdate ?? ''
   values.gender = profile.gender
   values.units = profile.units
+  values.weightUnits = profile.weightUnits ?? 'default'
   values.currency = profile.currency
   values.heightCm = profile.height
   values.maxHeartRate = profile.maxHeartRate
@@ -274,20 +274,21 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.email')" :error="errors.email" required>
-        <template #default="{ fieldId, describedBy, invalid }">
+      <FormField :label="t('settings.users.form.email')">
+        <template #default="{ fieldId }">
           <Input
             :id="fieldId"
-            v-model="values.email"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
+            :model-value="props.profile.email"
             name="email"
             type="email"
-            maxlength="250"
-            autocomplete="email"
-            :disabled="isSubmitting"
-            @blur="handleBlur('email')"
+            disabled
           />
+          <p class="text-hint">
+            {{ t('settings.profile.emailManagedIn') }}
+            <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
+              {{ t('settings.profile.emailManagedLink') }}
+            </RouterLink>
+          </p>
         </template>
       </FormField>
 
@@ -370,6 +371,16 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
+      <FormField :label="t('settings.users.form.weightUnits')">
+        <template #default="{ fieldId }">
+          <Select :id="fieldId" v-model="values.weightUnits" :disabled="isSubmitting">
+            <option value="default">{{ t('settings.users.form.weightUnitsDefault') }}</option>
+            <option value="metric">{{ t('settings.users.form.weightUnitsMetric') }}</option>
+            <option value="imperial">{{ t('settings.users.form.weightUnitsImperial') }}</option>
+          </Select>
+        </template>
+      </FormField>
+
       <FormField :label="t('settings.users.form.currency')">
         <template #default="{ fieldId }">
           <Select :id="fieldId" v-model="values.currency" :disabled="isSubmitting">
@@ -389,7 +400,7 @@ watch(open, (isOpen) => {
             name="heightCm"
             type="number"
             min="0"
-            :placeholder="t('settings.users.form.unitCm')"
+            :placeholder="t('units.cm')"
             :disabled="isSubmitting"
           />
         </template>
@@ -409,13 +420,13 @@ watch(open, (isOpen) => {
               min="0"
               max="10"
               step="1"
-              :placeholder="t('settings.users.form.unitFeet')"
+              :placeholder="t('units.ft')"
               :disabled="isSubmitting"
               @blur="handleBlur('heightFeet')"
             />
           </template>
         </FormField>
-        <FormField :label="t('settings.users.form.unitInches')" :error="errors.heightInches">
+        <FormField :label="t('units.in')" :error="errors.heightInches">
           <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
@@ -428,7 +439,7 @@ watch(open, (isOpen) => {
               min="0"
               max="11"
               step="1"
-              :placeholder="t('settings.users.form.unitInches')"
+              :placeholder="t('units.in')"
               :disabled="isSubmitting"
               @blur="handleBlur('heightInches')"
             />
@@ -445,7 +456,7 @@ watch(open, (isOpen) => {
             name="maxHeartRate"
             type="number"
             min="0"
-            :placeholder="t('settings.users.form.unitBpm')"
+            :placeholder="t('units.bpm')"
             :disabled="isSubmitting"
           />
         </template>

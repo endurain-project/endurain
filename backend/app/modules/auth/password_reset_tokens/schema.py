@@ -6,8 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictBool, StrictI
 
 
 class PasswordResetToken(BaseModel):
-    """
-    Schema representing a password reset token record.
+    """Schema representing a password reset token record.
 
     Attributes:
         id: Unique identifier for the token.
@@ -53,8 +52,7 @@ class PasswordResetToken(BaseModel):
 
 
 class PasswordResetRequest(BaseModel):
-    """
-    Request schema for initiating a password reset.
+    """Request schema for initiating a password reset.
 
     Attributes:
         email: Email address for the reset.
@@ -69,8 +67,7 @@ class PasswordResetRequest(BaseModel):
 
 
 class PasswordResetConfirm(BaseModel):
-    """
-    Request schema for confirming a password reset.
+    """Request schema for confirming a password reset.
 
     Attributes:
         token: The reset token received by the user.
@@ -93,9 +90,8 @@ class PasswordResetConfirm(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class PasswordResetResponse(BaseModel):
-    """
-    Response schema for password reset operations.
+class PasswordResetRead(BaseModel):
+    """Response schema for password reset operations.
 
     Attributes:
         message: Informational message for the client.

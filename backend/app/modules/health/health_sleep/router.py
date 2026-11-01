@@ -1,16 +1,18 @@
-from collections.abc import Callable
+"""FastAPI router for health sleep endpoints."""
+
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
-import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
+import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.schema as health_sleep_schema
-import modules.health.health_sleep.sleep_scoring as health_sleep_sleep_scoring
+import modules.health.health_sleep.service as health_sleep_service
+import modules.health.schema as health_schema
 
 # Define the API router
 router = APIRouter()
@@ -18,218 +20,205 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=health_sleep_schema.HealthSleepListResponse,
-    status_code=status.HTTP_200_OK,
+    response_model=core_pagination.Page[health_sleep_schema.HealthSleepRead],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_sleep_all_pagination(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:read"])],
-    _validate_pagination_values_on_query: Annotated[
-        Callable, Depends(core_dependencies.validate_pagination_values_on_query)
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    page_number: Annotated[
-        int | None,
-        Query(description="Pagination page number"),
-    ] = None,
-    num_records: Annotated[
-        int | None,
-        Query(description="Number of records per page"),
-    ] = None,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    page: core_pagination.ListPage,
     interval: Annotated[
         health_constants.Interval | None,
         Query(description="Filter by goal interval"),
     ] = None,
-) -> health_sleep_schema.HealthSleepListResponse:
-    """
-    Retrieve health sleep records for the authenticated user.
+) -> core_pagination.Page[health_sleep_schema.HealthSleepRead]:
+    """Retrieve health sleep records for the authenticated user.
 
-    This endpoint fetches health sleep data with optional pagination and
-    filtering. Access is restricted to users with the 'health:read' scope.
+    One page of records, newest first, optionally limited to an interval. Access is
+    restricted to users with the 'health:read' scope.
 
     Args:
-        _check_scopes: Security dependency that validates the user has
-            'health:read' scope.
-        _validate_pagination_values_on_query: Dependency that validates
-            pagination parameters.
-        token_user_id: The ID of the authenticated user extracted from the
-            access token.
+        token_user_id: The ID of the authenticated user extracted from the access token.
         db: Database session for executing queries.
-        page_number: Optional pagination page number to retrieve specific page
-            of results.
-        num_records: Optional number of records per page for pagination.
-        interval: Optional filter to retrieve records within a specific goal
-            interval.
+        page: The requested page and page size.
+        interval: Optional filter to retrieve records within a specific goal interval.
 
     Returns:
-        HealthSleepListResponse: A response object containing:
-            - total: Total count of records matching the filter criteria
-            - num_records: Number of records returned per page
-            - page_number: Current page number
-            - records: List of paginated HealthSleepRead objects
-    Raises:
-        HTTPException: If the user lacks required 'health:read' scope or if
-            pagination values are invalid.
+        The page of records with the total matching the interval.
     """
-    # Get the total count and records from the database
-    total = health_sleep_crud.get_health_sleep_number_by_user_id(token_user_id, db, interval)
-    records = health_sleep_crud.get_health_sleep_by_user_id(token_user_id, db, page_number, num_records, interval)
-
-    # Pydantic will convert ORM models to HealthSleepRead via from_attributes=True
-    return health_sleep_schema.HealthSleepListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
+    return health_sleep_service.list_health_sleep(
+        token_user_id, db, page_number=page.page_number, num_records=page.num_records, interval=interval
     )
+
+
+@router.get(
+    "/chart",
+    response_model=health_schema.HealthChartSeries,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_sleep_chart(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    interval: Annotated[
+        health_constants.Interval,
+        Query(description="Interval to chart"),
+    ] = health_constants.Interval.LAST_7_DAYS,
+) -> health_schema.HealthChartSeries:
+    """Chart the authenticated user's total sleep seconds over an interval.
+
+    One aggregated point per day, week or month depending on the interval, so the response stays small
+    however long the history. Access is restricted to users with the 'health:read' scope.
+
+    Args:
+        token_user_id: The ID of the authenticated user extracted from the access token.
+        db: Database session for executing queries.
+        interval: The window to chart.
+
+    Returns:
+        The interval's bucket size and its points, oldest first.
+    """
+    return health_sleep_service.get_health_sleep_chart(token_user_id, interval, db)
+
+
+@router.get(
+    "/chart/resting-heart-rate",
+    response_model=health_schema.HealthChartSeries,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_sleep_resting_heart_rate_chart(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    interval: Annotated[
+        health_constants.Interval,
+        Query(description="Interval to chart"),
+    ] = health_constants.Interval.LAST_7_DAYS,
+) -> health_schema.HealthChartSeries:
+    """Chart the authenticated user's resting heart rate over an interval.
+
+    One aggregated point per day, week or month depending on the interval, so the response stays small
+    however long the history. Access is restricted to users with the 'health:read' scope.
+
+    Args:
+        token_user_id: The ID of the authenticated user extracted from the access token.
+        db: Database session for executing queries.
+        interval: The window to chart.
+
+    Returns:
+        The interval's bucket size and its points, oldest first.
+    """
+    return health_sleep_service.get_health_sleep_resting_heart_rate_chart(token_user_id, interval, db)
 
 
 @router.post(
     "",
     response_model=health_sleep_schema.HealthSleepRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_health_sleep(
+    request: Request,
     health_sleep: health_sleep_schema.HealthSleepCreate,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> health_sleep_schema.HealthSleepRead:
-    """
-    Create or update health sleep data for a user.
+    """Create health sleep data for a user.
 
-    This endpoint creates new health sleep data or updates existing data if an entry
-    for the specified date already exists. The operation is determined automatically
-    based on whether sleep data exists for the given date.
+    A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
 
     Args:
-        health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create
-            or update, including the date and sleep duration.
-        _check_scopes (Callable): Security dependency that verifies the user has
-            'health:write' scope.
+        request: The incoming request, read by the rate limiter.
+        health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create,
+            including the date and sleep duration.
         token_user_id (int): The ID of the authenticated user extracted from the
             access token.
         db (Session): Database session dependency for database operations.
 
     Returns:
-        health_sleep_schema.HealthSleepRead: The created or updated health sleep data.
+        health_sleep_schema.HealthSleepRead: The created health sleep data.
 
-    Raises:
-        HTTPException: 400 error if the date field is not provided in the request.
     """
-    # Calculate sleep scores before saving
-    health_sleep_sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
-
-    # Date is guaranteed to be present due to HealthSleepCreate validator
-    date_str = health_sleep.date.isoformat()  # type: ignore[union-attr]
-
-    # Check if health_sleep for this date already exists
-    sleep_for_date = health_sleep_crud.get_health_sleep_by_date_and_user_id(token_user_id, date_str, db)
-
-    if sleep_for_date:
-        # Convert to update schema with the existing ID and user_id
-        health_sleep_update = health_sleep_schema.HealthSleepUpdate(
-            id=sleep_for_date.id, user_id=token_user_id, **health_sleep.model_dump()
-        )
-        # Updates the health_sleep in the database and returns it
-        return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep_update, db)
-    else:
-        # Creates the health_sleep in the database and returns it
-        return health_sleep_crud.create_health_sleep(token_user_id, health_sleep, db)
+    return health_sleep_service.create_health_sleep(token_user_id, health_sleep, db)
 
 
-@router.put(
-    "",
+@router.patch(
+    "/{health_sleep_id}",
     response_model=health_sleep_schema.HealthSleepRead,
-    status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_sleep(
+    request: Request,
+    health_sleep_id: core_dependencies.PositiveId,
     health_sleep: health_sleep_schema.HealthSleepUpdate,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> health_sleep_schema.HealthSleepRead:
-    """
-    Edit health sleep data for a user.
+    """Edit health sleep data for a user.
 
     This endpoint updates existing health sleep records in the database for the authenticated user.
     Requires 'health:write' scope for authorization.
 
     Args:
+        request: The incoming request, read by the rate limiter.
+        health_sleep_id: ID of the record to change.
         health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
             containing the new values for the health sleep record.
-        _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
-            scope permission.
         token_user_id (int): The user ID extracted from the JWT access token, used to identify
             the user making the request.
         db (Session): Database session dependency for performing database operations.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         health_sleep_schema.HealthSleepRead: The updated health sleep record with the new values
             as stored in the database.
 
     Raises:
-        HTTPException: May raise various HTTP exceptions if authorization fails, user is not
-            found, or database operations fail.
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    # Recalculate sleep scores when editing
-    health_sleep_sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
+    updated = health_sleep_service.edit_health_sleep(
+        token_user_id, health_sleep_id, health_sleep, db, if_match=if_match
+    )
+    core_etag.set_etag(response, updated.version)
+    return updated
 
-    # Updates the health_sleep in the database and returns it
-    return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep, db)
 
-
-@router.delete("/{health_sleep_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{health_sleep_id}",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_sleep(
-    health_sleep_id: int,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    request: Request,
+    health_sleep_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
+    db: core_dependencies.DbSession,
 ) -> None:
-    """
-    Delete a health sleep record for the authenticated user.
+    """Delete a health sleep record for the authenticated user.
 
     This endpoint removes a specific health sleep entry from the database for the user
     identified by the access token. The user must have 'health:write' scope permission.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_sleep_id (int): The unique identifier of the health sleep record to delete.
-        _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
         token_user_id (int): The user ID extracted from the access token.
+        if_match: The ``If-Match`` precondition.
         db (Session): Database session dependency for executing the delete operation.
 
     Returns:
         None: This function does not return a value.
 
     Raises:
-        HTTPException: May be raised by dependencies if:
-            - The access token is invalid or expired
-            - The user lacks required 'health:write' scope
-            - The health sleep record doesn't exist or doesn't belong to the user
+        PreconditionFailedError: If the record changed since the client read it.
+        NotFoundError: If the user has no such record.
     """
     # Deletes entry from database
-    health_sleep_crud.delete_health_sleep(token_user_id, health_sleep_id, db)
+    health_sleep_service.delete_health_sleep(token_user_id, health_sleep_id, db, if_match=if_match)

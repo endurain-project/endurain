@@ -1,481 +1,127 @@
 """Gear API router endpoints."""
 
-from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    Query,
-    Security,
-    status,
-)
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
-import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
+import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.gears.gear.crud as gears_crud
-import modules.gears.gear.dependencies as gears_dependencies
 import modules.gears.gear.schema as gears_schema
+import modules.gears.gear.service as gears_service
 
-# Define the API router
 router = APIRouter()
 
 
 @router.get(
     "",
-    response_model=gears_schema.GearsListResponse,
-    status_code=status.HTTP_200_OK,
+    response_model=core_pagination.Page[gears_schema.GearRead],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
 )
-async def read_gears_user_all_pagination(
-    _validate_pagination_values_on_query: Annotated[
-        Callable,
-        Depends(core_dependencies.validate_pagination_values_on_query),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:read"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    page_number: Annotated[
-        int | None,
-        Query(
-            description="Pagination page number",
-        ),
+def list_gears(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    page: core_pagination.ListPage,
+    show_inactive: Annotated[bool | None, Query(description="Filter by inactive status")] = None,
+    gear_type: Annotated[gears_schema.GearType | None, Query(description="Keep only gears of this type")] = None,
+    nickname_contains: Annotated[
+        str | None,
+        Query(min_length=1, max_length=250, description="Keep only gears whose nickname contains this text"),
     ] = None,
-    num_records: Annotated[
-        int | None,
-        Query(
-            description="Records per page",
-        ),
-    ] = None,
-    show_inactive: Annotated[
-        bool | None,
-        Query(
-            description="Filter by inactive status",
-        ),
-    ] = None,
-) -> gears_schema.GearsListResponse:
-    """
-    Retrieve paginated gear records for a user.
-
-    Args:
-        _validate_pagination_values_on_query:
-            Validates pagination query params.
-        _check_scopes: Validates gears:read scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-        page_number: Optional page number.
-        num_records: Optional records per page.
-        show_inactive: Optional inactive filter.
-
-    Returns:
-        GearsListResponse with paginated records.
-
-    Raises:
-        HTTPException: If unauthorized or invalid
-            parameters.
-    """
-    total = gears_crud.get_gears_number(token_user_id, db, show_inactive)
-    gears = gears_crud.get_gear_users_with_pagination(
+) -> core_pagination.Page[gears_schema.GearRead]:
+    """Retrieve one page of the authenticated user's gears, with the matching total."""
+    return gears_service.list_gears(
         token_user_id,
         db,
-        page_number,
-        num_records,
-        show_inactive,
-    )
-
-    return gears_schema.GearsListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=gears,
+        page_number=page.page_number,
+        num_records=page.num_records,
+        show_inactive=show_inactive,
+        gear_type=gear_type,
+        nickname_contains=nickname_contains,
     )
 
 
 @router.get(
-    "/id/{gear_id}",
-    response_model=(gears_schema.GearDetailRead | None),
-    status_code=status.HTTP_200_OK,
+    "/{gear_id}",
+    response_model=gears_schema.GearDetailRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
 )
-async def read_gear_id(
-    gear_id: int,
-    _validate_id: Annotated[
-        Callable,
-        Depends(
-            gears_dependencies.validate_gear_id,
-        ),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:read"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> gears_schema.GearDetailRead | None:
-    """
-    Retrieve a gear by ID with computed stats.
-
-    Args:
-        gear_id: Gear ID to retrieve.
-        validate_id: Validates gear ID exists.
-        _check_scopes: Validates gears:read scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-
-    Returns:
-        GearDetailRead with stats, or None.
-
-    Raises:
-        HTTPException: If unauthorized.
-    """
-    gear = gears_crud.get_gear_user_by_id(
-        token_user_id,
-        gear_id,
-        db,
-    )
-    if gear is None:
-        return None
-
-    activity_stats = gears_crud.get_gear_activity_stats(
-        gear_id,
-        token_user_id,
-        db,
-    )
-    components_cost = gears_crud.get_gear_components_total_cost(
-        gear_id,
-        token_user_id,
-        db,
-    )
-    initial_kms_m = (
-        float(
-            gear.initial_kms or 0,
-        )
-        * 1000
-    )
-
-    return gears_schema.GearDetailRead(
-        **gear.model_dump(),
-        total_distance=(activity_stats["total_distance"] + initial_kms_m),
-        total_time=(activity_stats["total_time"]),
-        total_components_cost=(components_cost),
-    )
-
-
-@router.get(
-    "/nickname/contains/{nickname}",
-    response_model=list[gears_schema.GearRead],
-    status_code=status.HTTP_200_OK,
-)
-async def read_gear_user_contains_nickname(
-    nickname: str,
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:read"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> list[gears_schema.GearRead]:
-    """
-    Retrieve gears matching a nickname substring.
-
-    Args:
-        nickname: Substring to search for.
-        _check_scopes: Validates gears:read scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-
-    Returns:
-        List of GearRead matching the nickname.
-
-    Raises:
-        HTTPException: If unauthorized.
-    """
-    return gears_crud.get_gear_user_contains_nickname(
-        token_user_id,
-        nickname,
-        db,
-    )
-
-
-@router.get(
-    "/nickname/{nickname}",
-    response_model=gears_schema.GearRead | None,
-    status_code=status.HTTP_200_OK,
-)
-async def read_gear_user_by_nickname(
-    nickname: str,
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:read"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> gears_schema.GearRead | None:
-    """
-    Retrieve a gear by exact nickname for a user.
-
-    Args:
-        nickname: Gear nickname to match.
-        _check_scopes: Validates gears:read scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-
-    Returns:
-        GearRead if found, None otherwise.
-
-    Raises:
-        HTTPException: If unauthorized.
-    """
-    return gears_crud.get_gear_user_by_nickname(
-        token_user_id,
-        nickname,
-        db,
-    )
-
-
-@router.get(
-    "/type/{gear_type}",
-    response_model=list[gears_schema.GearRead],
-    status_code=status.HTTP_200_OK,
-)
-async def read_gear_user_by_type(
-    gear_type: int,
-    _validate_type: Annotated[
-        Callable,
-        Depends(
-            gears_dependencies.validate_gear_type,
-        ),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:read"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> list[gears_schema.GearRead]:
-    """
-    Retrieve gears by type for a user.
-
-    Args:
-        gear_type: Gear type identifier.
-        validate_type: Validates gear type value.
-        _check_scopes: Validates gears:read scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-
-    Returns:
-        List of GearRead matching the type.
-
-    Raises:
-        HTTPException: If unauthorized or invalid
-            type.
-    """
-    return gears_crud.get_gear_by_type_and_user(
-        gear_type,
-        token_user_id,
-        db,
-    )
+def read_gear_id(
+    gear_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> gears_schema.GearDetailRead:
+    """Retrieve a gear by ID with its total distance, time and components cost."""
+    gear = gears_service.read_gear_detail(gear_id, token_user_id, db)
+    # The tag the client echoes back in If-Match when it later saves.
+    core_etag.set_etag(response, gear.version)
+    return gear
 
 
 @router.post(
     "",
     response_model=gears_schema.GearRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
-async def create_gear(
-    gear: gears_schema.GearCreate,
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:write"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def create_gear(
+    request: Request,
+    gear: gears_schema.GearCreateRequest,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> gears_schema.GearRead:
-    """
-    Create a new gear for the authenticated user.
-
-    Args:
-        gear: Gear data to create.
-        _check_scopes: Validates gears:write scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-
-    Returns:
-        Created GearRead record.
-
-    Raises:
-        HTTPException: If unauthorized or gear
-            already exists.
-    """
-    return gears_crud.create_gear(
-        gear,
-        token_user_id,
-        db,
-    )
+    """Create a gear for the authenticated user."""
+    return gears_service.create_gear(gear, token_user_id, db)
 
 
-@router.put(
-    "",
+@router.patch(
+    "/{gear_id}",
     response_model=gears_schema.GearRead,
-    status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
-async def edit_gear(
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def edit_gear(
+    request: Request,
+    gear_id: core_dependencies.PositiveId,
     gear: gears_schema.GearUpdate,
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:write"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> gears_schema.GearRead:
+    """Update one of the authenticated user's gears.
+
+    Applies a partial update: omit a field to leave it untouched and send an explicit
+    null to clear a nullable one (`brand`, `model`, `purchase_value`).
+
+    Send ``If-Match`` with the gear's ``version`` as an ETag to make the write
+    conditional; a stale tag is refused with 412.
     """
-    Update an existing gear by ID.
-
-    Args:
-        gear: Updated gear data.
-        _check_scopes: Validates gears:write scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-
-    Returns:
-        Updated GearRead record.
-
-    Raises:
-        HTTPException: If gear not found, forbidden,
-            or unauthorized.
-    """
-    return gears_crud.edit_gear(
-        gear,
-        token_user_id,
-        db,
-    )
+    updated = gears_service.edit_gear(gear_id, gear, token_user_id, db, if_match=if_match)
+    core_etag.set_etag(response, updated.version)
+    return updated
 
 
 @router.delete(
     "/{gear_id}",
+    response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
-async def delete_gear(
-    gear_id: int,
-    _validate_id: Annotated[
-        Callable,
-        Depends(
-            gears_dependencies.validate_gear_id,
-        ),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["gears:write"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_gear(
+    request: Request,
+    gear_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
+    db: core_dependencies.DbSession,
 ) -> None:
+    """Delete one of the authenticated user's gears.
+
+    Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412.
     """
-    Delete a gear by ID.
-
-    Args:
-        gear_id: Gear ID to delete.
-        validate_id: Validates gear ID exists.
-        _check_scopes: Validates gears:write scope.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-
-    Returns:
-        None.
-
-    Raises:
-        HTTPException: If gear not found, forbidden,
-            or unauthorized.
-    """
-    gears_crud.delete_gear(gear_id, token_user_id, db)
+    gears_service.delete_gear(gear_id, token_user_id, db, if_match=if_match)

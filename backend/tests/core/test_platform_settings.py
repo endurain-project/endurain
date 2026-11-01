@@ -8,6 +8,11 @@ import core.config as core_config
 from core.platform_settings import build_jasil_settings
 
 
+def _build(settings):
+    """Translate settings for the tests that do not exercise the local layout."""
+    return build_jasil_settings(settings, plain_areas=frozenset())
+
+
 def _distributed(**overrides):
     """A minimally valid distributed configuration."""
     return core_config.Settings(
@@ -25,7 +30,7 @@ class TestDeploymentShape:
     def test_local_defaults_leave_uris_unset(self):
         # Unset URIs must reach JASIL as None so its own profile defaults apply;
         # resolving them here would disable the distributed refuse-to-guess check.
-        result = build_jasil_settings(core_config.Settings(_env_file=None))
+        result = _build(core_config.Settings(_env_file=None))
 
         assert result.profile is jasil_profile.DeploymentProfile.LOCAL
         assert result.state_uri is None
@@ -33,32 +38,43 @@ class TestDeploymentShape:
         assert result.events_uri is None
         assert result.lock_uri is None
 
+    def test_the_realtime_channel_is_endurain_s_own(self):
+        # Pub/Sub channels are server-wide: jasil's shared default would cross hints with
+        # any other jasil application on the same Redis server.
+        assert _build(core_config.Settings(_env_file=None)).realtime_channel == "endurain:realtime"
+
+    def test_realtime_follows_the_events_uri(self):
+        result = _build(_distributed())
+
+        assert result.realtime_uri is None
+        assert result.resolved_realtime_uri == result.resolved_events_uri == "redis://shared:6379/0"
+
     def test_profile_and_worker_count_carried_over(self):
-        result = build_jasil_settings(_distributed(WEB_WORKERS=4))
+        result = _build(_distributed(WEB_WORKERS=4))
 
         assert result.profile is jasil_profile.DeploymentProfile.DISTRIBUTED
         assert result.web_workers == 4
 
     def test_data_dir_carried_over(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None, DATA_DIR="/srv/endurain"))
+        result = _build(core_config.Settings(_env_file=None, DATA_DIR="/srv/endurain"))
 
         assert result.data_dir == "/srv/endurain"
 
     def test_consistency_enforcement_stays_on(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None))
+        result = _build(core_config.Settings(_env_file=None))
 
         assert result.enforce_deployment_consistency is True
 
 
 class TestCapabilityUris:
     def test_redis_url_feeds_state_and_events(self):
-        result = build_jasil_settings(_distributed())
+        result = _build(_distributed())
 
         assert result.state_uri == "redis://shared:6379/0"
         assert result.events_uri == "redis://shared:6379/0"
 
     def test_explicit_uris_win_over_redis_url(self):
-        result = build_jasil_settings(
+        result = _build(
             _distributed(
                 STATE_URI="redis://state:6379/1",
                 EVENTS_URI="redis://events:6379/2",
@@ -69,19 +85,29 @@ class TestCapabilityUris:
         assert result.events_uri == "redis://events:6379/2"
 
     def test_storage_uri_carried_over(self):
-        result = build_jasil_settings(_distributed())
+        result = _build(_distributed())
 
         assert result.storage_uri == "s3://bucket/thumbs"
 
 
+class TestStorageSettings:
+    def test_plain_areas_carried_over(self):
+        result = build_jasil_settings(
+            core_config.Settings(_env_file=None),
+            plain_areas=frozenset({"activity_files"}),
+        )
+
+        assert result.storage.local_plain_areas == frozenset({"activity_files"})
+
+
 class TestLockUri:
     def test_explicit_lock_uri_wins(self):
-        result = build_jasil_settings(_distributed(LOCK_URI="postgres-advisory://custom"))
+        result = _build(_distributed(LOCK_URI="postgres-advisory://custom"))
 
         assert result.lock_uri == "postgres-advisory://custom"
 
     def test_distributed_defaults_to_advisory_lock(self):
-        result = build_jasil_settings(_distributed())
+        result = _build(_distributed())
 
         assert result.lock_uri == "postgres-advisory://"
 
@@ -96,20 +122,20 @@ class TestLockUri:
             REDIS_URL="redis://shared:6379/0",
         )
 
-        result = build_jasil_settings(settings)
+        result = _build(settings)
 
         assert result.profile is jasil_profile.DeploymentProfile.LOCAL
         assert result.lock_uri == "postgres-advisory://"
 
     def test_single_process_local_leaves_lock_to_jasil(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None))
+        result = _build(core_config.Settings(_env_file=None))
 
         assert result.lock_uri is None
 
 
 class TestJobSettings:
     def test_defaults_mapped(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None)).jobs
+        result = _build(core_config.Settings(_env_file=None)).jobs
 
         assert result.enabled is False
         assert result.lease_seconds == 300
@@ -129,7 +155,7 @@ class TestJobSettings:
             JOBS_RETENTION_DAYS=14,
         )
 
-        result = build_jasil_settings(settings).jobs
+        result = _build(settings).jobs
 
         assert result.enabled is True
         assert result.lease_seconds == 120
@@ -145,7 +171,7 @@ class TestJobSettings:
             JOBS_BACKOFF_MAX_SECONDS=1800,
         )
 
-        result = build_jasil_settings(settings).jobs
+        result = _build(settings).jobs
 
         assert result.backoff_base_seconds == 7
         assert result.backoff_max_seconds == 1800
@@ -161,7 +187,7 @@ class TestJobSettings:
 
 class TestEventLogSettings:
     def test_defaults_mapped(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None)).event_log
+        result = _build(core_config.Settings(_env_file=None)).event_log
 
         assert result.enabled is True
         assert result.retention_days == 90
@@ -173,51 +199,10 @@ class TestEventLogSettings:
             EVENT_LOG_RETENTION_DAYS=0,
         )
 
-        result = build_jasil_settings(settings).event_log
+        result = _build(settings).event_log
 
         assert result.enabled is False
         assert result.retention_days == 0
-
-
-class TestGeocodingSettings:
-    def test_hosts_and_provider_mapped(self):
-        settings = core_config.Settings(
-            _env_file=None,
-            REVERSE_GEO_PROVIDER="photon",
-            REVERSE_GEO_RATE_LIMIT=2.5,
-            NOMINATIM_API_HOST="nominatim.example.org",
-            NOMINATIM_API_USE_HTTPS=False,
-            PHOTON_API_HOST="photon.example.com",
-            PHOTON_API_USE_HTTPS=True,
-        )
-
-        result = build_jasil_settings(settings).geocoding
-
-        assert result.provider == "photon"
-        assert result.rate_limit == 2.5
-        assert result.nominatim_host == "nominatim.example.org"
-        assert result.nominatim_use_https is False
-        assert result.photon_host == "photon.example.com"
-        assert result.photon_use_https is True
-
-    def test_placeholder_api_key_becomes_unset(self):
-        # 'changeme' is the shipped placeholder; JASIL disables the capability
-        # for a falsy key, which is what the previous container did for it.
-        result = build_jasil_settings(core_config.Settings(_env_file=None)).geocoding
-
-        assert result.api_key is None
-
-    def test_real_api_key_carried_over(self):
-        settings = core_config.Settings(_env_file=None, GEOCODES_MAPS_API="a-real-key")
-
-        result = build_jasil_settings(settings).geocoding
-
-        assert result.api_key == "a-real-key"
-
-    def test_user_agent_identifies_endurain(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None)).geocoding
-
-        assert result.user_agent == f"Endurain/{core_config.API_VERSION} (ReverseGeocoding)"
 
 
 class TestNetworkSettings:
@@ -227,12 +212,12 @@ class TestNetworkSettings:
             SSRF_ALLOWED_HOSTS="auth.example.com,10.1.0.0/16",
         )
 
-        result = build_jasil_settings(settings).network
+        result = _build(settings).network
 
         assert result.ssrf_allowed_hosts == tuple(settings.SSRF_ALLOWED_HOSTS)
 
     def test_empty_allowlist_is_empty_tuple(self):
-        result = build_jasil_settings(core_config.Settings(_env_file=None)).network
+        result = _build(core_config.Settings(_env_file=None)).network
 
         assert result.ssrf_allowed_hosts == ()
 
@@ -290,7 +275,7 @@ class TestHostCheckIsStrictlyStronger:
     def test_every_accepted_configuration_resolves(self, overrides):
         settings = core_config.Settings(_env_file=None, ENVIRONMENT="production", **overrides)
 
-        result = build_jasil_settings(settings)
+        result = _build(settings)
 
         # Each ``resolved_*`` raises when JASIL has neither a value nor a default.
         assert result.resolved_state_uri
@@ -333,107 +318,10 @@ class TestHostCheckIsStrictlyStronger:
             DEPLOYMENT_PROFILE="distributed",
         )
 
-        result = build_jasil_settings(settings)
+        result = _build(settings)
 
         assert result.enforce_deployment_consistency is False
         assert result.resolved_state_uri == "memory://"
         assert result.resolved_storage_uri == "local://"
         assert result.resolved_events_uri == "memory://"
         assert result.resolved_lock_uri == "postgres-advisory://"
-
-
-class TestMailSettings:
-    @staticmethod
-    def _settings(monkeypatch, **overrides):
-        monkeypatch.delenv("SMTP_PASSWORD", raising=False)
-        monkeypatch.delenv("SMTP_PASSWORD_FILE", raising=False)
-        return core_config.Settings(_env_file=None, **overrides)
-
-    def test_unset_host_disables_mail(self, monkeypatch):
-        result = build_jasil_settings(self._settings(monkeypatch))
-
-        assert result.mail.uri is None
-
-    def test_starttls_maps_to_smtp_uri_with_credentials(self, monkeypatch):
-        monkeypatch.setenv("SMTP_PASSWORD", "secret")
-        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com", SMTP_USERNAME="me@example.com")
-        monkeypatch.setenv("SMTP_PASSWORD", "secret")
-
-        mail = build_jasil_settings(settings).mail
-
-        assert mail.uri == "smtp://mail.example.com:587"
-        assert mail.from_address == "Endurain <me@example.com>"
-        assert mail.username == "me@example.com"
-        assert mail.password == "secret"
-        assert mail.secure is True
-
-    def test_ssl_maps_to_smtps_uri(self, monkeypatch):
-        settings = self._settings(
-            monkeypatch, SMTP_HOST="mail.example.com", SMTP_FROM="a@example.com", SMTP_SECURE_TYPE="ssl", SMTP_PORT=465
-        )
-
-        assert build_jasil_settings(settings).mail.uri == "smtps://mail.example.com:465"
-
-    def test_smtp_from_wins_and_display_name_is_kept(self, monkeypatch):
-        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com", SMTP_FROM="Team <team@example.com>")
-
-        assert build_jasil_settings(settings).mail.from_address == "Team <team@example.com>"
-
-    def test_missing_sender_disables_mail_with_reason(self, monkeypatch):
-        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com")
-
-        assert settings.mail_configured is False
-        assert any("sender" in problem for problem in settings.mail_problems)
-        assert build_jasil_settings(settings).mail.uri is None
-
-    def test_username_without_password_disables_mail(self, monkeypatch):
-        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com", SMTP_USERNAME="me@example.com")
-
-        assert settings.mail_configured is False
-        assert any("SMTP_PASSWORD" in problem for problem in settings.mail_problems)
-
-    def test_cleartext_with_credentials_disables_mail(self, monkeypatch):
-        monkeypatch.setenv("SMTP_PASSWORD", "secret")
-        settings = core_config.Settings(
-            _env_file=None, SMTP_HOST="127.0.0.1", SMTP_USERNAME="me@example.com", SMTP_SECURE=False
-        )
-
-        assert settings.mail_configured is False
-
-    def test_cleartext_to_public_host_disables_mail(self, monkeypatch):
-        monkeypatch.setattr("core.config._is_private_host", lambda host: False)
-        settings = self._settings(
-            monkeypatch, SMTP_HOST="mail.example.com", SMTP_FROM="a@example.com", SMTP_SECURE=False
-        )
-
-        assert settings.mail_configured is False
-        assert any("private or loopback" in problem for problem in settings.mail_problems)
-
-    def test_cleartext_to_loopback_is_allowed(self, monkeypatch):
-        settings = self._settings(monkeypatch, SMTP_HOST="127.0.0.1", SMTP_FROM="a@example.com", SMTP_SECURE=False)
-
-        assert settings.mail_configured is True
-        assert build_jasil_settings(settings).mail.secure is False
-
-    def test_problems_never_contain_setting_values(self, monkeypatch):
-        monkeypatch.setenv("SMTP_PASSWORD", "super-secret-value")
-        settings = core_config.Settings(_env_file=None, SMTP_HOST="mail.example.com", SMTP_FROM="bad address")
-
-        assert all(
-            "super-secret-value" not in problem and "bad address" not in problem for problem in settings.mail_problems
-        )
-
-    @pytest.mark.parametrize(
-        "host", ["mail.example.com/path", "mail example.com", "mail.example.com:25", "a@b.com", "-bad.example.com"]
-    )
-    def test_invalid_host_disables_mail(self, monkeypatch, host):
-        settings = self._settings(monkeypatch, SMTP_HOST=host, SMTP_FROM="a@example.com")
-
-        assert settings.mail_configured is False
-        assert any("SMTP_HOST" in problem for problem in settings.mail_problems)
-        assert settings.smtp_uri is None
-
-    def test_ipv6_literal_is_bracketed_in_uri(self, monkeypatch):
-        settings = self._settings(monkeypatch, SMTP_HOST="::1", SMTP_FROM="a@example.com", SMTP_SECURE=False)
-
-        assert settings.smtp_uri == "smtp://[::1]:587"

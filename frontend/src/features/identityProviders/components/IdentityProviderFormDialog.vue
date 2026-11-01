@@ -15,17 +15,22 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
+import ProviderIconPicker from '@/features/identityProviders/components/ProviderIconPicker.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { HttpError } from '@/services/http'
 import {
-  BUILTIN_PROVIDER_ICONS,
-  CUSTOM_ICON,
+  ICON_ACCEPTED_TYPES,
+  ICON_MAX_BYTES,
+  UPLOADED_ICON,
   isBuiltinProviderIcon,
+  resolveProviderLogo,
 } from '@/features/identityProviders/utils/providerIcon'
 import { compose, maxLength, pattern, required } from '@/utils/validators'
 import {
   useCreateIdentityProviderMutation,
+  useDeleteIdentityProviderIconMutation,
   useUpdateIdentityProviderMutation,
+  useUploadIdentityProviderIconMutation,
 } from '@/features/identityProviders/composables/useIdentityProviders'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -49,18 +54,12 @@ const { t } = useI18n()
 
 const createMutation = useCreateIdentityProviderMutation()
 const updateMutation = useUpdateIdentityProviderMutation()
+const uploadIconMutation = useUploadIdentityProviderIconMutation()
+const deleteIconMutation = useDeleteIdentityProviderIconMutation()
 
 const DEFAULT_SCOPES = 'openid profile email'
-/** Display labels for the built-in provider icons (proper nouns, not translated). */
-const ICON_LABELS: Record<string, string> = {
-  authelia: 'Authelia',
-  authentik: 'Authentik',
-  casdoor: 'Casdoor',
-  keycloak: 'Keycloak',
-  pocketid: 'Pocket ID',
-}
 
-/** The add/edit form shape; `icon` is a built-in key, `custom`, or empty (none). */
+/** The add/edit form shape; `icon` is a built-in key, `custom`, `uploaded`, or empty (none). */
 interface ProviderFormValues {
   name: string
   slug: string
@@ -71,7 +70,6 @@ interface ProviderFormValues {
   clientSecret: string
   scopes: string
   icon: string
-  customIconUrl: string
   autoCreateUsers: boolean
   syncUserInfo: boolean
 }
@@ -88,7 +86,6 @@ function defaultValues(): ProviderFormValues {
     clientSecret: '',
     scopes: DEFAULT_SCOPES,
     icon: '',
-    customIconUrl: '',
     autoCreateUsers: true,
     syncUserInfo: true,
   }
@@ -110,15 +107,15 @@ function slugify(name: string): string {
 
 /**
  * Builds the clean provider input from the form values. The icon resolves to
- * the built-in key, the custom URL, or `null`; an empty secret becomes `null`
+ * the built-in key or `null` (an uploaded image is stored separately); an empty secret becomes `null`
  * so an edit keeps the stored secret.
  *
  * @param values - The validated form values.
  * @returns The provider input for the create/update mutation.
  */
 function buildInput(values: ProviderFormValues): IdentityProviderInput {
-  const icon =
-    values.icon === CUSTOM_ICON ? values.customIconUrl.trim() || null : values.icon || null
+  // An uploaded image is stored separately and shown in place of `icon`, so the column stays empty.
+  const icon = values.icon === UPLOADED_ICON ? null : values.icon || null
   return {
     name: values.name.trim(),
     slug: values.slug.trim().toLowerCase(),
@@ -135,26 +132,65 @@ function buildInput(values: ProviderFormValues): IdentityProviderInput {
 }
 
 /**
+ * Applies the chosen icon source to the uploaded image: uploads the picked file,
+ * or removes the stored image when another source replaced it.
+ *
+ * @param id - The saved provider's id.
+ * @param values - The validated form values.
+ * @returns Whether the uploaded image is now as chosen.
+ */
+async function syncUploadedIcon(id: number, values: ProviderFormValues): Promise<boolean> {
+  try {
+    if (values.icon === UPLOADED_ICON) {
+      if (iconFile.value) {
+        await uploadIconMutation.mutateAsync({ id, file: iconFile.value })
+      }
+    } else if (props.provider?.iconUploaded) {
+      await deleteIconMutation.mutateAsync(id)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Persists the provider, emitting the outcome to the parent and closing on
- * success. A duplicate slug (`409`) is surfaced as a specific message; other
- * failures fall back to a generic one so the dialog stays open for correction.
+ * success. A duplicate slug (`409`) and a refused issuer URL (`400`) are surfaced
+ * as specific messages; other failures fall back to a generic one so the dialog
+ * stays open for correction.
  *
  * @param values - The validated form values.
  */
 async function submitForm(values: ProviderFormValues): Promise<void> {
   const input = buildInput(values)
   try {
-    if (props.provider) {
-      await updateMutation.mutateAsync({ id: props.provider.id, input })
-      emit('success', t('settings.idp.form.updateSuccess'))
+    const saved = props.provider
+      ? await updateMutation.mutateAsync({
+          id: props.provider.id,
+          input,
+          version: props.provider.version,
+        })
+      : await createMutation.mutateAsync(input)
+    // The provider is saved by now, so an icon failure is reported without keeping the dialog open:
+    // a retry of the create would only hit the slug conflict.
+    const iconSaved = await syncUploadedIcon(saved.id, values)
+    if (iconSaved) {
+      emit(
+        'success',
+        t(props.provider ? 'settings.idp.form.updateSuccess' : 'settings.idp.form.createSuccess'),
+      )
     } else {
-      await createMutation.mutateAsync(input)
-      emit('success', t('settings.idp.form.createSuccess'))
+      emit('error', t('settings.idp.form.iconSaveError'))
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (error instanceof HttpError && error.status === 412) {
+      emit('error', t('settings.idp.form.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.idp.form.slugConflict'))
+    } else if (error instanceof HttpError && error.status === 400) {
+      emit('error', t('settings.idp.form.issuerUrlRefused'))
     } else {
       emit('error', t('settings.idp.form.saveError'))
     }
@@ -200,7 +236,44 @@ const selectedTemplateId = ref('')
 const selectedTemplate = computed(() =>
   props.templates.find((template) => template.templateId === selectedTemplateId.value),
 )
-const isCustomIcon = computed(() => values.icon === CUSTOM_ICON)
+const isUploadedIcon = computed(() => values.icon === UPLOADED_ICON)
+// The image to upload on save; an edit that keeps its stored image needs none.
+const iconFile = ref<File | null>(null)
+const iconFileError = ref<string | null>(null)
+// Where the provider's stored uploaded image is served, for the picker's preview.
+const storedIconSrc = computed(() =>
+  props.provider?.iconUploaded
+    ? resolveProviderLogo(null, {
+        slug: props.provider.slug,
+        iconUploaded: true,
+        version: props.provider.version,
+      })
+    : null,
+)
+const iconFileMissing = computed(
+  () => isUploadedIcon.value && !iconFile.value && !props.provider?.iconUploaded,
+)
+
+/**
+ * Takes the picked image for upload after checking its type and size, so an
+ * unusable file is refused before the form is submitted.
+ *
+ * @param file - The picked image, or `null` when the picker was cleared.
+ */
+function onIconPick(file: File | null): void {
+  iconFile.value = null
+  iconFileError.value = null
+  if (!file) {
+    return
+  }
+  if (!ICON_ACCEPTED_TYPES.includes(file.type)) {
+    iconFileError.value = t('settings.idp.form.iconFileInvalidType')
+  } else if (file.size > ICON_MAX_BYTES) {
+    iconFileError.value = t('settings.idp.form.iconFileTooLarge')
+  } else {
+    iconFile.value = file
+  }
+}
 
 /**
  * Applies a preset to the form, pre-filling identity and protocol fields. The
@@ -228,6 +301,8 @@ watch(selectedTemplateId, applyTemplate)
 function populate(): void {
   reset()
   selectedTemplateId.value = ''
+  iconFile.value = null
+  iconFileError.value = null
   const provider = props.provider
   if (!provider) {
     return
@@ -242,11 +317,10 @@ function populate(): void {
   values.scopes = provider.scopes || DEFAULT_SCOPES
   values.autoCreateUsers = provider.autoCreateUsers
   values.syncUserInfo = provider.syncUserInfo
-  if (isBuiltinProviderIcon(provider.icon)) {
+  if (provider.iconUploaded) {
+    values.icon = UPLOADED_ICON
+  } else if (isBuiltinProviderIcon(provider.icon)) {
     values.icon = provider.icon
-  } else if (provider.icon) {
-    values.icon = CUSTOM_ICON
-    values.customIconUrl = provider.icon
   }
 }
 
@@ -267,7 +341,7 @@ watch(open, (isOpen) => {
     :cancel-label="t('settings.idp.form.cancel')"
     :close-label="t('settings.idp.form.close')"
     :submitting="isSubmitting"
-    :can-submit="isValid"
+    :can-submit="isValid && !iconFileMissing && !iconFileError"
     content-class="max-w-2xl"
     @submit="handleSubmit"
   >
@@ -419,35 +493,14 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.idp.form.icon')">
-        <template #default="{ fieldId }">
-          <Select :id="fieldId" v-model="values.icon" :disabled="isSubmitting">
-            <option value="">{{ t('settings.idp.form.iconNone') }}</option>
-            <option v-for="key in BUILTIN_PROVIDER_ICONS" :key="key" :value="key">
-              {{ ICON_LABELS[key] }}
-            </option>
-            <option :value="CUSTOM_ICON">{{ t('settings.idp.form.iconCustom') }}</option>
-          </Select>
-        </template>
-      </FormField>
-
-      <FormField
-        v-if="isCustomIcon"
-        :label="t('settings.idp.form.customIconUrl')"
-        :hint="t('settings.idp.form.customIconUrlHint')"
-      >
-        <template #default="{ fieldId }">
-          <Input
-            :id="fieldId"
-            v-model="values.customIconUrl"
-            name="customIconUrl"
-            type="url"
-            inputmode="url"
-            maxlength="500"
-            :disabled="isSubmitting"
-          />
-        </template>
-      </FormField>
+      <ProviderIconPicker
+        v-model="values.icon"
+        :file="iconFile"
+        :stored-src="storedIconSrc"
+        :error="iconFileError"
+        :disabled="isSubmitting"
+        @pick="onIconPick"
+      />
 
       <div class="flex flex-col gap-2 sm:col-span-2">
         <Switch v-model="values.enabled" :disabled="isSubmitting">

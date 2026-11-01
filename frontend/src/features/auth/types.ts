@@ -18,6 +18,8 @@ import type { AuthTokenResponse, Schemas } from '@/types'
  * @property isGarminConnectLinked - Whether a Garmin Connect integration is linked.
  * @property hasLocalPassword - Whether the account has a local password.
  * @property units - Measurement system used to present distances and heights.
+ * @property weightUnits - Measurement system used to present body weight; falls
+ *   back to `units` when the user has not set an explicit override.
  * @property currency - Preferred currency for monetary values.
  * @property firstDayOfWeek - First day used for calendar week boundaries.
  */
@@ -35,6 +37,7 @@ export interface User {
   isGarminConnectLinked: boolean
   hasLocalPassword: boolean
   units: Schemas['Units']
+  weightUnits: Schemas['Units']
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
 }
@@ -61,17 +64,18 @@ export type UserProfileDto = Pick<
   | 'is_garminconnect_linked'
   | 'has_local_password'
   | 'units'
+  | 'weight_units'
   | 'currency'
   | 'first_day_of_week'
 >
 
 /**
  * Backend response indicating that MFA is required before login completes.
- * Derived from the generated `MFARequiredResponse` schema, with
+ * Derived from the generated `MFARequiredRead` schema, with
  * `mfa_required` narrowed to the literal `true` so it acts as the discriminant
  * of the {@link LoginResponse} union.
  */
-export type MfaRequiredResponse = Omit<Schemas['MFARequiredResponse'], 'mfa_required'> & {
+export type MfaRequiredResponse = Omit<Schemas['MFARequiredRead'], 'mfa_required'> & {
   mfa_required: true
 }
 
@@ -85,11 +89,11 @@ export type LoginResponse = AuthTokenResponse | MfaRequiredResponse
 export type MfaLoginRequest = Schemas['MFALoginRequest']
 
 /**
- * Logout response from the backend. Derived from the generated `LogoutResponse`
+ * Logout response from the backend. Derived from the generated `LogoutRead`
  * schema so a contract change surfaces as a TypeScript error here instead of a
  * silent runtime mismatch.
  */
-export type LogoutResponse = Schemas['LogoutResponse']
+export type LogoutResponse = Schemas['LogoutRead']
 
 /**
  * Sign-up request payload sent to `POST /sign-up/request`. Derived from the
@@ -102,4 +106,19 @@ export type SignUpRequest = Schemas['UsersSignup']
  * Sign-up response returned by `POST /sign-up/request`, indicating whether the
  * account still needs email verification and/or admin approval before login.
  */
-export type SignUpResponse = Schemas['SignUpResponse']
+export type SignUpResponse = Schemas['SignUpRead']
+
+/** Body of `POST /sign-up/confirm`; `password` is only sent for a sign-up link. */
+export type SignUpConfirm = Schemas['SignUpConfirm']
+
+/**
+ * Whether the installation still needs its first administrator.
+ *
+ * @property onboardingRequired - `true` only while no account exists.
+ */
+export interface OnboardingStatus {
+  onboardingRequired: boolean
+}
+
+/** Body of `POST /public/onboarding`, derived from the generated `OnboardingCreate` schema. */
+export type OnboardingRequest = Schemas['OnboardingCreate']

@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Nieaktywny",
       "unverified": "Niezweryfikowany e-mail",
+      "pendingEmail": "Oczekująca zmiana e-maila",
       "pending": "Oczekuje na zatwierdzenie",
       "externalAuth": "Uwierzytelnianie zewnętrzne"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "E-mail jest wymagany",
       "emailInvalid": "Wprowadź prawidłowy adres e-mail",
+      "emailChangeHint": "Link potwierdzający zostaje wysłany na nowy adres, który zastąpi obecny po potwierdzeniu. Użytkownik zostaje wylogowany ze wszystkich urządzeń. Aby zastosować zmianę od razu, oznacz nowy adres jako zweryfikowany.",
       "accessType": "Typ dostępu",
       "accessTypeRegular": "Zwykły użytkownik",
       "accessTypeAdmin": "Administrator",
       "password": "Hasło",
       "passwordHint": "Co najmniej 8 znaków",
-      "passwordHintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym",
-      "passwordHintLength": "Co najmniej {min} znaków",
       "passwordRequired": "Hasło jest wymagane",
-      "passwordInvalid": "To hasło nie spełnia wymagań",
       "confirmPassword": "Potwierdź hasło",
       "confirmPasswordRequired": "Potwierdź hasło",
-      "passwordMismatch": "Hasła nie są zgodne",
       "preferredLanguage": "Preferowany język",
       "languages": {
         "ca": "Kataloński",
@@ -118,14 +116,14 @@
       "units": "Jednostki",
       "unitsMetric": "Metryczne",
       "unitsImperial": "Imperialne",
+      "weightUnits": "Jednostki wagi",
+      "weightUnitsDefault": "Zgodnie z jednostkami",
+      "weightUnitsMetric": "Kilogramy (kg)",
+      "weightUnitsImperial": "Funty (lb)",
       "height": "Wzrost",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Stopy muszą być z zakresu od 0 do 10",
       "inchesInvalid": "Cale muszą być z zakresu od 0 do 11",
       "maxHeartRate": "Maksymalne tętno",
-      "unitBpm": "bpm",
       "currency": "Waluta",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Status konta",
       "active": "Aktywne",
       "emailVerified": "E-mail zweryfikowany",
+      "emailVerifiedCurrentHint": "To jest status obecnego adresu.",
+      "newEmailVerified": "Oznacz nowy adres jako zweryfikowany",
       "pendingAdminApproval": "Oczekuje na zatwierdzenie administratora",
       "requiredField": "Pole wymagane",
       "create": "Dodaj użytkownika",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Powrót do użytkowników",
+      "pendingEmail": "Oczekująca zmiana e-maila na {email}, link wygasa {date}",
       "notFoundTitle": "Nie znaleziono użytkownika",
       "notFoundDescription": "To konto mogło zostać usunięte",
       "securityTitle": "Bezpieczeństwo",
@@ -186,16 +187,12 @@
       "title": "Resetuj hasło",
       "description": "Ustaw nowe hasło dla {username}",
       "newLabel": "Nowe hasło",
-      "hintLength": "Co najmniej {min} znaków",
-      "hintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym",
       "confirmLabel": "Potwierdź nowe hasło",
-      "mismatch": "Hasła nie są zgodne",
       "required": "Hasło jest wymagane",
       "submit": "Resetuj hasło",
       "cancel": "Anuluj",
       "close": "Zamknij",
       "success": "Zaktualizowano hasło",
-      "invalid": "To hasło nie spełnia wymagań",
       "error": "Nie udało się zaktualizować hasła. Spróbuj ponownie."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Zasady haseł",
-      "type": "Zasada",
-      "typeStrict": "Ścisła (wymagana złożoność)",
-      "typeLengthOnly": "Tylko długość",
       "lengthRegular": "Minimalna długość dla zwykłych użytkowników",
       "lengthAdmin": "Minimalna długość dla administratorów"
     },
@@ -367,6 +361,29 @@
       "sent": "Wiadomość testowa wysłana",
       "failed": "Nie udało się wysłać wiadomości testowej",
       "failedUnknown": "Szczegóły znajdziesz w logach serwera."
+    },
+    "envLocked": "Ustawione przez {name}",
+    "envSection": "Niektóre ustawienia tutaj są ustawiane przez zmienne środowiskowe ({names}). Usuń je ze środowiska, aby edytować te ustawienia tutaj.",
+    "unsaved": "Niezapisane zmiany",
+    "discard": "Odrzuć",
+    "tabs": {
+      "label": "Sekcje ustawień serwera",
+      "general": "Ogólne",
+      "access": "Dostęp i bezpieczeństwo",
+      "maps": "Mapy i lokalizacja",
+      "email": "E-mail",
+      "unsaved": "Zawiera niezapisane zmiany"
+    },
+    "search": {
+      "placeholder": "Szukaj ustawień…",
+      "noResults": "Nie znaleziono ustawień"
+    },
+    "leave": {
+      "title": "Opuścić stronę bez zapisywania?",
+      "description": "Masz niezapisane zmiany. Jeśli opuścisz tę stronę, zostaną utracone.",
+      "confirm": "Opuść bez zapisywania",
+      "stay": "Zostań na stronie",
+      "close": "Zamknij"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Zakresy mogą mieć maksymalnie 500 znaków",
       "icon": "Ikona",
       "iconNone": "Brak",
-      "iconCustom": "Niestandardowy URL",
-      "customIconUrl": "Niestandardowy URL ikony",
-      "customIconUrlHint": "Link do obrazu wyświetlanego na przycisku logowania",
       "enabled": "Włączony",
       "autoCreateUsers": "Automatycznie twórz użytkowników przy pierwszym logowaniu",
       "syncUserInfo": "Synchronizuj informacje profilowe przy każdym logowaniu",
@@ -491,13 +505,6 @@
       "distance": "Dystans",
       "elevation": "Przewyższenie",
       "duration": "Czas trwania"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Edytuj cel {name}",
@@ -559,9 +566,6 @@
       "current": "Bieżące hasło",
       "new": "Nowe hasło",
       "confirm": "Potwierdź nowe hasło",
-      "requirementsStrict": "Co najmniej {length} znaków, w tym wielka litera, mała litera, cyfra i symbol.",
-      "requirementsLength": "Co najmniej {length} znaków.",
-      "mismatch": "Hasła nie są zgodne.",
       "revokeOthers": "Wyloguj ze wszystkich innych urządzeń",
       "submit": "Zmień hasło",
       "success": "Zmieniono hasło",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Twoje hasło lub kod są nieprawidłowe.",
       "alreadyLinked": "To konto jest już powiązane.",
       "lastMethodError": "Nie możesz odłączyć swojej jedynej metody logowania. Najpierw ustaw hasło."
+    },
+    "email": {
+      "subtitle": "Tutaj wysyłane są resetowania hasła i powiadomienia. Zmiana wymaga potwierdzenia tożsamości, a nowy adres obowiązuje dopiero po potwierdzeniu go za pomocą linku, który na niego wysyłamy.",
+      "sameAsCurrent": "To jest już Twój adres e-mail.",
+      "success": "Link potwierdzający został wysłany na nowy adres. Twój e-mail zmieni się po jego potwierdzeniu.",
+      "appliedSuccess": "Adres e-mail zmieniony.",
+      "pending": "Oczekująca zmiana na {email}",
+      "pendingExpires": "Link potwierdzający wygasa {date}.",
+      "resend": "Wyślij link ponownie",
+      "cancel": "Anuluj zmianę",
+      "resendSuccess": "Jeśli zmiana oczekuje, nowy link jest już w drodze na nowy adres.",
+      "resendError": "Nie udało się ponownie wysłać linku. Spróbuj ponownie.",
+      "cancelSuccess": "Anulowano zmianę e-maila.",
+      "cancelError": "Nie udało się anulować zmiany. Spróbuj ponownie."
     },
     "apiKeys": {
       "title": "Klucze API",
@@ -923,7 +941,6 @@
       "invalidType": "Wybierz archiwum .zip.",
       "exportSuccess": "Eksport gotowy, pobieranie powinno się wkrótce rozpocząć",
       "exportError": "Nie udało się wyeksportować danych. Spróbuj ponownie.",
-      "importSuccess": "Zaimportowano dane",
       "importError": "Nie udało się zaimportować archiwum. Sprawdź plik i spróbuj ponownie."
     }
   }

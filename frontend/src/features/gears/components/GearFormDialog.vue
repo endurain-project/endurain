@@ -12,7 +12,9 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { kmToMiles, milesToKm } from '@/utils/units'
@@ -41,6 +43,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGearMutation()
 const updateMutation = useUpdateGearMutation()
@@ -117,7 +120,7 @@ async function submitForm(values: GearFormValues): Promise<void> {
   const input = buildInput(values)
   try {
     if (props.gear) {
-      await updateMutation.mutateAsync({ id: props.gear.id, input })
+      await updateMutation.mutateAsync({ id: props.gear.id, input, version: props.gear.version })
       emit('success', t('gears.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)
@@ -125,7 +128,9 @@ async function submitForm(values: GearFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (isStaleWrite(error)) {
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('gears.form.nicknameTaken'))
     } else {
       emit('error', t('gears.form.saveError'))
@@ -154,9 +159,7 @@ const dialogTitle = computed(() =>
 )
 // Racquets have no odometer, so the distance field is hidden for that type.
 const showDistance = computed(() => values.gearType !== GEAR_TYPE.RACQUET)
-const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
-)
+const distanceUnitLabel = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
 const distanceLabel = computed(
   () => `${t('gears.form.initialDistance')} (${distanceUnitLabel.value})`,
 )

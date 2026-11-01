@@ -62,19 +62,19 @@ describe('api key service', () => {
   })
 
   it('fetchApiKeys reads the path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([apiKeyDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [apiKeyDto], next: null })
 
     const keys = await fetchApiKeys()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/api_keys',
+      '/profile/api-keys?page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(keys).toHaveLength(1)
     expect(keys[0]?.scopes).toEqual(['activities:upload'])
   })
 
-  it('fetchApiKeys maps a null payload to an empty array', async () => {
+  it('fetchApiKeys maps a null payload to an empty list', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
     await expect(fetchApiKeys()).resolves.toEqual([])
   })
@@ -92,7 +92,7 @@ describe('api key service', () => {
     })
 
     expect(rawKey).toBe('endurain_rawsecret')
-    expect(apiFetch).toHaveBeenCalledWith('/profile/api_keys', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/api-keys', {
       method: 'POST',
       body: JSON.stringify({
         name: 'CI upload',
@@ -104,13 +104,13 @@ describe('api key service', () => {
     })
   })
 
-  it('revokeApiKey PATCHes the revoke path (void, id encoded)', async () => {
+  it('revokeApiKey POSTs the revoke path (void, id encoded)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await revokeApiKey('key 1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/api_keys/key%201/revoke', {
-      method: 'PATCH',
+    expect(apiFetch).toHaveBeenCalledWith('/profile/api-keys/key%201/revoke', {
+      method: 'POST',
       responseType: 'void',
     })
   })
@@ -120,7 +120,7 @@ describe('api key service', () => {
 
     await deleteApiKey('key 1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/api_keys/key%201', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/api-keys/key%201', {
       method: 'DELETE',
       responseType: 'void',
     })

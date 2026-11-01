@@ -16,7 +16,6 @@ import {
   yearRange,
 } from '@/features/summary/utils/period'
 import {
-  combineSummaryMetric,
   formatSummaryCalories,
   formatSummaryDistance,
   formatSummaryDuration,
@@ -204,19 +203,14 @@ describe('summary formatters', () => {
     expect(formatSummaryElevation(100, 'imperial')).toEqual({ value: '328', unit: 'ft' })
   })
 
-  it('formats duration as a compact clock', () => {
-    expect(formatSummaryDuration(3661)).toEqual({ value: '1h 1m', unit: '' })
-    expect(formatSummaryDuration(600)).toEqual({ value: '10m', unit: '' })
-    expect(formatSummaryDuration(0)).toEqual({ value: '0m', unit: '' })
+  it('splits duration into whole hours and minutes', () => {
+    expect(formatSummaryDuration(3661)).toEqual({ hours: 1, minutes: 1 })
+    expect(formatSummaryDuration(600)).toEqual({ hours: 0, minutes: 10 })
+    expect(formatSummaryDuration(0)).toEqual({ hours: 0, minutes: 0 })
   })
 
   it('formats calories grouped into thousands', () => {
     expect(formatSummaryCalories(1234)).toEqual({ value: '1,234', unit: 'kcal' })
     expect(formatSummaryCalories(999)).toEqual({ value: '999', unit: 'kcal' })
-  })
-
-  it('combines a metric value and unit, omitting an empty unit', () => {
-    expect(combineSummaryMetric({ value: '12.50', unit: 'km' })).toBe('12.50 km')
-    expect(combineSummaryMetric({ value: '5', unit: '' })).toBe('5')
   })
 })

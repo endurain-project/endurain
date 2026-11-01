@@ -3,6 +3,7 @@ import type {
   EditUserFields,
   ManagedUser,
   UserDto,
+  UserEditDto,
   UsersListParams,
   UsersListResponseDto,
   UsersPage,
@@ -11,6 +12,7 @@ import type { Schemas } from '@/types'
 
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 
 /**
  * Maps a raw `UsersRead` payload to the clean {@link ManagedUser} model — the
@@ -23,18 +25,22 @@ import { apiFetch } from '@/services/http'
 export function mapManagedUser(dto: UserDto): ManagedUser {
   return {
     id: dto.id,
+    version: rowVersion(dto.version),
     name: dto.name,
     username: dto.username,
     email: dto.email,
     accessType: dto.access_type,
     active: dto.active,
     emailVerified: dto.email_verified ?? false,
+    pendingEmail: dto.pending_email ?? null,
+    pendingEmailExpiresAt: dto.pending_email_expires_at ?? null,
     pendingAdminApproval: dto.pending_admin_approval ?? false,
     mfaEnabled: dto.mfa_enabled ?? false,
     externalAuthCount: dto.external_auth_count ?? 0,
     preferredLanguage: dto.preferred_language ?? 'en',
     gender: dto.gender ?? 'unspecified',
     units: dto.units ?? 'metric',
+    weightUnits: dto.weight_units ?? null,
     currency: dto.currency ?? 'euro',
     firstDayOfWeek: dto.first_day_of_week ?? 'monday',
     city: dto.city ?? null,
@@ -47,19 +53,17 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
 }
 
 /**
- * Rebuilds the editable `UsersRead` wire payload from a {@link ManagedUser}.
+ * Rebuilds the `UsersEdit` wire payload from a {@link ManagedUser}.
  * Every stored column is sent so fields the admin form doesn't expose round-trip
- * untouched, but the derived, read-only fields are omitted: `mfa_enabled` is a
- * model property with no setter and `external_auth_count` is computed per
- * request. The edit endpoint mass-assigns whatever it receives, so sending them
- * would raise `AttributeError` server-side.
+ * untouched, but the derived, read-only fields are omitted: `id` is the path,
+ * `mfa_enabled` is a model property with no setter and `external_auth_count` is
+ * computed per request, and the edit body rejects the latter.
  *
  * @param user - The managed user (already merged with any edits).
  * @returns The snake-cased editable body (without the read-only fields).
  */
-function toUserWire(user: ManagedUser): Omit<UserDto, 'mfa_enabled' | 'external_auth_count'> {
+function toUserWire(user: ManagedUser): Omit<UserEditDto, 'mfa_enabled'> {
   return {
-    id: user.id,
     name: user.name,
     username: user.username,
     email: user.email,
@@ -70,6 +74,7 @@ function toUserWire(user: ManagedUser): Omit<UserDto, 'mfa_enabled' | 'external_
     preferred_language: user.preferredLanguage,
     gender: user.gender,
     units: user.units,
+    weight_units: user.weightUnits,
     currency: user.currency,
     first_day_of_week: user.firstDayOfWeek,
     city: user.city,
@@ -82,9 +87,9 @@ function toUserWire(user: ManagedUser): Omit<UserDto, 'mfa_enabled' | 'external_
 }
 
 /**
- * Fetches one page of all users (admin scope `users:read`).
+ * Fetches one page of all users (admin scope `users:read_all`).
  *
- * @param params - Page number, size, and the five list filters.
+ * @param params - Page number, size, the five list filters and an optional username search.
  * @param signal - Optional abort signal for cancellation.
  * @returns The page's users (mapped) plus the total record count.
  * @throws {HttpError} When the request fails.
@@ -98,6 +103,7 @@ export async function fetchUsers(
     showPendingApproval,
     showExternalAuth,
     showLocalAuth,
+    username,
   }: UsersListParams,
   signal?: AbortSignal,
 ): Promise<UsersPage> {
@@ -112,30 +118,14 @@ export async function fetchUsers(
     show_external_auth: String(showExternalAuth),
     show_local_auth: String(showLocalAuth),
   })
+  if (username) {
+    params.set('username', username)
+  }
   const response = await apiFetch<UsersListResponseDto>(`/users?${params.toString()}`, { signal })
   return {
-    records: (response.records ?? []).map(mapManagedUser),
+    records: response.items.map(mapManagedUser),
     total: response.total,
   }
-}
-
-/**
- * Searches users whose username contains the given term (admin scope).
- *
- * @param username - The search term.
- * @param signal - Optional abort signal for cancellation.
- * @returns The matching users, mapped to the clean model.
- * @throws {HttpError} When the request fails.
- */
-export async function searchUsersByUsername(
-  username: string,
-  signal?: AbortSignal,
-): Promise<ManagedUser[]> {
-  const dtos = await apiFetch<UserDto[] | null>(
-    `/users/username/contains/${encodeURIComponent(username)}`,
-    { signal },
-  )
-  return (dtos ?? []).map(mapManagedUser)
 }
 
 /**
@@ -159,6 +149,7 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
     pending_admin_approval: input.pendingAdminApproval,
     mfa_enabled: false,
     units: input.units,
+    weight_units: input.weightUnits,
     currency: input.currency,
     preferred_language: input.preferredLanguage,
     gender: input.gender,
@@ -191,13 +182,14 @@ export async function updateUser(user: ManagedUser, edits: EditUserFields): Prom
   const merged: ManagedUser = { ...user, ...edits }
   const dto = await apiFetch<UserDto>(`/users/${user.id}`, {
     method: 'PUT',
+    headers: ifMatchHeaders(user.version),
     body: JSON.stringify(toUserWire(merged)),
   })
   return mapManagedUser(dto)
 }
 
 /**
- * Fetches a single user by id (admin scope `users:read`).
+ * Fetches a single user by id (admin scope `users:read_all`).
  *
  * @param id - The user id.
  * @param signal - Optional abort signal for cancellation.
@@ -205,7 +197,7 @@ export async function updateUser(user: ManagedUser, edits: EditUserFields): Prom
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUserById(id: number, signal?: AbortSignal): Promise<ManagedUser | null> {
-  const dto = await apiFetch<UserDto | null>(`/users/id/${id}`, { signal })
+  const dto = await apiFetch<UserDto | null>(`/users/${id}`, { signal })
   return dto ? mapManagedUser(dto) : null
 }
 
@@ -218,9 +210,10 @@ export async function fetchUserById(id: number, signal?: AbortSignal): Promise<M
  * @throws {HttpError} When the request fails (e.g. password too short).
  */
 export async function changeUserPassword(userId: number, password: string): Promise<void> {
-  await apiFetch<{ message: string }>(`/users/${userId}/password`, {
-    method: 'PUT',
+  await apiFetch<void>(`/users/${userId}/password/change`, {
+    method: 'POST',
     body: JSON.stringify({ password } satisfies Schemas['UsersAdminEditPassword']),
+    responseType: 'void',
   })
 }
 
@@ -239,12 +232,12 @@ export async function uploadUserPhoto(userId: number, file: File): Promise<strin
   // The third arg is the multipart part filename only; the backend sanitizes it
   // and generates its own storage filename, so it never reaches a path/URL.
   formData.append('file', file, file.name)
-  const photoPath = await apiFetch<string | null>(`/users/${userId}/image`, {
+  const photo = await apiFetch<Schemas['UserPhotoRead']>(`/users/${userId}/photo`, {
     method: 'POST',
     body: formData,
     timeoutMs: 0,
   })
-  return photoPath ?? null
+  return photo.photo_path ?? null
 }
 
 /**
@@ -258,13 +251,18 @@ export async function deleteUserPhoto(userId: number): Promise<void> {
 }
 
 /**
- * Deletes a user (admin scope `users:write`).
+ * Queues the deletion of a user (admin scope `users:write`): the user is signed out and deactivated at once (202) and a background job erases their data.
  *
  * @param id - The user id to delete.
- * @throws {HttpError} When the request fails.
+ * @param version - The user version the caller read, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the user changed since it was read).
  */
-export async function deleteUser(id: number): Promise<void> {
-  await apiFetch<void>(`/users/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteUser(id: number, version: number): Promise<void> {
+  await apiFetch<void>(`/users/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }
 
 /**
@@ -275,5 +273,5 @@ export async function deleteUser(id: number): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function approveUser(id: number): Promise<void> {
-  await apiFetch<{ message: string }>(`/users/${id}/approve`, { method: 'PUT' })
+  await apiFetch<void>(`/users/${id}/approve`, { method: 'POST', responseType: 'void' })
 }

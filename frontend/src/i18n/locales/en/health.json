@@ -1,6 +1,11 @@
 {
   "title": "Health",
   "subtitle": "See all your health data in one place",
+  "chartBucket": {
+    "week": "Weekly averages: each bar is the average day of that week.",
+    "month": "Monthly averages: each bar is the average day of that month."
+  },
+  "chartError": "Couldn't load the chart for this time range.",
   "nav": {
     "label": "Health sections",
     "soon": "Soon",

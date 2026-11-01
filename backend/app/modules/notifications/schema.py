@@ -12,21 +12,16 @@ from pydantic import (
 )
 
 import core.timezone as core_timezone
+import modules.notifications.constants as notifications_constants
 
 
 class NotificationBase(BaseModel):
-    """
-    Base schema for notification data.
+    """Base schema for notification data.
 
     Attributes:
-        type: Type of the notification.
         options: Additional metadata for the notification.
     """
 
-    type: StrictInt | None = Field(
-        default=None,
-        description="Type of the notification",
-    )
     options: dict | None = Field(
         default=None,
         description="Additional notification metadata",
@@ -40,13 +35,18 @@ class NotificationBase(BaseModel):
 
 
 class NotificationCreate(NotificationBase):
-    """
-    Schema for creating a notification record.
+    """Schema for creating a notification record.
 
     Attributes:
+        type: Type of the notification.
         user_id: FK to user.
+        source_event_id: Durable event ID for idempotent creation.
     """
 
+    type: notifications_constants.NotificationType = Field(
+        ...,
+        description="Type of the notification",
+    )
     user_id: StrictInt = Field(
         ...,
         ge=1,
@@ -60,17 +60,18 @@ class NotificationCreate(NotificationBase):
 
 
 class NotificationRead(NotificationBase):
-    """
-    Schema for reading a notification record.
+    """Schema for reading a notification record.
 
     Attributes:
         id: Unique notification identifier.
+        type: Type of the notification.
         user_id: FK to user.
         read: Whether the notification has been read.
         created_at: Timestamp of creation.
     """
 
     id: StrictInt = Field(..., description="Unique notification ID")
+    type: StrictInt = Field(..., description="Type of the notification")
     user_id: StrictInt = Field(
         ...,
         ge=1,
@@ -88,8 +89,7 @@ class NotificationRead(NotificationBase):
     @field_validator("created_at")
     @classmethod
     def normalize_created_at(cls, value: datetime | None) -> datetime | None:
-        """
-        Normalize created_at to a UTC-aware datetime.
+        """Normalize created_at to a UTC-aware datetime.
 
         JSON output is then a full ISO 8601 timestamp with a UTC
         offset, which the frontend needs to compute relative times.

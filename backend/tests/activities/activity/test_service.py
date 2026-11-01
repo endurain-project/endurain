@@ -37,18 +37,19 @@ def stub_requester_user():
         yield mock
 
 
-class TestGetActivitiesInTimeframe:
+class TestSumActivitiesInTimeframe:
     @patch("modules.activities.activity.service.activity_crud")
-    def test_owner_gets_all(self, mock_crud):
+    def test_owner_sums_all(self, mock_crud):
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.get_activities_in_timeframe(1, "s", "e", 1, db)
-        # Owner path: is_owner=True, no requester scoping.
-        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(1, "s", "e", db, user_is_owner=True)
+        result = service.sum_activities_in_timeframe(1, "s", "e", 1, db)
+        # Owner path: user_is_owner=True, no followee scoping.
+        mock_crud.sum_user_activities_per_timeframe_by_type.assert_called_once_with(1, "s", "e", db, user_is_owner=True)
+        assert result is mock_crud.sum_user_activities_per_timeframe_by_type.return_value
 
     @patch("modules.activities.activity.service.activity_crud")
-    def test_requester_gets_visible(self, mock_crud):
+    def test_requester_sums_visible(self, mock_crud):
         from modules.activities.activity import service
 
         db = MagicMock()
@@ -56,42 +57,43 @@ class TestGetActivitiesInTimeframe:
             "modules.activities.activity.service.followers_integration.list_accepted_followee_ids",
             return_value=[1],
         ):
-            service.get_activities_in_timeframe(1, "s", "e", 2, db)
+            service.sum_activities_in_timeframe(1, "s", "e", 2, db)
         # Non-owner path: the service resolves the followees, the query filters on them.
-        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(
+        mock_crud.sum_user_activities_per_timeframe_by_type.assert_called_once_with(
             1, "s", "e", db, user_is_owner=False, followee_ids=[1]
         )
 
 
 class TestPeriodStats:
     @patch("modules.activities.activity.service.activity_stats.calculate_activity_stats", return_value="stats")
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=[MagicMock()])
-    def test_week_stats_with_activities(self, mock_get, mock_calc):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=["totals"])
+    def test_week_stats_aggregate_the_totals(self, mock_sum, mock_calc):
         from modules.activities.activity import service
 
         assert service.week_stats(1, 1, MagicMock()) == "stats"
-        mock_calc.assert_called_once()
+        mock_calc.assert_called_once_with(["totals"])
 
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=None)
-    def test_week_stats_empty_returns_empty_stats(self, mock_get):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=[])
+    def test_week_stats_empty_returns_empty_stats(self, mock_sum):
         import modules.activities.activity.schema as schema
         from modules.activities.activity import service
 
-        assert isinstance(service.week_stats(1, 1, MagicMock()), schema.ActivityStatsRead)
+        assert service.week_stats(1, 1, MagicMock()) == schema.ActivityStatsRead()
 
     @patch("modules.activities.activity.service.activity_stats.calculate_activity_stats", return_value="stats")
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=[MagicMock()])
-    def test_month_stats_with_activities(self, mock_get, mock_calc):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=["totals"])
+    def test_month_stats_aggregate_the_totals(self, mock_sum, mock_calc):
         from modules.activities.activity import service
 
         assert service.month_stats(1, 1, MagicMock()) == "stats"
+        mock_calc.assert_called_once_with(["totals"])
 
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=None)
-    def test_month_stats_empty_returns_empty_stats(self, mock_get):
+    @patch("modules.activities.activity.service.sum_activities_in_timeframe", return_value=[])
+    def test_month_stats_empty_returns_empty_stats(self, mock_sum):
         import modules.activities.activity.schema as schema
         from modules.activities.activity import service
 
-        assert isinstance(service.month_stats(1, 1, MagicMock()), schema.ActivityStatsRead)
+        assert service.month_stats(1, 1, MagicMock()) == schema.ActivityStatsRead()
 
 
 class TestListUserActivitiesPaginated:
@@ -250,12 +252,12 @@ class TestEditPublishesUpdated:
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db)
+        service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
 
-        mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db, if_match=None)
+        mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db, if_match="*")
         mock_publishers.publish_activity_updated.assert_called_once_with(5, 1, db, changed_fields=["name"])
 
-    @patch("modules.activities.activity.service.gears_dependencies")
+    @patch("modules.activities.activity.service.gears_integration")
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
     def test_a_gear_the_caller_does_not_own_is_refused_before_anything_is_written(
@@ -268,7 +270,7 @@ class TestEditPublishesUpdated:
         db = MagicMock()
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.edit_activity(5, 1, activity_schema.ActivityEdit(gear_id=9), db)
+            service.edit_activity(5, 1, activity_schema.ActivityEdit(gear_id=9), db, if_match="*")
 
         mock_gears.require_owned_gears.assert_called_once_with(1, [9], db)
         mock_crud.edit_activity.assert_not_called()
@@ -287,7 +289,7 @@ class TestEditPublishesUpdated:
         mock_crud.get_activity_by_id_from_user_id.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), MagicMock())
+            service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), MagicMock(), if_match="*")
 
     @patch("modules.activities.activity.service.activities_contributor_registry")
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -298,25 +300,9 @@ class TestEditPublishesUpdated:
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db)
+        service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
 
         db.commit.assert_called_once_with()
-
-    @patch("modules.activities.activity.service.activity_event_publishers")
-    @patch("modules.activities.activity.service.activity_crud")
-    def test_bulk_edit_publishes_one_event_per_changed_row(self, mock_crud, mock_publishers):
-        import modules.activities.activity.schema as activity_schema
-        from modules.activities.activity import service
-
-        db = MagicMock()
-        mock_crud.edit_user_activities_visibility.return_value = [4, 5, 6]
-
-        updated = service.bulk_edit_activities(1, activity_schema.ActivitiesBulkEdit(visibility=1), db)
-
-        assert updated == 3
-        mock_publishers.publish_activities_updated.assert_called_once_with(
-            [4, 5, 6], 1, db, changed_fields=["visibility"], source="api:bulk_edit_activities"
-        )
 
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
@@ -328,7 +314,7 @@ class TestEditPublishesUpdated:
         mock_crud.edit_activity.side_effect = StaleDataError()
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db)
+            service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db, if_match="*")
 
         db.rollback.assert_called_once()
         mock_publishers.publish_activity_updated.assert_not_called()
@@ -369,29 +355,29 @@ class TestCrossModuleWrites:
         db = MagicMock()
         mock_crud.delete_all_strava_activities_for_user.return_value = [11, 12, 13, 14, 15]
 
-        deleted = service.delete_all_strava_activities(3, db, source="api:test")
+        deleted = service.delete_all_strava_activities(3, db, source="api:test", limit=500)
 
         assert deleted == 5
         db.commit.assert_not_called()
-        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db)
+        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db, limit=500)
         mock_publishers.publish_activities_deleted.assert_called_once_with(
             [11, 12, 13, 14, 15], 3, db, source="api:test"
         )
 
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
-    def test_delete_all_activities_for_user_publishes_cleanup_events(self, mock_crud, mock_publishers):
+    def test_delete_activities_batch_for_user_publishes_cleanup_events(self, mock_crud, mock_publishers):
         """Account deletion must emit activity.deleted so stored blobs are reclaimed."""
         from modules.activities.activity import service
 
         db = MagicMock()
-        mock_crud.delete_all_activities_for_user.return_value = [1, 2]
+        mock_crud.delete_activities_batch_for_user.return_value = [1, 2]
 
-        deleted = service.delete_all_activities_for_user(7, db, source="api:test")
+        deleted = service.delete_activities_batch_for_user(7, 50, db, source="api:test")
 
         assert deleted == 2
         db.commit.assert_not_called()
-        mock_crud.delete_all_activities_for_user.assert_called_once_with(7, db)
+        mock_crud.delete_activities_batch_for_user.assert_called_once_with(7, 50, db)
         mock_publishers.publish_activities_deleted.assert_called_once_with([1, 2], 7, db, source="api:test")
 
 

@@ -9,6 +9,38 @@ export type ProfileUpdateDto = Schemas['ProfileUpdate']
 /** Update body for the user's privacy settings. */
 export type PrivacyUpdateDto = Schemas['UsersPrivacySettingsUpdate']
 
+/** Where the user's profile import is, as the backend reports it. */
+export type ProfileImportStatus = Schemas['ProfileImportStatus']
+
+/** Why a profile import failed. */
+export type ProfileImportFailure = NonNullable<ProfileImportStatus['failure']>
+
+/** Import states that will not change again, so polling can stop. */
+export const TERMINAL_IMPORT_STATUSES = ['completed', 'failed'] as const
+
+/**
+ * Whether a profile import has reached a state it will not leave.
+ *
+ * @param status - The import to inspect.
+ * @returns `true` when the import is finished, successfully or not.
+ */
+export function isTerminalProfileImport(status: ProfileImportStatus): boolean {
+  return (TERMINAL_IMPORT_STATUSES as readonly string[]).includes(status.status)
+}
+
+/** Where the user's profile export is, as the backend reports it. */
+export type ProfileExportStatus = Schemas['ProfileExportStatus']
+
+/**
+ * Whether a profile export has reached a state it will not leave.
+ *
+ * @param status - The export to inspect.
+ * @returns `true` when the export is finished, successfully or not.
+ */
+export function isTerminalProfileExport(status: ProfileExportStatus): boolean {
+  return (TERMINAL_IMPORT_STATUSES as readonly string[]).includes(status.status)
+}
+
 /** Activity visibility level, mirrored from the backend enum. */
 export type ActivityVisibility = Schemas['ActivityVisibility']
 
@@ -32,6 +64,8 @@ export type ActivityVisibility = Schemas['ActivityVisibility']
  * @property hideGear - Hide the gear used.
  */
 export interface PrivacySettings {
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   defaultActivityVisibility: ActivityVisibility
   hideStartTime: boolean
   hideLocation: boolean
@@ -57,10 +91,13 @@ export interface PrivacySettings {
  * @property name - Display name.
  * @property username - Login handle.
  * @property email - Account email.
+ * @property pendingEmail - Address awaiting confirmation, or `null` when no change is pending.
+ * @property pendingEmailExpiresAt - When the pending address's confirmation link expires, or `null`.
  * @property city - City, or `null`.
  * @property birthdate - Birthdate (ISO date), or `null`.
  * @property gender - Gender.
  * @property units - Measurement system.
+ * @property weightUnits - Weight units override, or `null` to follow `units`.
  * @property currency - Preferred currency.
  * @property height - Height in centimetres, or `null`.
  * @property maxHeartRate - Max heart rate in bpm, or `null`.
@@ -69,6 +106,7 @@ export interface PrivacySettings {
  * @property timezone - IANA timezone the athlete lives in, or `null` when unset.
  * @property accessType - Authorization tier (read-only here).
  * @property hasLocalPassword - Whether the account has a local password (false for SSO-only).
+ * @property integrationsVersion - The integrations row version, sent back in `If-Match` when the Strava client is set.
  * @property stravaLinked - Whether a Strava account is connected.
  * @property garminLinked - Whether a Garmin Connect account is connected.
  * @property photoPath - Backend-issued photo URL, or `null` when unset.
@@ -77,13 +115,18 @@ export interface PrivacySettings {
  */
 export interface ProfileDetails {
   id: number
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   name: string
   username: string
   email: string
+  pendingEmail: string | null
+  pendingEmailExpiresAt: string | null
   city: string | null
   birthdate: string | null
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   height: number | null
   maxHeartRate: number | null
@@ -92,6 +135,7 @@ export interface ProfileDetails {
   timezone: string | null
   accessType: Schemas['UserAccessType']
   hasLocalPassword: boolean
+  integrationsVersion: number
   stravaLinked: boolean
   garminLinked: boolean
   photoPath: string | null
@@ -101,17 +145,22 @@ export interface ProfileDetails {
 
 /**
  * The editable identity fields the user can change about their own profile.
- * Excludes the photo (managed by the separate upload/delete actions) and the
- * privacy settings (saved through their own endpoint).
+ * Excludes the email (changed through the step-up protected security flow), the photo
+ * (managed by the separate upload/delete actions) and the privacy settings (saved through
+ * their own endpoint).
  */
 export interface ProfileEditInput {
   name: string
   username: string
-  email: string
   city: string | null
   birthdate: string | null
   gender: Schemas['Gender']
   units: Schemas['Units']
+  /**
+   * Weight units override, independent of `units`; `null` means the weight
+   * display follows `units` (the pre-split behaviour).
+   */
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   height: number | null
   maxHeartRate: number | null
@@ -128,7 +177,7 @@ export interface ProfileEditInput {
 /** Raw default-gear payload (snake_case wire shape). */
 export type DefaultGearDto = Schemas['UsersDefaultGearRead']
 
-/** Update body for the user's default gear (round-trips id + user_id). */
+/** Update body for the user's default gear (the assignments only). */
 export type DefaultGearUpdateDto = Schemas['UsersDefaultGearUpdate']
 
 /**
@@ -136,12 +185,14 @@ export type DefaultGearUpdateDto = Schemas['UsersDefaultGearUpdate']
  * as the default for that activity (or `null` for none). Mapped from
  * {@link DefaultGearDto} at the service boundary.
  *
- * @property id - Stable record identifier (round-tripped on save).
- * @property userId - Owning user id (round-tripped on save).
+ * @property id - Stable record identifier.
+ * @property userId - Owning user id.
  */
 export interface DefaultGear {
   id: number
   userId: number
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   runGearId: number | null
   trailRunGearId: number | null
   virtualRunGearId: number | null
@@ -161,7 +212,7 @@ export interface DefaultGear {
 
 /**
  * The editable activity→gear assignments. Excludes `id`/`userId`, which
- * round-trip from the loaded record at save time. Every value is a gear id or
+ * identify the loaded record and are not part of the save body. Every value is a gear id or
  * `null`, so a single homogeneous shape backs the per-activity selectors.
  */
-export type DefaultGearValues = Omit<DefaultGear, 'id' | 'userId'>
+export type DefaultGearValues = Omit<DefaultGear, 'id' | 'userId' | 'version'>

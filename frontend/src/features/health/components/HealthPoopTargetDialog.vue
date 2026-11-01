@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { useUpdatePoopTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -50,14 +51,13 @@ function targetToCount(raw: string): number | null {
 async function submitForm(values: TargetFormValues): Promise<void> {
   try {
     await updateTargetMutation.mutateAsync({
-      id: props.targets.id,
-      userId: props.targets.userId,
+      version: props.targets.version,
       poopCount: targetToCount(values.count),
     })
     emit('success', t('health.poop.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.poop.target.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.poop.target.saveError'))
   }
 }
 

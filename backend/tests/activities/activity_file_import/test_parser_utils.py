@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 import modules.activities.activity_file_import.parser_utils as afi_utils
 import modules.activities.computation as activities_computation
 
@@ -188,3 +190,60 @@ class TestTimezoneFinderCache:
     def test_resolve_timezone_uses_cached_finder(self):
         # A known land coordinate resolves to its IANA zone through the cached finder.
         assert afi_utils.resolve_timezone_from_lat_lon(38.7, -9.1, "UTC") == "Europe/Lisbon"
+
+
+def _scan_between(waypoints: list[dict], start: str, end: str) -> list[dict]:
+    """Reference window: a full scan comparing the timestamp strings, which sort like the instants."""
+    return [wp for wp in waypoints if start <= wp["time"] <= end]
+
+
+class TestLapStreamWindows:
+    """Per-lap stream windows match a full scan and parse each timestamp once."""
+
+    @staticmethod
+    def _times(seconds: list[int]) -> list[str]:
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        return [(start + timedelta(seconds=s)).strftime("%Y-%m-%dT%H:%M:%S") for s in seconds]
+
+    @pytest.mark.parametrize(
+        "seconds",
+        [
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [0, 1, 1, 2, 5, 5, 5, 9],
+            [5, 3, 4, 0, 9, 1, 2],
+        ],
+        ids=["ordered", "duplicates", "unordered"],
+    )
+    def test_filter_matches_a_full_scan(self, seconds):
+        waypoints = [{"time": t, "v": i} for i, t in enumerate(self._times(seconds))]
+        times = self._times([0, 1, 2, 4, 5, 9, 10])
+        for start in times:
+            for end in times:
+                assert afi_utils.filter_waypoints_by_time_range(waypoints, start, end) == _scan_between(
+                    waypoints, start, end
+                )
+
+    def test_lap_elevation_includes_the_sample_before_a_boundary_between_samples(self):
+        waypoints = [{"time": t, "ele": 1.0} for t in self._times([0, 10, 20, 30])]
+        start, end = self._times([15, 30])
+
+        assert afi_utils.slice_lap_elevation(waypoints, start, end) == waypoints[1:]
+
+    def test_laps_parse_each_timestamp_once_per_stream_not_once_per_lap(self, monkeypatch):
+        lat_lon, ele = _straight_track(400, lambda i: 100.0 + i % 5)
+        hr = [{"time": wp["time"], "hr": 120} for wp in lat_lon]
+        calls = 0
+        parse = afi_utils._parse_utc
+
+        def _counting_parse(time_str):
+            nonlocal calls
+            calls += 1
+            return parse(time_str)
+
+        monkeypatch.setattr(afi_utils, "_parse_utc", _counting_parse)
+
+        laps = afi_utils.generate_activity_laps(lat_lon, ele, [], hr, [], [])
+
+        assert len(laps) >= 10
+        # One parse per sample of the elevation and HR streams, plus the lap boundaries (a fixed few per lap).
+        assert calls <= len(ele) + len(hr) + 16 * len(laps)

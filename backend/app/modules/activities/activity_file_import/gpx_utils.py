@@ -579,8 +579,8 @@ def parse_gpx_file(
         arrays, lap data, and boolean stream flags.
 
     Raises:
-        InvalidInputError: If the GPX has no tracks, no segments, or no valid
-            timed trackpoints.
+        InvalidInputError: If the content is not valid GPX, or has no tracks, no segments, or no valid
+            timed trackpoints, or the parser fails on it in any other way.
         ProcessingError: If the file cannot be read.
     """
     try:
@@ -694,10 +694,16 @@ def parse_gpx_file(
 
     except core_exceptions.DomainError:
         raise
-    except (
-        gpxpy.gpx.GPXException,
-        OSError,
-        ValueError,
-    ) as err:
-        logger.error("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.ProcessingError("Failed to parse GPX file") from err
+    except (gpxpy.gpx.GPXException, ValueError) as err:
+        # The uploader's file is the problem (broken XML, undecodable bytes), so a retry reaches the same verdict.
+        logger.debug("Rejected a malformed GPX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("Failed to parse GPX file") from err
+    except OSError as err:
+        logger.debug("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.ProcessingError("Failed to read GPX file") from err
+    except Exception as err:
+        # Any other failure on these bytes recurs on every retry, so the file is refused rather than retried;
+        # the traceback is kept at WARNING in case the parser itself is at fault.
+        # The exception text can carry file paths / parser internals, so it is logged but never returned (OWASP A09).
+        logger.warning("Could not parse a GPX file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.InvalidInputError("Can't parse GPX file") from err

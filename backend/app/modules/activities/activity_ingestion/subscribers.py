@@ -20,10 +20,10 @@ dead-letters. The outcome a client reads is recorded on the
 
 import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
+from jasil.event_versioning import VersionedPayload
 from jasil.events import Event
 from jasil.jobs.registry import JobHandlerRegistry
 
-import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -39,48 +39,16 @@ REFRESH_REQUESTED_SUBSCRIBER_ID = "activity_ingestion.refresh_requested"
 BULK_IMPORT_SUBSCRIBER_ID = "activity_ingestion.bulk_import"
 
 
-def _is_final_attempt(event: Event) -> bool:
-    """Whether this failure will dead-letter the job.
-
-    ``retry_count`` is the claim-incremented attempt number, so reaching the
-    ceiling means the runner has no attempts left.
-
-    Args:
-        event: The event being processed.
-
-    Returns:
-        True when no further retry will happen.
-    """
-    return event.retry_count >= core_config.settings.JOBS_MAX_ATTEMPTS
-
-
 def process_uploaded_file_for_event(event: Event) -> None:
     """Durable handler: import one uploaded file; raises so the runner retries.
-
-    On the final attempt the job row is marked failed before re-raising, so a
-    dead-lettered upload still ends in a terminal state the uploader can see
-    rather than sitting at ``processing`` forever.
 
     Args:
         event: The ``activity.file_uploaded`` event (payload ``{"job_id": str}``).
     """
     payload = platform_event_versioning.parse_payload(activity_ingestion_events.UploadedFilePayload, event)
     storage = platform_runtime.get_active_platform().storage
-    try:
-        activity_ingestion_service.run_upload_job(payload.job_id, storage)
-    except Exception as err:
-        if _is_final_attempt(event):
-            activity_ingestion_service.fail_ingestion_job(
-                payload.job_id,
-                activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
-                storage,
-            )
-            logger.error(
-                "Upload job dead-lettered",
-                exc_info=err,
-                extra=core_logger.context(console=True, job_id=payload.job_id),
-            )
-        raise
+    activity_ingestion_service.run_upload_job(payload.job_id, storage)
+    logger.debug("Upload job finished", extra=core_logger.context(job_id=payload.job_id))
 
 
 def process_refresh_requested_for_event(event: Event) -> None:
@@ -96,21 +64,8 @@ def process_refresh_requested_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(activity_ingestion_events.RefreshRequestedPayload, event)
     storage = platform_runtime.get_active_platform().storage
-    try:
-        activity_ingestion_service.run_refresh_job(payload.job_id, storage)
-    except Exception as err:
-        if _is_final_attempt(event):
-            activity_ingestion_service.fail_ingestion_job(
-                payload.job_id,
-                activity_ingestion_constants.IngestionJobErrorCode.PROVIDER_UNAVAILABLE,
-                storage,
-            )
-            logger.error(
-                "Refresh job dead-lettered",
-                exc_info=err,
-                extra=core_logger.context(console=True, job_id=payload.job_id),
-            )
-        raise
+    activity_ingestion_service.run_refresh_job(payload.job_id, storage)
+    logger.debug("Refresh job finished", extra=core_logger.context(job_id=payload.job_id))
 
 
 def process_bulk_import_for_event(event: Event) -> None:
@@ -118,8 +73,7 @@ def process_bulk_import_for_event(event: Event) -> None:
 
     The batch records its progress on the job row, and queues its own continuation
     when it leaves files over, so a retry resumes from the cursor rather than from
-    the start. On the final attempt the job is closed as failed so the owner sees a
-    terminal state instead of ``processing`` forever.
+    the start.
 
     Args:
         event: The ``activity.bulk_import_continue`` event (payload
@@ -127,21 +81,81 @@ def process_bulk_import_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(activity_ingestion_events.BulkImportContinuePayload, event)
     storage = platform_runtime.get_active_platform().storage
-    try:
-        activity_ingestion_bulk_import_service.run_bulk_import_job(payload.job_id, storage)
-    except Exception as err:
-        if _is_final_attempt(event):
-            activity_ingestion_service.fail_ingestion_job(
-                payload.job_id,
-                activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
-                storage,
-            )
-            logger.error(
-                "Bulk import dead-lettered",
-                exc_info=err,
-                extra=core_logger.context(console=True, job_id=payload.job_id),
-            )
-        raise
+    activity_ingestion_bulk_import_service.run_bulk_import_job(payload.job_id, storage)
+    logger.debug("Bulk import batch finished", extra=core_logger.context(job_id=payload.job_id))
+
+
+def _close_dead_lettered_job(
+    event: Event,
+    payload_type: type[VersionedPayload],
+    error_code: activity_ingestion_constants.IngestionJobErrorCode,
+    error: str | None,
+) -> None:
+    """Close a job the runner gave up on, so its owner sees a terminal state rather than ``processing``.
+
+    Runs whether the last attempt raised, its lease expired or the worker died, and may run more than
+    once; closing a job that is already terminal does nothing.
+
+    Args:
+        event: The event of the dead-lettered job.
+        payload_type: The payload model of the event.
+        error_code: The sanitized reason the owner sees.
+        error: What the runner recorded, for the log only.
+    """
+    payload = platform_event_versioning.parse_payload(payload_type, event)
+    storage = platform_runtime.get_active_platform().storage
+    activity_ingestion_service.fail_ingestion_job(payload.job_id, error_code, storage)
+    logger.error(
+        "An ingestion job was dead-lettered",
+        extra=core_logger.context(
+            console=True, job_id=payload.job_id, event_type=event.event_type, attempts=event.max_attempts, error=error
+        ),
+    )
+
+
+def on_uploaded_file_dead_letter(event: Event, error: str | None) -> None:
+    """Close an upload the runner gave up on.
+
+    Args:
+        event: The ``activity.file_uploaded`` event.
+        error: What the runner recorded.
+    """
+    _close_dead_lettered_job(
+        event,
+        activity_ingestion_events.UploadedFilePayload,
+        activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+        error,
+    )
+
+
+def on_refresh_requested_dead_letter(event: Event, error: str | None) -> None:
+    """Close a provider refresh the runner gave up on.
+
+    Args:
+        event: The ``activity.refresh_requested`` event.
+        error: What the runner recorded.
+    """
+    _close_dead_lettered_job(
+        event,
+        activity_ingestion_events.RefreshRequestedPayload,
+        activity_ingestion_constants.IngestionJobErrorCode.PROVIDER_UNAVAILABLE,
+        error,
+    )
+
+
+def on_bulk_import_dead_letter(event: Event, error: str | None) -> None:
+    """Close a bulk import the runner gave up on.
+
+    Args:
+        event: The ``activity.bulk_import_continue`` event.
+        error: What the runner recorded.
+    """
+    _close_dead_lettered_job(
+        event,
+        activity_ingestion_events.BulkImportContinuePayload,
+        activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+        error,
+    )
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -154,14 +168,17 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_ingestion_events.ACTIVITY_FILE_UPLOADED,
         UPLOADED_FILE_SUBSCRIBER_ID,
         process_uploaded_file_for_event,
+        on_dead_letter=on_uploaded_file_dead_letter,
     )
     registry.register(
         activity_ingestion_events.ACTIVITY_REFRESH_REQUESTED,
         REFRESH_REQUESTED_SUBSCRIBER_ID,
         process_refresh_requested_for_event,
+        on_dead_letter=on_refresh_requested_dead_letter,
     )
     registry.register(
         activity_ingestion_events.ACTIVITY_BULK_IMPORT_CONTINUE,
         BULK_IMPORT_SUBSCRIBER_ID,
         process_bulk_import_for_event,
+        on_dead_letter=on_bulk_import_dead_letter,
     )

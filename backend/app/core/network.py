@@ -7,19 +7,20 @@ modules such as rate limiting — can use it without
 creating a dependency on the ``users`` package.
 """
 
-import asyncio
 import ipaddress
 import re
 import socket
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from functools import partial
 from urllib.parse import urlparse
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -240,6 +241,18 @@ def _is_trusted_peer(peer_ip: str) -> bool:
     return peer_ip in resolved_ips
 
 
+def get_user_agent(request: Request) -> str:
+    """Return the request's ``User-Agent`` header, or an empty string when it has none.
+
+    Args:
+        request: Request object with headers.
+
+    Returns:
+        The user agent string.
+    """
+    return request.headers.get("user-agent", "")
+
+
 def get_ip_address(request: Request) -> str:
     """
     Extract client IP address from request, respecting TRUSTED_PROXIES.
@@ -255,8 +268,9 @@ def get_ip_address(request: Request) -> str:
     case for ``TRUSTED_PROXIES=["*"]``) the leftmost entry is used, which a
     client can forge.
 
-    When ``TRUSTED_PROXIES`` is ``["*"]`` (the default) all peers are
-    trusted.
+    When ``TRUSTED_PROXIES`` is ``["*"]`` all peers are trusted; that is the
+    default in development only, and an empty list (the default elsewhere)
+    trusts no proxy.
 
     Args:
         request: Request object with headers and client info.
@@ -278,7 +292,7 @@ def get_ip_address(request: Request) -> str:
             return hops[0]
 
         real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
+        if real_ip and _looks_like_ip(real_ip):
             return real_ip
 
     # Untrusted peer or no peer info — use the raw socket IP
@@ -299,7 +313,10 @@ def _is_private_or_reserved(
     Combines every "do not dial" predicate Python's
     ``ipaddress`` module exposes: private (RFC1918,
     fc00::/7), loopback, link-local, multicast,
-    unspecified (0.0.0.0, ::), and reserved blocks. Any
+    unspecified (0.0.0.0, ::), reserved, and anything
+    else that is not globally routable, such as shared
+    address space (100.64.0.0/10, used by CGNAT and
+    overlay networks) which ``is_private`` misses. Any
     of these would let an attacker pivot to internal
     infrastructure or cloud metadata services.
     """
@@ -310,6 +327,7 @@ def _is_private_or_reserved(
         or addr.is_multicast
         or addr.is_unspecified
         or addr.is_reserved
+        or not addr.is_global
     )
 
 
@@ -359,7 +377,10 @@ def _is_ssrf_allowlisted(
 _UNRESOLVABLE = "hostname could not be resolved"
 _UNPARSEABLE = "resolves to an unparseable address"
 _NON_PUBLIC = "resolves to a non-public address"
+_RESOLUTION_BUSY = "hostname resolution is busy, try again"
+_RESOLUTION_TIMED_OUT = "hostname resolution timed out"
 _NOT_AN_AUTHORITY = "is not a bare host[:port] authority"
+_TLS_REQUIRED = "must use https unless its host is in SSRF_ALLOWED_HOSTS"
 
 
 def _resolve_checked_addresses(
@@ -484,16 +505,35 @@ def _outbound_url_hostname(url: str) -> tuple[str | None, str | None]:
     return parsed.hostname, None
 
 
+def _plaintext_http_allowed(hostname: str, addresses: tuple[str, ...]) -> bool:
+    """Return True when ``SSRF_ALLOWED_HOSTS`` covers the host by name or every resolved address.
+
+    Args:
+        hostname: The URL's hostname.
+        addresses: The addresses the hostname resolved to.
+
+    Returns:
+        True when the operator allowlisted the host, so plain ``http`` may be dialed.
+    """
+    hosts, networks = _load_ssrf_allowlist()
+    if hostname.lower() in hosts:
+        return True
+    return all(any(ipaddress.ip_address(address) in network for network in networks) for address in addresses)
+
+
 def resolve_url_addresses(
     url: str,
     *,
     purpose: str | None = None,
+    require_tls: bool = False,
 ) -> tuple[tuple[str, ...], str | None]:
     """Resolve an outbound URL to validated addresses or a rejection reason.
 
     Args:
         url: Fully-qualified outbound URL.
         purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse an ``http`` URL unless its host is allowlisted by name or every address it
+            resolves to is covered by ``SSRF_ALLOWED_HOSTS``.
 
     Returns:
         Validated addresses and ``None``, or no addresses and a safe reason.
@@ -503,24 +543,29 @@ def resolve_url_addresses(
         return (), reason
 
     addresses, reason = _resolve_checked_addresses(hostname, purpose=purpose)
-    return addresses, f"URL {reason}" if reason is not None else None
+    if reason is not None:
+        return addresses, f"URL {reason}"
+    if require_tls and urlparse(url).scheme.lower() == "http" and not _plaintext_http_allowed(hostname, addresses):
+        return (), f"URL {_TLS_REQUIRED}"
+    return addresses, None
 
 
-def url_rejection_reason(url: str, *, purpose: str | None = None) -> str | None:
+def url_rejection_reason(url: str, *, purpose: str | None = None, require_tls: bool = False) -> str | None:
     """Return why an outbound URL must not be dialed, or ``None``.
 
     Args:
         url: Fully-qualified outbound URL.
         purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse plain ``http`` unless the host is in ``SSRF_ALLOWED_HOSTS``.
 
     Returns:
         A safe client-facing reason, or ``None`` when the URL may be dialed.
     """
-    _, reason = resolve_url_addresses(url, purpose=purpose)
+    _, reason = resolve_url_addresses(url, purpose=purpose, require_tls=require_tls)
     return reason
 
 
-def reject_private_url(url: str, *, purpose: str | None = None) -> None:
+def reject_private_url(url: str, *, purpose: str | None = None, require_tls: bool = False) -> None:
     """Refuse to dial URLs that resolve to private/internal hosts.
 
     Mitigates Server-Side Request Forgery (SSRF) by
@@ -551,20 +596,22 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
             destination is allowed via
             ``SSRF_ALLOWED_HOSTS``; never trusted as a
             security boundary.
+        require_tls: Also refuse an ``http`` URL unless its
+            host is allowlisted by name or every address it
+            resolves to is covered by ``SSRF_ALLOWED_HOSTS``.
 
     Raises:
-        HTTPException: 400 if the URL is malformed,
+        InvalidInputError: If the URL is malformed,
             uses a forbidden scheme, has no hostname,
-            or resolves to any non-public address that
+            resolves to any non-public address that
             is not covered by the
-            ``SSRF_ALLOWED_HOSTS`` allowlist.
+            ``SSRF_ALLOWED_HOSTS`` allowlist, or is plain
+            ``http`` while ``require_tls`` is set and its
+            host is not allowlisted.
     """
-    reason = url_rejection_reason(url, purpose=purpose)
+    reason = url_rejection_reason(url, purpose=purpose, require_tls=require_tls)
     if reason is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=reason,
-        )
+        raise core_exceptions.InvalidInputError(reason)
 
 
 def _get_ssrf_dns_executor() -> ThreadPoolExecutor:
@@ -593,65 +640,45 @@ def shutdown_ssrf_dns_executor() -> None:
     _ssrf_dns_executor = None
 
 
-async def reject_private_url_async(url: str, *, purpose: str | None = None) -> None:
-    """Await :func:`reject_private_url` without blocking the event loop.
+def url_rejection_reason_bounded(url: str, *, purpose: str | None = None, require_tls: bool = False) -> str | None:
+    """Return why an outbound URL must not be dialed, bounding the DNS wait.
 
-    The guard resolves every A/AAAA record with :func:`socket.getaddrinfo`, which
-    is blocking and cannot be cancelled once started. Async callers run it in a
-    small dedicated executor so stalled DNS calls cannot exhaust asyncio's shared
-    worker pool, and stop awaiting it after a bounded interval. At most
-    ``_SSRF_DNS_MAX_PENDING`` lookups may be running or queued; further callers
-    are refused at once, so a flood of lookups for an unresolvable host cannot
-    pile up work. A lookup still queued when its caller gives up is cancelled.
-    Synchronous callers (scheduled jobs, subscribers) call
-    :func:`reject_private_url` directly.
+    For a caller that must not sit in an unbounded ``getaddrinfo``: the lookup runs on
+    the dedicated SSRF executor and the caller stops waiting after
+    ``_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS``. A saturated pool or a timeout is
+    reported as a rejection reason, so the caller refuses the URL rather than
+    trusting one it could not check.
 
     Args:
-        url: The fully-qualified URL the caller intends to fetch.
-        purpose: Optional short tag identifying the outbound call, used only for
-            audit logging.
+        url: Fully-qualified outbound URL.
+        purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse plain ``http`` unless the host is in ``SSRF_ALLOWED_HOSTS``.
 
-    Raises:
-        HTTPException: 400, for the reasons listed on :func:`reject_private_url`.
-        HTTPException: 503, with ``Retry-After``, when too many lookups are
-            already running or queued.
-        HTTPException: 504 when hostname resolution exceeds the allowed time.
+    Returns:
+        A safe client-facing reason, or ``None`` when the URL may be dialed.
     """
-    # A URL that can be refused without DNS never needs a slot, so it gets its 400
-    # even while the pool is full.
     hostname, reason = _outbound_url_hostname(url)
     if hostname is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=reason)
-
+        return reason
     if not _ssrf_dns_slots.acquire(blocking=False):
         logger.warning(
             "SSRF hostname resolution is saturated",
             extra=core_logger.context(purpose=purpose or "unspecified"),
         )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Hostname resolution is busy",
-            headers={"Retry-After": "1"},
-        )
+        return f"URL {_RESOLUTION_BUSY}"
     try:
-        future = _get_ssrf_dns_executor().submit(partial(reject_private_url, url, purpose=purpose))
+        future = _get_ssrf_dns_executor().submit(
+            partial(url_rejection_reason, url, purpose=purpose, require_tls=require_tls)
+        )
     except BaseException:
         _ssrf_dns_slots.release()
         raise
-    # Released when the lookup ends or is cancelled while still queued, not when
-    # the caller stops waiting.
     future.add_done_callback(lambda _: _ssrf_dns_slots.release())
     try:
-        await asyncio.wait_for(
-            asyncio.wrap_future(future),
-            timeout=_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS,
-        )
-    except TimeoutError as err:
+        return future.result(timeout=_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS)
+    except FutureTimeoutError:
         logger.warning(
             "SSRF hostname resolution timed out",
             extra=core_logger.context(purpose=purpose or "unspecified"),
         )
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Hostname resolution timed out",
-        ) from err
+        return f"URL {_RESOLUTION_TIMED_OUT}"

@@ -4,10 +4,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 
+import modules.users.users.schema as users_schema
+
 
 class SignUpToken(BaseModel):
-    """
-    Schema representing a sign-up token record.
+    """Schema representing a sign-up token record.
 
     Attributes:
         id: Unique identifier for the token.
@@ -16,6 +17,8 @@ class SignUpToken(BaseModel):
         created_at: Timestamp when token was created.
         expires_at: Timestamp when the token expires.
         used: Whether the token has been used.
+        email: Email address the token proves.
+        previous_email: Account email address a pending email change replaces.
     """
 
     id: StrictStr = Field(
@@ -44,6 +47,16 @@ class SignUpToken(BaseModel):
         ...,
         description="Whether the token has been used",
     )
+    email: StrictStr | None = Field(
+        default=None,
+        description="Email address the token proves",
+        max_length=250,
+    )
+    previous_email: StrictStr | None = Field(
+        default=None,
+        description="Account email address a pending email change replaces",
+        max_length=250,
+    )
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -53,11 +66,11 @@ class SignUpToken(BaseModel):
 
 
 class SignUpConfirm(BaseModel):
-    """
-    Request schema for confirming a sign-up.
+    """Request schema for confirming a sign-up.
 
     Attributes:
         token: The sign-up token received by user.
+        password: The password the user chooses while confirming a sign-up; omitted for an email change.
     """
 
     token: StrictStr = Field(
@@ -67,12 +80,13 @@ class SignUpConfirm(BaseModel):
         max_length=256,
     )
 
+    password: users_schema.UserPassword | None = None
+
     model_config = ConfigDict(extra="forbid")
 
 
-class SignUpResponse(BaseModel):
-    """
-    Response schema for sign-up operations.
+class SignUpRead(BaseModel):
+    """Response schema for sign-up operations.
 
     Attributes:
         message: Human-readable result message.

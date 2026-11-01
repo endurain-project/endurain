@@ -68,10 +68,10 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         incoming = request.headers.get(_REQUEST_ID_HEADER)
         rid = incoming if incoming and _VALID_REQUEST_ID.match(incoming) else str(uuid.uuid4())
 
-        token = request_id_ctx.set(rid)
-        try:
-            response = await call_next(request)
-            response.headers[_REQUEST_ID_HEADER] = rid
-            return response
-        finally:
-            request_id_ctx.reset(token)
+        # Not reset afterwards: an unhandled error is answered by Starlette's outermost middleware after this
+        # one has exited, and its response and log line still need the id. The server runs each request in its
+        # own task, so the value does not outlive the request.
+        request_id_ctx.set(rid)
+        response = await call_next(request)
+        response.headers[_REQUEST_ID_HEADER] = rid
+        return response

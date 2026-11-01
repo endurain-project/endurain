@@ -21,5 +21,4 @@ points at its sections and holds the few lookups that are not in it.
   Plain child collections (rows hanging off one activity) build them with `activities_contributors.child_ingestion_contributor` / `child_profile_contributor`.
   `app/module_registry.py` installs them in `modules.activities.contributor_registry`.
 - Mirror the module tree under `backend/tests/`.
-- Auth boundary: use only `modules.auth.dependencies` and `modules.auth.identity_service.IdentityService`; never `modules.auth._internal` or any `modules.auth.*.crud`.
-  `auth` publishes `identity_service.py`, not `integration_service.py`; do not copy that.
+- Auth boundary: use `modules.auth.dependencies` for request identity and the owning auth child package's `integration_service.py` for behavior; never import auth CRUD, service, or private helpers across packages.

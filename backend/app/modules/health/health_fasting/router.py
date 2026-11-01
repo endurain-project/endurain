@@ -1,23 +1,21 @@
-"""
-FastAPI router for health fasting endpoints.
+"""FastAPI router for health fasting endpoints.
 
 This module defines the API endpoints for managing fasting sessions,
 including CRUD operations, active fast tracking, and statistics.
 """
 
-from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Security, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Request, Response, Security, status
 
-import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
+import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.schema as health_fasting_schema
-import modules.health.health_fasting.utils as health_fasting_utils
+import modules.health.health_fasting.service as health_fasting_service
 
 # Define the API router
 router = APIRouter()
@@ -25,220 +23,132 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=health_fasting_schema.HealthFastingListResponse,
-    status_code=status.HTTP_200_OK,
+    response_model=core_pagination.Page[health_fasting_schema.HealthFastingRead],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_fasting_all_pagination(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:read"])],
-    _validate_pagination_values_on_query: Annotated[
-        Callable, Depends(core_dependencies.validate_pagination_values_on_query)
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    page_number: Annotated[
-        int | None,
-        Query(description="Pagination page number"),
-    ] = None,
-    num_records: Annotated[
-        int | None,
-        Query(description="Number of records per page"),
-    ] = None,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    page: core_pagination.ListPage,
     interval: Annotated[
         health_constants.Interval | None,
         Query(description="Filter by goal interval"),
     ] = None,
-) -> health_fasting_schema.HealthFastingListResponse:
-    """
-    Retrieve health fasting records for the authenticated user.
+) -> core_pagination.Page[health_fasting_schema.HealthFastingRead]:
+    """Retrieve health fasting records for the authenticated user.
 
-    This endpoint fetches health fasting data with optional pagination and
-    filtering. Access is restricted to users with the 'health:read' scope.
+    One page of records, newest first, optionally limited to an interval. Access is
+    restricted to users with the 'health:read' scope.
 
     Args:
-        _check_scopes: Security dependency that validates the user has
-            'health:read' scope.
-        _validate_pagination_values_on_query: Dependency that validates
-            pagination parameters.
-        token_user_id: The ID of the authenticated user extracted from the
-            access token.
+        token_user_id: The ID of the authenticated user extracted from the access token.
         db: Database session for executing queries.
-        page_number: Optional pagination page number to retrieve specific page
-            of results.
-        num_records: Optional number of records per page for pagination.
-        interval: Optional filter to retrieve records within a specific goal
-            interval.
+        page: The requested page and page size.
+        interval: Optional filter to retrieve records within a specific goal interval.
 
     Returns:
-        HealthFastingListResponse: A response object containing:
-            - total: Total count of records matching the filter criteria
-            - num_records: Number of records returned per page
-            - page_number: Current page number
-            - records: List of paginated HealthFastingRead objects
-    Raises:
-        HTTPException: If the user lacks required 'health:read' scope or if
-            pagination values are invalid.
+        The page of records with the total matching the interval.
     """
-    total = health_fasting_crud.get_health_fasting_number_by_user_id(token_user_id, db, interval)
-    records = health_fasting_crud.get_health_fasting_by_user_id(token_user_id, db, page_number, num_records, interval)
-
-    return health_fasting_schema.HealthFastingListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
+    return health_fasting_service.list_health_fasting(
+        token_user_id, db, page_number=page.page_number, num_records=page.num_records, interval=interval
     )
 
 
 @router.get(
     "/active",
     response_model=health_fasting_schema.HealthFastingRead | None,
-    status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_active_fasting(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
 ) -> health_fasting_schema.HealthFastingRead | None:
-    """
-    Retrieve the active fasting session for the authenticated user.
+    """Retrieve the active fasting session for the authenticated user.
 
     Args:
-        _check_scopes: Security dependency for health:read scope.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, which carries the session's ETag.
 
     Returns:
         Active HealthFastingRead if exists, None otherwise.
     """
-    return health_fasting_crud.get_active_fasting_by_user_id(token_user_id, db)
+    active = health_fasting_service.get_active_fasting(token_user_id, db)
+    if active is not None:
+        core_etag.set_etag(response, active.version)
+    return active
 
 
 @router.get(
     "/stats",
     response_model=health_fasting_schema.HealthFastingStatsResponse,
-    status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_fasting_stats(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> health_fasting_schema.HealthFastingStatsResponse:
-    """
-    Retrieve fasting statistics for the authenticated user.
+    """Retrieve fasting statistics for the authenticated user.
 
     Args:
-        _check_scopes: Security dependency for health:read scope.
         token_user_id: User ID from the access token.
         db: Database session dependency.
 
     Returns:
         HealthFastingStatsResponse with statistics.
     """
-    total_fasts = health_fasting_crud.get_completed_fasting_count(token_user_id, db)
-    total_fasting_seconds = health_fasting_crud.get_total_fasting_seconds(token_user_id, db)
-    avg_duration = health_fasting_crud.get_avg_fasting_duration(token_user_id, db)
-
-    # Calculate streaks
-    current_streak, longest_streak = health_fasting_utils.calculate_streaks(token_user_id, db)
-
-    # Calculate completion rate
-    total_started = health_fasting_crud.get_health_fasting_number_by_user_id(token_user_id, db)
-    completion_rate = (total_fasts / total_started * 100) if total_started > 0 else 0.0
-
-    return health_fasting_schema.HealthFastingStatsResponse(
-        total_fasts=total_fasts,
-        current_streak=current_streak,
-        longest_streak=longest_streak,
-        avg_duration_seconds=avg_duration,
-        total_fasting_seconds=total_fasting_seconds,
-        completion_rate=round(completion_rate, 1),
-    )
+    return health_fasting_service.get_fasting_stats(token_user_id, db)
 
 
 @router.get(
     "/{health_fasting_id}",
     response_model=health_fasting_schema.HealthFastingRead,
-    status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
 )
 def read_health_fasting_by_id(
-    health_fasting_id: int,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    health_fasting_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Retrieve a specific fasting record by ID.
+    """Retrieve a specific fasting record by ID.
 
     Args:
         health_fasting_id: ID of the fasting record.
-        _check_scopes: Security dependency for health:read scope.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, which carries the record's ETag.
 
     Returns:
         HealthFastingRead for the specified record.
 
     Raises:
-        HTTPException: If record not found.
+        NotFoundError: If record not found.
     """
-    record = health_fasting_crud.get_health_fasting_by_id_and_user_id(health_fasting_id, token_user_id, db)
-
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Fasting record not found",
-        )
-
-    return record  # type: ignore[return-value]
+    record = health_fasting_service.get_health_fasting(token_user_id, health_fasting_id, db)
+    core_etag.set_etag(response, record.version)
+    return record
 
 
 @router.post(
     "",
     response_model=health_fasting_schema.HealthFastingRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_health_fasting(
+    request: Request,
     health_fasting: health_fasting_schema.HealthFastingCreate,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Create a new fasting session.
+    """Create a new fasting session.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_fasting: Fasting data to create.
-        _check_scopes: Security dependency for health:write scope.
         token_user_id: User ID from the access token.
         db: Database session dependency.
 
@@ -246,110 +156,108 @@ def create_health_fasting(
         Created HealthFastingRead record.
 
     Raises:
-        HTTPException: If user already has an active fast.
+        ConflictError: If user already has an active fast.
     """
-    # Check if user already has an active fast
-    active_fast = health_fasting_crud.get_active_fasting_by_user_id(token_user_id, db)
-
-    if active_fast is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already has an active fasting session. Complete or cancel it before starting a new one.",
-        )
-
-    return health_fasting_crud.create_health_fasting(token_user_id, health_fasting, db)
+    return health_fasting_service.create_health_fasting(token_user_id, health_fasting, db)
 
 
-@router.put(
-    "",
+@router.patch(
+    "/{health_fasting_id}",
     response_model=health_fasting_schema.HealthFastingRead,
-    status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_health_fasting(
+    request: Request,
+    health_fasting_id: core_dependencies.PositiveId,
     health_fasting: health_fasting_schema.HealthFastingUpdate,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Edit an existing fasting record.
+    """Edit an existing fasting record.
 
     Args:
+        request: The incoming request, read by the rate limiter.
+        health_fasting_id: ID of the record to change.
         health_fasting: Fasting data to update.
-        _check_scopes: Security dependency for health:write scope.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         Updated HealthFastingRead record.
     """
-    return health_fasting_crud.edit_health_fasting(token_user_id, health_fasting, db)
+    updated = health_fasting_service.edit_health_fasting(
+        token_user_id, health_fasting_id, health_fasting, db, if_match=if_match
+    )
+    core_etag.set_etag(response, updated.version)
+    return updated
 
 
 @router.post(
     "/{health_fasting_id}/complete",
     response_model=health_fasting_schema.HealthFastingRead,
-    status_code=status.HTTP_200_OK,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def complete_health_fasting(
-    health_fasting_id: int,
+    request: Request,
+    health_fasting_id: core_dependencies.PositiveId,
     complete_data: health_fasting_schema.HealthFastingComplete,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+    if_match: core_dependencies.IfMatch,
 ) -> health_fasting_schema.HealthFastingRead:
-    """
-    Complete or end a fasting session.
+    """Complete or end a fasting session.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_fasting_id: ID of the fasting record to complete.
         complete_data: Completion data with end time and status.
-        _check_scopes: Security dependency for health:write scope.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, which carries the new ETag.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         Updated HealthFastingRead record.
     """
-    return health_fasting_crud.complete_health_fasting(token_user_id, health_fasting_id, complete_data, db)
+    ended = health_fasting_service.complete_health_fasting(
+        token_user_id, health_fasting_id, complete_data, db, if_match=if_match
+    )
+    core_etag.set_etag(response, ended.version)
+    return ended
 
 
 @router.delete(
     "/{health_fasting_id}",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:write"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_health_fasting(
-    health_fasting_id: int,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["health:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    request: Request,
+    health_fasting_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
+    db: core_dependencies.DbSession,
 ) -> None:
-    """
-    Delete a fasting record.
+    """Delete a fasting record.
 
     Args:
+        request: The incoming request, read by the rate limiter.
         health_fasting_id: ID of the fasting record to delete.
-        _check_scopes: Security dependency for health:write scope.
         token_user_id: User ID from the access token.
+        if_match: The ``If-Match`` precondition.
         db: Database session dependency.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+        PreconditionFailedError: If the record changed since the client read it.
     """
-    health_fasting_crud.delete_health_fasting(token_user_id, health_fasting_id, db)
+    health_fasting_service.delete_health_fasting(token_user_id, health_fasting_id, db, if_match=if_match)

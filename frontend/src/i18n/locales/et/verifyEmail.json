@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Palun oota, kuni me sinu aadressi kinnitame.",
+  "choosePasswordTitle": "Vali oma parool",
+  "choosePasswordBody": "Sinu e-post kinnitatakse, kui oled oma kontole parooli määranud.",
+  "submitPassword": "Määra parool",
+  "submittingPassword": "Parooli salvestamine",
   "successTitle": "E-post kinnitatud",
   "successBody": "Sinu e-posti aadress on kinnitatud.",
   "adminApprovalBody": "Sinu konto ootab nüüd administraatori heakskiitu.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Kinnitamine ebaõnnestus",
   "missingTokenBody": "Sellel kinnituslingil puudub luba.",
   "errorInvalidToken": "See kinnituslink on kehtetu või aegunud.",
+  "errorEmailTaken": "See e-posti aadress on nüüd teise konto kasutuses, seetõttu ei saa seda kinnitada.",
   "errorNotFound": "Me ei leidnud sellele lingile vastavat kontot.",
   "errorGeneral": "Sinu e-posti ei õnnestunud kinnitada. Palun proovi uuesti.",
   "retry": "Proovi uuesti",

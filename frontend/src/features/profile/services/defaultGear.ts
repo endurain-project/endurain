@@ -1,6 +1,7 @@
 import type { DefaultGear, DefaultGearDto, DefaultGearUpdateDto } from '@/features/profile/types'
 
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 
 /**
  * Maps a raw default-gear payload to the clean {@link DefaultGear} model — the
@@ -13,6 +14,7 @@ export function mapDefaultGear(dto: DefaultGearDto): DefaultGear {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     runGearId: dto.run_gear_id ?? null,
     trailRunGearId: dto.trail_run_gear_id ?? null,
     virtualRunGearId: dto.virtual_run_gear_id ?? null,
@@ -32,17 +34,15 @@ export function mapDefaultGear(dto: DefaultGearDto): DefaultGear {
 }
 
 /**
- * Rebuilds the full update wire payload from a {@link DefaultGear}. The id and
- * user id round-trip so the backend (which forbids extra fields and replaces
- * the record) keeps ownership intact.
+ * Rebuilds the update wire payload from a {@link DefaultGear}. The backend
+ * forbids extra fields and ties the record to the authenticated user, so the
+ * body carries only the assignments.
  *
  * @param gear - The default gear (already merged with any edits).
  * @returns The snake-cased update body.
  */
 export function toDefaultGearWire(gear: DefaultGear): DefaultGearUpdateDto {
   return {
-    id: gear.id,
-    user_id: gear.userId,
     run_gear_id: gear.runGearId,
     trail_run_gear_id: gear.trailRunGearId,
     virtual_run_gear_id: gear.virtualRunGearId,
@@ -69,20 +69,21 @@ export function toDefaultGearWire(gear: DefaultGear): DefaultGearUpdateDto {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchDefaultGear(signal?: AbortSignal): Promise<DefaultGear | null> {
-  const dto = await apiFetch<DefaultGearDto | null>('/profile/default_gear', { signal })
+  const dto = await apiFetch<DefaultGearDto | null>('/profile/default-gear', { signal })
   return dto ? mapDefaultGear(dto) : null
 }
 
 /**
  * Updates the authenticated user's default-gear assignments.
  *
- * @param gear - The full default-gear record to persist (with edits merged).
+ * @param gear - The full default-gear record to persist (with edits merged), carrying the version it was loaded at.
  * @returns The updated default gear, mapped to the clean model.
  * @throws {HttpError} When the request fails.
  */
 export async function updateDefaultGear(gear: DefaultGear): Promise<DefaultGear> {
-  const dto = await apiFetch<DefaultGearDto>('/profile/default_gear', {
-    method: 'PUT',
+  const dto = await apiFetch<DefaultGearDto>('/profile/default-gear', {
+    method: 'PATCH',
+    headers: ifMatchHeaders(gear.version),
     body: JSON.stringify(toDefaultGearWire(gear)),
   })
   return mapDefaultGear(dto)

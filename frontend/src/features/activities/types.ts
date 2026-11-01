@@ -217,7 +217,7 @@ export interface Activity {
    * built from a stale copy is refused instead of overwriting whoever saved in
    * between. `null` when the activity came from a response that omits it.
    */
-  version: number | null
+  version: number
 
   /**
    * Activity start as a UTC instant (ISO 8601 with offset), or `null` when the
@@ -324,12 +324,31 @@ export interface ActivityEditInput {
 }
 
 /**
+ * An activity with the child collections the detail view shows, as one response carries them.
+ *
+ * @property activity - The activity.
+ * @property laps - Every lap, or `null` when the response held only the first page of them.
+ * @property sets - Every performed workout set, or `null` when the response held only the first page.
+ * @property workoutSteps - Every planned workout step, or `null` when the response held only the
+ *   first page.
+ */
+export interface ActivityDetail {
+  activity: Activity
+  laps: ActivityLap[] | null
+  sets: ActivityWorkoutSet[] | null
+  workoutSteps: ActivityWorkoutStep[] | null
+}
+
+/**
  * One keyset slice of the following feed.
  *
  * @property items - The slice's activities, newest first.
  * @property nextCursor - Cursor for the next slice, or `null` at the end.
+ * @property owners - The owner of each activity on the slice, by user id, as the same response
+ *   carries them; `null` for an owner the server left out (inactive, or awaiting approval).
  */
 export interface ActivityFeedSlice {
   items: Activity[]
   nextCursor: string | null
+  owners: Map<number, ActivityOwner | null>
 }

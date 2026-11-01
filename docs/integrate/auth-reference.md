@@ -10,18 +10,18 @@ The following environment variables control authentication behavior:
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
-| `SECRET_KEY` | Secret key for JWT signing (min 32 characters recommended) | - | Yes |
+| `SECRET_KEY` | Secret key for JWT signing (min 32 characters required) | - | Yes |
 | `ALGORITHM` | JWT signing algorithm | `HS256` | No |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime in minutes | `15` | No |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime in days | `7` | No |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Access token lifetime in minutes | `15` | No |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Refresh token lifetime in days | `7` | No |
 
 #### Session Configuration
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
-| `SESSION_IDLE_TIMEOUT_ENABLED` | Enable session idle timeout | `false` | No |
-| `SESSION_IDLE_TIMEOUT_HOURS` | Hours of inactivity before session expires | `1` | No |
-| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Maximum session lifetime in hours | `24` | No |
+| `SESSION_IDLE_TIMEOUT_ENABLED` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Enable session idle timeout | `false` | No |
+| `SESSION_IDLE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Hours of inactivity before session expires | `1` | No |
+| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Maximum session lifetime in hours | `24` | No |
 
 #### Security Configuration
 
@@ -29,7 +29,7 @@ The following environment variables control authentication behavior:
 | -------- | ----------- | ------- | -------- |
 | `ENVIRONMENT` | Controls refresh cookie security for login, refresh, and OAuth/SSO token exchange. `production` and `demo` set the `Secure` flag on the refresh cookie and the OAuth/SSO session cookie, which requires Endurain to be served over HTTPS in those environments for login, session refresh, and SSO to work. | `production` | No |
 | `ALLOWED_REDIRECT_SCHEMES` | Comma-separated custom URI schemes allowed as SSO redirect targets (e.g., `endurain,gadgetbridge`). Defaults to `endurain` when unset. If set, the provided list is used as-is (it does not merge with the default). External `http`/`https` redirects are always rejected. | `endurain` | No |
-| `SSRF_ALLOWED_HOSTS` | SSRF allowlist for admin-configured outbound calls (currently OIDC discovery and JWKS fetch only). Comma-separated list of exact hostnames (case-insensitive) and/or explicit IP CIDR ranges. Supports self-hosted identity providers on private networks. Examples: `auth.internal.example.com` or `auth.internal.example.com,10.10.0.0/24,fd00::/64`. Wildcards are rejected. IPv4 prefix must be ≥ /8, IPv6 ≥ /32. Every allowlisted outbound call is logged at INFO level for audit. | `` | No |
+| `SSRF_ALLOWED_HOSTS` | SSRF allowlist for admin-configured outbound calls (identity provider discovery, signing keys, token, userinfo and revocation calls, and the sign-in redirect). A listed host may also use plain `http://` for these; any other identity provider URL must use `https://`. Also covers the reverse-geocoding host and the map tile server used for activity thumbnails. Comma-separated list of exact hostnames (case-insensitive) and/or explicit IP CIDR ranges. Supports self-hosted identity providers on private networks, including shared address space such as Tailscale (`100.64.0.0/10`). Examples: `auth.internal.example.com` or `auth.internal.example.com,10.10.0.0/24,fd00::/64`. Wildcards are rejected. IPv4 prefix must be ≥ /8, IPv6 ≥ /32. Every allowlisted outbound call is logged at INFO level for audit. | `` | No |
 
 #### Rate Limiting and Shared State
 

@@ -1,15 +1,9 @@
-"""
-Tests for users.users_default_gear.crud module.
-
-This module tests CRUD operations for user default gear.
-"""
+"""Tests for users.users_default_gear.crud module."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
 import modules.users.users_default_gear.crud as user_default_gear_crud
@@ -17,201 +11,71 @@ import modules.users.users_default_gear.models as user_default_gear_models
 import modules.users.users_default_gear.schema as user_default_gear_schema
 
 
-@pytest.fixture
-def mock_db():
-    """Create a mock database session."""
-    return MagicMock(spec=Session)
-
-
 @pytest.fixture(autouse=True)
-def _patch_transform():
-    """Patch _transform_users_default_gear to a passthrough for MagicMock compatibility."""
+def _patch_serializer():
+    """Patch the serializer to a passthrough for MagicMock compatibility."""
     with patch(
-        "modules.users.users_default_gear.crud._transform_users_default_gear",
+        "modules.users.users_default_gear.crud.users_default_gear_serializers.to_read_schema",
         side_effect=lambda x: x,
     ):
         yield
 
 
+def _found(mock_db, row):
+    """Make the session's SELECT return ``row`` (or None)."""
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = row
+    mock_db.execute.return_value = mock_result
+
+
 class TestGetUserDefaultGearByUserId:
-    """Test suite for get_user_default_gear_by_user_id function."""
+    def test_returns_the_settings(self, mock_db):
+        row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
+        _found(mock_db, row)
 
-    def test_get_user_default_gear_by_user_id_success(self, mock_db):
-        """Test successful retrieval of user default gear."""
-        # Arrange
-        user_id = 1
-        mock_gear = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
-        mock_gear.id = 1
-        mock_gear.user_id = user_id
+        assert user_default_gear_crud.get_user_default_gear_by_user_id(1, mock_db) == row
 
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_gear
-        mock_db.execute.return_value = mock_result
+    def test_returns_none_when_missing(self, mock_db):
+        _found(mock_db, None)
 
-        # Act
-        result = user_default_gear_crud.get_user_default_gear_by_user_id(user_id, mock_db)
-
-        # Assert
-        assert result == mock_gear
-        assert result.user_id == user_id
-
-    def test_get_user_default_gear_by_user_id_not_found(self, mock_db):
-        """Test retrieval when gear settings not found."""
-        # Arrange
-        user_id = 999
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
-
-        # Act
-        result = user_default_gear_crud.get_user_default_gear_by_user_id(user_id, mock_db)
-
-        # Assert
-        assert result is None
-
-    def test_get_user_default_gear_by_user_id_db_error(self, mock_db):
-        """Test database error handling."""
-        # Arrange
-        user_id = 1
-        mock_db.execute.side_effect = SQLAlchemyError("DB error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            user_default_gear_crud.get_user_default_gear_by_user_id(user_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert user_default_gear_crud.get_user_default_gear_by_user_id(1, mock_db) is None
 
 
 class TestCreateUserDefaultGear:
-    """Test suite for create_user_default_gear function."""
+    def test_stages_without_committing(self, mock_db):
+        row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
 
-    def test_create_user_default_gear_success(self, mock_db):
-        """Test successful creation of user default gear."""
-        # Arrange
-        user_id = 1
-        mock_created_gear = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
-        mock_created_gear.id = 1
-        mock_created_gear.user_id = user_id
+        with patch.object(user_default_gear_models, "UsersDefaultGear", return_value=row):
+            result = user_default_gear_crud.create_user_default_gear(1, mock_db)
 
-        def mock_refresh(obj):
-            obj.id = 1
-            obj.user_id = user_id
+        assert result == row
+        mock_db.add.assert_called_once_with(row)
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
-        mock_db.refresh.side_effect = mock_refresh
+    def test_duplicate_is_a_conflict(self, mock_db):
+        mock_db.flush.side_effect = IntegrityError("Duplicate entry", None, None)
 
-        # Act
-        with patch.object(
-            user_default_gear_models,
-            "UsersDefaultGear",
-            return_value=mock_created_gear,
-        ):
-            user_default_gear_crud.create_user_default_gear(user_id, mock_db)
-
-        # Assert
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
-
-    def test_create_user_default_gear_db_error(self, mock_db):
-        """Test database error handling during creation."""
-        # Arrange
-        user_id = 1
-        mock_db_gear = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
-        mock_db_gear.user_id = user_id
-        mock_db.commit.side_effect = SQLAlchemyError("DB error")
-
-        # Act & Assert
-        with (
-            patch.object(
-                user_default_gear_models,
-                "UsersDefaultGear",
-                return_value=mock_db_gear,
-            ),
-            pytest.raises(core_exceptions.ProcessingError) as exc_info,
-        ):
-            user_default_gear_crud.create_user_default_gear(user_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        # Decorator should call rollback when catching SQLAlchemyError
-        mock_db.rollback.assert_called_once()
+        with pytest.raises(core_exceptions.ConflictError):
+            user_default_gear_crud.create_user_default_gear(1, mock_db)
 
 
 class TestEditUserDefaultGear:
-    """Test suite for edit_user_default_gear function."""
+    def test_applies_the_set_fields_and_stages(self, mock_db):
+        row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
+        _found(mock_db, row)
+        update = user_default_gear_schema.UsersDefaultGearUpdate(run_gear_id=10)
 
-    @patch("modules.users.users_default_gear.crud.gears_dependencies")
-    @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
-    def test_edit_user_default_gear_success(self, mock_get_gear, _mock_gears, mock_db):
-        """Test successful update of user default gear."""
-        # Arrange
-        user_id = 1
-        gear_update = user_default_gear_schema.UsersDefaultGearUpdate(
-            id=1,
-            user_id=user_id,
-            run_gear_id=10,
-        )
+        result = user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")
 
-        mock_db_gear = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
-        mock_db_gear.id = 1
-        mock_db_gear.user_id = user_id
-        mock_get_gear.return_value = mock_db_gear
-
-        # Act
-        result = user_default_gear_crud.edit_user_default_gear(gear_update, user_id, mock_db)
-
-        # Assert
-        assert result == mock_db_gear
-        mock_db.commit.assert_called_once()
-
-    @patch("modules.users.users_default_gear.crud.gears_dependencies")
-    @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
-    def test_edit_user_default_gear_rejects_a_gear_the_user_does_not_own(self, mock_get_gear, mock_gears, mock_db):
-        """A foreign gear id is refused and nothing is written."""
-        gear_update = user_default_gear_schema.UsersDefaultGearUpdate(id=1, user_id=1, run_gear_id=10)
-        mock_db_gear = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
-        mock_get_gear.return_value = mock_db_gear
-        mock_gears.require_owned_gears.side_effect = core_exceptions.NotFoundError("Gear not found")
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            user_default_gear_crud.edit_user_default_gear(gear_update, 1, mock_db)
-
-        assert list(mock_gears.require_owned_gears.call_args.args[1]) == [10]
+        assert result == row
+        assert row.run_gear_id == 10
+        mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    @patch("modules.users.users_default_gear.crud.gears_dependencies")
-    @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
-    def test_edit_user_default_gear_not_found(self, mock_get_gear, _mock_gears, mock_db):
-        """Test update fails when gear settings not found."""
-        # Arrange
-        user_id = 1
-        gear_update = user_default_gear_schema.UsersDefaultGearUpdate(
-            id=1,
-            user_id=user_id,
-            run_gear_id=10,
-        )
-        mock_get_gear.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User default gear not found",
-        )
+    def test_missing_settings_are_not_found(self, mock_db):
+        _found(mock_db, None)
+        update = user_default_gear_schema.UsersDefaultGearUpdate(run_gear_id=10)
 
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            user_default_gear_crud.edit_user_default_gear(gear_update, user_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-
-    @patch("modules.users.users_default_gear.crud.get_user_default_gear_by_user_id")
-    def test_edit_user_default_gear_wrong_user(self, mock_get_gear, mock_db):
-        """Test update fails when user IDs don't match."""
-        # Arrange
-        user_id = 1
-        gear_update = user_default_gear_schema.UsersDefaultGearUpdate(
-            id=1,
-            user_id=2,  # Different user
-            run_gear_id=10,
-        )
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            user_default_gear_crud.edit_user_default_gear(gear_update, user_id, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        with pytest.raises(core_exceptions.NotFoundError):
+            user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")

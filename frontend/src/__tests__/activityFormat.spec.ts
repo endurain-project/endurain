@@ -47,21 +47,21 @@ describe('formatPaceClock', () => {
 describe('formatPace', () => {
   it('formats running pace in min/km (metric) and min/mi (imperial)', () => {
     // 0.3 s/m = 300 s/km = 5:00/km.
-    expect(formatPace(0.3, RUN, 'metric')).toEqual({ value: '5:00', unit: 'min/km' })
+    expect(formatPace(0.3, RUN, 'metric')).toEqual({ value: '5:00', unit: 'minPerKm' })
     // 0.3 s/m × 1609.34 = 482.8 s/mi ≈ 8:03/mi.
-    expect(formatPace(0.3, RUN, 'imperial')).toEqual({ value: '8:03', unit: 'min/mi' })
+    expect(formatPace(0.3, RUN, 'imperial')).toEqual({ value: '8:03', unit: 'minPerMi' })
   })
 
   it('formats swimming pace per 100m / 100yd', () => {
     // 0.9 s/m = 90 s/100m = 1:30/100m.
-    expect(formatPace(0.9, SWIM, 'metric')).toEqual({ value: '1:30', unit: 'min/100m' })
-    expect(formatPace(0.9, SWIM, 'imperial').unit).toBe('min/100yd')
+    expect(formatPace(0.9, SWIM, 'metric')).toEqual({ value: '1:30', unit: 'minPer100m' })
+    expect(formatPace(0.9, SWIM, 'imperial').unit).toBe('minPer100yd')
   })
 
   it('formats rowing pace per 500m regardless of unit system', () => {
     // 0.24 s/m = 120 s/500m = 2:00/500m.
-    expect(formatPace(0.24, ROW, 'metric')).toEqual({ value: '2:00', unit: 'min/500m' })
-    expect(formatPace(0.24, ROW, 'imperial').unit).toBe('min/500m')
+    expect(formatPace(0.24, ROW, 'metric')).toEqual({ value: '2:00', unit: 'minPer500m' })
+    expect(formatPace(0.24, ROW, 'imperial').unit).toBe('minPer500m')
   })
 
   it('returns a placeholder for missing or non-positive pace', () => {
@@ -80,7 +80,7 @@ describe('paceToDisplaySeconds', () => {
 
 describe('formatSpeed', () => {
   it('formats cycling speed in km/h and mph', () => {
-    expect(formatSpeed(10, CYCLE, 'metric')).toEqual({ value: '36.00', unit: 'km/h' })
+    expect(formatSpeed(10, CYCLE, 'metric')).toEqual({ value: '36.00', unit: 'kmh' })
     expect(formatSpeed(10, CYCLE, 'imperial')).toEqual({ value: '22.37', unit: 'mph' })
   })
 

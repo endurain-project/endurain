@@ -5,10 +5,12 @@ import { useI18n } from 'vue-i18n'
 import type { Schemas } from '@/types'
 import type { HealthTargets } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { flOzToMl, mlToFlOz } from '@/utils/units'
 import { useUpdateWaterTargetMutation } from '@/features/health/composables/useHealth'
@@ -28,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const updateTargetMutation = useUpdateWaterTargetMutation()
 
@@ -57,14 +60,13 @@ function targetToMl(raw: string): number | null {
 async function submitForm(values: TargetFormValues): Promise<void> {
   try {
     await updateTargetMutation.mutateAsync({
-      id: props.targets.id,
-      userId: props.targets.userId,
+      version: props.targets.version,
       waterMl: targetToMl(values.amount),
     })
     emit('success', t('health.water.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.water.target.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.water.target.saveError'))
   }
 }
 
@@ -73,7 +75,7 @@ const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>(
   onSubmit: submitForm,
 })
 
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const amountUnitLabel = computed(() => unitLabel(isImperial.value ? 'flOz' : 'ml'))
 const amountLabel = computed(() => `${t('health.water.target.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */

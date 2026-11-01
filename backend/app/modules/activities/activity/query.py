@@ -14,8 +14,9 @@ fetched, no ORM instances returned.
 from datetime import UTC, date, datetime, time, timedelta
 from urllib.parse import unquote
 
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 
+import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.models as activity_models
 
@@ -23,40 +24,29 @@ import modules.activities.activity.models as activity_models
 MAX_UTC_OFFSET = core_timezone.MAX_UTC_OFFSET
 
 
-def escape_like(term: str) -> str:
-    r"""Escape SQL LIKE wildcards in a user-provided term.
-
-    Escapes ``\``, ``%`` and ``_`` so they are matched literally. Use together
-    with ``.like(..., escape="\\")`` to keep user input from injecting LIKE
-    wildcards into search filters.
-
-    Args:
-        term: Raw search term.
-
-    Returns:
-        Escaped search term safe for use inside a ``LIKE`` pattern.
-    """
-    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-def name_search_condition(name_search: str):
+def name_search_condition(name_search: str, *, mask_hidden_location: bool):
     """A case-insensitive LIKE search across an activity's name and location.
 
     Args:
         name_search: URL-encoded search term, as it arrives on the query string.
+        mask_hidden_location: Whether the reader must not learn a hidden location. The term then matches
+            the town, city or country only of activities that show their location, because a match on a
+            hidden one would reveal where it took place.
 
     Returns:
         A SQLAlchemy condition matching the term against name, town, city or
         country, with ``%``/``_`` escaped so user input cannot inject wildcards.
     """
     raw = unquote(name_search).replace("+", " ").lower()
-    pattern = f"%{escape_like(raw)}%"
-    return or_(
-        func.lower(activity_models.Activity.name).like(pattern, escape="\\"),
+    pattern = f"%{core_sanitization.escape_like(raw)}%"
+    location_match = or_(
         func.lower(activity_models.Activity.town).like(pattern, escape="\\"),
         func.lower(activity_models.Activity.city).like(pattern, escape="\\"),
         func.lower(activity_models.Activity.country).like(pattern, escape="\\"),
     )
+    if mask_hidden_location:
+        location_match = and_(activity_models.Activity.hide_location.is_(False), location_match)
+    return or_(func.lower(activity_models.Activity.name).like(pattern, escape="\\"), location_match)
 
 
 def local_start_time_expression():

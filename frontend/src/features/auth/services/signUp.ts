@@ -1,4 +1,4 @@
-import type { SignUpRequest, SignUpResponse } from '@/features/auth/types'
+import type { SignUpConfirm, SignUpRequest, SignUpResponse } from '@/features/auth/types'
 
 import { apiFetch } from '@/services/http'
 
@@ -7,7 +7,7 @@ import { apiFetch } from '@/services/http'
  *
  * @param request - The new account's details.
  * @returns The backend response, including verification/approval flags.
- * @throws {HttpError} When sign-up is disabled (403), the username/email is
+ * @throws {HttpError} When sign-up is disabled (403), the username is
  *   already taken (409), validation fails (400/422), or the request fails.
  */
 export function requestSignUp(request: SignUpRequest): Promise<SignUpResponse> {
@@ -19,17 +19,15 @@ export function requestSignUp(request: SignUpRequest): Promise<SignUpResponse> {
   })
 }
 
-interface SignUpConfirm {
-  token: string
-}
-
 /**
  * Confirms a sign-up by verifying the emailed token.
  *
- * @param request - The email verification token.
+ * @param request - The email verification token and, for a sign-up link, the chosen password
+ *   (sent after the backend answered `urn:endurain:error:password-required`).
  * @returns The backend response, including any admin-approval flag.
  * @throws {HttpError} 412 when verification is disabled, 400 when the token is
- *   invalid or expired, 404 when no matching user exists.
+ *   invalid or expired or a password is required, 404 when no matching user
+ *   exists, 422 when the password fails the policy.
  */
 export function confirmSignUp(request: SignUpConfirm): Promise<SignUpResponse> {
   return apiFetch<SignUpResponse>('/sign-up/confirm', {

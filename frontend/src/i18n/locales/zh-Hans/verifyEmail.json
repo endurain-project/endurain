@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Hang tight while we confirm your address.",
+  "choosePasswordTitle": "选择你的密码",
+  "choosePasswordBody": "为账户设置密码后，你的电子邮件即完成验证。",
+  "submitPassword": "设置密码",
+  "submittingPassword": "正在保存密码",
   "successTitle": "Email verified",
   "successBody": "Your email address has been confirmed.",
   "adminApprovalBody": "Your account is now waiting for administrator approval.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verification failed",
   "missingTokenBody": "This verification link is missing its token.",
   "errorInvalidToken": "This verification link is invalid or expired.",
+  "errorEmailTaken": "该邮箱地址现已被其他账户使用，因此无法确认。",
   "errorNotFound": "We couldn't find an account for this link.",
   "errorGeneral": "We couldn't verify your email. Please try again.",
   "retry": "Try again",

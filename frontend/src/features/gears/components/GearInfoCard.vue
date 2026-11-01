@@ -10,10 +10,11 @@ import GearBadges from '@/features/gears/components/GearBadges.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MetricPill } from '@/components/ui/metric-pill'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   currencySymbol,
-  formatDuration,
   metersToDisplayDistance,
+  splitDuration,
 } from '@/features/gears/utils/format'
 
 /**
@@ -40,12 +41,14 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
+const { unitLabel, duration } = useUnitFormat()
 
-const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
-)
+const distanceUnitLabel = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
 const totalDistance = computed(() => metersToDisplayDistance(props.gear.totalDistance, props.units))
-const totalTime = computed(() => formatDuration(props.gear.totalTime))
+const totalTime = computed(() => {
+  const { hours, minutes } = splitDuration(props.gear.totalTime)
+  return duration(hours, minutes)
+})
 const componentsCost = computed(
   () =>
     `${currencySymbol(props.currency)}${Math.round(props.gear.totalComponentsCost * 100) / 100}`,

@@ -14,15 +14,14 @@ which keeps the call sites readable and gives the generated OpenAPI client a
 concrete component per resource.
 """
 
-import base64
-import binascii
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Self
 
-from fastapi import Query
+from fastapi import Depends, Query
 from pydantic import BaseModel
 
+import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 
 #: Default page size for a *browse* list (activities, followers) when the request
@@ -33,6 +32,10 @@ DEFAULT_NUM_RECORDS = 25
 #: Hard cap on the client-requested page size, bounding query and serialization
 #: cost per request (defense against resource exhaustion).
 MAX_NUM_RECORDS = 200
+
+#: Hard cap on the client-requested page number, so a request cannot ask the database for an arbitrarily
+#: deep ``OFFSET`` (defense against resource exhaustion).
+MAX_PAGE_NUMBER = 100000
 
 #: Default page size for an activity's *child* collections (laps, sets, workout
 #: steps). Unlike a browse list these are "everything hanging off one parent",
@@ -64,7 +67,7 @@ class PageParams:
 
 
 def list_page_params(
-    page_number: Annotated[int | None, Query(ge=1)] = None,
+    page_number: Annotated[int | None, Query(ge=1, le=MAX_PAGE_NUMBER)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=MAX_NUM_RECORDS)] = None,
 ) -> PageParams:
     """
@@ -87,7 +90,7 @@ def list_page_params(
 
 
 def child_page_params(
-    page_number: Annotated[int | None, Query(ge=1)] = None,
+    page_number: Annotated[int | None, Query(ge=1, le=MAX_PAGE_NUMBER)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=MAX_NUM_RECORDS)] = None,
 ) -> PageParams:
     """
@@ -108,6 +111,13 @@ def child_page_params(
         None.
     """
     return PageParams(page_number or 1, num_records or DEFAULT_CHILD_NUM_RECORDS)
+
+
+#: A browse-list route's paging window, declared as ``page: core_pagination.ListPage``.
+ListPage = Annotated[PageParams, Depends(list_page_params)]
+
+#: A child-collection route's paging window, declared as ``page: core_pagination.ChildPage``.
+ChildPage = Annotated[PageParams, Depends(child_page_params)]
 
 
 class Page[ItemT](BaseModel):
@@ -199,10 +209,11 @@ class CursorPage[ItemT](BaseModel):
 def encode_cursor(sort_value: datetime, tiebreak_id: int) -> str:
     """Encode a keyset position into an opaque cursor.
 
-    The cursor is base64url of ``{sort_value}|{id}``. It is opaque rather than
-    signed because it cannot widen access: the rows a caller may see are derived
-    from their own identity on every request, so a forged cursor only moves the
-    window inside a result set they were already entitled to.
+    The cursor is ``{sort_value}|{id}`` encrypted with the server key. It is encrypted, not merely
+    encoded, because the sort value can be one the caller must not see (a feed entry whose start time
+    its owner hid). It need not be signed against forgery: the rows a caller may see are derived from
+    their own identity on every request, so a forged cursor only moves the window inside a result set
+    they were already entitled to.
 
     Args:
         sort_value: The sort column of the last row in the slice.
@@ -212,7 +223,7 @@ def encode_cursor(sort_value: datetime, tiebreak_id: int) -> str:
         The encoded cursor.
     """
     raw = f"{sort_value.isoformat()}{_CURSOR_SEPARATOR}{tiebreak_id}"
-    return base64.urlsafe_b64encode(raw.encode()).decode()
+    return core_cryptography.encrypt_token_fernet(raw)
 
 
 def decode_cursor(cursor: str) -> tuple[datetime, int]:
@@ -228,8 +239,8 @@ def decode_cursor(cursor: str) -> tuple[datetime, int]:
         InvalidInputError: When the cursor is not one this server issued.
     """
     try:
-        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
-        sort_value, _, tiebreak_id = raw.rpartition(_CURSOR_SEPARATOR)
+        raw = core_cryptography.decrypt_token_fernet(cursor)
+        sort_value, _, tiebreak_id = (raw or "").rpartition(_CURSOR_SEPARATOR)
         return datetime.fromisoformat(sort_value), int(tiebreak_id)
-    except (ValueError, UnicodeDecodeError, binascii.Error) as err:
+    except (ValueError, core_exceptions.UndecryptableError) as err:
         raise core_exceptions.InvalidInputError("Invalid pagination cursor") from err

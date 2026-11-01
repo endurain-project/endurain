@@ -35,15 +35,18 @@ Provides:
     every log record so all logs from a single request
     can be correlated.
   - ConsoleMirrorFilter: passes only records explicitly flagged for the console.
+  - WebSocketKeepaliveFilter: drops websocket PING/PONG frame lines.
   - _build_handlers: environment-aware handler factory
     (stdout JSON always in production/demo; file when
-    LOGS_DIR is set; file plus console mirror in development).
+    LOGS_DIR is set, rotated when one process writes it; file
+    plus console mirror in development).
   - setup_main_logger: configures the main, Alembic, and
     APScheduler loggers.
 """
 
 import json
 import logging
+import logging.handlers
 import sys
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -59,6 +62,7 @@ from typing import Any
 # ``logger`` is the lower-level module: it must not depend on ``config`` at
 # import time. The two functions below that genuinely need ``settings``
 # import it locally, after both modules have finished initializing.
+import core.environment as core_environment
 import core.middleware_request_id as core_middleware_request_id
 
 # The single configured application logger. Every logger handed out by
@@ -83,6 +87,10 @@ _LEVELS: dict[str, int] = {
     "debug": logging.DEBUG,
     "trace": logging.DEBUG,
 }
+
+# Size at which a single-writer ``app.log`` rolls over, and how many rolled files are kept.
+LOG_FILE_MAX_BYTES = 10 * 1024 * 1024
+LOG_FILE_BACKUP_COUNT = 5
 
 # Format used by the development console mirror — matches uvicorn's own output
 # so operator-facing lifecycle lines blend into the server log.
@@ -137,6 +145,34 @@ class ConsoleMirrorFilter(logging.Filter):
             True when the record carries a truthy ``console`` field.
         """
         return bool(getattr(record, CONSOLE_FIELD, False))
+
+
+class WebSocketKeepaliveFilter(logging.Filter):
+    """
+    Drop the PING/PONG keepalive frames the websockets library logs at DEBUG.
+
+    Uvicorn hands its ``uvicorn.error`` logger to the websockets protocol, so every
+    keepalive frame is logged beside Uvicorn's other debug output and cannot be
+    silenced by logger name or level alone.
+    """
+
+    _PREFIXES = ("> PING", "< PING", "> PONG", "< PONG")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Report whether the record is something other than a keepalive frame.
+
+        Args:
+            record: The log record to test.
+
+        Returns:
+            False for a PING/PONG frame line, True otherwise.
+        """
+        return not record.getMessage().startswith(self._PREFIXES)
+
+
+# Shared instance so repeated ``setup_main_logger`` calls attach it once.
+_WEBSOCKET_KEEPALIVE_FILTER = WebSocketKeepaliveFilter()
 
 
 # Attributes always present on a LogRecord — excluded from the extra
@@ -304,7 +340,7 @@ class JsonFormatter(logging.Formatter):
 
 class _DevFormatter(logging.Formatter):
     """
-    Human-readable formatter for development log files.
+    Human-readable formatter for the development log file and console mirror.
 
     Appends any caller-supplied ``extra`` fields as a
     space-separated ``key=value`` string after the message
@@ -313,8 +349,14 @@ class _DevFormatter(logging.Formatter):
 
     _BASE = "%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] - %(message)s"
 
-    def __init__(self) -> None:
-        super().__init__(self._BASE)
+    def __init__(self, fmt: str = _BASE) -> None:
+        """
+        Build the formatter.
+
+        Args:
+            fmt: The format of the line the context is appended to.
+        """
+        super().__init__(fmt)
 
     def format(self, record: logging.LogRecord) -> str:
         """
@@ -358,6 +400,15 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
     # time we get here ``core.config`` is fully initialized.
     import core.config as core_config
 
+    def _file_handler(path: str) -> logging.FileHandler:
+        # Rotation renames the file under the other writers, so it is only safe
+        # when this is the sole process writing it.
+        if core_config.settings.single_log_writer:
+            return logging.handlers.RotatingFileHandler(
+                path, maxBytes=LOG_FILE_MAX_BYTES, backupCount=LOG_FILE_BACKUP_COUNT
+            )
+        return logging.FileHandler(path)
+
     def _configure(handler: logging.Handler, formatter: logging.Formatter) -> logging.Handler:
         handler.setFormatter(formatter)
         handler.setLevel(log_level)
@@ -366,7 +417,7 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
 
     # Treat both "production" and "demo" as deployed
     # environments where stdout JSON is preferred.
-    is_deployed = core_config.settings.ENVIRONMENT in ("production", "demo")
+    is_deployed = core_environment.is_deployed_environment(core_config.settings.ENVIRONMENT)
     if is_deployed:
         handlers: list[logging.Handler] = [_configure(logging.StreamHandler(sys.stdout), JsonFormatter())]
         # Also write to file when LOGS_DIR is configured so that Docker
@@ -374,16 +425,16 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
         # output regardless of the ENVIRONMENT value.
         if core_config.settings.LOGS_DIR:
             log_path = f"{core_config.settings.LOGS_DIR}/app.log"
-            handlers.append(_configure(logging.FileHandler(log_path), JsonFormatter()))
+            handlers.append(_configure(_file_handler(log_path), JsonFormatter()))
         # No console mirror here: stdout already carries every record, so adding
         # one would duplicate every operator-facing line.
         return handlers
 
     log_path = f"{core_config.settings.LOGS_DIR}/app.log"
-    console_mirror = _configure(logging.StreamHandler(sys.stdout), logging.Formatter(_CONSOLE_FORMAT))
+    console_mirror = _configure(logging.StreamHandler(sys.stdout), _DevFormatter(_CONSOLE_FORMAT))
     console_mirror.addFilter(ConsoleMirrorFilter())
     return [
-        _configure(logging.FileHandler(log_path), _DevFormatter()),
+        _configure(_file_handler(log_path), _DevFormatter()),
         console_mirror,
     ]
 
@@ -418,6 +469,21 @@ def _replace_handlers(
         old_handler.close()
 
 
+class _SlowapiLimitExceededFilter(logging.Filter):
+    """Drop slowapi's own "limit exceeded" record, which the 429 handler already logs with the route."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Keep every record except slowapi's per-request limit-exceeded line.
+
+        Args:
+            record: The record being logged.
+
+        Returns:
+            False for the limit-exceeded line, True otherwise.
+        """
+        return not str(record.msg).startswith("ratelimit ")
+
+
 def setup_main_logger():
     """
     Set up the main application logger.
@@ -449,12 +515,18 @@ def setup_main_logger():
     # outcomes flow through the same handler/format pipeline
     # as the rest of the backend logs.
     safeuploads_audit_logger = logging.getLogger("safeuploads.audit")
+    # slowapi reports a rate-limit storage outage and its recovery here; without handlers they would
+    # reach stderr unstructured, and its own handler discards them.
+    slowapi_logger = logging.getLogger("slowapi")
+    if not any(isinstance(f, _SlowapiLimitExceededFilter) for f in slowapi_logger.filters):
+        slowapi_logger.addFilter(_SlowapiLimitExceededFilter())
 
     for logger in (
         main_logger,
         alembic_logger,
         scheduler_logger,
         safeuploads_audit_logger,
+        slowapi_logger,
     ):
         logger.setLevel(log_level)
 
@@ -465,9 +537,16 @@ def setup_main_logger():
             alembic_logger,
             scheduler_logger,
             safeuploads_audit_logger,
+            slowapi_logger,
         ),
         handlers,
     )
     safeuploads_audit_logger.propagate = True
+
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    if core_config.settings.LOG_WEBSOCKET_FRAMES:
+        uvicorn_logger.removeFilter(_WEBSOCKET_KEEPALIVE_FILTER)
+    else:
+        uvicorn_logger.addFilter(_WEBSOCKET_KEEPALIVE_FILTER)
 
     return main_logger

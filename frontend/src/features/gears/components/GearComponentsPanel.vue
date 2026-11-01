@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   componentTypeListKey,
   gearTypeSupportsComponents,
@@ -107,15 +108,19 @@ function confirmDeleteComponent(): void {
   if (!component) {
     return
   }
-  deleteComponentMutation.mutate(component.id, {
-    onSuccess: () => {
-      isComponentDeleteOpen.value = false
-      toasts.success(t('gears.components.delete.success'))
+  deleteComponentMutation.mutate(
+    { id: component.id, version: component.version },
+    {
+      onSuccess: () => {
+        isComponentDeleteOpen.value = false
+        toasts.success(t('gears.components.delete.success'))
+      },
+      onError: (error) =>
+        toasts.error(
+          isStaleWrite(error) ? t('app.staleError') : t('gears.components.delete.error'),
+        ),
     },
-    onError: () => {
-      toasts.error(t('gears.components.delete.error'))
-    },
-  })
+  )
 }
 
 function onFormSuccess(message: string): void {

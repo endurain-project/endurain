@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filters",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Fiets",
     "shoes": "Schoenen",
@@ -91,7 +89,6 @@
     "unsupported": "Dit type uitrusting houdt geen onderdelen bij.",
     "noneActive": "Alle onderdelen zijn inactief. Zet \"Inactief tonen\" aan om ze te zien.",
     "inactive": "Inactief",
-    "unitHours": "u",
     "purchasedOn": "Gekocht op {date}",
     "wearLabel": "Slijtage {name}",
     "actions": {

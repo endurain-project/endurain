@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Aguarda enquanto confirmamos o teu endereço.",
+  "choosePasswordTitle": "Escolha a sua palavra-passe",
+  "choosePasswordBody": "O seu e-mail é confirmado depois de definir uma palavra-passe para a sua conta.",
+  "submitPassword": "Definir palavra-passe",
+  "submittingPassword": "A guardar a palavra-passe",
   "successTitle": "Email verificado",
   "successBody": "O teu endereço de email foi confirmado.",
   "adminApprovalBody": "A tua conta aguarda agora aprovação de um administrador.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Falha na verificação",
   "missingTokenBody": "Esta ligação de verificação não tem token.",
   "errorInvalidToken": "Esta ligação de verificação é inválida ou expirou.",
+  "errorEmailTaken": "Este endereço de email já é usado por outra conta, por isso não pode ser confirmado.",
   "errorNotFound": "Não encontrámos uma conta para esta ligação.",
   "errorGeneral": "Não foi possível verificar o teu email. Tenta novamente.",
   "retry": "Tentar novamente",

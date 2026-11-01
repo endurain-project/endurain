@@ -31,6 +31,7 @@
       "admin": "Ylläpitäjä",
       "inactive": "Ei käytössä",
       "unverified": "Vahvistamaton sähköposti",
+      "pendingEmail": "Sähköpostin vaihto odottaa",
       "pending": "Odottaa hyväksyntää",
       "externalAuth": "Ulkoinen todennus"
     },
@@ -64,18 +65,15 @@
       "email": "Sähköposti",
       "emailRequired": "Sähköposti on pakollinen",
       "emailInvalid": "Anna kelvollinen sähköpostiosoite",
+      "emailChangeHint": "Uuteen osoitteeseen lähetetään vahvistuslinkki, ja se korvaa nykyisen osoitteen vahvistamisen jälkeen. Käyttäjä kirjataan ulos kaikilta laitteilta. Jos haluat ottaa osoitteen käyttöön heti, merkitse uusi osoite vahvistetuksi.",
       "accessType": "Käyttöoikeustyyppi",
       "accessTypeRegular": "Tavallinen käyttäjä",
       "accessTypeAdmin": "Ylläpitäjä",
       "password": "Salasana",
       "passwordHint": "Vähintään 8 merkkiä",
-      "passwordHintStrict": "Vähintään {min} merkkiä, sisältäen ison kirjaimen, pienen kirjaimen, numeron ja erikoismerkin",
-      "passwordHintLength": "Vähintään {min} merkkiä",
       "passwordRequired": "Salasana on pakollinen",
-      "passwordInvalid": "Tämä salasana ei täytä vaatimuksia",
       "confirmPassword": "Vahvista salasana",
       "confirmPasswordRequired": "Vahvista salasana",
-      "passwordMismatch": "Salasanat eivät täsmää",
       "preferredLanguage": "Ensisijainen kieli",
       "languages": {
         "ca": "Katalaani",
@@ -118,14 +116,14 @@
       "units": "Yksiköt",
       "unitsMetric": "Metriset",
       "unitsImperial": "Brittiläiset",
+      "weightUnits": "Painoyksiköt",
+      "weightUnitsDefault": "Seuraa yksiköitä",
+      "weightUnitsMetric": "Kilogrammat (kg)",
+      "weightUnitsImperial": "Paunat (lb)",
       "height": "Pituus",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Jalkojen on oltava välillä 0–10",
       "inchesInvalid": "Tuumien on oltava välillä 0–11",
       "maxHeartRate": "Maksimisyke",
-      "unitBpm": "bpm",
       "currency": "Valuutta",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Tilin tila",
       "active": "Aktiivinen",
       "emailVerified": "Sähköposti vahvistettu",
+      "emailVerifiedCurrentHint": "Tämä on nykyisen osoitteen tila.",
+      "newEmailVerified": "Merkitse uusi osoite vahvistetuksi",
       "pendingAdminApproval": "Odottaa ylläpitäjän hyväksyntää",
       "requiredField": "Pakollinen kenttä",
       "create": "Lisää käyttäjä",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Takaisin käyttäjiin",
+      "pendingEmail": "Sähköpostin vaihto odottaa osoitteeseen {email}, linkki vanhenee {date}",
       "notFoundTitle": "Käyttäjää ei löytynyt",
       "notFoundDescription": "Tämä tili on saatettu poistaa",
       "securityTitle": "Tietoturva",
@@ -186,16 +187,12 @@
       "title": "Nollaa salasana",
       "description": "Aseta uusi salasana käyttäjälle {username}",
       "newLabel": "Uusi salasana",
-      "hintLength": "Vähintään {min} merkkiä",
-      "hintStrict": "Vähintään {min} merkkiä, sisältäen ison kirjaimen, pienen kirjaimen, numeron ja erikoismerkin",
       "confirmLabel": "Vahvista uusi salasana",
-      "mismatch": "Salasanat eivät täsmää",
       "required": "Salasana on pakollinen",
       "submit": "Nollaa salasana",
       "cancel": "Peruuta",
       "close": "Sulje",
       "success": "Salasana päivitetty",
-      "invalid": "Tämä salasana ei täytä vaatimuksia",
       "error": "Salasanaa ei voitu päivittää. Yritä uudelleen."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Salasanakäytäntö",
-      "type": "Käytäntö",
-      "typeStrict": "Tiukka (monimutkaisuus vaadittu)",
-      "typeLengthOnly": "Vain pituus",
       "lengthRegular": "Tavallisten käyttäjien vähimmäispituus",
       "lengthAdmin": "Ylläpitäjien vähimmäispituus"
     },
@@ -367,6 +361,29 @@
       "sent": "Testisähköposti lähetetty",
       "failed": "Testisähköpostia ei voitu lähettää",
       "failedUnknown": "Katso lisätiedot palvelimen lokeista."
+    },
+    "envLocked": "Määritetty muuttujalla {name}",
+    "envSection": "Jotkin tämän osion asetukset on määritetty ympäristömuuttujilla ({names}). Poista ne ympäristöstä, jos haluat muokata niitä täällä.",
+    "unsaved": "Tallentamattomia muutoksia",
+    "discard": "Hylkää",
+    "tabs": {
+      "label": "Palvelinasetusten osiot",
+      "general": "Yleiset",
+      "access": "Käyttö ja turvallisuus",
+      "maps": "Kartat ja sijainti",
+      "email": "Sähköposti",
+      "unsaved": "Sisältää tallentamattomia muutoksia"
+    },
+    "search": {
+      "placeholder": "Hae asetuksia…",
+      "noResults": "Asetuksia ei löytynyt"
+    },
+    "leave": {
+      "title": "Poistutaanko tallentamatta?",
+      "description": "Sinulla on tallentamattomia muutoksia. Ne menetetään, jos poistut sivulta.",
+      "confirm": "Poistu tallentamatta",
+      "stay": "Pysy sivulla",
+      "close": "Sulje"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Laajuudet saavat olla enintään 500 merkkiä",
       "icon": "Kuvake",
       "iconNone": "Ei mitään",
-      "iconCustom": "Mukautettu URL",
-      "customIconUrl": "Mukautetun kuvakkeen URL",
-      "customIconUrlHint": "Linkki kirjautumispainikkeessa näytettävään kuvaan",
       "enabled": "Käytössä",
       "autoCreateUsers": "Luo käyttäjät automaattisesti ensimmäisellä kirjautumisella",
       "syncUserInfo": "Synkronoi profiilitiedot jokaisella kirjautumisella",
@@ -491,13 +505,6 @@
       "distance": "Matka",
       "elevation": "Nousu",
       "duration": "Kesto"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Muokkaa tavoitetta {name}",
@@ -559,9 +566,6 @@
       "current": "Nykyinen salasana",
       "new": "Uusi salasana",
       "confirm": "Vahvista uusi salasana",
-      "requirementsStrict": "Vähintään {length} merkkiä, sisältäen ison kirjaimen, pienen kirjaimen, numeron ja erikoismerkin.",
-      "requirementsLength": "Vähintään {length} merkkiä.",
-      "mismatch": "Salasanat eivät täsmää.",
       "revokeOthers": "Kirjaa ulos kaikista muista laitteista",
       "submit": "Vaihda salasana",
       "success": "Salasana vaihdettu",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Salasanasi tai koodisi on virheellinen.",
       "alreadyLinked": "Kyseinen tili on jo linkitetty.",
       "lastMethodError": "Et voi poistaa ainoan kirjautumistapasi linkitystä. Aseta ensin salasana."
+    },
+    "email": {
+      "subtitle": "Tänne lähetetään salasanan palautukset ja ilmoitukset. Muutos edellyttää henkilöllisyyden vahvistamista, ja uusi osoite tulee voimaan, kun vahvistat sen linkistä, joka lähetetään sinne.",
+      "sameAsCurrent": "Tämä on jo sähköpostiosoitteesi.",
+      "success": "Vahvistuslinkki lähetettiin uuteen osoitteeseen. Sähköpostisi vaihtuu, kun vahvistat sen.",
+      "appliedSuccess": "Sähköpostiosoite vaihdettu.",
+      "pending": "Odottava muutos osoitteeseen {email}",
+      "pendingExpires": "Vahvistuslinkki vanhenee {date}.",
+      "resend": "Lähetä linkki uudelleen",
+      "cancel": "Peruuta muutos",
+      "resendSuccess": "Jos muutos on vireillä, uusi linkki on matkalla uuteen osoitteeseen.",
+      "resendError": "Linkin lähettäminen uudelleen epäonnistui. Yritä uudelleen.",
+      "cancelSuccess": "Sähköpostin vaihto peruttiin.",
+      "cancelError": "Muutosta ei voitu peruuttaa. Yritä uudelleen."
     },
     "apiKeys": {
       "title": "API-avaimet",
@@ -923,7 +941,6 @@
       "invalidType": "Valitse .zip-arkisto.",
       "exportSuccess": "Vienti valmis, latauksesi pitäisi alkaa pian",
       "exportError": "Tietojasi ei voitu viedä. Yritä uudelleen.",
-      "importSuccess": "Tiedot tuotu",
       "importError": "Arkistoa ei voitu tuoda. Tarkista tiedosto ja yritä uudelleen."
     }
   }

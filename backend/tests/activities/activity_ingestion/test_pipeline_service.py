@@ -83,9 +83,23 @@ class TestParseFile:
 class TestParseFileError:
     """Exception handler in parse_file."""
 
+    @pytest.mark.parametrize("error", [ValueError("bad data"), KeyError("trkpt"), TypeError("None"), EOFError()])
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
-    def test_raises_500_on_parse_error(self, mock_gpx):
-        mock_gpx.parse_gpx_file.side_effect = ValueError("bad data")
+    def test_content_the_parser_cannot_read_is_the_files_fault(self, mock_gpx, error):
+        """A corrupt file fails the same way on every retry, so it ends as INVALID_FILE at once."""
+        mock_gpx.parse_gpx_file.side_effect = error
+
+        with pytest.raises(core_exceptions.InvalidInputError) as exc:
+            pipeline.parse_file(
+                token_user_id=1,
+                file_extension=".gpx",
+                filename="/path/to/file.gpx",
+            )
+        assert exc.value.status_code == 400
+
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
+    def test_a_file_that_cannot_be_read_stays_a_server_error(self, mock_gpx):
+        mock_gpx.parse_gpx_file.side_effect = OSError("disk")
 
         with pytest.raises(core_exceptions.ProcessingError) as exc:
             pipeline.parse_file(
@@ -137,7 +151,7 @@ class TestStoreActivitiesFromFile:
 
         with (
             patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(
                 pipeline,
                 "parse_file",
@@ -175,7 +189,7 @@ class TestStoreActivitiesFromFile:
 
         with (
             patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(
                 pipeline,
                 "parse_file",
@@ -203,7 +217,7 @@ class TestStoreActivitiesFromFile:
 
         with (
             patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=activity_contracts.ParsedFile()),
             patch.object(pipeline.core_file_uploads, "sha256_file", return_value="hash"),
             patch.object(pipeline.activity_file_storage_integration, "store_activity_file_for_ids") as store,
@@ -228,7 +242,7 @@ class TestStoreActivitiesFromFile:
 
         with (
             patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=None),
         ):
             result = pipeline.store_activities_from_file(

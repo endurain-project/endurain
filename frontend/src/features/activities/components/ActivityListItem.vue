@@ -11,6 +11,7 @@ import type {
 import type { FormattedMetric, Units } from '@/features/activities/utils/format'
 
 import { NA_METRIC } from '@/features/activities/utils/activityListColumns'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatZonedDateTime } from '@/utils/datetime'
 import {
   activityTypeIsDistanceBased,
@@ -18,7 +19,6 @@ import {
   presentActivityType,
 } from '@/features/activities/utils/activityType'
 import {
-  combineMetric,
   formatDistance,
   formatElevation,
   formatHmsDuration,
@@ -45,6 +45,7 @@ const props = defineProps<{
 }>()
 
 const { locale } = useI18n()
+const { unitLabel, formatMetric } = useUnitFormat()
 
 const presentation = computed(() => presentActivityType(props.activity.activityType))
 const isDistanceBased = computed(() => activityTypeIsDistanceBased(props.activity.activityType))
@@ -95,12 +96,18 @@ const avgHrMetric = computed<FormattedMetric>(() => {
  */
 const cells = computed<Record<ActivityMetricKey, FormattedMetric>>(() => ({
   distance: isDistanceBased.value ? distanceMetric.value : NA_METRIC,
-  duration: { value: durationLabel.value, unit: '' },
+  duration: { value: durationLabel.value, unit: null },
   paceSpeed: isDistanceBased.value ? tempoMetric.value : NA_METRIC,
   elevation: isDistanceBased.value ? elevationMetric.value : NA_METRIC,
   calories: caloriesMetric.value,
   avgHr: avgHrMetric.value,
 }))
+
+/** The localized unit symbol of a column, or `''` for a unitless value. */
+function cellUnit(key: ActivityMetricKey): string {
+  const unit = cells.value[key].unit
+  return unit === null ? '' : unitLabel(unit)
+}
 
 /** The compact "distance · duration · pace [· extra sort column]" line shown
  * only on mobile. The extra column (calories/avg HR) is appended when the
@@ -109,17 +116,17 @@ const cells = computed<Record<ActivityMetricKey, FormattedMetric>>(() => ({
 const mobileSummary = computed(() => {
   const parts: string[] = []
   if (cells.value.distance.value !== '--') {
-    parts.push(combineMetric(cells.value.distance))
+    parts.push(formatMetric(cells.value.distance))
   }
   if (durationLabel.value !== '--') {
     parts.push(durationLabel.value)
   }
   if (cells.value.paceSpeed.value !== '--') {
-    parts.push(combineMetric(cells.value.paceSpeed))
+    parts.push(formatMetric(cells.value.paceSpeed))
   }
   const extraColumn = props.columns.find((col) => col.key === 'calories' || col.key === 'avgHr')
   if (extraColumn && cells.value[extraColumn.key].value !== '--') {
-    parts.push(combineMetric(cells.value[extraColumn.key]))
+    parts.push(formatMetric(cells.value[extraColumn.key]))
   }
   return parts.join(' · ')
 })
@@ -166,7 +173,7 @@ const mobileSummary = computed(() => {
         >
           {{ cells[col.key].value }}
           <span v-if="cells[col.key].unit" class="text-hint font-normal">{{
-            cells[col.key].unit
+            cellUnit(col.key)
           }}</span>
         </p>
         <p v-else class="text-metric font-medium leading-tight text-muted-foreground">—</p>

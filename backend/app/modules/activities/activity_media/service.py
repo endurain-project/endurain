@@ -18,16 +18,17 @@ from pathlib import PurePosixPath
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity_media.constants as activity_media_constants
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.schema as activity_media_schema
 import modules.activities.activity_media.signing as activity_media_signing
-import modules.activities.orphan_sweep as activities_orphan_sweep
 
 logger = core_logger.get_logger(__name__)
 
@@ -152,7 +153,7 @@ def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_
         activity_id: The activity it was being attached to, for the log context.
     """
     try:
-        storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, storage_key)
+        storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, storage_key)
     except Exception as storage_err:
         logger.warning(
             "Failed to clean up an orphaned activity media blob",
@@ -201,7 +202,10 @@ def _persist_media_bytes(
         return existing
 
     storage_key = _build_storage_key(activity_id, original_filename)
-    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data, _content_type_for(storage_key))
+    # The check above read, which holds a pooled connection until the transaction ends; the write is slow
+    # on object storage, and the row is committed after it either way.
+    db.commit()
+    storage.save(activity_media_constants.MEDIA_STORAGE_AREA, storage_key, data, _content_type_for(storage_key))
 
     try:
         record = activity_media_crud.create_activity_media(activity_id, storage_key, db, content_hash=content_hash)
@@ -338,7 +342,11 @@ def read_activity_media_blob(
     if media is None or media.activity_id != activity_id:
         raise core_exceptions.NotFoundError("Activity media not found")
 
-    data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, media.media_path)
+    media_path = media.media_path
+    # The lookup read, which holds a pooled connection until the transaction ends; fetching the blob can be
+    # slow on object storage.
+    db.commit()
+    data = storage.get(activity_media_constants.MEDIA_STORAGE_AREA, media_path)
     if data is None:
         logger.warning(
             "Activity media row has no blob behind its storage key",
@@ -346,7 +354,7 @@ def read_activity_media_blob(
         )
         raise core_exceptions.NotFoundError("Activity media not found")
 
-    return data, _content_type_for(media.media_path)
+    return data, _content_type_for(media_path)
 
 
 def store_activity_media(
@@ -427,7 +435,7 @@ def store_activity_media_bytes(
         UnsupportedMediaTypeError: For an unsupported extension.
     """
     created = _persist_media_bytes(activity_id, original_filename, data, storage, db)
-    logger.info(
+    logger.debug(
         "Stored activity media from a server-side import",
         extra=core_logger.context(activity_id=activity_id, media_id=created.id),
     )
@@ -469,7 +477,7 @@ def delete_activity_media(
         # Best-effort: the row is the source of truth, and a stray blob is
         # harmless because nothing serves it without a signed token.
         try:
-            storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, media.media_path)
+            storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, media.media_path)
         except Exception as storage_err:
             logger.warning(
                 "Failed to remove the stored blob for a deleted activity media record",
@@ -503,9 +511,9 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
         The number of blobs removed.
     """
     removed = 0
-    for key in storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, _key_prefix(activity_id)):
+    for key in storage.list_keys(activity_media_constants.MEDIA_STORAGE_AREA, _key_prefix(activity_id)):
         try:
-            storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, key)
+            storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, key)
             removed += 1
         except Exception as storage_err:
             logger.warning(
@@ -537,7 +545,7 @@ def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvid
         ``(storage_key, bytes)`` pairs for the blobs that could be read.
     """
     try:
-        keys = storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, _key_prefix(activity_id))
+        keys = storage.list_keys(activity_media_constants.MEDIA_STORAGE_AREA, _key_prefix(activity_id))
     except Exception as err:
         logger.warning(
             "Could not list an activity's media blobs",
@@ -549,7 +557,7 @@ def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvid
     blobs: list[tuple[str, bytes]] = []
     for key in keys:
         try:
-            data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, key)
+            data = storage.get(activity_media_constants.MEDIA_STORAGE_AREA, key)
         except Exception as err:
             logger.warning(
                 "Could not read a media blob; skipping it",
@@ -584,7 +592,7 @@ def store_media_blob(
         The storage key the blob was saved under.
     """
     key = _media_key(activity_id, f"{suffix}{extension}")
-    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, key, data)
+    storage.save(activity_media_constants.MEDIA_STORAGE_AREA, key, data)
     return key
 
 
@@ -618,29 +626,29 @@ def _activity_id_of_media_key(key: str) -> int | None:
     return int(match.group("activity_id")) if match else None
 
 
-def sweep_orphaned_media(storage: platform_providers.StorageProvider, db: Session) -> int:
+def sweep_orphaned_media(storage: platform_providers.StorageProvider) -> int:
     """Delete media blobs that no longer belong to anything.
 
     The storage-side net for the cleanup paths. A blob is swept when its activity
     is gone (a dropped ``activity.deleted`` event, since the media rows cascade
     with the activity) or when no media row names it (a failed best-effort delete
-    after the row was removed). Only a scan of the area finds either.
+    after the row was removed). Only a scan of the area finds either. The lookups
+    run in their own short sessions, so none is open during a storage call.
 
     Args:
         storage: The blob-storage provider.
-        db: Database session.
 
     Returns:
         The number of blobs deleted.
     """
-    removed = activities_orphan_sweep.sweep_orphaned_blobs(
+    removed = core_blob_sweep.sweep_orphaned_blobs(
         storage,
-        activity_media_signing.MEDIA_STORAGE_AREA,
-        lambda ids: activity_integration.filter_existing_activity_ids(ids, db),
+        activity_media_constants.MEDIA_STORAGE_AREA,
+        activity_integration.filter_existing_activity_ids,
         _activity_id_of_media_key,
     )
-    return removed + activities_orphan_sweep.sweep_unreferenced_blobs(
+    return removed + core_blob_sweep.sweep_unreferenced_blobs(
         storage,
-        activity_media_signing.MEDIA_STORAGE_AREA,
-        lambda keys: activity_media_crud.get_existing_media_paths(keys, db),
+        activity_media_constants.MEDIA_STORAGE_AREA,
+        activity_media_crud.get_existing_media_paths,
     )

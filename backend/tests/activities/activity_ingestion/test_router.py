@@ -36,7 +36,6 @@ class TestUploadRoute:
                 request=MagicMock(),
                 token_user_id=7,
                 file=file,
-                _check_scopes=None,
                 db=db,
                 storage="storage",
                 idempotency_key="key-1",
@@ -56,7 +55,6 @@ class TestUploadRoute:
                 request=MagicMock(),
                 token_user_id=7,
                 file=MagicMock(),
-                _check_scopes=None,
                 db=db,
                 storage="storage",
             )
@@ -111,7 +109,6 @@ class TestUploadRoute:
             router.read_activity_ingestion_job(
                 job_id="someone-elses-job",
                 token_user_id=7,
-                _check_scopes=None,
                 db=db,
             )
 
@@ -126,7 +123,6 @@ class TestUploadRoute:
             result = router.read_activity_ingestion_job(
                 job_id="job-1",
                 token_user_id=7,
-                _check_scopes=None,
                 db=db,
             )
 
@@ -145,7 +141,6 @@ class TestBulkImportRoutesDelegate:
                 request=MagicMock(),
                 token_user_id=3,
                 file=file,
-                _check_scopes=None,
                 db=db,
                 storage="storage",
                 source="strava",
@@ -164,7 +159,7 @@ class TestBulkImportRoutesDelegate:
             router.activity_ingestion_bulk_import_service, "start_from_directory", return_value="job"
         ) as start:
             result = router.create_bulk_import_from_folder(
-                request=MagicMock(), token_user_id=3, _check_scopes=None, db=db, storage="storage", source="generic"
+                request=MagicMock(), token_user_id=3, db=db, storage="storage", source="generic"
             )
 
         start.assert_called_once_with(3, "generic", "storage", db)
@@ -181,5 +176,5 @@ class TestBulkImportRoutesDelegate:
             pytest.raises(core_exceptions.ConflictError),
         ):
             router.create_bulk_import_from_folder(
-                request=MagicMock(), token_user_id=3, _check_scopes=None, db=MagicMock(), storage="s", source="generic"
+                request=MagicMock(), token_user_id=3, db=MagicMock(), storage="s", source="generic"
             )

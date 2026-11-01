@@ -4,16 +4,18 @@ import { useI18n } from 'vue-i18n'
 import { Pencil, Trash2 } from '@lucide/vue'
 
 import type { Goal } from '@/features/goals/types'
+import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_TYPE_LABEL_KEYS,
   GOAL_METRIC_LABEL_KEYS,
   INTERVAL_LABEL_KEYS,
-  formatGoalDuration,
   metersToDistanceValue,
   metersToElevationValue,
+  secondsToHoursMinutes,
 } from '@/features/goals/utils/goalFormat'
 
 const props = defineProps<{
@@ -29,6 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { withUnit, duration } = useUnitFormat()
 
 /** The activity icon for the goal's activity type. */
 const activityIcon = computed(() => ACTIVITY_TYPE_ICONS[props.goal.activityType])
@@ -36,30 +39,34 @@ const activityIcon = computed(() => ACTIVITY_TYPE_ICONS[props.goal.activityType]
 /** The translated activity-type name shown as the row title. */
 const activityLabel = computed(() => t(ACTIVITY_TYPE_LABEL_KEYS[props.goal.activityType]))
 
-/** The unit suffix for a distance target. */
-const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.miles') : t('settings.goals.unit.km'),
-)
+/** The unit of a distance target. */
+const distanceUnit = computed<UnitKey>(() => (props.units === 'imperial' ? 'mi' : 'km'))
 
-/** The unit suffix for an elevation target. */
-const elevationUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.feet') : t('settings.goals.unit.meters'),
-)
+/** The unit of an elevation target. */
+const elevationUnit = computed<UnitKey>(() => (props.units === 'imperial' ? 'ft' : 'm'))
 
 /** The formatted target value, expressed in the viewer's units. */
 const targetText = computed<string>(() => {
   const goal = props.goal
   switch (goal.goalType) {
     case 'calories':
-      return `${goal.calories ?? 0} ${t('settings.goals.unit.calories')}`
+      return withUnit(`${goal.calories ?? 0}`, 'kcal')
     case 'activities':
       return `${goal.activitiesNumber ?? 0}`
     case 'distance':
-      return `${metersToDistanceValue(goal.distanceMeters ?? 0, props.units)} ${distanceUnit.value}`
+      return withUnit(
+        `${metersToDistanceValue(goal.distanceMeters ?? 0, props.units)}`,
+        distanceUnit.value,
+      )
     case 'elevation':
-      return `${metersToElevationValue(goal.elevationMeters ?? 0, props.units)} ${elevationUnit.value}`
-    case 'duration':
-      return formatGoalDuration(goal.durationSeconds ?? 0)
+      return withUnit(
+        `${metersToElevationValue(goal.elevationMeters ?? 0, props.units)}`,
+        elevationUnit.value,
+      )
+    case 'duration': {
+      const { hours, minutes } = secondsToHoursMinutes(goal.durationSeconds ?? 0)
+      return duration(hours, minutes)
+    }
   }
   return ''
 })

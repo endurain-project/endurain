@@ -22,14 +22,10 @@ import pathlib
 #: truth for every conformance test (``test_module_boundaries.py``,
 #: ``test_logging_rule.py``): converting a module is moving its name from
 #: ``UNCONVERTED_MODULES`` to here, in this one file.
-CONVERTED_MODULES: tuple[str, ...] = ("activities", "followers")
-
-#: Top-level modules still on the legacy layout. Listed explicitly, rather than
-#: left implicit as "everything not converted", so that
-#: ``TestModuleInventory`` can fail on a module that is in neither list — a new
-#: module cannot start life silently outside the rules.
-UNCONVERTED_MODULES: tuple[str, ...] = (
+CONVERTED_MODULES: tuple[str, ...] = (
+    "activities",
     "auth",
+    "followers",
     "garmin",
     "gears",
     "health",
@@ -39,6 +35,9 @@ UNCONVERTED_MODULES: tuple[str, ...] = (
     "users",
     "websocket",
 )
+
+#: Every top-level module follows the structure guide.
+UNCONVERTED_MODULES: tuple[str, ...] = ()
 
 #: Every role, longest first so ``integration_service`` is not read as
 #: ``service`` and ``public_router`` is not read as ``router``.
@@ -56,6 +55,7 @@ ROLES: tuple[str, ...] = (
     "computation",
     "serializers",
     "subscribers",
+    "store",
     "constants",
     "contracts",
     "service",

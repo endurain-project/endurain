@@ -19,7 +19,7 @@ Endurain supports integration with other apps through a comprehensive OAuth 2.1 
 - The backend generates an `access_token` valid for 15 minutes (default) and a `refresh_token` valid for 7 days (default).
 - The `access_token` is used for authorization; the `refresh_token` is used to obtain new access tokens.
 - A `csrf_token` is generated for CSRF protection on state-changing requests.
-- Token expiration times can be customized via environment variables (see Configuration section below).
+- Token expiration times are set by an administrator in Settings > Server > Sessions (see [Configuration, scopes and best practices](auth-reference.md#configuration) for the deprecated environment variables).
 
 ### OAuth 2.1 Token Storage Model (Hybrid Approach)
 
@@ -85,7 +85,7 @@ The token refresh flow implements OAuth 2.1 compliant refresh token rotation:
 2. Backend validates refresh token and session, checks for token reuse
     - **If token reuse detected:** Entire token family is invalidated (security breach response)
 3. New tokens are generated (access, refresh, CSRF) with refresh token rotation
-4. Old refresh token is stored for reuse detection (grace period: 60 seconds)
+4. Old refresh token is stored for reuse detection (grace period: 10 seconds; the record is kept for the refresh token lifetime)
 5. Response includes new tokens; web clients receive new httpOnly cookie
 
 **Token Refresh Request (Web):**
@@ -131,8 +131,8 @@ Endurain implements automatic refresh token rotation with reuse detection to pre
 |------------------|-------------|
 | **Automatic Rotation** | New refresh token issued on every `/auth/refresh` call |
 | **Token Family Tracking** | All tokens in a session share a `token_family_id` |
-| **Reuse Detection** | Old tokens are stored and monitored for reuse |
-| **Grace Period** | 60-second window allows for network retry scenarios |
+| **Reuse Detection** | Old tokens are stored for the refresh token lifetime (`REFRESH_TOKEN_EXPIRE_DAYS`) and monitored for reuse |
+| **Grace Period** | A retry within 10 seconds of a rotation is answered with the replacement token; after that, presenting the old token counts as reuse |
 | **Family Invalidation** | If reuse detected, ALL tokens in family are invalidated |
 | **Rotation Count** | Tracks number of rotations for audit purposes |
 
@@ -158,7 +158,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | ---- | --- | -------------------- | ---------- |
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: web`; `FORM` with fields: `username`, `password`. HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: web`; Cookie: `endurain_refresh_token`; optional Header: `X-CSRF-Token` (bootstrap logic) | 30 requests/min |
-| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: web`; JSON `{'username': <username>, 'mfa_code': '123456'}` | 10 requests/min |
+| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: web`; JSON `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}` | 10 requests/min |
 | **Logout** | `/auth/logout` | Header: `X-Client-Type: web`; Cookie: `endurain_refresh_token` | 30 requests/min |
 
 ### Core Authentication Endpoints (Mobile)
@@ -167,7 +167,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | ---- | --- | -------------------- | ---------- |
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: mobile`; `FORM` with fields: `username`, `password`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE). HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
-| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: mobile`; JSON body: `{'username': <username>, 'mfa_code': '123456'}`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE) | 10 requests/min |
+| **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: mobile`; JSON body: `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE) | 10 requests/min |
 | **Logout** | `/auth/logout` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
 
 ### OAuth/SSO Endpoints
@@ -178,15 +178,16 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Header: `X-Client-Type` (`web` or `mobile`). For mobile OAuth/PKCE this must be `mobile`; query params: `redirect`, `code_challenge`, `code_challenge_method` | 10 requests/min per IP |
 | **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | 10 requests/min per IP |
 | **Token Exchange (PKCE)** | `/public/idp/session/{session_id}/tokens` | JSON: `{"code_verifier": "<verifier>"}` (password PKCE or SSO PKCE). Optional Header: `X-Client-Type`; if present, it must match the client type stored on the PKCE/OAuth state. | 10 requests/min |
-| **Create IdP Link Token** | `/profile/idp/{idp_id}/link/token` | Requires authenticated session and step-up JSON body: `current_password` for local-password accounts; `mfa_code` when MFA is enabled. Returns a 60-second one-time link token | 10 requests/min |
-| **Link IdP to Account** | `/profile/idp/{idp_id}/link?link_token=<token>` | Browser redirect endpoint using the one-time link token | - |
+| **Create IdP Link Token** | `/profile/identity-providers/{idp_id}/link/token` | Requires authenticated session and step-up JSON body: `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled. Returns a 60-second one-time link token | 10 requests/min |
+| **Start IdP Step-up** | `/profile/identity-providers/{idp_id}/step-up` | Requires authenticated session. JSON: `code_challenge`, `action`, `redirect` (relative path). Returns `authorization_url` and sets the `endurain_idp_binding` cookie. See [Account security](account-security.md#step-up-for-accounts-without-a-password) | - |
+| **Link IdP to Account** | `/profile/identity-providers/{idp_id}/link?link_token=<token>` | Browser redirect endpoint using the one-time link token | - |
 
 ### Session Management Endpoints
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
-| **Get User Sessions** | `/sessions/user/{user_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope |
-| **Delete Session** | `/sessions/{session_id}/user/{user_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:write` scope; web clients must also include `X-CSRF-Token` |
+| **Get User Sessions** | `/users/{user_id}/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope. Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` |
+| **Delete Session** | `/users/{user_id}/sessions/{session_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:write` scope; web clients must also include `X-CSRF-Token` |
 
 ### API Key Management Endpoints
 

@@ -1,4 +1,5 @@
 import { apiFetch } from '@/services/http'
+import type { Schemas } from '@/types'
 
 interface PasswordResetRequest {
   email: string
@@ -9,9 +10,7 @@ interface PasswordResetConfirm {
   new_password: string
 }
 
-interface PasswordResetResponse {
-  message: string
-}
+type PasswordResetResponse = Schemas['PasswordResetRead']
 
 /**
  * Requests a password reset email.

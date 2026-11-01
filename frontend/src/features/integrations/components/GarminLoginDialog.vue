@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
@@ -9,10 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
-import { useRealtime } from '@/composables/useRealtime'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
-import { HttpError } from '@/services/http'
 import {
+  useGarminLinkStatusQuery,
   useLinkGarminMutation,
   useSubmitGarminMfaMutation,
 } from '@/features/integrations/composables/useIntegrations'
@@ -21,24 +20,26 @@ const open = defineModel<boolean>('open', { required: true })
 
 const { t } = useI18n()
 const toasts = useToasts()
-const realtime = useRealtime()
 
 const username = ref('')
 const password = ref('')
 const isCn = ref(false)
 const mfaCode = ref('')
-// The Garmin login request stays pending while the backend waits for an MFA
-// code, which it asks for over the realtime channel.
+// The backend asks for an MFA code by reporting `mfa_required` on the link status we poll,
+// so the prompt never depends on a realtime push arriving.
 const mfaRequired = ref(false)
-// True from the moment the MFA code is submitted until the (still-pending) link
-// request resolves — the `/mfa` POST itself returns instantly, so the button
-// must track the link completing, not that quick code drop.
+// True from the moment the MFA code is submitted until the link attempt finishes — the
+// `/mfa` POST itself returns instantly, so the button must track the link, not that drop.
 const isVerifyingMfa = ref(false)
+// True while a started link attempt is being followed to its outcome.
+const linking = ref(false)
 
 const linkMutation = useLinkGarminMutation()
 const mfaMutation = useSubmitGarminMfaMutation()
+const statusQuery = useGarminLinkStatusQuery(linking)
 
-let unsubscribe: (() => void) | null = null
+/** Whether the credentials are locked: the start request or the background login is running. */
+const busy = computed(() => linkMutation.isPending.value || linking.value)
 
 const canSubmit = computed(() => username.value.trim().length > 0 && password.value.length > 0)
 
@@ -49,56 +50,84 @@ function reset(): void {
   mfaCode.value = ''
   mfaRequired.value = false
   isVerifyingMfa.value = false
+  linking.value = false
 }
 
-function stopListening(): void {
-  unsubscribe?.()
-  unsubscribe = null
+/** Ends the attempt on screen so the credentials can be corrected and resubmitted. */
+function stopFollowing(): void {
+  linking.value = false
+  mfaRequired.value = false
+  isVerifyingMfa.value = false
 }
 
 watch(open, (isOpen) => {
   if (isOpen) {
     reset()
-    unsubscribe = realtime.on('MFA_REQUIRED', () => {
-      mfaRequired.value = true
-    })
   } else {
-    stopListening()
+    // Closing stops following; the server finishes the attempt on its own.
+    linking.value = false
   }
 })
 
-onUnmounted(stopListening)
+watch(
+  () => statusQuery.data.value,
+  (state) => {
+    if (!state) {
+      return
+    }
+    if (state.status === 'mfa_required') {
+      mfaRequired.value = true
+    } else if (state.status === 'completed') {
+      stopFollowing()
+      open.value = false
+      toasts.success(t('settings.integrations.garmin.linkSuccess'))
+    } else if (state.status === 'failed') {
+      stopFollowing()
+      toasts.error(
+        state.reason === 'invalid_credentials'
+          ? t('settings.integrations.garmin.invalidCredentials')
+          : state.reason === 'incorrect_mfa'
+            ? t('settings.integrations.garmin.mfaError')
+            : t('settings.integrations.garmin.linkError'),
+      )
+    }
+  },
+)
 
-/** Starts the link; the request resolves once any required MFA code is supplied. */
+// The status is gone (expired) or unreachable: stop waiting instead of polling forever.
+watch(
+  () => statusQuery.isError.value,
+  (failed) => {
+    if (failed) {
+      stopFollowing()
+      toasts.error(t('settings.integrations.garmin.linkError'))
+    }
+  },
+)
+
+/** Starts the link; the dialog then follows its status until it completes or fails. */
 function onLogin(): void {
   linkMutation.mutate(
     { username: username.value.trim(), password: password.value, isCn: isCn.value },
     {
       onSuccess: () => {
-        open.value = false
-        toasts.success(t('settings.integrations.garmin.linkSuccess'))
+        linking.value = true
       },
-      onError: (error) => {
-        mfaRequired.value = false
-        isVerifyingMfa.value = false
-        toasts.error(
-          error instanceof HttpError && error.status === 401
-            ? t('settings.integrations.garmin.invalidCredentials')
-            : t('settings.integrations.garmin.linkError'),
-        )
+      onError: () => {
+        toasts.error(t('settings.integrations.garmin.linkError'))
       },
     },
   )
 }
 
-/** Submits the MFA code, which unblocks the pending login request. */
+/** Submits the MFA code the backend asked for; the attempt resumes on its own. */
 function onSubmitMfa(): void {
   const code = mfaCode.value.trim()
   if (code.length === 0) {
     return
   }
-  // Keep the button busy until the link resolves (success closes the dialog,
-  // failure clears this in the link's onError); the `/mfa` POST returns at once.
+  // Keep the button busy until the attempt resolves (success closes the dialog, failure
+  // clears this in stopFollowing); the `/mfa` POST returns at once.
   isVerifyingMfa.value = true
   mfaMutation.mutate(code, {
     onError: () => {
@@ -117,7 +146,7 @@ function onSubmitMfa(): void {
     :submit-label="t('settings.integrations.garmin.connect')"
     :cancel-label="t('settings.integrations.cancel')"
     :close-label="t('settings.integrations.close')"
-    :submitting="linkMutation.isPending.value"
+    :submitting="busy"
     :can-submit="canSubmit"
     @submit="onLogin"
   >
@@ -128,7 +157,7 @@ function onSubmitMfa(): void {
           id="garmin-username"
           v-model="username"
           autocomplete="username"
-          :disabled="linkMutation.isPending.value"
+          :disabled="busy"
           :placeholder="t('settings.integrations.garmin.username')"
           class="w-full"
         />
@@ -141,12 +170,12 @@ function onSubmitMfa(): void {
           v-model="password"
           name="current-password"
           autocomplete="current-password"
-          :disabled="linkMutation.isPending.value"
+          :disabled="busy"
           :placeholder="t('settings.integrations.garmin.password')"
         />
       </div>
 
-      <Switch v-model="isCn" :disabled="linkMutation.isPending.value">
+      <Switch v-model="isCn" :disabled="busy">
         {{ t('settings.integrations.garmin.isCn') }}
       </Switch>
 

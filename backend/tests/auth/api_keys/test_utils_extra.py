@@ -2,6 +2,7 @@
 
 import pytest
 
+import core.exceptions as core_exceptions
 import modules.auth.api_keys.utils as auth_api_keys_utils
 
 
@@ -78,41 +79,41 @@ class TestValidateApiKeyScopes:
 
     def test_validate_regular_user_with_valid_regular_scope(self):
         """Test that a regular user can request activities:upload."""
-        auth_api_keys_utils.validate_api_key_scopes(["activities:upload"], "regular")
+        auth_api_keys_utils.validate_api_key_scopes(["activities:upload"])
 
     def test_validate_admin_user_with_upload_scope(self):
         """Test that admin users can request activities:upload."""
-        auth_api_keys_utils.validate_api_key_scopes(["activities:upload"], "admin")
+        auth_api_keys_utils.validate_api_key_scopes(["activities:upload"])
 
     def test_validate_regular_user_with_admin_scope_raises(self):
         """Test that regular users cannot request JWT-only scopes."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
-            auth_api_keys_utils.validate_api_key_scopes(["users:write"], "regular")
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
+            auth_api_keys_utils.validate_api_key_scopes(["users:write"])
 
     def test_validate_unknown_scope_raises_for_regular_user(self):
         """Test that unrecognised scopes raise ValueError for a regular user."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
-            auth_api_keys_utils.validate_api_key_scopes(["totally:unknown_scope"], "regular")
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
+            auth_api_keys_utils.validate_api_key_scopes(["totally:unknown_scope"])
 
     def test_validate_unknown_scope_raises_for_admin_user(self):
         """Test that unrecognised scopes raise ValueError for an admin user."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
-            auth_api_keys_utils.validate_api_key_scopes(["totally:unknown_scope"], "admin")
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
+            auth_api_keys_utils.validate_api_key_scopes(["totally:unknown_scope"])
 
     def test_validate_activities_upload_allowed_for_regular(self):
         """Test that activities:upload is allowed for regular users."""
-        auth_api_keys_utils.validate_api_key_scopes(["activities:upload"], "regular")
+        auth_api_keys_utils.validate_api_key_scopes(["activities:upload"])
 
     def test_validate_multiple_valid_regular_scopes(self):
         """Test that extra JWT scopes are rejected."""
         scopes = ["activities:upload", "activities:read"]
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
-            auth_api_keys_utils.validate_api_key_scopes(scopes, "regular")
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
+            auth_api_keys_utils.validate_api_key_scopes(scopes)
 
     def test_validate_empty_list_raises_for_regular(self):
         """Test that an empty scope list is rejected."""
-        with pytest.raises(ValueError, match="Unsupported API key scopes"):
-            auth_api_keys_utils.validate_api_key_scopes([], "regular")
+        with pytest.raises(core_exceptions.InvalidInputError, match="Unsupported API key scopes"):
+            auth_api_keys_utils.validate_api_key_scopes([])
 
 
 class TestScopesJsonRoundTrip:

@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtrai",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Dviratis",
     "shoes": "Batai",
@@ -91,7 +89,6 @@
     "unsupported": "Šis įrangos tipas nestebi komponentų.",
     "noneActive": "Visi komponentai neaktyvūs. Įjunkite „Rodyti neaktyvius“, kad juos pamatytumėte.",
     "inactive": "Neaktyvus",
-    "unitHours": "h",
     "purchasedOn": "Įsigyta {date}",
     "wearLabel": "{name} nusidėvėjimas",
     "actions": {

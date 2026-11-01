@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DateRange } from '@/features/integrations/types'
 
+import * as realtime from '@/composables/useRealtime'
 import { apiFetch } from '@/services/http'
 import {
+  fetchGarminLinkStatus,
   linkGarmin,
   retrieveGarminActivities,
   retrieveGarminGear,
@@ -17,7 +19,8 @@ import {
   retrieveStravaActivities,
   retrieveStravaGear,
   setStravaClient,
-  setStravaState,
+  beginStravaState,
+  clearStravaState,
   unlinkStrava,
 } from '@/features/integrations/services/strava'
 import { daysAgoRange } from '@/features/integrations/utils/dateRange'
@@ -52,26 +55,25 @@ describe('strava service', () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
   })
 
-  it('setStravaState PUTs the state path (void)', async () => {
-    await setStravaState('abc123')
-    expect(apiFetch).toHaveBeenCalledWith('/strava/state/abc123', {
-      method: 'PUT',
+  it('beginStravaState POSTs and returns the server-issued state', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ state: 'issued-by-server' })
+    await expect(beginStravaState()).resolves.toBe('issued-by-server')
+    expect(apiFetch).toHaveBeenCalledWith('/strava/state', { method: 'POST' })
+  })
+
+  it('clearStravaState DELETEs the state', async () => {
+    await clearStravaState()
+    expect(apiFetch).toHaveBeenCalledWith('/strava/state', {
+      method: 'DELETE',
       responseType: 'void',
     })
   })
 
-  it('setStravaState sends "null" to clear', async () => {
-    await setStravaState(null)
-    expect(apiFetch).toHaveBeenCalledWith('/strava/state/null', {
-      method: 'PUT',
-      responseType: 'void',
-    })
-  })
-
-  it('setStravaClient PUTs the client credentials', async () => {
-    await setStravaClient({ clientId: 123456, clientSecret: 'sekret' })
+  it('setStravaClient PUTs the client credentials with the version it read', async () => {
+    await setStravaClient({ clientId: 123456, clientSecret: 'sekret' }, 4)
     expect(apiFetch).toHaveBeenCalledWith('/strava/client', {
       method: 'PUT',
+      headers: { 'If-Match': '"4"' },
       body: JSON.stringify({ client_id: 123456, client_secret: 'sekret' }),
       responseType: 'void',
     })
@@ -86,32 +88,121 @@ describe('strava service', () => {
     )
   })
 
-  it('completeStravaLink PUTs the link path with state + code', async () => {
-    await completeStravaLink('st ate', 'co/de')
-    expect(apiFetch).toHaveBeenCalledWith('/strava/link?state=st%20ate&code=co%2Fde', {
-      method: 'PUT',
-      responseType: 'void',
+  describe('completeStravaLink', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('PUTs state + code in the body, not the URL, and resolves once the queued link completes', async () => {
+      vi.useFakeTimers()
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
+        .mockResolvedValueOnce({ kind: 'link', status: 'running' })
+        .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
+
+      const done = completeStravaLink('st ate', 'co/de')
+      await vi.advanceTimersByTimeAsync(2_000)
+      await done
+
+      expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', {
+        method: 'POST',
+        body: JSON.stringify({ state: 'st ate', code: 'co/de' }),
+      })
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/link')
+      expect(apiFetch).toHaveBeenCalledTimes(3)
+    })
+
+    it("follows the link job's hints from before the job is queued", async () => {
+      vi.useFakeTimers()
+      const watch = vi.spyOn(realtime, 'watchJob')
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
+        .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
+
+      const done = completeStravaLink('s', 'c')
+      await vi.advanceTimersByTimeAsync(1_000)
+      await done
+
+      expect(watch).toHaveBeenCalledExactlyOnceWith('strava:link')
+      expect(watch.mock.invocationCallOrder[0]!).toBeLessThan(
+        vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
+      )
+      watch.mockRestore()
+    })
+
+    it('rejects when the queued link fails', async () => {
+      vi.mocked(apiFetch).mockResolvedValueOnce({ kind: 'link', status: 'failed' })
+
+      await expect(completeStravaLink('s', 'c')).rejects.toThrow('Linking Strava failed')
     })
   })
 
-  it('retrieveStravaActivities GETs the activities path with the window', async () => {
+  it('retrieveStravaActivities POSTs the activities path with the window', async () => {
     await retrieveStravaActivities(range)
     expect(apiFetch).toHaveBeenCalledWith(
       '/strava/activities?start_date=2026-01-01&end_date=2026-01-07',
-      { responseType: 'void' },
+      { method: 'POST', responseType: 'void' },
     )
   })
 
-  it('retrieveStravaGear GETs the gear path', async () => {
+  it('retrieveStravaGear POSTs the gear path', async () => {
     await retrieveStravaGear()
-    expect(apiFetch).toHaveBeenCalledWith('/strava/gear', { responseType: 'void' })
+    expect(apiFetch).toHaveBeenCalledWith('/strava/gear', { method: 'POST', responseType: 'void' })
   })
 
-  it('unlinkStrava DELETEs the unlink path', async () => {
-    await unlinkStrava()
-    expect(apiFetch).toHaveBeenCalledWith('/strava/unlink', {
-      method: 'DELETE',
-      responseType: 'void',
+  describe('unlinkStrava', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('DELETEs the unlink path and resolves once the queued unlink completes', async () => {
+      vi.useFakeTimers()
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce({ kind: 'unlink', status: 'queued' })
+        .mockResolvedValueOnce({ kind: 'unlink', status: 'running' })
+        .mockResolvedValueOnce({ kind: 'unlink', status: 'completed' })
+
+      const done = unlinkStrava()
+      await vi.advanceTimersByTimeAsync(2_000)
+      await done
+
+      expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', { method: 'DELETE' })
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/unlink')
+      expect(apiFetch).toHaveBeenCalledTimes(3)
+    })
+
+    it("follows the unlink job's hints from before the job is queued", async () => {
+      vi.useFakeTimers()
+      const watch = vi.spyOn(realtime, 'watchJob')
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce({ kind: 'unlink', status: 'queued' })
+        .mockResolvedValueOnce({ kind: 'unlink', status: 'completed' })
+
+      const done = unlinkStrava()
+      await vi.advanceTimersByTimeAsync(1_000)
+      await done
+
+      expect(watch).toHaveBeenCalledExactlyOnceWith('strava:unlink')
+      expect(watch.mock.invocationCallOrder[0]!).toBeLessThan(
+        vi.mocked(apiFetch).mock.invocationCallOrder[0]!,
+      )
+      watch.mockRestore()
+    })
+
+    it('gives up when the job has not finished by the deadline', async () => {
+      vi.useFakeTimers()
+      vi.mocked(apiFetch).mockResolvedValue({ kind: 'unlink', status: 'running' })
+
+      const outcome = unlinkStrava().catch((error: unknown) => error)
+      await vi.advanceTimersByTimeAsync(130_000)
+
+      expect(((await outcome) as Error).message).toBe('Unlinking Strava did not finish in time')
+    })
+
+    it('rejects when the queued unlink fails', async () => {
+      vi.mocked(apiFetch).mockResolvedValueOnce({ kind: 'unlink', status: 'failed' })
+
+      await expect(unlinkStrava()).rejects.toThrow('Unlinking Strava failed')
     })
   })
 })
@@ -122,57 +213,74 @@ describe('garmin service', () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
   })
 
-  it('linkGarmin POSTs the credentials', async () => {
-    await linkGarmin({ username: 'rider', password: 'pw', isCn: false })
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/link', {
+  it('linkGarmin POSTs the credentials and returns the initial status', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ status: 'pending', reason: null })
+
+    const status = await linkGarmin({ username: 'rider', password: 'pw', isCn: false })
+
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/link', {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: false }),
-      responseType: 'void',
     })
+    expect(status).toEqual({ status: 'pending', reason: null })
+  })
+
+  it('fetchGarminLinkStatus GETs the link status path', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ status: 'mfa_required', reason: null })
+    const controller = new AbortController()
+
+    const status = await fetchGarminLinkStatus(controller.signal)
+
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/link/status', {
+      signal: controller.signal,
+    })
+    expect(status.status).toBe('mfa_required')
   })
 
   it('linkGarmin forwards the China-region flag', async () => {
     await linkGarmin({ username: 'rider', password: 'pw', isCn: true })
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/link', {
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/link', {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: true }),
-      responseType: 'void',
     })
   })
 
   it('submitGarminMfa POSTs the code', async () => {
     await submitGarminMfa('123456')
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/mfa', {
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/mfa', {
       method: 'POST',
       body: JSON.stringify({ mfa_code: '123456' }),
       responseType: 'void',
     })
   })
 
-  it('retrieveGarminActivities GETs the activities path with the window', async () => {
+  it('retrieveGarminActivities POSTs the activities path with the window', async () => {
     await retrieveGarminActivities(range)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/garminconnect/activities?start_date=2026-01-01&end_date=2026-01-07',
-      { responseType: 'void' },
+      '/garmin/activities?start_date=2026-01-01&end_date=2026-01-07',
+      { method: 'POST', responseType: 'void' },
     )
   })
 
-  it('retrieveGarminGear GETs the gear path', async () => {
+  it('retrieveGarminGear POSTs the gear path', async () => {
     await retrieveGarminGear()
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/gear', { responseType: 'void' })
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/gear', {
+      method: 'POST',
+      responseType: 'void',
+    })
   })
 
-  it('retrieveGarminHealth GETs the health path with the window', async () => {
+  it('retrieveGarminHealth POSTs the health path with the window', async () => {
     await retrieveGarminHealth(range)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/garminconnect/health?start_date=2026-01-01&end_date=2026-01-07',
-      { responseType: 'void' },
+      '/garmin/health?start_date=2026-01-01&end_date=2026-01-07',
+      { method: 'POST', responseType: 'void' },
     )
   })
 
-  it('unlinkGarmin DELETEs the unlink path', async () => {
+  it('unlinkGarmin DELETEs the link', async () => {
     await unlinkGarmin()
-    expect(apiFetch).toHaveBeenCalledWith('/garminconnect/unlink', {
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/link', {
       method: 'DELETE',
       responseType: 'void',
     })

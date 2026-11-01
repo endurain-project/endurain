@@ -100,11 +100,7 @@ def _schedule_thumbnail_regeneration() -> None:
     runs. There the handler is already on a worker thread, so the pass runs inline.
     """
     if core_scheduler.scheduler.running:
-        core_scheduler.run_once(
-            activity_thumbnail_scheduled_jobs.regenerate_all_thumbnails,
-            job_id="endurain_regenerate_all_thumbnails",
-            description="thumbnail regeneration",
-        )
+        activity_thumbnail_scheduled_jobs.schedule_full_thumbnail_regeneration()
         return
     # The job runner renews the lease while this runs and the backfill lock keeps
     # a requeued copy from repeating the delete phase; a pass past
@@ -136,7 +132,7 @@ def regenerate_thumbnails_for_tile_settings_event(event: Event) -> None:
 on_tile_settings_changed_regenerate = best_effort(regenerate_thumbnails_for_tile_settings_event)
 
 
-def register_thumbnail_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the thumbnail subscribers for the activity lifecycle events.
 
     Called once at startup before the event bus is started.
@@ -149,7 +145,7 @@ def register_thumbnail_subscribers(events: EventBusProvider) -> None:
     events.subscribe(server_settings_events.TILE_SETTINGS_CHANGED, on_tile_settings_changed_regenerate)
 
 
-def register_thumbnail_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the thumbnail handlers as durable job subscribers.
 
     Used when durable jobs are enabled: the outbox relay fans ``activity.created``

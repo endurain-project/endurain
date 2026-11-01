@@ -4,10 +4,10 @@ import type { Schemas } from '@/types'
 export type PasswordChangeDto = Schemas['UsersEditPassword']
 
 /** Raw MFA status payload. */
-export type MfaStatusDto = Schemas['MFAStatusResponse']
+export type MfaStatusDto = Schemas['MFAStatusRead']
 
 /** Raw MFA setup payload (TOTP secret + QR image). */
-export type MfaSetupDto = Schemas['MFASetupResponse']
+export type MfaSetupDto = Schemas['MFASetupRead']
 
 /** Enable-MFA request body. */
 export type MfaEnableDto = Schemas['MFASetupRequest']
@@ -16,13 +16,19 @@ export type MfaEnableDto = Schemas['MFASetupRequest']
 export type MfaDisableDto = Schemas['MFADisableRequest']
 
 /** Raw backup-code status payload. */
-export type BackupCodeStatusDto = Schemas['MFABackupCodeStatus']
+export type BackupCodeStatusDto = Schemas['MFABackupCodeStatusRead']
 
 /** Raw regenerated backup-codes payload. */
-export type BackupCodesDto = Schemas['MFABackupCodesResponse']
+export type BackupCodesDto = Schemas['MFABackupCodesRead']
 
 /** Step-up verification body shared by sensitive self-service actions. */
 export type StepUpDto = Schemas['StepUpVerification']
+
+/** Email-change request body: the new address plus the step-up credentials. */
+export type EmailChangeDto = Schemas['EmailChange']
+
+/** Profile payload the email-change request answers with. */
+export type EmailChangeResultDto = Schemas['UsersMe']
 
 /** Raw session payload (snake_case wire shape). */
 export type SecuritySessionDto = Schemas['UsersSessionsRead']
@@ -52,18 +58,47 @@ export interface MfaSetup {
   qrCode: string
 }
 
-/** Credentials proving control of the account before a sensitive change. */
-export interface StepUpInput {
-  /** The current password, or `null` for SSO-only accounts. */
-  currentPassword: string | null
-  /** A TOTP or backup code, or `null` when MFA is not enabled. */
-  mfaCode: string | null
+/** A sensitive operation a step-up re-authentication authorises. */
+export type StepUpAction = Schemas['StepUpAction']
+
+/** Wire shape of the identity-provider re-authentication proof. */
+export type IdpReauthDto = Schemas['IdpReauthProof']
+
+/** Body that starts an identity-provider step-up. */
+export type StepUpStartDto = Schemas['StepUpStartRequest']
+
+/** Response of the step-up start endpoint. */
+export type StepUpStartResultDto = Schemas['StepUpStartRead']
+
+/**
+ * Proof of a fresh identity-provider sign-in.
+ *
+ * @property ticket - The single-use ticket the identity-provider callback returned.
+ * @property codeVerifier - The PKCE verifier whose challenge started the step-up.
+ */
+export interface IdpReauth {
+  ticket: string
+  codeVerifier: string
 }
 
-/** Completes MFA enrolment: the first valid code plus optional step-up password. */
+/**
+ * Credentials proving control of the account before a sensitive change.
+ *
+ * @property currentPassword - The current password, or `null` for SSO-only accounts.
+ * @property mfaCode - A TOTP or backup code, or `null` when MFA is not enabled.
+ * @property idpReauth - Fresh identity-provider sign-in proof, for accounts without a password.
+ */
+export interface StepUpInput {
+  currentPassword: string | null
+  mfaCode: string | null
+  idpReauth?: IdpReauth | null
+}
+
+/** Completes MFA enrolment: the first valid code plus the step-up password or sign-in proof. */
 export interface MfaEnableInput {
   mfaCode: string
   currentPassword: string | null
+  idpReauth?: IdpReauth | null
 }
 
 /** The remaining-backup-codes summary shown while MFA is enabled. */
@@ -109,13 +144,13 @@ export interface SecuritySession {
 }
 
 /** Raw linked identity-provider payload (snake_case wire shape). */
-export type LinkedProviderDto = Schemas['UsersIdentityProviderResponse']
+export type LinkedProviderDto = Schemas['IdentityProviderLinkRead']
 
 /** Raw link-token payload from the generate-link-token step. */
-export type LinkTokenDto = Schemas['IdpLinkTokenResponse']
+export type LinkTokenDto = Schemas['IdentityProviderLinkTokenRead']
 
 /** A provider a user can link to (an enabled public provider). */
-export type AvailableProvider = Schemas['IdentityProviderPublic']
+export type AvailableProvider = Schemas['IdentityProviderPublicRead']
 
 /**
  * A clean linked identity-provider model for the security zone. Mapped from
@@ -137,6 +172,7 @@ export interface LinkedProvider {
   name: string | null
   slug: string | null
   icon: string | null
+  iconUploaded: boolean
   providerType: string | null
   subject: string
   linkedAt: string
@@ -147,7 +183,7 @@ export interface LinkedProvider {
 export type ApiKeyDto = Schemas['UsersApiKeyRead']
 
 /** Raw create-API-key response, including the one-time raw `key`. */
-export type ApiKeyCreatedDto = Schemas['UsersApiKeyCreated']
+export type ApiKeyCreatedDto = Schemas['UsersApiKeyCreatedRead']
 
 /** Create-API-key request body. */
 export type ApiKeyCreateDto = Schemas['UsersApiKeyCreate']
@@ -189,4 +225,8 @@ export interface ApiKeyCreateInput {
   expiresAt: string | null
   currentPassword: string | null
   mfaCode: string | null
+  idpReauth?: IdpReauth | null
 }
+
+/** The non-secret create-API-key form values kept across an identity-provider sign-in. */
+export type ApiKeyDraft = Pick<ApiKeyCreateInput, 'name' | 'scopes' | 'expiresAt'>

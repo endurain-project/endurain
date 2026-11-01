@@ -6,6 +6,7 @@ import type {
 } from '@/features/security/types'
 
 import { API_BASE_URL, apiFetch } from '@/services/http'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw linked-provider payload to the clean {@link LinkedProvider} model
@@ -21,18 +22,11 @@ export function mapLinkedProvider(dto: LinkedProviderDto): LinkedProvider {
     name: dto.idp_name ?? null,
     slug: dto.idp_slug ?? null,
     icon: dto.idp_icon ?? null,
+    iconUploaded: dto.idp_icon_uploaded ?? false,
     providerType: dto.idp_provider_type ?? null,
     subject: dto.idp_subject,
     linkedAt: dto.linked_at,
     lastLogin: dto.last_login ?? null,
-  }
-}
-
-/** Builds the step-up wire body shared by link-token and unlink requests. */
-function toStepUpWire(input: StepUpInput) {
-  return {
-    current_password: input.currentPassword,
-    mfa_code: input.mfaCode,
   }
 }
 
@@ -44,7 +38,7 @@ function toStepUpWire(input: StepUpInput) {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchLinkedProviders(signal?: AbortSignal): Promise<LinkedProvider[]> {
-  const dtos = await apiFetch<LinkedProviderDto[] | null>('/profile/idp', { signal })
+  const dtos = await apiFetch<LinkedProviderDto[] | null>('/profile/identity-providers', { signal })
   return (dtos ?? []).map(mapLinkedProvider)
 }
 
@@ -59,7 +53,7 @@ export async function fetchLinkedProviders(signal?: AbortSignal): Promise<Linked
  * @throws {HttpError} When the request fails (401 step-up, 409 already linked).
  */
 export async function generateLinkToken(idpId: number, input: StepUpInput): Promise<string> {
-  const dto = await apiFetch<LinkTokenDto>(`/profile/idp/${idpId}/link/token`, {
+  const dto = await apiFetch<LinkTokenDto>(`/profile/identity-providers/${idpId}/link/token`, {
     method: 'POST',
     body: JSON.stringify(toStepUpWire(input)),
   })
@@ -88,7 +82,7 @@ export function buildLinkStartUrl(
   returnPath = '/settings/security',
 ): string {
   const params = new URLSearchParams({ link_token: token, redirect: returnPath })
-  return `${API_BASE_URL}/profile/idp/${idpId}/link?${params.toString()}`
+  return `${API_BASE_URL}/profile/identity-providers/${idpId}/link?${params.toString()}`
 }
 
 /**
@@ -101,7 +95,7 @@ export function buildLinkStartUrl(
  * @throws {HttpError} When the request fails (401 step-up, 400 last method).
  */
 export async function unlinkProvider(idpId: number, input: StepUpInput): Promise<void> {
-  await apiFetch(`/profile/idp/${idpId}/unlink`, {
+  await apiFetch(`/profile/identity-providers/${idpId}/unlink`, {
     method: 'POST',
     body: JSON.stringify(toStepUpWire(input)),
     responseType: 'void',

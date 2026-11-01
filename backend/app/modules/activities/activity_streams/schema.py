@@ -15,7 +15,7 @@ class ActivityStreamsBase(BaseModel):
     Attributes:
         id: Unique stream identifier.
         activity_id: Parent activity identifier.
-        stream_type: Stream type code (1-7).
+        stream_type: Stream type code (1-8).
         stream_waypoints: Waypoint data points.
         strava_activity_stream_id: Strava stream ID.
     """

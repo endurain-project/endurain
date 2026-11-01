@@ -31,6 +31,7 @@
       "admin": "管理员",
       "inactive": "未激活",
       "unverified": "邮箱未验证",
+      "pendingEmail": "邮箱更改待处理",
       "pending": "待审核",
       "externalAuth": "外部认证"
     },
@@ -64,18 +65,15 @@
       "email": "邮箱",
       "emailRequired": "邮箱为必填项",
       "emailInvalid": "请输入有效的邮箱地址",
+      "emailChangeHint": "系统会向新邮箱发送确认链接，确认后将替换当前邮箱。该用户将在所有设备上退出登录。若要立即生效，请将新邮箱标记为已验证。",
       "accessType": "访问类型",
       "accessTypeRegular": "普通用户",
       "accessTypeAdmin": "管理员",
       "password": "密码",
       "passwordHint": "至少 8 个字符",
-      "passwordHintStrict": "至少 {min} 个字符，包含大写字母、小写字母、数字和特殊字符",
-      "passwordHintLength": "至少 {min} 个字符",
       "passwordRequired": "密码为必填项",
-      "passwordInvalid": "密码不符合要求",
       "confirmPassword": "确认密码",
       "confirmPasswordRequired": "确认密码",
-      "passwordMismatch": "两次密码不一致",
       "preferredLanguage": "首选语言",
       "languages": {
         "ca": "加泰罗尼亚语",
@@ -118,14 +116,14 @@
       "units": "单位",
       "unitsMetric": "公制",
       "unitsImperial": "英制",
+      "weightUnits": "体重单位",
+      "weightUnitsDefault": "跟随单位",
+      "weightUnitsMetric": "千克 (kg)",
+      "weightUnitsImperial": "磅 (lb)",
       "height": "身高",
-      "unitCm": "厘米",
-      "unitFeet": "英尺",
-      "unitInches": "英寸",
       "feetInvalid": "英尺必须在 0 到 10 之间",
       "inchesInvalid": "英寸必须在 0 到 11 之间",
       "maxHeartRate": "最大心率",
-      "unitBpm": "次/分",
       "currency": "货币",
       "currencies": {
         "euro": "欧元",
@@ -149,6 +147,8 @@
       "statusLegend": "账户状态",
       "active": "活跃",
       "emailVerified": "邮箱已验证",
+      "emailVerifiedCurrentHint": "这是当前邮箱的状态。",
+      "newEmailVerified": "将新邮箱标记为已验证",
       "pendingAdminApproval": "待管理员审核",
       "requiredField": "必填项",
       "create": "添加用户",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "返回用户列表",
+      "pendingEmail": "待处理的邮箱更改为 {email}，链接将于 {date} 过期",
       "notFoundTitle": "未找到用户",
       "notFoundDescription": "此账户可能已被删除",
       "securityTitle": "安全",
@@ -186,16 +187,12 @@
       "title": "重置密码",
       "description": "为 {username} 设置新密码",
       "newLabel": "新密码",
-      "hintLength": "至少 {min} 个字符",
-      "hintStrict": "至少 {min} 个字符，包含大写字母、小写字母、数字和特殊字符",
       "confirmLabel": "确认新密码",
-      "mismatch": "两次密码不一致",
       "required": "密码为必填项",
       "submit": "重置密码",
       "cancel": "取消",
       "close": "关闭",
       "success": "密码已更新",
-      "invalid": "密码不符合要求",
       "error": "无法更新密码，请重试。"
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "密码策略",
-      "type": "策略",
-      "typeStrict": "严格（需要复杂度）",
-      "typeLengthOnly": "仅限长度",
       "lengthRegular": "普通用户最短密码长度",
       "lengthAdmin": "管理员最短密码长度"
     },
@@ -367,6 +361,29 @@
       "sent": "测试邮件已发送",
       "failed": "无法发送测试邮件",
       "failedUnknown": "请查看服务器日志了解详情。"
+    },
+    "envLocked": "由 {name} 设置",
+    "envSection": "此处的部分设置由环境变量（{names}）决定。请从环境中移除这些变量，以便在此处编辑相应设置。",
+    "unsaved": "未保存的更改",
+    "discard": "放弃",
+    "tabs": {
+      "label": "服务器设置分区",
+      "general": "常规",
+      "access": "访问与安全",
+      "maps": "地图与位置",
+      "email": "电子邮件",
+      "unsaved": "有未保存的更改"
+    },
+    "search": {
+      "placeholder": "搜索设置…",
+      "noResults": "未找到设置"
+    },
+    "leave": {
+      "title": "不保存就离开？",
+      "description": "你有未保存的更改。离开此页面后这些更改将丢失。",
+      "confirm": "不保存并离开",
+      "stay": "留在此页面",
+      "close": "关闭"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "权限范围不能超过 500 个字符",
       "icon": "图标",
       "iconNone": "无",
-      "iconCustom": "自定义 URL",
-      "customIconUrl": "自定义图标 URL",
-      "customIconUrlHint": "指向登录按钮图片的链接",
       "enabled": "已启用",
       "autoCreateUsers": "首次登录时自动创建用户",
       "syncUserInfo": "每次登录时同步个人资料信息",
@@ -491,13 +505,6 @@
       "distance": "距离",
       "elevation": "爬升",
       "duration": "时长"
-    },
-    "unit": {
-      "calories": "千卡",
-      "km": "千米",
-      "miles": "英里",
-      "meters": "米",
-      "feet": "英尺"
     },
     "list": {
       "edit": "编辑 {name} 目标",
@@ -559,9 +566,6 @@
       "current": "当前密码",
       "new": "新密码",
       "confirm": "确认新密码",
-      "requirementsStrict": "至少 {length} 个字符，包含大写字母、小写字母、数字和符号。",
-      "requirementsLength": "至少 {length} 个字符。",
-      "mismatch": "两次密码不一致。",
       "revokeOthers": "注销所有其他设备",
       "submit": "更改密码",
       "success": "密码已更改",
@@ -650,6 +654,20 @@
       "invalidCredentials": "密码或验证码不正确。",
       "alreadyLinked": "该账户已被关联。",
       "lastMethodError": "无法取消关联唯一的登录方式。请先设置密码。"
+    },
+    "email": {
+      "subtitle": "密码重置邮件和通知会发送到此邮箱。更改时需要验证您的身份，新邮箱只有在您通过我们发送到该邮箱的链接确认后才会生效。",
+      "sameAsCurrent": "这已是您的邮箱地址。",
+      "success": "确认链接已发送至新邮箱。确认后，您的邮箱将会更改。",
+      "appliedSuccess": "邮箱已更改。",
+      "pending": "待处理的更改：{email}",
+      "pendingExpires": "确认链接将于 {date} 过期。",
+      "resend": "重新发送链接",
+      "cancel": "取消更改",
+      "resendSuccess": "如果有待处理的更改，新链接将发送至新邮箱。",
+      "resendError": "无法重新发送链接，请重试。",
+      "cancelSuccess": "已取消邮箱更改。",
+      "cancelError": "无法取消更改，请重试。"
     },
     "apiKeys": {
       "title": "API 密钥",
@@ -923,7 +941,6 @@
       "invalidType": "请选择 .zip 压缩文件。",
       "exportSuccess": "导出完成，您的下载将很快开始",
       "exportError": "无法导出您的数据，请重试。",
-      "importSuccess": "数据已导入",
       "importError": "无法导入压缩文件，请检查文件后重试。"
     }
   }

@@ -64,16 +64,13 @@ class TestUserDefaultGearRead:
 class TestUserDefaultGearUpdate:
     """Test suite for UsersDefaultGearUpdate schema."""
 
-    def test_user_default_gear_update_inherits_from_read(self):
-        """Test Update schema inherits from Read."""
-        # Act
-        gear = user_default_gear_schema.UsersDefaultGearUpdate(
-            id=1,
-            user_id=2,
-            run_gear_id=3,
-        )
+    def test_update_carries_only_the_gear_assignments(self):
+        gear = user_default_gear_schema.UsersDefaultGearUpdate(run_gear_id=3)
 
-        # Assert
-        assert gear.id == 1
-        assert gear.user_id == 2
         assert gear.run_gear_id == 3
+        assert not hasattr(gear, "user_id")
+
+    @pytest.mark.parametrize("field", ["id", "user_id"])
+    def test_update_refuses_identity_fields(self, field):
+        with pytest.raises(ValidationError):
+            user_default_gear_schema.UsersDefaultGearUpdate(**{field: 1})

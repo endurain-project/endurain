@@ -31,6 +31,7 @@
       "admin": "Yönetici",
       "inactive": "Pasif",
       "unverified": "Doğrulanmamış e-posta",
+      "pendingEmail": "Bekleyen e-posta değişikliği",
       "pending": "Onay bekliyor",
       "externalAuth": "Harici kimlik doğrulama"
     },
@@ -64,18 +65,15 @@
       "email": "E-posta",
       "emailRequired": "E-posta zorunludur",
       "emailInvalid": "Geçerli bir e-posta adresi girin",
+      "emailChangeHint": "Yeni adrese bir onay bağlantısı gönderilir ve onaylandığında mevcut adresin yerini alır. Kullanıcı tüm cihazlardan çıkış yapar. Yeni adresi hemen uygulamak için bunun yerine doğrulanmış olarak işaretleyin.",
       "accessType": "Erişim türü",
       "accessTypeRegular": "Normal kullanıcı",
       "accessTypeAdmin": "Yönetici",
       "password": "Parola",
       "passwordHint": "En az 8 karakter",
-      "passwordHintStrict": "En az {min} karakter; büyük harf, küçük harf, bir rakam ve bir özel karakter içermeli",
-      "passwordHintLength": "En az {min} karakter",
       "passwordRequired": "Parola zorunludur",
-      "passwordInvalid": "Bu parola gereksinimleri karşılamıyor",
       "confirmPassword": "Parolayı onayla",
       "confirmPasswordRequired": "Parolayı onayla",
-      "passwordMismatch": "Parolalar eşleşmiyor",
       "preferredLanguage": "Tercih edilen dil",
       "languages": {
         "ca": "Katalanca",
@@ -118,14 +116,14 @@
       "units": "Birimler",
       "unitsMetric": "Metrik",
       "unitsImperial": "İngiliz",
+      "weightUnits": "Ağırlık birimleri",
+      "weightUnitsDefault": "Birimleri takip et",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pound (lb)",
       "height": "Boy",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Fit değeri 0 ile 10 arasında olmalı",
       "inchesInvalid": "İnç değeri 0 ile 11 arasında olmalı",
       "maxHeartRate": "Maks. kalp atış hızı",
-      "unitBpm": "bpm",
       "currency": "Para birimi",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Hesap durumu",
       "active": "Aktif",
       "emailVerified": "E-posta doğrulandı",
+      "emailVerifiedCurrentHint": "Bu, mevcut adresin durumudur.",
+      "newEmailVerified": "Yeni adresi doğrulanmış olarak işaretle",
       "pendingAdminApproval": "Yönetici onayı bekliyor",
       "requiredField": "Zorunlu alan",
       "create": "Kullanıcı ekle",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Kullanıcılara geri dön",
+      "pendingEmail": "{email} adresine bekleyen e-posta değişikliği, bağlantının süresi {date} tarihinde doluyor",
       "notFoundTitle": "Kullanıcı bulunamadı",
       "notFoundDescription": "Bu hesap silinmiş olabilir",
       "securityTitle": "Güvenlik",
@@ -186,16 +187,12 @@
       "title": "Parolayı sıfırla",
       "description": "{username} için yeni bir parola belirleyin",
       "newLabel": "Yeni parola",
-      "hintLength": "En az {min} karakter",
-      "hintStrict": "En az {min} karakter; büyük harf, küçük harf, bir rakam ve bir özel karakter içermeli",
       "confirmLabel": "Yeni parolayı onayla",
-      "mismatch": "Parolalar eşleşmiyor",
       "required": "Parola zorunludur",
       "submit": "Parolayı sıfırla",
       "cancel": "İptal",
       "close": "Kapat",
       "success": "Parola güncellendi",
-      "invalid": "Bu parola gereksinimleri karşılamıyor",
       "error": "Parola güncellenemedi. Lütfen tekrar deneyin."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Parola ilkesi",
-      "type": "İlke",
-      "typeStrict": "Katı (karmaşıklık gerekli)",
-      "typeLengthOnly": "Yalnızca uzunluk",
       "lengthRegular": "Normal kullanıcılar için minimum uzunluk",
       "lengthAdmin": "Yönetici kullanıcılar için minimum uzunluk"
     },
@@ -367,6 +361,29 @@
       "sent": "Test e-postası gönderildi",
       "failed": "Test e-postası gönderilemedi",
       "failedUnknown": "Ayrıntılar için sunucu günlüklerine bakın."
+    },
+    "envLocked": "{name} tarafından ayarlanıyor",
+    "envSection": "Buradaki bazı ayarlar ortam değişkenleriyle ({names}) belirleniyor. Bu ayarları burada düzenlemek için değişkenleri ortamdan kaldırın.",
+    "unsaved": "Kaydedilmemiş değişiklikler",
+    "discard": "Vazgeç",
+    "tabs": {
+      "label": "Sunucu ayarları bölümleri",
+      "general": "Genel",
+      "access": "Erişim ve güvenlik",
+      "maps": "Haritalar ve konum",
+      "email": "E-posta",
+      "unsaved": "Kaydedilmemiş değişiklikler içeriyor"
+    },
+    "search": {
+      "placeholder": "Ayarlarda ara…",
+      "noResults": "Ayar bulunamadı"
+    },
+    "leave": {
+      "title": "Kaydetmeden ayrılınsın mı?",
+      "description": "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan ayrılırsanız kaybolacaklar.",
+      "confirm": "Kaydetmeden ayrıl",
+      "stay": "Sayfada kal",
+      "close": "Kapat"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Kapsamlar en fazla 500 karakter olmalı",
       "icon": "Simge",
       "iconNone": "Yok",
-      "iconCustom": "Özel URL",
-      "customIconUrl": "Özel simge URL'si",
-      "customIconUrlHint": "Giriş düğmesinde gösterilen bir görsele bağlantı",
       "enabled": "Etkin",
       "autoCreateUsers": "İlk girişte kullanıcıları otomatik oluştur",
       "syncUserInfo": "Her girişte profil bilgisini eşitle",
@@ -491,13 +505,6 @@
       "distance": "Mesafe",
       "elevation": "Yükseklik",
       "duration": "Süre"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "{name} hedefini düzenle",
@@ -559,9 +566,6 @@
       "current": "Mevcut parola",
       "new": "Yeni parola",
       "confirm": "Yeni parolayı onayla",
-      "requirementsStrict": "En az {length} karakter; büyük harf, küçük harf, bir rakam ve bir sembol içermeli.",
-      "requirementsLength": "En az {length} karakter.",
-      "mismatch": "Parolalar eşleşmiyor.",
       "revokeOthers": "Diğer tüm cihazlardan çıkış yap",
       "submit": "Parolayı değiştir",
       "success": "Parola değiştirildi",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Parolanız veya kodunuz yanlış.",
       "alreadyLinked": "Bu hesap zaten bağlı.",
       "lastMethodError": "Tek giriş yönteminizin bağlantısını kaldıramazsınız. Önce bir parola belirleyin."
+    },
+    "email": {
+      "subtitle": "Parola sıfırlamaları ve bildirimler buraya gönderilir. Değiştirmek için kimliğinizi doğrulamanız gerekir; yeni adres, oraya gönderdiğimiz bağlantıyı onayladığınızda geçerli olur.",
+      "sameAsCurrent": "Bu zaten e-posta adresiniz.",
+      "success": "Onay bağlantısı yeni adrese gönderildi. E-posta adresiniz onayladığınızda değişecek.",
+      "appliedSuccess": "E-posta değiştirildi.",
+      "pending": "{email} adresine bekleyen değişiklik",
+      "pendingExpires": "Onay bağlantısının süresi {date} tarihinde doluyor.",
+      "resend": "Bağlantıyı yeniden gönder",
+      "cancel": "Değişikliği iptal et",
+      "resendSuccess": "Bekleyen bir değişiklik varsa yeni adrese yeni bir bağlantı gönderiliyor.",
+      "resendError": "Bağlantı yeniden gönderilemedi. Lütfen tekrar deneyin.",
+      "cancelSuccess": "E-posta değişikliği iptal edildi.",
+      "cancelError": "Değişiklik iptal edilemedi. Lütfen tekrar deneyin."
     },
     "apiKeys": {
       "title": "API anahtarları",
@@ -923,7 +941,6 @@
       "invalidType": "Lütfen bir .zip arşivi seçin.",
       "exportSuccess": "Dışa aktarım hazır, indirme işleminiz kısa süre içinde başlamalı",
       "exportError": "Verileriniz dışa aktarılamadı. Lütfen tekrar deneyin.",
-      "importSuccess": "Veriler içe aktarıldı",
       "importError": "Arşiv içe aktarılamadı. Lütfen dosyayı kontrol edip tekrar deneyin."
     }
   }

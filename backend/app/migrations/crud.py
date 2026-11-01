@@ -2,11 +2,10 @@
 
 from typing import overload
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 import migrations.models as migrations_models
 import migrations.schema as migrations_schema
 
@@ -42,8 +41,7 @@ def _transform_migrations(
     return migrations_schema.MigrationRead.model_validate(migrations)
 
 
-@core_decorators.handle_db_errors
-def _get_migration_by_id_model_or_404(migration_id: int, db: Session) -> migrations_models.Migration:
+def _get_migration_by_id(migration_id: int, db: Session) -> migrations_models.Migration:
     """
     Retrieve a migration by its ID from the database.
 
@@ -55,16 +53,13 @@ def _get_migration_by_id_model_or_404(migration_id: int, db: Session) -> migrati
         Migration ORM instance.
 
     Raises:
-        HTTPException: If database error occurs.
+        NotFoundError: If the migration does not exist.
     """
     stmt = select(migrations_models.Migration).where(migrations_models.Migration.id == migration_id)
     db_migration = db.execute(stmt).scalar_one_or_none()
 
     if db_migration is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Migration not found",
-        )
+        raise core_exceptions.NotFoundError("Migration not found")
 
     return db_migration
 
@@ -72,7 +67,6 @@ def _get_migration_by_id_model_or_404(migration_id: int, db: Session) -> migrati
 # Public CRUD functions
 
 
-@core_decorators.handle_db_errors
 def get_migrations_not_executed(
     db: Session,
 ) -> list[migrations_schema.MigrationRead]:
@@ -86,14 +80,12 @@ def get_migrations_not_executed(
         List of unexecuted Migration schemas.
 
     Raises:
-        HTTPException: 500 error on database failure.
     """
     stmt = select(migrations_models.Migration).where(migrations_models.Migration.executed.is_(False))
     db_migrations = db.execute(stmt).scalars().all()
     return _transform_migrations(list(db_migrations))
 
 
-@core_decorators.handle_db_errors
 def set_migration_as_executed(
     migration_id: int,
     db: Session,
@@ -109,12 +101,11 @@ def set_migration_as_executed(
         The updated Migration schema.
 
     Raises:
-        HTTPException: 404 if migration not found.
-        HTTPException: 500 error on database failure.
+        NotFoundError: If the migration does not exist.
     """
-    db_migration = _get_migration_by_id_model_or_404(migration_id, db)
+    db_migration = _get_migration_by_id(migration_id, db)
 
     db_migration.executed = True
-    db.commit()
+    db.flush()
     db.refresh(db_migration)
     return _transform_migrations(db_migration)

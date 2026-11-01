@@ -24,6 +24,7 @@ const linkedDto: LinkedProviderDto = {
   idp_name: 'Keycloak',
   idp_slug: 'keycloak',
   idp_icon: 'keycloak',
+  idp_icon_uploaded: false,
   idp_provider_type: 'oidc',
   linked_at: '2026-01-01T00:00:00Z',
   last_login: '2026-01-02T00:00:00Z',
@@ -35,6 +36,7 @@ const mappedLinked = {
   name: 'Keycloak',
   slug: 'keycloak',
   icon: 'keycloak',
+  iconUploaded: false,
   providerType: 'oidc',
   subject: 'sub-abc',
   linkedAt: '2026-01-01T00:00:00Z',
@@ -54,6 +56,7 @@ describe('mapLinkedProvider', () => {
         id: 1,
         user_id: 1,
         idp_id: 9,
+        idp_icon_uploaded: false,
         idp_subject: 'x',
         linked_at: '2026-01-01',
       }),
@@ -63,6 +66,7 @@ describe('mapLinkedProvider', () => {
       name: null,
       slug: null,
       icon: null,
+      iconUploaded: false,
       providerType: null,
       subject: 'x',
       linkedAt: '2026-01-01',
@@ -76,12 +80,12 @@ describe('linked-accounts service requests', () => {
     vi.clearAllMocks()
   })
 
-  it('fetchLinkedProviders reads /profile/idp and maps the records', async () => {
+  it('fetchLinkedProviders reads /profile/identity-providers and maps the records', async () => {
     vi.mocked(apiFetch).mockResolvedValue([linkedDto])
 
     expect(await fetchLinkedProviders()).toEqual([mappedLinked])
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/idp',
+      '/profile/identity-providers',
       expect.objectContaining({ signal: undefined }),
     )
   })
@@ -96,7 +100,7 @@ describe('linked-accounts service requests', () => {
 
     const token = await generateLinkToken(2, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/idp/2/link/token', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/2/link/token', {
       method: 'POST',
       body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
     })
@@ -108,7 +112,7 @@ describe('linked-accounts service requests', () => {
 
     await unlinkProvider(2, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/idp/2/unlink', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/2/unlink', {
       method: 'POST',
       body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
       responseType: 'void',
@@ -119,13 +123,13 @@ describe('linked-accounts service requests', () => {
 describe('buildLinkStartUrl', () => {
   it('builds the link-start URL with the encoded token and default return path', () => {
     expect(buildLinkStartUrl(2, 'tok 1')).toBe(
-      '/api/v1/profile/idp/2/link?link_token=tok+1&redirect=%2Fsettings%2Fsecurity',
+      '/api/v1/profile/identity-providers/2/link?link_token=tok+1&redirect=%2Fsettings%2Fsecurity',
     )
   })
 
   it('honors an explicit return path', () => {
     expect(buildLinkStartUrl(3, 'abc', '/settings/security?foo=bar')).toBe(
-      '/api/v1/profile/idp/3/link?link_token=abc&redirect=%2Fsettings%2Fsecurity%3Ffoo%3Dbar',
+      '/api/v1/profile/identity-providers/3/link?link_token=abc&redirect=%2Fsettings%2Fsecurity%3Ffoo%3Dbar',
     )
   })
 })

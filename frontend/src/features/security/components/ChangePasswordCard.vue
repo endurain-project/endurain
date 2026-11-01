@@ -4,20 +4,19 @@ import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
-import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import { HttpError } from '@/services/http'
-import {
-  buildPasswordRequirements,
-  isValidPassword,
-  resolvePasswordMinLength,
-} from '@/utils/validation'
 import { useChangePasswordMutation } from '@/features/security/composables/useSecurity'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
 
 const props = defineProps<{
   /** Whether the account has MFA enabled (gates the MFA-code field). */
@@ -28,45 +27,35 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const toasts = useToasts()
-const { serverSettings } = usePublicServerSettings()
 const mutation = useChangePasswordMutation()
 
 const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const mfaCode = ref('')
-const revokeOtherSessions = ref(false)
+const revokeOtherSessions = ref(true)
 
-const requirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    resolvePasswordMinLength(
-      serverSettings.value.password_length_regular_users,
-      serverSettings.value.password_length_admin_users,
-      props.accessType,
-    ),
-  ),
-)
-const requirementsHint = computed(() =>
-  requirements.value.requireUppercase
-    ? t('settings.security.password.requirementsStrict', { length: requirements.value.minLength })
-    : t('settings.security.password.requirementsLength', { length: requirements.value.minLength }),
+const {
+  hint: requirementsHint,
+  isValid: isValidPassword,
+  policyError,
+} = usePasswordPolicy(() => props.accessType)
+const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
+  newPassword,
+  confirmPassword,
 )
 
 // Only surface validation messages once the field has content (live, like the
 // reset-password screen) so the form doesn't shout before the user has typed.
 const showInvalid = computed(
-  () => newPassword.value.length > 0 && !isValidPassword(newPassword.value, requirements.value),
-)
-const showMismatch = computed(
-  () => confirmPassword.value.length > 0 && newPassword.value !== confirmPassword.value,
+  () => newPassword.value.length > 0 && !isValidPassword(newPassword.value),
 )
 
 const canSubmit = computed(
   () =>
     currentPassword.value.length > 0 &&
-    isValidPassword(newPassword.value, requirements.value) &&
-    newPassword.value === confirmPassword.value &&
+    isValidPassword(newPassword.value) &&
+    passwordsMatch.value &&
     (!props.mfaEnabled || mfaCode.value.trim().length > 0) &&
     !mutation.isPending.value,
 )
@@ -77,7 +66,7 @@ function resetForm(): void {
   newPassword.value = ''
   confirmPassword.value = ''
   mfaCode.value = ''
-  revokeOtherSessions.value = false
+  revokeOtherSessions.value = true
 }
 
 /** Submits the change-password request and reports the outcome. */
@@ -95,7 +84,10 @@ async function submit(): Promise<void> {
     toasts.success(t('settings.security.password.success'))
     resetForm()
   } catch (error) {
-    if (error instanceof HttpError && (error.status === 400 || error.status === 401)) {
+    const passwordProblem = policyError(error)
+    if (passwordProblem) {
+      toasts.error(passwordProblem)
+    } else if (error instanceof HttpError && (error.status === 400 || error.status === 401)) {
       toasts.error(t('settings.security.password.invalidCredentials'))
     } else {
       toasts.error(t('settings.security.password.error'))
@@ -131,11 +123,8 @@ async function submit(): Promise<void> {
         :aria-invalid="showInvalid"
         aria-describedby="security-new-password-hint"
       />
-      <p
-        id="security-new-password-hint"
-        class="text-hint"
-        :class="showInvalid ? 'text-field-error' : ''"
-      >
+      <PasswordStrengthMeter :password="newPassword" />
+      <p id="security-new-password-hint" :class="showInvalid ? 'text-field-error' : 'text-hint'">
         {{ requirementsHint }}
       </p>
     </div>
@@ -147,11 +136,11 @@ async function submit(): Promise<void> {
         v-model="confirmPassword"
         autocomplete="new-password"
         :disabled="mutation.isPending.value"
-        :aria-invalid="showMismatch"
+        :aria-invalid="confirmError !== undefined"
         aria-describedby="security-confirm-password-error"
       />
-      <p v-if="showMismatch" id="security-confirm-password-error" class="text-field-error">
-        {{ t('settings.security.password.mismatch') }}
+      <p v-if="confirmError" id="security-confirm-password-error" class="text-field-error">
+        {{ confirmError }}
       </p>
     </div>
 

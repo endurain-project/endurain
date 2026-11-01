@@ -24,9 +24,6 @@
     "waterSports": "水上运动",
     "skating": "滑冰"
   },
-  "results": {
-    "inactive": "不活跃"
-  },
   "idle": {
     "title": "搜索 Endurain",
     "description": "选择要查找的内容，然后开始输入以查看匹配结果。"

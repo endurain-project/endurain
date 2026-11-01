@@ -31,6 +31,7 @@
       "admin": "Administratorius",
       "inactive": "Neaktyvus",
       "unverified": "Nepatvirtintas el. paštas",
+      "pendingEmail": "Laukiama el. pašto keitimo",
       "pending": "Laukia patvirtinimo",
       "externalAuth": "Išorinis autentifikavimas"
     },
@@ -64,18 +65,15 @@
       "email": "El. paštas",
       "emailRequired": "El. paštas yra privalomas",
       "emailInvalid": "Įveskite galiojantį el. pašto adresą",
+      "emailChangeHint": "Naujas adresas gauna patvirtinimo nuorodą, ir jis pakeičia dabartinį, kai tik bus patvirtintas. Naudotojas atjungiamas nuo visų įrenginių. Jei norite taikyti iš karto, pažymėkite naują adresą kaip patvirtintą.",
       "accessType": "Prieigos tipas",
       "accessTypeRegular": "Įprastas naudotojas",
       "accessTypeAdmin": "Administratorius",
       "password": "Slaptažodis",
       "passwordHint": "Bent 8 simboliai",
-      "passwordHintStrict": "Bent {min} simbolių, su didžiąja, mažąja raide, skaičiumi ir specialiu simboliu",
-      "passwordHintLength": "Bent {min} simbolių",
       "passwordRequired": "Slaptažodis yra privalomas",
-      "passwordInvalid": "Šis slaptažodis neatitinka reikalavimų",
       "confirmPassword": "Patvirtinti slaptažodį",
       "confirmPasswordRequired": "Patvirtinti slaptažodį",
-      "passwordMismatch": "Slaptažodžiai nesutampa",
       "preferredLanguage": "Pageidaujama kalba",
       "languages": {
         "ca": "Katalonų",
@@ -118,14 +116,14 @@
       "units": "Vienetai",
       "unitsMetric": "Metriniai",
       "unitsImperial": "Imperiniai",
+      "weightUnits": "Svorio vienetai",
+      "weightUnitsDefault": "Pagal vienetus",
+      "weightUnitsMetric": "Kilogramai (kg)",
+      "weightUnitsImperial": "Svarai (lb)",
       "height": "Ūgis",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Pėdos turi būti nuo 0 iki 10",
       "inchesInvalid": "Coliai turi būti nuo 0 iki 11",
       "maxHeartRate": "Maks. pulsas",
-      "unitBpm": "bpm",
       "currency": "Valiuta",
       "currencies": {
         "euro": "Euras",
@@ -149,6 +147,8 @@
       "statusLegend": "Paskyros būsena",
       "active": "Aktyvus",
       "emailVerified": "El. paštas patvirtintas",
+      "emailVerifiedCurrentHint": "Tai dabartinio adreso būsena.",
+      "newEmailVerified": "Pažymėti naują adresą kaip patvirtintą",
       "pendingAdminApproval": "Laukia administratoriaus patvirtinimo",
       "requiredField": "Privalomas laukas",
       "create": "Pridėti naudotoją",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Atgal į naudotojus",
+      "pendingEmail": "Laukiama el. pašto keitimo į {email}, nuoroda galioja iki {date}",
       "notFoundTitle": "Naudotojas nerastas",
       "notFoundDescription": "Ši paskyra galėjo būti ištrinta",
       "securityTitle": "Saugumas",
@@ -186,16 +187,12 @@
       "title": "Atstatyti slaptažodį",
       "description": "Nustatyti naują slaptažodį naudotojui {username}",
       "newLabel": "Naujas slaptažodis",
-      "hintLength": "Bent {min} simbolių",
-      "hintStrict": "Bent {min} simbolių, su didžiąja, mažąja raide, skaičiumi ir specialiu simboliu",
       "confirmLabel": "Patvirtinti naują slaptažodį",
-      "mismatch": "Slaptažodžiai nesutampa",
       "required": "Slaptažodis yra privalomas",
       "submit": "Atstatyti slaptažodį",
       "cancel": "Atšaukti",
       "close": "Uždaryti",
       "success": "Slaptažodis atnaujintas",
-      "invalid": "Šis slaptažodis neatitinka reikalavimų",
       "error": "Nepavyko atnaujinti slaptažodžio. Bandykite dar kartą."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Slaptažodžių politika",
-      "type": "Politika",
-      "typeStrict": "Griežta (reikalingas sudėtingumas)",
-      "typeLengthOnly": "Tik ilgis",
       "lengthRegular": "Minimalus įprastų naudotojų ilgis",
       "lengthAdmin": "Minimalus administratorių ilgis"
     },
@@ -367,6 +361,29 @@
       "sent": "Bandomasis laiškas išsiųstas",
       "failed": "Bandomojo laiško nepavyko išsiųsti",
       "failedUnknown": "Daugiau informacijos rasite serverio žurnaluose."
+    },
+    "envLocked": "Nustatyta kintamuoju {name}",
+    "envSection": "Kai kuriuos čia esančius nustatymus nustato aplinkos kintamieji ({names}). Pašalinkite juos iš aplinkos, kad galėtumėte tuos nustatymus redaguoti čia.",
+    "unsaved": "Neišsaugoti pakeitimai",
+    "discard": "Atmesti",
+    "tabs": {
+      "label": "Serverio nustatymų skiriai",
+      "general": "Bendra",
+      "access": "Prieiga ir saugumas",
+      "maps": "Žemėlapiai ir vieta",
+      "email": "El. paštas",
+      "unsaved": "Yra neišsaugotų pakeitimų"
+    },
+    "search": {
+      "placeholder": "Ieškoti nustatymų…",
+      "noResults": "Nustatymų nerasta"
+    },
+    "leave": {
+      "title": "Išeiti neišsaugojus?",
+      "description": "Turite neišsaugotų pakeitimų. Išėjus iš šio puslapio jie bus prarasti.",
+      "confirm": "Išeiti neišsaugojus",
+      "stay": "Likti puslapyje",
+      "close": "Uždaryti"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Apimtys turi būti ne ilgesnės nei 500 simbolių",
       "icon": "Piktograma",
       "iconNone": "Nėra",
-      "iconCustom": "Pasirinktinis URL",
-      "customIconUrl": "Pasirinktinės piktogramos URL",
-      "customIconUrlHint": "Nuoroda į paveikslėlį, rodomą prisijungimo mygtuke",
       "enabled": "Įjungta",
       "autoCreateUsers": "Automatiškai kurti naudotojus pirmojo prisijungimo metu",
       "syncUserInfo": "Sinchronizuoti profilio informaciją kiekvieno prisijungimo metu",
@@ -491,13 +505,6 @@
       "distance": "Atstumas",
       "elevation": "Aukščio pokytis",
       "duration": "Trukmė"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Redaguoti tikslą {name}",
@@ -559,9 +566,6 @@
       "current": "Dabartinis slaptažodis",
       "new": "Naujas slaptažodis",
       "confirm": "Patvirtinti naują slaptažodį",
-      "requirementsStrict": "Bent {length} simbolių, įskaitant didžiąją raidę, mažąją raidę, skaičių ir simbolį.",
-      "requirementsLength": "Bent {length} simbolių.",
-      "mismatch": "Slaptažodžiai nesutampa.",
       "revokeOthers": "Atsijungti iš visų kitų įrenginių",
       "submit": "Keisti slaptažodį",
       "success": "Slaptažodis pakeistas",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Jūsų slaptažodis arba kodas neteisingas.",
       "alreadyLinked": "Ši paskyra jau susieta.",
       "lastMethodError": "Negalite atsieti vienintelio savo prisijungimo būdo. Pirmiausia nustatykite slaptažodį."
+    },
+    "email": {
+      "subtitle": "Čia siunčiami slaptažodžio atstatymo ir pranešimai. Keičiant reikia patvirtinti savo tapatybę, o naujas adresas įsigalioja tik patvirtinus jį per nuorodą, kuri į jį išsiunčiama.",
+      "sameAsCurrent": "Tai jau jūsų el. pašto adresas.",
+      "success": "Patvirtinimo nuoroda išsiųsta į naują adresą. Jūsų el. paštas pakeisis tik patvirtinus.",
+      "appliedSuccess": "El. pašto adresas pakeistas.",
+      "pending": "Laukiamas keitimas į {email}",
+      "pendingExpires": "Patvirtinimo nuoroda galioja iki {date}.",
+      "resend": "Siųsti nuorodą iš naujo",
+      "cancel": "Atšaukti keitimą",
+      "resendSuccess": "Jei keitimas laukia patvirtinimo, į naują adresą siunčiama nauja nuoroda.",
+      "resendError": "Nepavyko iš naujo išsiųsti nuorodos. Bandykite dar kartą.",
+      "cancelSuccess": "El. pašto keitimas atšauktas.",
+      "cancelError": "Nepavyko atšaukti keitimo. Bandykite dar kartą."
     },
     "apiKeys": {
       "title": "API raktai",
@@ -923,7 +941,6 @@
       "invalidType": "Pasirinkite .zip archyvą.",
       "exportSuccess": "Eksportas paruoštas, atsisiuntimas netrukus prasidės",
       "exportError": "Nepavyko eksportuoti jūsų duomenų. Bandykite dar kartą.",
-      "importSuccess": "Duomenys importuoti",
       "importError": "Nepavyko importuoti archyvo. Patikrinkite failą ir bandykite dar kartą."
     }
   }

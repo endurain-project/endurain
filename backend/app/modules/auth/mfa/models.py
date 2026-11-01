@@ -15,8 +15,7 @@ from core.database import Base
 
 
 class UsersMFA(Base):
-    """
-    1:1 MFA state table keyed by user_id.
+    """1:1 MFA state table keyed by user_id.
 
     Stores ``mfa_enabled`` and ``mfa_secret`` as the sole
     source of truth for a user's MFA state.

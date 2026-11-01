@@ -23,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import {
   ACTIVITY_TYPE_LABEL_KEYS,
@@ -108,13 +109,17 @@ function confirmDelete(): void {
   if (!goal) {
     return
   }
-  deleteMutation.mutate(goal.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.goals.delete.success'))
+  deleteMutation.mutate(
+    { id: goal.id, version: goal.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('settings.goals.delete.success'))
+      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.goals.delete.error')),
     },
-    onError: () => toasts.error(t('settings.goals.delete.error')),
-  })
+  )
 }
 </script>
 

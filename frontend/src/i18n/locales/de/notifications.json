@@ -39,6 +39,11 @@
       "title": "Garmin Connect benötigt Aufmerksamkeit",
       "body": "Deine Garmin Connect-Sitzung ist abgelaufen. Verbinde es erneut, um die Synchronisierung fortzusetzen."
     },
+    "idpLinked": {
+      "title": "Neuer Anmeldeanbieter verknüpft",
+      "body": "{name} wurde mit Ihrem Konto verknüpft. Falls Sie das nicht waren, prüfen Sie Ihre Sicherheitseinstellungen.",
+      "bodyGeneric": "Ein Anmeldeanbieter wurde mit Ihrem Konto verknüpft. Falls Sie das nicht waren, prüfen Sie Ihre Sicherheitseinstellungen."
+    },
     "adminSignUpApproval": {
       "title": "Neue Registrierung benötigt Genehmigung",
       "body": "{name} ({'@'}{username}) wartet auf Kontogenehmigung."

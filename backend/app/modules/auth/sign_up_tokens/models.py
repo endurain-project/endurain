@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class SignUpToken(Base):
-    """
-    Sign-up token database model.
+    """Sign-up token database model.
 
     Attributes:
         id: Unique token identifier (string, 64 chars).
@@ -19,6 +18,8 @@ class SignUpToken(Base):
         created_at: Token creation date.
         expires_at: Token expiration date.
         used: Whether the token has been used.
+        email: Email address the token proves (empty on rows from before the column existed).
+        previous_email: Account email address when an email change was requested (email-change tokens only).
     """
 
     __tablename__ = "sign_up_tokens"
@@ -43,10 +44,21 @@ class SignUpToken(Base):
     expires_at: Mapped[datetime_type] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Token expiration date (datetime)",
     )
     used: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
         comment="Token usage status",
+    )
+    email: Mapped[str | None] = mapped_column(
+        String(250),
+        nullable=True,
+        comment="Email address the token proves (empty on tokens issued before the column existed)",
+    )
+    previous_email: Mapped[str | None] = mapped_column(
+        String(250),
+        nullable=True,
+        comment="Account email address when an email change was requested (email-change tokens only)",
     )

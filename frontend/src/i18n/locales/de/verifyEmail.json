@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Einen Moment, während wir deine Adresse bestätigen.",
+  "choosePasswordTitle": "Wähle dein Passwort",
+  "choosePasswordBody": "Deine E-Mail-Adresse wird bestätigt, sobald du ein Passwort für dein Konto festlegst.",
+  "submitPassword": "Passwort festlegen",
+  "submittingPassword": "Passwort wird gespeichert",
   "successTitle": "E-Mail verifiziert",
   "successBody": "Deine E-Mail-Adresse wurde bestätigt.",
   "adminApprovalBody": "Dein Konto wartet jetzt auf Administratorgenehmigung.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verifizierung fehlgeschlagen",
   "missingTokenBody": "Diesem Bestätigungslink fehlt sein Token.",
   "errorInvalidToken": "Dieser Bestätigungslink ist ungültig oder abgelaufen.",
+  "errorEmailTaken": "Diese E-Mail-Adresse wird inzwischen von einem anderen Konto verwendet, daher kann sie nicht bestätigt werden.",
   "errorNotFound": "Für diesen Link konnte kein Konto gefunden werden.",
   "errorGeneral": "Deine E-Mail konnte nicht verifiziert werden. Bitte versuche es erneut.",
   "retry": "Erneut versuchen",

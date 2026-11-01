@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Uzgaidiet, kamēr apstiprinām jūsu adresi.",
+  "choosePasswordTitle": "Izvēlieties paroli",
+  "choosePasswordBody": "Jūsu e-pasts tiks apstiprināts, kad būsiet iestatījis sava konta paroli.",
+  "submitPassword": "Iestatīt paroli",
+  "submittingPassword": "Saglabā paroli",
   "successTitle": "E-pasts verificēts",
   "successBody": "Jūsu e-pasta adrese ir apstiprināta.",
   "adminApprovalBody": "Jūsu konts tagad gaida administratora apstiprinājumu.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verifikācija neizdevās",
   "missingTokenBody": "Šai verifikācijas saitei trūkst marķiera.",
   "errorInvalidToken": "Šī verifikācijas saite ir nederīga vai tai beidzies derīgums.",
+  "errorEmailTaken": "Šo e-pasta adresi tagad izmanto cits konts, tāpēc to nevar apstiprināt.",
   "errorNotFound": "Mēs nevarējām atrast kontu šai saitei.",
   "errorGeneral": "Mēs nevarējām verificēt jūsu e-pastu. Lūdzu, mēģiniet vēlreiz.",
   "retry": "Mēģināt vēlreiz",

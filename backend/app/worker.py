@@ -26,8 +26,6 @@ import core.logger as core_logger
 import core.platform_settings as core_platform_settings
 import model_registry as orm_model_registry
 import module_registry as runtime_module_registry
-import modules.garmin.provider_registry as garmin_provider_registry
-import modules.strava.provider_registry as strava_provider_registry
 
 logger = core_logger.get_logger(__name__)
 
@@ -36,7 +34,7 @@ def _install_signal_handlers(stop: threading.Event) -> None:
     """Set the stop event on SIGTERM/SIGINT for graceful shutdown."""
 
     def _handle(signum: int, _frame: FrameType | None) -> None:
-        logger.info(f"Worker received signal {signum}; shutting down", extra=core_logger.context(console=True))
+        logger.info("Worker received a signal; shutting down", extra=core_logger.context(console=True, signal=signum))
         stop.set()
 
     signal.signal(signal.SIGTERM, _handle)
@@ -52,13 +50,18 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
 
     Returns:
         None.
+
+    Raises:
+        OSError: When ``JOBS_ENABLED`` is false, since a worker has no queue to drain without it.
     """
-    logger.info(f"Durable job worker starting - {core_config.API_VERSION}", extra=core_logger.context(console=True))
+    logger.info(
+        "Durable job worker starting",
+        extra=core_logger.context(console=True, version=core_config.API_VERSION),
+    )
     if not core_config.settings.JOBS_ENABLED:
-        logger.info(
-            "JOBS_ENABLED is false; the worker has nothing to do. Exiting.", extra=core_logger.context(console=True)
-        )
-        return
+        message = "APP_ROLE=worker requires JOBS_ENABLED=true; without durable jobs there is no queue to drain"
+        logger.error(message, extra=core_logger.context(console=True))
+        raise OSError(message)
     # Unlike the API, this process does not import the whole module tree, so
     # the ORM registry would be missing every model a job never touches
     # directly - and a string-target relationship on one that it does touch
@@ -67,22 +70,20 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # This process is a dedicated consumer whatever the API's flag says, so the
     # substrate must see the standalone topology it is part of.
     worker_settings = core_config.settings.model_copy(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
-    substrate_settings = core_platform_settings.build_jasil_settings(worker_settings)
+    substrate_settings = core_platform_settings.build_jasil_settings(
+        worker_settings,
+        plain_areas=runtime_module_registry.storage_plain_areas(),
+    )
     jasil_settings.configure(substrate_settings)
-    platform = platform_container.build_platform(substrate_settings)
+    platform = platform_container.build_platform(substrate_settings, sources=runtime_module_registry.runtime_sources())
     platform_runtime.set_active_platform(platform)
     # Register every activity durable-job handler so this worker can resolve any
     # claimed job's subscriber_id back to a handler. Uses the SAME shared surface
     # as main.startup_event (app module_registry) so the two entrypoints
     # cannot drift — a handler registered in one but not the other would leave its
     # jobs unresolvable (and dead-lettered) on a dedicated worker.
-    runtime_module_registry.configure_activity_contributors()
+    runtime_module_registry.configure_application()
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)
-    # Same reason, for the refresh job: it pulls from whichever providers are
-    # registered, and a provider registered in the API but not here would make a
-    # refresh claimed by this worker silently return nothing.
-    strava_provider_registry.register_activity_provider()
-    garmin_provider_registry.register_activity_provider()
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     try:
@@ -92,6 +93,8 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
         # under the distributed profile that is a Redis consumer thread and a
         # pool of connections that would otherwise outlive the run.
         jasil_lifecycle.shutdown()
+        # Then any in-process pool a job handler started here (each a no-op when it never started).
+        runtime_module_registry.shutdown_module_pools()
     logger.info("Durable job worker stopped", extra=core_logger.context(console=True))
 
 

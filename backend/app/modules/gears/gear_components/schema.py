@@ -1,6 +1,7 @@
 """Gear components schema definitions."""
 
 from datetime import date
+from typing import Self
 
 from pydantic import (
     BaseModel,
@@ -10,98 +11,36 @@ from pydantic import (
     StrictFloat,
     StrictInt,
     StrictStr,
+    model_validator,
 )
 
-BIKE_COMPONENT_TYPES: list[str] = [
-    "back_break_oil",
-    "back_break_pads",
-    "back_break_rotor",
-    "back_tire",
-    "back_tube",
-    "back_tubeless_sealant",
-    "back_tubeless_rim_tape",
-    "back_wheel",
-    "back_wheel_valve",
-    "bottom_bracket",
-    "bottle_cage",
-    "cassette",
-    "chain",
-    "computer_mount",
-    "crank_left_power_meter",
-    "crank_right_power_meter",
-    "crankset",
-    "crankset_power_meter",
-    "fork",
-    "frame",
-    "front_break_oil",
-    "front_break_pads",
-    "front_break_rotor",
-    "front_derailleur",
-    "front_shifter",
-    "front_tire",
-    "front_tube",
-    "front_tubeless_sealant",
-    "front_tubeless_rim_tape",
-    "front_wheel",
-    "front_wheel_valve",
-    "grips",
-    "handlebar",
-    "handlebar_tape",
-    "headset",
-    "pedals",
-    "pedals_left_power_meter",
-    "pedals_power_meter",
-    "pedals_right_power_meter",
-    "rear_derailleur",
-    "rear_shifter",
-    "saddle",
-    "seatpost",
-    "stem",
-]
+#: The largest value of the ``purchase_value`` column, a ``Numeric(11, 2)``.
+MAX_PURCHASE_VALUE = 999_999_999.99
 
-SHOES_COMPONENT_TYPES: list[str] = [
-    "cleats",
-    "insoles",
-    "laces",
-]
+#: The largest value of the ``expected_kms`` column, a 32-bit integer.
+MAX_EXPECTED_KMS = 2_147_483_647
 
-RACQUET_COMPONENT_TYPES: list[str] = [
-    "basegrip",
-    "bumpers",
-    "grommets",
-    "overgrip",
-    "strings",
-]
+#: Update fields whose column is NOT NULL: a partial update may omit them but not clear them.
+_NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("type", "brand", "model", "purchase_date", "active")
 
-WINDSURF_COMPONENT_TYPES: list[str] = [
-    "sail",
-    "board",
-    "mast",
-    "boom",
-    "mast_extension",
-    "mast_base",
-    "mast_universal_joint",
-    "fin",
-    "footstraps",
-    "harness_lines",
-    "rigging_lines",
-    "footpad",
-    "impact_vest",
-    "lifeguard_vest",
-    "helmet",
-    "wing",
-    "front_foil",
-    "stabilizer",
-    "fuselage",
-]
+
+def is_retired_after_purchase(purchase_date: date | None, retired_date: date | None) -> bool:
+    """Whether a retired date is acceptable next to a purchase date.
+
+    Args:
+        purchase_date: The purchase date, if given.
+        retired_date: The retired date, if given.
+
+    Returns:
+        False only when both are given and the retired date is not later.
+    """
+    return retired_date is None or purchase_date is None or retired_date > purchase_date
 
 
 class GearComponentBase(BaseModel):
-    """
-    Base model for gear component data.
+    """Base model for the gear component fields a client may set.
 
     Attributes:
-        gear_id: Foreign key to gear table.
         type: Type of gear component.
         brand: Gear component brand.
         model: Gear component model name.
@@ -112,10 +51,6 @@ class GearComponentBase(BaseModel):
         purchase_value: Purchase value.
     """
 
-    gear_id: StrictInt = Field(
-        ...,
-        description="Foreign key to gear",
-    )
     type: StrictStr = Field(
         ...,
         max_length=250,
@@ -146,11 +81,13 @@ class GearComponentBase(BaseModel):
     expected_kms: StrictInt | None = Field(
         default=None,
         ge=0,
+        le=MAX_EXPECTED_KMS,
         description=("Expected kilometers"),
     )
     purchase_value: StrictFloat | None = Field(
         default=None,
         ge=0,
+        le=MAX_PURCHASE_VALUE,
         description="Purchase value",
     )
 
@@ -162,20 +99,34 @@ class GearComponentBase(BaseModel):
 
 
 class GearComponentCreate(GearComponentBase):
-    """Schema for creating a gear component."""
+    """Schema for creating a gear component.
 
-
-class GearComponentRead(GearComponentBase):
+    Attributes:
+        gear_id: Foreign key to gear table.
     """
-    Schema for reading a gear component.
+
+    gear_id: StrictInt = Field(
+        ...,
+        description="Foreign key to gear",
+    )
+
+
+class GearComponentRead(GearComponentCreate):
+    """Schema for reading a gear component.
 
     Attributes:
         id: Unique identifier.
         user_id: Foreign key to user.
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
         current_distance: Accumulated distance.
         current_time: Accumulated time.
     """
 
+    version: StrictInt = Field(
+        default=1,
+        ge=1,
+        description="Optimistic-concurrency counter",
+    )
     id: StrictInt = Field(
         ...,
         description="Unique identifier",
@@ -197,22 +148,47 @@ class GearComponentRead(GearComponentBase):
 
 
 class GearComponentUpdate(GearComponentBase):
-    """
-    Schema for updating a gear component.
+    """Partial update of a gear component: omit a field to keep it, send null to clear a nullable one.
 
-    Attributes:
-        id: Unique identifier.
+    The component and its gear come from the path and cannot be changed.
     """
 
-    id: StrictInt = Field(
-        ...,
-        description="Unique identifier",
+    type: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Type of gear component",
     )
+    brand: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear component brand",
+    )
+    model: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear component model",
+    )
+
+    @model_validator(mode="after")
+    def _reject_clearing_required_fields(self) -> Self:
+        """Reject an explicit null for a field the component must always have.
+
+        Returns:
+            The validated update.
+
+        Raises:
+            ValueError: If a required field is sent as null.
+        """
+        cleared = [
+            name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
+        ]
+        if cleared:
+            raise ValueError(f"{', '.join(cleared)} cannot be null")
+        return self
 
 
 class GearComponentTypesRead(BaseModel):
-    """
-    Schema for reading component type lists.
+    """Schema for reading component type lists.
 
     Attributes:
         bike: Valid bike component types.

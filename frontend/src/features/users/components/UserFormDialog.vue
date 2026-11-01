@@ -6,6 +6,11 @@ import type { ManagedUser, UserAccessType } from '@/features/users/types'
 import type { Schemas } from '@/types'
 
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
@@ -13,15 +18,10 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
-import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
-import {
-  buildPasswordRequirements,
-  isValidPassword,
-  resolvePasswordMinLength,
-} from '@/utils/validation'
 import { compose, email, maxLength, pattern, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
@@ -40,8 +40,10 @@ const props = withDefaults(
   defineProps<{
     /** The user being edited, or `null`/absent when adding a new one. */
     user?: ManagedUser | null
+    /** Whether the edited user is the signed-in administrator, whose email changes only through Security settings. */
+    isSelf?: boolean
   }>(),
-  { user: null },
+  { user: null, isSelf: false },
 )
 
 const emit = defineEmits<{
@@ -57,8 +59,6 @@ const languageCodes = computed(() =>
 
 const createMutation = useCreateUserMutation()
 const updateMutation = useUpdateUserMutation()
-
-const { serverSettings } = usePublicServerSettings()
 
 /**
  * Form shape — the full set of admin-editable user fields. `password` is only
@@ -78,6 +78,7 @@ interface UserFormValues {
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: 'default' | Schemas['Units']
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string
@@ -103,6 +104,7 @@ function defaultValues(): UserFormValues {
     preferredLanguage: 'en',
     gender: 'unspecified',
     units: 'metric',
+    weightUnits: 'default',
     currency: 'euro',
     firstDayOfWeek: 'monday',
     city: '',
@@ -128,6 +130,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
   // `v-model.number` leaves a stale '' in place instead of `null` when a
   // cleared field can't parse as a finite number.
   const maxHeartRate = toNumberOrNull(formValues.maxHeartRate ?? '')
+  const weightUnits = formValues.weightUnits === 'default' ? null : formValues.weightUnits
   try {
     if (props.user) {
       await updateMutation.mutateAsync({
@@ -143,6 +146,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
           preferredLanguage: formValues.preferredLanguage,
           gender: formValues.gender,
           units: formValues.units,
+          weightUnits,
           currency: formValues.currency,
           firstDayOfWeek: formValues.firstDayOfWeek,
           city,
@@ -165,6 +169,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
         preferredLanguage: formValues.preferredLanguage,
         gender: formValues.gender,
         units: formValues.units,
+        weightUnits,
         currency: formValues.currency,
         firstDayOfWeek: formValues.firstDayOfWeek,
         city,
@@ -176,13 +181,18 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    const passwordProblem = policyError(error)
+    if (passwordProblem) {
+      emit('error', passwordProblem)
+    } else if (isStaleWrite(error)) {
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.users.form.conflict'))
     } else if (!props.user && error instanceof HttpError && error.status === 400) {
       // Create-only: the backend's own password-policy check is the only
       // documented 400 this endpoint raises, so it's safe to surface a
       // password-specific message here (edits never send a password).
-      emit('error', t('settings.users.form.passwordInvalid'))
+      emit('error', t('app.password.invalid'))
     } else {
       emit('error', t('settings.users.form.saveError'))
     }
@@ -201,23 +211,12 @@ const activeUnits = ref<Schemas['Units']>('metric')
 // mirrored into its own ref, kept in sync via the watch below.
 const activeAccessType = ref<UserAccessType>('regular')
 
-/** Password policy mirrored from the server, scoped to the selected access type. */
-const passwordRequirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    resolvePasswordMinLength(
-      serverSettings.value.password_length_regular_users,
-      serverSettings.value.password_length_admin_users,
-      activeAccessType.value,
-    ),
-  ),
-)
-/** Human-readable hint describing the active password policy. */
-const passwordHint = computed(() =>
-  serverSettings.value.password_type === 'length_only'
-    ? t('settings.users.form.passwordHintLength', { min: passwordRequirements.value.minLength })
-    : t('settings.users.form.passwordHintStrict', { min: passwordRequirements.value.minLength }),
-)
+// The policy follows the selected access type.
+const {
+  hint: passwordHint,
+  validate: validatePassword,
+  policyError,
+} = usePasswordPolicy(activeAccessType)
 
 const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
   useForm<UserFormValues>({
@@ -243,10 +242,7 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
           ? null
           : compose(
               required<string>(t('settings.users.form.passwordRequired')),
-              (candidate: string) =>
-                isValidPassword(candidate, passwordRequirements.value)
-                  ? null
-                  : t('settings.users.form.passwordInvalid'),
+              validatePassword,
             )(value),
       // Required only when creating; the mismatch itself is surfaced via the
       // `passwordsMatch`/`confirmPasswordError` computeds below (a validator here
@@ -274,18 +270,12 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
 const isEditing = computed(() => props.user !== null)
 const isMetric = computed(() => values.units === 'metric')
 
-// Only relevant when creating (the password fields are hidden on edit); a
-// blank confirm field isn't yet a mismatch, it just hasn't been filled in.
-const passwordsMatch = computed(
-  () =>
-    isEditing.value ||
-    (values.confirmPassword.length > 0 && values.confirmPassword === values.password),
+const { matches: confirmationMatches, error: confirmPasswordError } = usePasswordConfirmation(
+  () => values.password,
+  () => values.confirmPassword,
 )
-const confirmPasswordError = computed(() =>
-  values.confirmPassword.length > 0 && values.confirmPassword !== values.password
-    ? t('settings.users.form.passwordMismatch')
-    : undefined,
-)
+// Only relevant when creating: the password fields are hidden on edit.
+const passwordsMatch = computed(() => isEditing.value || confirmationMatches.value)
 
 // Keep `activeUnits` in step with the unit selector so the height validators
 // re-run against the correct system whenever the user toggles units.
@@ -306,6 +296,18 @@ watch(
   },
   { immediate: true },
 )
+// A changed address stays pending until confirmed unless the admin marks it verified, so editing it
+// clears the flag (restoring the stored value when the address is put back). The submitted flag
+// refers to the submitted address.
+const emailChanged = computed(
+  () => props.user !== null && values.email.trim().toLowerCase() !== props.user.email,
+)
+watch(emailChanged, (changed) => {
+  if (props.user) {
+    values.emailVerified = changed ? false : props.user.emailVerified
+  }
+})
+
 const dialogTitle = computed(() =>
   isEditing.value ? t('settings.users.form.editTitle') : t('settings.users.form.addTitle'),
 )
@@ -327,6 +329,7 @@ function populate(): void {
   values.preferredLanguage = user.preferredLanguage
   values.gender = user.gender
   values.units = user.units
+  values.weightUnits = user.weightUnits ?? 'default'
   values.currency = user.currency
   values.firstDayOfWeek = user.firstDayOfWeek
   values.city = user.city ?? ''
@@ -421,9 +424,18 @@ watch(open, (isOpen) => {
             type="email"
             name="email"
             :placeholder="placeholder"
-            :disabled="isSubmitting"
+            :disabled="isSubmitting || isSelf"
             @blur="handleBlur('email')"
           />
+          <p v-if="isSelf" class="text-hint">
+            {{ t('settings.profile.emailManagedIn') }}
+            <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
+              {{ t('settings.profile.emailManagedLink') }}
+            </RouterLink>
+          </p>
+          <p v-else-if="emailChanged" class="text-hint">
+            {{ t('settings.users.form.emailChangeHint') }}
+          </p>
         </template>
       </FormField>
 
@@ -447,6 +459,10 @@ watch(open, (isOpen) => {
             :placeholder="placeholder"
             :disabled="isSubmitting"
             @blur="handleBlur('password')"
+          />
+          <PasswordStrengthMeter
+            :password="values.password"
+            :user-inputs="[values.name, values.username, values.email]"
           />
         </template>
       </FormField>
@@ -533,10 +549,20 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
+      <FormField :label="t('settings.users.form.weightUnits')">
+        <template #default="{ fieldId }">
+          <Select :id="fieldId" v-model="values.weightUnits" :disabled="isSubmitting">
+            <option value="default">{{ t('settings.users.form.weightUnitsDefault') }}</option>
+            <option value="metric">{{ t('settings.users.form.weightUnitsMetric') }}</option>
+            <option value="imperial">{{ t('settings.users.form.weightUnitsImperial') }}</option>
+          </Select>
+        </template>
+      </FormField>
+
       <FormField
         v-if="isMetric"
-        :label="`${t('settings.users.form.height')} (${t('settings.users.form.unitCm')})`"
-        :placeholder="`${t('settings.users.form.height')} (${t('settings.users.form.unitCm')})`"
+        :label="`${t('settings.users.form.height')} (${t('units.cm')})`"
+        :placeholder="`${t('settings.users.form.height')} (${t('units.cm')})`"
       >
         <template #default="{ fieldId, placeholder }">
           <input
@@ -559,11 +585,7 @@ watch(open, (isOpen) => {
           t('settings.users.form.height')
         }}</span>
         <div class="flex gap-3">
-          <FormField
-            class="flex-1"
-            :error="errors.heightFeet"
-            :placeholder="t('settings.users.form.unitFeet')"
-          >
+          <FormField class="flex-1" :error="errors.heightFeet" :placeholder="t('units.ft')">
             <template #default="{ fieldId, describedBy, invalid, placeholder }">
               <input
                 :id="fieldId"
@@ -571,7 +593,7 @@ watch(open, (isOpen) => {
                 :class="inputFieldClass"
                 :aria-describedby="describedBy"
                 :aria-invalid="invalid"
-                :aria-label="`${t('settings.users.form.height')} (${t('settings.users.form.unitFeet')})`"
+                :aria-label="`${t('settings.users.form.height')} (${t('units.ft')})`"
                 name="heightFeet"
                 type="number"
                 min="0"
@@ -583,11 +605,7 @@ watch(open, (isOpen) => {
               />
             </template>
           </FormField>
-          <FormField
-            class="flex-1"
-            :error="errors.heightInches"
-            :placeholder="t('settings.users.form.unitInches')"
-          >
+          <FormField class="flex-1" :error="errors.heightInches" :placeholder="t('units.in')">
             <template #default="{ fieldId, describedBy, invalid, placeholder }">
               <input
                 :id="fieldId"
@@ -595,7 +613,7 @@ watch(open, (isOpen) => {
                 :class="inputFieldClass"
                 :aria-describedby="describedBy"
                 :aria-invalid="invalid"
-                :aria-label="`${t('settings.users.form.height')} (${t('settings.users.form.unitInches')})`"
+                :aria-label="`${t('settings.users.form.height')} (${t('units.in')})`"
                 name="heightInches"
                 type="number"
                 min="0"
@@ -611,8 +629,8 @@ watch(open, (isOpen) => {
       </div>
 
       <FormField
-        :label="`${t('settings.users.form.maxHeartRate')} (${t('settings.users.form.unitBpm')})`"
-        :placeholder="`${t('settings.users.form.maxHeartRate')} (${t('settings.users.form.unitBpm')})`"
+        :label="`${t('settings.users.form.maxHeartRate')} (${t('units.bpm')})`"
+        :placeholder="`${t('settings.users.form.maxHeartRate')} (${t('units.bpm')})`"
       >
         <template #default="{ fieldId, placeholder }">
           <input
@@ -666,7 +684,17 @@ watch(open, (isOpen) => {
         <Switch v-model="values.active" :disabled="isSubmitting">
           {{ t('settings.users.form.active') }}
         </Switch>
-        <Switch v-model="values.emailVerified" :disabled="isSubmitting">
+        <template v-if="emailChanged && user">
+          <!-- The stored address keeps its status until the new one applies. -->
+          <Switch :model-value="user.emailVerified" disabled>
+            {{ t('settings.users.form.emailVerified') }}
+          </Switch>
+          <p class="text-hint">{{ t('settings.users.form.emailVerifiedCurrentHint') }}</p>
+          <Switch v-model="values.emailVerified" :disabled="isSubmitting">
+            {{ t('settings.users.form.newEmailVerified') }}
+          </Switch>
+        </template>
+        <Switch v-else v-model="values.emailVerified" :disabled="isSubmitting">
           {{ t('settings.users.form.emailVerified') }}
         </Switch>
         <Switch v-model="values.pendingAdminApproval" :disabled="isSubmitting">

@@ -5,11 +5,11 @@ from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity.migration_service as activities_crud
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.migration_service as activity_streams_crud
-import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.migration_service as health_weight_migration
 import modules.health.health_weight.schema as health_weight_schema
 
 logger = core_logger.get_logger(__name__)
@@ -40,7 +40,7 @@ def process_migration_2(db: Session) -> None:
     # Fetch all activities and health_weight
     try:
         activities = activities_crud.get_all_activities(db)
-        health_weight = health_weight_crud.get_all_health_weight(db)
+        health_weight = health_weight_migration.get_all_health_weight(db)
     except Exception as err:
         logger.error(
             f"Migration 2 - Error fetching activities and/or health_weight: {err}",
@@ -123,9 +123,9 @@ def process_migration_2(db: Session) -> None:
 
                 # Update the weight in the database
                 data_to_update = health_weight_schema.HealthWeightUpdate.model_validate(data)
-                health_weight_crud.edit_health_weight(data.user_id, data_to_update, db)
+                health_weight_migration.edit_health_weight(data.user_id, data.id, data_to_update, db)
 
-                logger.info(f"Migration 2 - Processed BMI: {data.id}", extra=core_logger.context(console=True))
+                logger.info("Migration 2 - Processed BMI", extra=core_logger.context(console=True, record_id=data.id))
 
             except Exception as err:
                 health_weight_processed_with_no_errors = False
@@ -138,7 +138,7 @@ def process_migration_2(db: Session) -> None:
     # Mark migration as executed
     if activities_processed_with_no_errors and health_weight_processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(2, db)
+            migrations_service.mark_executed(2, db)
         except Exception as err:
             logger.error(
                 f"Migration 2 - Failed to set migration as executed: {err}",

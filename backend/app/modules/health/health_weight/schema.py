@@ -1,3 +1,5 @@
+"""Pydantic request and response shapes for health weight records."""
+
 from datetime import date as datetime_date
 from enum import Enum
 
@@ -7,17 +9,12 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
-    model_validator,
+    field_validator,
 )
-
-import core.config as core_config
-import core.timezone as core_timezone
-import modules.health.schema as health_schema
 
 
 class Source(Enum):
-    """
-    Enumeration of data sources for health weight records.
+    """Enumeration of data sources for health weight records.
 
     Attributes:
         GARMIN: Garmin fitness tracking platform as a data source.
@@ -27,8 +24,7 @@ class Source(Enum):
 
 
 class HealthWeightBase(BaseModel):
-    """
-    Pydantic model for health weight data.
+    """Pydantic model for health weight data.
 
     This model defines the structure and validation rules for health weight information,
     including body composition metrics and related health indicators.
@@ -74,35 +70,16 @@ class HealthWeightBase(BaseModel):
 
 
 class HealthWeightCreate(HealthWeightBase):
-    """
-    Validator for HealthWeightCreate model that automatically sets the date field.
+    """Schema for creating a health weight record.
 
-    This validator runs after model initialization to ensure that if no date
-    is provided, it defaults to today's date.
+    The date is optional; ``service`` fills it in when the client sends none.
     """
 
-    @model_validator(mode="after")
-    def set_default_date(self) -> "HealthWeightCreate":
-        """
-        Set date to today if not provided.
-
-        Clients should always send their own local date — the request carries no
-        timezone, so this fallback can only use the server's configured zone and
-        will file an entry logged near local midnight under the wrong day for an
-        athlete elsewhere. Resolved through ``settings.TZ`` explicitly rather
-        than ``date.today()``, which silently depends on the container's clock.
-
-        Returns:
-            The validated model instance with date set.
-        """
-        if self.date is None:
-            self.date = core_timezone.today_in(core_config.settings.TZ)
-        return self
+    weight: StrictFloat = Field(..., ge=0, le=500, description="Weight in kilograms")
 
 
 class HealthWeightRead(HealthWeightBase):
-    """
-    Schema for reading a health weight record.
+    """Schema for reading a health weight record.
 
     Extends HealthWeightBase with identifier fields required for retrieving
     and referencing weight records in the system.
@@ -114,35 +91,30 @@ class HealthWeightRead(HealthWeightBase):
 
     id: StrictInt = Field(..., description="Unique identifier for the weight record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthWeightUpdate(HealthWeightRead):
-    """
-    Schema for updating health weight records.
+class HealthWeightUpdate(HealthWeightBase):
+    """Schema for the fields a PATCH changes on a weight record.
 
-    Inherits from HealthWeightRead to maintain consistency with read operations
-    while allowing modifications to health weight data. This schema is used for
-    PUT/PATCH requests to update existing health weight entries.
-    """
-
-
-class HealthWeightListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health weight records.
-
-    Extends the base HealthListResponse to provide a typed response containing
-    a list of weight records. This model is used when returning multiple weight
-    entries from API endpoints.
-
-    Attributes:
-        records: A list of HealthWeightRead objects representing individual
-            weight records.
+    The record is named by the path, so the body carries neither an id nor an owner; only the
+    fields present are changed.
     """
 
-    records: list[HealthWeightRead] = Field(..., description="List of health weight records")
+    @field_validator("weight")
+    @classmethod
+    def _weight_is_not_cleared(cls, value: object) -> object:
+        """Refuse to clear the weight, which every record has.
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
-    )
+        Args:
+            value: The weight in the edit.
+
+        Returns:
+            The weight.
+
+        Raises:
+            ValueError: When the edit sets the weight to null.
+        """
+        if value is None:
+            raise ValueError("weight cannot be cleared")
+        return value

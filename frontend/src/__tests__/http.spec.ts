@@ -31,6 +31,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
+const INVALID_TOKEN = 'urn:endurain:error:invalid-token'
+
 const refreshTokenResponse = {
   access_token: 'access-new',
   csrf_token: 'csrf-new',
@@ -110,7 +112,9 @@ describe('apiFetch', () => {
       }
       dataAttempts += 1
       return Promise.resolve(
-        dataAttempts === 1 ? jsonResponse({}, 401) : jsonResponse({ ok: true }),
+        dataAttempts === 1
+          ? jsonResponse({ type: INVALID_TOKEN }, 401)
+          : jsonResponse({ ok: true }),
       )
     })
 
@@ -130,7 +134,9 @@ describe('apiFetch', () => {
         return Promise.resolve(jsonResponse(refreshTokenResponse))
       }
       attempts[url] = (attempts[url] ?? 0) + 1
-      return Promise.resolve(attempts[url] === 1 ? jsonResponse({}, 401) : jsonResponse({ url }))
+      return Promise.resolve(
+        attempts[url] === 1 ? jsonResponse({ type: INVALID_TOKEN }, 401) : jsonResponse({ url }),
+      )
     })
 
     await Promise.all([apiFetch('/a'), apiFetch('/b')])
@@ -139,7 +145,9 @@ describe('apiFetch', () => {
   })
 
   it('clears tokens and rejects when the refresh itself fails', async () => {
-    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ detail: 'expired' }, 401)))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401)),
+    )
 
     await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
     expect(clearAuthTokens).toHaveBeenCalled()
@@ -148,10 +156,65 @@ describe('apiFetch', () => {
   it('signals session expiry when a mid-session refresh fails', async () => {
     const onExpired = vi.fn<() => void>()
     onSessionExpired(onExpired)
-    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ detail: 'expired' }, 401)))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401)),
+    )
 
     await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
     expect(onExpired).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends the CSRF token on writes but never on the refresh request', async () => {
+    const csrfByUrl: Record<string, string | null> = {}
+    fetchMock.mockImplementation((url: string, init: RequestInit) => {
+      csrfByUrl[url] = (init.headers as Headers).get('X-CSRF-Token')
+      return Promise.resolve(jsonResponse(url === '/auth/refresh' ? refreshTokenResponse : {}))
+    })
+
+    await apiFetch('/data', { method: 'POST' })
+    await apiFetch('/auth/refresh', { method: 'POST', retryOnUnauthorized: false })
+
+    expect(csrfByUrl['/data']).toBe('csrf-old')
+    expect(csrfByUrl['/auth/refresh']).toBeNull()
+  })
+
+  it('omits the CSRF token from the refresh triggered by a 401', async () => {
+    let refreshCsrf: string | null = 'unset'
+    let dataAttempts = 0
+    fetchMock.mockImplementation((url: string, init: RequestInit) => {
+      if (url === '/auth/refresh') {
+        refreshCsrf = (init.headers as Headers).get('X-CSRF-Token')
+        return Promise.resolve(jsonResponse(refreshTokenResponse))
+      }
+      dataAttempts += 1
+      return Promise.resolve(
+        dataAttempts === 1 ? jsonResponse({ type: INVALID_TOKEN }, 401) : jsonResponse({}),
+      )
+    })
+
+    await apiFetch('/data', { method: 'POST' })
+
+    expect(refreshCsrf).toBeNull()
+  })
+
+  it('returns a 401 with another problem type as-is, without refreshing or replaying', async () => {
+    const onExpired = vi.fn<() => void>()
+    onSessionExpired(onExpired)
+    const calls: string[] = []
+    fetchMock.mockImplementation((url: string) => {
+      calls.push(url)
+      return Promise.resolve(
+        jsonResponse({ type: 'urn:endurain:error:unauthorized', detail: 'Invalid password' }, 401),
+      )
+    })
+
+    await expect(apiFetch('/data', { method: 'POST' })).rejects.toMatchObject({
+      status: 401,
+      type: 'urn:endurain:error:unauthorized',
+    })
+    expect(calls).toEqual(['/data'])
+    expect(onExpired).not.toHaveBeenCalled()
+    expect(clearAuthTokens).not.toHaveBeenCalled()
   })
 
   it('does not attempt a refresh for the login endpoint', async () => {

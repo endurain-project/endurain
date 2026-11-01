@@ -31,6 +31,7 @@
       "admin": "Admin",
       "inactive": "Inaktiv",
       "unverified": "Overifierad e-post",
+      "pendingEmail": "Väntande ändring av e-post",
       "pending": "Väntar på godkännande",
       "externalAuth": "Extern autentisering"
     },
@@ -64,18 +65,15 @@
       "email": "E-post",
       "emailRequired": "E-post krävs",
       "emailInvalid": "Ange en giltig e-postadress",
+      "emailChangeHint": "En bekräftelselänk skickas till den nya adressen och ersätter den nuvarande när den bekräftats. Användaren loggas ut från alla enheter. Markera i stället den nya adressen som verifierad för att använda den direkt.",
       "accessType": "Åtkomsttyp",
       "accessTypeRegular": "Vanlig användare",
       "accessTypeAdmin": "Administratör",
       "password": "Lösenord",
       "passwordHint": "Minst 8 tecken",
-      "passwordHintStrict": "Minst {min} tecken, med versaler, gemener, en siffra och ett specialtecken",
-      "passwordHintLength": "Minst {min} tecken",
       "passwordRequired": "Lösenord krävs",
-      "passwordInvalid": "Det lösenordet uppfyller inte kraven",
       "confirmPassword": "Bekräfta lösenord",
       "confirmPasswordRequired": "Bekräfta lösenord",
-      "passwordMismatch": "Lösenorden matchar inte",
       "preferredLanguage": "Föredraget språk",
       "languages": {
         "ca": "Katalanska",
@@ -118,14 +116,14 @@
       "units": "Enheter",
       "unitsMetric": "Metrisk",
       "unitsImperial": "Imperial",
+      "weightUnits": "Viktenheter",
+      "weightUnitsDefault": "Följ enheter",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pund (lb)",
       "height": "Längd",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Fot måste vara mellan 0 och 10",
       "inchesInvalid": "Tum måste vara mellan 0 och 11",
       "maxHeartRate": "Maximal hjärtfrekvens",
-      "unitBpm": "slag/min",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-post verifierad",
+      "emailVerifiedCurrentHint": "Det här är statusen för den nuvarande adressen.",
+      "newEmailVerified": "Markera den nya adressen som verifierad",
       "pendingAdminApproval": "Väntar på admingodkännande",
       "requiredField": "Obligatoriskt fält",
       "create": "Lägg till användare",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Tillbaka till användare",
+      "pendingEmail": "Väntande ändring av e-post till {email}, länken går ut {date}",
       "notFoundTitle": "Användare hittades inte",
       "notFoundDescription": "Det här kontot kan ha tagits bort",
       "securityTitle": "Säkerhet",
@@ -186,16 +187,12 @@
       "title": "Återställ lösenord",
       "description": "Ange ett nytt lösenord för {username}",
       "newLabel": "Nytt lösenord",
-      "hintLength": "Minst {min} tecken",
-      "hintStrict": "Minst {min} tecken, med versaler, gemener, en siffra och ett specialtecken",
       "confirmLabel": "Bekräfta nytt lösenord",
-      "mismatch": "Lösenorden matchar inte",
       "required": "Lösenord krävs",
       "submit": "Återställ lösenord",
       "cancel": "Avbryt",
       "close": "Stäng",
       "success": "Lösenord uppdaterat",
-      "invalid": "Det lösenordet uppfyller inte kraven",
       "error": "Kunde inte uppdatera lösenordet. Försök igen."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Lösenordspolicy",
-      "type": "Policy",
-      "typeStrict": "Strikt (komplexitet krävs)",
-      "typeLengthOnly": "Enbart längd",
       "lengthRegular": "Minsta längd vanliga användare",
       "lengthAdmin": "Minsta längd adminanvändare"
     },
@@ -367,6 +361,29 @@
       "sent": "Test-e-post skickad",
       "failed": "Test-e-posten kunde inte skickas",
       "failedUnknown": "Se serverloggarna för mer information."
+    },
+    "envLocked": "Anges av {name}",
+    "envSection": "Vissa inställningar här anges av miljövariabler ({names}). Ta bort dem från miljön för att redigera de inställningarna här.",
+    "unsaved": "Osparade ändringar",
+    "discard": "Förkasta",
+    "tabs": {
+      "label": "Avsnitt i serverinställningarna",
+      "general": "Allmänt",
+      "access": "Åtkomst och säkerhet",
+      "maps": "Kartor och plats",
+      "email": "E-post",
+      "unsaved": "Har osparade ändringar"
+    },
+    "search": {
+      "placeholder": "Sök inställningar…",
+      "noResults": "Inga inställningar hittades"
+    },
+    "leave": {
+      "title": "Lämna utan att spara?",
+      "description": "Du har osparade ändringar. Om du lämnar sidan går de förlorade.",
+      "confirm": "Lämna utan att spara",
+      "stay": "Stanna på sidan",
+      "close": "Stäng"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Scopes får vara högst 500 tecken",
       "icon": "Ikon",
       "iconNone": "Ingen",
-      "iconCustom": "Anpassad URL",
-      "customIconUrl": "Anpassad ikonURL",
-      "customIconUrlHint": "Länk till en bild som visas på inloggningsknappen",
       "enabled": "Aktiverad",
       "autoCreateUsers": "Skapa automatiskt användare vid första inloggning",
       "syncUserInfo": "Synkronisera profilinfo vid varje inloggning",
@@ -491,13 +505,6 @@
       "distance": "Distans",
       "elevation": "Höjdmeter",
       "duration": "Varaktighet"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Redigera {name}-mål",
@@ -559,9 +566,6 @@
       "current": "Nuvarande lösenord",
       "new": "Nytt lösenord",
       "confirm": "Bekräfta nytt lösenord",
-      "requirementsStrict": "Minst {length} tecken, inklusive en versal, en gemen, en siffra och ett symbol.",
-      "requirementsLength": "Minst {length} tecken.",
-      "mismatch": "Lösenorden matchar inte.",
       "revokeOthers": "Logga ut från alla andra enheter",
       "submit": "Byt lösenord",
       "success": "Lösenord bytt",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Ditt lösenord eller din kod är felaktig.",
       "alreadyLinked": "Det kontot är redan kopplat.",
       "lastMethodError": "Du kan inte koppla bort din enda inloggningsmetod. Ange ett lösenord först."
+    },
+    "email": {
+      "subtitle": "Hit skickas återställningar av lösenord och aviseringar. För att ändra den behöver du bekräfta din identitet, och den nya adressen gäller först när du har bekräftat den via en länk som vi skickar dit.",
+      "sameAsCurrent": "Det här är redan din e-postadress.",
+      "success": "En bekräftelselänk har skickats till den nya adressen. Din e-post ändras när du har bekräftat den.",
+      "appliedSuccess": "E-postadressen har ändrats.",
+      "pending": "Väntande ändring till {email}",
+      "pendingExpires": "Bekräftelselänken går ut {date}.",
+      "resend": "Skicka länken igen",
+      "cancel": "Avbryt ändringen",
+      "resendSuccess": "Om en ändring väntar är en ny länk på väg till den nya adressen.",
+      "resendError": "Det gick inte att skicka länken igen. Försök igen.",
+      "cancelSuccess": "Ändringen av e-post avbröts.",
+      "cancelError": "Det gick inte att avbryta ändringen. Försök igen."
     },
     "apiKeys": {
       "title": "API-nycklar",
@@ -923,7 +941,6 @@
       "invalidType": "Välj ett .zip-arkiv.",
       "exportSuccess": "Export klar – din nedladdning bör starta snart",
       "exportError": "Kunde inte exportera din data. Försök igen.",
-      "importSuccess": "Data importerad",
       "importError": "Kunde inte importera arkivet. Kontrollera filen och försök igen."
     }
   }

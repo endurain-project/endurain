@@ -75,13 +75,6 @@ class TestHealthStepsModel:
         assert health_steps_models.HealthSteps.steps.type.python_type is int
         assert health_steps_models.HealthSteps.source.type.python_type is str
 
-    def test_health_steps_model_relationship(self):
-        """
-        Test HealthSteps model has relationship to User.
-        """
-        # Assert
-        assert hasattr(health_steps_models.HealthSteps, "users")
-
     def test_health_steps_model_source_max_length(self):
         """
         Test HealthSteps model source field has correct max length.

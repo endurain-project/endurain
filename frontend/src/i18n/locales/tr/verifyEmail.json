@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Adresinizi doğrularken lütfen bekleyin.",
+  "choosePasswordTitle": "Parolanızı seçin",
+  "choosePasswordBody": "Hesabınız için bir parola belirlediğinizde e-postanız doğrulanır.",
+  "submitPassword": "Parolayı belirle",
+  "submittingPassword": "Parola kaydediliyor",
   "successTitle": "E-posta doğrulandı",
   "successBody": "E-posta adresiniz onaylandı.",
   "adminApprovalBody": "Hesabınız artık yönetici onayını bekliyor.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Doğrulama başarısız",
   "missingTokenBody": "Bu doğrulama bağlantısında belirteç eksik.",
   "errorInvalidToken": "Bu doğrulama bağlantısı geçersiz veya süresi dolmuş.",
+  "errorEmailTaken": "Bu e-posta adresi artık başka bir hesap tarafından kullanılıyor, bu nedenle onaylanamaz.",
   "errorNotFound": "Bu bağlantıya ait bir hesap bulamadık.",
   "errorGeneral": "E-postanızı doğrulayamadık. Lütfen tekrar deneyin.",
   "retry": "Tekrar dene",

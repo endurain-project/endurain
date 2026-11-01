@@ -31,6 +31,7 @@
       "admin": "Administrátor",
       "inactive": "Neaktívny",
       "unverified": "Neoverený e-mail",
+      "pendingEmail": "Čakajúca zmena e-mailu",
       "pending": "Čaká na schválenie",
       "externalAuth": "Externé overenie"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "E-mail je povinný",
       "emailInvalid": "Zadajte platnú e-mailovú adresu",
+      "emailChangeHint": "Na novú adresu sa odošle potvrdzovací odkaz a po potvrdení nahradí aktuálnu. Používateľ bude odhlásený zo všetkých zariadení. Ak chcete zmenu použiť hneď, označte novú adresu ako overenú.",
       "accessType": "Typ prístupu",
       "accessTypeRegular": "Bežný používateľ",
       "accessTypeAdmin": "Administrátor",
       "password": "Heslo",
       "passwordHint": "Aspoň 8 znakov",
-      "passwordHintStrict": "Aspoň {min} znakov, s veľkým písmenom, malým písmenom, číslom a špeciálnym znakom",
-      "passwordHintLength": "Aspoň {min} znakov",
       "passwordRequired": "Heslo je povinné",
-      "passwordInvalid": "Toto heslo nespĺňa požiadavky",
       "confirmPassword": "Potvrďte heslo",
       "confirmPasswordRequired": "Potvrďte heslo",
-      "passwordMismatch": "Heslá sa nezhodujú",
       "preferredLanguage": "Preferovaný jazyk",
       "languages": {
         "ca": "Katalánčina",
@@ -118,14 +116,14 @@
       "units": "Jednotky",
       "unitsMetric": "Metrické",
       "unitsImperial": "Imperiálne",
+      "weightUnits": "Jednotky hmotnosti",
+      "weightUnitsDefault": "Podľa jednotiek",
+      "weightUnitsMetric": "Kilogramy (kg)",
+      "weightUnitsImperial": "Libry (lb)",
       "height": "Výška",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Stopy musia byť medzi 0 a 10",
       "inchesInvalid": "Palce musia byť medzi 0 a 11",
       "maxHeartRate": "Max. tepová frekvencia",
-      "unitBpm": "bpm",
       "currency": "Mena",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Stav účtu",
       "active": "Aktívny",
       "emailVerified": "E-mail overený",
+      "emailVerifiedCurrentHint": "Toto je stav aktuálnej adresy.",
+      "newEmailVerified": "Označiť novú adresu ako overenú",
       "pendingAdminApproval": "Čaká na schválenie administrátorom",
       "requiredField": "Povinné pole",
       "create": "Pridať používateľa",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Späť na používateľov",
+      "pendingEmail": "Čakajúca zmena e-mailu na {email}, odkaz vyprší {date}",
       "notFoundTitle": "Používateľ sa nenašiel",
       "notFoundDescription": "Tento účet mohol byť odstránený",
       "securityTitle": "Zabezpečenie",
@@ -186,16 +187,12 @@
       "title": "Obnoviť heslo",
       "description": "Nastavte nové heslo pre {username}",
       "newLabel": "Nové heslo",
-      "hintLength": "Aspoň {min} znakov",
-      "hintStrict": "Aspoň {min} znakov, s veľkým písmenom, malým písmenom, číslom a špeciálnym znakom",
       "confirmLabel": "Potvrďte nové heslo",
-      "mismatch": "Heslá sa nezhodujú",
       "required": "Heslo je povinné",
       "submit": "Obnoviť heslo",
       "cancel": "Zrušiť",
       "close": "Zavrieť",
       "success": "Heslo aktualizované",
-      "invalid": "Toto heslo nespĺňa požiadavky",
       "error": "Heslo sa nepodarilo aktualizovať. Skúste to znova."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Pravidlá hesla",
-      "type": "Pravidlo",
-      "typeStrict": "Prísne (vyžaduje sa zložitosť)",
-      "typeLengthOnly": "Iba dĺžka",
       "lengthRegular": "Minimálna dĺžka pre bežných používateľov",
       "lengthAdmin": "Minimálna dĺžka pre administrátorov"
     },
@@ -367,6 +361,29 @@
       "sent": "Testovací e-mail odoslaný",
       "failed": "Testovací e-mail sa nepodarilo odoslať",
       "failedUnknown": "Podrobnosti nájdete v logoch servera."
+    },
+    "envLocked": "Nastavené premennou {name}",
+    "envSection": "Niektoré nastavenia tu sú určené premennými prostredia ({names}). Odstráňte ich z prostredia, aby ste tieto nastavenia mohli upraviť tu.",
+    "unsaved": "Neuložené zmeny",
+    "discard": "Zahodiť",
+    "tabs": {
+      "label": "Sekcie nastavení servera",
+      "general": "Všeobecné",
+      "access": "Prístup a zabezpečenie",
+      "maps": "Mapy a poloha",
+      "email": "E-mail",
+      "unsaved": "Obsahuje neuložené zmeny"
+    },
+    "search": {
+      "placeholder": "Hľadať nastavenia…",
+      "noResults": "Nastavenia sa nenašli"
+    },
+    "leave": {
+      "title": "Odísť bez uloženia?",
+      "description": "Máte neuložené zmeny. Ak stránku opustíte, stratia sa.",
+      "confirm": "Odísť bez uloženia",
+      "stay": "Zostať na stránke",
+      "close": "Zavrieť"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Rozsahy musia mať najviac 500 znakov",
       "icon": "Ikona",
       "iconNone": "Žiadna",
-      "iconCustom": "Vlastná URL",
-      "customIconUrl": "URL vlastnej ikony",
-      "customIconUrlHint": "Odkaz na obrázok zobrazený na prihlasovacom tlačidle",
       "enabled": "Povolené",
       "autoCreateUsers": "Automaticky vytvárať používateľov pri prvom prihlásení",
       "syncUserInfo": "Synchronizovať informácie profilu pri každom prihlásení",
@@ -491,13 +505,6 @@
       "distance": "Vzdialenosť",
       "elevation": "Prevýšenie",
       "duration": "Trvanie"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Upraviť cieľ {name}",
@@ -559,9 +566,6 @@
       "current": "Aktuálne heslo",
       "new": "Nové heslo",
       "confirm": "Potvrďte nové heslo",
-      "requirementsStrict": "Aspoň {length} znakov vrátane veľkého písmena, malého písmena, čísla a symbolu.",
-      "requirementsLength": "Aspoň {length} znakov.",
-      "mismatch": "Heslá sa nezhodujú.",
       "revokeOthers": "Odhlásiť sa zo všetkých ostatných zariadení",
       "submit": "Zmeniť heslo",
       "success": "Heslo zmenené",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Vaše heslo alebo kód je nesprávne.",
       "alreadyLinked": "Tento účet je už prepojený.",
       "lastMethodError": "Nemôžete odpojiť svoju jedinú metódu prihlásenia. Najprv nastavte heslo."
+    },
+    "email": {
+      "subtitle": "Sem sa posielajú obnovenia hesla a upozornenia. Pri zmene musíte potvrdiť svoju totožnosť a nová adresa sa stane platnou, až keď ju potvrdíte cez odkaz, ktorý na ňu odošleme.",
+      "sameAsCurrent": "Toto je už vaša e-mailová adresa.",
+      "success": "Potvrdzovací odkaz bol odoslaný na novú adresu. Vaša e-mailová adresa sa zmení, keď ju potvrdíte.",
+      "appliedSuccess": "E-mail bol zmenený.",
+      "pending": "Čakajúca zmena na {email}",
+      "pendingExpires": "Potvrdzovací odkaz vyprší {date}.",
+      "resend": "Odoslať odkaz znova",
+      "cancel": "Zrušiť zmenu",
+      "resendSuccess": "Ak čaká zmena, na novú adresu práve putuje nový odkaz.",
+      "resendError": "Odkaz sa nepodarilo znova odoslať. Skúste to prosím znova.",
+      "cancelSuccess": "Zmena e-mailu bola zrušená.",
+      "cancelError": "Zmenu sa nepodarilo zrušiť. Skúste to prosím znova."
     },
     "apiKeys": {
       "title": "API kľúče",
@@ -923,7 +941,6 @@
       "invalidType": "Vyberte archív .zip.",
       "exportSuccess": "Export pripravený, vaše sťahovanie by sa malo čoskoro spustiť",
       "exportError": "Vaše údaje sa nepodarilo exportovať. Skúste to znova.",
-      "importSuccess": "Údaje importované",
       "importError": "Archív sa nepodarilo importovať. Skontrolujte súbor a skúste to znova."
     }
   }

@@ -8,7 +8,7 @@ stays exactly what the API serializes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
 from pydantic import (
     BaseModel,
@@ -18,15 +18,37 @@ from pydantic import (
     StrictInt,
     StrictStr,
     field_validator,
+    model_validator,
 )
 
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
+import modules.users.users.schema as users_schema
 
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
 LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = Annotated[StrictStr, Field(max_length=250)]
+
+#: Edit fields whose column is NOT NULL: a partial update may omit them but not clear them.
+_NOT_CLEARABLE_FIELDS: tuple[str, ...] = (
+    "activity_type",
+    "visibility",
+    "is_hidden",
+    "hide_start_time",
+    "hide_location",
+    "hide_map",
+    "hide_hr",
+    "hide_power",
+    "hide_cadence",
+    "hide_elevation",
+    "hide_speed",
+    "hide_pace",
+    "hide_laps",
+    "hide_workout_sets_steps",
+    "hide_gear",
+)
 
 
 class ActivityBase(BaseModel):
@@ -274,21 +296,36 @@ class ActivityStatsRead(BaseModel):
 #: envelope rather than each inventing its own.
 ActivityPage = core_pagination.Page[ActivityRead]
 
-#: One keyset slice of the following feed. The feed takes inserts at the head
-#: continuously, so offset paging would repeat and skip rows across requests.
-ActivityFeedPage = core_pagination.CursorPage[ActivityRead]
 
+class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
+    """One keyset slice of the following feed.
 
-class VisibilityUpdateRead(BaseModel):
-    """Result of a bulk visibility change across a user's activities.
+    The feed takes inserts at the head continuously, so offset paging would repeat and skip rows
+    across requests.
 
     Attributes:
-        detail: Human-readable outcome of the operation.
-        updated: Number of activities whose visibility changed.
+        users: The public profile of each owner on this slice, keyed by user ID, one entry per
+            owner however many of their activities the slice holds. It is the projection
+            ``GET /users/id/{user_id}`` returns, so the client needs no lookup per owner. An owner
+            who is inactive or awaiting approval has no entry.
     """
 
-    detail: str
-    updated: int
+    users: dict[int, users_schema.UserPublicRead] = Field(
+        default_factory=dict,
+        description="Public profile of each activity owner on this slice, keyed by user ID",
+    )
+
+
+class ActivitiesBulkEditStatus(BaseModel):
+    """Where a queued bulk edit across a user's activities is.
+
+    Attributes:
+        status: Lifecycle state of the edit.
+    """
+
+    status: bulk_edit_constants.BulkEditStatus = Field(..., description="Lifecycle state of the bulk edit")
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class ActivitiesBulkEdit(BaseModel):
@@ -360,3 +397,20 @@ class ActivityEdit(BaseModel):
     hide_laps: StrictBool | None = None
     hide_workout_sets_steps: StrictBool | None = None
     hide_gear: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def _reject_clearing_required_fields(self) -> Self:
+        """Reject an explicit null for a field the activity must always have.
+
+        Returns:
+            The validated edit.
+
+        Raises:
+            ValueError: If a required field is sent as null.
+        """
+        cleared = [
+            name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
+        ]
+        if cleared:
+            raise ValueError(f"{', '.join(cleared)} cannot be null")
+        return self

@@ -21,7 +21,6 @@ import {
   deleteUserPhoto,
   fetchUserById,
   fetchUsers,
-  searchUsersByUsername,
   updateUser,
   uploadUserPhoto,
 } from '@/features/users/services/users'
@@ -34,13 +33,14 @@ import {
  *
  * @param page - Reactive 1-based page number.
  * @param pageSize - Reactive records-per-page (from server settings).
- * @param filters - Reactive list filters (inactive, unverified, etc.).
+ * @param filters - Reactive list filters (inactive, unverified, etc.) and the optional
+ *   username search term.
  * @returns The TanStack Query result for the current users page.
  */
 export function useUsersQuery(
   page: MaybeRefOrGetter<number>,
   pageSize: MaybeRefOrGetter<number>,
-  filters: MaybeRefOrGetter<UserFilters>,
+  filters: MaybeRefOrGetter<UserFilters & { username?: string }>,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
@@ -63,24 +63,6 @@ export function useUsersQuery(
       ),
     placeholderData: keepPreviousData,
     enabled: isAuthenticated,
-  })
-}
-
-/**
- * Username "contains" search. Enabled only once the (debounced) term is
- * non-empty so an empty box never fires a request; gated on authentication.
- *
- * @param term - The reactive (debounced) search term.
- * @returns The TanStack Query result for the matching users.
- */
-export function useUserSearchQuery(term: MaybeRefOrGetter<string>) {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-  const trimmed = computed(() => toValue(term).trim())
-
-  return useQuery<ManagedUser[]>({
-    queryKey: computed(() => queryKeys.users.search(trimmed.value)),
-    queryFn: ({ signal }) => searchUsersByUsername(trimmed.value, signal),
-    enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),
   })
 }
 
@@ -115,9 +97,9 @@ export function useUpdateUserMutation() {
  * @returns The TanStack Query mutation for deleting a user.
  */
 export function useDeleteUserMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, { id: number; version: number }>({
     mutationKey: queryKeys.users.all(),
-    mutationFn: (id) => deleteUser(id),
+    mutationFn: ({ id, version }) => deleteUser(id, version),
   })
 }
 

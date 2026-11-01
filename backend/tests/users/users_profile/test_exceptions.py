@@ -1,8 +1,9 @@
 """Tests for profile exception classes and handler."""
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 
+import core.exceptions as core_exceptions
 import modules.users.users_profile.exceptions as profile_exceptions
 
 
@@ -219,113 +220,113 @@ class TestSchemaValidationError:
             raise profile_exceptions.SchemaValidationError()
 
 
-class TestHandleImportExportException:
-    """Test suite for handle_import_export_exception function."""
+class TestToDomainError:
+    """Test suite for to_domain_error function."""
 
     def test_database_connection_error(self):
         error = profile_exceptions.DatabaseConnectionError()
-        result = profile_exceptions.handle_import_export_exception(error, "export")
-        assert isinstance(result, HTTPException)
+        result = profile_exceptions.to_domain_error(error, "export")
+        assert isinstance(result, core_exceptions.DomainError)
         assert result.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert "Database connection failed" in str(result.detail)
 
     def test_zip_creation_error(self):
         error = profile_exceptions.ZipCreationError()
-        result = profile_exceptions.handle_import_export_exception(error, "export")
+        result = profile_exceptions.to_domain_error(error, "export")
         assert result.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         assert "Failed to create export archive" in str(result.detail)
 
     def test_data_collection_error(self):
         error = profile_exceptions.DataCollectionError()
-        result = profile_exceptions.handle_import_export_exception(error, "export")
+        result = profile_exceptions.to_domain_error(error, "export")
         assert result.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         assert "Data collection failed" in str(result.detail)
 
     def test_export_timeout_error(self):
         error = profile_exceptions.ExportTimeoutError()
-        result = profile_exceptions.handle_import_export_exception(error, "export")
+        result = profile_exceptions.to_domain_error(error, "export")
         assert result.status_code == status.HTTP_408_REQUEST_TIMEOUT
         assert "timed out" in str(result.detail)
 
     def test_import_validation_error(self):
         error = profile_exceptions.ImportValidationError("invalid data")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_400_BAD_REQUEST
         assert "invalid data" in str(result.detail)
 
     def test_file_format_error(self):
         error = profile_exceptions.FileFormatError("not a zip")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_400_BAD_REQUEST
         assert "not a zip" in str(result.detail)
 
     def test_data_integrity_error(self):
         error = profile_exceptions.DataIntegrityError("mismatch")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         assert "mismatch" in str(result.detail)
 
     def test_import_timeout_error(self):
         error = profile_exceptions.ImportTimeoutError()
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_408_REQUEST_TIMEOUT
         assert "timed out" in str(result.detail)
 
     def test_disk_space_error(self):
         error = profile_exceptions.DiskSpaceError()
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_507_INSUFFICIENT_STORAGE
         assert "Insufficient disk space" in str(result.detail)
 
     def test_file_size_error(self):
         error = profile_exceptions.FileSizeError("too big")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_413_CONTENT_TOO_LARGE
         assert "too big" in str(result.detail)
 
     def test_activity_limit_error(self):
         error = profile_exceptions.ActivityLimitError("too many")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_413_CONTENT_TOO_LARGE
         assert "too many" in str(result.detail)
 
     def test_zip_structure_error(self):
         error = profile_exceptions.ZipStructureError("bad zip")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_400_BAD_REQUEST
         assert "bad zip" in str(result.detail)
 
     def test_json_parse_error(self):
         error = profile_exceptions.JSONParseError("parse fail")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_400_BAD_REQUEST
         assert "parse fail" in str(result.detail)
 
     def test_schema_validation_error(self):
         error = profile_exceptions.SchemaValidationError("bad schema")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_400_BAD_REQUEST
         assert "bad schema" in str(result.detail)
 
     def test_file_system_error(self):
         error = profile_exceptions.FileSystemError()
-        result = profile_exceptions.handle_import_export_exception(error, "export")
+        result = profile_exceptions.to_domain_error(error, "export")
         assert result.status_code == status.HTTP_507_INSUFFICIENT_STORAGE
         assert "File system error" in str(result.detail)
 
     def test_memory_allocation_error(self):
         error = profile_exceptions.MemoryAllocationError("OOM")
-        result = profile_exceptions.handle_import_export_exception(error, "import")
+        result = profile_exceptions.to_domain_error(error, "import")
         assert result.status_code == status.HTTP_507_INSUFFICIENT_STORAGE
         assert "Insufficient memory" in str(result.detail)
 
     def test_unexpected_error_fallback(self):
         error = ValueError("something unexpected")
-        result = profile_exceptions.handle_import_export_exception(error, "export")
+        result = profile_exceptions.to_domain_error(error, "export")
         assert result.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Unexpected error" in str(result.detail)
 
     def test_operation_string_included(self):
         error = profile_exceptions.DatabaseConnectionError()
-        result = profile_exceptions.handle_import_export_exception(error, "profile data export")
+        result = profile_exceptions.to_domain_error(error, "profile data export")
         assert "profile data export" in str(result.detail)

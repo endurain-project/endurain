@@ -61,3 +61,4 @@ def test_registered_data_migration_ids_are_unique() -> None:
                 f"Data migration id {migration_id} is registered twice: {seen[migration_id].name} and {path.name}"
             )
             seen[migration_id] = path
+    assert "11" in seen, "Migration 11 must be registered by an Alembic revision"

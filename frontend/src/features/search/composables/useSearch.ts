@@ -9,7 +9,7 @@ import { queryKeys } from '@/services/queryKeys'
 import { searchActivitiesByName } from '@/features/activities/services/activities'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { useGearSearchQuery } from '@/features/gears/composables/useGears'
-import { useUserSearchQuery } from '@/features/users/composables/useUsers'
+import { useUserSearchQuery } from '@/features/users/composables/usePublicUser'
 import {
   ALL_ACTIVITY_CATEGORIES,
   ALL_GEAR_TYPES,

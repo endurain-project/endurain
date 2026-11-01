@@ -6,10 +6,12 @@ import type { Schemas } from '@/types'
 import type { WaterEntry, WaterEntryInput } from '@/features/health/types'
 import type { Validator } from '@/utils/validators'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { flOzToMl, mlToFlOz } from '@/utils/units'
@@ -37,6 +39,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateWaterEntryMutation()
 const updateMutation = useUpdateWaterEntryMutation()
@@ -75,12 +78,9 @@ function displayAmountFromMl(ml: number | null): string {
   return String(value)
 }
 
-/** Converts a display-unit amount string back to whole millilitres for the wire. */
-function amountToMl(raw: string): number | null {
-  const value = toNumberOrNull(raw)
-  if (value === null) {
-    return null
-  }
+/** Converts a validated display-unit amount string back to whole millilitres for the wire. */
+function amountToMl(raw: string): number {
+  const value = Number(raw.trim())
   return Math.round(isImperial.value ? flOzToMl(value) : value)
 }
 
@@ -105,7 +105,7 @@ async function submitForm(values: WaterFormValues): Promise<void> {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.water.form.updateSuccess'))
@@ -114,8 +114,8 @@ async function submitForm(values: WaterFormValues): Promise<void> {
       emit('success', t('health.water.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.water.form.saveError'))
+  } catch (error) {
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.water.form.saveError'))
   }
 }
 
@@ -136,7 +136,7 @@ const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.water.form.editTitle') : t('health.water.form.addTitle'),
 )
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const amountUnitLabel = computed(() => unitLabel(isImperial.value ? 'flOz' : 'ml'))
 const amountLabel = computed(() => `${t('health.water.form.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */

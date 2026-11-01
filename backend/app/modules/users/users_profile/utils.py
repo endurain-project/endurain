@@ -10,6 +10,7 @@ This module provides helper functions for:
 import json
 import time
 import zipfile
+from collections.abc import Iterable, Sequence
 from typing import Any, TypeVar
 
 import psutil
@@ -27,8 +28,7 @@ T_PerformanceConfig = TypeVar("T_PerformanceConfig", bound="BasePerformanceConfi
 
 
 class BasePerformanceConfig:
-    """
-    Base configuration for performance settings.
+    """Base configuration for performance settings.
 
     Attributes:
         batch_size: Number of items to process in a batch.
@@ -46,6 +46,7 @@ class BasePerformanceConfig:
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
     ):
+        """Set the operation limits; unset values take the defaults."""
         self.batch_size = batch_size
         self.max_memory_mb = max_memory_mb
         self.timeout_seconds = timeout_seconds
@@ -54,8 +55,7 @@ class BasePerformanceConfig:
 
     @classmethod
     def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
-        """
-        Get configuration tiers for different memory levels.
+        """Get configuration tiers for different memory levels.
 
         Returns:
             Dictionary mapping tier names to config dicts.
@@ -67,8 +67,7 @@ class BasePerformanceConfig:
 
     @classmethod
     def get_auto_config(cls: type[T_PerformanceConfig]) -> T_PerformanceConfig:
-        """
-        Create config automatically based on system memory.
+        """Create config automatically based on system memory.
 
         Returns:
             Configuration instance for detected tier.
@@ -81,17 +80,16 @@ class BasePerformanceConfig:
                 config_dict = tier_configs[tier]
                 return cls(**config_dict)
             else:
-                logger.warning(f"Unknown memory tier '{tier}', using default config")
+                logger.warning("Unknown memory tier, using the default config", extra=core_logger.context(tier=tier))
                 return cls()
         except Exception as err:
-            logger.warning(f"Failed to create auto config, using defaults: {err}")
+            logger.warning("Failed to create the auto config, using defaults", exc_info=err)
             return cls()
 
 
 # Export utility functions
 def sqlalchemy_obj_to_dict(obj: Any) -> dict[str, Any]:
-    """
-    Convert a SQLAlchemy model or Pydantic schema to a dictionary.
+    """Convert a SQLAlchemy model or Pydantic schema to a dictionary.
 
     Args:
         obj: SQLAlchemy model instance, Pydantic model, or other object.
@@ -113,8 +111,7 @@ def write_json_to_zip(
     counts: dict[str, int],
     ensure_ascii: bool = False,
 ) -> None:
-    """
-    Write JSON data to ZIP file and update counts.
+    """Write JSON data to ZIP file and update counts.
 
     Args:
         zipf: ZipFile instance to write to.
@@ -132,14 +129,47 @@ def write_json_to_zip(
     )
 
 
+def write_json_array_to_zip(
+    zipf: zipfile.ZipFile,
+    filename: str,
+    batches: Iterable[Sequence[Any]],
+    counts: dict[str, int],
+    ensure_ascii: bool = False,
+) -> None:
+    """Stream a JSON array into a ZIP entry one batch at a time and update counts.
+
+    The entry is byte-for-byte what :func:`write_json_to_zip` writes for the same items, but only one
+    batch is held at a time. Nothing else may be written to the archive while ``batches`` is consumed,
+    since the entry is open until it is exhausted.
+
+    Args:
+        zipf: ZipFile instance to write to.
+        filename: Name of file in ZIP.
+        batches: Batches of JSON-serializable items, read lazily.
+        counts: Dictionary to update with the item count.
+        ensure_ascii: Whether to ensure ASCII encoding.
+    """
+    total = 0
+    # Its size is unknown until it is written, so zip64 is allowed up front.
+    with zipf.open(filename, "w", force_zip64=True) as entry:
+        entry.write(b"[")
+        for batch in batches:
+            for item in batch:
+                if total:
+                    entry.write(b", ")
+                entry.write(json.dumps(item, default=str, ensure_ascii=ensure_ascii).encode("utf-8"))
+                total += 1
+        entry.write(b"]")
+    counts[filename.split("/")[-1].replace(".json", "")] = total
+
+
 def check_timeout(
     timeout_seconds: int | None,
     start_time: float,
     exception_class: type[Exception],
     operation_type: str,
 ) -> None:
-    """
-    Check if operation has exceeded timeout.
+    """Check if operation has exceeded timeout.
 
     Args:
         timeout_seconds: Timeout limit in seconds or None.
@@ -155,8 +185,7 @@ def check_timeout(
 
 
 def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
-    """
-    Get current process memory usage in megabytes.
+    """Get current process memory usage in megabytes.
 
     Args:
         enable_monitoring: Whether monitoring is enabled.
@@ -170,7 +199,7 @@ def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
         process = psutil.Process()
         return process.memory_info().rss / (1024 * 1024)  # Convert to MB
     except Exception as err:
-        logger.warning(f"Failed to get memory usage: {err}")
+        logger.warning("Failed to get memory usage", exc_info=err)
         return 0.0
 
 
@@ -180,8 +209,7 @@ def check_memory_usage(
     enable_monitoring: bool = True,
     memory_intensive_operations: list[str] | None = None,
 ) -> None:
-    """
-    Check memory usage and raise error if limit exceeded.
+    """Check memory usage and raise error if limit exceeded.
 
     Args:
         operation: Description of current operation.
@@ -222,17 +250,18 @@ def check_memory_usage(
             f"Memory usage ({current_memory:.1f}MB) critically exceeded limit "
             f"({max_memory_mb}MB, effective: {effective_limit:.1f}MB) during {operation}"
         )
-        logger.error(error_msg)
         raise MemoryAllocationError(error_msg)
 
     # Warn at 90%
     if current_memory > max_memory_mb * 0.9:
-        logger.info(f"High memory usage: {current_memory:.1f}MB (limit: {max_memory_mb}MB) during {operation}")
+        logger.info(
+            "High memory usage",
+            extra=core_logger.context(current_memory=current_memory, max_memory_mb=max_memory_mb, operation=operation),
+        )
 
 
 def initialize_operation_counts(include_user_count: bool = False) -> dict[str, int]:
-    """
-    Initialize dictionary for tracking operation counts.
+    """Initialize dictionary for tracking operation counts.
 
     Args:
         include_user_count: Whether to include user count.
@@ -254,6 +283,11 @@ def initialize_operation_counts(include_user_count: bool = False) -> dict[str, i
         "gear_components": 0,
         "health_weight": 0,
         "health_targets": 0,
+        "health_sleep": 0,
+        "health_steps": 0,
+        "health_water": 0,
+        "health_fasting": 0,
+        "health_poop": 0,
         "user_images": 0,
         "user": 1 if include_user_count else 0,
         "user_default_gear": 0,
@@ -265,8 +299,7 @@ def initialize_operation_counts(include_user_count: bool = False) -> dict[str, i
 
 
 def detect_system_memory_tier() -> tuple[str, int]:
-    """
-    Detect system memory tier based on available memory.
+    """Detect system memory tier based on available memory.
 
     Returns:
         Tuple of tier name and available memory in MB.
@@ -282,5 +315,5 @@ def detect_system_memory_tier() -> tuple[str, int]:
         else:  # Low memory system
             return "low", available_mb
     except Exception as err:
-        logger.warning(f"Failed to detect system memory, using defaults: {err}")
+        logger.warning("Failed to detect system memory, using defaults", exc_info=err)
         return "medium", 1024  # Default to medium tier with 1GB

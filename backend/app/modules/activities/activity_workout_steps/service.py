@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
@@ -81,3 +82,27 @@ def list_public_activity_workout_steps(
         publicly visible.
     """
     return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)
+
+
+def list_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: int | None,
+    db: Session,
+) -> activity_workout_steps_schema.ActivityWorkoutStepsPage:
+    """Return the first page of an activity's workout steps for a viewer who may already see the activity.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty when the workout steps are hidden from this viewer.
+    """
+    return _COLLECTION.list_for_activity(
+        activity,
+        requester_user_id,
+        db,
+        page_number=1,
+        num_records=core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+    )

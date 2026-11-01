@@ -61,3 +61,29 @@ class TestReadActivityStreams:
         response = client.get("/activities/1/streams/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Activity stream not found"
+
+
+class TestStreamTypePath:
+    """The single-stream route accepts every type the list route can return."""
+
+    @patch("modules.activities.activity_streams.router.activity_streams_service.get_activity_stream")
+    def test_every_stored_type_is_accepted(self, mock_get, mock_db):
+        from modules.activities.activity_streams import constants
+        from modules.activities.activity_streams.schema import ActivityStreamsRead
+
+        client = TestClient(_build_app(mock_db))
+        stored = [value for name, value in vars(constants).items() if name.startswith("STREAM_TYPE_")]
+        for stream_type in stored:
+            mock_get.return_value = ActivityStreamsRead(
+                id=1, activity_id=1, stream_type=stream_type, stream_waypoints=[]
+            )
+
+            response = client.get(f"/activities/1/streams/{stream_type}", headers={"Authorization": "Bearer x"})
+
+            assert response.status_code == 200, stream_type
+
+    def test_a_type_outside_the_enum_is_rejected(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        assert client.get("/activities/1/streams/0", headers={"Authorization": "Bearer x"}).status_code == 422
+        assert client.get("/activities/1/streams/9", headers={"Authorization": "Bearer x"}).status_code == 422

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { FastingStats } from '@/features/health/types'
 
 import { Card } from '@/components/ui/card'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
 
 const props = defineProps<{
@@ -13,6 +14,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { duration, percent } = useUnitFormat()
 
 /** The six summary tiles, derived from the raw stats. */
 const tiles = computed(() => [
@@ -36,18 +38,18 @@ const tiles = computed(() => [
     label: t('health.fasting.stats.avgDuration'),
     value:
       props.stats.avgDurationSeconds != null
-        ? formatHoursMinutes(props.stats.avgDurationSeconds)
+        ? formatHoursMinutes(props.stats.avgDurationSeconds, duration)
         : '—',
   },
   {
     key: 'totalTime',
     label: t('health.fasting.stats.totalTime'),
-    value: formatHoursMinutes(props.stats.totalFastingSeconds),
+    value: formatHoursMinutes(props.stats.totalFastingSeconds, duration),
   },
   {
     key: 'completionRate',
     label: t('health.fasting.stats.completionRate'),
-    value: `${Math.round(props.stats.completionRate)}%`,
+    value: percent(props.stats.completionRate),
   },
 ])
 </script>

@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Espera mentre confirmem la teva adreça.",
+  "choosePasswordTitle": "Tria la teva contrasenya",
+  "choosePasswordBody": "El teu correu es confirma quan defineixes una contrasenya per al compte.",
+  "submitPassword": "Defineix la contrasenya",
+  "submittingPassword": "Desant la contrasenya",
   "successTitle": "Correu verificat",
   "successBody": "La teva adreça de correu ha estat confirmada.",
   "adminApprovalBody": "El teu compte ara està esperant l'aprovació de l'administrador.",
@@ -7,6 +11,7 @@
   "invalidTitle": "La verificació ha fallat",
   "missingTokenBody": "A aquest enllaç de verificació li falta el token.",
   "errorInvalidToken": "Aquest enllaç de verificació no és vàlid o ha caducat.",
+  "errorEmailTaken": "Aquesta adreça de correu ara la fa servir un altre compte, així que no es pot confirmar.",
   "errorNotFound": "No hem trobat cap compte per a aquest enllaç.",
   "errorGeneral": "No hem pogut verificar el teu correu. Torna-ho a intentar.",
   "retry": "Torna-ho a intentar",

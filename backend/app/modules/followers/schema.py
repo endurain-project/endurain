@@ -1,9 +1,10 @@
 """Pydantic schemas for follower relationships."""
 
-from pydantic import BaseModel, ConfigDict, StrictInt, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 import core.pagination as core_pagination
 import modules.followers.constants as followers_constants
+import modules.users.users.schema as users_schema
 
 
 class FollowRelationshipRead(BaseModel):
@@ -74,7 +75,17 @@ class RelationshipRead(BaseModel):
     incoming: FollowRelationshipRead | None = None
 
 
-#: One page of follow relationships. Aliases the shared
-#: :class:`core.pagination.Page` so the follower lists return the same envelope
-#: the activities lists do.
-FollowRelationshipPage = core_pagination.Page[FollowRelationshipRead]
+class FollowRelationshipPage(core_pagination.Page[FollowRelationshipRead]):
+    """One page of follow relationships, in the envelope the activities lists use.
+
+    Attributes:
+        users: The public profile of the user on the other side of each row (the follower in a
+            followers list, the followee in a following list, the requester among pending requests),
+            keyed by user ID. It is the projection ``GET /users/id/{user_id}`` returns, so a list needs
+            no lookup per row. A user who is inactive or awaiting approval has no entry.
+    """
+
+    users: dict[int, users_schema.UserPublicRead] = Field(
+        default_factory=dict,
+        description="Public profile of the user on the other side of each row, keyed by user ID",
+    )

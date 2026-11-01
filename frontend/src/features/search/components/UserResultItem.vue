@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import type { ManagedUser } from '@/features/users/types'
+import type { PublicUser } from '@/features/users/types'
 
 import UserAvatar from '@/components/UserAvatar.vue'
-import { Badge } from '@/components/ui/badge'
 
 /**
  * One user row in the search results: avatar, name, and `@username`, linking to
- * the public profile. An "inactive" badge marks deactivated accounts (parity
- * with v1's search list).
+ * the public profile.
  */
-defineProps<{ user: ManagedUser }>()
-
-const { t } = useI18n()
+defineProps<{ user: PublicUser }>()
 </script>
 
 <template>
@@ -31,6 +26,5 @@ const { t } = useI18n()
       <p class="truncate font-medium text-foreground">{{ user.name }}</p>
       <p class="truncate text-hint">@{{ user.username }}</p>
     </div>
-    <Badge v-if="!user.active" variant="destructive">{{ t('search.results.inactive') }}</Badge>
   </RouterLink>
 </template>

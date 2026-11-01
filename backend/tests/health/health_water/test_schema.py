@@ -7,7 +7,7 @@ class TestHealthWaterCreateSchema:
 
         data = HealthWaterCreate(amount_ml=500.0)
         assert data.amount_ml == 500.0
-        assert data.date is not None
+        assert data.date is None
 
     def test_with_date(self):
         from modules.health.health_water.schema import HealthWaterCreate

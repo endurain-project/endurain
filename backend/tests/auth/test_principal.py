@@ -1,4 +1,4 @@
-"""Tests for auth.principal module.
+"""Tests for auth.contracts module.
 
 Covers all Principal helper methods, credential variant
 construction, and the discriminated-union round-trip.
@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from modules.auth.principal import (
+from modules.auth.contracts import (
     AccessTokenCred,
     AnyCredential,
     ApiKeyCred,

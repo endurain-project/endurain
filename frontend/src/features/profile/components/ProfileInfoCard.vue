@@ -37,10 +37,10 @@ const heightDisplay = computed<string | null>(() => {
     return null
   }
   if (props.profile.units === 'metric') {
-    return `${props.profile.height} ${t('settings.users.form.unitCm')}`
+    return `${props.profile.height} ${t('units.cm')}`
   }
   const { feet, inches } = cmToFeetInches(props.profile.height)
-  return `${feet}' ${inches}"`
+  return `${feet} ${t('units.ft')} ${inches} ${t('units.in')}`
 })
 
 /** The read-only profile fields, in display order, pre-formatted. */
@@ -59,6 +59,15 @@ const fields = computed<{ label: string; value: string | null }[]>(() => [
         ? t('settings.users.form.unitsMetric')
         : t('settings.users.form.unitsImperial'),
   },
+  // Weight units follow the units setting above unless an override is set.
+  {
+    label: t('settings.users.form.weightUnits'),
+    value: t(
+      (props.profile.weightUnits ?? props.profile.units) === 'imperial'
+        ? 'settings.users.form.weightUnitsImperial'
+        : 'settings.users.form.weightUnitsMetric',
+    ),
+  },
   {
     label: t('settings.users.form.currency'),
     value: t(`settings.users.form.currencies.${props.profile.currency}`),
@@ -66,9 +75,7 @@ const fields = computed<{ label: string; value: string | null }[]>(() => [
   { label: t('settings.users.form.height'), value: heightDisplay.value },
   {
     label: t('settings.users.form.maxHeartRate'),
-    value: props.profile.maxHeartRate
-      ? `${props.profile.maxHeartRate} ${t('settings.users.form.unitBpm')}`
-      : null,
+    value: props.profile.maxHeartRate ? `${props.profile.maxHeartRate} ${t('units.bpm')}` : null,
   },
   {
     label: t('settings.users.form.preferredLanguage'),

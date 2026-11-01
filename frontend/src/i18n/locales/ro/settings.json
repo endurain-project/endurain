@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Inactiv",
       "unverified": "E-mail neverificat",
+      "pendingEmail": "Schimbare de e-mail în așteptare",
       "pending": "În așteptarea aprobării",
       "externalAuth": "Autentificare externă"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "E-mailul este obligatoriu",
       "emailInvalid": "Introdu o adresă de e-mail validă",
+      "emailChangeHint": "Un link de confirmare este trimis la noua adresă, iar aceasta înlocuiește adresa actuală după confirmare. Utilizatorul este deconectat de pe toate dispozitivele. Marchează noua adresă ca verificată pentru a o aplica imediat.",
       "accessType": "Tip de acces",
       "accessTypeRegular": "Utilizator obișnuit",
       "accessTypeAdmin": "Administrator",
       "password": "Parolă",
       "passwordHint": "Cel puțin 8 caractere",
-      "passwordHintStrict": "Cel puțin {min} caractere, cu majusculă, minusculă, o cifră și un caracter special",
-      "passwordHintLength": "Cel puțin {min} caractere",
       "passwordRequired": "Parola este obligatorie",
-      "passwordInvalid": "Acea parolă nu îndeplinește cerințele",
       "confirmPassword": "Confirmă parola",
       "confirmPasswordRequired": "Confirmă parola",
-      "passwordMismatch": "Parolele nu coincid",
       "preferredLanguage": "Limbă preferată",
       "languages": {
         "ca": "Catalană",
@@ -118,14 +116,14 @@
       "units": "Unități",
       "unitsMetric": "Metric",
       "unitsImperial": "Imperial",
+      "weightUnits": "Unități de greutate",
+      "weightUnitsDefault": "Urmează unitățile",
+      "weightUnitsMetric": "Kilograme (kg)",
+      "weightUnitsImperial": "Livre (lb)",
       "height": "Înălțime",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Picioarele trebuie să fie între 0 și 10",
       "inchesInvalid": "Inchii trebuie să fie între 0 și 11",
       "maxHeartRate": "Puls maxim",
-      "unitBpm": "bpm",
       "currency": "Monedă",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Stare cont",
       "active": "Activ",
       "emailVerified": "E-mail verificat",
+      "emailVerifiedCurrentHint": "Aceasta este starea adresei actuale.",
+      "newEmailVerified": "Marchează noua adresă ca verificată",
       "pendingAdminApproval": "În așteptarea aprobării administratorului",
       "requiredField": "Câmp obligatoriu",
       "create": "Adaugă utilizator",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Înapoi la utilizatori",
+      "pendingEmail": "Schimbare de e-mail în așteptare la {email}, linkul expiră {date}",
       "notFoundTitle": "Utilizatorul nu a fost găsit",
       "notFoundDescription": "Acest cont poate să fi fost șters",
       "securityTitle": "Securitate",
@@ -186,16 +187,12 @@
       "title": "Resetează parola",
       "description": "Setează o parolă nouă pentru {username}",
       "newLabel": "Parolă nouă",
-      "hintLength": "Cel puțin {min} caractere",
-      "hintStrict": "Cel puțin {min} caractere, cu majusculă, minusculă, o cifră și un caracter special",
       "confirmLabel": "Confirmă parola nouă",
-      "mismatch": "Parolele nu coincid",
       "required": "Parola este obligatorie",
       "submit": "Resetează parola",
       "cancel": "Anulează",
       "close": "Închide",
       "success": "Parolă actualizată",
-      "invalid": "Acea parolă nu îndeplinește cerințele",
       "error": "Nu am putut actualiza parola. Te rugăm să încerci din nou."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Politica parolelor",
-      "type": "Politică",
-      "typeStrict": "Strictă (complexitate necesară)",
-      "typeLengthOnly": "Doar lungimea",
       "lengthRegular": "Lungime minimă pentru utilizatorii obișnuiți",
       "lengthAdmin": "Lungime minimă pentru utilizatorii administratori"
     },
@@ -367,6 +361,29 @@
       "sent": "E-mail de test trimis",
       "failed": "E-mailul de test nu a putut fi trimis",
       "failedUnknown": "Consultă jurnalele serverului pentru detalii."
+    },
+    "envLocked": "Setat de {name}",
+    "envSection": "Unele setări de aici sunt definite de variabile de mediu ({names}). Elimină-le din mediu pentru a edita aceste setări aici.",
+    "unsaved": "Modificări nesalvate",
+    "discard": "Renunță",
+    "tabs": {
+      "label": "Secțiunile setărilor serverului",
+      "general": "General",
+      "access": "Acces și securitate",
+      "maps": "Hărți și locație",
+      "email": "E-mail",
+      "unsaved": "Conține modificări nesalvate"
+    },
+    "search": {
+      "placeholder": "Caută în setări…",
+      "noResults": "Nu s-a găsit nicio setare"
+    },
+    "leave": {
+      "title": "Părăsești pagina fără salvare?",
+      "description": "Ai modificări nesalvate. Dacă părăsești această pagină, vor fi pierdute.",
+      "confirm": "Părăsește fără salvare",
+      "stay": "Rămâi pe pagină",
+      "close": "Închide"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Domeniile trebuie să aibă cel mult 500 de caractere",
       "icon": "Pictogramă",
       "iconNone": "Niciuna",
-      "iconCustom": "URL personalizat",
-      "customIconUrl": "URL pictogramă personalizată",
-      "customIconUrlHint": "Link către o imagine afișată pe butonul de autentificare",
       "enabled": "Activat",
       "autoCreateUsers": "Creează automat utilizatori la prima autentificare",
       "syncUserInfo": "Sincronizează informațiile de profil la fiecare autentificare",
@@ -491,13 +505,6 @@
       "distance": "Distanță",
       "elevation": "Diferență de nivel",
       "duration": "Durată"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Editează obiectivul {name}",
@@ -559,9 +566,6 @@
       "current": "Parola curentă",
       "new": "Parolă nouă",
       "confirm": "Confirmă parola nouă",
-      "requirementsStrict": "Cel puțin {length} caractere, incluzând o literă mare, o literă mică, o cifră și un simbol.",
-      "requirementsLength": "Cel puțin {length} caractere.",
-      "mismatch": "Parolele nu coincid.",
       "revokeOthers": "Deconectează toate celelalte dispozitive",
       "submit": "Schimbă parola",
       "success": "Parolă schimbată",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Parola sau codul tău este incorect.",
       "alreadyLinked": "Acel cont este deja asociat.",
       "lastMethodError": "Nu îți poți dezasocia singura metodă de autentificare. Setează mai întâi o parolă."
+    },
+    "email": {
+      "subtitle": "Aici sunt trimise resetările parolei și notificările. Pentru modificare trebuie să îți confirmi identitatea, iar noua adresă intră în vigoare după ce o confirmi printr-un link pe care îl trimitem acolo.",
+      "sameAsCurrent": "Aceasta este deja adresa ta de e-mail.",
+      "success": "Linkul de confirmare a fost trimis la noua adresă. E-mailul tău se va schimba după ce îl confirmi.",
+      "appliedSuccess": "Adresa de e-mail a fost schimbată.",
+      "pending": "Schimbare în așteptare la {email}",
+      "pendingExpires": "Linkul de confirmare expiră la {date}.",
+      "resend": "Retrimite linkul",
+      "cancel": "Anulează schimbarea",
+      "resendSuccess": "Dacă există o schimbare în așteptare, un link nou este pe drum către noua adresă.",
+      "resendError": "Nu am putut retrimite linkul. Te rugăm să încerci din nou.",
+      "cancelSuccess": "Schimbarea adresei de e-mail a fost anulată.",
+      "cancelError": "Nu am putut anula schimbarea. Te rugăm să încerci din nou."
     },
     "apiKeys": {
       "title": "Chei API",
@@ -923,7 +941,6 @@
       "invalidType": "Te rugăm să alegi o arhivă .zip.",
       "exportSuccess": "Export pregătit, descărcarea ta ar trebui să înceapă în curând",
       "exportError": "Nu am putut exporta datele tale. Te rugăm să încerci din nou.",
-      "importSuccess": "Date importate",
       "importError": "Nu am putut importa arhiva. Te rugăm să verifici fișierul și să încerci din nou."
     }
   }

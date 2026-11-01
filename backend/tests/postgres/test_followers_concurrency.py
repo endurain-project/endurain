@@ -161,3 +161,51 @@ def test_the_opposite_directions_are_independent_relationships(factory):
 
     with factory() as db:
         assert db.execute(text("SELECT count(*) FROM followers")).scalar_one() == 2
+
+
+def test_concurrent_follow_requests_cannot_exceed_the_pending_cap(factory, monkeypatch):
+    import modules.followers.service as followers_service
+
+    monkeypatch.setattr(followers_constants, "MAX_PENDING_REQUESTS", 2)
+    for user_id in range(10, 10 + _THREADS):
+        ensure_user(factory, user_id)
+
+    requesters = iter(range(10, 10 + _THREADS))
+    lock = threading.Lock()
+
+    def follow(db):
+        with lock:
+            requester = next(requesters)
+        return followers_service.follow_user(requester, 1, db)
+
+    outcomes = _race(factory, follow)
+
+    with factory() as db:
+        pending = followers_crud.count_pending_requests_for_user_id(1, db)
+    assert pending == 2
+    assert len([o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]) == _THREADS - 2
+
+
+def test_concurrent_accepts_cannot_exceed_the_followee_cap(factory, monkeypatch):
+    import modules.followers.service as followers_service
+
+    monkeypatch.setattr(followers_constants, "MAX_ACCEPTED_FOLLOWEES", 2)
+    followees = list(range(10, 10 + _THREADS))
+    for user_id in followees:
+        ensure_user(factory, user_id)
+        _add_follow(factory, 1, user_id, followers_constants.FollowStatus.PENDING)
+
+    accepters = iter(followees)
+    lock = threading.Lock()
+
+    def accept(db):
+        with lock:
+            followee = next(accepters)
+        return followers_service.accept_follow_request(followee, 1, db)
+
+    outcomes = _race(factory, accept)
+
+    with factory() as db:
+        accepted = followers_crud.count_following_by_user_id(1, db, accepted_only=True)
+    assert accepted == 2
+    assert len([o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]) == _THREADS - 2

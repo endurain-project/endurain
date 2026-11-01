@@ -6,6 +6,7 @@
  */
 
 import type { Units } from '@/features/activities/utils/format'
+import type { UnitKey } from '@/i18n'
 
 import { kmToMiles } from '@/utils/units'
 
@@ -13,25 +14,14 @@ import { kmToMiles } from '@/utils/units'
 export interface SummaryMetric {
   /** The formatted numeric value (no unit). */
   value: string
-  /** The unit suffix (may be empty, e.g. for the activity count). */
-  unit: string
+  /** The unit key, or `null` for a unitless value. */
+  unit: UnitKey | null
 }
 
 /** Metres in one kilometre. */
 const METERS_PER_KM = 1000
 /** Metres to feet, for imperial elevation. */
 const METERS_TO_FEET = 3.28084
-
-/**
- * Combines a {@link SummaryMetric} into a single `value unit` string for dense
- * contexts such as breakdown table cells.
- *
- * @param metric - The split metric.
- * @returns The combined string (just the value when there is no unit).
- */
-export function combineSummaryMetric(metric: SummaryMetric): string {
-  return metric.unit ? `${metric.value} ${metric.unit}` : metric.value
-}
 
 /**
  * Formats an aggregate distance in kilometres (metric) or miles (imperial),
@@ -62,16 +52,15 @@ export function formatSummaryElevation(meters: number, units: Units): SummaryMet
 
 /**
  * Formats an aggregate duration as a compact `Hh Mm` clock (`Mm` under an hour),
- * suited to large rollups that can span hundreds of hours.
+ * suited to large rollups that can span hundreds of hours. Returns the parts so the
+ * view can render them with the localized duration format.
  *
  * @param seconds - Total duration in seconds.
- * @returns The formatted duration (the unit is embedded in the value).
+ * @returns The whole hours and the remaining whole minutes.
  */
-export function formatSummaryDuration(seconds: number): SummaryMetric {
+export function formatSummaryDuration(seconds: number): { hours: number; minutes: number } {
   const whole = Math.max(0, Math.floor(seconds))
-  const hours = Math.floor(whole / 3600)
-  const minutes = Math.floor((whole % 3600) / 60)
-  return { value: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, unit: '' }
+  return { hours: Math.floor(whole / 3600), minutes: Math.floor((whole % 3600) / 60) }
 }
 
 /**

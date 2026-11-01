@@ -1,4 +1,24 @@
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { partialMatchKey, useMutation, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+
+/**
+ * Invalidates a domain except the sub-trees a write cannot have changed, so a
+ * broad prefix does not refetch static or per-item data that is on screen.
+ *
+ * @param client - The active query client.
+ * @param queryKey - The domain prefix to invalidate (e.g. `queryKeys.gears.all()`).
+ * @param excludedKeys - Key prefixes under `queryKey` that stay as they are.
+ */
+export function invalidateExcept(
+  client: QueryClient,
+  queryKey: readonly unknown[],
+  excludedKeys: ReadonlyArray<readonly unknown[]>,
+): Promise<void> {
+  return client.invalidateQueries({
+    queryKey,
+    predicate: (query) =>
+      !excludedKeys.some((excluded) => partialMatchKey(query.queryKey, excluded)),
+  })
+}
 
 /** Options for {@link useInvalidatingMutation}. */
 export interface InvalidatingMutationOptions<TData, TVariables> {
@@ -12,6 +32,11 @@ export interface InvalidatingMutationOptions<TData, TVariables> {
    * when a write should cascade to lists, detail, and derived totals.
    */
   invalidateKey?: readonly unknown[]
+  /**
+   * Key prefixes under {@link invalidateKey} that the write cannot have changed
+   * and that therefore keep their cache (see {@link invalidateExcept}).
+   */
+  excludeKeys?: ReadonlyArray<readonly unknown[]>
 }
 
 /**
@@ -39,7 +64,7 @@ export function useInvalidatingMutation<TData, TVariables>(
     mutationKey: options.mutationKey,
     mutationFn: options.mutationFn,
     onSettled: () => {
-      void client.invalidateQueries({ queryKey: invalidateKey })
+      void invalidateExcept(client, invalidateKey, options.excludeKeys ?? [])
     },
   })
 }

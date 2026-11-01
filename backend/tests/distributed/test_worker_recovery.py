@@ -14,7 +14,7 @@ _UPLOAD_SUBSCRIBER = "activity_ingestion.uploaded_file"
 def _upload_attempts(cluster) -> list[tuple[str, str]]:
     """``(outcome, worker)`` for each attempt at the upload job, oldest first."""
     return cluster.query(
-        "SELECT a.outcome, a.worker_id FROM job_attempts a JOIN processing_jobs p ON p.id = a.job_id "
+        "SELECT a.outcome, a.worker_id FROM jasil_job_attempts a JOIN jasil_processing_jobs p ON p.id = a.job_id "
         "WHERE p.subscriber_id = :subscriber ORDER BY a.claimed_at",
         subscriber=_UPLOAD_SUBSCRIBER,
     )

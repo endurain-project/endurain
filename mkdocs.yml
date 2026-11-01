@@ -91,16 +91,27 @@ nav:
     - Quick start: getting-started/quick-start.md
     - Reverse proxy: getting-started/reverse-proxy.md
     - Updates and backups: getting-started/operations.md
+    - Storage layout and restore: getting-started/storage-and-backups.md
+    - Monitoring: getting-started/monitoring.md
     - Troubleshooting: getting-started/troubleshooting.md
     - Advanced setup: getting-started/advanced-setup.md
     - Scaling and background jobs: getting-started/scaling-and-background-jobs.md
+    - Background work and failure handling: getting-started/background-work-by-module.md
     - Bare-metal installation: getting-started/bare-metal.md
     - Proxmox community script: https://community-scripts.github.io/ProxmoxVE/scripts?id=endurain&category=Gaming+%26+Leisure
   - User guide:
+    - Accounts, sign-up and password reset: features/accounts-and-sign-in.md
+    - Activities: features/activities.md
+    - Health tracking: features/health.md
+    - Gear and components: features/gear.md
+    - Goals: features/goals.md
+    - Notifications: features/notifications.md
     - Importing data: features/importing.md
     - Sharing, privacy and followers: features/sharing-and-privacy.md
     - Exporting and importing your data: features/export-import.md
     - Single Sign-On (SSO): features/single-sign-on.md
+    - Server settings: features/server-settings.md
+    - User management: features/user-management.md
     - Sleep scoring: features/sleep-scoring.md
     - Integrations: features/integrations.md
     - Gallery: gallery.md
@@ -112,6 +123,8 @@ nav:
     - OAuth/SSO and PKCE: integrate/oauth-sso-pkce.md
     - Configuration, scopes and best practices: integrate/auth-reference.md
     - Errors, concurrency and rate limits: integrate/errors-and-limits.md
+    - Public endpoints: integrate/public-endpoints.md
+    - Realtime updates: integrate/realtime.md
     - Supported types: integrate/supported-types.md
     - API reference (OpenAPI): integrate/api-reference.md
   - Contributing:
@@ -119,6 +132,7 @@ nav:
     - Module structure: developer-guide/module-structure.md
     - Activity ingestion: developer-guide/activity-ingestion.md
     - Events and subscribers: developer-guide/events-and-subscribers.md
+    - Versioned writes (ETag and If-Match): developer-guide/optimistic-concurrency.md
     - Auth boundary: developer-guide/auth-boundary.md
     - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
     - Suggesting a login photo: developer-guide/login-photos.md

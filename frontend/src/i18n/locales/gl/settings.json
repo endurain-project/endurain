@@ -31,6 +31,7 @@
       "admin": "Administrador",
       "inactive": "Inactivo",
       "unverified": "Correo non verificado",
+      "pendingEmail": "Cambio de correo pendente",
       "pending": "Pendente de aprobación",
       "externalAuth": "Autenticación externa"
     },
@@ -64,18 +65,15 @@
       "email": "Correo electrónico",
       "emailRequired": "O correo electrónico é obrigatorio",
       "emailInvalid": "Introduce un enderezo de correo electrónico válido",
+      "emailChangeHint": "Envíase unha ligazón de confirmación ao novo enderezo e este substitúe o actual unha vez confirmado. O usuario é desconectado de todos os dispositivos. Marca o novo enderezo como verificado para aplicalo agora.",
       "accessType": "Tipo de acceso",
       "accessTypeRegular": "Usuario regular",
       "accessTypeAdmin": "Administrador",
       "password": "Contrasinal",
       "passwordHint": "Polo menos 8 caracteres",
-      "passwordHintStrict": "Polo menos {min} caracteres, con maiúsculas, minúsculas, un número e un carácter especial",
-      "passwordHintLength": "Polo menos {min} caracteres",
       "passwordRequired": "O contrasinal é obrigatorio",
-      "passwordInvalid": "Ese contrasinal non cumpre os requisitos",
       "confirmPassword": "Confirmar contrasinal",
       "confirmPasswordRequired": "Confirmar contrasinal",
-      "passwordMismatch": "Os contrasinais non coinciden",
       "preferredLanguage": "Idioma preferido",
       "languages": {
         "ca": "Catalán",
@@ -118,14 +116,14 @@
       "units": "Unidades",
       "unitsMetric": "Métrico",
       "unitsImperial": "Imperial",
+      "weightUnits": "Unidades de peso",
+      "weightUnitsDefault": "Seguir unidades",
+      "weightUnitsMetric": "Quilogramos (kg)",
+      "weightUnitsImperial": "Libras (lb)",
       "height": "Altura",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Os pés deben estar entre 0 e 10",
       "inchesInvalid": "As polgadas deben estar entre 0 e 11",
       "maxHeartRate": "FC máxima",
-      "unitBpm": "ppm",
       "currency": "Moeda",
       "currencies": {
         "euro": "Euro",
@@ -149,6 +147,8 @@
       "statusLegend": "Estado da conta",
       "active": "Activo",
       "emailVerified": "Correo verificado",
+      "emailVerifiedCurrentHint": "Este é o estado do enderezo actual.",
+      "newEmailVerified": "Marcar o novo enderezo como verificado",
       "pendingAdminApproval": "Pendente de aprobación do administrador",
       "requiredField": "Campo obrigatorio",
       "create": "Engadir usuario",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Volver aos usuarios",
+      "pendingEmail": "Cambio de correo pendente a {email}, a ligazón caduca o {date}",
       "notFoundTitle": "Usuario non atopado",
       "notFoundDescription": "Esta conta pode ter sido eliminada",
       "securityTitle": "Seguridade",
@@ -186,16 +187,12 @@
       "title": "Restablecer contrasinal",
       "description": "Establece un novo contrasinal para {username}",
       "newLabel": "Novo contrasinal",
-      "hintLength": "Polo menos {min} caracteres",
-      "hintStrict": "Polo menos {min} caracteres, con maiúsculas, minúsculas, un número e un carácter especial",
       "confirmLabel": "Confirmar novo contrasinal",
-      "mismatch": "Os contrasinais non coinciden",
       "required": "O contrasinal é obrigatorio",
       "submit": "Restablecer contrasinal",
       "cancel": "Cancelar",
       "close": "Pechar",
       "success": "Contrasinal actualizado",
-      "invalid": "Ese contrasinal non cumpre os requisitos",
       "error": "Non se puido actualizar o contrasinal. Por favor, téntao de novo."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Política de contrasinais",
-      "type": "Política",
-      "typeStrict": "Estrita (complexidade requirida)",
-      "typeLengthOnly": "Só lonxitude",
       "lengthRegular": "Lonxitude mínima usuarios regulares",
       "lengthAdmin": "Lonxitude mínima usuarios administradores"
     },
@@ -367,6 +361,29 @@
       "sent": "Correo de proba enviado",
       "failed": "Non se puido enviar o correo de proba",
       "failedUnknown": "Consulta os rexistros do servidor para ver máis detalles."
+    },
+    "envLocked": "Definido por {name}",
+    "envSection": "Algúns axustes de aquí defínense mediante variables de contorno ({names}). Elimínaas do contorno para editar eses axustes aquí.",
+    "unsaved": "Cambios sen gardar",
+    "discard": "Descartar",
+    "tabs": {
+      "label": "Seccións dos axustes do servidor",
+      "general": "Xeral",
+      "access": "Acceso e seguranza",
+      "maps": "Mapas e localización",
+      "email": "Correo electrónico",
+      "unsaved": "Ten cambios sen gardar"
+    },
+    "search": {
+      "placeholder": "Buscar axustes…",
+      "noResults": "Non se atoparon axustes"
+    },
+    "leave": {
+      "title": "Saír sen gardar?",
+      "description": "Tes cambios sen gardar. Se sáes desta páxina perderanse.",
+      "confirm": "Saír sen gardar",
+      "stay": "Quedar na páxina",
+      "close": "Pechar"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Os ámbitos deben ter 500 caracteres ou menos",
       "icon": "Icona",
       "iconNone": "Ningún",
-      "iconCustom": "URL personalizado",
-      "customIconUrl": "URL da icona personalizada",
-      "customIconUrlHint": "Ligazón a unha imaxe mostrada no botón de inicio de sesión",
       "enabled": "Activado",
       "autoCreateUsers": "Crear usuarios automaticamente no primeiro inicio de sesión",
       "syncUserInfo": "Sincronizar información do perfil en cada inicio de sesión",
@@ -491,13 +505,6 @@
       "distance": "Distancia",
       "elevation": "Desnivel",
       "duration": "Duración"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Editar obxectivo {name}",
@@ -559,9 +566,6 @@
       "current": "Contrasinal actual",
       "new": "Novo contrasinal",
       "confirm": "Confirmar novo contrasinal",
-      "requirementsStrict": "Polo menos {length} caracteres, incluíndo unha maiúscula, unha minúscula, un número e un símbolo.",
-      "requirementsLength": "Polo menos {length} caracteres.",
-      "mismatch": "Os contrasinais non coinciden.",
       "revokeOthers": "Pechar sesión en todos os outros dispositivos",
       "submit": "Cambiar contrasinal",
       "success": "Contrasinal cambiado",
@@ -650,6 +654,20 @@
       "invalidCredentials": "O teu contrasinal ou código é incorrecto.",
       "alreadyLinked": "Esa conta xa está vinculada.",
       "lastMethodError": "Non podes desvincular o teu único método de inicio de sesión. Establece un contrasinal primeiro."
+    },
+    "email": {
+      "subtitle": "Aquí envíanse os restablecementos de contrasinal e os avisos. Para cambialo tes que confirmar a túa identidade, e o novo enderezo xa é efectivo cando o confirmes desde unha ligazón que enviamos alí.",
+      "sameAsCurrent": "Esta xa é o teu enderezo de correo electrónico.",
+      "success": "Enviouse unha ligazón de confirmación ao novo enderezo. O teu correo cambiará cando o confirmes.",
+      "appliedSuccess": "Correo electrónico cambiado.",
+      "pending": "Cambio pendente a {email}",
+      "pendingExpires": "A ligazón de confirmación caduca o {date}.",
+      "resend": "Reenviar a ligazón",
+      "cancel": "Cancelar o cambio",
+      "resendSuccess": "Se hai un cambio pendente, hai unha nova ligazón de camiño ao novo enderezo.",
+      "resendError": "Non se puido reenviar a ligazón. Téntao de novo.",
+      "cancelSuccess": "Cancelouse o cambio de correo.",
+      "cancelError": "Non se puido cancelar o cambio. Téntao de novo."
     },
     "apiKeys": {
       "title": "Claves de API",
@@ -923,7 +941,6 @@
       "invalidType": "Por favor, escolle un arquivo .zip.",
       "exportSuccess": "Exportación lista, a túa descarga debería comezar en breve",
       "exportError": "Non se puideron exportar os teus datos. Por favor, téntao de novo.",
-      "importSuccess": "Datos importados",
       "importError": "Non se puido importar o arquivo. Por favor, comproba o ficheiro e téntao de novo."
     }
   }

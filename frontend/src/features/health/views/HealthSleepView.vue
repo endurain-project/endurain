@@ -9,6 +9,7 @@ import HealthSleepChart from '@/features/health/components/HealthSleepChart.vue'
 import HealthSleepFormDialog from '@/features/health/components/HealthSleepFormDialog.vue'
 import HealthSleepListItem from '@/features/health/components/HealthSleepListItem.vue'
 import HealthSleepTargetDialog from '@/features/health/components/HealthSleepTargetDialog.vue'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -18,11 +19,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useChartProvider } from '@/composables/useChartProvider'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import {
   useDeleteSleepEntryMutation,
   useHealthTargetsQuery,
   useSleepEntriesQuery,
+  useHealthChartQuery,
 } from '@/features/health/composables/useHealth'
 
 const { t } = useI18n()
@@ -49,6 +52,7 @@ const targets = computed(() => targetsQuery.data.value ?? null)
 const targetSeconds = computed(() => targets.value?.sleepSeconds ?? null)
 
 const listQuery = useSleepEntriesQuery(page, recordsPerPage, interval)
+const chartQuery = useHealthChartQuery('sleep', interval)
 
 /** Sleep entries on the current page (newest first). */
 const entries = computed(() => listQuery.data.value?.records ?? [])
@@ -63,14 +67,14 @@ const isPending = computed(() => listQuery.isPending.value)
 const isError = computed(() => listQuery.isError.value)
 const isEmpty = computed(() => !isPending.value && !isError.value && entries.value.length === 0)
 
-/** The chart is shown only when a provider is bundled and there is data to plot. */
-const showChart = computed(
-  () =>
-    chart.isAvailable &&
-    !isPending.value &&
-    !isError.value &&
-    entries.value.some((entry) => entry.totalSleepSeconds !== null),
-)
+/**
+ * The whole interval's chart series, independent of the list's page. `null` when no chart
+ * provider is bundled or the interval holds nothing to plot.
+ */
+const chartSeries = computed(() => {
+  const series = chartQuery.data.value
+  return chart.isAvailable && series && series.points.length > 0 ? series : null
+})
 
 // Changing the interval changes the result set, so restart at the first page.
 watch(interval, resetPage)
@@ -119,15 +123,17 @@ function confirmDelete(): void {
   if (!entry) {
     return
   }
-  deleteMutation.mutate(entry.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('health.sleep.delete.success'))
+  deleteMutation.mutate(
+    { id: entry.id, version: entry.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('health.sleep.delete.success'))
+      },
+      onError: (error) =>
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.sleep.delete.error')),
     },
-    onError: () => {
-      toasts.error(t('health.sleep.delete.error'))
-    },
-  })
+  )
 }
 </script>
 
@@ -157,7 +163,10 @@ function confirmDelete(): void {
       </div>
     </div>
 
-    <HealthSleepChart v-if="showChart" :entries="entries" :target-seconds="targetSeconds" />
+    <HealthSleepChart v-if="chartSeries" :series="chartSeries" :target-seconds="targetSeconds" />
+    <Alert v-else-if="chartQuery.isError.value" kind="error">
+      {{ t('health.chartError') }}
+    </Alert>
 
     <ListPanel
       v-model:page="page"

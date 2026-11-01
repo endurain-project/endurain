@@ -54,7 +54,10 @@ const profile = computed(() => profileQuery.data.value ?? null)
 
     <!-- Loaded -->
     <template v-else-if="profile">
-      <StravaCard :linked="profile.stravaLinked" />
+      <StravaCard
+        :linked="profile.stravaLinked"
+        :integrations-version="profile.integrationsVersion"
+      />
       <GarminCard :linked="profile.garminLinked" />
     </template>
   </div>

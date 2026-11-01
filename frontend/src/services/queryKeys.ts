@@ -36,6 +36,8 @@ export const queryKeys = {
   public: {
     serverSettings: () => ['public-server-settings'] as const,
     identityProviders: () => ['public-identity-providers'] as const,
+    /** Whether the installation still needs its first administrator. */
+    onboarding: () => ['public-onboarding'] as const,
   },
 
   /**
@@ -50,6 +52,12 @@ export const queryKeys = {
     targets: () => ['health', 'targets'] as const,
     /** The consolidated daily dashboard stats (today's metrics + last weight). */
     dashboard: () => ['health', 'dashboard'] as const,
+    /**
+     * @param metric - The charted health metric.
+     * @param interval - The charted time window.
+     * @returns An aggregated chart-series key for the metric and window.
+     */
+    chart: (metric: string, interval: string) => ['health', 'chart', metric, interval] as const,
     /** Broad prefix for every paginated weight-history query. */
     weightLists: () => ['health', 'weight'] as const,
     /**
@@ -139,6 +147,10 @@ export const queryKeys = {
   activities: {
     /** Broad prefix; invalidating this cascades to every activities query. */
     all: () => ['activities'] as const,
+    /** Prefix for combined user-profile reads that depend on activity data. */
+    profileOverviews: () => ['activities', 'profile-overview'] as const,
+    /** The profile overview depends on this user's visible activity aggregates. */
+    profileOverview: (userId: number) => ['activities', 'profile-overview', userId] as const,
     lists: () => ['activities', 'list'] as const,
     /**
      * @param filters - Serializable list filters (paging, type, etc.).
@@ -174,11 +186,11 @@ export const queryKeys = {
     exerciseTitles: () => ['activities', 'exercise-titles'] as const,
     /** Media (photos) attached to one activity. */
     media: (id: number) => ['activities', 'detail', id, 'media'] as const,
+    /** Every activity owner's identity; prefix of {@link owner}. */
+    owners: () => ['activities', 'owner'] as const,
     /** The activity's owner user (public or authenticated), keyed by user id. */
     owner: (userId: number) => ['activities', 'owner', userId] as const,
-    /** The distinct activity-type codes the user owns (type-filter options). */
-    types: () => ['activities', 'types'] as const,
-    /** The user's activity-type code→name map (summary type filter). */
+    /** The user's activity-type code→name map (type filter options and summary type filter). */
     typeNames: () => ['activities', 'type-names'] as const,
     /**
      * An aggregated activity summary for a view type + period + optional type
@@ -398,8 +410,17 @@ export const queryKeys = {
     detail: () => ['server-settings', 'detail'] as const,
     /** The static catalogue of selectable tile-server presets. */
     tileTemplates: () => ['server-settings', 'tile-templates'] as const,
-    /** Whether outgoing email is usable (SMTP settings valid). */
+    /** Whether outgoing email is usable (mail settings valid). */
     email: () => ['server-settings', 'email'] as const,
+    /** The editable mail server settings. */
+    mail: () => ['server-settings', 'mail'] as const,
+    /** Whether the server-log viewer is available. */
+    logsStatus: () => ['server-settings', 'logs-status'] as const,
+    /** Broad prefix of every accumulated server-log tail. */
+    logsAll: () => ['server-settings', 'logs'] as const,
+    /** The accumulated server-log tail for one set of filters. */
+    logs: (level: string | null, search: string) =>
+      ['server-settings', 'logs', level, search] as const,
   },
 
   /**
@@ -407,6 +428,10 @@ export const queryKeys = {
    * terminal; it creates activities rather than caching any, so it has no
    * invalidation role of its own.
    */
+  integrations: {
+    /** @returns A query key for the Garmin Connect link attempt's progress. */
+    garminLinkStatus: () => ['integrations', 'garmin-link-status'] as const,
+  },
   bulkImport: {
     /**
      * @param jobId - The ingestion job returned when the import was accepted.
@@ -441,6 +466,10 @@ export const queryKeys = {
     detail: () => ['profile', 'detail'] as const,
     /** The user's per-activity default-gear assignments. */
     defaultGear: () => ['profile', 'default-gear'] as const,
+    /** The state of the user's profile export. */
+    export: () => ['profile', 'export'] as const,
+    /** The state of the user's profile import. */
+    import: () => ['profile', 'import'] as const,
   },
 
   /**
@@ -492,3 +521,14 @@ export const queryKeys = {
     apiKeys: () => ['security', 'api-keys'] as const,
   },
 } as const
+
+/**
+ * Activity cache entries that a change to activity rows (an edit, a delete, a new activity)
+ * cannot change: each activity's own detail with its sub-resources, the owners' identities,
+ * and the static exercise-title catalogue. Left out of an `activities` invalidation so it does not refetch them.
+ */
+export const ACTIVITY_ROW_INDEPENDENT_KEYS = [
+  queryKeys.activities.details(),
+  queryKeys.activities.owners(),
+  queryKeys.activities.exerciseTitles(),
+] as const

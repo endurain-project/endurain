@@ -1,26 +1,14 @@
 """Utility helpers and pre-configured templates for identity providers."""
 
-import base64
-import hashlib
-import hmac
-import re
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
-
-import core.config as core_config
-import core.logger as core_logger
-import modules.auth.identity_providers.links.crud as auth_identity_links_crud
+import core.exceptions as core_exceptions
 import modules.auth.identity_providers.schema as idp_schema
-import modules.auth.identity_providers.service as idp_service
-
-logger = core_logger.get_logger(__name__)
 
 
-def validate_redirect_url(redirect: str | None) -> None:
-    """
-    Validate the redirect URL to prevent open redirect vulnerabilities.
+def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:
+    """Validate the redirect URL to prevent open redirect vulnerabilities.
 
     Allows only relative paths (starting with '/') and custom URI
     schemes explicitly configured via ALLOWED_REDIRECT_SCHEMES.
@@ -28,9 +16,10 @@ def validate_redirect_url(redirect: str | None) -> None:
 
     Args:
         redirect: The redirect URL string to validate, or None.
+        allowed_schemes: Custom URI schemes a redirect may use.
 
     Raises:
-        HTTPException: 400 Bad Request if the redirect URL is
+        InvalidInputError: If the redirect URL is
             invalid, uses a disallowed scheme, is an external
             HTTP/HTTPS URL, or contains control characters or path
             traversal sequences.
@@ -42,49 +31,37 @@ def validate_redirect_url(redirect: str | None) -> None:
     # in, and a browser's URL parser drops tab, CR and LF anywhere in a URL, so
     # "/<tab>/host" would be read as the protocol-relative "//host".
     if any(ord(char) < 0x20 or ord(char) == 0x7F for char in redirect):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Redirect contains control characters.",
-        )
+        raise core_exceptions.InvalidInputError("Redirect contains control characters.")
 
     value = redirect.strip()
 
     # Reject external HTTP/HTTPS URLs (open redirect prevention)
     if value.startswith("http://") or value.startswith("https://"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=("External HTTP redirects are not allowed. Use a relative path or a configured custom scheme."),
+        raise core_exceptions.InvalidInputError(
+            "External HTTP redirects are not allowed. Use a relative path or a configured custom scheme."
         )
 
     # Handle custom URI schemes (e.g., gadgetbridge://callback)
     if "://" in value:
         scheme = value.split("://", 1)[0].lower()
-        allowed = core_config.settings.ALLOWED_REDIRECT_SCHEMES
+        allowed = allowed_schemes
         if scheme not in allowed:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Redirect scheme '{scheme}' is not allowed. "
-                    "Configure ALLOWED_REDIRECT_SCHEMES to permit "
-                    "custom URI schemes."
-                ),
+            raise core_exceptions.InvalidInputError(
+                f"Redirect scheme '{scheme}' is not allowed. "
+                "Configure ALLOWED_REDIRECT_SCHEMES to permit custom URI schemes."
             )
         # Custom scheme is allowed — no further checks needed
         return
 
     # Relative paths must start with '/'
     if not value.startswith("/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=("Redirect must be a relative path starting with '/' or a configured custom URI scheme."),
+        raise core_exceptions.InvalidInputError(
+            "Redirect must be a relative path starting with '/' or a configured custom URI scheme."
         )
 
     # Reject path traversal sequences
     if ".." in value or "\\" in value or value.startswith("//"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Redirect path contains disallowed sequences.",
-        )
+        raise core_exceptions.InvalidInputError("Redirect path contains disallowed sequences.")
 
 
 def is_custom_scheme_redirect(redirect: str | None) -> bool:
@@ -105,110 +82,64 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
     return "://" in value
 
 
-def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> None:
-    """
-    Validate PKCE code_challenge format according to RFC 7636.
-
-    This function enforces RFC 7636 compliance for PKCE code challenges,
-    ensuring that mobile clients provide properly formatted S256 challenges.
+def append_query_params(url: str, params: dict[str, str]) -> str:
+    """Append query parameters to a URL or relative path, preserving any existing query.
 
     Args:
-        code_challenge (str): Base64url-encoded SHA256 hash of code verifier.
-        code_challenge_method (str): PKCE method identifier (must be "S256").
-
-    Raises:
-        HTTPException: 400 Bad Request if validation fails (method not S256,
-            length out of range, or invalid base64url characters).
-    """
-    # Only S256 is supported (SHA256)
-    if code_challenge_method != "S256":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only S256 PKCE method is supported",
-        )
-
-    # RFC 7636: code_challenge length must be 43-128 characters (base64url)
-    if not (43 <= len(code_challenge) <= 128):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_challenge must be 43-128 characters",
-        )
-
-    # Validate base64url format (alphanumeric, dash, underscore only)
-    if not re.match(r"^[A-Za-z0-9_-]+$", code_challenge):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_challenge must be valid base64url",
-        )
-
-
-def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challenge_method: str) -> None:
-    """
-    Validate PKCE code_verifier and verify it matches the code_challenge.
-
-    This function implements RFC 7636 PKCE verification by computing the
-    SHA256 hash of the verifier and comparing it to the stored challenge.
-    This proves the client possesses the secret used during login initiation.
-
-    Args:
-        code_verifier (str): Base64url-encoded verifier from mobile client.
-        code_challenge (str): Base64url-encoded SHA256 hash stored in DB.
-        code_challenge_method (str): PKCE method (must be "S256").
-
-    Raises:
-        HTTPException: 400 Bad Request if verifier format is invalid,
-            method is not S256, or verifier doesn't match challenge.
-    """
-    # Validate verifier format
-    if not (43 <= len(code_verifier) <= 128):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_verifier must be 43-128 characters",
-        )
-
-    if not re.match(r"^[A-Za-z0-9_-]+$", code_verifier):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="code_verifier must be valid base64url",
-        )
-
-    # Verify method is S256
-    if code_challenge_method != "S256":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only S256 PKCE method is supported",
-        )
-
-    # Compute SHA256 hash of verifier
-    verifier_hash = hashlib.sha256(code_verifier.encode("ascii")).digest()
-    computed_challenge = base64.urlsafe_b64encode(verifier_hash).decode("ascii").rstrip("=")
-
-    # Constant-time comparison to prevent timing attacks
-    if not _secure_compare(computed_challenge, code_challenge):
-        logger.warning(
-            f"PKCE verification failed: computed={computed_challenge[:10]}..., expected={code_challenge[:10]}..."
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid code_verifier",
-        )
-
-
-def _secure_compare(a: str, b: str) -> bool:
-    """
-    Constant-time string comparison to prevent timing attacks.
-
-    Uses ``hmac.compare_digest`` to avoid both character-by-
-    character and length timing leaks.
-
-    Args:
-        a: First string.
-        b: Second string.
+        url: An absolute URL or a relative path.
+        params: The parameters to add; an existing parameter of the same name is replaced.
 
     Returns:
-        True if strings are equal, False otherwise.
+        The URL with the parameters in its query.
     """
-    return hmac.compare_digest(a.encode(), b.encode())
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update(params)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def build_link_result_url(host: str, redirect_path: str | None, idp_name: str | None, *, success: bool) -> str:
+    """Build the post-link redirect that carries the result to the originating client.
+
+    Honors a caller-supplied return path captured at link initiation (validated there against open
+    redirects): a relative path is resolved against the frontend host, while a custom URI scheme is handed
+    off directly to the native client. Falls back to the security settings path when no return path was
+    provided.
+
+    Args:
+        host: The configured frontend host.
+        redirect_path: The validated return path or custom scheme, or None.
+        idp_name: Provider display name (included on success).
+        success: Whether the link succeeded.
+
+    Returns:
+        The absolute URL (or custom-scheme URL) to redirect the browser to.
+    """
+    params = {"idp_link": "success" if success else "error"}
+    if success and idp_name is not None:
+        params["idp_name"] = idp_name
+    if redirect_path and is_custom_scheme_redirect(redirect_path):
+        return append_query_params(redirect_path, params)
+    base = redirect_path or "/settings/security"
+    return f"{host}{append_query_params(base, params)}"
+
+
+def build_step_up_result_url(host: str, redirect_path: str | None, result: dict[str, str]) -> str:
+    """Build the redirect that hands a step-up's outcome back to the page that started it.
+
+    The outcome travels in the fragment: a browser never sends it to a server, so a ticket stays out of access
+    logs, proxies and ``Referer`` headers.
+
+    Args:
+        host: The configured frontend host.
+        redirect_path: The validated relative return path, or None.
+        result: The outcome, ``step_up_ticket`` on success or ``step_up_error`` on failure.
+
+    Returns:
+        The absolute URL to redirect the browser to.
+    """
+    parts = urlsplit(redirect_path or "/settings/security")
+    return f"{host}{urlunsplit(('', '', parts.path, parts.query, urlencode(result)))}"
 
 
 # Pre-configured templates for common IdPs
@@ -225,7 +156,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name"],
         },
         "description": "Authelia - Open-source authentication and authorization server",
-        "configuration_notes": "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). Configure an OIDC client in your Authelia configuration file.",
+        "configuration_notes": (
+            "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). "
+            "Configure an OIDC client in your Authelia configuration file."
+        ),
     },
     "authentik": {
         "name": "Authentik",
@@ -239,7 +173,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name", "display_name"],
         },
         "description": "Authentik - Open-source Identity Provider",
-        "configuration_notes": "Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik.",
+        "configuration_notes": (
+            "Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) "
+            "and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik."
+        ),
     },
     "casdoor": {
         "name": "Casdoor",
@@ -253,7 +190,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name", "displayName"],
         },
         "description": "Casdoor - Open-source Identity and Access Management (IAM) / Single-Sign-On (SSO) platform",
-        "configuration_notes": "Replace {your-casdoor-domain} with your Casdoor server domain (e.g., casdoor.example.com). Create an OAuth2/OIDC application in Casdoor admin console.",
+        "configuration_notes": (
+            "Replace {your-casdoor-domain} with your Casdoor server domain (e.g., casdoor.example.com). "
+            "Create an OAuth2/OIDC application in Casdoor admin console."
+        ),
     },
     "keycloak": {
         "name": "Keycloak",
@@ -267,7 +207,10 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name", "display_name", "full_name"],
         },
         "description": "Keycloak - Open Source Identity and Access Management",
-        "configuration_notes": "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) and {realm} with your realm name. Create an OIDC client in Keycloak admin console.",
+        "configuration_notes": (
+            "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) "
+            "and {realm} with your realm name. Create an OIDC client in Keycloak admin console."
+        ),
     },
     "pocketid": {
         "name": "Pocket ID",
@@ -281,28 +224,30 @@ IDP_TEMPLATES: dict[str, dict[str, Any]] = {
             "name": ["name"],
         },
         "description": "Pocket ID - Simple OIDC provider for passwordless passkey authentication",
-        "configuration_notes": "Replace {your-pocketid-domain} with your Pocket ID server domain (e.g., auth.example.com). Create a new OIDC client in Pocket ID admin panel and copy the Client ID, Client Secret, and OIDC Discovery URL.",
+        "configuration_notes": (
+            "Replace {your-pocketid-domain} with your Pocket ID server domain (e.g., auth.example.com). "
+            "Create a new OIDC client in Pocket ID admin panel and copy the Client ID, Client Secret, and "
+            "OIDC Discovery URL."
+        ),
     },
 }
 
 
-def get_idp_templates() -> list[idp_schema.IdentityProviderTemplate]:
-    """
-    Retrieve a list of identity provider templates, excluding specific providers.
+def get_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
+    """Retrieve a list of identity provider templates, excluding specific providers.
 
     Returns:
-        list[idp_schema.IdentityProviderTemplate]:
-            A list of IdentityProviderTemplate objects for all identity providers.
+        list[idp_schema.IdentityProviderTemplateRead]:
+            A list of IdentityProviderTemplateRead objects for all identity providers.
     """
     templates = []
     for template_id, template_data in IDP_TEMPLATES.items():
-        templates.append(idp_schema.IdentityProviderTemplate(template_id=template_id, **template_data))
+        templates.append(idp_schema.IdentityProviderTemplateRead(template_id=template_id, **template_data))
     return templates
 
 
 def get_idp_template(template_id: str) -> dict[str, Any] | None:
-    """
-    Retrieve an identity provider template by its template ID.
+    """Retrieve an identity provider template by its template ID.
 
     Args:
         template_id (str): The unique identifier of the identity provider template.
@@ -313,172 +258,14 @@ def get_idp_template(template_id: str) -> dict[str, Any] | None:
     return IDP_TEMPLATES.get(template_id)
 
 
-async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
-    """
-    Refreshes identity provider (IdP) tokens for a user if needed based on token expiration policies.
-
-    This function retrieves all IdP links associated with a user and evaluates each token's
-    state to determine the appropriate action: refresh if nearing expiry, clear if maximum
-    age is exceeded, or skip if still valid.
-
-    The function is designed to be non-blocking and opportunistic - errors during token
-    refresh or clearing are logged but do not raise exceptions, allowing the application
-    to continue normal operation even if IdP token management fails.
+def build_redirect_uri(frontend_host: str, idp_slug: str) -> str:
+    """Return the callback URL an identity provider redirects the browser to.
 
     Args:
-        user_id (int): The ID of the user whose IdP tokens should be checked and refreshed.
-        db (Session): SQLAlchemy database session for performing database operations.
+        frontend_host: Public host the application is served from.
+        idp_slug: Slug of the identity provider.
 
     Returns:
-        None: This function performs side effects (token refresh/clearing) but returns nothing.
-
-    Raises:
-        Does not raise exceptions. All errors are caught, logged, and suppressed to ensure
-        IdP token management does not disrupt normal application flow.
-
-    Notes:
-        - If a user has no IdP links, the function returns early without performing any operations.
-        - Token refresh attempts that fail are logged but the user session remains valid.
-        - Tokens exceeding maximum age are cleared for security, requiring user re-authentication.
-        - Individual IdP operation failures do not prevent checking other IdP links.
+        The complete redirect URI for the provider.
     """
-    try:
-        # Get all IdP links for this user
-        idp_links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
-
-        if not idp_links:
-            # User has no IdP links - nothing to refresh
-            return
-
-        # Check each IdP link and take appropriate action
-        for link in idp_links:
-            try:
-                # Determine what action to take for this IdP token (policy-based)
-                action = idp_service.idp_service._should_refresh_idp_token(link)
-
-                if action == idp_service.TokenAction.REFRESH:
-                    # Token is close to expiry - attempt to refresh
-                    logger.debug(f"Attempting to refresh IdP token for user {user_id}, idp {link.idp_id}")
-
-                    # Attempt to refresh the IdP session
-                    result = await idp_service.idp_service.refresh_idp_session(user_id, link.idp_id, db)
-
-                    if result:
-                        logger.debug(f"Successfully refreshed IdP token for user {user_id}, idp {link.idp_id}")
-                    else:
-                        logger.debug(
-                            f"IdP token refresh failed for user {user_id}, idp {link.idp_id}. "
-                            "User may need to re-authenticate with IdP later."
-                        )
-
-                elif action == idp_service.TokenAction.CLEAR:
-                    # Token has exceeded maximum age - clear it for security
-                    logger.info(f"Clearing expired IdP token (max age exceeded) for user {user_id}, idp {link.idp_id}")
-
-                    success = auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                        user_id, link.idp_id, db
-                    )
-
-                    if success:
-                        logger.info(
-                            f"Successfully cleared expired IdP token for user {user_id}, idp {link.idp_id}. "
-                            "User will need to re-authenticate with IdP."
-                        )
-                    else:
-                        logger.warning(f"Failed to clear expired IdP token for user {user_id}, idp {link.idp_id}")
-
-                else:  # idp_service.TokenAction.SKIP
-                    # Token is still valid and not close to expiry - no action needed
-                    pass
-
-            except Exception as err:
-                # Log individual IdP operation failure but continue with other IdPs
-                logger.warning(
-                    f"Error checking/refreshing IdP token for user {user_id}, idp {link.idp_id}: {err}", exc_info=err
-                )
-                # Continue to next IdP link
-
-    except Exception as err:
-        # Catch-all for unexpected errors (e.g., database query failure)
-        logger.warning(f"Error retrieving IdP links for user {user_id}: {err}", exc_info=err)
-        # Don't raise - IdP token refresh is opportunistic and non-blocking
-
-
-async def clear_all_idp_tokens(user_id: int, db: Session, revoke_at_idp: bool = False) -> None:
-    """
-    Clear all IdP (Identity Provider) refresh tokens for a user.
-
-    This function retrieves all IdP links associated with a user and clears their
-    refresh tokens. It supports optional revocation at the IdP level before clearing
-    tokens locally.
-
-    Args:
-        user_id (int): The ID of the user whose IdP tokens should be cleared.
-        db (Session): The database session to use for queries.
-        revoke_at_idp (bool, optional): If True, attempts to revoke tokens at the
-            IdP provider level (RFC 7009) before clearing locally. Defaults to False.
-
-    Returns:
-        None
-
-    Raises:
-        This function does not raise exceptions. All errors are logged and handled
-        gracefully to ensure logout processes are not interrupted.
-
-    Notes:
-        - If no IdP links exist for the user, the function returns early.
-        - Token revocation at the IdP is best-effort; local clearing always proceeds
-          regardless of revocation success or failure.
-        - Individual IdP token clearing failures do not prevent clearing tokens for
-          other IdPs.
-        - All errors are logged with appropriate severity levels (debug, info, warning).
-    """
-    try:
-        # Get all IdP links for this user
-        idp_links = auth_identity_links_crud.get_user_identity_providers_by_user_id(user_id, db)
-
-        if not idp_links:
-            # User has no IdP links - nothing to clear
-            return
-
-        # Clear tokens for each IdP link
-        for link in idp_links:
-            try:
-                # Optionally attempt to revoke token at IdP first (RFC 7009)
-                if revoke_at_idp:
-                    try:
-                        revoked = await idp_service.idp_service.revoke_idp_token(user_id, link.idp_id, db)
-                        if revoked:
-                            logger.info(f"Revoked IdP token at provider for user {user_id}, idp {link.idp_id}")
-                        else:
-                            logger.debug(
-                                f"IdP token revocation not supported or failed for user {user_id}, idp {link.idp_id}. "
-                                "Will clear locally."
-                            )
-                    except Exception as revoke_err:
-                        # Log revocation failure but continue with local clearing
-                        logger.warning(
-                            f"Error revoking IdP token for user {user_id}, idp {link.idp_id}: {revoke_err}. "
-                            "Will clear locally.",
-                            exc_info=revoke_err,
-                        )
-
-                # Always clear locally regardless of revocation result
-                success = auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                    user_id, link.idp_id, db
-                )
-
-                if success:
-                    logger.debug(f"Cleared IdP refresh token for user {user_id}, idp {link.idp_id} on logout")
-                else:
-                    logger.debug(f"No IdP refresh token to clear for user {user_id}, idp {link.idp_id}")
-
-            except Exception as err:
-                # Log individual IdP token clearing failure but continue with other IdPs
-                logger.warning(f"Error clearing IdP token for user {user_id}, idp {link.idp_id}: {err}", exc_info=err)
-                # Continue to next IdP link
-
-    except Exception as err:
-        # Catch-all for unexpected errors (e.g., database query failure)
-        logger.warning(f"Error retrieving IdP links for user {user_id} during logout: {err}", exc_info=err)
-        # Don't raise - IdP token clearing is a best-effort security measure
+    return f"{frontend_host}/api/v1/public/idp/callback/{idp_slug}"

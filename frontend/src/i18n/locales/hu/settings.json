@@ -31,6 +31,7 @@
       "admin": "Rendszergazda",
       "inactive": "Inaktív",
       "unverified": "Nem megerősített e-mail",
+      "pendingEmail": "Függőben lévő e-mail-módosítás",
       "pending": "Jóváhagyásra vár",
       "externalAuth": "Külső hitelesítés"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "Az e-mail megadása kötelező",
       "emailInvalid": "Adj meg egy érvényes e-mail-címet",
+      "emailChangeHint": "A megerősítő hivatkozás az új címre érkezik, és megerősítés után a jelenlegi cím helyébe lép. A felhasználó minden eszközről kijelentkezik. Ha azonnal alkalmazni szeretnéd, jelöld az új címet megerősítettként.",
       "accessType": "Hozzáférés típusa",
       "accessTypeRegular": "Normál felhasználó",
       "accessTypeAdmin": "Rendszergazda",
       "password": "Jelszó",
       "passwordHint": "Legalább 8 karakter",
-      "passwordHintStrict": "Legalább {min} karakter, nagybetűvel, kisbetűvel, számmal és különleges karakterrel",
-      "passwordHintLength": "Legalább {min} karakter",
       "passwordRequired": "A jelszó megadása kötelező",
-      "passwordInvalid": "Ez a jelszó nem felel meg a követelményeknek",
       "confirmPassword": "Jelszó megerősítése",
       "confirmPasswordRequired": "Jelszó megerősítése",
-      "passwordMismatch": "A jelszavak nem egyeznek",
       "preferredLanguage": "Preferált nyelv",
       "languages": {
         "ca": "Katalán",
@@ -118,14 +116,14 @@
       "units": "Mértékegységek",
       "unitsMetric": "Metrikus",
       "unitsImperial": "Angolszász",
+      "weightUnits": "Súlymértékegység",
+      "weightUnitsDefault": "Mértékegységek követése",
+      "weightUnitsMetric": "Kilogramm (kg)",
+      "weightUnitsImperial": "Font (lb)",
       "height": "Magasság",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "A láb értéke 0 és 10 között lehet",
       "inchesInvalid": "A hüvelyk értéke 0 és 11 között lehet",
       "maxHeartRate": "Max. pulzusszám",
-      "unitBpm": "bpm",
       "currency": "Pénznem",
       "currencies": {
         "euro": "Euró",
@@ -149,6 +147,8 @@
       "statusLegend": "Fiók állapota",
       "active": "Aktív",
       "emailVerified": "E-mail megerősítve",
+      "emailVerifiedCurrentHint": "Ez a jelenlegi cím állapota.",
+      "newEmailVerified": "Az új cím megerősítettként jelölése",
       "pendingAdminApproval": "Rendszergazdai jóváhagyásra vár",
       "requiredField": "Kötelező mező",
       "create": "Felhasználó hozzáadása",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Vissza a felhasználókhoz",
+      "pendingEmail": "Függőben lévő e-mail-módosítás erre: {email}, a hivatkozás lejár: {date}",
       "notFoundTitle": "A felhasználó nem található",
       "notFoundDescription": "Lehet, hogy ezt a fiókot törölték",
       "securityTitle": "Biztonság",
@@ -186,16 +187,12 @@
       "title": "Jelszó visszaállítása",
       "description": "Állíts be új jelszót a következőhöz: {username}",
       "newLabel": "Új jelszó",
-      "hintLength": "Legalább {min} karakter",
-      "hintStrict": "Legalább {min} karakter, nagybetűvel, kisbetűvel, számmal és különleges karakterrel",
       "confirmLabel": "Új jelszó megerősítése",
-      "mismatch": "A jelszavak nem egyeznek",
       "required": "A jelszó megadása kötelező",
       "submit": "Jelszó visszaállítása",
       "cancel": "Mégse",
       "close": "Bezárás",
       "success": "Jelszó frissítve",
-      "invalid": "Ez a jelszó nem felel meg a követelményeknek",
       "error": "Nem sikerült frissíteni a jelszót. Kérjük, próbáld újra."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Jelszószabályzat",
-      "type": "Szabályzat",
-      "typeStrict": "Szigorú (komplexitás szükséges)",
-      "typeLengthOnly": "Csak hossz",
       "lengthRegular": "Minimális hossz normál felhasználóknál",
       "lengthAdmin": "Minimális hossz rendszergazdáknál"
     },
@@ -367,6 +361,29 @@
       "sent": "A teszt e-mail elküldve",
       "failed": "A teszt e-mailt nem sikerült elküldeni",
       "failedUnknown": "A részleteket a szerver naplóiban találod."
+    },
+    "envLocked": "{name} állítja be",
+    "envSection": "Az itteni beállítások egy részét környezeti változók ({names}) határozzák meg. Töröld őket a környezetből, hogy itt szerkeszthesd ezeket a beállításokat.",
+    "unsaved": "Nem mentett módosítások",
+    "discard": "Elvetés",
+    "tabs": {
+      "label": "A szerverbeállítások szakaszai",
+      "general": "Általános",
+      "access": "Hozzáférés és biztonság",
+      "maps": "Térképek és helyadatok",
+      "email": "E-mail",
+      "unsaved": "Nem mentett módosításokat tartalmaz"
+    },
+    "search": {
+      "placeholder": "Beállítások keresése…",
+      "noResults": "Nincs találat"
+    },
+    "leave": {
+      "title": "Mentés nélkül elhagyod az oldalt?",
+      "description": "Nem mentett módosításaid vannak. Ha elhagyod az oldalt, elvesznek.",
+      "confirm": "Elhagyás mentés nélkül",
+      "stay": "Maradok az oldalon",
+      "close": "Bezárás"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "A hatókörök legfeljebb 500 karakter lehetnek",
       "icon": "Ikon",
       "iconNone": "Nincs",
-      "iconCustom": "Egyéni URL",
-      "customIconUrl": "Egyéni ikon URL-je",
-      "customIconUrlHint": "Hivatkozás a bejelentkezési gombon megjelenő képre",
       "enabled": "Engedélyezve",
       "autoCreateUsers": "Felhasználók automatikus létrehozása az első bejelentkezéskor",
       "syncUserInfo": "Profilinformációk szinkronizálása minden bejelentkezéskor",
@@ -491,13 +505,6 @@
       "distance": "Táv",
       "elevation": "Szintemelkedés",
       "duration": "Időtartam"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "A(z) {name} cél szerkesztése",
@@ -559,9 +566,6 @@
       "current": "Jelenlegi jelszó",
       "new": "Új jelszó",
       "confirm": "Új jelszó megerősítése",
-      "requirementsStrict": "Legalább {length} karakter, beleértve egy nagybetűt, egy kisbetűt, egy számot és egy szimbólumot.",
-      "requirementsLength": "Legalább {length} karakter.",
-      "mismatch": "A jelszavak nem egyeznek.",
       "revokeOthers": "Kijelentkezés az összes többi eszközről",
       "submit": "Jelszó módosítása",
       "success": "Jelszó módosítva",
@@ -650,6 +654,20 @@
       "invalidCredentials": "A jelszavad vagy a kódod helytelen.",
       "alreadyLinked": "Ez a fiók már kapcsolva van.",
       "lastMethodError": "Nem választhatod le az egyetlen bejelentkezési módodat. Először állíts be jelszót."
+    },
+    "email": {
+      "subtitle": "Ide érkeznek a jelszó-visszaállítások és az értesítések. A módosításhoz igazold a személyazonosságodat, az új cím pedig akkor lép életbe, ha megerősíted a rá küldött hivatkozással.",
+      "sameAsCurrent": "Ez már a jelenlegi e-mail-címed.",
+      "success": "A megerősítő hivatkozás elküldve az új címre. Az e-mail-címed a megerősítés után változik meg.",
+      "appliedSuccess": "E-mail-cím módosítva.",
+      "pending": "Függőben lévő módosítás erre: {email}",
+      "pendingExpires": "A megerősítő hivatkozás lejár: {date}.",
+      "resend": "Hivatkozás újraküldése",
+      "cancel": "Módosítás visszavonása",
+      "resendSuccess": "Ha van függőben lévő módosítás, egy új hivatkozás úton van az új címre.",
+      "resendError": "A hivatkozást nem sikerült újraküldeni. Kérjük, próbáld újra.",
+      "cancelSuccess": "Az e-mail-cím módosítását visszavontuk.",
+      "cancelError": "A módosítást nem sikerült visszavonni. Kérjük, próbáld újra."
     },
     "apiKeys": {
       "title": "API-kulcsok",
@@ -923,7 +941,6 @@
       "invalidType": "Kérjük, válassz egy .zip archívumot.",
       "exportSuccess": "Az export kész, a letöltésed hamarosan elkezdődik",
       "exportError": "Nem sikerült exportálni az adataidat. Kérjük, próbáld újra.",
-      "importSuccess": "Adatok importálva",
       "importError": "Nem sikerült importálni az archívumot. Kérjük, ellenőrizd a fájlt, és próbáld újra."
     }
   }

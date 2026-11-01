@@ -32,10 +32,15 @@ Identity providers must be configured with the following parameters:
 Users can link their Endurain account to an OAuth provider:
 
 1. User must be authenticated with a valid session
-2. Create a one-time link token with `POST /profile/idp/{idp_id}/link/token`. Local-password accounts must include `current_password`; accounts with MFA enabled must also include `mfa_code`. SSO-only accounts may omit `current_password`.
-3. Open `/profile/idp/{idp_id}/link?link_token=<token>` in the browser before the token expires (60 seconds)
+2. Create a one-time link token with `POST /profile/identity-providers/{idp_id}/link/token`. Local-password accounts must include `current_password`; accounts without one must include `idp_reauth` ([step-up](account-security.md#step-up-for-accounts-without-a-password)); accounts with MFA enabled must also include `mfa_code`.
+3. Open `/profile/identity-providers/{idp_id}/link?link_token=<token>` in the browser before the token expires (60 seconds)
 4. Authenticate with the identity provider
 5. Provider is linked to the existing account
+
+### Step-up re-authentication
+An account without a local password proves a sensitive change by signing in again with a linked provider. `POST /profile/identity-providers/{idp_id}/step-up` takes `code_challenge`, `action` and a relative `redirect`, and returns an `authorization_url`. The authorize request carries `prompt=login`, `max_age=60` and PKCE, and the callback requires an ID token whose `auth_time` is recent. It returns to `redirect` with `#step_up_ticket=...` or `#step_up_error=failed|not_fresh` in the fragment. The flow is in [Account security](account-security.md#step-up-for-accounts-without-a-password). It needs a provider with an issuer URL and does not work for native clients.
+
+ID tokens are checked for `azp` and allow 60 seconds of clock leeway.
 
 ### OAuth Token Response
 When authenticating via OAuth, the response format matches the standard authentication:
@@ -191,9 +196,9 @@ Responds with tokens directly (no PKCE):
 If the user has MFA enabled, the flow includes an additional MFA verification step:
 
 1. Client sends login with PKCE parameters
-2. Backend returns `"mfa_required": true` with message
+2. Backend returns `"mfa_required": true` with a message and an `mfa_challenge` that names this login
 3. Client collects MFA code from user
-4. Client sends MFA code to `/auth/mfa/verify` with PKCE parameters
+4. Client sends the `mfa_challenge` and the MFA code to `/auth/mfa/verify` with PKCE parameters
 5. Backend verifies MFA and returns session_id (for PKCE) or tokens directly
 6. Client exchanges session_id for tokens using code_verifier
 
@@ -205,7 +210,7 @@ Content-Type: application/json
 X-Client-Type: mobile
 
 {
-  "username": "user@example.com",
+  "mfa_challenge": "<mfa_challenge from the login response>",
   "mfa_code": "123456"
 }
 ```
@@ -373,8 +378,12 @@ X-Client-Type: mobile
 | 400 | Invalid code_verifier | Verifier doesn't match the challenge |
 | 400 | `client_type does not match the OAuth state` | `X-Client-Type` at token exchange differs from the value stored on the PKCE/OAuth state |
 | 404 | Session not found | Invalid session_id or not a PKCE flow |
+| 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
+| 400 | Invalid MFA code | The `mfa_code` was wrong, expired or an already used backup code |
 | 409 | Tokens already exchanged | Replay attack prevention |
-| 429 | Rate limit exceeded | Max 10 requests/minute per IP |
+| 429 | Rate limit exceeded | Max 10 requests/minute per IP, or the account is locked out after too many wrong MFA codes |
+
+**Accounts with MFA enabled:** signing in with an identity provider does not replace the account's own MFA. When the account has MFA enabled, the exchange is refused with `403` and the problem type `urn:endurain:error:mfa-required` until the request also carries `"mfa_code"` (a TOTP code or a backup code). The refusal does not use up the session: ask the user for a code and send the same request again with it. The verifier is checked first, so only the client that started the flow can try codes, and wrong codes count toward the same lockout as the password login.
 
 #### Step 5: Store Tokens Securely
 

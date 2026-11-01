@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import itertools
 import statistics
 from datetime import UTC, datetime
@@ -169,6 +170,73 @@ def _parse_utc(time_str: str) -> datetime:
     return datetime.strptime(time_str, _DT_FMT).replace(tzinfo=UTC)
 
 
+class _TimedStream:
+    """A waypoint stream with its timestamps parsed once, for repeated time-window lookups.
+
+    Attributes:
+        waypoints: The stream's waypoint dicts, in their original order.
+    """
+
+    def __init__(self, waypoints: list[dict]) -> None:
+        """Parse every timestamp of the stream once.
+
+        Args:
+            waypoints: Waypoint dicts each containing a ``'time'`` key with an ISO 8601 string.
+        """
+        self.waypoints = waypoints
+        self._times = [_parse_utc(wp["time"]) for wp in waypoints]
+        self._ordered = all(a <= b for a, b in itertools.pairwise(self._times))
+
+    def indices_between(self, start_dt: datetime, end_dt: datetime) -> range | list[int]:
+        """Return the indices of the waypoints whose time falls within [start_dt, end_dt].
+
+        A time-ordered stream is searched by bisection; any other order is scanned in full so the
+        result never depends on the order.
+
+        Args:
+            start_dt: Inclusive lower bound.
+            end_dt: Inclusive upper bound.
+
+        Returns:
+            The matching indices in ascending order.
+        """
+        if self._ordered:
+            return range(bisect.bisect_left(self._times, start_dt), bisect.bisect_right(self._times, end_dt))
+        return [i for i, time in enumerate(self._times) if start_dt <= time <= end_dt]
+
+    def between(self, start_time: str, end_time: str) -> list[dict]:
+        """Return the waypoints whose time falls within [start_time, end_time].
+
+        Args:
+            start_time: ISO 8601 start time string (inclusive).
+            end_time: ISO 8601 end time string (inclusive).
+
+        Returns:
+            Filtered list of waypoint dicts.
+        """
+        indices = self.indices_between(_parse_utc(start_time), _parse_utc(end_time))
+        return [self.waypoints[i] for i in indices]
+
+    def lap_elevation(self, start_time: str, end_time: str) -> list[dict]:
+        """Return a lap's slice of this once-smoothed elevation stream (see ``slice_lap_elevation``).
+
+        Args:
+            start_time: ISO 8601 lap start (inclusive).
+            end_time: ISO 8601 lap end (inclusive).
+
+        Returns:
+            The lap's elevation samples; empty when none fall within the lap.
+        """
+        start_dt = _parse_utc(start_time)
+        indices = self.indices_between(start_dt, _parse_utc(end_time))
+        if not indices:
+            return []
+        first = indices[0]
+        if first > 0 and self._times[first] > start_dt:
+            first -= 1
+        return self.waypoints[first : indices[-1] + 1]
+
+
 def filter_waypoints_by_time_range(
     waypoints: list[dict],
     start_time: str,
@@ -185,9 +253,7 @@ def filter_waypoints_by_time_range(
     Returns:
         Filtered list of waypoint dicts.
     """
-    start_dt = _parse_utc(start_time)
-    end_dt = _parse_utc(end_time)
-    return [wp for wp in waypoints if start_dt <= _parse_utc(wp["time"]) <= end_dt]
+    return _TimedStream(waypoints).between(start_time, end_time)
 
 
 def slice_lap_elevation(
@@ -211,15 +277,7 @@ def slice_lap_elevation(
     Returns:
         The lap's elevation samples; empty when none fall within the lap.
     """
-    start_dt = _parse_utc(start_time)
-    end_dt = _parse_utc(end_time)
-    indices = [i for i, wp in enumerate(smoothed_ele_waypoints) if start_dt <= _parse_utc(wp["time"]) <= end_dt]
-    if not indices:
-        return []
-    first = indices[0]
-    if first > 0 and _parse_utc(smoothed_ele_waypoints[first]["time"]) > start_dt:
-        first -= 1
-    return smoothed_ele_waypoints[first : indices[-1] + 1]
+    return _TimedStream(smoothed_ele_waypoints).lap_elevation(start_time, end_time)
 
 
 def _compute_lap_metrics(
@@ -228,11 +286,11 @@ def _compute_lap_metrics(
     start_point: dict,
     end_point: dict,
     total_distance: float,
-    smoothed_ele_waypoints: list[dict],
-    power_waypoints: list[dict],
-    hr_waypoints: list[dict],
-    cad_waypoints: list[dict],
-    vel_waypoints: list[dict],
+    smoothed_ele: _TimedStream,
+    power: _TimedStream,
+    hr: _TimedStream,
+    cad: _TimedStream,
+    vel: _TimedStream,
     measured_vel_times: set[str] | None = None,
 ) -> LapMetrics:
     """Compute metrics for a single activity lap.
@@ -243,12 +301,11 @@ def _compute_lap_metrics(
         start_point: Lat/lon dict of lap start.
         end_point: Lat/lon dict of lap end.
         total_distance: Lap distance in km.
-        smoothed_ele_waypoints: Full elevation stream, already smoothed
-            once (see smooth_elevation_stream).
-        power_waypoints: Full power stream.
-        hr_waypoints: Full HR stream.
-        cad_waypoints: Full cadence stream.
-        vel_waypoints: Full velocity stream.
+        smoothed_ele: Full elevation stream, already smoothed once (see smooth_elevation_stream).
+        power: Full power stream.
+        hr: Full HR stream.
+        cad: Full cadence stream.
+        vel: Full velocity stream.
         measured_vel_times: Timestamps of velocity samples that are real
             measurements; max speed ignores the others. ``None`` treats every
             sample as measured.
@@ -259,31 +316,11 @@ def _compute_lap_metrics(
     # The metric helpers live in this package's dependency-free computation module.
     import modules.activities.computation as activities_computation
 
-    lap_ele = slice_lap_elevation(
-        smoothed_ele_waypoints,
-        start_time,
-        end_time,
-    )
-    lap_power = filter_waypoints_by_time_range(
-        power_waypoints,
-        start_time,
-        end_time,
-    )
-    lap_hr = filter_waypoints_by_time_range(
-        hr_waypoints,
-        start_time,
-        end_time,
-    )
-    lap_cad = filter_waypoints_by_time_range(
-        cad_waypoints,
-        start_time,
-        end_time,
-    )
-    lap_vel = filter_waypoints_by_time_range(
-        vel_waypoints,
-        start_time,
-        end_time,
-    )
+    lap_ele = smoothed_ele.lap_elevation(start_time, end_time)
+    lap_power = power.between(start_time, end_time)
+    lap_hr = hr.between(start_time, end_time)
+    lap_cad = cad.between(start_time, end_time)
+    lap_vel = vel.between(start_time, end_time)
 
     ele_gain, ele_loss = None, None
     if lap_ele:
@@ -397,6 +434,15 @@ def generate_activity_laps(
     if smoothed_ele_waypoints is None:
         smoothed_ele_waypoints = activities_computation.smooth_elevation_stream(ele_waypoints)
 
+    # Each stream's timestamps are parsed once here, not once per lap.
+    streams = {
+        "smoothed_ele": _TimedStream(smoothed_ele_waypoints),
+        "power": _TimedStream(power_waypoints),
+        "hr": _TimedStream(hr_waypoints),
+        "cad": _TimedStream(cad_waypoints),
+        "vel": _TimedStream(vel_waypoints),
+    }
+
     for i in range(1, len(lat_lon_waypoints)):
         prev_point = lat_lon_waypoints[i - 1]
         current_point = lat_lon_waypoints[i]
@@ -419,11 +465,7 @@ def generate_activity_laps(
                     start_point=lap_start,
                     end_point=current_point,
                     total_distance=current_lap_distance,
-                    smoothed_ele_waypoints=smoothed_ele_waypoints,
-                    power_waypoints=power_waypoints,
-                    hr_waypoints=hr_waypoints,
-                    cad_waypoints=cad_waypoints,
-                    vel_waypoints=vel_waypoints,
+                    **streams,
                     measured_vel_times=measured_vel_times,
                 )
             )
@@ -438,11 +480,7 @@ def generate_activity_laps(
                 start_point=lap_start,
                 end_point=lat_lon_waypoints[-1],
                 total_distance=current_lap_distance,
-                smoothed_ele_waypoints=smoothed_ele_waypoints,
-                power_waypoints=power_waypoints,
-                hr_waypoints=hr_waypoints,
-                cad_waypoints=cad_waypoints,
-                vel_waypoints=vel_waypoints,
+                **streams,
                 measured_vel_times=measured_vel_times,
             )
         )

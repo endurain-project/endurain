@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { HrZoneBucket } from '@/features/activities/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHmsDuration } from '@/features/activities/utils/format'
 import { hrZoneColor } from '@/features/activities/utils/hrZones'
 
@@ -12,6 +13,7 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
+const { percent } = useUnitFormat()
 
 /** Clamps a percentage to the 0–100 range for the bar width. */
 function barWidth(percent: number): string {
@@ -41,7 +43,7 @@ function barWidth(percent: number): string {
         />
       </div>
       <div class="w-20 shrink-0 text-right">
-        <p class="text-meta font-medium text-foreground">{{ Math.round(zone.percent) }}%</p>
+        <p class="text-meta font-medium text-foreground">{{ percent(zone.percent) }}</p>
         <p v-if="zone.timeSeconds > 0" class="text-caption">
           {{ formatHmsDuration(zone.timeSeconds) }}
         </p>

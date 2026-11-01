@@ -10,12 +10,13 @@ import glob
 import os
 
 import fitdecode
+import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.migration_service as activities_crud
 import modules.activities.activity_exercise_titles.migration_service as activity_exercise_titles_crud
@@ -26,9 +27,8 @@ import modules.activities.activity_sets.migration_service as activity_sets_migra
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.migration_service as activity_streams_crud
 import modules.activities.activity_workout_steps.migration_service as activity_workout_steps_crud
-import modules.garmin.activity_utils as garmin_activity_utils
-import modules.strava.activity_utils as strava_activity_utils
-import modules.strava.utils as strava_utils
+import modules.garmin.migration_service as garmin_migration_service
+import modules.strava.migration_service as strava_migration
 
 logger = core_logger.get_logger(__name__)
 
@@ -121,7 +121,7 @@ def process_migration_3(db: Session) -> None:
     # Mark migration as executed
     if activities_processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(3, db)
+            migrations_service.mark_executed(3, db)
         except Exception as err:
             logger.error(
                 f"Migration 3 - Failed to set migration as executed: {err}",
@@ -197,7 +197,7 @@ def get_fit_file_from_garminconnect(
     )
 
     # Get the user Garmin Connect client
-    garminconnect_client = garmin_activity_utils.get_user_garminconnect_client(activity.user_id, db)
+    garminconnect_client = garmin_migration_service.get_user_garminconnect_client(activity.user_id, db)
 
     if garminconnect_client is None:
         logger.error(
@@ -426,7 +426,7 @@ def process_strava_activity(
         None.
     """
     # Get the user integrations by user ID
-    user_integrations = strava_utils.fetch_user_integrations_and_validate_token(activity.user_id, db)
+    user_integrations = strava_migration.fetch_user_integrations_and_validate_token(activity.user_id, db)
 
     if user_integrations is None:
         logger.info(
@@ -473,7 +473,7 @@ def process_strava_activity(
     ]
 
     # Create a Strava client with the user's access token
-    strava_client = strava_utils.create_strava_client(user_integrations)
+    strava_client = strava_migration.create_strava_client(user_integrations)
 
     if not activity.strava_activity_id:
         logger.info(
@@ -483,17 +483,22 @@ def process_strava_activity(
         return False
 
     # Get laps from Strava
-    laps = strava_activity_utils.fetch_and_process_activity_laps(
+    laps = strava_migration.fetch_activity_laps(
         strava_client,
         activity.strava_activity_id,
         activity.user_id,
         stream_data,
+        user_integrations,
+        platform_runtime.get_state(),
     )
 
     # Create activity laps in the database
     activity_laps_crud.create_activity_laps(laps or [], activity.id, db)
 
-    logger.info(f"Migration 3 - Strava activity {activity.id} file processed.", extra=core_logger.context(console=True))
+    logger.info(
+        "Migration 3 - Strava activity file processed",
+        extra=core_logger.context(console=True, activity_id=activity.id),
+    )
 
     # Return true if the activity was processed successfully
     return True
@@ -568,4 +573,4 @@ def store_data_in_db(
     if sets_to_store:
         activity_sets_migration_service.create_activity_sets(sets_to_store, activity.id, db)
 
-    logger.info(f"Migration 3 - Activity {activity.id} processed.", extra=core_logger.context(console=True))
+    logger.info("Migration 3 - Activity processed", extra=core_logger.context(console=True, activity_id=activity.id))

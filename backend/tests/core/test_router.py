@@ -5,7 +5,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.testclient import TestClient
+from jasil.providers import StateBackendUnavailableError
 
+import core.dependencies as core_dependencies
 from core.database import get_db
 from core.router import router
 
@@ -31,26 +33,56 @@ class TestAbout:
 
 
 class TestHealth:
-    """Tests for GET {ROOT_PATH}/health — database-backed liveness."""
+    """Tests for GET {ROOT_PATH}/health — database-backed liveness and the state backend."""
 
-    def test_returns_ok_when_database_answers(self):
-        app.dependency_overrides[get_db] = lambda: MagicMock()
+    @staticmethod
+    def _get(db, state):
+        app.dependency_overrides[get_db] = lambda: db
+        app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
         try:
-            response = client.get("/api/v1/health")
+            return client.get("/api/v1/health")
         finally:
             app.dependency_overrides.pop(get_db, None)
+            app.dependency_overrides.pop(core_dependencies.get_platform_state, None)
+
+    def test_returns_ok_when_the_database_and_the_state_answer(self):
+        response = self._get(MagicMock(), MagicMock())
+
         assert response.status_code == 200
-        assert response.json() == {"status": "ok"}
+        assert response.json() == {"status": "ok", "state": "ok"}
 
     def test_returns_503_when_database_fails(self):
         db = MagicMock()
         db.execute.side_effect = TimeoutError("pool exhausted")
-        app.dependency_overrides[get_db] = lambda: db
-        try:
-            response = client.get("/api/v1/health")
-        finally:
-            app.dependency_overrides.pop(get_db, None)
-        assert response.status_code == 503
+
+        assert self._get(db, MagicMock()).status_code == 503
+
+    def test_an_unreachable_state_backend_is_degraded_not_down(self, caplog):
+        state = MagicMock()
+        state.get.side_effect = StateBackendUnavailableError("redis down")
+
+        with caplog.at_level("WARNING"):
+            response = self._get(MagicMock(), state)
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "degraded", "state": "unavailable"}
+        assert "health probe" in caplog.text
+
+    def test_the_probe_only_reads(self):
+        state = MagicMock()
+
+        self._get(MagicMock(), state)
+
+        state.get.assert_called_once()
+        state.set.assert_not_called()
+
+    def test_a_database_failure_wins_over_a_state_failure(self):
+        db = MagicMock()
+        db.execute.side_effect = TimeoutError("pool exhausted")
+        state = MagicMock()
+        state.get.side_effect = StateBackendUnavailableError("redis down")
+
+        assert self._get(db, state).status_code == 503
 
 
 class _FileResponseTestMixin:
@@ -61,31 +93,6 @@ class _FileResponseTestMixin:
         path = tmp_path / "test.txt"
         path.write_text("content")
         return FileResponse(str(path))
-
-
-class TestServerImages(_FileResponseTestMixin):
-    """Tests for GET /server_images/{server_img}."""
-
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_server_img_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/server_images/test.jpg")
-            assert response.status_code == 200
-
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_server_img_path") as mock:
-            mock.return_value = None
-            response = client.get("/server_images/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Server image not found"
-
-    def test_a_nul_byte_in_the_name_is_a_404_not_a_server_error(self, tmp_path):
-        """``%00`` reaches the handler as a real NUL; the route is unauthenticated."""
-        (tmp_path / "logo.png").write_text("image")
-        with patch("core.utils.core_config.SERVER_IMAGES_DIR", str(tmp_path)):
-            response = client.get("/server_images/logo.png%00.jpg")
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Server image not found"
 
 
 class TestPrivateBlobsAreNotServedByFilename(_FileResponseTestMixin):
@@ -154,3 +161,40 @@ class TestCatchAll(_FileResponseTestMixin):
             mock.assert_called_once_with("index.html")
             assert response.status_code == 404
             assert response.json()["detail"] == "Frontend index not found"
+
+
+class TestUnknownApiPath(_FileResponseTestMixin):
+    """An unknown path under the API prefix is a 404 problem document, never the SPA shell."""
+
+    @staticmethod
+    def _client() -> TestClient:
+        import core.exceptions as core_exceptions
+
+        problem_app = FastAPI()
+        core_exceptions.register_exception_handlers(problem_app)
+        problem_app.include_router(router)
+        return TestClient(problem_app)
+
+    def test_an_unknown_api_path_is_a_404_problem_document(self, tmp_path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = self._client().get("/api/v1/does/not/exist")
+
+        mock.assert_not_called()
+        assert response.status_code == 404
+        assert response.headers["content-type"].startswith("application/problem+json")
+        assert response.json()["type"] == "urn:endurain:error:not-found"
+
+    def test_the_bare_api_prefix_is_a_404_too(self, tmp_path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = self._client().get("/api/v1")
+
+        assert response.status_code == 404
+
+    def test_a_frontend_route_that_only_starts_like_the_prefix_still_gets_the_app(self, tmp_path):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = self._make_file_response(tmp_path)
+            response = self._client().get("/api/v10/x")
+
+        assert response.status_code == 200

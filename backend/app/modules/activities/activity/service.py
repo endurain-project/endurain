@@ -17,21 +17,23 @@ one owner.
 import calendar
 from datetime import UTC, date, datetime, time, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.calendar as core_calendar
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.stats as activity_stats
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.followers.integration_service as followers_integration
-import modules.gears.gear.dependencies as gears_dependencies
+import modules.gears.gear.integration_service as gears_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 
@@ -57,17 +59,17 @@ def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
     return followers_integration.list_accepted_followee_ids(requester_user_id, db)
 
 
-def get_activities_in_timeframe(
+def sum_activities_in_timeframe(
     user_id: int,
     start: datetime,
     end: datetime,
     requester_user_id: int,
     db: Session,
-) -> list[activity_schema.ActivityRead]:
-    """Return a user's activities in ``[start, end]`` scoped to the requester.
+) -> list[activity_contracts.ActivityTypeTotals]:
+    """Add up a user's activities in ``[start, end]`` per activity type, scoped to the requester.
 
-    The owner sees all of their activities; any other requester sees only the
-    ones visible to them (the CRUD layer applies the visibility mask).
+    The owner is counted with all of their activities; any other requester with only the ones visible
+    to them (the query applies the visibility filter).
 
     Args:
         user_id: The owner of the activities.
@@ -77,11 +79,11 @@ def get_activities_in_timeframe(
         db: Database session.
 
     Returns:
-        The scoped activities, or ``None`` when there are none.
+        One total per activity type with a matching activity; empty when there are none.
     """
     is_owner = user_id == requester_user_id
     logger.debug(
-        "Listing activities in timeframe",
+        "Adding up activities in timeframe",
         extra=core_logger.context(
             user_id=user_id,
             requester_user_id=requester_user_id,
@@ -91,8 +93,8 @@ def get_activities_in_timeframe(
         ),
     )
     if is_owner:
-        return activity_crud.get_user_activities_per_timeframe(user_id, start, end, db, user_is_owner=True)
-    return activity_crud.get_user_activities_per_timeframe(
+        return activity_crud.sum_user_activities_per_timeframe_by_type(user_id, start, end, db, user_is_owner=True)
+    return activity_crud.sum_user_activities_per_timeframe_by_type(
         user_id,
         start,
         end,
@@ -204,10 +206,9 @@ def week_stats(
         The aggregated stats.
     """
     start, end = _week_bounds(requester_user_id, db, week_number=0, anchor=anchor)
-    activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-    if activities:
-        return activity_stats.calculate_activity_stats(activities)
-    return activity_schema.ActivityStatsRead()
+    return activity_stats.calculate_activity_stats(
+        sum_activities_in_timeframe(user_id, start, end, requester_user_id, db)
+    )
 
 
 def month_stats(
@@ -229,10 +230,9 @@ def month_stats(
         The aggregated stats.
     """
     start, end = _month_bounds(requester_user_id, db, anchor=anchor)
-    activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-    if activities:
-        return activity_stats.calculate_activity_stats(activities)
-    return activity_schema.ActivityStatsRead()
+    return activity_stats.calculate_activity_stats(
+        sum_activities_in_timeframe(user_id, start, end, requester_user_id, db)
+    )
 
 
 def period_stats(
@@ -263,6 +263,43 @@ def period_stats(
     if period == "month":
         return month_stats(user_id, requester_user_id, db, anchor=anchor)
     return week_stats(user_id, requester_user_id, db, anchor=anchor)
+
+
+def user_profile_summary(
+    user_id: int,
+    requester_user_id: int,
+    db: Session,
+    *,
+    anchor: date | None = None,
+) -> activity_contracts.UserProfileActivitySummary:
+    """Return the visible activity aggregates displayed on a user's profile.
+
+    Args:
+        user_id: The profile owner's user ID.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        anchor: The caller's local calendar date, or None to resolve it server-side.
+
+    Returns:
+        The profile's current-week and current-month stats and visible activity count.
+    """
+    if anchor is None:
+        anchor = users_integration.local_today(requester_user_id, db)
+    month_start, month_end = _month_bounds(requester_user_id, db, anchor=anchor)
+    followee_ids = None if user_id == requester_user_id else _followees_of(requester_user_id, db)
+    month_activity_count = activity_crud.count_user_activities(
+        user_id=user_id,
+        db=db,
+        start_date=month_start.date(),
+        end_date=month_end.date(),
+        user_is_owner=user_id == requester_user_id,
+        followee_ids=followee_ids,
+    )
+    return activity_contracts.UserProfileActivitySummary(
+        week_stats=week_stats(user_id, requester_user_id, db, anchor=anchor),
+        month_stats=month_stats(user_id, requester_user_id, db, anchor=anchor),
+        month_activity_count=month_activity_count,
+    )
 
 
 def count_user_activities(
@@ -507,7 +544,7 @@ def scroll_following_feed(
         db: Database session.
 
     Returns:
-        The slice plus the cursor for the next one.
+        The slice, the cursor for the next one and the public profile of each owner on the slice.
     """
     followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
     after = core_pagination.decode_cursor(cursor) if cursor else None
@@ -518,7 +555,7 @@ def scroll_following_feed(
     page_entries = entries[:num_records]
     items = _with_thumbnail_urls([entry.activity for entry in page_entries])
     next_cursor = (
-        core_pagination.encode_cursor(page_entries[-1].cursor_start_time, page_entries[-1].cursor_id)
+        core_pagination.encode_cursor(page_entries[-1].cursor_sort_value, page_entries[-1].cursor_id)
         if has_more and page_entries
         else None
     )
@@ -531,7 +568,8 @@ def scroll_following_feed(
             has_more=has_more,
         ),
     )
-    return activity_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor)
+    owners = users_integration.list_public_profiles({item.user_id for item in items if item.user_id is not None}, db)
+    return activity_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor, users=owners)
 
 
 def page_gear_activities(
@@ -632,7 +670,7 @@ def edit_activity(
     activity_attributes: activity_schema.ActivityEdit,
     db: Session,
     *,
-    if_match: str | None = None,
+    if_match: str,
 ) -> activity_schema.ActivityRead:
     """Apply partial updates to one of the user's activities.
 
@@ -646,7 +684,7 @@ def edit_activity(
         user_id: ID of the user.
         activity_attributes: The fields to change.
         db: Database session.
-        if_match: The ``If-Match`` precondition, or None.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         The updated activity.
@@ -655,26 +693,24 @@ def edit_activity(
         "Editing an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
     )
-    gears_dependencies.require_owned_gears(user_id, [activity_attributes.gear_id], db)
+    gears_integration.require_owned_gears(user_id, [activity_attributes.gear_id], db)
     # Only the fields the client actually sent; the CRUD applies the same set.
     changed_fields = [field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id"]
-    try:
-        updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
-    except StaleDataError as err:
-        # The row changed between the crud's load (where the precondition was
-        # checked) and the flush.
-        db.rollback()
-        if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
-            raise core_exceptions.NotFoundError(f"Activity {activity_id} not found") from err
-        logger.warning(
-            "Rejected a stale activity edit",
-            extra=core_logger.context(activity_id=activity_id, user_id=user_id),
-        )
-        raise core_exceptions.PreconditionFailedError(
-            "The activity was modified by someone else; re-read it and retry"
-        ) from err
-    activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "activity",
+        lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
+        f"Activity {activity_id} not found",
+    ):
+        try:
+            updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
+            activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
+            db.commit()
+        except IntegrityError:
+            # A gear deleted after the ownership check above fails the foreign key; report it as not found.
+            db.rollback()
+            gears_integration.require_owned_gears(user_id, [activity_attributes.gear_id], db)
+            raise
     logger.info(
         "Edited an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id, changed_fields=sorted(changed_fields)),
@@ -682,49 +718,7 @@ def edit_activity(
     return _with_thumbnail_urls([updated])[0]
 
 
-def bulk_edit_activities(
-    user_id: int,
-    body: activity_schema.ActivitiesBulkEdit,
-    db: Session,
-) -> int:
-    """Apply a bulk edit across all of the user's activities.
-
-    Publishes one ``activity.updated`` per changed row, atomically with the
-    update, so a consumer of the single-activity edit needs no separate handling
-    for the bulk one — the fact is identical either way.
-
-    Args:
-        user_id: The owner whose activities to edit.
-        body: The fields to apply; only those present are changed.
-        db: Database session.
-
-    Returns:
-        How many activities changed.
-
-    Raises:
-        InvalidInputError: When the body asks for no change at all. An empty
-            patch is a client bug, not a no-op worth reporting as success.
-    """
-    if body.visibility is None:
-        raise core_exceptions.InvalidInputError("No supported field to update was provided")
-
-    updated_ids = activity_crud.edit_user_activities_visibility(user_id, body.visibility, db)
-    activity_event_publishers.publish_activities_updated(
-        updated_ids,
-        user_id,
-        db,
-        changed_fields=["visibility"],
-        source="api:bulk_edit_activities",
-    )
-    db.commit()
-    logger.info(
-        "Bulk-edited activity visibility",
-        extra=core_logger.context(user_id=user_id, visibility=body.visibility, updated=len(updated_ids)),
-    )
-    return len(updated_ids)
-
-
-def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
+def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: str) -> None:
     """Delete one of the user's activities and publish ``activity.deleted``.
 
     The delete and the event are staged and committed together, so when durable
@@ -734,18 +728,29 @@ def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
     best-effort path the event dispatches after the commit and a bus-dispatch
     failure is swallowed.
 
-    Ownership lives in the delete's ``WHERE`` clause (404 when the activity is
-    missing *or* owned by someone else), so there is no read-then-delete gap and
-    no caller-side precondition to forget.
+    Ownership lives in the delete's lookup (404 when the activity is missing
+    *or* owned by someone else), so there is no caller-side precondition to
+    forget.
 
     Args:
         activity_id: The activity to delete.
         user_id: The authenticated owner.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Raises:
+        NotFoundError: When the activity is missing or not owned by ``user_id``.
+        PreconditionFailedError: When the activity changed since the client read it.
     """
-    activity_crud.delete_activity(activity_id, user_id, db)
-    activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "activity",
+        lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
+        f"Activity {activity_id} not found",
+    ):
+        activity_crud.delete_activity(activity_id, user_id, db, if_match=if_match)
+        activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
+        db.commit()
     logger.info(
         "Deleted an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
@@ -790,8 +795,31 @@ def bulk_set_activities_gear(
     return len(updated_ids)
 
 
-def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> int:
-    """Delete all of a user's Strava-sourced activities.
+def clear_activities_gear(gear_id: int, user_id: int, db: Session, *, source: str) -> int:
+    """Unassign a gear from every activity of a user that carries it.
+
+    Used when the gear is deleted: the foreign key would null the column silently, so
+    this does it explicitly and publishes one ``activity.updated`` per row, staged with
+    the update. The caller commits.
+
+    Args:
+        gear_id: The gear being removed.
+        user_id: The owning user id.
+        db: Database session.
+        source: The caller recorded on the published events.
+
+    Returns:
+        The number of activities updated.
+    """
+    updated_ids = activity_crud.clear_gear_from_activities(gear_id, user_id, db)
+    activity_event_publishers.publish_activities_updated(
+        updated_ids, user_id, db, changed_fields=["gear_id"], source=source
+    )
+    return len(updated_ids)
+
+
+def delete_all_strava_activities(user_id: int, db: Session, *, source: str, limit: int) -> int:
+    """Delete up to ``limit`` of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity, staged with the deletes,
     so the thumbnail and source-file cleanup subscribers reclaim the blobs each
@@ -801,42 +829,45 @@ def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> i
         user_id: The owning user id.
         db: Database session.
         source: The caller recorded on the published events.
+        limit: The most activities to delete in this call.
 
     Returns:
-        The number of activities deleted.
+        The number of activities deleted; fewer than ``limit`` means none are left.
     """
-    deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db)
+    deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db, limit=limit)
     activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
     # Irreversible and triggered from another module, so the count is recorded
     # here rather than left to the caller.
     logger.info(
-        "Deleted all Strava-sourced activities for user",
+        "Deleted Strava-sourced activities for user",
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)
 
 
-def delete_all_activities_for_user(user_id: int, db: Session, *, source: str) -> int:
-    """Delete every activity owned by a user, emitting cleanup events.
+def delete_activities_batch_for_user(user_id: int, limit: int, db: Session, *, source: str) -> int:
+    """Delete up to ``limit`` of a user's activities, emitting cleanup events.
 
     The account-deletion path. Deleting the user row alone would let the database
     FK cascade remove the activities silently, orphaning every thumbnail and
     stored source file the user ever produced — an incomplete erasure. Removing
     them explicitly first yields the ids needed to publish ``activity.deleted``,
-    so the cleanup subscribers delete the blobs too. The caller commits.
+    so the cleanup subscribers delete the blobs too. The caller commits, and
+    repeats the call until it returns 0.
 
     Args:
         user_id: The owning user id.
+        limit: The most activities to delete.
         db: Database session.
         source: The caller recorded on the published events.
 
     Returns:
         The number of activities deleted.
     """
-    deleted_ids = activity_crud.delete_all_activities_for_user(user_id, db)
+    deleted_ids = activity_crud.delete_activities_batch_for_user(user_id, limit, db)
     activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
-    logger.info(
-        "Deleted all activities for user",
+    logger.debug(
+        "Deleted a batch of a user's activities",
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)

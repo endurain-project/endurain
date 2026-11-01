@@ -1,0 +1,60 @@
+# User management
+
+Administrators manage accounts in **Settings → Users**. The page lists every account on the instance, with badges for administrators, inactive accounts, accounts with an unverified email, accounts waiting for approval and accounts that sign in through an external provider.
+
+## Finding users
+
+Search by username, and filter the list by:
+
+- inactive users,
+- users whose email is unverified,
+- users pending approval,
+- users who sign in through an external provider,
+- users who sign in with a local password.
+
+## Adding a user
+
+**Add user** creates an account with a name, username, email, access type (regular user or administrator) and a password. The password must satisfy the [password policy](accounts-and-sign-in.md#password-rules). A new account starts with the default settings every account gets.
+
+## Editing a user
+
+Edit a user's profile fields, access type and whether the account is active. You can also upload or remove their photo.
+
+Changing a user's email sends a confirmation link to the new address. The address changes when the user follows the link, which is valid for 24 hours. Until then the user keeps signing in and resetting their password with the current address, and the user's detail page shows the pending address and when its link expires. To apply the new address at once, switch on **Mark the new address as verified** in the edit form. The address is then marked verified and no link is sent. If the server has no mail configured, the address changes at once and stays unverified. A deactivated account stays deactivated when its user follows a confirmation link: the link changes and verifies the address, and only an administrator reactivates the account.
+
+Some edits end the user's sessions, so a session issued under the old values cannot outlive the change. The user is signed out of every device when you save a change to their:
+
+- email, even while the new address waits for confirmation,
+- access type,
+- active flag.
+
+Endurain always keeps at least one active administrator. You cannot delete, deactivate or demote the only active administrator; make someone else an administrator first.
+
+## Your own account
+
+The administrative actions that change how an account is secured, resetting the password, unlinking an identity provider, deleting the account and changing the email, are refused for your own account (`403`). Use your own account settings instead, which ask for your current password and MFA code first.
+
+## Approving sign-ups
+
+When [admin approval](server-settings.md#registration) is required, a new user stays inactive and shows the **Pending approval** badge. Every administrator gets a [notification](notifications.md) (and an email, if mail is configured) when a user is waiting.
+
+Approve the user from their row. Endurain activates the account and emails the user. You can approve only a user whose email is verified; a user who has not verified it yet stays pending.
+
+!!! note "Approval without email verification"
+    A new account is created with an unverified email whenever any sign-up rule is on. If you require approval but not email verification, nobody sends the user a verification link, so the **Approve** and reject buttons stay disabled. To handle such a user, open **Edit user**, switch on **Email verified** and save, then approve. Turning on **Require email verification** as well avoids this.
+
+## Resetting a password
+
+**Reset password** sets a new password for the user without needing their current one. It must satisfy the password policy. Endurain revokes the user's sessions and other sign-in state, so they must sign in again with the new password. Use this when a user cannot receive the [reset email](accounts-and-sign-in.md#forgotten-password), for example because no mail server is configured. It is also how an account that has no local password gets one: such an account cannot set its own. An administrator cannot reset their own password here.
+
+## Sessions and identity providers
+
+A user's detail page shows their sessions, which you can revoke, and the identity providers linked to the account, which you can unlink. Unlinking an identity provider removes that external sign-in. Check that the user has another way to sign in first.
+
+## Deleting a user
+
+Deleting a user deletes the account and everything it owns: activities, their laps, streams, photos, thumbnails and stored source files, gear, health records, goals, notifications and the profile photo. The user is signed out and deactivated at once, and a background job erases their data, so a large account does not hold up the server; the request answers `202`, and `GET /users/{user_id}/deletion` reports the job's progress. If the job fails, the account stays deactivated and signed out, and Endurain queues the deletion again every hour, up to five times. After that, delete the account again yourself. Reactivating the account cancels a deletion that has not finished. It cannot be undone, so ask users to [export their data](export-import.md) first if they want a copy.
+
+## For the person editing at the same time
+
+If two administrators edit the same user at once, the second save is refused with a message that the user changed, and nothing is overwritten. Reload and apply the change again. API clients see `412`; see [Errors, concurrency and rate limits](../integrate/errors-and-limits.md#concurrent-edits-with-etag-and-if-match).

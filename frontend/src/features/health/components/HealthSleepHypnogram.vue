@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { SleepStage } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
 
 const props = defineProps<{
@@ -21,6 +22,7 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+const { duration } = useUnitFormat()
 
 /**
  * Lanes top → bottom (Awake, REM, Light, Deep), mirroring the v1 hypnogram and
@@ -134,7 +136,7 @@ const segments = computed(() =>
       label: t(`health.sleep.hypnogram.${item.lane.labelKey}`),
       startLabel: clockLabel.value(item.startMs),
       endLabel: clockLabel.value(item.endMs),
-      durationLabel: formatHoursMinutes(durationSeconds),
+      durationLabel: formatHoursMinutes(durationSeconds, duration),
     }
   }),
 )

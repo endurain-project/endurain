@@ -43,15 +43,13 @@ export function metersToDisplayDistance(meters: number, units: Schemas['Units'])
 }
 
 /**
- * Formats a duration in seconds as a compact `Hh Mm` string (or `Mm` under an
- * hour), matching how gear totals are summarized.
+ * Splits a duration in seconds into whole hours and minutes (both floored), the
+ * parts gear totals are summarized with.
  *
  * @param totalSeconds - Duration in seconds.
- * @returns A compact human-readable duration, e.g. `12h 30m` or `45m`.
+ * @returns The whole hours and the remaining whole minutes.
  */
-export function formatDuration(totalSeconds: number): string {
+export function splitDuration(totalSeconds: number): { hours: number; minutes: number } {
   const safe = Math.max(0, Math.floor(totalSeconds))
-  const hours = Math.floor(safe / 3600)
-  const minutes = Math.floor((safe % 3600) / 60)
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+  return { hours: Math.floor(safe / 3600), minutes: Math.floor((safe % 3600) / 60) }
 }

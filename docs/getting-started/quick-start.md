@@ -110,22 +110,18 @@ If you do not get any errors, continue to next step.
 On distributions with SELinux enforcing (check with `getenforce`), Docker bind-mounted directories inherit the host's SELinux context instead of the `container_file_t` context that containers require. This can cause permission errors like:
 
 ```
-redis  | find: .: Permission denied
 endurain-postgres | mkdir: cannot create directory '/var/lib/postgresql/data/pgdata': Permission denied
 ```
 
-The example docker-compose files include `:Z` and `:z` flags on all bind-mounted volumes to handle this automatically:
+The example `docker-compose.yml.example` includes the `:Z` flag on all bind-mounted volumes to handle this automatically. `:Z` (private) labels the volume so only the mounting container can access it, which fits postgres, the backend data and the logs, where a single container owns each volume.
 
-- **`:Z`** (private) — labels the volume so only the mounting container can access it. Used for postgres, redis, backend data, and logs where a single container owns the volume.
-- **`:z`** (shared) — labels the volume so multiple containers can share it. Used in the multiple-backends example for shared data and logs.
+> **Note for Debian, Ubuntu, and other non-SELinux distributions:** This flag is silently ignored by Docker and has no effect. No action is required on your part.
 
-> **Note for Debian, Ubuntu, and other non-SELinux distributions:** These flags are silently ignored by Docker and have no effect. No action is required on your part.
-
-If you are using the provided docker-compose files as-is, these flags should resolve SELinux permission errors automatically. If you have customized your volume structure or added new bind-mounted volumes, you may need to apply the `container_file_t` context manually:
+If you are using the provided docker-compose file as-is, the flag should resolve SELinux permission errors automatically. If you have customized your volume structure or added new bind-mounted volumes (for example a Redis volume when you scale out), you may need to apply the `container_file_t` context manually:
 
 ```bash
 sudo chcon -Rt container_file_t <host_path>/postgres
-sudo chcon -Rt container_file_t <host_path>/redis
+sudo chcon -Rt container_file_t <host_path>/backend
 ```
 
 Replace `<host_path>` with the actual path on your host machine (e.g., `/opt/endurain`, `/var/opt/endurain`, or a custom location you chose). The same principle applies to any bind-mounted volume that a container needs to write to.
@@ -143,12 +139,26 @@ sudo docker compose up -d
 * Open `http://<IP-OF-YOUR-SERVER>:8080` (unencrypted).
 * You cannot log in yet, because `ENDURAIN_HOST` does not match this URL. Set up a [reverse proxy](reverse-proxy.md) next.
 
-## Default credentials
+## First sign-in
 
-After setup, log in with the credentials below and change the password right away.
+A new installation has no account and no default password. The first time you open Endurain in a browser, it shows an onboarding page where you create the first administrator:
 
-- **Username:** admin
-- **Password:** admin
+1. Get the setup token from the server log. The token is the `setup_token` field of the log entry "First-run onboarding required: no account exists yet. Open Endurain in a browser and enter the setup token":
+
+    ```bash
+    docker compose logs endurain | grep setup_token
+    ```
+
+2. Open Endurain at the address set in `ENDURAIN_HOST`.
+3. Enter the setup token, then the name, username, email and password of the first administrator. The password must meet the [password rules](../features/accounts-and-sign-in.md#password-rules): by default at least 15 characters, and not a common password, the username or the email.
+4. Submit the form. The administrator account is created and the onboarding page is closed for good. Sign in on the normal login page with the username and password you chose.
+
+The setup token is valid for 24 hours and can be used once. Restarting the container prints a new one. The log entry is a warning, so it is not printed when `LOG_LEVEL` is set to `error` or `critical`; keep the default (`info`) until onboarding is done. If you run several web workers or replicas, each one prints its own token and any of them works, but only one onboarding can succeed.
+
+Anyone who can reach a fresh instance before it is onboarded needs the setup token, so the token protects an exposed fresh install. Still, complete onboarding before you expose the instance publicly.
+
+!!! note "Existing installations"
+    Installations that already have accounts are not affected by this change. An `admin` account created by an older version may still use the default password `admin`. If you still use it, change the password now.
 
 ## Next steps
 

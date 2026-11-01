@@ -137,66 +137,6 @@ class TestSanitizeMarkdown:
         assert "🌍" in result
 
 
-class TestSanitizePlainText:
-    """Tests for sanitize_plain_text function."""
-
-    def test_sanitize_plain_text_none(self):
-        """Test that None input returns None."""
-        result = sanitization.sanitize_plain_text(None)
-        assert result is None
-
-    def test_sanitize_plain_text_non_string(self):
-        """Test that non-string input returns None."""
-        assert sanitization.sanitize_plain_text(123) is None
-        assert sanitization.sanitize_plain_text([]) is None
-
-    def test_sanitize_plain_text_no_html(self):
-        """Test that plain text without HTML is preserved."""
-        content = "This is plain text"
-        result = sanitization.sanitize_plain_text(content)
-        assert result == content
-
-    def test_sanitize_plain_text_removes_all_tags(self):
-        """Test that all HTML tags are removed."""
-        content = "<p>Paragraph</p><strong>Bold</strong><em>Italic</em>"
-        result = sanitization.sanitize_plain_text(content)
-        assert "<p>" not in result
-        assert "<strong>" not in result
-        assert "<em>" not in result
-        assert "Paragraph" in result
-        assert "Bold" in result
-        assert "Italic" in result
-
-    def test_sanitize_plain_text_removes_script(self):
-        """Test that script tags are removed."""
-        content = 'Text<script>alert("XSS")</script>More text'
-        result = sanitization.sanitize_plain_text(content)
-        assert "<script>" not in result
-        assert "</script>" not in result
-        assert "Text" in result
-        assert "More text" in result
-        # Note: bleach removes tags but preserves text content
-
-    def test_sanitize_plain_text_removes_links(self):
-        """Test that link tags are removed."""
-        content = '<a href="https://example.com">Link text</a>'
-        result = sanitization.sanitize_plain_text(content)
-        assert "<a" not in result
-        assert "href" not in result
-        assert "Link text" in result
-
-    def test_sanitize_plain_text_empty_string(self):
-        """Test that empty string is handled correctly."""
-        result = sanitization.sanitize_plain_text("")
-        assert result == ""
-
-    def test_sanitize_plain_text_unicode(self):
-        """Test that unicode content is preserved."""
-        content = "Hello 世界 🌍"
-        result = sanitization.sanitize_plain_text(content)
-        assert result == content
-
-
 class TestSanitizeAttribution:
     """Tests for sanitize_attribution function."""
 
@@ -304,23 +244,6 @@ class TestXSSPrevention:
     @pytest.mark.parametrize(
         "malicious_content",
         [
-            '<script>alert("XSS")</script>',
-            "<img src=x onerror=\"alert('XSS')\">",
-            "<a href=\"javascript:alert('XSS')\">Click</a>",
-        ],
-    )
-    def test_plain_text_prevents_xss(self, malicious_content):
-        """Test that sanitize_plain_text prevents XSS attacks."""
-        result = sanitization.sanitize_plain_text(malicious_content)
-        # Verify all HTML tags are removed
-        assert "<script" not in result.lower()
-        assert "<img" not in result.lower()
-        assert "<a" not in result.lower()
-        assert "onerror" not in result or "<" not in result
-
-    @pytest.mark.parametrize(
-        "malicious_content",
-        [
             "<a href=\"javascript:alert('XSS')\">Click</a>",
             '<a onclick="alert(\'XSS\')" href="#">Click</a>',
             '<script>alert("XSS")</script><a href="#">Link</a>',
@@ -356,3 +279,35 @@ class TestXSSPrevention:
         assert ("href=" in result) is expected_kept
         # The text always survives; only the dangerous attribute is dropped.
         assert "x</a>" in result
+
+
+class TestEscapeLike:
+    def test_escape_percent(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("100%")
+        assert result == "100\\%"
+
+    def test_escape_underscore(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("test_name")
+        assert result == "test\\_name"
+
+    def test_escape_backslash(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("foo\\bar")
+        assert result == "foo\\\\bar"
+
+    def test_no_escaping_needed(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("hello")
+        assert result == "hello"
+
+    def test_escape_all(self):
+        from core.sanitization import escape_like
+
+        result = escape_like("a%b_c\\d")
+        assert result == "a\\%b\\_c\\\\d"

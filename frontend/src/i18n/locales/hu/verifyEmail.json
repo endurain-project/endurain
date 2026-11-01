@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Egy pillanat, megerősítjük a címedet.",
+  "choosePasswordTitle": "Válassz jelszót",
+  "choosePasswordBody": "Az e-mail-címed akkor lesz megerősítve, amikor jelszót állítasz be a fiókodhoz.",
+  "submitPassword": "Jelszó beállítása",
+  "submittingPassword": "Jelszó mentése",
   "successTitle": "E-mail-cím megerősítve",
   "successBody": "Az e-mail-címedet megerősítettük.",
   "adminApprovalBody": "A fiókod most a rendszergazda jóváhagyására vár.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Az ellenőrzés sikertelen",
   "missingTokenBody": "Erről az ellenőrző hivatkozásról hiányzik a token.",
   "errorInvalidToken": "Ez az ellenőrző hivatkozás érvénytelen vagy lejárt.",
+  "errorEmailTaken": "Ezt az e-mail-címet mostantól egy másik fiók használja, ezért nem lehet megerősíteni.",
   "errorNotFound": "Nem találtunk fiókot ehhez a hivatkozáshoz.",
   "errorGeneral": "Nem sikerült megerősíteni az e-mail-címedet. Kérjük, próbáld újra.",
   "retry": "Próbáld újra",

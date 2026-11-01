@@ -31,6 +31,7 @@
       "admin": "Administrator",
       "inactive": "Neaktivno",
       "unverified": "Neverifikovan email",
+      "pendingEmail": "Promena email adrese na čekanju",
       "pending": "Čeka odobrenje",
       "externalAuth": "Eksterna autentifikacija"
     },
@@ -64,18 +65,15 @@
       "email": "Email",
       "emailRequired": "Email je obavezan",
       "emailInvalid": "Unesite ispravnu email adresu",
+      "emailChangeHint": "Na novu adresu se šalje link za potvrdu, a on zamenjuje trenutnu nakon potvrde. Korisnik se odjavljuje sa svih uređaja. Da biste ga odmah primenili, označite novu adresu kao verifikovanu.",
       "accessType": "Tip pristupa",
       "accessTypeRegular": "Običan korisnik",
       "accessTypeAdmin": "Administrator",
       "password": "Lozinka",
       "passwordHint": "Najmanje 8 znakova",
-      "passwordHintStrict": "Najmanje {min} znakova, sa velikim slovom, malim slovom, brojem i specijalnim znakom",
-      "passwordHintLength": "Najmanje {min} znakova",
       "passwordRequired": "Lozinka je obavezna",
-      "passwordInvalid": "Ta lozinka ne ispunjava uslove",
       "confirmPassword": "Potvrdi lozinku",
       "confirmPasswordRequired": "Potvrdi lozinku",
-      "passwordMismatch": "Lozinke se ne podudaraju",
       "preferredLanguage": "Željeni jezik",
       "languages": {
         "ca": "Katalonski",
@@ -118,14 +116,14 @@
       "units": "Jedinice",
       "unitsMetric": "Metričke",
       "unitsImperial": "Imperijalne",
+      "weightUnits": "Jedinice težine",
+      "weightUnitsDefault": "Prati jedinice",
+      "weightUnitsMetric": "Kilogrami (kg)",
+      "weightUnitsImperial": "Funte (lb)",
       "height": "Visina",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
       "feetInvalid": "Stope moraju biti između 0 i 10",
       "inchesInvalid": "Inči moraju biti između 0 i 11",
       "maxHeartRate": "Maksimalan puls",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Evro",
@@ -149,6 +147,8 @@
       "statusLegend": "Status naloga",
       "active": "Aktivno",
       "emailVerified": "Email verifikovan",
+      "emailVerifiedCurrentHint": "Ovo je status trenutne adrese.",
+      "newEmailVerified": "Označi novu adresu kao verifikovanu",
       "pendingAdminApproval": "Čeka odobrenje administratora",
       "requiredField": "Obavezno polje",
       "create": "Dodaj korisnika",
@@ -171,6 +171,7 @@
     },
     "detail": {
       "back": "Nazad na korisnike",
+      "pendingEmail": "Promena email adrese na {email} na čekanju, link ističe {date}",
       "notFoundTitle": "Korisnik nije pronađen",
       "notFoundDescription": "Ovaj nalog je možda obrisan",
       "securityTitle": "Bezbednost",
@@ -186,16 +187,12 @@
       "title": "Resetuj lozinku",
       "description": "Postavite novu lozinku za {username}",
       "newLabel": "Nova lozinka",
-      "hintLength": "Najmanje {min} znakova",
-      "hintStrict": "Najmanje {min} znakova, sa velikim slovom, malim slovom, brojem i specijalnim znakom",
       "confirmLabel": "Potvrdi novu lozinku",
-      "mismatch": "Lozinke se ne podudaraju",
       "required": "Lozinka je obavezna",
       "submit": "Resetuj lozinku",
       "cancel": "Otkaži",
       "close": "Zatvori",
       "success": "Lozinka je ažurirana",
-      "invalid": "Ta lozinka ne ispunjava uslove",
       "error": "Nije moguće ažurirati lozinku. Pokušajte ponovo."
     },
     "sessions": {
@@ -295,9 +292,6 @@
     },
     "password": {
       "title": "Politika lozinki",
-      "type": "Politika",
-      "typeStrict": "Stroga (potrebna složenost)",
-      "typeLengthOnly": "Samo dužina",
       "lengthRegular": "Minimalna dužina za obične korisnike",
       "lengthAdmin": "Minimalna dužina za administratore"
     },
@@ -367,6 +361,29 @@
       "sent": "Probna e-poruka poslata",
       "failed": "Probna e-poruka nije mogla da se pošalje",
       "failedUnknown": "Detalje potražite u evidenciji servera."
+    },
+    "envLocked": "Postavljeno promenljivom {name}",
+    "envSection": "Neka podešavanja ovde određuju promenljive okruženja ({names}). Uklonite ih iz okruženja da biste ta podešavanja mogli da menjate ovde.",
+    "unsaved": "Nesačuvane izmene",
+    "discard": "Odbaci",
+    "tabs": {
+      "label": "Odeljci podešavanja servera",
+      "general": "Opšte",
+      "access": "Pristup i bezbednost",
+      "maps": "Mape i lokacija",
+      "email": "E-pošta",
+      "unsaved": "Sadrži nesačuvane izmene"
+    },
+    "search": {
+      "placeholder": "Pretraži podešavanja…",
+      "noResults": "Nijedno podešavanje nije pronađeno"
+    },
+    "leave": {
+      "title": "Napustiti stranicu bez čuvanja?",
+      "description": "Imate nesačuvane izmene. Ako napustite ovu stranicu, biće izgubljene.",
+      "confirm": "Napusti bez čuvanja",
+      "stay": "Ostani na stranici",
+      "close": "Zatvori"
     }
   },
   "idp": {
@@ -442,9 +459,6 @@
       "scopesTooLong": "Opsezi moraju imati najviše 500 znakova",
       "icon": "Ikona",
       "iconNone": "Nijedna",
-      "iconCustom": "Prilagođeni URL",
-      "customIconUrl": "URL prilagođene ikone",
-      "customIconUrlHint": "Link do slike prikazane na dugmetu za prijavu",
       "enabled": "Omogućeno",
       "autoCreateUsers": "Automatski kreiraj korisnike pri prvoj prijavi",
       "syncUserInfo": "Sinhronizuj informacije profila pri svakoj prijavi",
@@ -491,13 +505,6 @@
       "distance": "Udaljenost",
       "elevation": "Visinska razlika",
       "duration": "Trajanje"
-    },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
     },
     "list": {
       "edit": "Izmeni cilj {name}",
@@ -559,9 +566,6 @@
       "current": "Trenutna lozinka",
       "new": "Nova lozinka",
       "confirm": "Potvrdi novu lozinku",
-      "requirementsStrict": "Najmanje {length} znakova, uključujući veliko slovo, malo slovo, broj i simbol.",
-      "requirementsLength": "Najmanje {length} znakova.",
-      "mismatch": "Lozinke se ne podudaraju.",
       "revokeOthers": "Odjavi se sa svih ostalih uređaja",
       "submit": "Promeni lozinku",
       "success": "Lozinka je promenjena",
@@ -650,6 +654,20 @@
       "invalidCredentials": "Vaša lozinka ili kod su netačni.",
       "alreadyLinked": "Taj nalog je već povezan.",
       "lastMethodError": "Ne možete prekinuti vezu svog jedinog načina prijave. Prvo postavite lozinku."
+    },
+    "email": {
+      "subtitle": "Ovde se šalju resetovanja lozinke i obaveštenja. Za promenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem linka koji šaljemo na nju.",
+      "sameAsCurrent": "Ovo je već vaša email adresa.",
+      "success": "Link za potvrdu je poslat na novu adresu. Vaš email se menja kada ga potvrdite.",
+      "appliedSuccess": "E-pošta je promenjena.",
+      "pending": "Promena na {email} na čekanju",
+      "pendingExpires": "Link za potvrdu ističe {date}.",
+      "resend": "Ponovo pošalji link",
+      "cancel": "Otkaži promenu",
+      "resendSuccess": "Ako je promena na čekanju, novi link je na putu do nove adrese.",
+      "resendError": "Nije moguće ponovo poslati link. Pokušajte ponovo.",
+      "cancelSuccess": "Promena email adrese je otkazana.",
+      "cancelError": "Nije moguće otkazati promenu. Pokušajte ponovo."
     },
     "apiKeys": {
       "title": "API ključevi",
@@ -923,7 +941,6 @@
       "invalidType": "Izaberite .zip arhivu.",
       "exportSuccess": "Izvoz je spreman, vaše preuzimanje treba uskoro da počne",
       "exportError": "Nije moguće izvesti vaše podatke. Pokušajte ponovo.",
-      "importSuccess": "Podaci su uvezeni",
       "importError": "Nije moguće uvesti arhivu. Proverite datoteku i pokušajte ponovo."
     }
   }

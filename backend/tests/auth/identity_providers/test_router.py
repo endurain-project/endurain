@@ -1,115 +1,223 @@
-from datetime import datetime
-from unittest.mock import patch
+"""Tests for identity-provider admin routes."""
 
+from datetime import UTC, datetime
+from unittest.mock import MagicMock
+
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import core.database as core_database
+import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
+import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_providers.dependencies as idp_dependencies
+import modules.auth.identity_providers.router as idp_router
+import modules.auth.identity_providers.schema as idp_schema
 
-def _build_app(mock_db):
-    import core.database as core_db
-    import modules.auth.dependencies as auth_deps
-    import modules.auth.identity_providers.dependencies as idp_deps
-    import modules.auth.identity_providers.router as router
+OIDC = MagicMock()
 
+
+def _client() -> TestClient:
     app = FastAPI()
-    app.include_router(router.router, prefix="/auth/identity_providers")
-
-    def _mock():
-        return None
-
-    app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[idp_deps.validate_idp_id] = _mock
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+    app.add_exception_handler(core_exceptions.DomainError, core_exceptions.domain_error_handler)
+    app.include_router(idp_router.router, prefix="/auth/identity_providers")
+    app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
+    app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
+    app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
+    app.dependency_overrides[idp_dependencies.get_oidc_client_service] = lambda: OIDC
+    return TestClient(app)
 
 
-class TestListIdentityProviders:
-    @patch("modules.auth.identity_providers.router.idp_crud.get_all_identity_providers")
-    def test_list_success(self, mock_get, mock_db):
-        from modules.auth.identity_providers.schema import IdentityProvider
-
-        client = TestClient(_build_app(mock_db))
-        now = datetime.now()
-        mock_get.return_value = [IdentityProvider(id=1, name="Google", slug="google", created_at=now, updated_at=now)]
-
-        response = client.get("/auth/identity_providers", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert len(response.json()) == 1
-
-    @patch("modules.auth.identity_providers.router.idp_crud.get_all_identity_providers")
-    def test_list_empty(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
-
-        response = client.get("/auth/identity_providers", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json() == []
+@pytest.fixture
+def service(monkeypatch) -> MagicMock:
+    """Replace the provider service the routes call."""
+    service = MagicMock()
+    monkeypatch.setattr(idp_router, "idp_provider_service", service)
+    return service
 
 
-class TestListIdpTemplates:
-    @patch("modules.auth.identity_providers.router.idp_utils.get_idp_templates")
-    def test_templates_success(self, mock_get, mock_db):
-        from modules.auth.identity_providers.schema import IdentityProviderTemplate
-
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [
-            IdentityProviderTemplate(
-                template_id="google",
-                name="Google",
-                provider_type="oidc",
-                scopes="openid profile email",
-                description="Google OIDC provider",
-            )
-        ]
-
-        response = client.get("/auth/identity_providers/templates", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
+def _provider(version: int = 1) -> idp_schema.IdentityProviderRead:
+    now = datetime.now(UTC)
+    return idp_schema.IdentityProviderRead(
+        id=1, name="Google", slug="google", created_at=now, updated_at=now, version=version
+    )
 
 
-class TestCreateIdentityProvider:
-    @patch("modules.auth.identity_providers.router.idp_crud.create_identity_provider")
-    def test_create_success(self, mock_create, mock_db):
-        from modules.auth.identity_providers.schema import IdentityProvider
+def test_list_identity_providers_delegates_to_service(service):
+    service.list_identity_providers.return_value = [_provider()]
 
-        client = TestClient(_build_app(mock_db))
-        now = datetime.now()
-        mock_create.return_value = IdentityProvider(id=1, name="Google", slug="google", created_at=now, updated_at=now)
+    response = _client().get("/auth/identity_providers", headers={"Authorization": "Bearer x"})
 
-        response = client.post(
-            "/auth/identity_providers",
-            json={
-                "name": "Google",
-                "slug": "google",
-                "client_secret": "very-secret-key-here",
-            },
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 201
+    assert response.status_code == 200
+    assert response.json()[0]["slug"] == "google"
+    assert response.json()[0]["version"] == 1
+    service.list_identity_providers.assert_called_once()
 
 
-class TestUpdateIdentityProvider:
-    @patch("modules.auth.identity_providers.router.idp_crud.update_identity_provider")
-    def test_update_success(self, mock_update, mock_db):
-        from modules.auth.identity_providers.schema import IdentityProvider
+def test_list_templates_delegates_to_service(service):
+    service.get_idp_templates.return_value = []
 
-        client = TestClient(_build_app(mock_db))
-        now = datetime.now()
-        mock_update.return_value = IdentityProvider(
-            id=1, name="Google Updated", slug="google", created_at=now, updated_at=now
-        )
+    response = _client().get("/auth/identity_providers/templates", headers={"Authorization": "Bearer x"})
 
-        response = client.put(
-            "/auth/identity_providers/1",
-            json={"name": "Google Updated", "slug": "google"},
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 200
+    assert response.status_code == 200
+    assert response.json() == []
 
 
-class TestDeleteIdentityProvider:
-    @patch("modules.auth.identity_providers.router.idp_crud.delete_identity_provider")
-    def test_delete_success(self, mock_delete, mock_db):
-        client = TestClient(_build_app(mock_db))
+def test_create_identity_provider_delegates_to_service(service):
+    service.create_identity_provider.return_value = _provider()
 
-        response = client.delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 204
+    response = _client().post(
+        "/auth/identity_providers",
+        json={"name": "Google", "slug": "google", "client_id": "client", "client_secret": "secret"},
+        headers={"Authorization": "Bearer x"},
+    )
+
+    assert response.status_code == 201
+    assert response.headers["etag"] == '"1"'
+    service.create_identity_provider.assert_called_once()
+
+
+def test_update_identity_provider_requires_if_match_and_returns_new_etag(service):
+    service.update_identity_provider.return_value = _provider(version=2)
+
+    response = _client().put(
+        "/auth/identity_providers/1",
+        json={"name": "Google", "slug": "google"},
+        headers={"Authorization": "Bearer x", "If-Match": '"1"'},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["etag"] == '"2"'
+    service.update_identity_provider.assert_called_once()
+    assert service.update_identity_provider.call_args.args[2] is OIDC
+    assert service.update_identity_provider.call_args.kwargs["if_match"] == '"1"'
+
+
+def test_create_returns_400_for_a_refused_url(service):
+    service.create_identity_provider.side_effect = core_exceptions.InvalidInputError("issuer_url: URL must use https")
+
+    response = _client().post(
+        "/auth/identity_providers",
+        json={"name": "Google", "slug": "google", "client_id": "client", "client_secret": "secret"},
+        headers={"Authorization": "Bearer x"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_update_requires_if_match_before_calling_service(service):
+
+    response = _client().put(
+        "/auth/identity_providers/1",
+        json={"name": "Google", "slug": "google"},
+        headers={"Authorization": "Bearer x"},
+    )
+
+    assert response.status_code == 428
+    service.update_identity_provider.assert_not_called()
+
+
+def test_update_rejects_if_match_wildcard_before_calling_service(service):
+
+    response = _client().put(
+        "/auth/identity_providers/1",
+        json={"name": "Google", "slug": "google"},
+        headers={"Authorization": "Bearer x", "If-Match": "*"},
+    )
+
+    assert response.status_code == 400
+    service.update_identity_provider.assert_not_called()
+
+
+def test_update_returns_precondition_failed_for_a_stale_etag(service):
+    service.update_identity_provider.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+    response = _client().put(
+        "/auth/identity_providers/1",
+        json={"name": "Google", "slug": "google"},
+        headers={"Authorization": "Bearer x", "If-Match": '"1"'},
+    )
+
+    assert response.status_code == 412
+    service.update_identity_provider.assert_called_once()
+
+
+def test_update_rejects_nonpositive_id(service):
+
+    response = _client().put(
+        "/auth/identity_providers/0",
+        json={"name": "Google", "slug": "google"},
+        headers={"Authorization": "Bearer x", "If-Match": '"1"'},
+    )
+
+    assert response.status_code == 422
+    service.update_identity_provider.assert_not_called()
+
+
+def test_delete_identity_provider_delegates_to_service(service):
+
+    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x", "If-Match": '"2"'})
+
+    assert response.status_code == 204
+    service.delete_identity_provider.assert_called_once()
+    assert service.delete_identity_provider.call_args.args[0] == 1
+    assert service.delete_identity_provider.call_args.args[2] is OIDC
+    assert service.delete_identity_provider.call_args.kwargs == {"if_match": '"2"'}
+
+
+def test_delete_without_if_match_is_428(service):
+
+    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x"})
+
+    assert response.status_code == 428
+    service.delete_identity_provider.assert_not_called()
+
+
+def test_delete_returns_precondition_failed_for_a_stale_etag(service):
+    service.delete_identity_provider.side_effect = core_exceptions.PreconditionFailedError("stale")
+
+    response = _client().delete("/auth/identity_providers/1", headers={"Authorization": "Bearer x", "If-Match": '"1"'})
+
+    assert response.status_code == 412
+
+
+def test_upload_icon_validates_the_image_then_hands_the_bytes_to_the_service(monkeypatch):
+    icon_service = MagicMock()
+    icon_service.upload_icon.return_value = 5
+    monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
+    monkeypatch.setattr(idp_router.core_file_uploads, "read_validated_upload_sync", lambda *_a, **_k: b"png-bytes")
+
+    response = _client().post(
+        "/auth/identity_providers/1/icon",
+        files={"file": ("icon.png", b"ignored", "image/png")},
+        headers={"Authorization": "Bearer x"},
+    )
+
+    assert response.status_code == 201
+    assert response.json() == {"version": 5}
+    assert icon_service.upload_icon.call_args.args[:2] == (1, b"png-bytes")
+
+
+def test_upload_icon_rejects_nonpositive_id(monkeypatch):
+    icon_service = MagicMock()
+    monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
+
+    response = _client().post(
+        "/auth/identity_providers/0/icon",
+        files={"file": ("icon.png", b"x", "image/png")},
+        headers={"Authorization": "Bearer x"},
+    )
+
+    assert response.status_code == 422
+    icon_service.upload_icon.assert_not_called()
+
+
+def test_delete_icon_delegates_to_the_service(monkeypatch):
+    icon_service = MagicMock()
+    monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
+
+    response = _client().delete("/auth/identity_providers/1/icon", headers={"Authorization": "Bearer x"})
+
+    assert response.status_code == 204
+    assert icon_service.delete_icon.call_args.args[0] == 1

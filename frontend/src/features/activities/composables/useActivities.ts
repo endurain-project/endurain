@@ -9,7 +9,6 @@ import {
   type ActivitySortBy,
   type ActivitySortOrder,
   fetchUserActivitiesPage,
-  fetchUserActivityTypeCodes,
   fetchUserActivityTypeMap,
 } from '@/features/activities/services/activities'
 
@@ -76,8 +75,9 @@ export function useUserActivitiesQuery(
 
 /**
  * The distinct activity-type codes the authenticated user owns, ascending,
- * powering the activity-type filter so it only offers types the user has.
- * Cached under the shared `activities.types` key; gated on authentication.
+ * powering the activity-type filter so it only offers types the user has. Reads
+ * the same cached request as {@link useUserActivityTypeMapQuery} and selects the
+ * codes from it; gated on authentication.
  *
  * @returns The TanStack query result for the user's activity-type codes.
  */
@@ -85,8 +85,9 @@ export function useUserActivityTypesQuery() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery({
-    queryKey: queryKeys.activities.types(),
-    queryFn: ({ signal }) => fetchUserActivityTypeCodes(signal),
+    queryKey: queryKeys.activities.typeNames(),
+    queryFn: ({ signal }) => fetchUserActivityTypeMap(signal),
+    select: (types) => [...types.keys()].sort((a, b) => a - b),
     enabled: isAuthenticated,
   })
 }
@@ -95,7 +96,8 @@ export function useUserActivityTypesQuery() {
  * The authenticated user's owned activity types as a reactive `code → name`
  * map, backing the summary view's type filter: the dropdown options come from
  * the keys and the name-based summary endpoint is given the resolved value.
- * Cached under the shared `activities.typeNames` key; gated on authentication.
+ * Cached under the shared `activities.typeNames` key, which
+ * {@link useUserActivityTypesQuery} reads too; gated on authentication.
  *
  * @returns The TanStack query result for the user's activity-type map.
  */

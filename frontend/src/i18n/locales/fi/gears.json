@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Suodattimet",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Polkupyörä",
     "shoes": "Kengät",
@@ -91,7 +89,6 @@
     "unsupported": "Tämä varustetyyppi ei seuraa komponentteja.",
     "noneActive": "Kaikki komponentit ovat ei-aktiivisia. Ota käyttöön \"Näytä ei-aktiiviset\" nähdäksesi ne.",
     "inactive": "Ei käytössä",
-    "unitHours": "h",
     "purchasedOn": "Ostettu {date}",
     "wearLabel": "{name} kuluminen",
     "actions": {

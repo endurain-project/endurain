@@ -1,5 +1,9 @@
 {
   "verifyingBody": "Vänta medan vi bekräftar din adress.",
+  "choosePasswordTitle": "Välj ditt lösenord",
+  "choosePasswordBody": "Din e-postadress bekräftas när du har angett ett lösenord för ditt konto.",
+  "submitPassword": "Ange lösenord",
+  "submittingPassword": "Sparar lösenord",
   "successTitle": "E-post verifierad",
   "successBody": "Din e-postadress har bekräftats.",
   "adminApprovalBody": "Ditt konto väntar nu på administratörsgodkännande.",
@@ -7,6 +11,7 @@
   "invalidTitle": "Verifiering misslyckades",
   "missingTokenBody": "Den här verifieringslänken saknar sin token.",
   "errorInvalidToken": "Den här verifieringslänken är ogiltig eller har gått ut.",
+  "errorEmailTaken": "Den här e-postadressen används nu av ett annat konto, så den kan inte bekräftas.",
   "errorNotFound": "Vi kunde inte hitta ett konto för den här länken.",
   "errorGeneral": "Vi kunde inte verifiera din e-post. Försök igen.",
   "retry": "Försök igen",

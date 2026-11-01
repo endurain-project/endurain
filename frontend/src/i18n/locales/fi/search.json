@@ -24,9 +24,6 @@
     "waterSports": "Vesiurheilu",
     "skating": "Luistelu"
   },
-  "results": {
-    "inactive": "Ei käytössä"
-  },
   "idle": {
     "title": "Hae Endurainista",
     "description": "Valitse mitä etsit ja ala kirjoittaa nähdäksesi osumat."

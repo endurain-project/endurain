@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
@@ -21,7 +21,9 @@ import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { useSafeRedirect } from '@/composables/useSafeRedirect'
 import { useSsoLogin } from '@/features/auth/composables/useSsoLogin'
 import { useToasts } from '@/composables/useToasts'
-import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoLogos'
+import type { IdentityProviderPublic } from '@/types'
+
+import { resolveProviderLogo } from '@/features/identityProviders/utils/providerIcon'
 import { HttpError } from '@/services/http'
 import { useAuthStore } from '@/features/auth/stores/auth'
 
@@ -30,7 +32,7 @@ const { t } = useI18n()
 const { config } = useAppConfig()
 const { serverSettings, ssoProviders, isSettingsLoading, isSsoLoading, loginImageUrl, load } =
   usePublicServerSettings()
-const { startSsoLogin, processSsoCallback, maybeAutoRedirect } = useSsoLogin()
+const { startSsoLogin, processSsoCallback, completeSsoMfa, maybeAutoRedirect } = useSsoLogin()
 const { navigateAfterLogin } = useSafeRedirect()
 const { resolveInitialAlert, shouldForceLocalLogin } = useLoginRouteMessages()
 const toasts = useToasts()
@@ -38,13 +40,16 @@ const toasts = useToasts()
 const username = ref('')
 const password = ref('')
 const mfaCode = ref('')
-const pendingUsername = ref('')
+const pendingChallenge = ref('')
 const forceLocalLogin = ref(false)
 const isLoading = ref(false)
 const isForgotPasswordOpen = ref(false)
+const isSsoMfaPending = ref(false)
 const alert = ref<AlertState | null>(null)
+// A custom icon URL can 404 or be blocked; its button then shows the text alone.
+const failedLogos = reactive(new Set<string>())
 
-const isMfaStep = computed(() => pendingUsername.value.length > 0)
+const isMfaStep = computed(() => pendingChallenge.value.length > 0 || isSsoMfaPending.value)
 const showLocalLogin = computed(
   () => serverSettings.value.local_login_enabled || isMfaStep.value || forceLocalLogin.value,
 )
@@ -114,12 +119,17 @@ async function submitForm(): Promise<void> {
   const duringMfa = isMfaStep.value
 
   try {
+    if (isSsoMfaPending.value) {
+      await completeSsoMfa(mfaCode.value.trim().toUpperCase())
+      return
+    }
+
     const result = duringMfa
-      ? await auth.verifyMfa(pendingUsername.value, mfaCode.value.trim().toUpperCase())
+      ? await auth.verifyMfa(pendingChallenge.value, mfaCode.value.trim().toUpperCase())
       : await auth.login(username.value.trim(), password.value)
 
     if (result.status === 'mfa-required') {
-      pendingUsername.value = result.username
+      pendingChallenge.value = result.challenge
       password.value = ''
       alert.value = { kind: 'info', message: t('login.mfaRequired') }
       return
@@ -139,16 +149,16 @@ async function submitForm(): Promise<void> {
 }
 
 /**
- * Gets a bundled logo for a known SSO provider icon.
+ * Resolves the logo shown on a provider's sign-in button.
  *
- * @param iconName - Provider icon key.
- * @returns Logo asset URL, or `null` when unknown.
+ * @param provider - The public provider.
+ * @returns The logo `src`, or `null` when the provider has none.
  */
-function getProviderCustomLogo(iconName?: string | null): string | null {
-  if (!iconName) {
-    return null
-  }
-  return PROVIDER_CUSTOM_LOGO_MAP[iconName.toLowerCase()] ?? null
+function providerLogo(provider: IdentityProviderPublic): string | null {
+  return resolveProviderLogo(provider.icon, {
+    slug: provider.slug,
+    iconUploaded: provider.icon_uploaded ?? false,
+  })
 }
 
 /**
@@ -201,6 +211,11 @@ onMounted(async () => {
 
   const callback = await processSsoCallback()
   if (callback.status === 'completed') {
+    return
+  }
+  if (callback.status === 'mfa-required') {
+    isSsoMfaPending.value = true
+    alert.value = { kind: 'info', message: t('login.mfaRequired') }
     return
   }
   if (callback.status === 'error') {
@@ -332,10 +347,11 @@ onMounted(async () => {
           @click="handleSsoLogin(provider.slug)"
         >
           <img
-            v-if="getProviderCustomLogo(provider.icon)"
-            :src="getProviderCustomLogo(provider.icon)!"
+            v-if="providerLogo(provider) && !failedLogos.has(provider.slug)"
+            :src="providerLogo(provider)!"
             :alt="t('login.ssoLogoAlt', { provider: provider.name })"
             class="h-5 w-auto"
+            @error="failedLogos.add(provider.slug)"
           />
           <span>{{ t('login.ssoButton', { provider: provider.name }) }}</span>
         </Button>

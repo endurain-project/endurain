@@ -8,6 +8,7 @@ import type { SleepEntry } from '@/features/health/types'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   formatHealthEntryDate,
   formatHoursMinutes,
@@ -26,6 +27,7 @@ const props = defineProps<{
 const emit = defineEmits<{ edit: [entry: SleepEntry]; delete: [entry: SleepEntry] }>()
 
 const { t, locale } = useI18n()
+const { duration, unitLabel, percent } = useUnitFormat()
 
 const expanded = ref(false)
 
@@ -159,7 +161,9 @@ const hasDetails = computed(
 
 /** Primary sleep-duration string, or an em dash when no duration is recorded. */
 const durationLabel = computed(() =>
-  props.entry.totalSleepSeconds === null ? '—' : formatHoursMinutes(props.entry.totalSleepSeconds),
+  props.entry.totalSleepSeconds === null
+    ? '—'
+    : formatHoursMinutes(props.entry.totalSleepSeconds, duration),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))
@@ -260,7 +264,9 @@ const hrvLabel = computed(() => {
                 <div v-for="row in stageBreakdown" :key="row.key">
                   <dt class="text-caption">{{ t(`health.sleep.detail.${row.key}`) }}</dt>
                   <dd class="text-hint">
-                    <span v-if="row.seconds !== null">{{ formatHoursMinutes(row.seconds) }}</span>
+                    <span v-if="row.seconds !== null">{{
+                      formatHoursMinutes(row.seconds, duration)
+                    }}</span>
                     <span v-else>—</span>
                     <span v-if="scoreText(row.score)" class="text-muted-foreground">
                       · {{ scoreText(row.score) }}</span
@@ -279,12 +285,14 @@ const hrvLabel = computed(() => {
               <dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
                 <div v-if="entry.restingHeartRate !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.restingHeartRate') }}</dt>
-                  <dd class="text-hint">{{ formatRestingHeartRate(entry.restingHeartRate) }}</dd>
+                  <dd class="text-hint">
+                    {{ formatRestingHeartRate(entry.restingHeartRate, unitLabel) }}
+                  </dd>
                 </div>
                 <div v-if="entry.avgSkinTempDeviation !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.skinTempDeviation') }}</dt>
                   <dd class="text-hint">
-                    {{ formatSkinTempDeviation(entry.avgSkinTempDeviation) }}
+                    {{ formatSkinTempDeviation(entry.avgSkinTempDeviation, unitLabel) }}
                   </dd>
                 </div>
                 <div v-if="entry.avgSleepStress !== null">
@@ -302,15 +310,21 @@ const hrvLabel = computed(() => {
               <dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
                 <div v-if="entry.avgHeartRate !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.avg') }}</dt>
-                  <dd class="text-hint">{{ formatRestingHeartRate(entry.avgHeartRate) }}</dd>
+                  <dd class="text-hint">
+                    {{ formatRestingHeartRate(entry.avgHeartRate, unitLabel) }}
+                  </dd>
                 </div>
                 <div v-if="entry.minHeartRate !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.min') }}</dt>
-                  <dd class="text-hint">{{ formatRestingHeartRate(entry.minHeartRate) }}</dd>
+                  <dd class="text-hint">
+                    {{ formatRestingHeartRate(entry.minHeartRate, unitLabel) }}
+                  </dd>
                 </div>
                 <div v-if="entry.maxHeartRate !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.max') }}</dt>
-                  <dd class="text-hint">{{ formatRestingHeartRate(entry.maxHeartRate) }}</dd>
+                  <dd class="text-hint">
+                    {{ formatRestingHeartRate(entry.maxHeartRate, unitLabel) }}
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -319,15 +333,15 @@ const hrvLabel = computed(() => {
               <dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
                 <div v-if="entry.avgSpo2 !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.avg') }}</dt>
-                  <dd class="text-hint">{{ entry.avgSpo2 }}%</dd>
+                  <dd class="text-hint">{{ percent(entry.avgSpo2) }}</dd>
                 </div>
                 <div v-if="entry.lowestSpo2 !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.min') }}</dt>
-                  <dd class="text-hint">{{ entry.lowestSpo2 }}%</dd>
+                  <dd class="text-hint">{{ percent(entry.lowestSpo2) }}</dd>
                 </div>
                 <div v-if="entry.highestSpo2 !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.max') }}</dt>
-                  <dd class="text-hint">{{ entry.highestSpo2 }}%</dd>
+                  <dd class="text-hint">{{ percent(entry.highestSpo2) }}</dd>
                 </div>
               </dl>
             </div>
