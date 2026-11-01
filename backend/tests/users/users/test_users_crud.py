@@ -66,12 +66,12 @@ class TestReads:
 
         assert "test@example.com" in _sql(mock_db)
 
-    def test_get_user_by_username_decodes_and_lowercases(self, mock_db):
+    def test_get_user_by_username_lowercases_without_decoding_again(self, mock_db):
         _one(mock_db, None)
 
         users_crud.get_user_by_username("Some%20Body+Else", mock_db)
 
-        assert "some body else" in _sql(mock_db)
+        assert "some%20body+else" in _sql(mock_db)
 
     def test_search_escapes_like_wildcards(self, mock_db):
         _many(mock_db, [])
@@ -165,6 +165,13 @@ class TestListFilters:
         sql = _sql(mock_db)
         assert "lower(users.username) LIKE" in sql
         assert "ann\\%" in sql
+
+    def test_username_filter_keeps_the_term_as_decoded(self, mock_db):
+        _many(mock_db, [])
+
+        users_crud.get_users_with_pagination(mock_db, username="a+b%41")
+
+        assert "a+b\\%41" in _sql(mock_db)
 
     def test_page_is_ordered_and_offset(self, mock_db):
         _many(mock_db, [])

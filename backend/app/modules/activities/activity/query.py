@@ -12,7 +12,6 @@ fetched, no ORM instances returned.
 """
 
 from datetime import UTC, date, datetime, time, timedelta
-from urllib.parse import unquote
 
 from sqlalchemy import and_, func, or_
 
@@ -28,7 +27,7 @@ def name_search_condition(name_search: str, *, mask_hidden_location: bool):
     """A case-insensitive LIKE search across an activity's name and location.
 
     Args:
-        name_search: URL-encoded search term, as it arrives on the query string.
+        name_search: The search term, already URL-decoded by the framework, so ``+`` and ``%`` are literal text.
         mask_hidden_location: Whether the reader must not learn a hidden location. The term then matches
             the town, city or country only of activities that show their location, because a match on a
             hidden one would reveal where it took place.
@@ -37,7 +36,7 @@ def name_search_condition(name_search: str, *, mask_hidden_location: bool):
         A SQLAlchemy condition matching the term against name, town, city or
         country, with ``%``/``_`` escaped so user input cannot inject wildcards.
     """
-    raw = unquote(name_search).replace("+", " ").lower()
+    raw = name_search.lower()
     pattern = f"%{core_sanitization.escape_like(raw)}%"
     location_match = or_(
         func.lower(activity_models.Activity.town).like(pattern, escape="\\"),
