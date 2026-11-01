@@ -14,6 +14,7 @@ import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
+import { bmiToSave } from '@/features/health/utils/healthFormat'
 import { kgToLbs, lbsToKg } from '@/utils/units'
 import { compose, required } from '@/utils/validators'
 import {
@@ -97,7 +98,12 @@ function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
     date: values.date || null,
     weightKg: massToKg(values.weight),
-    bmi: toNumberOrNull(values.bmi),
+    bmi: bmiToSave(
+      toNumberOrNull(values.bmi),
+      props.entry?.bmi ?? null,
+      toNumberOrNull(values.weight) !==
+        toNumberOrNull(displayMassFromKg(props.entry?.weightKg ?? null)),
+    ),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
     boneMassKg: massToKg(values.boneMass),

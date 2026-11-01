@@ -94,4 +94,31 @@ describe('HealthWeightFormDialog submit', () => {
     expect((await save(wrapper)).weight).toBe(77.2)
     expect(wrapper.emitted('success')).toBeTruthy()
   })
+
+  it('lets the backend derive the BMI when only the weight is edited', async () => {
+    const wrapper = await openDialog({ entry })
+
+    await inputs(wrapper)[1]!.setValue('77.2')
+
+    const body = await save(wrapper)
+    expect(body.weight).toBe(77.2)
+    expect(body.bmi).toBeNull()
+  })
+
+  it('keeps the stored BMI when the weight is not edited', async () => {
+    const wrapper = await openDialog({ entry })
+
+    await inputs(wrapper)[3]!.setValue('18')
+
+    expect((await save(wrapper)).bmi).toBe(22.7)
+  })
+
+  it('sends a BMI the user typed', async () => {
+    const wrapper = await openDialog({ entry })
+
+    await inputs(wrapper)[1]!.setValue('77.2')
+    await inputs(wrapper)[2]!.setValue('25.5')
+
+    expect((await save(wrapper)).bmi).toBe(25.5)
+  })
 })
