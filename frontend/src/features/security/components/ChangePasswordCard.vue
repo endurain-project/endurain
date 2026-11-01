@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -34,9 +35,11 @@ const confirmPassword = ref('')
 const mfaCode = ref('')
 const revokeOtherSessions = ref(true)
 
-const { hint: requirementsHint, isValid: isValidPassword } = usePasswordPolicy(
-  () => props.accessType,
-)
+const {
+  hint: requirementsHint,
+  isValid: isValidPassword,
+  policyError,
+} = usePasswordPolicy(() => props.accessType)
 const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
   newPassword,
   confirmPassword,
@@ -81,7 +84,10 @@ async function submit(): Promise<void> {
     toasts.success(t('settings.security.password.success'))
     resetForm()
   } catch (error) {
-    if (error instanceof HttpError && (error.status === 400 || error.status === 401)) {
+    const passwordProblem = policyError(error)
+    if (passwordProblem) {
+      toasts.error(passwordProblem)
+    } else if (error instanceof HttpError && (error.status === 400 || error.status === 401)) {
       toasts.error(t('settings.security.password.invalidCredentials'))
     } else {
       toasts.error(t('settings.security.password.error'))
@@ -117,6 +123,7 @@ async function submit(): Promise<void> {
         :aria-invalid="showInvalid"
         aria-describedby="security-new-password-hint"
       />
+      <PasswordStrengthMeter :password="newPassword" />
       <p id="security-new-password-hint" :class="showInvalid ? 'text-field-error' : 'text-hint'">
         {{ requirementsHint }}
       </p>

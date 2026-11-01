@@ -61,7 +61,6 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     removeTileserverApiKey: false,
     tileserverRegenerateThumbnailsOnChange: settings.tileserverRegenerateThumbnailsOnChange,
     mapBackgroundColor: settings.mapBackgroundColor,
-    passwordType: settings.passwordType,
     passwordLengthRegularUsers: settings.passwordLengthRegularUsers,
     passwordLengthAdminUsers: settings.passwordLengthAdminUsers,
     geocodingService: settings.geocodingService,

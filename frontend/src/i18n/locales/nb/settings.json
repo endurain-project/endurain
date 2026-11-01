@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Passordretningslinjer",
-      "type": "Retningslinje",
-      "typeStrict": "Streng (kompleksitet påkrevd)",
-      "typeLengthOnly": "Kun lengde",
       "lengthRegular": "Minimumslengde for vanlige brukere",
       "lengthAdmin": "Minimumslengde for administratorbrukere"
     },

@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "Legalább {min} karakter.",
-    "hintStrict": "Legalább {min} karakter, nagybetűvel, kisbetűvel, számmal és különleges karakterrel.",
     "invalid": "A jelszó nem felel meg a követelményeknek",
     "mismatch": "A jelszavak nem egyeznek"
   }

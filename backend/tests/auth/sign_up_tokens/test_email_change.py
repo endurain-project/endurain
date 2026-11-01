@@ -284,7 +284,6 @@ class TestVerifyEmailOnAnInactiveAccount:
             return_value=MagicMock(
                 signup_require_email_verification=verification,
                 signup_require_admin_approval=approval,
-                password_type="strict",
                 password_length_regular_users=8,
                 password_length_admin_users=12,
             ),
@@ -539,7 +538,6 @@ class TestSignUpPrehijack:
         settings = MagicMock(
             signup_require_email_verification=True,
             signup_require_admin_approval=False,
-            password_type="strict",
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
@@ -553,8 +551,9 @@ class TestSignUpPrehijack:
 
         db.expire_all()
         stored = credentials_integration.get_password_hash(7, db)
-        assert credentials_integration.verify_password("OwnerChosen1!", stored)
-        assert not credentials_integration.verify_password("AttackerPass1!", stored)
+        hasher = credentials_integration.get_password_hasher()
+        assert credentials_integration.verify_and_update_password("OwnerChosen1!", stored, hasher)[0]
+        assert not credentials_integration.verify_and_update_password("AttackerPass1!", stored, hasher)[0]
         assert db.get(users_models.Users, 7).active is True
         sessions.delete_sessions_by_user.assert_called_once_with(7, db)
         mfa.clear_pending_mfa_for_user.assert_called_once_with(7)

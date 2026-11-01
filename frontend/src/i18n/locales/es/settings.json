@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Política de contraseñas",
-      "type": "Política",
-      "typeStrict": "Estricta (se requiere complejidad)",
-      "typeLengthOnly": "Solo longitud",
       "lengthRegular": "Longitud mínima usuarios regulares",
       "lengthAdmin": "Longitud mínima usuarios administradores"
     },

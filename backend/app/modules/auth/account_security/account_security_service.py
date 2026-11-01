@@ -140,6 +140,7 @@ def stage_change_own_password(
     Raises:
         PermissionDeniedError: If the account has no local password; an administrator sets a first one.
         DomainError: If step-up verification or persistence fails.
+        PasswordPolicyError: If the new password is too short, too common or matches the account's details.
     """
     # An account that signs in through an identity provider has no password to prove, so letting it set one
     # here would turn a stolen access token into a permanent password.
@@ -167,6 +168,8 @@ def stage_change_own_password(
         access_type,
         new_password,
         db,
+        username=db_user.username,
+        email=db_user.email,
     )
     credentials_integration.set_local_password_hash(user_id, hashed_password, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
@@ -201,6 +204,7 @@ def change_managed_user_password(
         None.
 
     Raises:
+        PasswordPolicyError: If the new password is too short, too common or matches the account's details.
         DomainError: If password persistence fails.
     """
     server_settings = server_settings_integration.get_server_settings(db)
@@ -211,6 +215,8 @@ def change_managed_user_password(
         access_type,
         new_password,
         db,
+        username=db_user.username,
+        email=db_user.email,
     )
     credentials_integration.set_local_password_hash(user_id, hashed_password, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)

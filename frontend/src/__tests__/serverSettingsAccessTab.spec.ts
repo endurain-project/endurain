@@ -18,6 +18,8 @@ import {
 function mountAccessTab(idleEnabled: boolean) {
   const context = {
     values: reactive({
+      passwordLengthRegularUsers: 15,
+      passwordLengthAdminUsers: 15,
       sessionIdleTimeoutEnabled: idleEnabled,
       sessionIdleTimeoutHours: '24',
       sessionAbsoluteTimeoutHours: '720',
@@ -57,5 +59,18 @@ describe('AccessTab session timeouts', () => {
     expect(
       wrapper.get('[data-setting="session-idle-hours"] input').attributes('disabled'),
     ).toBeUndefined()
+  })
+})
+
+describe('AccessTab password policy', () => {
+  it('offers only the two minimum-length controls, from 8 to 128', () => {
+    const wrapper = mountAccessTab(true)
+
+    expect(wrapper.find('[data-setting="password-type"]').exists()).toBe(false)
+    for (const setting of ['password-length-regular', 'password-length-admin']) {
+      const options = wrapper.findAll(`[data-setting="${setting}"] option`)
+      expect(options[0]?.text()).toBe('8')
+      expect(options[options.length - 1]?.text()).toBe('128')
+    }
   })
 })

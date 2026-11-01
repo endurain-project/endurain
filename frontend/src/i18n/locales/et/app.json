@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "Vähemalt {min} tähemärki.",
-    "hintStrict": "Vähemalt {min} tähemärki, sealhulgas suurtäht, väiketäht, number ja erimärk.",
     "invalid": "Parool ei vasta nõuetele",
     "mismatch": "Paroolid ei kattu"
   }

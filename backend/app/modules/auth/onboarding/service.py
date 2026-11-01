@@ -63,10 +63,10 @@ def complete_onboarding(
         db.rollback()
         logger.warning("Onboarding refused: an account was created first")
         raise
-    except core_exceptions.InvalidInputError as err:
+    except credentials_contracts.PasswordPolicyError:
         db.rollback()
         logger.warning("Onboarding refused: the password does not meet the policy")
-        raise credentials_contracts.PasswordPolicyError(err.detail) from err
+        raise
 
     if not store.claim(request.token):
         db.rollback()

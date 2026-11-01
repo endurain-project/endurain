@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Política de contrasinais",
-      "type": "Política",
-      "typeStrict": "Estrita (complexidade requirida)",
-      "typeLengthOnly": "Só lonxitude",
       "lengthRegular": "Lonxitude mínima usuarios regulares",
       "lengthAdmin": "Lonxitude mínima usuarios administradores"
     },

@@ -15,10 +15,8 @@ const { t } = useI18n()
 const { values, errors, isSubmitting, handleSubmit, handleBlur, envVar, envHint, envNames } =
   useServerSettingsFormContext()
 
-/** Minimum-length options for regular users: 8–20 (mirrors v1). */
-const PASSWORD_REGULAR_LENGTHS = Array.from({ length: 13 }, (_, index) => index + 8)
-/** Minimum-length options for admin users: 8–25 (mirrors v1). */
-const PASSWORD_ADMIN_LENGTHS = Array.from({ length: 18 }, (_, index) => index + 8)
+/** Minimum-length options for both access tiers: 8–128 (the backend bounds). */
+const PASSWORD_LENGTHS = Array.from({ length: 121 }, (_, index) => index + 8)
 /** The session-policy fields an environment variable can lock. */
 const SESSION_ENV_FIELDS = [
   'session_idle_timeout_enabled',
@@ -80,18 +78,7 @@ const SESSION_ENV_FIELDS = [
 
     <Card class="flex flex-col gap-3" data-setting="section-password">
       <h2 class="text-card-heading">{{ t('settings.server.password.title') }}</h2>
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField data-setting="password-type" :label="t('settings.server.password.type')">
-          <template #default="{ fieldId }">
-            <Select :id="fieldId" v-model="values.passwordType" :disabled="isSubmitting">
-              <option value="strict">{{ t('settings.server.password.typeStrict') }}</option>
-              <option value="length_only">
-                {{ t('settings.server.password.typeLengthOnly') }}
-              </option>
-            </Select>
-          </template>
-        </FormField>
-
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField
           data-setting="password-length-regular"
           :label="t('settings.server.password.lengthRegular')"
@@ -102,7 +89,7 @@ const SESSION_ENV_FIELDS = [
               v-model="values.passwordLengthRegularUsers"
               :disabled="isSubmitting"
             >
-              <option v-for="length in PASSWORD_REGULAR_LENGTHS" :key="length" :value="length">
+              <option v-for="length in PASSWORD_LENGTHS" :key="length" :value="length">
                 {{ length }}
               </option>
             </Select>
@@ -119,7 +106,7 @@ const SESSION_ENV_FIELDS = [
               v-model="values.passwordLengthAdminUsers"
               :disabled="isSubmitting"
             >
-              <option v-for="length in PASSWORD_ADMIN_LENGTHS" :key="length" :value="length">
+              <option v-for="length in PASSWORD_LENGTHS" :key="length" :value="length">
                 {{ length }}
               </option>
             </Select>

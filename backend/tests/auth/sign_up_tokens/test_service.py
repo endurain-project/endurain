@@ -249,6 +249,10 @@ class TestVerifyEmailPassword:
         creds = deps["credentials_integration"]
         creds.validate_and_hash_password_for_user.assert_called_once()
         assert creds.validate_and_hash_password_for_user.call_args.args[2] == "ChosenPass1!"
+        assert creds.validate_and_hash_password_for_user.call_args.kwargs == {
+            "username": deps["users_integration"].get_user.return_value.username,
+            "email": deps["users_integration"].get_user.return_value.email,
+        }
         creds.set_local_password_hash.assert_called_once_with(7, "hashed", mock_db)
         deps["sessions_integration"].delete_sessions_by_user.assert_called_once_with(7, mock_db)
         deps["mfa_integration"].clear_pending_mfa_for_user.assert_called_once_with(7)
@@ -258,9 +262,9 @@ class TestVerifyEmailPassword:
     def test_a_password_failing_the_policy_is_a_policy_error(self, deps, mock_db):
         deps[
             "credentials_integration"
-        ].validate_and_hash_password_for_user.side_effect = core_exceptions.InvalidInputError("too weak")
+        ].validate_and_hash_password_for_user.side_effect = credentials_contracts.PasswordTooCommonError()
 
-        with pytest.raises(credentials_contracts.PasswordPolicyError):
+        with pytest.raises(credentials_contracts.PasswordTooCommonError):
             sign_up_service.verify_email("tok", "weakweak", mock_db)
 
         mock_db.commit.assert_not_called()

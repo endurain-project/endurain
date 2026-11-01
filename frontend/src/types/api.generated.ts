@@ -3683,7 +3683,8 @@ export interface paths {
          *         db: Database session.
          *
          *     Raises:
-         *         HTTPException: 401 if step-up verification fails.
+         *         HTTPException: 401 if step-up verification fails; 422 if the new password is too short, too common or
+         *             matches the account's details.
          */
         post: operations["edit_profile_password_api_v1_profile_password_change_post"];
         delete?: never;
@@ -5419,6 +5420,9 @@ export interface paths {
          *         user_attributes: New password data.
          *         token_user_id: ID of the administrator making the change.
          *         db: Database session dependency.
+         *
+         *     Raises:
+         *         HTTPException: 422 if the password is too short, too common or matches the account's details.
          */
         post: operations["edit_user_password_api_v1_users__user_id__password_change_post"];
         delete?: never;
@@ -10509,16 +10513,6 @@ export interface components {
             email: string;
         };
         /**
-         * PasswordType
-         * @description An enumeration representing password policy types.
-         *
-         *     Attributes:
-         *         STRICT (str): Strict password policy.
-         *         LENGTH_ONLY (str): Length-only password policy.
-         * @enum {string}
-         */
-        PasswordType: "strict" | "length_only";
-        /**
          * ProblemDetail
          * @description An RFC 9457 problem document, as returned for every API error.
          *
@@ -10771,8 +10765,6 @@ export interface components {
              * @description Minimum password length for regular users
              */
             password_length_regular_users: number;
-            /** @description Password type policy (strict, length_only) */
-            password_type: components["schemas"]["PasswordType"];
             /**
              * Public Shareable Links
              * @description Allow public shareable links (true - yes, false - no)
@@ -10936,8 +10928,6 @@ export interface components {
              * @description Minimum password length for regular users
              */
             password_length_regular_users: number;
-            /** @description Password type policy (strict, length_only) */
-            password_type: components["schemas"]["PasswordType"];
             /**
              * Public Shareable Links
              * @description Allow public shareable links (true - yes, false - no)
@@ -11079,8 +11069,6 @@ export interface components {
              * @description Minimum password length for regular users
              */
             password_length_regular_users: number;
-            /** @description Password type policy (strict, length_only) */
-            password_type: components["schemas"]["PasswordType"];
             /**
              * Public Shareable Links
              * @description Allow public shareable links (true - yes, false - no)

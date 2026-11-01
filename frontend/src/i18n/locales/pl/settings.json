@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Zasady haseł",
-      "type": "Zasada",
-      "typeStrict": "Ścisła (wymagana złożoność)",
-      "typeLengthOnly": "Tylko długość",
       "lengthRegular": "Minimalna długość dla zwykłych użytkowników",
       "lengthAdmin": "Minimalna długość dla administratorów"
     },

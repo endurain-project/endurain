@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "Mindst {min} tegn.",
-    "hintStrict": "Mindst {min} tegn med store bogstaver, små bogstaver, et tal og et specialtegn.",
     "invalid": "Adgangskoden opfylder ikke kravene",
     "mismatch": "Adgangskoderne stemmer ikke overens"
   }

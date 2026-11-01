@@ -70,7 +70,7 @@ class TestCompleteOnboarding:
     @patch(_USERS)
     def test_a_weak_password_is_unprocessable_and_keeps_the_token(self, users, store, mock_db):
         users.any_user_exists.return_value = False
-        users.stage_first_admin.side_effect = core_exceptions.InvalidInputError("Password is too short")
+        users.stage_first_admin.side_effect = credentials_contracts.PasswordTooShortError("Password is too short")
         token = store.issue()
 
         with pytest.raises(credentials_contracts.PasswordPolicyError) as exc_info:

@@ -35,7 +35,7 @@ class TestServerSettingsModel:
         assert hasattr(server_settings_models.ServerSettings, "tileserver_url")
         assert hasattr(server_settings_models.ServerSettings, "tileserver_attribution")
         assert hasattr(server_settings_models.ServerSettings, "map_background_color")
-        assert hasattr(server_settings_models.ServerSettings, "password_type")
+        assert not hasattr(server_settings_models.ServerSettings, "password_type")
         assert hasattr(server_settings_models.ServerSettings, "password_length_regular_users")
         assert hasattr(server_settings_models.ServerSettings, "password_length_admin_users")
 
@@ -60,9 +60,8 @@ class TestServerSettingsModel:
             == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         )
         assert server_settings_models.ServerSettings.map_background_color.default.arg == "#dddddd"
-        assert server_settings_models.ServerSettings.password_type.default.arg == "strict"
-        assert server_settings_models.ServerSettings.password_length_regular_users.default.arg == 8
-        assert server_settings_models.ServerSettings.password_length_admin_users.default.arg == 12
+        assert server_settings_models.ServerSettings.password_length_regular_users.default.arg == 15
+        assert server_settings_models.ServerSettings.password_length_admin_users.default.arg == 15
 
     def test_server_settings_nullable_fields(self):
         """Test ServerSettings model nullable configuration."""

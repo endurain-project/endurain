@@ -13,7 +13,6 @@ import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.computation as token_hashing
-import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.crud as password_reset_crud
@@ -153,7 +152,17 @@ def prepare_password_reset_email(
 
 
 def use_password_reset_token(token: str, new_password: str, db: Session) -> None:
-    """Consume a valid reset token and atomically change the password and revoke sessions."""
+    """Consume a valid reset token and atomically change the password and revoke sessions.
+
+    Args:
+        token: The raw reset token.
+        new_password: The password chosen.
+        db: Database session.
+
+    Raises:
+        InvalidInputError: If the token is invalid or expired, or the account may not reset its password.
+        PasswordPolicyError: If the password is too short, too common or matches the account's details.
+    """
     token_user_id = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
     if token_user_id is None:
         raise core_exceptions.InvalidInputError("Invalid or expired password reset token")
@@ -166,15 +175,14 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
             extra=core_logger.context(user_id=token_user_id),
         )
         raise core_exceptions.InvalidInputError("Invalid or expired password reset token")
-    try:
-        hashed_password = credentials_integration.validate_and_hash_password_for_user(
-            server_settings,
-            users_schema.normalize_access_type(user.access_type),
-            new_password,
-            db,
-        )
-    except core_exceptions.InvalidInputError as err:
-        raise credentials_contracts.PasswordPolicyError(err.detail) from err
+    hashed_password = credentials_integration.validate_and_hash_password_for_user(
+        server_settings,
+        users_schema.normalize_access_type(user.access_type),
+        new_password,
+        db,
+        username=user.username,
+        email=user.email,
+    )
 
     credentials_integration.set_local_password_hash(token_user_id, hashed_password, db)
     password_reset_crud.mark_user_password_reset_tokens_used(token_user_id, db)

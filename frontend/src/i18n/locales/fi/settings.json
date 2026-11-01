@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Salasanakäytäntö",
-      "type": "Käytäntö",
-      "typeStrict": "Tiukka (monimutkaisuus vaadittu)",
-      "typeLengthOnly": "Vain pituus",
       "lengthRegular": "Tavallisten käyttäjien vähimmäispituus",
       "lengthAdmin": "Ylläpitäjien vähimmäispituus"
     },

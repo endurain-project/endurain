@@ -338,12 +338,12 @@ def _stage_user(user: users_schema.UsersCreate, db: Session) -> users_schema.Use
 
     Raises:
         ConflictError: If the username or email is already taken.
-        InvalidInputError: If the password fails the configured policy.
+        PasswordPolicyError: If the password fails the configured policy.
     """
     server_settings = server_settings_integration.get_server_settings(db)
     access_type = users_schema.normalize_access_type(user.access_type)
     hashed_password = credentials_integration.validate_and_hash_password_for_user(
-        server_settings, access_type, user.password, db
+        server_settings, access_type, user.password, db, username=user.username, email=user.email
     )
 
     fields = user.model_dump(exclude={"password", "access_type", "mfa_enabled"})
@@ -372,7 +372,7 @@ def create_user(
 
     Raises:
         ConflictError: If the username or email is already taken.
-        InvalidInputError: If the password fails the configured policy.
+        PasswordPolicyError: If the password fails the configured policy.
     """
     try:
         created = _stage_user(user, db)
@@ -401,7 +401,7 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
 
     Raises:
         ConflictError: If a user already exists, or the username or email is already taken.
-        InvalidInputError: If the password fails the administrator policy.
+        PasswordPolicyError: If the password fails the administrator policy.
     """
     users_crud.lock_first_admin_creation(db)
     if users_crud.any_user_exists(db):
@@ -449,7 +449,7 @@ def _stage_signup_user(
 
     Raises:
         ConflictError: If the username or email is already taken.
-        InvalidInputError: If the password fails the configured policy.
+        PasswordPolicyError: If the password fails the configured policy.
     """
     needs_verification = server_settings.signup_require_email_verification
     needs_approval = server_settings.signup_require_admin_approval
@@ -469,7 +469,12 @@ def _stage_signup_user(
     hashed_password: str | None = None
     if password is not None:
         hashed_password = credentials_integration.validate_and_hash_password_for_user(
-            server_settings, users_schema.UserAccessType.REGULAR.value, password, db
+            server_settings,
+            users_schema.UserAccessType.REGULAR.value,
+            password,
+            db,
+            username=profile.username,
+            email=profile.email,
         )
 
     created = users_crud.create_user(fields, db)
@@ -1015,7 +1020,7 @@ def change_user_password(user_id: int, new_password: str, actor_id: int, db: Ses
     Raises:
         PermissionDeniedError: If the administrator targets their own account.
         NotFoundError: If the user does not exist.
-        InvalidInputError: If the password fails the configured policy.
+        PasswordPolicyError: If the password fails the configured policy.
     """
     require_other_user(user_id, actor_id, "change your password")
     account_security_integration.change_managed_user_password(user_id, new_password, db)

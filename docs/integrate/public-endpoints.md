@@ -60,7 +60,7 @@ You do not build these URLs. The API puts a ready-to-use URL in the field of the
 | --------------- | ------- |
 | `GET /about` | API name, version and licence. Does not touch the database |
 | `GET /health` | `{"status": "ok"}` if the database answers, otherwise `503`. See [Monitoring](../getting-started/monitoring.md) |
-| `GET /public/server-settings` | The public subset of the server settings: units, currency, records per page, whether sign-up, SSO and local login are on, the SSO auto-redirect flag, the public sharing flags, the tile server URL, attribution and background colour, the password policy (type and minimum lengths, so the sign-up form can validate), whether a login photo is set and the allowed SSO redirect schemes. The sign-up approval and verification switches, geocoding, session and retention settings, API keys and every other secret are not included |
+| `GET /public/server-settings` | The public subset of the server settings: units, currency, records per page, whether sign-up, SSO and local login are on, the SSO auto-redirect flag, the public sharing flags, the tile server URL, attribution and background colour, the minimum password lengths (so the sign-up form can validate), whether a login photo is set and the allowed SSO redirect schemes. The sign-up approval and verification switches, geocoding, session and retention settings, API keys and every other secret are not included |
 | `GET /public/server-settings/tile-maps-templates` | The map tile presets an administrator can pick |
 | `GET /public/idp/{slug}/icon` | The image uploaded for an identity provider, or `404` if it has none. Supports `ETag` and `If-None-Match` |
 | `GET /public/server-settings/login-photo` | The login page photo, or `404` if none is set. Supports `ETag` and `If-None-Match`, so a client that has the photo gets `304` |
@@ -95,7 +95,7 @@ What to expect from `POST /public/onboarding`:
 - **The token comes from the server log.** While no account exists, every API worker logs a one-time setup token at startup (field `setup_token`). It is valid for 24 hours and works once; a restart prints a new one.
 - **`409` once any account exists.** The endpoint never creates a second account, whatever the token.
 - **`400`** for a token that is unknown, expired or already used.
-- **`422`** for a password that does not meet the administrator password policy, or for an unknown field. The role and account state are not accepted from the client.
+- **`422`** for a password the [password rules](../features/accounts-and-sign-in.md#password-rules) refuse (problem type `urn:endurain:error:password-too-short`, `password-too-common` or `password-matches-account`), or for an unknown field. The role and account state are not accepted from the client.
 - **Two requests at the same time** still create one administrator: the other answers `409`.
 
 ## Not public

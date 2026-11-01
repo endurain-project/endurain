@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Wachtwoordbeleid",
-      "type": "Beleid",
-      "typeStrict": "Strikt (complexiteit vereist)",
-      "typeLengthOnly": "Alleen lengte",
       "lengthRegular": "Minimale lengte gewone gebruikers",
       "lengthAdmin": "Minimale lengte beheerders"
     },

@@ -17,7 +17,7 @@ vi.mock('vue-router', () => ({
 vi.mock('@/features/auth/services/signUp', () => ({ confirmSignUp }))
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   usePublicServerSettings: () => ({
-    serverSettings: ref({ password_type: 'length_only', password_length_regular_users: 8 }),
+    serverSettings: ref({ password_length_regular_users: 8 }),
     load: vi.fn<() => Promise<void>>(),
   }),
 }))
@@ -84,6 +84,21 @@ describe('EmailVerificationView', () => {
 
     expect(wrapper.find('input[name="new-password"]').exists()).toBe(true)
     expect(wrapper.text()).toContain(i18n.global.t('resetPassword.errorWeakPassword'))
+  })
+
+  it('names the minimum when the server refuses a password that is too short', async () => {
+    confirmSignUp.mockRejectedValueOnce(passwordRequired())
+    confirmSignUp.mockRejectedValueOnce(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:password-too-short'),
+    )
+    const wrapper = await mountView()
+
+    await wrapper.get('input[name="new-password"]').setValue('long-enough-pass')
+    await wrapper.get('input[name="confirm-password"]').setValue('long-enough-pass')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.password.tooShort', { min: 8 }))
   })
 
   it('shows the generic error, not the form, for other failures', async () => {

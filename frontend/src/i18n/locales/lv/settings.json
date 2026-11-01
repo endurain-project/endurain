@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Paroles politika",
-      "type": "Politika",
-      "typeStrict": "Stingra (nepieciešama sarežģītība)",
-      "typeLengthOnly": "Tikai garums",
       "lengthRegular": "Minimālais garums parastajiem lietotājiem",
       "lengthAdmin": "Minimālais garums administratoriem"
     },

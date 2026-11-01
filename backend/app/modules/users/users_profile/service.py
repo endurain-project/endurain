@@ -406,7 +406,7 @@ def change_password(
 
     Raises:
         UnauthenticatedError: If step-up verification fails.
-        InvalidInputError: If the new password fails the configured policy.
+        PasswordPolicyError: If the new password fails the configured policy.
     """
     account_security_integration.change_own_password(
         user_id,

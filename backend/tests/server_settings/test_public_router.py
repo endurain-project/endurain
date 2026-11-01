@@ -33,7 +33,6 @@ class TestReadPublicServerSettings:
             tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution="&copy; OpenStreetMap",
             map_background_color="#dddddd",
-            password_type="strict",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,

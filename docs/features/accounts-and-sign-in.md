@@ -69,12 +69,13 @@ sequenceDiagram
 
 ## Password rules
 
-An administrator chooses one of two policies and a minimum length for regular users and for administrators (8 to 128 characters):
+Passwords follow [NIST SP 800-63B-4](https://pages.nist.gov/800-63-4/sp800-63b.html): length matters, character mixes do not. A new password must:
 
-| Policy | Requires |
-| ------ | -------- |
-| Strict | An uppercase letter, a lowercase letter, a digit and a special character, besides the minimum length |
-| Length only | Only the minimum length |
+- be at least as long as the minimum an administrator set for the account type, 15 characters by default (8 to 128). Every character counts, including spaces and non-Latin letters;
+- not be a commonly used or breached password. Endurain checks it against a list of about 75,000 such passwords shipped with the server, ignoring case;
+- not be the account's username, email address, the part of the email before the `@`, or "endurain".
+
+No upper-case letters, digits or symbols are required. The form shows a strength meter as a guide; only the rules above can refuse a password, and the message says which one. Passwords are compared in Unicode NFC form, so the same text typed on different devices is the same password. Existing passwords keep working when the rules change; the rules apply the next time a password is set.
 
 ## Securing your account
 

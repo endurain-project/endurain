@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Pravila lozinke",
-      "type": "Pravilo",
-      "typeStrict": "Strogo (potrebna složenost)",
-      "typeLengthOnly": "Samo duljina",
       "lengthRegular": "Minimalna duljina za obične korisnike",
       "lengthAdmin": "Minimalna duljina za administratore"
     },

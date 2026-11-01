@@ -173,7 +173,7 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
 
     Raises:
         ConflictError: If a user already exists, or the username or email is already taken.
-        InvalidInputError: If the password fails the administrator policy.
+        PasswordPolicyError: If the password fails the administrator policy.
     """
     return users_service.stage_first_admin(admin, db)
 

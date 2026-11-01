@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Pravidlá hesla",
-      "type": "Pravidlo",
-      "typeStrict": "Prísne (vyžaduje sa zložitosť)",
-      "typeLengthOnly": "Iba dĺžka",
       "lengthRegular": "Minimálna dĺžka pre bežných používateľov",
       "lengthAdmin": "Minimálna dĺžka pre administrátorov"
     },

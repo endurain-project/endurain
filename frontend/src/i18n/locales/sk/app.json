@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "Aspoň {min} znakov.",
-    "hintStrict": "Aspoň {min} znakov, s veľkým písmenom, malým písmenom, číslom a špeciálnym znakom.",
     "invalid": "Heslo nespĺňa požiadavky",
     "mismatch": "Heslá sa nezhodujú"
   }

@@ -33,7 +33,6 @@ class ServerSettings(Base):
         tileserver_regenerate_thumbnails_on_change: Regenerate
             thumbnails when tile server settings change.
         map_background_color: Map background hex color.
-        password_type: Password policy type.
         password_length_regular_users: Min password length
             for regular users.
         password_length_admin_users: Min password length for
@@ -147,18 +146,15 @@ class ServerSettings(Base):
         nullable=False,
         comment="Background color for the map (hex format)",
     )
-    password_type: Mapped[str] = mapped_column(
-        default="strict",
-        nullable=False,
-        comment="Password type policy (strict, length_only)",
-    )
     password_length_regular_users: Mapped[int] = mapped_column(
-        default=8,
+        default=15,
+        server_default=text("15"),
         nullable=False,
         comment="Minimum password length for regular users",
     )
     password_length_admin_users: Mapped[int] = mapped_column(
-        default=12,
+        default=15,
+        server_default=text("15"),
         nullable=False,
         comment="Minimum password length for admin users",
     )

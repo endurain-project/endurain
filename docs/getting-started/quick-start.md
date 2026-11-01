@@ -150,7 +150,7 @@ A new installation has no account and no default password. The first time you op
     ```
 
 2. Open Endurain at the address set in `ENDURAIN_HOST`.
-3. Enter the setup token, then the name, username, email and password of the first administrator. The password must meet the administrator password policy: by default at least 12 characters, with an upper-case letter, a lower-case letter, a digit and a special character.
+3. Enter the setup token, then the name, username, email and password of the first administrator. The password must meet the [password rules](../features/accounts-and-sign-in.md#password-rules): by default at least 15 characters, and not a common password, the username or the email.
 4. Submit the form. The administrator account is created and the onboarding page is closed for good. Sign in on the normal login page with the username and password you chose.
 
 The setup token is valid for 24 hours and can be used once. Restarting the container prints a new one. The log entry is a warning, so it is not printed when `LOG_LEVEL` is set to `error` or `critical`; keep the default (`info`) until onboarding is done. If you run several web workers or replicas, each one prints its own token and any of them works, but only one onboarding can succeed.

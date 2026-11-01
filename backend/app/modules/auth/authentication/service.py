@@ -108,7 +108,9 @@ def authenticate_user(
         _refuse_credentials(username)
 
     # Verify password and get updated hash if applicable
-    is_password_valid, updated_hash = password_hasher.verify_and_update(password, stored_hash)
+    is_password_valid, updated_hash = credentials_integration.verify_and_update_password(
+        password, stored_hash, password_hasher
+    )
     if not is_password_valid:
         _refuse_credentials(username)
 
@@ -699,6 +701,9 @@ def login_for_access_token(
             mfa_challenge = pending_mfa_store.add_pending_login(user.id)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             _raise_auth_security_store_unavailable(err)
+
+        # The password is verified, so persist a rehash staged by authenticate_user before answering the challenge.
+        db.commit()
 
         # Don't reset failed login attempts yet - wait for MFA verification
         # This prevents bypassing lockout by triggering MFA flow

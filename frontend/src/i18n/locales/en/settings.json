@@ -317,9 +317,6 @@
     },
     "password": {
       "title": "Password policy",
-      "type": "Policy",
-      "typeStrict": "Strict (complexity required)",
-      "typeLengthOnly": "Length only",
       "lengthRegular": "Minimum length regular users",
       "lengthAdmin": "Minimum length admin users"
     },

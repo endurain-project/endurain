@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "Mindestens {min} Zeichen.",
-    "hintStrict": "Mindestens {min} Zeichen, mit Groß- und Kleinbuchstaben, einer Zahl und einem Sonderzeichen.",
     "invalid": "Passwort erfüllt die Anforderungen nicht",
     "mismatch": "Passwörter stimmen nicht überein"
   }

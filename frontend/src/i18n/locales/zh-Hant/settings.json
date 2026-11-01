@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "密碼原則",
-      "type": "原則",
-      "typeStrict": "嚴格（需符合複雜度要求）",
-      "typeLengthOnly": "僅限長度",
       "lengthRegular": "一般使用者最短長度",
       "lengthAdmin": "管理員使用者最短長度"
     },

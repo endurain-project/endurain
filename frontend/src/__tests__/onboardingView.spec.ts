@@ -18,7 +18,7 @@ vi.mock('@/features/auth/services/onboarding', () => ({ completeOnboarding }))
 vi.mock('@/composables/useToasts', () => ({ useToasts: () => ({ error: toastError }) }))
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   usePublicServerSettings: () => ({
-    serverSettings: ref({ password_type: 'length_only', password_length_admin_users: 12 }),
+    serverSettings: ref({ password_length_admin_users: 12 }),
     loginImageUrl: ref('/login.png'),
     load: vi.fn<() => Promise<void>>(),
   }),
@@ -99,6 +99,19 @@ describe('OnboardingView', () => {
 
     expect(wrapper.text()).toContain(text)
     expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('shows the specific message when the password matches the account details', async () => {
+    completeOnboarding.mockRejectedValue(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:password-matches-account'),
+    )
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.password.matchesAccount'))
+    expect(wrapper.text()).not.toContain('The details were rejected')
   })
 
   it('explains and redirects to login when an account already exists', async () => {

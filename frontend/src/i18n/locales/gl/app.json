@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "Polo menos {min} caracteres.",
-    "hintStrict": "Polo menos {min} caracteres, con maiúsculas, minúsculas, un número e un carácter especial.",
     "invalid": "O contrasinal non cumpre os requisitos",
     "mismatch": "Os contrasinais non coinciden"
   }

@@ -3,13 +3,13 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
 import i18n from '@/i18n'
+import { HttpError } from '@/services/http'
 import {
   usePasswordConfirmation,
   usePasswordPolicy,
 } from '@/features/security/composables/usePasswordPolicy'
 
 const serverSettings = ref({
-  password_type: 'strict',
   password_length_regular_users: 8,
   password_length_admin_users: 12,
 })
@@ -49,13 +49,12 @@ describe('usePasswordPolicy', () => {
     expect(policy.isValid('Abcdefgh12!x')).toBe(true)
   })
 
-  it('describes the strict or the length-only policy with the tier length', () => {
+  it('describes the policy as a minimum length of the tier', () => {
     const policy = withSetup(() => usePasswordPolicy('admin'))
-    expect(policy.hint.value).toBe(i18n.global.t('app.password.hintStrict', { min: 12 }))
-
-    serverSettings.value = { ...serverSettings.value, password_type: 'length_only' }
     expect(policy.hint.value).toBe(i18n.global.t('app.password.hintLength', { min: 12 }))
+    expect(policy.minLength.value).toBe(12)
     expect(policy.isValid('abcdefghijkl')).toBe(true)
+    expect(policy.isValid('abcdefghijk')).toBe(false)
   })
 
   it('validates with the shared message', () => {
@@ -80,5 +79,37 @@ describe('usePasswordConfirmation', () => {
     confirmation.value = 'secret-pass'
     expect(result.matches.value).toBe(true)
     expect(result.error.value).toBeUndefined()
+  })
+})
+
+describe('usePasswordPolicy policyError', () => {
+  const problem = (code: string, status = 422) =>
+    new HttpError(status, 'Unprocessable', null, `urn:endurain:error:${code}`)
+
+  it('names the minimum of the account tier for a password that is too short', () => {
+    const policy = withSetup(() => usePasswordPolicy('admin'))
+    expect(policy.policyError(problem('password-too-short'))).toBe(
+      i18n.global.t('app.password.tooShort', { min: 12 }),
+    )
+    expect(i18n.global.t('app.password.tooShort', { min: 12 })).toContain('12')
+  })
+
+  it('maps a common password and a password built from the account details', () => {
+    const policy = withSetup(() => usePasswordPolicy('regular'))
+    expect(policy.policyError(problem('password-too-common'))).toBe(
+      'This password is too common. Choose one that is harder to guess.',
+    )
+    expect(policy.policyError(problem('password-matches-account'))).toBe(
+      "Don't use your username or email address as your password.",
+    )
+  })
+
+  it('leaves every other error alone', () => {
+    const policy = withSetup(() => usePasswordPolicy('regular'))
+    expect(policy.policyError(problem('invalid-input'))).toBeNull()
+    expect(policy.policyError(problem('password-too-common', 400))).toBeNull()
+    expect(policy.policyError(new HttpError(422, 'Unprocessable'))).toBeNull()
+    expect(policy.policyError(new Error('boom'))).toBeNull()
+    expect(policy.policyError(undefined)).toBeNull()
   })
 })

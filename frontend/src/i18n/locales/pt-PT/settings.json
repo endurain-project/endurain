@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Política de palavras-passe",
-      "type": "Política",
-      "typeStrict": "Rigorosa (complexidade obrigatória)",
-      "typeLengthOnly": "Apenas comprimento",
       "lengthRegular": "Comprimento mínimo utilizadores regulares",
       "lengthAdmin": "Comprimento mínimo utilizadores admin"
     },

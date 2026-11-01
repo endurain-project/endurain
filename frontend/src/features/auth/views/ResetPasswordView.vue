@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Label } from '@/components/ui/label'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
   usePasswordConfirmation,
   usePasswordPolicy,
@@ -32,7 +33,7 @@ const isLoading = ref(false)
 const alert = ref<{ kind: 'error'; message: string } | null>(null)
 
 // The account tier is unknown before submitting; see the 422 handling below.
-const { hint: passwordHint, isValid: isValidPassword } = usePasswordPolicy('regular')
+const { hint: passwordHint, isValid: isValidPassword, policyError } = usePasswordPolicy('regular')
 const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
   password,
   confirmPassword,
@@ -73,7 +74,7 @@ async function submitForm(): Promise<void> {
       if (error.status === 400) {
         message = t('resetPassword.errorInvalidToken')
       } else if (error.status === 422) {
-        message = t('resetPassword.errorWeakPassword')
+        message = policyError(error) ?? t('resetPassword.errorWeakPassword')
       }
     }
     alert.value = { kind: 'error', message }
@@ -124,6 +125,7 @@ onMounted(() => {
             autocomplete="new-password"
             :aria-invalid="!isPasswordValid"
           />
+          <PasswordStrengthMeter :password="password" />
           <p class="text-hint">
             {{ passwordHint }}
           </p>

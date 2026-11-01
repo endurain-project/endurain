@@ -166,7 +166,10 @@ def verify_step_up_credentials(
     if password_hash is not None:
         if not current_password:
             _refuse_step_up(step_up_store, key, user_id, "Step-up verification failed")
-        if not credentials_integration.verify_password(current_password, password_hash):
+        password_verified, _ = credentials_integration.verify_and_update_password(
+            current_password, password_hash, credentials_integration.get_password_hasher()
+        )
+        if not password_verified:
             _refuse_step_up(step_up_store, key, user_id, "Step-up verification failed")
     else:
         if idp_reauth is None:

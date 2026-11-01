@@ -2,11 +2,13 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
-import {
-  buildPasswordRequirements,
-  isValidPassword,
-  resolvePasswordMinLength,
-} from '@/utils/validation'
+import { HttpError } from '@/services/http'
+import { isValidPassword, resolvePasswordMinLength } from '@/utils/validation'
+
+/** Problem types the server answers (HTTP 422) for a password it refuses. */
+const PASSWORD_TOO_SHORT_TYPE = 'urn:endurain:error:password-too-short'
+const PASSWORD_TOO_COMMON_TYPE = 'urn:endurain:error:password-too-common'
+const PASSWORD_MATCHES_ACCOUNT_TYPE = 'urn:endurain:error:password-matches-account'
 
 /**
  * The server's password policy for an account tier, as every password form
@@ -14,29 +16,23 @@ import {
  *
  * @param accessType - The access type of the account the password is for
  *   (`'admin'` or `'regular'`), which selects the minimum length.
- * @returns A hint describing the policy, `isValid` to test a password, and
- *   `validate`, a `useForm` validator returning the shared error message.
+ * @returns A hint describing the policy, its `minLength`, `isValid` to test a password, and
+ *   `validate`, a `useForm` validator returning the shared error message, and
+ *   `policyError`, which words a refusal by the server.
  */
 export function usePasswordPolicy(accessType: MaybeRefOrGetter<string>) {
   const { t } = useI18n()
   const { serverSettings } = usePublicServerSettings()
 
-  const requirements = computed(() =>
-    buildPasswordRequirements(
-      serverSettings.value.password_type,
-      resolvePasswordMinLength(
-        serverSettings.value.password_length_regular_users,
-        serverSettings.value.password_length_admin_users,
-        toValue(accessType),
-      ),
+  const minLength = computed(() =>
+    resolvePasswordMinLength(
+      serverSettings.value.password_length_regular_users,
+      serverSettings.value.password_length_admin_users,
+      toValue(accessType),
     ),
   )
 
-  const hint = computed(() =>
-    requirements.value.requireUppercase
-      ? t('app.password.hintStrict', { min: requirements.value.minLength })
-      : t('app.password.hintLength', { min: requirements.value.minLength }),
-  )
+  const hint = computed(() => t('app.password.hintLength', { min: minLength.value }))
 
   /**
    * Tells whether a password meets the policy.
@@ -45,7 +41,7 @@ export function usePasswordPolicy(accessType: MaybeRefOrGetter<string>) {
    * @returns `true` when it meets every requirement.
    */
   function isValid(password: string): boolean {
-    return isValidPassword(password, requirements.value)
+    return isValidPassword(password, minLength.value)
   }
 
   /**
@@ -58,7 +54,30 @@ export function usePasswordPolicy(accessType: MaybeRefOrGetter<string>) {
     return isValid(password) ? null : t('app.password.invalid')
   }
 
-  return { hint, isValid, validate }
+  /**
+   * Words the server's refusal of a password.
+   *
+   * @param error - A caught error from a request that sets a password.
+   * @returns The translated reason, or `null` when the error is not one of the
+   *   password refusals, so the caller keeps its own handling.
+   */
+  function policyError(error: unknown): string | null {
+    if (!(error instanceof HttpError) || error.status !== 422) {
+      return null
+    }
+    switch (error.type) {
+      case PASSWORD_TOO_SHORT_TYPE:
+        return t('app.password.tooShort', { min: minLength.value })
+      case PASSWORD_TOO_COMMON_TYPE:
+        return t('app.password.tooCommon')
+      case PASSWORD_MATCHES_ACCOUNT_TYPE:
+        return t('app.password.matchesAccount')
+      default:
+        return null
+    }
+  }
+
+  return { hint, minLength, isValid, validate, policyError }
 }
 
 /**

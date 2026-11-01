@@ -30,13 +30,13 @@ class TestCurrencyEnum:
         assert server_settings_schema.Currency.POUND.value == "pound"
 
 
-class TestPasswordTypeEnum:
-    """Tests for PasswordType enum."""
+class TestPasswordPolicyFields:
+    """The password policy is length plus blocklist, so there is no policy type to choose."""
 
-    def test_password_type_enum_values(self):
-        """Test PasswordType enum has correct values."""
-        assert server_settings_schema.PasswordType.STRICT.value == "strict"
-        assert server_settings_schema.PasswordType.LENGTH_ONLY.value == "length_only"
+    def test_schema_has_no_password_type(self):
+        assert not hasattr(server_settings_schema, "PasswordType")
+        assert "password_type" not in server_settings_schema.ServerSettingsBase.model_fields
+        assert "password_type" not in server_settings_schema.ServerSettingsRead.model_fields
 
 
 class TestServerSettingsBase:
@@ -57,7 +57,6 @@ class TestServerSettingsBase:
             tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             map_background_color="#dddddd",
-            password_type="strict",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
@@ -82,7 +81,6 @@ class TestServerSettingsBase:
                 tileserver_url="tiles.example.com/{z}/{x}/{y}.png",
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
-                password_type="strict",
                 tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
@@ -105,7 +103,6 @@ class TestServerSettingsBase:
                 tileserver_url="http://tiles.example.com/{z}/{x}/{y}.png",
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
-                password_type="strict",
                 tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
@@ -127,7 +124,6 @@ class TestServerSettingsBase:
             tileserver_url="http://localhost:8080/{z}/{x}/{y}.png",
             tileserver_attribution="Test",
             map_background_color="#dddddd",
-            password_type="strict",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
@@ -149,7 +145,6 @@ class TestServerSettingsBase:
             tileserver_url="https://{s}.tiles.example.com/{z}/{x}/{y}.png",
             tileserver_attribution="Test",
             map_background_color="#dddddd",
-            password_type="strict",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
@@ -172,7 +167,6 @@ class TestServerSettingsBase:
                 tileserver_url="https://tiles.example.com/test.png",
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
-                password_type="strict",
                 tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
@@ -195,7 +189,6 @@ class TestServerSettingsBase:
                 tileserver_url="javascript:alert(1)/{z}/{x}/{y}",
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
-                password_type="strict",
                 tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
@@ -219,7 +212,6 @@ class TestServerSettingsBase:
                 tileserver_url="https://example.com/data:image/{z}/{x}/{y}",
                 tileserver_attribution="Test",
                 map_background_color="#dddddd",
-                password_type="strict",
                 tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
@@ -241,7 +233,6 @@ class TestServerSettingsBase:
             tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution="Test",
             map_background_color="#FF0000",
-            password_type="strict",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
@@ -264,7 +255,6 @@ class TestServerSettingsBase:
                 tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 tileserver_attribution="Test",
                 map_background_color="red",
-                password_type="strict",
                 tileserver_regenerate_thumbnails_on_change=False,
                 password_length_regular_users=8,
                 password_length_admin_users=12,
@@ -286,7 +276,6 @@ class TestServerSettingsBase:
             tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution='&copy; <a href="https://example.com">Example</a>',
             map_background_color="#dddddd",
-            password_type="strict",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,
@@ -315,7 +304,6 @@ class TestServerSettingsEdit:
             tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution="Test",
             map_background_color="#dddddd",
-            password_type="strict",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
             password_length_admin_users=12,

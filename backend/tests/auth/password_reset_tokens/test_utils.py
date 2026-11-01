@@ -24,7 +24,7 @@ class TestUsePasswordResetToken:
     def test_password_and_sessions_commit_before_pending_mfa_is_cleared(
         self, claim, set_password, mark_tokens, delete_sessions, clear_pending, mock_db
     ):
-        user = MagicMock(access_type="regular")
+        user = MagicMock(access_type="regular", username="alice", email="alice@example.com")
         settings = MagicMock(local_login_enabled=True)
         claim.return_value = 42
         order = MagicMock()
@@ -51,7 +51,9 @@ class TestUsePasswordResetToken:
             password_reset_service.use_password_reset_token("plain", "new password", mock_db)
 
         claim.assert_called_once_with(hashlib.sha256(b"plain").hexdigest(), mock_db)
-        hash_password.assert_called_once_with(settings, "regular", "new password", mock_db)
+        hash_password.assert_called_once_with(
+            settings, "regular", "new password", mock_db, username="alice", email="alice@example.com"
+        )
         assert [call[0] for call in order.mock_calls] == [
             "password",
             "tokens",
@@ -70,7 +72,7 @@ class TestUsePasswordResetToken:
         mock_db.commit.assert_not_called()
 
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=42)
-    def test_password_policy_error_preserves_422(self, _claim, mock_db):
+    def test_password_policy_error_is_unprocessable_and_keeps_its_code(self, _claim, mock_db):
         with (
             patch(
                 "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
@@ -86,13 +88,14 @@ class TestUsePasswordResetToken:
             ),
             patch(
                 "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",
-                side_effect=core_exceptions.InvalidInputError("Password is too short"),
+                side_effect=credentials_contracts.PasswordTooShortError("Password is too short"),
             ),
-            pytest.raises(credentials_contracts.PasswordPolicyError) as exc_info,
+            pytest.raises(credentials_contracts.PasswordTooShortError) as exc_info,
         ):
             password_reset_service.use_password_reset_token("valid", "weak", mock_db)
         assert exc_info.value.status_code == 422
         assert exc_info.value.detail == "Password is too short"
+        assert exc_info.value.code == "password-too-short"
         mock_db.commit.assert_not_called()
 
 

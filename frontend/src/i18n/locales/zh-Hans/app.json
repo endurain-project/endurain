@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "At least {min} characters.",
-    "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character.",
     "invalid": "Password does not meet the requirements",
     "mismatch": "两次密码不一致"
   }

@@ -45,18 +45,6 @@ class Currency(Enum):
     POUND = "pound"
 
 
-class PasswordType(Enum):
-    """An enumeration representing password policy types.
-
-    Attributes:
-        STRICT (str): Strict password policy.
-        LENGTH_ONLY (str): Length-only password policy.
-    """
-
-    STRICT = "strict"
-    LENGTH_ONLY = "length_only"
-
-
 class ServerSettingsBase(BaseModel):
     """Pydantic model for server settings configuration.
 
@@ -76,7 +64,6 @@ class ServerSettingsBase(BaseModel):
         tileserver_url (StrictStr): URL template for map tile server with coordinate placeholders.
         tileserver_attribution (StrictStr): Attribution string for map tile server.
         map_background_color (StrictStr): Hex color code for map background (#RRGGBB format).
-        password_type (PasswordType): Password policy enforcement level (STRICT or LENGTH_ONLY).
         password_length_regular_users (StrictInt): Minimum password length for regular users (8-128).
         password_length_admin_users (StrictInt): Minimum password length for admin users (8-128).
 
@@ -134,7 +121,6 @@ class ServerSettingsBase(BaseModel):
         ...,
         description=("Delete and regenerate all activity thumbnails when tile server settings change"),
     )
-    password_type: PasswordType = Field(..., description="Password type policy (strict, length_only)")
     password_length_regular_users: StrictInt = Field(
         ..., ge=8, le=128, description="Minimum password length for regular users"
     )

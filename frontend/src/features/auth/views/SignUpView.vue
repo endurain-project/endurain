@@ -19,6 +19,7 @@ import { DEFAULT_LOCALE, isSupportedLocale } from '@/i18n'
 import { HttpError } from '@/services/http'
 import { requestSignUp } from '@/features/auth/services/signUp'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
   usePasswordConfirmation,
   usePasswordPolicy,
@@ -44,7 +45,7 @@ const toasts = useToasts()
 const passwordRequired = computed(() => !serverSettings.value.signup_require_email_verification)
 
 // Sign-up creates a regular account, so the regular policy applies.
-const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy('regular')
+const { hint: passwordHint, validate: validatePassword, policyError } = usePasswordPolicy('regular')
 
 /**
  * Maps a backend HTTP error to a non-enumerating user-facing message.
@@ -55,6 +56,10 @@ const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy('re
 function getSignUpErrorMessage(error: unknown): string {
   if (!(error instanceof HttpError)) {
     return t('signup.errorGeneral')
+  }
+  const passwordProblem = policyError(error)
+  if (passwordProblem) {
+    return passwordProblem
   }
   switch (error.status) {
     case 409:
@@ -236,6 +241,10 @@ onMounted(async () => {
               autocomplete="new-password"
               :disabled="isSubmitting"
               @blur="handleBlur('password')"
+            />
+            <PasswordStrengthMeter
+              :password="values.password"
+              :user-inputs="[values.name, values.username, values.email]"
             />
             <p class="text-hint">{{ passwordHint }}</p>
           </template>

@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "密码策略",
-      "type": "策略",
-      "typeStrict": "严格（需要复杂度）",
-      "typeLengthOnly": "仅限长度",
       "lengthRegular": "普通用户最短密码长度",
       "lengthAdmin": "管理员最短密码长度"
     },

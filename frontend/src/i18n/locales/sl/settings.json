@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Pravilnik za gesla",
-      "type": "Pravilnik",
-      "typeStrict": "Strogi (zahtevana zapletenost)",
-      "typeLengthOnly": "Samo dolžina",
       "lengthRegular": "Minimalna dolžina za navadne uporabnike",
       "lengthAdmin": "Minimalna dolžina za skrbnike"
     },

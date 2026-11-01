@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Parooli reeglid",
-      "type": "Reegel",
-      "typeStrict": "Range (keerukus nõutav)",
-      "typeLengthOnly": "Ainult pikkus",
       "lengthRegular": "Tavakasutajate minimaalne pikkus",
       "lengthAdmin": "Administraatorite minimaalne pikkus"
     },

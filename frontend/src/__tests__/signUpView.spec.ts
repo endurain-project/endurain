@@ -5,6 +5,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 import i18n from '@/i18n'
 import SignUpView from '@/features/auth/views/SignUpView.vue'
+import { HttpError } from '@/services/http'
 
 const { push, replace, requestSignUp, requireVerification } = vi.hoisted(() => ({
   push: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
@@ -26,7 +27,6 @@ vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
     serverSettings: computed(() => ({
       signup_enabled: true,
       signup_require_email_verification: requireVerification.value,
-      password_type: 'length_only',
       password_length_regular_users: 8,
       units: 'metric',
       currency: 'euro',
@@ -118,5 +118,38 @@ describe('SignUpView', () => {
     }
 
     expect(requestSignUp.mock.calls[0]?.[0]).toMatchObject({ preferred_language: 'pt-PT' })
+  })
+})
+
+describe('SignUpView weak password', () => {
+  it('shows the specific message when the server refuses a common password', async () => {
+    requireVerification.value = false
+    requestSignUp.mockReset()
+    requestSignUp.mockRejectedValue(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:password-too-common'),
+    )
+    const wrapper = await mountFilled()
+    await wrapper.get('input[name="new-password"]').setValue('long-enough-pass')
+    await wrapper.get('input[name="confirm-password"]').setValue('long-enough-pass')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.password.tooCommon'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('signup.errorValidation'))
+  })
+
+  it('keeps the generic validation message for any other 422', async () => {
+    requireVerification.value = false
+    requestSignUp.mockReset()
+    requestSignUp.mockRejectedValue(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:invalid-input'),
+    )
+    const wrapper = await mountFilled()
+    await wrapper.get('input[name="new-password"]').setValue('long-enough-pass')
+    await wrapper.get('input[name="confirm-password"]').setValue('long-enough-pass')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('signup.errorValidation'))
   })
 })

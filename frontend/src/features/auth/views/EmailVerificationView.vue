@@ -12,6 +12,7 @@ import { FormField } from '@/components/ui/form-field'
 import { LoadingState } from '@/components/ui/loading-state'
 import { useForm } from '@/composables/useForm'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
   usePasswordConfirmation,
   usePasswordPolicy,
@@ -43,7 +44,7 @@ const token = computed(() => (typeof route.query.token === 'string' ? route.quer
 
 // The account tier is unknown before submitting, so the regular policy applies;
 // a stricter server-side policy answers 422 (see `submitPassword`).
-const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy('regular')
+const { hint: passwordHint, validate: validatePassword, policyError } = usePasswordPolicy('regular')
 
 /**
  * Confirms the sign-up with the chosen password. A 422 keeps the form and
@@ -58,7 +59,7 @@ async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
     status.value = 'success'
   } catch (error) {
     if (error instanceof HttpError && error.status === 422) {
-      throw new Error(t('resetPassword.errorWeakPassword'))
+      throw new Error(policyError(error) ?? t('resetPassword.errorWeakPassword'))
     }
     if (error instanceof HttpError && error.status === 400) {
       showError(t('verifyEmail.errorInvalidToken'))
@@ -168,6 +169,7 @@ onMounted(() => {
                 :disabled="isSubmitting"
                 @blur="handleBlur('password')"
               />
+              <PasswordStrengthMeter :password="values.password" />
               <p class="text-hint">{{ passwordHint }}</p>
             </template>
           </FormField>

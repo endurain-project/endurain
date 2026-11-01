@@ -9,12 +9,37 @@ import core.exceptions as core_exceptions
 
 
 class PasswordPolicyError(core_exceptions.DomainError):
-    """A password a caller supplied failed policy validation, answered as an unprocessable request."""
+    """A password a caller supplied failed policy validation, answered as an unprocessable request.
+
+    The base class answers for any rejection; each subclass names the reason so a client can branch on the
+    problem ``type``.
+    """
 
     status_code = 422
-    code = "invalid-input"
+    code = "password-rejected"
     title = "Unprocessable Content"
     default_detail = "The password does not meet the configured policy"
+
+
+class PasswordTooShortError(PasswordPolicyError):
+    """The password has fewer characters than the account type's minimum."""
+
+    code = "password-too-short"
+    default_detail = "The password is too short"
+
+
+class PasswordTooCommonError(PasswordPolicyError):
+    """The password is on the list of commonly used passwords."""
+
+    code = "password-too-common"
+    default_detail = "The password is too common; choose a different one"
+
+
+class PasswordMatchesAccountError(PasswordPolicyError):
+    """The password is the account's username, email address or the application name."""
+
+    code = "password-matches-account"
+    default_detail = "The password must not be your username, your email address or the application name"
 
 
 class SupportsHashPassword(Protocol):

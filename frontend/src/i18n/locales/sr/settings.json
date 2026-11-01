@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Politika lozinki",
-      "type": "Politika",
-      "typeStrict": "Stroga (potrebna složenost)",
-      "typeLengthOnly": "Samo dužina",
       "lengthRegular": "Minimalna dužina za obične korisnike",
       "lengthAdmin": "Minimalna dužina za administratore"
     },

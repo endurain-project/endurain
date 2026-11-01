@@ -25,10 +25,11 @@ class TestChangeOwnPassword:
 
         mock_user = MagicMock()
         mock_user.access_type = "regular"
+        mock_user.username = "alice"
+        mock_user.email = "alice@example.com"
         mock_settings = MagicMock()
         mock_settings.password_length_regular_users = 8
         mock_settings.password_length_admin_users = 12
-        mock_settings.password_type = "strict"
 
         with (
             patch(
@@ -68,7 +69,9 @@ class TestChangeOwnPassword:
             step_up_store,
             mock_db,
         )
-        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass", mock_db)
+        mock_hash_password.assert_called_once_with(
+            mock_settings, "regular", "new-pass", mock_db, username="alice", email="alice@example.com"
+        )
         mock_set_password.assert_called_once_with(7, "hashed-new-pass", mock_db)
         mock_clear_pending_mfa.assert_called_once_with(7)
         mock_db.commit.assert_not_called()
@@ -89,10 +92,11 @@ class TestChangeOwnPassword:
 
         mock_user = MagicMock()
         mock_user.access_type = UserAccessType.ADMIN
+        mock_user.username = "alice"
+        mock_user.email = "alice@example.com"
         mock_settings = MagicMock()
         mock_settings.password_length_regular_users = 8
         mock_settings.password_length_admin_users = 16
-        mock_settings.password_type = "strict"
 
         with (
             patch(
@@ -122,13 +126,17 @@ class TestChangeOwnPassword:
                 revoke_other_sessions=False,
             )
 
-        mock_hash_password.assert_called_once_with(mock_settings, "admin", "new-pass", mock_db)
+        mock_hash_password.assert_called_once_with(
+            mock_settings, "admin", "new-pass", mock_db, username="alice", email="alice@example.com"
+        )
 
     @pytest.mark.parametrize("revoke", [True, False])
     def test_revokes_other_sessions_only_when_asked(self, revoke, mock_db):
         """Other sessions are deleted, keeping the current one, only when the caller asks."""
         mock_user = MagicMock()
         mock_user.access_type = "regular"
+        mock_user.username = "alice"
+        mock_user.email = "alice@example.com"
         prefix = "modules.auth.account_security.account_security_service."
         with (
             patch(prefix + "step_up_service.verify_step_up_credentials"),
@@ -172,10 +180,11 @@ class TestChangeManagedUserPassword:
 
         mock_user = MagicMock()
         mock_user.access_type = "regular"
+        mock_user.username = "alice"
+        mock_user.email = "alice@example.com"
         mock_settings = MagicMock()
         mock_settings.password_length_regular_users = 8
         mock_settings.password_length_admin_users = 12
-        mock_settings.password_type = "strict"
 
         with (
             patch(
@@ -204,7 +213,9 @@ class TestChangeManagedUserPassword:
                 db=mock_db,
             )
 
-        mock_hash_password.assert_called_once_with(mock_settings, "regular", "new-pass", mock_db)
+        mock_hash_password.assert_called_once_with(
+            mock_settings, "regular", "new-pass", mock_db, username="alice", email="alice@example.com"
+        )
         mock_set_password.assert_called_once_with(42, "hashed-managed-pass", mock_db)
 
         mock_delete_sessions.assert_called_once_with(42, mock_db)

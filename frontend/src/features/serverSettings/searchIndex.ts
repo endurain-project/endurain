@@ -95,7 +95,6 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('signup', 'signup-admin-approval', 'settings.server.signup.adminApproval'),
   field('signup', 'signup-email-verification', 'settings.server.signup.emailVerification'),
   SECTIONS.password,
-  field('password', 'password-type', 'settings.server.password.type'),
   field('password', 'password-length-regular', 'settings.server.password.lengthRegular'),
   field('password', 'password-length-admin', 'settings.server.password.lengthAdmin'),
   SECTIONS.session,

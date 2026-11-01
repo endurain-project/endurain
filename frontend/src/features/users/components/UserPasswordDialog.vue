@@ -6,6 +6,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { useForm } from '@/composables/useForm'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
   usePasswordConfirmation,
   usePasswordPolicy,
@@ -34,7 +35,11 @@ const { t } = useI18n()
 
 const mutation = useChangeUserPasswordMutation()
 // The policy follows the target user's access tier.
-const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy(() => props.accessType)
+const {
+  hint: passwordHint,
+  validate: validatePassword,
+  policyError,
+} = usePasswordPolicy(() => props.accessType)
 
 /** Form shape: the new password plus its confirmation. */
 interface PasswordFormValues {
@@ -59,7 +64,10 @@ async function submitForm(formValues: PasswordFormValues): Promise<void> {
     emit('success', t('settings.users.password.success'))
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && (error.status === 400 || error.status === 422)) {
+    const passwordProblem = policyError(error)
+    if (passwordProblem) {
+      emit('error', passwordProblem)
+    } else if (error instanceof HttpError && (error.status === 400 || error.status === 422)) {
       emit('error', t('app.password.invalid'))
     } else {
       emit('error', t('settings.users.password.error'))
@@ -121,6 +129,7 @@ watch(open, (isOpen) => {
             :disabled="isSubmitting"
             @blur="handleBlur('password')"
           />
+          <PasswordStrengthMeter :password="values.password" :user-inputs="[username]" />
         </template>
       </FormField>
 

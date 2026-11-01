@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Politica parolelor",
-      "type": "Politică",
-      "typeStrict": "Strictă (complexitate necesară)",
-      "typeLengthOnly": "Doar lungimea",
       "lengthRegular": "Lungime minimă pentru utilizatorii obișnuiți",
       "lengthAdmin": "Lungime minimă pentru utilizatorii administratori"
     },

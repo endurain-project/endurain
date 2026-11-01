@@ -69,7 +69,6 @@ export interface AppConfig {
  * @property sso_auto_redirect - Whether to redirect automatically when a single SSO provider exists.
  * @property units - Default unit system used to seed the sign-up form.
  * @property currency - Default currency used to seed the sign-up form.
- * @property password_type - Password policy enforcement level for client-side hints.
  * @property password_length_regular_users - Minimum password length for regular users.
  * @property password_length_admin_users - Minimum password length for admin users.
  * @property num_records_per_page - Page size the server enforces for paginated lists.
@@ -87,7 +86,6 @@ export type PublicServerSettings = Pick<
   | 'sso_auto_redirect'
   | 'units'
   | 'currency'
-  | 'password_type'
   | 'password_length_regular_users'
   | 'password_length_admin_users'
   | 'num_records_per_page'

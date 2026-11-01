@@ -39,8 +39,18 @@
   },
   "password": {
     "hintLength": "At least {min} characters.",
-    "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character.",
     "invalid": "Password does not meet the requirements",
-    "mismatch": "Passwords don't match"
+    "mismatch": "Passwords don't match",
+    "tooShort": "This password is too short. Use at least {min} characters.",
+    "tooCommon": "This password is too common. Choose one that is harder to guess.",
+    "matchesAccount": "Don't use your username or email address as your password.",
+    "strength": {
+      "label": "Password strength: {level}",
+      "tooWeak": "Too weak",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong"
+    }
   }
 }

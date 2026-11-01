@@ -120,8 +120,8 @@ class TestVerifyStepUpCredentials:
                 return_value=mfa_valid,
             ),
             patch(
-                "modules.auth.account_security.step_up_service.credentials_integration.verify_password",
-                return_value=password_valid,
+                "modules.auth.account_security.step_up_service.credentials_integration.verify_and_update_password",
+                return_value=(password_valid, None),
             ),
         ):
             return step_up_service.verify_step_up_credentials(
@@ -448,3 +448,35 @@ class TestVerifyStepUpCredentials:
         assert not store.is_locked_out(key)
         # The counter was reset: the next failure starts again at 1.
         assert store.record_failed_attempt(key) == 1
+
+
+class TestStepUpPasswordNormalisation:
+    """Step-up checks the current password with the same NFC rule as sign-in."""
+
+    _COMPOSED = "café-au-lait-noir"
+    _DECOMPOSED = "café-au-lait-noir"
+
+    def _verify(self, stored_hash: str, typed: str) -> None:
+        prefix = "modules.auth.account_security.step_up_service."
+        with (
+            patch(prefix + "users_integration.require_user"),
+            patch(prefix + "credentials_integration.get_password_hash", return_value=stored_hash),
+            patch(prefix + "mfa_integration.is_mfa_enabled_for_user", return_value=False),
+        ):
+            step_up_service.verify_step_up_credentials(1, typed, None, FakeStepUpStore(), MagicMock(spec=Session))
+
+    @pytest.fixture
+    def hasher(self):
+        import modules.auth.credentials.password_hasher as credentials_password_hasher
+
+        return credentials_password_hasher.get_password_hasher()
+
+    def test_decomposed_input_matches_a_composed_hash(self, hasher):
+        self._verify(hasher.hash_password(self._COMPOSED), self._DECOMPOSED)
+
+    def test_legacy_raw_hash_still_verifies(self, hasher):
+        self._verify(hasher.hash_password(self._DECOMPOSED), self._DECOMPOSED)
+
+    def test_wrong_password_is_refused(self, hasher):
+        with pytest.raises(core_exceptions.UnauthenticatedError):
+            self._verify(hasher.hash_password(self._COMPOSED), "not-the-password-at-all")

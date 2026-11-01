@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Parola ilkesi",
-      "type": "İlke",
-      "typeStrict": "Katı (karmaşıklık gerekli)",
-      "typeLengthOnly": "Yalnızca uzunluk",
       "lengthRegular": "Normal kullanıcılar için minimum uzunluk",
       "lengthAdmin": "Yönetici kullanıcılar için minimum uzunluk"
     },

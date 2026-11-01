@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Lösenordspolicy",
-      "type": "Policy",
-      "typeStrict": "Strikt (komplexitet krävs)",
-      "typeLengthOnly": "Enbart längd",
       "lengthRegular": "Minsta längd vanliga användare",
       "lengthAdmin": "Minsta längd adminanvändare"
     },

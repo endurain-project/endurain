@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Jelszószabályzat",
-      "type": "Szabályzat",
-      "typeStrict": "Szigorú (komplexitás szükséges)",
-      "typeLengthOnly": "Csak hossz",
       "lengthRegular": "Minimális hossz normál felhasználóknál",
       "lengthAdmin": "Minimális hossz rendszergazdáknál"
     },

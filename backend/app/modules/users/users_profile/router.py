@@ -312,7 +312,8 @@ def edit_profile_password(
         db: Database session.
 
     Raises:
-        HTTPException: 401 if step-up verification fails.
+        HTTPException: 401 if step-up verification fails; 422 if the new password is too short, too common or
+            matches the account's details.
     """
     profile_service.change_password(token_user_id, user_attributtes, token_session_id, step_up_store, db)
 

@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Zásady hesel",
-      "type": "Zásada",
-      "typeStrict": "Striktní (vyžadována složitost)",
-      "typeLengthOnly": "Pouze délka",
       "lengthRegular": "Minimální délka pro běžné uživatele",
       "lengthAdmin": "Minimální délka pro administrátory"
     },

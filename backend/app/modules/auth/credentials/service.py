@@ -2,9 +2,9 @@
 
 from sqlalchemy.orm import Session
 
-import core.exceptions as core_exceptions
 import modules.auth.credentials.crud as credentials_crud
 import modules.auth.credentials.password_hasher as credentials_password_hasher
+import modules.auth.credentials.password_policy as credentials_password_policy
 import modules.server_settings.schema as server_settings_schema
 
 
@@ -62,26 +62,59 @@ def hash_password(password: str) -> str:
     return credentials_password_hasher.get_password_hasher().hash_password(password)
 
 
-def verify_password(password: str, password_hash: str) -> bool:
-    """Verify a password against a stored hash."""
-    return credentials_password_hasher.get_password_hasher().verify_password(password, password_hash)
+def verify_and_update_password(
+    password: str, stored_hash: str, password_hasher: credentials_password_hasher.PasswordHasher
+) -> tuple[bool, str | None]:
+    """Verify a typed local password against its stored hash, tolerating hashes made before NFC normalisation.
 
+    The NFC form is tried first. A hash created from the raw text before passwords were normalised still verifies
+    against the raw input and is then replaced by a hash of the NFC form.
 
-def validate_and_hash_password(password: str, min_length: int, password_type: str) -> str:
-    """Validate a password under the given policy and return its hash."""
-    password_hasher = credentials_password_hasher.get_password_hasher()
-    try:
-        password_hasher.validate_password(password, min_length, password_type)
-    except credentials_password_hasher.PasswordPolicyError as err:
-        raise core_exceptions.InvalidInputError(str(err)) from err
-    return password_hasher.hash_password(password)
+    Args:
+        password: The password as typed.
+        stored_hash: The user's stored password hash.
+        password_hasher: The hasher that verifies and rehashes.
+
+    Returns:
+        Whether the password is correct, and a replacement hash when the stored one should be updated.
+    """
+    normalised = credentials_password_policy.hash_form(password)
+    verified, updated_hash = password_hasher.verify_and_update(normalised, stored_hash)
+    if verified or normalised == password:
+        return verified, updated_hash
+    verified, _ = password_hasher.verify_and_update(password, stored_hash)
+    if verified:
+        return True, password_hasher.hash_password(normalised)
+    return False, None
 
 
 def validate_and_hash_password_for_user(
     server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,
     password: str,
+    *,
+    username: str,
+    email: str,
 ) -> str:
-    """Validate and hash a password using the user's configured policy."""
+    """Validate a password under the account type's policy and return the hash of its NFC form.
+
+    Args:
+        server_settings: The server settings holding the minimum lengths.
+        access_type: The account's normalised access type.
+        password: The password as typed.
+        username: The account's username.
+        email: The account's email address.
+
+    Returns:
+        The password hash.
+
+    Raises:
+        PasswordTooShortError: If the password is shorter than the account type's minimum.
+        PasswordTooCommonError: If the password is on the blocklist.
+        PasswordMatchesAccountError: If the password is the username, the email or the application name.
+    """
     min_length = resolve_password_min_length(server_settings, access_type)
-    return validate_and_hash_password(password, min_length, str(server_settings.password_type))
+    credentials_password_policy.check_password(password, min_length, username, email)
+    return credentials_password_hasher.get_password_hasher().hash_password(
+        credentials_password_policy.hash_form(password)
+    )

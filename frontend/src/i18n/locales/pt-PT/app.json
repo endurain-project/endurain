@@ -39,7 +39,6 @@
   },
   "password": {
     "hintLength": "Pelo menos {min} caracteres.",
-    "hintStrict": "Pelo menos {min} caracteres, com maiúscula, minúscula, um número e um caractere especial.",
     "invalid": "A palavra-passe não cumpre os requisitos",
     "mismatch": "As palavras-passe não coincidem"
   }

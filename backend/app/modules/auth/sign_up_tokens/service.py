@@ -14,7 +14,6 @@ import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.computation as token_hashing
-import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sessions.integration_service as sessions_integration
@@ -520,12 +519,14 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
     if password is not None and not sets_password:
         raise core_exceptions.InvalidInputError("Only a sign-up confirmation chooses a password")
     if password is not None:
-        try:
-            hashed_password = credentials_integration.validate_and_hash_password_for_user(
-                server_settings, users_schema.normalize_access_type(user.access_type), password, db
-            )
-        except core_exceptions.InvalidInputError as err:
-            raise credentials_contracts.PasswordPolicyError(err.detail) from err
+        hashed_password = credentials_integration.validate_and_hash_password_for_user(
+            server_settings,
+            users_schema.normalize_access_type(user.access_type),
+            password,
+            db,
+            username=user.username,
+            email=user.email,
+        )
         credentials_integration.set_local_password_hash(user_id, hashed_password, db)
         sessions_integration.delete_sessions_by_user(user_id, db)
 

@@ -94,3 +94,20 @@ class TestComplete:
         response = client.post("/public/onboarding", json=body)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+class TestPolicyProblemTypes:
+    @pytest.mark.parametrize(
+        ("error", "problem_type"),
+        [
+            (credentials_contracts.PasswordTooShortError("short"), "urn:endurain:error:password-too-short"),
+            (credentials_contracts.PasswordTooCommonError(), "urn:endurain:error:password-too-common"),
+            (credentials_contracts.PasswordMatchesAccountError(), "urn:endurain:error:password-matches-account"),
+        ],
+    )
+    def test_each_reason_has_its_own_problem_type_and_422(self, client, error, problem_type):
+        with patch(f"{_SERVICE}.complete_onboarding", side_effect=error):
+            response = client.post("/public/onboarding", json=_BODY)
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.json()["type"] == problem_type

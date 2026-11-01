@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Passwortrichtlinie",
-      "type": "Richtlinie",
-      "typeStrict": "Streng (Komplexität erforderlich)",
-      "typeLengthOnly": "Nur Länge",
       "lengthRegular": "Mindestlänge für normale Benutzer",
       "lengthAdmin": "Mindestlänge für Administratoren"
     },

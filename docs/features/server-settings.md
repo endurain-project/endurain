@@ -45,7 +45,7 @@ How these work together is in [Accounts, sign-up and password reset](accounts-an
 
 ### Password policy
 
-A policy type (strict, or length only) and a minimum length for regular users and for administrators, from 8 to 128 characters. It applies when a password is set or changed. See [password rules](accounts-and-sign-in.md#password-rules).
+A minimum length for regular users and for administrators, from 8 to 128 characters, 15 by default. It applies when a password is set or changed. See [password rules](accounts-and-sign-in.md#password-rules).
 
 ### Sessions
 

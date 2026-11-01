@@ -6,6 +6,7 @@ import type { ManagedUser, UserAccessType } from '@/features/users/types'
 import type { Schemas } from '@/types'
 
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
   usePasswordConfirmation,
   usePasswordPolicy,
@@ -180,7 +181,10 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (isStaleWrite(error)) {
+    const passwordProblem = policyError(error)
+    if (passwordProblem) {
+      emit('error', passwordProblem)
+    } else if (isStaleWrite(error)) {
       emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.users.form.conflict'))
@@ -208,7 +212,11 @@ const activeUnits = ref<Schemas['Units']>('metric')
 const activeAccessType = ref<UserAccessType>('regular')
 
 // The policy follows the selected access type.
-const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy(activeAccessType)
+const {
+  hint: passwordHint,
+  validate: validatePassword,
+  policyError,
+} = usePasswordPolicy(activeAccessType)
 
 const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
   useForm<UserFormValues>({
@@ -451,6 +459,10 @@ watch(open, (isOpen) => {
             :placeholder="placeholder"
             :disabled="isSubmitting"
             @blur="handleBlur('password')"
+          />
+          <PasswordStrengthMeter
+            :password="values.password"
+            :user-inputs="[values.name, values.username, values.email]"
           />
         </template>
       </FormField>

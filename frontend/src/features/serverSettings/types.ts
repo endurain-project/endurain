@@ -42,9 +42,6 @@ export type Units = Schemas['Units']
 /** Currency, mirrored from the backend enum (`euro` | `dollar` | `pound`). */
 export type Currency = Schemas['Currency']
 
-/** Password policy level, mirrored from the backend enum (`strict` | `length_only`). */
-export type PasswordType = Schemas['PasswordType']
-
 /** Reverse-geocoding service, mirrored from the backend enum (`nominatim` | `photon` | `geocode`). */
 export type GeocodingService = Schemas['GeocodingService']
 
@@ -75,7 +72,6 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property tileserverApiKeySet - Whether a tile-server API key is stored (the key itself is never returned).
  * @property tileserverRegenerateThumbnailsOnChange - Whether to regenerate thumbnails when map settings change.
  * @property mapBackgroundColor - Map background colour (`#RRGGBB`).
- * @property passwordType - Password policy enforcement level.
  * @property passwordLengthRegularUsers - Minimum password length for regular users.
  * @property passwordLengthAdminUsers - Minimum password length for admin users.
  * @property geocodingService - Reverse-geocoding service.
@@ -111,7 +107,6 @@ export interface ServerSettings {
   tileserverApiKeySet: boolean
   tileserverRegenerateThumbnailsOnChange: boolean
   mapBackgroundColor: string
-  passwordType: PasswordType
   passwordLengthRegularUsers: number
   passwordLengthAdminUsers: number
   geocodingService: GeocodingService

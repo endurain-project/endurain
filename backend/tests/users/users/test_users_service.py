@@ -8,6 +8,7 @@ import pytest
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.mfa.integration_service as mfa_integration
@@ -79,10 +80,10 @@ def _auth_integration_mocks(monkeypatch):
     _auth_service_mock = None
     _delete_all_sessions_mock = MagicMock()
 
-    def mock_call(name, *args):
+    def mock_call(name, *args, **kwargs):
         if _auth_service_mock is None:
             return {}
-        return getattr(_auth_service_mock, name)(*args)
+        return getattr(_auth_service_mock, name)(*args, **kwargs)
 
     monkeypatch.setattr(
         identity_links_integration,
@@ -102,8 +103,8 @@ def _auth_integration_mocks(monkeypatch):
     monkeypatch.setattr(
         credentials_integration,
         "validate_and_hash_password_for_user",
-        lambda settings, access_type, password, db: mock_call(
-            "validate_and_hash_password_for_user", settings, access_type, password
+        lambda settings, access_type, password, db, **account: mock_call(
+            "validate_and_hash_password_for_user", settings, access_type, password, **account
         ),
     )
     monkeypatch.setattr(
@@ -456,6 +457,10 @@ class TestStageFirstAdmin:
         assert fields["username"] == "owner" and fields["email"] == "owner@example.com"
         assert "password" not in fields
         assert identity.validate_and_hash_password_for_user.call_args.args[1] == "admin"
+        assert identity.validate_and_hash_password_for_user.call_args.kwargs == {
+            "username": "Owner",
+            "email": "Owner@example.com",
+        }
         identity.set_local_password_hash.assert_called_once_with(1, "hash")
         mock_defaults.assert_called_once_with(1, mock_db)
         mock_db.commit.assert_not_called()
@@ -468,10 +473,10 @@ class TestStageFirstAdmin:
         self, mock_crud, mock_settings, mock_db
     ):
         identity = _identity()
-        identity.validate_and_hash_password_for_user.side_effect = core_exceptions.InvalidInputError("too short")
+        identity.validate_and_hash_password_for_user.side_effect = credentials_contracts.PasswordTooShortError()
         mock_crud.any_user_exists.return_value = False
 
-        with pytest.raises(core_exceptions.InvalidInputError):
+        with pytest.raises(credentials_contracts.PasswordPolicyError):
             users_service.stage_first_admin(self._admin(), mock_db)
 
         mock_crud.create_user.assert_not_called()

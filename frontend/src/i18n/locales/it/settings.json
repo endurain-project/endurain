@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Policy password",
-      "type": "Policy",
-      "typeStrict": "Rigorosa (complessità richiesta)",
-      "typeLengthOnly": "Solo lunghezza",
       "lengthRegular": "Lunghezza minima utenti normali",
       "lengthAdmin": "Lunghezza minima utenti admin"
     },

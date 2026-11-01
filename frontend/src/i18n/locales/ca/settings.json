@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Política de contrasenyes",
-      "type": "Política",
-      "typeStrict": "Estricta (complexitat requerida)",
-      "typeLengthOnly": "Només longitud",
       "lengthRegular": "Longitud mínima usuaris regulars",
       "lengthAdmin": "Longitud mínima usuaris administradors"
     },

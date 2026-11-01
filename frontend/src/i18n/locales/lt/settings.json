@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Slaptažodžių politika",
-      "type": "Politika",
-      "typeStrict": "Griežta (reikalingas sudėtingumas)",
-      "typeLengthOnly": "Tik ilgis",
       "lengthRegular": "Minimalus įprastų naudotojų ilgis",
       "lengthAdmin": "Minimalus administratorių ilgis"
     },

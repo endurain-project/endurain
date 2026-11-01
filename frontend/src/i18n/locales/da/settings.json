@@ -292,9 +292,6 @@
     },
     "password": {
       "title": "Adgangskodepolitik",
-      "type": "Politik",
-      "typeStrict": "Streng (kompleksitet krævet)",
-      "typeLengthOnly": "Kun længde",
       "lengthRegular": "Minimumslængde for almindelige brugere",
       "lengthAdmin": "Minimumslængde for administratorbrugere"
     },

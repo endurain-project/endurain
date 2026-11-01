@@ -16,6 +16,7 @@ import { useToasts } from '@/composables/useToasts'
 import { completeOnboarding } from '@/features/auth/services/onboarding'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
   usePasswordConfirmation,
   usePasswordPolicy,
@@ -45,7 +46,7 @@ const createAdmin = useInvalidatingMutation({
 })
 
 // The first account is always an administrator, so the admin policy applies.
-const { hint: passwordHint, validate: validatePassword } = usePasswordPolicy('admin')
+const { hint: passwordHint, validate: validatePassword, policyError } = usePasswordPolicy('admin')
 
 /**
  * Maps a failed onboarding request to a user-facing message.
@@ -61,7 +62,7 @@ function getOnboardingErrorMessage(error: unknown): string {
     case 400:
       return t('login.onboarding.errorInvalidToken')
     case 422:
-      return t('login.onboarding.errorValidation')
+      return policyError(error) ?? t('login.onboarding.errorValidation')
     case 429:
       return t('login.onboarding.errorTooManyAttempts')
     case 503:
@@ -230,6 +231,10 @@ onMounted(() => {
               autocomplete="new-password"
               :disabled="isSubmitting"
               @blur="handleBlur('password')"
+            />
+            <PasswordStrengthMeter
+              :password="values.password"
+              :user-inputs="[values.name, values.username, values.email]"
             />
             <p class="text-hint">{{ passwordHint }}</p>
           </template>

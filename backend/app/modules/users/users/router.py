@@ -354,6 +354,9 @@ def edit_user_password(
         user_attributes: New password data.
         token_user_id: ID of the administrator making the change.
         db: Database session dependency.
+
+    Raises:
+        HTTPException: 422 if the password is too short, too common or matches the account's details.
     """
     users_service.change_user_password(user_id, user_attributes.password, token_user_id, db)
 
