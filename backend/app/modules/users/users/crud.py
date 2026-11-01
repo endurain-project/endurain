@@ -3,7 +3,6 @@
 from collections.abc import Collection
 from datetime import datetime
 from typing import Any
-from urllib.parse import unquote
 
 from sqlalchemy import exists, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
@@ -149,15 +148,15 @@ def get_users_with_pagination(
 
 
 def _normalized_username(username: str) -> str:
-    """Decode and lower-case a username as it arrives in a URL.
+    """Lower-case a username that the framework has already URL-decoded.
 
     Args:
-        username: The raw username.
+        username: The username from the path or query string.
 
     Returns:
         The normalized username.
     """
-    return unquote(username).replace("+", " ").lower()
+    return username.lower()
 
 
 def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead | None:
