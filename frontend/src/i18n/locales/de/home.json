@@ -76,5 +76,29 @@
       "title": "Keine Ziele gesetzt",
       "description": "Setze Ziele in den Einstellungen, um deinen Fortschritt hier zu verfolgen."
     }
+  },
+  "streak": {
+    "title": "Wochen-Serie",
+    "current": "Aktuelle Serie",
+    "weeks": "{count} Woche | {count} Wochen",
+    "personalBest": "Persönlicher Rekord",
+    "thisWeek": "Diese Woche",
+    "unavailable": "Serie nicht verfügbar",
+    "status": {
+      "met": "Diese Woche geschafft ({count} von {target})",
+      "progress": "{count} von {target} diese Woche",
+      "atRisk": "Noch {remaining} Aktivität diese Woche, um deine Serie zu halten | Noch {remaining} Aktivitäten diese Woche, um deine Serie zu halten"
+    },
+    "longest": {
+      "none": "Noch keine Serie. Erfasse eine Aktivität, um eine zu starten!",
+      "label": "Längste Serie: {weeks}",
+      "range": "Längste Serie: {weeks} ({start} – {end})"
+    },
+    "history": {
+      "label": "Letzte Wochen",
+      "weeksAgo": "vor {count} Wochen",
+      "weekMet": "Woche ab {date}: {count} Aktivität, Ziel erreicht | Woche ab {date}: {count} Aktivitäten, Ziel erreicht",
+      "weekMissed": "Woche ab {date}: {count} Aktivität | Woche ab {date}: {count} Aktivitäten"
+    }
   }
 }
