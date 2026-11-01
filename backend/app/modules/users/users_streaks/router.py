@@ -45,7 +45,7 @@ def _streak_for_user(user_id: int, db: Session, *, user_is_owner: bool) -> strea
     "",
     response_model=streak_schema.WeeklyStreakResponse,
 )
-async def read_my_weekly_streak(
+def read_my_weekly_streak(
     _check_scopes: Annotated[
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["activities:read"]),
@@ -71,7 +71,7 @@ async def read_my_weekly_streak(
     "/user/{user_id}",
     response_model=streak_schema.WeeklyStreakResponse | None,
 )
-async def read_user_weekly_streak(
+def read_user_weekly_streak(
     user_id: int,
     _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[

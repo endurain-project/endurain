@@ -19,7 +19,7 @@ router = APIRouter()
     response_model=streak_settings_schema.UsersStreakSettingsRead,
     status_code=status.HTTP_200_OK,
 )
-async def read_streak_settings(
+def read_streak_settings(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> streak_settings_schema.UsersStreakSettingsRead:
@@ -41,7 +41,7 @@ async def read_streak_settings(
     response_model=streak_settings_schema.UsersStreakSettingsRead,
     status_code=status.HTTP_200_OK,
 )
-async def update_streak_settings(
+def update_streak_settings(
     settings: streak_settings_schema.UsersStreakSettingsUpdate,
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
