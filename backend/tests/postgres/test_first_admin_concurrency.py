@@ -13,6 +13,7 @@ from jasil.backends.state_memory import MemoryState
 from sqlalchemy import select
 
 import core.exceptions as core_exceptions
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.onboarding.schema as onboarding_schema
 import modules.auth.onboarding.service as onboarding_service
 import modules.auth.onboarding.token_store as onboarding_token_store
@@ -38,7 +39,7 @@ def _admin(index: int) -> users_schema.FirstAdminCreate:
         name=f"Owner {index}",
         username=f"owner{index}",
         email=f"owner{index}@example.com",
-        password="SecurePass1!",
+        password="a secure owner passphrase",
     )
 
 
@@ -130,7 +131,7 @@ def test_the_check_sees_the_user_a_committed_transaction_created(pg_factory):
 
 def test_a_rolled_back_attempt_leaves_the_installation_open_for_the_next_one(pg_factory):
     with pg_factory() as db:
-        with pytest.raises(core_exceptions.InvalidInputError):
+        with pytest.raises(credentials_contracts.PasswordTooShortError):
             users_service.stage_first_admin(
                 users_schema.FirstAdminCreate(name="O", username="o", email="o@example.com", password="short123"), db
             )
