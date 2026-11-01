@@ -60,6 +60,20 @@ async function submit(
   return JSON.parse(String(init!.body))
 }
 
+const storedEntry = {
+  id: 3,
+  userId: 1,
+  version: 1,
+  date: '2026-10-30',
+  weightKg: 84.6,
+  bmi: 22.7,
+  bodyFatPct: null,
+  bodyWaterPct: null,
+  boneMassKg: null,
+  muscleMassKg: null,
+  source: null,
+} as WeightEntry
+
 describe('HealthWeightFormDialog submit', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -72,5 +86,20 @@ describe('HealthWeightFormDialog submit', () => {
     expect(body.weight).toBe(80)
     expect(body.bone_mass).toBeNull()
     expect(body.muscle_mass).toBeNull()
+  })
+
+  it('lets the server recalculate the BMI when only the weight of an entry changes', async () => {
+    const body = await submit(storedEntry, async (wrapper) => {
+      await wrapper.find('input[step="0.1"]').setValue('77.2')
+    })
+    expect(body.weight).toBe(77.2)
+    expect(body.bmi).toBeNull()
+  })
+
+  it('keeps the stored BMI when the weight of an entry is unchanged', async () => {
+    const body = await submit(storedEntry, async (wrapper) => {
+      await wrapper.find('input[type="date"]').setValue('2026-10-31')
+    })
+    expect(body.bmi).toBe(22.7)
   })
 })

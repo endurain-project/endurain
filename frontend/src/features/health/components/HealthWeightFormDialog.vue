@@ -98,13 +98,30 @@ function massToKg(raw: string | number): number | null {
   return Math.round(kg * 1000) / 1000
 }
 
+/**
+ * The BMI to save. When the weight of an edited entry changed but its BMI was
+ * left as stored, send `null` so the server works it out from the new weight.
+ */
+function submittedBmi(values: WeightFormValues): number | null {
+  const bmi = toNumberOrNull(values.bmi)
+  const entry = props.entry
+  if (
+    entry &&
+    bmi === entry.bmi &&
+    toNumberOrNull(values.weight) !== toNumberOrNull(displayMassFromKg(entry.weightKg))
+  ) {
+    return null
+  }
+  return bmi
+}
+
 /** Converts the string-based form values into the clean {@link WeightEntryInput}. */
 function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
     date: values.date || null,
     // the weight validators only let a positive number through
     weightKg: massToKg(values.weight) as number,
-    bmi: toNumberOrNull(values.bmi),
+    bmi: submittedBmi(values),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
     boneMassKg: massToKg(values.boneMass),
