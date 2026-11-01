@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.auth.account_security.audit_actions as account_security_audit_actions
+import modules.auth.account_security.event_publishers as account_security_event_publishers
+import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.credentials.integration_service as credentials_integration
@@ -140,6 +144,27 @@ def start_idp_step_up(
     )
 
 
+def _stage_unlink(user_id: int, idp_id: int, db: Session) -> None:
+    """Stage the audit row and the event of an identity provider unlinked from an account.
+
+    Args:
+        user_id: ID of the user whose account lost the link.
+        idp_id: ID of the identity provider.
+        db: Database session.
+    """
+    jasil_audit.stage(
+        db,
+        account_security_audit_actions.IDENTITY_LINK_UNLINK,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=account_security_audit_actions.IdentityLinkDetails(idp_id=idp_id),
+    )
+    account_security_event_publishers.publish_account_security_changed(
+        user_id, account_security_events.AccountSecurityChange.IDENTITY_PROVIDER_UNLINKED, db, idp_id=idp_id
+    )
+
+
 def delete_identity_provider_link(
     idp_id: int,
     step_up: users_schema.StepUpVerification,
@@ -195,6 +220,7 @@ def delete_identity_provider_link(
 
     if not success:
         raise core_exceptions.ProcessingError("Failed to unlink identity provider")
+    _stage_unlink(token_user_id, idp_id, db)
     db.commit()
 
     logger.info(
@@ -254,6 +280,7 @@ def admin_delete_identity_provider_link(
     success = identity_provider_links_integration.delete_user_identity_provider(user_id, idp_id, db)
     if not success:
         raise core_exceptions.ProcessingError("Failed to unlink identity provider")
+    _stage_unlink(user_id, idp_id, db)
 
     logger.info(
         "Admin unlinked IdP for user <user_id>: idp_id=<idp_id> (<name>)",

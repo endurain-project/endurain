@@ -207,3 +207,26 @@ class TestCredentialId:
         """credential_id() returns None for PasswordCred."""
         p = _make_principal(PasswordCred(username="alice"))
         assert p.credential_id() is None
+
+
+# ---------------------------------------------------------------------------
+# credential_type helper
+# ---------------------------------------------------------------------------
+
+
+class TestCredentialType:
+    """Tests for Principal.credential_type()."""
+
+    @pytest.mark.parametrize(
+        ("credential", "expected"),
+        [
+            (AccessTokenCred(session_id="sid-abc"), "access_token"),
+            (SessionCookieCred(session_id="sess-xyz"), "session_cookie"),
+            (ApiKeyCred(api_key_id=99, key_prefix="pre"), "api_key"),
+            (OAuthCred(provider="google", external_id="uid-001"), "oauth"),
+            (PasswordCred(username="alice"), "password"),
+        ],
+    )
+    def test_names_each_credential_variant(self, credential, expected):
+        """credential_type() names how the principal authenticated."""
+        assert _make_principal(credential).credential_type() == expected

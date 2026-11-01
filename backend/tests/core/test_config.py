@@ -333,20 +333,35 @@ class TestDeploymentProfileEnforcement:
 
         mock_logger.warning.assert_not_called()
 
-    def test_custom_profile_memory_not_fatal(self):
-        # 'custom' promises no defaults, so nothing can contradict one and the
-        # consistency rules are waived - but it must still name every capability.
+    def test_custom_profile_single_process_memory_not_fatal(self):
         settings = core_config.Settings(
             _env_file=None,
             ENVIRONMENT="production",
             DEPLOYMENT_PROFILE="custom",
-            WEB_WORKERS=4,
             STATE_URI="memory://",
             EVENTS_URI="memory://",
             STORAGE_URI="local://",
             LOCK_URI="noop://",
         )
-        assert settings.WEB_WORKERS == 4
+        assert settings.WEB_WORKERS == 1
+
+    def test_custom_profile_multi_process_memory_is_fatal(self):
+        # 'custom' promises no defaults, but process-local backends still contradict the processes it declares.
+        with pytest.raises(ValidationError) as exc_info:
+            core_config.Settings(
+                _env_file=None,
+                ENVIRONMENT="production",
+                DEPLOYMENT_PROFILE="custom",
+                WEB_WORKERS=4,
+                STATE_URI="memory://",
+                EVENTS_URI="memory://",
+                STORAGE_URI="local://",
+                LOCK_URI="noop://",
+            )
+        message = str(exc_info.value)
+        assert "STATE_URI resolves to process-local memory" in message
+        assert "EVENTS_URI resolves to process-local memory" in message
+        assert "LOCK_URI resolves to an in-process no-op lock" in message
 
     def test_custom_profile_must_name_every_capability(self):
         # Only 'local' carries capability defaults; the substrate refuses to
@@ -359,6 +374,15 @@ class TestDeploymentProfileEnforcement:
                 STATE_URI="memory://",
             )
         assert "STORAGE_URI must be set explicitly" in str(exc_info.value)
+
+    @pytest.mark.parametrize("days", [0, -1, core_config.AUDIT_RETENTION_FLOOR_DAYS, 365, 36500])
+    def test_audit_retention_accepts_zero_or_the_floor_and_above(self, days):
+        assert days == core_config.Settings(_env_file=None, AUDIT_RETENTION_DAYS=days).AUDIT_RETENTION_DAYS
+
+    @pytest.mark.parametrize("days", [1, core_config.AUDIT_RETENTION_FLOOR_DAYS - 1, 36501])
+    def test_audit_retention_refuses_below_the_floor_or_past_the_maximum(self, days):
+        with pytest.raises(ValidationError, match="AUDIT_RETENTION_DAYS"):
+            core_config.Settings(_env_file=None, AUDIT_RETENTION_DAYS=days)
 
     def test_web_workers_invalid_defaults_to_one(self):
         settings = core_config.Settings(_env_file=None, WEB_WORKERS="not-a-number")

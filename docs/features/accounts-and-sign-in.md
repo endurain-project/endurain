@@ -91,3 +91,9 @@ Under **Settings → Security** you can:
 Accounts that sign in only through single sign-on have no local password. They cannot change a password themselves, and they confirm sensitive changes by signing in again with their identity provider; see [Single Sign-On](single-sign-on.md#confirming-sensitive-changes-without-a-password).
 
 Deleting an account signs you out at once and deletes its data in the background, including activities, photos, thumbnails and stored files. The only administrator of a server cannot delete or demote themselves; make another user an administrator first.
+
+### Security notifications
+
+Endurain tells you when the way you sign in changes: your password is changed, reset, or set by an administrator; two-step verification is turned on or off; new backup codes are generated; an API key is created; or an identity provider is linked or unlinked. You get an email at your current address, if the server has mail configured, and a notification in the app. If you did not make the change, reset your password and review **Settings → Security**, or contact your administrator for a change made by one.
+
+The email is the notice that counts: someone who has taken over a session can read and dismiss in-app notifications, but not your mailbox. Signing in does not send one.

@@ -312,6 +312,10 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_sign_up_approved_email` | `auth.sign_up_approved` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_sign_up_existing_account_email` | `auth.sign_up_existing_account` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_password_reset_email` | `auth.password_reset_requested` | Bus | The user requests another reset | Nothing |
+| `auth.notify_idp_linked` | `auth.idp_linked` | Bus | Nothing, by design | Nothing |
+| `auth.notify_account_security_changed` | `auth.account_security_changed` | Bus | Nothing, by design | Nothing |
+| `auth.send_account_security_changed_email` | `auth.account_security_changed` | Bus | Nothing: the change is stored and audited | Nothing |
+| `auth.send_idp_linked_email` | `auth.idp_linked` | Bus | Nothing: the change is stored and audited | Nothing |
 | `users.profile_import_requested` | `users.profile_import_requested` | Bus, then the profile transfer pool | The user starts again | Import state closed as failed |
 | `users.profile_export_requested` | `users.profile_export_requested` | Bus, then the profile transfer pool | The user starts again | Export state closed as failed |
 | `activity_ingestion.uploaded_file` | `activity.file_uploaded` | Ingestion command pool | The user uploads again | Job marked failed |

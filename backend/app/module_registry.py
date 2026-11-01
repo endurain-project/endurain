@@ -5,6 +5,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+import jasil.audit as jasil_audit
 import jasil.settings as jasil_settings
 from jasil.events import Event
 from jasil.jobs.reconciliation import DurableSubscriberNet
@@ -43,12 +44,18 @@ import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnai
 import modules.activities.activity_thumbnail.subscriber_registry as activity_thumbnail_subscriber_registry
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.auth.account_security.audit_actions as account_security_audit_actions
+import modules.auth.account_security.subscriber_registry as account_security_subscriber_registry
+import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.subscriber_registry as authentication_subscriber_registry
+import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_provider_link_tokens_scheduled_jobs
+import modules.auth.identity_providers.audit_actions as identity_providers_audit_actions
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.subscriber_registry as identity_providers_subscriber_registry
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.onboarding.scheduled_jobs as onboarding_scheduled_jobs
+import modules.auth.password_reset_tokens.audit_actions as password_reset_tokens_audit_actions
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_scheduled_jobs
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
 import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_refresh_tokens_scheduled_jobs
@@ -69,6 +76,7 @@ import modules.strava.integration_service as strava_integration
 import modules.strava.subscriber_registry as strava_subscriber_registry
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.contributors as users_contributors
+import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.constants as users_constants
 import modules.users.users.integration_service as users_integration
 import modules.users.users.scheduled_jobs as users_scheduled_jobs
@@ -194,6 +202,8 @@ class RuntimeModule:
     nets: tuple[DurableSubscriberNet, ...] = ()
     recurring_jobs: RecurringJobs | None = None
     startup_tasks: tuple[StartupTask, ...] = ()
+    #: The audit actions the module writes, registered in the audit catalog at composition.
+    audit_actions: tuple[jasil_audit.AuditAction, ...] = ()
     #: Stops the in-process pools the module runs work on; a no-op when it never started one.
     shutdown: Callable[[], None] | None = None
 
@@ -202,6 +212,14 @@ MODULES: tuple[RuntimeModule, ...] = (
     RuntimeModule(
         name="authentication",
         register_bus=authentication_subscriber_registry.register_bus_subscribers,
+        audit_actions=authentication_audit_actions.ACTIONS,
+    ),
+    RuntimeModule(
+        name="account_security",
+        register_bus=account_security_subscriber_registry.register_bus_subscribers,
+        register_durable=account_security_subscriber_registry.register_durable_handlers,
+        nets=account_security_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        audit_actions=account_security_audit_actions.ACTIONS,
     ),
     RuntimeModule(
         name="activity",
@@ -289,6 +307,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_bus=identity_providers_subscriber_registry.register_bus_subscribers,
         register_durable=identity_providers_subscriber_registry.register_durable_handlers,
         nets=identity_providers_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        audit_actions=identity_providers_audit_actions.ACTIONS,
     ),
     RuntimeModule(
         name="identity_provider_link_tokens",
@@ -318,6 +337,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=password_reset_tokens_subscriber_registry.register_durable_handlers,
         nets=password_reset_tokens_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=password_reset_tokens_scheduled_jobs.recurring_jobs,
+        audit_actions=password_reset_tokens_audit_actions.ACTIONS,
         startup_tasks=(
             StartupTask(
                 "purge_expired_password_reset_tokens",
@@ -354,6 +374,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=users_subscriber_registry.register_durable_handlers,
         nets=users_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=users_scheduled_jobs.recurring_jobs,
+        audit_actions=users_audit_actions.ACTIONS,
         shutdown=users_integration.shutdown_deletion_pool,
     ),
     RuntimeModule(
@@ -433,16 +454,31 @@ def configure_gear_contributors() -> None:
 def configure_application() -> None:
     """Install everything the API and the standalone worker both need before they run work.
 
-    The contributors and erasers the namespaces ask composition for, and the activity providers
-    ingestion pulls from. A job claimed by the worker resolves the same seams a request does, so a
-    registration made by one entrypoint and not the other would silently do nothing wherever it runs;
-    one call from both is what keeps them from drifting.
+    The contributors and erasers the namespaces ask composition for, the activity providers
+    ingestion pulls from, and the audit catalog with its context provider. A job claimed by the
+    worker resolves the same seams a request does, so a registration made by one entrypoint and not
+    the other would silently do nothing wherever it runs; one call from both is what keeps them from
+    drifting.
     """
     configure_activity_contributors()
     configure_gear_contributors()
     configure_user_contributors()
     strava_integration.register_activity_provider()
     garmin_integration.register_activity_provider()
+    configure_audit()
+
+
+def configure_audit() -> None:
+    """Register every module's audit actions and install the provider that says who is acting.
+
+    An action must be registered before a row can be written for it, wherever the row is written, so the API and
+    the worker both register the whole catalog. Only the API publishes it (``jasil.audit.sync_catalog``).
+    """
+    catalog = jasil_audit.get_catalog()
+    for module in MODULES:
+        for action in module.audit_actions:
+            catalog.register(action)
+    jasil_audit.configure_provider(auth_dependencies.audit_context_from_request)
 
 
 def configure_user_contributors() -> None:

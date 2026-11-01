@@ -67,8 +67,12 @@ def test_a_legacy_schema_is_adopted_and_renamed_to_the_jasil_names(engine):
 
 
 def test_a_schema_already_at_head_is_adopted_unchanged(engine):
+    # Built by JASIL's own revisions, not ``create_all``: on PostgreSQL the head schema includes the audit
+    # log's partitions, triggers and functions, which adoption checks for.
+    _drop_jasil_tables(engine)
+    jasil_migrations.upgrade(engine)
     with engine.begin() as connection:
-        connection.execute(text(f"DROP TABLE IF EXISTS {jasil_migrations.VERSION_TABLE}"))
+        connection.execute(text(f"DROP TABLE {jasil_migrations.VERSION_TABLE}"))
 
     _bootstrap(engine)
 

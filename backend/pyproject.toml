@@ -44,7 +44,7 @@ dependencies = [
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[fastapi,geocoding,jobs,migrations]>=0.13.0,<0.14.0",
+    "jasil[audit,fastapi,geocoding,jobs,migrations]>=0.14.0,<0.15.0",
 ]
 
 [project.optional-dependencies]
@@ -54,7 +54,7 @@ dependencies = [
 distributed = [
     "boto3>=1.43.99",
     "redis>=8.1.0",
-    "jasil[redis,s3]>=0.13.0,<0.14.0",
+    "jasil[redis,s3]>=0.14.0,<0.15.0",
 ]
 
 [dependency-groups]
@@ -257,7 +257,9 @@ convention = "google"
 "app/modules/auth/authentication/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
 "app/modules/auth/authentication/service.py" = ["S105", "S106"]  # false positive on token_type string comparisons
 "app/modules/auth/authentication/dependencies.py" = ["S105", "S106"]  # false positive on cookie name constants
+"app/modules/auth/account_security/events.py" = ["S105"]  # false positive on the password-change event values
 "app/main.py" = ["D", "S105"]  # false positive on env var value
+"app/modules/**/audit_actions.py" = ["S105"]  # false positive on enum members naming a credential kind ("password")
 
 [tool.ruff.format]
 quote-style = "double"

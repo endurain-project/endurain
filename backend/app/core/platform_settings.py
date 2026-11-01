@@ -61,6 +61,23 @@ def build_jasil_settings(
         # hashed objects are read natively alongside it and retired on overwrite or delete.
         storage=jasil_settings.StorageSettings(local_plain_areas=plain_areas),
         network=jasil_settings.NetworkSettings(ssrf_allowed_hosts=tuple(settings.SSRF_ALLOWED_HOSTS)),
+        audit=_build_audit_settings(settings),
+    )
+
+
+def _build_audit_settings(settings: core_config.Settings) -> jasil_settings.AuditSettings:
+    """Map the audit-trail variables onto ``AuditSettings``.
+
+    The signing key is a secret, so it is read through ``read_secret`` (and its ``_FILE`` variant) rather than
+    kept on ``Settings``.
+    """
+    return jasil_settings.AuditSettings(
+        retention_days=settings.AUDIT_RETENTION_DAYS,
+        retention_floor_days=core_config.AUDIT_RETENTION_FLOOR_DAYS,
+        signing_key=core_config.read_secret("AUDIT_SIGNING_KEY") or None,
+        external_sink_uri=settings.AUDIT_EXTERNAL_SINK_URI or None,
+        app_name="endurain",
+        app_version=core_config.API_VERSION,
     )
 
 

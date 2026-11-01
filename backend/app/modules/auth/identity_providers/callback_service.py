@@ -7,6 +7,7 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import httpx2
+import jasil.audit as jasil_audit
 from authlib.integrations.base_client import OAuthError
 from authlib.integrations.httpx_client import OAuth2Client
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
@@ -511,6 +513,14 @@ class CallbackService:
                 # Create the link
                 identity_provider_links_integration.create_user_identity_provider(
                     user_id=link_user_id, idp_id=idp.id, idp_subject=subject, db=db
+                )
+                jasil_audit.stage(
+                    db,
+                    idp_audit_actions.IDENTITY_LINK_LINK,
+                    target_type="user",
+                    target_id=str(link_user_id),
+                    target_owner_id=str(link_user_id),
+                    details=idp_audit_actions.IdentityLinkDetails(idp_id=idp.id),
                 )
                 idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
 

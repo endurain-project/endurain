@@ -359,30 +359,30 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.99"
+version = "1.43.107"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/99/10/5e0c4c1a87443680194db582888e8e5e0a80e3e1ed224ca8111becf9e5ed/boto3-1.43.99.tar.gz", hash = "sha256:328c8640e7b7dbdaebc271e6eea0f7301218872d67d0661a7beda7d3a1799c07", size = 112659, upload-time = "2026-09-21T19:37:18.115Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/c4/c68d22d91482898f1294dab7541ad83f8bcf9df83107e6d8436d6e9dbf01/boto3-1.43.107.tar.gz", hash = "sha256:c4e0f1a0295cbb7103f2950128cf88463c076d220080a7d0f127cf834969fc3a", size = 112718, upload-time = "2026-10-01T19:31:22.283Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/37/d59247c882bc078b73cfa6f6bb247ac51bedc7637f6a8800def385dcfbba/boto3-1.43.99-py3-none-any.whl", hash = "sha256:3becba8d7bdf80ea0010c68bc6b0772adb8be344f06bdcea77629002be19beb7", size = 140029, upload-time = "2026-09-21T19:37:16.518Z" },
+    { url = "https://files.pythonhosted.org/packages/01/5c/a865e8902370151daf915e3a072ee57e693144838427e42c9bbd986ecb88/boto3-1.43.107-py3-none-any.whl", hash = "sha256:632a4f8298725b94144c8cd383cbdacb34624daa73221e954c3d33ac6e2528d6", size = 140043, upload-time = "2026-10-01T19:31:20.518Z" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.43.99"
+version = "1.43.107"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/26/9e/4d67cee13c7f3aa7b04e70cdb7b8f80663a3aa6f13ff570223eb76c0f391/botocore-1.43.99.tar.gz", hash = "sha256:fb8b6e9b193a7c2ac1a22832f7635fe44c452f405aab82eca1e1b629b81dabb7", size = 16129817, upload-time = "2026-09-21T19:37:13.447Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4d/22/3aed44a1e0b9820485124a9ad25e9bccd5539c547ef12827547c3cbeb25f/botocore-1.43.107.tar.gz", hash = "sha256:4a37fa072a00280c746313532d19b00e2dc53f1993222601df104d71d548d5b6", size = 16306128, upload-time = "2026-10-01T19:31:17.202Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/49/9a/2a62da42bc8bd55d99e5b9599c112260dfe9872bedf335bdc5a10dbb653a/botocore-1.43.99-py3-none-any.whl", hash = "sha256:6c9d66621b31c9f9af2b85a0b4c0c208e17d59d7d49f91c9111baca6d41d0299", size = 15820432, upload-time = "2026-09-21T19:37:10.654Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/39/3a0db1ba57531062cda616dae68b69faef8114939414a2a291b3aac7617b/botocore-1.43.107-py3-none-any.whl", hash = "sha256:23cbe854e815dbaccf097f7fd32b461c9e1d2ed7e0c7dcc5658218704509d840", size = 16002666, upload-time = "2026-10-01T19:31:14.463Z" },
 ]
 
 [[package]]
@@ -844,7 +844,7 @@ dependencies = [
     { name = "gpxpy" },
     { name = "httpx2" },
     { name = "itsdangerous" },
-    { name = "jasil", extra = ["fastapi", "geocoding", "jobs", "migrations"] },
+    { name = "jasil", extra = ["audit", "fastapi", "geocoding", "jobs", "migrations"] },
     { name = "joserfc" },
     { name = "nh3" },
     { name = "numpy" },
@@ -944,8 +944,8 @@ requires-dist = [
     { name = "gpxpy", specifier = ">=1.6.2" },
     { name = "httpx2", specifier = ">=2.13.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
-    { name = "jasil", extras = ["fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.13.0,<0.14.0" },
-    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.13.0,<0.14.0" },
+    { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.14.0,<0.15.0" },
+    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.14.0,<0.15.0" },
     { name = "joserfc", specifier = ">=1.7.5" },
     { name = "nh3", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=2.5.3" },
@@ -1549,18 +1549,21 @@ wheels = [
 
 [[package]]
 name = "jasil"
-version = "0.13.0"
+version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/73/7e/ee553ff0cc1a13ae1cc4ca935f0f30b3c9424243d27e6c562bb32339d908/jasil-0.13.0.tar.gz", hash = "sha256:fb6ab3a64472abe7c313d54bc76639ec8adbbc0d68bb8cc1323b9d4214900364", size = 210825, upload-time = "2026-10-27T11:32:22.272Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/6c/5c55531609a742837b2db09cd57b7a281457f626336b6300244ac496ae9f/jasil-0.14.0.tar.gz", hash = "sha256:ee33afff754a743fa6ec19bdb561d6f931dd8456d94607eb09a7e925e07d51b2", size = 288873, upload-time = "2026-10-30T16:23:54.711Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/84/70/a8ee5c9602bf8584054b8241aa1ca7b254a445502c8b9d510819e37e3774/jasil-0.13.0-py3-none-any.whl", hash = "sha256:61c3dbee568054be9e0284be0c52c898250a904567338d6147279bb909790dc9", size = 235814, upload-time = "2026-10-27T11:32:20.634Z" },
+    { url = "https://files.pythonhosted.org/packages/00/46/9f71a9bd6c6aa0e65359d71e4efeda168dc38c81adbbfecdfedce6b90e71/jasil-0.14.0-py3-none-any.whl", hash = "sha256:f8b2b8b98245d03373096ca1430623e9087e16ae6cbfb3aa166eb81f8306fc24", size = 317521, upload-time = "2026-10-30T16:23:53.428Z" },
 ]
 
 [package.optional-dependencies]
+audit = [
+    { name = "cryptography" },
+]
 fastapi = [
     { name = "fastapi" },
 ]

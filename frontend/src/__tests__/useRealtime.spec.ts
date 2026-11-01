@@ -203,6 +203,19 @@ describe('useRealtime', () => {
       return keys.filter((queryKey) => !filter?.predicate({ queryKey }))
     }
 
+    it.each(['IDP_LINKED_NOTIFICATION', 'ACCOUNT_SECURITY_CHANGED_NOTIFICATION'])(
+      'refetches notifications for a %s hint',
+      async (message) => {
+        const socket = await openSocket()
+        // Opening the socket refetches notifications on its own; only the hint's refetch counts here.
+        invalidateQueries.mockClear()
+
+        send(socket, message)
+
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] })
+      },
+    )
+
     it('refetches health data when a health sync finishes', async () => {
       send(await openSocket(), 'HEALTH_CHANGED')
 

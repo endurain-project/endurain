@@ -382,3 +382,45 @@ def create_idp_linked_notification(
         source_event_id,
         db,
     )
+
+
+def create_account_security_changed_notification(
+    user_id: int,
+    change: str,
+    idp_id: int | None,
+    source_event_id: str,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
+    """Record the notification that a security setting of the account changed.
+
+    For an identity-provider change the provider's name is included when it still exists; a provider deleted
+    since the event leaves the notification without one.
+
+    Args:
+        user_id: The user whose account security changed, who owns the notification row.
+        change: The kind of change, an ``AccountSecurityChange`` value.
+        idp_id: The identity provider concerned, for an unlink.
+        source_event_id: Stable durable event identifier.
+        db: Database session.
+
+    Returns:
+        The notification, the websocket message type the caller should push, and
+        whether this call created it.
+
+    Raises:
+        NotFoundError: When the user no longer exists.
+    """
+    if users_integration.get_user(user_id, db) is None:
+        raise core_exceptions.NotFoundError("User not found")
+    options: dict[str, object] = {"change": change}
+    if idp_id is not None:
+        idp = idp_integration.get_identity_provider(idp_id, db)
+        options |= {"idp_id": idp_id, "idp_name": idp.name if idp is not None else None}
+    return _record_event_notification(
+        user_id,
+        notifications_constants.NotificationType.ACCOUNT_SECURITY_CHANGED,
+        notifications_constants.ACCOUNT_SECURITY_CHANGED_WS_MESSAGE,
+        options,
+        source_event_id,
+        db,
+    )

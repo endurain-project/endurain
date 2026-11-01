@@ -76,6 +76,7 @@ rather than that its name is on a list. Ending a transaction (`commit`,
 | `constants.py` | contract | Domain constants and mapping tables. |
 | `events.py` | contract | Event-type names and validated payload models. |
 | `event_publishers.py` | application | Publishes this package's domain events. |
+| `audit_actions.py` | **composition surface** | The package's audit actions (`jasil.audit.AuditAction`) and their `details` models. Registered in the audit catalog by `app/module_registry.py`; the package's own services write the rows. |
 | `subscribers.py` | application | Handles events. Registered from `subscriber_registry`. |
 | `integration_service.py` | **module surface** | The curated set of operations other modules may call. |
 | `contributors.py` | **namespace contract** | Typed callbacks installed by app composition for generic ingestion/profile orchestration. |
@@ -158,9 +159,10 @@ imports never register themselves as a side effect.
 ### 2. Composition surface — imported only while assembling the application
 
 `router.py`, `public_router.py`, `subscriber_registry.py`, `scheduled_jobs.py`,
-and `model_registry.py` are collected by `api.py`, `main.py`, `worker.py`,
+`model_registry.py` and `audit_actions.py` are collected by `api.py`, `main.py`, `worker.py`,
 Alembic, or the namespace-level activities registries. Business modules do not
-call them. `scheduled_jobs.py` also holds the job runners.
+call them. `scheduled_jobs.py` also holds the job runners, and a package's own
+services stage the rows for its `audit_actions.py`.
 
 Every persistence-owning package declares its model module in
 `model_registry.py`. `app/model_registry.py` collects those declarations

@@ -10,6 +10,7 @@ from collections.abc import Collection
 from datetime import UTC, datetime
 from datetime import date as datetime_date
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -26,6 +27,7 @@ import modules.health.health_targets.integration_service as health_targets_integ
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
+import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
@@ -354,6 +356,14 @@ def _stage_user(user: users_schema.UsersCreate, db: Session) -> users_schema.Use
 
     credentials_integration.set_local_password_hash(created.id, hashed_password, db)
     _stage_default_data(created.id, db)
+    jasil_audit.stage(
+        db,
+        users_audit_actions.USER_CREATE,
+        target_type="user",
+        target_id=str(created.id),
+        target_owner_id=str(created.id),
+        details=users_audit_actions.UserCreateDetails(access_type=access_type),
+    )
     return created
 
 
@@ -626,6 +636,33 @@ def stage_user_edit(
     return updated
 
 
+def _stage_user_update_audit(
+    before: users_schema.UsersRead, after: users_schema.UsersRead, requested: users_schema.UsersEdit, db: Session
+) -> None:
+    """Stage the audit row of an administrative edit, naming the fields whose stored value changed.
+
+    Nothing is staged when the edit changed no field. A requested email that waits for confirmation is not
+    yet a change, since the stored address is kept.
+
+    Args:
+        before: The user before the edit.
+        after: The user after the edit.
+        requested: The edit as the administrator submitted it.
+        db: Database session.
+    """
+    submitted = requested.model_dump(exclude_unset=True, exclude={"mfa_enabled", "photo_path"})
+    changed_fields = [name for name in submitted if getattr(before, name) != getattr(after, name)]
+    if changed_fields:
+        jasil_audit.stage(
+            db,
+            users_audit_actions.USER_UPDATE,
+            target_type="user",
+            target_id=str(before.id),
+            target_owner_id=str(before.id),
+            details=users_audit_actions.UserUpdateDetails(changed_fields=changed_fields),
+        )
+
+
 def _edit_ends_sessions(before: users_schema.UsersRead, requested: users_schema.UsersEdit) -> bool:
     """Whether an administrative edit changes who the user is or what they may do.
 
@@ -733,6 +770,7 @@ def edit_user(
         except core_exceptions.ConflictError:
             db.rollback()
             raise
+        _stage_user_update_audit(existing, updated, user, db)
         if user_id != actor_id and _edit_ends_sessions(existing, user):
             # Revoked in the edit's own transaction, so a user whose role or address changed cannot keep a session.
             account_security_integration.delete_all_user_sessions(user_id, db)
@@ -877,6 +915,9 @@ def approve_user(user_id: int, db: Session) -> None:
 
     users_crud.update_user(user_id, {"pending_admin_approval": False, "active": True}, db)
     notified = sign_up_tokens_integration.request_sign_up_approved_email(user_id, db)
+    jasil_audit.stage(
+        db, users_audit_actions.USER_APPROVE, target_type="user", target_id=str(user_id), target_owner_id=str(user_id)
+    )
     db.commit()
     logger.info("User approved", extra=core_logger.context(user_id=user_id, notified=notified))
 

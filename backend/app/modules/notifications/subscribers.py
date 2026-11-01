@@ -13,6 +13,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.events as activity_events
+import modules.auth.account_security.events as account_security_events
 import modules.auth.identity_providers.events as idp_events
 import modules.followers.events as followers_events
 import modules.notifications.constants as notifications_constants
@@ -28,6 +29,7 @@ FOLLOWER_REQUESTED_NOTIFICATION_SUBSCRIBER_ID = "followers.notify_requested"
 FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID = "followers.notify_accepted"
 FOLLOWER_REQUEST_REMOVED_NOTIFICATION_SUBSCRIBER_ID = "followers.clear_request_notification"
 IDP_LINKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_idp_linked"
+ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_security_changed"
 
 
 def _notify_and_push(
@@ -151,6 +153,23 @@ def notify_idp_linked_for_event(event: Event) -> None:
         )
 
 
+def notify_account_security_changed_for_event(event: Event) -> None:
+    """Notify the user that a security setting of their account changed."""
+    payload = platform_event_versioning.parse_payload(account_security_events.AccountSecurityChangedPayload, event)
+    created = _notify_and_push(
+        event,
+        payload.user_id,
+        lambda db: notifications_service.create_account_security_changed_notification(
+            payload.user_id, payload.change.value, payload.idp_id, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug(
+            "Created account-security-changed notification",
+            extra=core_logger.context(user_id=payload.user_id, change=payload.change.value),
+        )
+
+
 def clear_follower_request_notification_for_event(event: Event) -> None:
     """Take back the follow-request notification once the request is gone unaccepted.
 
@@ -180,6 +199,7 @@ on_follower_requested_notify = best_effort(notify_follower_requested_for_event)
 on_follower_accepted_notify = best_effort(notify_follower_accepted_for_event)
 on_follower_request_removed_clear = best_effort(clear_follower_request_notification_for_event)
 on_idp_linked_notify = best_effort(notify_idp_linked_for_event)
+on_account_security_changed_notify = best_effort(notify_account_security_changed_for_event)
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:
@@ -189,6 +209,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(followers_events.FOLLOWER_ACCEPTED, on_follower_accepted_notify)
     events.subscribe(followers_events.FOLLOWER_REQUEST_REMOVED, on_follower_request_removed_clear)
     events.subscribe(idp_events.IDP_LINKED, on_idp_linked_notify)
+    events.subscribe(account_security_events.ACCOUNT_SECURITY_CHANGED, on_account_security_changed_notify)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -217,4 +238,9 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         idp_events.IDP_LINKED,
         IDP_LINKED_NOTIFICATION_SUBSCRIBER_ID,
         notify_idp_linked_for_event,
+    )
+    registry.register(
+        account_security_events.ACCOUNT_SECURITY_CHANGED,
+        ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_account_security_changed_for_event,
     )

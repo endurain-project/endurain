@@ -4,6 +4,7 @@ import {
   Bell,
   CopyCheck,
   KeyRound,
+  LockKeyhole,
   ShieldAlert,
   UserCheck,
   UserPlus,
@@ -107,6 +108,56 @@ describe('presentNotification', () => {
     const result = presentNotification(make(31, { idp_id: 4, idp_name: null }))
 
     expect(result.bodyKey).toBe('notifications.types.idpLinked.bodyGeneric')
+  })
+
+  it.each([
+    ['password_changed', 'passwordChanged'],
+    ['password_reset', 'passwordReset'],
+    ['password_set_by_admin', 'passwordSetByAdmin'],
+    ['mfa_enabled', 'mfaEnabled'],
+    ['mfa_disabled', 'mfaDisabled'],
+    ['backup_codes_generated', 'backupCodesGenerated'],
+    ['api_key_created', 'apiKeyCreated'],
+  ])('presents the %s account-security change', (change, key) => {
+    const result = presentNotification(make(32, { change }))
+
+    expect(result.icon).toBe(LockKeyhole)
+    expect(result.titleKey).toBe(`notifications.types.accountSecurityChanged.${key}.title`)
+    expect(result.bodyKey).toBe(`notifications.types.accountSecurityChanged.${key}.body`)
+    expect(result.to).toEqual({ name: 'settings-security' })
+  })
+
+  it('names the provider of an unlink', () => {
+    const result = presentNotification(
+      make(32, { change: 'identity_provider_unlinked', idp_id: 4, idp_name: 'Authentik' }),
+    )
+
+    expect(result.titleKey).toBe(
+      'notifications.types.accountSecurityChanged.identityProviderUnlinked.title',
+    )
+    expect(result.bodyKey).toBe(
+      'notifications.types.accountSecurityChanged.identityProviderUnlinked.body',
+    )
+    expect(result.bodyParams).toEqual({ name: 'Authentik' })
+  })
+
+  it('falls back to the generic unlink body when the provider has no name', () => {
+    const result = presentNotification(
+      make(32, { change: 'identity_provider_unlinked', idp_id: 4, idp_name: null }),
+    )
+
+    expect(result.bodyKey).toBe(
+      'notifications.types.accountSecurityChanged.identityProviderUnlinked.bodyGeneric',
+    )
+  })
+
+  it('degrades to a generic security message for an unknown change', () => {
+    const result = presentNotification(make(32, { change: 'something_new' }))
+
+    expect(result.icon).toBe(LockKeyhole)
+    expect(result.titleKey).toBe('notifications.types.accountSecurityChanged.unknown.title')
+    expect(result.bodyKey).toBe('notifications.types.accountSecurityChanged.unknown.body')
+    expect(result.to).toEqual({ name: 'settings-security' })
   })
 
   it('routes an admin sign-up approval to the pending user', () => {

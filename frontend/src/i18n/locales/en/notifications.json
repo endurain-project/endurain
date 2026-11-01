@@ -48,6 +48,45 @@
       "body": "{name} was linked to your account. If this wasn't you, review your security settings.",
       "bodyGeneric": "A sign-in provider was linked to your account. If this wasn't you, review your security settings."
     },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Password changed",
+        "body": "Your password was changed. If this wasn't you, reset your password and review your security settings."
+      },
+      "passwordReset": {
+        "title": "Password reset",
+        "body": "Your password was reset using a reset link. If this wasn't you, reset your password again and review your security settings."
+      },
+      "passwordSetByAdmin": {
+        "title": "Password set by an administrator",
+        "body": "An administrator set a new password for your account. If you didn't expect this, contact your administrator."
+      },
+      "mfaEnabled": {
+        "title": "Two-step verification turned on",
+        "body": "Two-step verification was turned on for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "mfaDisabled": {
+        "title": "Two-step verification turned off",
+        "body": "Two-step verification was turned off for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "backupCodesGenerated": {
+        "title": "New backup codes generated",
+        "body": "New backup codes were generated for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "apiKeyCreated": {
+        "title": "New API key created",
+        "body": "A new API key was created for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "identityProviderUnlinked": {
+        "title": "Sign-in provider unlinked",
+        "body": "{name} was unlinked from your account. If this wasn't you, reset your password and review your security settings.",
+        "bodyGeneric": "A sign-in provider was unlinked from your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "unknown": {
+        "title": "Account security changed",
+        "body": "A security setting of your account changed. If this wasn't you, reset your password and review your security settings."
+      }
+    },
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",
       "body": "{name} ({'@'}{username}) is waiting for account approval."

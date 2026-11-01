@@ -72,6 +72,9 @@ Variables marked as deprecated have moved to the admin settings. On every start,
 | STATE_URI | No default set | No | Explicit override for the shared ephemeral-state backend (rate-limit counters, login/step-up lockout, pending-MFA, MFA setup secrets, Garmin MFA codes, websocket tickets). Takes precedence over `REDIS_URL`. `memory://` or `redis://…`. |
 | REDIS_URL | No default set | No | Shared Redis DSN for every Redis capability with no explicit URI. Required for `distributed` or `WEB_WORKERS > 1`. |
 | EVENT_LOG_RETENTION_DAYS | 90 | Yes | Age in days after which event-log observability rows are pruned by a scheduled cleanup (runs daily and once at startup). The `jasil_event_log` table records every background event's lifecycle for diagnostics; it is best-effort and safe to lose, so every row older than this is removed. Set to `0` (or negative) to disable pruning and keep rows forever. |
+| AUDIT_RETENTION_DAYS | 90 | Yes | Age in days after which [audit trail](#audit-trail) rows are dropped, a whole day at a time. Set to `0` to keep every row. A value between 1 and 29 is refused at startup: the database never drops rows younger than 30 days. |
+| AUDIT_SIGNING_KEY | No default set | Yes | Optional Ed25519 private key that signs the audit trail's checkpoints, so a changed row can be told from a resealed one. See [Audit trail](#audit-trail) to generate one. Alternatively, use `AUDIT_SIGNING_KEY_FILE` for Docker secrets |
+| AUDIT_EXTERNAL_SINK_URI | No default set | Yes | Optional write-once copy of every audit checkpoint, kept outside the database: `file:///absolute/directory` or `s3://bucket/prefix`. See [Audit trail](#audit-trail) |
 | STORAGE_URI, EVENTS_URI, LOCK_URI, JOBS_ENABLED, JOBS_*, APP_ROLE | see page | Yes | Blob storage, event bus, coordination lock and the durable job queue. Documented in [Scaling and background jobs](scaling-and-background-jobs.md). |
 | JOBS_RETENTION_DAYS | 90 | Yes | Age in days after which completed durable-job bookkeeping is pruned by the same scheduled cleanup: relayed outbox rows and completed background-job rows. In-flight work (pending/running jobs, unrelayed outbox rows) and dead-lettered jobs (kept for review) are never pruned. Only relevant when the durable job queue is enabled. Accepts 0 to 3650; set to `0` to disable pruning. |
 | READ_NOTIFICATION_RETENTION_DAYS | 90 | Yes | Deprecated in v0.21: imported into Settings > Server > Data retention on startup, removed in v0.22. Age in days after which read notifications are purged by a daily scheduled cleanup. Unread notifications are never purged. Accepts 0 to 3650; set to `0` to disable pruning. |
@@ -179,6 +182,7 @@ Endurain supports [Docker secrets](https://docs.docker.com/compose/how-tos/use-s
 - `SECRET_KEY` → `SECRET_KEY_FILE`
 - `FERNET_KEY` → `FERNET_KEY_FILE`
 - `SMTP_PASSWORD` → `SMTP_PASSWORD_FILE`
+- `AUDIT_SIGNING_KEY` → `AUDIT_SIGNING_KEY_FILE`
 
 ### Using File-Based Secrets
 
@@ -228,6 +232,35 @@ secrets:
 ```
 
 **Note**: When using `_FILE` variants, the original environment variables (e.g., `DB_PASSWORD`) are not needed. The application will automatically read from the file specified by the `_FILE` environment variable.
+
+## Audit trail
+
+Endurain keeps an append-only record of security-relevant actions in the `jasil_audit_log` table:
+
+- sign-ins, successful and refused, and sign-outs;
+- password, two-step verification, backup code and API key changes, and sessions signed out;
+- sign-in providers linked and unlinked;
+- failed identity confirmations before a sensitive action, and requests refused for a missing permission;
+- accounts created, changed or approved by an administrator, and accounts deleted.
+
+Each row says who acted, from which address, on what, and how it ended. It never holds a password, token, code or key: only ids, counts and the names of the fields that changed. A row is written in the same transaction as the change it describes, so a change is never saved without its row. Endurain has no screen for the trail; query the table directly.
+
+**Retention.** A maintenance job runs at startup and every 5 minutes. It creates the table's daily partitions a week ahead and drops those older than `AUDIT_RETENTION_DAYS` (90). The database refuses to drop anything younger than 30 days, whatever the setting.
+
+**Tamper evidence.** The same job seals the trail every 15 minutes into a hash chain of checkpoints (`jasil_audit_checkpoints`). Updating, deleting or truncating rows is refused by the database. To sign the checkpoints, generate a key pair and set `AUDIT_SIGNING_KEY` to the private key:
+
+```bash
+openssl genpkey -algorithm ed25519 -out audit_key.pem
+openssl pkey -in audit_key.pem -outform DER | tail -c 32 | base64          # AUDIT_SIGNING_KEY
+openssl pkey -in audit_key.pem -pubout -outform DER | tail -c 32 | base64  # public key, for verifying
+```
+
+Keep the public key for whoever verifies the trail, and the private key with your other secrets, not in the database.
+
+`AUDIT_EXTERNAL_SINK_URI` adds a copy of every checkpoint outside the database. Use `file:///absolute/directory` on a mount the container can write but not rewrite (refused under the `distributed` profile, whose replicas share no disk), or `s3://bucket/prefix` on a separate bucket with Object Lock in compliance mode and a default retention period.
+
+!!! warning "What the audit trail does not prevent"
+    Endurain connects to PostgreSQL with one role, which owns the audit table. Anyone with that role or superuser access can disable the protection and rewrite rows. The signature and, above all, the external copy are what reveal it. Restoring a database backup also rolls the trail back to the backup.
 
 ## Volumes
 

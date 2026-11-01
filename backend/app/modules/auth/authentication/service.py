@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from typing import NoReturn
 from uuid import uuid4
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.computation as auth_computation
@@ -39,18 +42,85 @@ logger = core_logger.get_logger(__name__)
 _INVALID_MFA_CODE_MESSAGE = "Invalid MFA code, backup code or backup code already used."
 
 
-def _refuse_credentials(username: str) -> NoReturn:
-    """Log a refused sign-in and answer with the one message every cause shares.
+def _record_login_refusal(
+    method: authentication_audit_actions.LoginMethod,
+    outcome: jasil_audit.Outcome,
+    reason: authentication_audit_actions.LoginFailureReason,
+    *,
+    mfa: bool = False,
+    user_id: int | None = None,
+) -> None:
+    """Record a refused password sign-in, on its own transaction because nothing was changed to join.
+
+    Args:
+        method: How the sign-in was attempted.
+        outcome: ``FAILURE`` for a wrong credential, ``DENIED`` for a refusal by policy.
+        reason: Why the sign-in was refused.
+        mfa: Whether the refused step was the second factor.
+        user_id: The account the sign-in named, or None when no account matched; the attempted username is
+            never recorded.
+    """
+    jasil_audit.record_detached(
+        authentication_audit_actions.LOGIN,
+        outcome=outcome,
+        **_user_target(user_id),
+        details=authentication_audit_actions.LoginDetails(method=method, mfa=mfa, reason=reason),
+    )
+
+
+def _user_target(user_id: int | None) -> dict[str, str]:
+    """Name the user an audit row is about, in the keywords the audit calls take.
+
+    Args:
+        user_id: The user, or None when no account is known.
+
+    Returns:
+        The target keywords, empty when no account is known.
+    """
+    if user_id is None:
+        return {}
+    return {"target_type": "user", "target_id": str(user_id), "target_owner_id": str(user_id)}
+
+
+def _refresh_token_context(user_id: int) -> AbstractContextManager[jasil_audit.AuditContext]:
+    """Name the user whose refresh token a request presented as its audit actor.
+
+    A request that carries only a refresh token has no principal for the audit context to read.
+
+    Args:
+        user_id: The user the signed refresh token names.
+
+    Returns:
+        A context manager that sets the actor for the rows staged inside it.
+    """
+    return jasil_audit.audit_context(
+        actor_type=jasil_audit.ActorType.USER, actor_id=str(user_id), credential_type="refresh_token"
+    )
+
+
+def _refuse_credentials(
+    username: str,
+    user_id: int | None = None,
+    outcome: jasil_audit.Outcome = jasil_audit.Outcome.FAILURE,
+    reason: authentication_audit_actions.LoginFailureReason = (
+        authentication_audit_actions.LoginFailureReason.INVALID_CREDENTIALS
+    ),
+) -> NoReturn:
+    """Audit and log a refused sign-in, then answer with the one message every cause shares.
 
     The account is named by a hashed identifier, so the log shows repeated guesses at one account without
     holding the username.
 
     Args:
         username: The username presented.
+        user_id: The account the username matched, or None when none did.
+        outcome: ``FAILURE`` for a wrong credential, ``DENIED`` for a refusal by policy.
+        reason: Why the sign-in was refused.
 
     Raises:
         UnauthenticatedError: Always.
     """
+    _record_login_refusal(authentication_audit_actions.LoginMethod.PASSWORD, outcome, reason, user_id=user_id)
     logger.warning(
         "Sign-in refused for <username_log_id>",
         extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(username)),
@@ -105,14 +175,14 @@ def authenticate_user(
     # the latency consistent with a normal Argon2 verify.
     if stored_hash is None:
         password_hasher.dummy_verify()
-        _refuse_credentials(username)
+        _refuse_credentials(username, user.id)
 
     # Verify password and get updated hash if applicable
     is_password_valid, updated_hash = credentials_integration.verify_and_update_password(
         password, stored_hash, password_hasher
     )
     if not is_password_valid:
-        _refuse_credentials(username)
+        _refuse_credentials(username, user.id)
 
     # Update user hash if applicable
     if updated_hash:
@@ -467,11 +537,18 @@ def _raise_auth_security_store_unavailable(
     raise core_exceptions.ServiceUnavailableError("Authentication temporarily unavailable")
 
 
-def _refuse_while_mfa_locked_out(username: str, pending_mfa_store: mfa_dependencies.PendingMFAStore) -> None:
+def _refuse_while_mfa_locked_out(
+    username: str,
+    user_id: int,
+    method: authentication_audit_actions.LoginMethod,
+    pending_mfa_store: mfa_dependencies.PendingMFAStore,
+) -> None:
     """Refuse an MFA attempt while the account is locked out from too many failed codes.
 
     Args:
         username: The account's username.
+        user_id: The account's id.
+        method: How the sign-in being completed started, for the audit trail.
         pending_mfa_store: Store for pending MFA logins and the MFA lockout.
 
     Raises:
@@ -490,6 +567,13 @@ def _refuse_while_mfa_locked_out(username: str, pending_mfa_store: mfa_dependenc
                         seconds_remaining=seconds_remaining,
                     ),
                 )
+                _record_login_refusal(
+                    method,
+                    jasil_audit.Outcome.DENIED,
+                    authentication_audit_actions.LoginFailureReason.LOCKED_OUT,
+                    mfa=True,
+                    user_id=user_id,
+                )
                 raise core_exceptions.TooManyRequestsError(
                     f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds."
                 )
@@ -500,6 +584,7 @@ def _refuse_while_mfa_locked_out(username: str, pending_mfa_store: mfa_dependenc
 def _require_valid_mfa_code(
     username: str,
     user_id: int,
+    method: authentication_audit_actions.LoginMethod,
     mfa_code: str,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
     db: Session,
@@ -511,6 +596,7 @@ def _require_valid_mfa_code(
     Args:
         username: The account's username.
         user_id: The account's id.
+        method: How the sign-in being completed started, for the audit trail.
         mfa_code: The submitted TOTP or backup code.
         pending_mfa_store: Store for pending MFA logins, the MFA lockout and the TOTP replay guard.
         db: Database session.
@@ -535,6 +621,13 @@ def _require_valid_mfa_code(
             "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
             extra=core_logger.context(username_log_id=username_log_id, failed_count=failed_count),
         )
+        _record_login_refusal(
+            method,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.LoginFailureReason.INVALID_MFA_CODE,
+            mfa=True,
+            user_id=user_id,
+        )
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
     db.commit()
 
@@ -549,6 +642,8 @@ def _finish_login(
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
+    *,
+    mfa: bool,
 ) -> auth_schema.AuthOutcome:
     """Complete a verified login with tokens or, for a mobile PKCE client, a session to exchange.
 
@@ -562,10 +657,25 @@ def _finish_login(
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
+        mfa: Whether a second factor was verified for this sign-in.
 
     Returns:
         The outcome of :func:`complete_login`, or the PKCE session body for a mobile PKCE client.
     """
+    # The sign-in is audited in the transaction that the session creation below commits. The user has no
+    # principal yet, so the context names them.
+    with jasil_audit.audit_context(
+        actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="password"
+    ):
+        jasil_audit.stage(
+            db,
+            authentication_audit_actions.LOGIN,
+            **_user_target(user.id),
+            details=authentication_audit_actions.LoginDetails(
+                method=authentication_audit_actions.LoginMethod.PASSWORD, mfa=mfa
+            ),
+        )
+
     # Mobile clients with PKCE use secure token exchange flow
     # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
     if client_type == "mobile" and code_challenge and code_challenge_method:
@@ -659,6 +769,11 @@ def login_for_access_token(
                         seconds_remaining=seconds_remaining,
                     ),
                 )
+                _record_login_refusal(
+                    authentication_audit_actions.LoginMethod.PASSWORD,
+                    jasil_audit.Outcome.DENIED,
+                    authentication_audit_actions.LoginFailureReason.LOCKED_OUT,
+                )
                 raise core_exceptions.TooManyRequestsError(
                     f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds."
                 )
@@ -671,7 +786,12 @@ def login_for_access_token(
         if not user.active:
             # Answered and counted exactly like a wrong password, so the response never confirms that the
             # password of a deactivated or pending account is right.
-            _refuse_credentials(username)
+            _refuse_credentials(
+                username,
+                user.id,
+                jasil_audit.Outcome.DENIED,
+                authentication_audit_actions.LoginFailureReason.INACTIVE,
+            )
         if not credentials_integration.allows_password_sign_in(
             server_settings_integration.get_server_settings(db), users_schema.normalize_access_type(user.access_type)
         ):
@@ -681,7 +801,12 @@ def login_for_access_token(
                 "Password sign-in refused for user <user_id>: local sign-in is disabled",
                 extra=core_logger.context(user_id=user.id),
             )
-            _refuse_credentials(username)
+            _refuse_credentials(
+                username,
+                user.id,
+                jasil_audit.Outcome.DENIED,
+                authentication_audit_actions.LoginFailureReason.PASSWORD_SIGN_IN_DISABLED,
+            )
     except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:
@@ -745,6 +870,7 @@ def login_for_access_token(
         password_hasher,
         token_manager,
         db,
+        mfa=False,
     )
 
 
@@ -817,8 +943,9 @@ def verify_mfa_and_login(
         )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
-    _refuse_while_mfa_locked_out(user.username, pending_mfa_store)
-    _require_valid_mfa_code(user.username, user_id, mfa_request.mfa_code, pending_mfa_store, db)
+    password_method = authentication_audit_actions.LoginMethod.PASSWORD
+    _refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store)
+    _require_valid_mfa_code(user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, db)
 
     try:
         claimed_user_id = pending_mfa_store.claim_pending_login(mfa_request.mfa_challenge)
@@ -851,6 +978,7 @@ def verify_mfa_and_login(
         password_hasher,
         token_manager,
         db,
+        mfa=True,
     )
 
 
@@ -1046,6 +1174,13 @@ def refresh_token(
         # Token theft detected - invalidate entire family
         sessions_integration.invalidate_token_family(session.token_family_id, db)
         # The family stays invalidated although this request is refused.
+        with _refresh_token_context(token_user_id):
+            jasil_audit.stage(
+                db,
+                authentication_audit_actions.REFRESH_TOKEN_REUSE,
+                outcome=jasil_audit.Outcome.DENIED,
+                **_user_target(token_user_id),
+            )
         db.commit()
         logger.warning(
             "Refresh token reuse detected for user <token_user_id>; token family invalidated",
@@ -1196,6 +1331,8 @@ def logout(
 
         # Delete the session from the database
         sessions_integration.delete_session(session.id, token_user_id, db)
+        with _refresh_token_context(token_user_id):
+            jasil_audit.stage(db, authentication_audit_actions.LOGOUT, **_user_target(token_user_id))
         db.commit()
 
         # Clear all IdP refresh tokens for security
@@ -1321,14 +1458,16 @@ def exchange_tokens_for_session(
     user = users_integration.require_user(session_obj.user_id, db)
     users_integration.require_active_user(user)
 
-    if oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db):
+    mfa_verified = oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db)
+    if mfa_verified:
         if mfa_code is None:
             logger.info(
                 "Token exchange for session <value_1> needs an MFA code", extra=core_logger.context(value_1=fingerprint)
             )
             raise core_exceptions.MfaRequiredError()
-        _refuse_while_mfa_locked_out(user.username, pending_mfa_store)
-        _require_valid_mfa_code(user.username, user.id, mfa_code, pending_mfa_store, db)
+        sso_method = authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER
+        _refuse_while_mfa_locked_out(user.username, user.id, sso_method, pending_mfa_store)
+        _require_valid_mfa_code(user.username, user.id, sso_method, mfa_code, pending_mfa_store, db)
         try:
             pending_mfa_store.reset_attempts(user.username)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
@@ -1348,6 +1487,20 @@ def exchange_tokens_for_session(
     ):
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
+    if oauth_state.idp_id is not None:
+        # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited when its
+        # session was created.
+        with jasil_audit.audit_context(
+            actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="oauth"
+        ):
+            jasil_audit.stage(
+                db,
+                authentication_audit_actions.LOGIN,
+                **_user_target(user.id),
+                details=authentication_audit_actions.LoginDetails(
+                    method=authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER, mfa=mfa_verified
+                ),
+            )
     db.commit()
 
     logger.info(

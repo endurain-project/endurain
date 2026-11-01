@@ -47,6 +47,7 @@ On local storage every area is browsable under the `data` directory the image cr
 3. **Your secrets**, kept apart from the data:
    - `FERNET_KEY` encrypts the Strava and Garmin Connect tokens and credentials, two-step verification (TOTP) secrets, identity provider client secrets, the mail password and the map and geocoding API keys. Lose it and these become unreadable: users must reconnect their accounts and set up two-step verification again, and an admin must re-enter the secrets.
    - `SECRET_KEY` signs login tokens and the links to photos and thumbnails. Lose it and everyone is signed out and old links stop working. Nothing is lost.
+   - `AUDIT_SIGNING_KEY`, if you set one, signs the audit trail's checkpoints. Lose it and new checkpoints are signed with a new key; keep the old public key to verify the older ones.
    - `DB_PASSWORD`.
 
 The logs (`backend/logs`) are optional to back up.
@@ -71,6 +72,7 @@ Leftovers do not pile up forever. Scheduled sweeps remove:
 | Staged profile import archives that were never used | A sweep every 6 hours |
 | Profile export archives past their download window | A sweep every 6 hours (the download itself is available for 2 hours) |
 | Ingestion job records past their retention | Daily |
+| Audit trail days older than `AUDIT_RETENTION_DAYS` (90) | Checked every 5 minutes |
 
 `bulk_import_errors` has no automatic cleanup, so delete it yourself when you no longer need the failed files.
 

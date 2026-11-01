@@ -49,6 +49,7 @@ _PUBLIC_WITHIN_MODULE = frozenset(
         "contracts",
         "constants",
         "events",
+        "audit_actions",
         "integration_service",
         "dependencies",
         "router",

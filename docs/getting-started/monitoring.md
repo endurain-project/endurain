@@ -76,5 +76,6 @@ Administrators can read the newest records in **Settings → Server settings →
 - **Dead-lettered jobs** (durable jobs only). `SELECT count(*) FROM jasil_processing_jobs WHERE status = 'dead_letter'`. They are kept for review and never pruned. See [Troubleshooting](troubleshooting.md#inspect-background-jobs-durable-jobs-only).
 - **Pending jobs that do not shrink.** On the durable profile with `JOBS_RUN_IN_PROCESS_WORKER=false`, this means no worker is running.
 - **Disk space** for `LOGS_DIR` and the data volume, or your bucket's size on object storage. See [Storage and backups](storage-and-backups.md).
+- **Audit trail.** A refused sign-in or permission whose audit row cannot be written is logged at ERROR as `Audit record ... was not written`, and the request goes on. An accepted change whose row cannot be written fails with the change. Every audit row needs its day's partition, which the maintenance job creates a week ahead, so check that the scheduler runs.
 - **Mail.** Failed emails are retried only with durable jobs on. A test email in the server settings tells you whether the settings work.
 - **Strava.** Its rate limits are per application. When one is hit, syncs stop until it expires and the log says so.

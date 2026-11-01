@@ -10,6 +10,7 @@ from typing import cast
 # transitively imports it runs.
 os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
+import jasil.audit as jasil_audit
 import jasil.container as platform_container
 import jasil.correlation as jasil_correlation
 import jasil.jobs.registry as jobs_registry
@@ -34,6 +35,7 @@ import core.network as core_network
 import core.platform_settings as core_platform_settings
 import core.problem_details as core_problem_details
 import core.rate_limit as core_rate_limit
+import core.request_context as core_request_context
 import core.scheduler as core_scheduler
 import core.signing as core_signing
 import migrations.startup as migrations_startup
@@ -184,6 +186,10 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Phase 1: critical pre-flight tasks. Every migration step runs under one lock, and
     # nothing consumes events or hints until the schema is current.
     await migrations_startup.migrate_schema_and_data()
+
+    # Publish the audit catalog for readers that cannot import this code, once its table exists. Only the API
+    # does this: it owns the catalog, and a process registering fewer actions would mark the rest deprecated.
+    jasil_audit.sync_catalog()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -425,6 +431,9 @@ def create_app() -> FastAPI:
     # emit, rather than FastAPI's defaults.
     core_problem_details.install_problem_schema(fastapi_app)
     fastapi_app.add_middleware(core_rate_limit.RateLimitMiddleware)
+
+    # Publishes the request so the audit context provider can read who is acting.
+    fastapi_app.add_middleware(core_request_context.RequestContextMiddleware)
 
     # RequestIdMiddleware is added last so it executes
     # first in the request chain, ensuring every log

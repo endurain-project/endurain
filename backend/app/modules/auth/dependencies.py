@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Annotated
 
+import jasil.audit as jasil_audit
 from fastapi import Depends, Path, Query, Request
 from fastapi.security import APIKeyHeader, SecurityScopes
 from sqlalchemy.orm import Session
@@ -13,7 +14,10 @@ import core.config as core_config
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.network as core_network
+import core.request_context as core_request_context
 import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.contracts as auth_contracts
@@ -54,6 +58,11 @@ def _require_scopes(granted: Iterable[str], required: SecurityScopes) -> None:
     missing = set(required.scopes) - set(granted)
     if missing:
         logger.warning("Request refused: missing scopes <scopes>", extra=core_logger.context(scopes=sorted(missing)))
+        jasil_audit.record_detached(
+            authentication_audit_actions.SCOPE_DENIED,
+            outcome=jasil_audit.Outcome.DENIED,
+            details=authentication_audit_actions.ScopeDeniedDetails(missing_scopes=sorted(missing)),
+        )
         error = core_exceptions.PermissionDeniedError(f"Unauthorized Access - Missing permissions: {missing}")
         error.headers = {"WWW-Authenticate": f'Bearer scope="{required.scopes}"'}
         raise error
@@ -157,6 +166,38 @@ def check_auth_scopes(
     _require_scopes(auth.scopes, security_scopes)
 
 
+def audit_context_from_request() -> jasil_audit.AuditContext:
+    """Describe who is acting, for the audit trail.
+
+    Installed by the composition root as the audit context provider, so it is read when a row is written. Inside
+    an HTTP request the actor is the principal an auth dependency cached on the request (anonymous until one has),
+    with the client's address and user agent. Outside one the work is the system's own: a scheduled job, a
+    durable-job handler or startup.
+
+    Returns:
+        The context for the row being written.
+    """
+    request = core_request_context.get_current_request()
+    if request is None:
+        return jasil_audit.AuditContext(actor_type=jasil_audit.ActorType.SYSTEM, source=jasil_audit.Source.WORKER)
+    ip_address = core_network.get_ip_address(request)
+    client = {
+        "ip_address": None if ip_address == "unknown" else ip_address,
+        "user_agent": core_network.get_user_agent(request) or None,
+    }
+    principal: auth_contracts.Principal | None = getattr(request.state, "principal", None)
+    if principal is None:
+        return jasil_audit.AuditContext(**client)
+    credential_id = principal.credential_id()
+    return jasil_audit.AuditContext(
+        actor_type=jasil_audit.ActorType.API_KEY if principal.is_api_key() else jasil_audit.ActorType.USER,
+        actor_id=str(principal.user_id),
+        credential_type=principal.credential_type(),
+        credential_id=None if credential_id is None else str(credential_id),
+        **client,
+    )
+
+
 #: Authenticated user id extracted from a resolved access token.
 CurrentUserId = Annotated[int, Depends(get_sub_from_access_token)]
 #: Session id carried by a resolved access token.
@@ -172,6 +213,7 @@ __all__ = [
     "CurrentUserId",
     "MFASecretStoreBackend",
     "StepUpStore",
+    "audit_context_from_request",
     "check_auth_scopes",
     "check_scopes",
     "get_access_token",
