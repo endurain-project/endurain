@@ -194,7 +194,7 @@ root = ["app"]
 
 [tool.ty.src]
 include = ["app"]
-exclude = ["tests/", "alembic/"]
+exclude = ["tests/", "app/alembic/"]
 
 [tool.ty.analysis]
 allowed-unresolved-imports = [
