@@ -2,7 +2,7 @@
 
 from datetime import date as datetime_date
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Annotated
 from zoneinfo import available_timezones
 
@@ -37,7 +37,7 @@ class Gender(Enum):
     UNSPECIFIED = "unspecified"
 
 
-class Language(Enum):
+class Language(StrEnum):
     """Supported application languages.
 
     Attributes:
@@ -127,7 +127,7 @@ class WeekDay(Enum):
     SATURDAY = "saturday"
 
 
-class UserAccessType(Enum):
+class UserAccessType(StrEnum):
     """User access level enumeration.
 
     Attributes:
