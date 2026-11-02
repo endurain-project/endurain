@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import status
 from joserfc import jwt
-from joserfc.jwk import RSAKey
+from joserfc.jwk import ECKey, OctKey, RSAKey
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.id_token_service as id_token_service
@@ -133,6 +133,14 @@ class TestVerifyIdTokenHeaderGuards:
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "unsupported signature algorithm" in exc_info.value.detail.lower()
 
+    def test_eddsa_is_rejected(self, service):
+        """joserfc refuses EdDSA by default, so the allow-list does not offer it."""
+        token = _fake_jwt({"alg": "EdDSA", "kid": KID})
+        with pytest.raises(core_exceptions.DomainError) as exc_info:
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "unsupported signature algorithm" in exc_info.value.detail.lower()
+
     def test_symmetric_hs256_is_rejected(self, service):
         """HS256 must be rejected (RS256→HS256 key-confusion attack)."""
         token = _fake_jwt({"alg": "HS256", "kid": KID})
@@ -203,6 +211,24 @@ class TestVerifyIdTokenKeyResolution:
             _verify(service, token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "key type" in exc_info.value.detail.lower()
+
+    @pytest.mark.parametrize(
+        "advertised",
+        [
+            pytest.param(lambda: ECKey.generate_key("P-256"), id="ec"),
+            pytest.param(lambda: OctKey.generate_key(256), id="oct"),
+        ],
+    )
+    def test_a_key_that_cannot_verify_the_algorithm_raises_401(self, service, rsa_key, advertised):
+        """An RS256 token whose kid names a key of another type is refused as unverifiable, not a server error."""
+        token = _sign(rsa_key, _valid_claims())
+        jwks = {"keys": [{**advertised().as_dict(private=False), "kid": KID}]}
+        with (
+            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 # ---------------------------------------------------------------------------

@@ -10,10 +10,11 @@ from joserfc.errors import (
     BadSignatureError,
     ExpiredTokenError,
     InvalidClaimError,
+    InvalidKeyTypeError,
     InvalidPayloadError,
     MissingClaimError,
 )
-from joserfc.jwk import ECKey, OctKey, RSAKey
+from joserfc.jwk import ECKey, RSAKey
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -33,6 +34,8 @@ ID_TOKEN_CLOCK_LEEWAY_SECONDS = 60
 # (an attacker signs an HS256 token using the well-known RSA public key bytes
 # as the HMAC secret). Symmetric ``HS*`` algorithms are intentionally excluded
 # so a JWKS that publishes an ``oct`` key cannot be abused for key confusion.
+# ``EdDSA`` is left out too: joserfc refuses it unless a caller opts in, and only
+# RSA and EC keys are imported from the JWKS.
 ID_TOKEN_ALLOWED_ALGORITHMS: frozenset[str] = frozenset(
     {
         "RS256",
@@ -44,7 +47,6 @@ ID_TOKEN_ALLOWED_ALGORITHMS: frozenset[str] = frozenset(
         "ES256",
         "ES384",
         "ES512",
-        "EdDSA",
     }
 )
 
@@ -165,8 +167,6 @@ def verify_id_token(
             key = RSAKey.import_key(matching_key)
         elif key_type == "EC":
             key = ECKey.import_key(matching_key)
-        elif key_type == "oct":
-            key = OctKey.import_key(matching_key)
         else:
             logger.warning("Unsupported key type in JWKS: <key_type>", extra=core_logger.context(key_type=key_type))
             raise core_exceptions.UnauthenticatedError(f"Unsupported key type: {key_type}")
@@ -225,6 +225,12 @@ def verify_id_token(
             "ID token signature verification failed: <err>", exc_info=err, extra=core_logger.context(err=err)
         )
         raise core_exceptions.UnauthenticatedError("ID token signature is invalid") from err
+    except InvalidKeyTypeError as err:
+        # The kid names a key of another type than the token's algorithm needs, so it cannot verify it.
+        logger.warning(
+            "ID token key does not fit its algorithm: <err>", exc_info=err, extra=core_logger.context(err=err)
+        )
+        raise core_exceptions.UnauthenticatedError("ID token signed with an unusable key") from err
     except ExpiredTokenError as err:
         logger.warning("ID token has expired: <err>", exc_info=err, extra=core_logger.context(err=err))
         raise core_exceptions.UnauthenticatedError("ID token has expired") from err
