@@ -118,11 +118,40 @@ def test_the_authorization_url_carries_the_s256_challenge_of_the_states_verifier
             authorization_service.oauth_state_integration, "get_oauth_state_by_id_and_not_used", return_value=state
         ),
     ):
-        url = service.initiate_login(idp, "/", mock_db, oauth_state_id="state-1")
+        url = service.initiate_login(idp, mock_db, "/", oauth_state_id="state-1")
 
     query = parse_qs(urlsplit(url).query)
     assert query["code_challenge"] == [create_s256_code_challenge(verifier)]
     assert query["code_challenge_method"] == ["S256"]
+
+
+def test_the_transaction_ends_before_discovery_reaches_the_provider(mock_db):
+    """A pooled connection is not held while the issuer's discovery document is fetched."""
+    oidc = MagicMock()
+    service = authorization_service.AuthorizationService(oidc, HOST)
+    idp = SimpleNamespace(
+        id=3,
+        slug="idp",
+        name="IdP",
+        scopes="openid",
+        authorization_endpoint=None,
+        issuer_url="https://idp.example",
+    )
+    oidc.get_oidc_configuration.return_value = {"authorization_endpoint": "https://idp.example/authorize"}
+    oidc.decrypt_client_id.return_value = "cid"
+    state = SimpleNamespace(nonce="nonce-1", idp_code_verifier="v" * 64)
+    order = MagicMock()
+    order.attach_mock(mock_db.commit, "commit")
+    order.attach_mock(oidc.get_oidc_configuration, "discovery")
+    with (
+        patch.object(authorization_service.core_network, "reject_private_url"),
+        patch.object(
+            authorization_service.oauth_state_integration, "get_oauth_state_by_id_and_not_used", return_value=state
+        ),
+    ):
+        service.initiate_login(idp, mock_db, oauth_state_id="state-1")
+
+    assert [call[0] for call in order.mock_calls] == ["commit", "discovery"]
 
 
 class TestAuthorizationEndpointGuard:

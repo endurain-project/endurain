@@ -102,6 +102,6 @@ def request_idp_token_refresh(user_id: int, db: Session) -> None:
     identity_providers_tokens.IdpTokenService(_oidc_client()).request_idp_token_refresh(user_id, db)
 
 
-def clear_all_idp_tokens(user_id: int, db: Session, revoke_at_idp: bool = False) -> None:
-    """Clear all locally stored IdP refresh tokens, optionally revoking them remotely."""
-    identity_providers_tokens.IdpTokenService(_oidc_client()).clear_all_idp_tokens(user_id, db, revoke_at_idp)
+def clear_all_idp_tokens(user_id: int, db: Session) -> None:
+    """Clear all locally stored IdP refresh tokens."""
+    identity_providers_tokens.IdpTokenService(_oidc_client()).clear_all_idp_tokens(user_id, db)

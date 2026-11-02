@@ -307,6 +307,9 @@ class AuthorizationService:
             if not oauth_state_obj:
                 raise core_exceptions.ProcessingError("OAuth state not found")
 
+            # The read above opened a transaction. End it before the URL is built, which may run OIDC discovery,
+            # a network call no open transaction may span.
+            db.commit()
             return self._build_authorization_url(
                 idp, oauth_state_id, oauth_state_obj.nonce, oauth_state_obj.idp_code_verifier, {}
             )

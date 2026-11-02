@@ -311,72 +311,21 @@ class TestRefreshIdpSession:
             self._refresh(service, patches)
 
 
-def test_service_clears_tokens_after_failed_remote_revocation(mock_db):
+def test_service_clears_the_stored_token_of_every_link(mock_db):
     service = _service()
-    service.revoke_idp_token = MagicMock(side_effect=RuntimeError("offline"))
     with (
         patch.object(
             token_service_module.identity_provider_links_integration,
             "get_user_identity_providers_by_user_id",
-            return_value=[MagicMock(idp_id=3)],
+            return_value=[MagicMock(idp_id=3), MagicMock(idp_id=4)],
         ),
         patch.object(
             token_service_module.identity_provider_links_integration,
             "clear_user_identity_provider_refresh_token",
         ) as clear,
     ):
-        service.clear_all_idp_tokens(7, mock_db, revoke_at_idp=True)
-    service.revoke_idp_token.assert_called_once_with(7, 3, mock_db)
-    clear.assert_called_once_with(7, 3, mock_db)
-
-
-class TestRevokeIdpToken:
-    """The revocation call carries the client secret and the refresh token, so it must not reach internal hosts."""
-
-    def _revoke(self, *, guard_error=None):
-        from contextlib import ExitStack
-
-        service = _service()
-        idp = MagicMock(enabled=True, issuer_url="https://idp.example")
-        idp.name = "Pocket ID"
-        service._oidc.get_oidc_configuration = MagicMock(return_value={"revocation_endpoint": "http://10.0.0.5/revoke"})
-        service._oidc.decrypt_client_id = MagicMock(return_value="cid")
-        service._oidc.decrypt_client_secret = MagicMock(return_value="secret")
-        http_client = MagicMock()
-        http_client.post.return_value = MagicMock(status_code=200)
-        service._oidc.http_client = MagicMock()
-        service._oidc.http_client.return_value.__enter__.return_value = http_client
-        with ExitStack() as stack:
-            stack.enter_context(patch.object(token_service_module.idp_crud, "get_identity_provider", return_value=idp))
-            stack.enter_context(
-                patch.object(
-                    token_service_module.identity_provider_links_integration,
-                    "get_user_identity_provider_refresh_token_by_user_id_and_idp_id",
-                    return_value="encrypted",
-                )
-            )
-            stack.enter_context(
-                patch.object(token_service_module.core_cryptography, "decrypt_token_fernet", return_value="plain")
-            )
-            guard = stack.enter_context(
-                patch.object(token_service_module.core_network, "reject_private_url", side_effect=guard_error)
-            )
-            result = service.revoke_idp_token(7, 3, MagicMock())
-        return result, guard, http_client, service
-
-    def test_a_public_endpoint_is_called_without_following_redirects(self):
-        result, guard, http_client, service = self._revoke()
-
-        assert result is True
-        guard.assert_called_once_with("http://10.0.0.5/revoke", purpose="oidc_revocation", require_tls=True)
-        http_client.post.assert_called_once()
-        service._oidc.http_client.assert_called_once_with()
-
-    def test_an_internal_endpoint_is_never_called(self):
-        result, _, http_client, _ = self._revoke(guard_error=core_exceptions.InvalidInputError("private address"))
-
-        assert result is False
-        http_client.post.assert_not_called()
+        service.clear_all_idp_tokens(7, mock_db)
+    assert [call.args for call in clear.call_args_list] == [(7, 3, mock_db), (7, 4, mock_db)]
 
 
 class TestStoreIdpTokens:
