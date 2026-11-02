@@ -72,7 +72,7 @@ Leftovers do not pile up forever. Scheduled sweeps remove:
 | Staged profile import archives that were never used | A sweep every 6 hours |
 | Profile export archives past their download window | A sweep every 6 hours (the download itself is available for 2 hours) |
 | Ingestion job records past their retention | Daily |
-| Audit trail days older than `AUDIT_RETENTION_DAYS` (90) | Checked every 5 minutes |
+| Audit trail days older than the audit trail retention in Settings > Server > General (90 days by default) | Checked every 5 minutes, unless a legal hold is on |
 
 `bulk_import_errors` has no automatic cleanup, so delete it yourself when you no longer need the failed files.
 

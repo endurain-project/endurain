@@ -336,7 +336,12 @@
     "retention": {
       "title": "Data retention",
       "readNotifications": "Delete read notifications after (days)",
-      "readNotificationsHint": "0 keeps read notifications forever. Unread notifications are never deleted."
+      "readNotificationsHint": "0 keeps read notifications forever. Unread notifications are never deleted.",
+      "auditTrail": "Delete audit trail entries after (days)",
+      "auditTrailHint": "0 keeps everything. Otherwise the minimum is 30 days; entries are deleted a whole day at a time.",
+      "auditTrailInvalid": "Enter 0, or a whole number between {min} and {max}.",
+      "auditLegalHold": "Legal hold on the audit trail",
+      "auditLegalHoldHint": "While on, pauses all pruning of the audit trail, whatever the retention."
     },
     "signup": {
       "title": "Registration",

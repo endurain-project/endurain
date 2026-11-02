@@ -5,9 +5,12 @@ This module tests Pydantic schemas for server settings,
 including validation rules and field constraints.
 """
 
+import jasil.settings as jasil_settings
 import pytest
 from pydantic import ValidationError
 
+import core.config as core_config
+import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.schema as server_settings_schema
 
 
@@ -317,6 +320,8 @@ class TestServerSettingsEdit:
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
             read_notification_retention_days=90,
+            audit_retention_days=90,
+            audit_legal_hold=False,
         )
         values.update(overrides)
         return values
@@ -488,6 +493,54 @@ class TestRetentionField:
 
     def test_the_public_settings_do_not_carry_it(self):
         assert "read_notification_retention_days" not in server_settings_schema.ServerSettingsReadPublic.model_fields
+
+
+class TestAuditRetentionFields:
+    def test_the_range_is_the_one_the_audit_trail_accepts(self):
+        """The minimum is the floor the database guard enforces, and the maximum the substrate's."""
+        minimum = server_settings_constants.AUDIT_RETENTION_MIN_DAYS
+        maximum = server_settings_constants.AUDIT_RETENTION_MAX_DAYS
+        floor = core_config.AUDIT_RETENTION_FLOOR_DAYS
+
+        assert minimum == floor
+        jasil_settings.AuditSettings(retention_days=maximum, retention_floor_days=floor)
+        with pytest.raises(ValueError, match="retention_days"):
+            jasil_settings.AuditSettings(retention_days=maximum + 1, retention_floor_days=floor)
+
+    @pytest.mark.parametrize("value", [0, 30, 365, 36500])
+    def test_zero_or_the_floor_to_the_maximum_is_accepted(self, value):
+        settings = server_settings_schema.ServerSettingsEdit(
+            **TestServerSettingsEdit._values(audit_retention_days=value)
+        )
+
+        assert settings.audit_retention_days == value
+
+    @pytest.mark.parametrize("value", [1, 29])
+    def test_a_positive_value_below_the_floor_is_refused_with_the_rule(self, value):
+        with pytest.raises(ValidationError, match="Audit trail retention must be 0 or between 30 and 36500 days"):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(audit_retention_days=value))
+
+    @pytest.mark.parametrize("value", [-1, 36501])
+    def test_a_value_outside_the_range_is_refused(self, value):
+        with pytest.raises(ValidationError, match="audit_retention_days"):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(audit_retention_days=value))
+
+    def test_the_legal_hold_must_be_a_boolean(self):
+        with pytest.raises(ValidationError, match="audit_legal_hold"):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(audit_legal_hold="yes"))
+
+    @pytest.mark.parametrize("field", ["audit_retention_days", "audit_legal_hold"])
+    def test_both_are_required_on_an_edit(self, field):
+        values = TestServerSettingsEdit._values()
+        del values[field]
+
+        with pytest.raises(ValidationError, match=field):
+            server_settings_schema.ServerSettingsEdit(**values)
+
+    @pytest.mark.parametrize("field", ["audit_retention_days", "audit_legal_hold"])
+    def test_the_admin_read_carries_them_and_the_public_settings_do_not(self, field):
+        assert field in server_settings_schema.ServerSettingsAdminRead.model_fields
+        assert field not in server_settings_schema.ServerSettingsReadPublic.model_fields
 
 
 class TestPublicSignUpFlag:

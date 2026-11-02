@@ -62,6 +62,8 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     access_token_expire_minutes: 15,
     refresh_token_expire_days: 7,
     read_notification_retention_days: 90,
+    audit_retention_days: 90,
+    audit_legal_hold: false,
     geocoding_api_key_set: false,
     env_managed: {},
     ...overrides,
@@ -132,6 +134,8 @@ describe('mapServerSettings', () => {
       accessTokenExpireMinutes: 15,
       refreshTokenExpireDays: 7,
       readNotificationRetentionDays: 90,
+      auditRetentionDays: 90,
+      auditLegalHold: false,
       geocodingApiKeySet: false,
       envManaged: {},
     })
@@ -221,6 +225,13 @@ describe('toServerSettingsWire', () => {
       refresh_token_expire_days: 7,
       read_notification_retention_days: 90,
     })
+  })
+
+  it('sends the audit trail retention and legal hold', () => {
+    const wire = toServerSettingsWire(
+      mapServerSettings(makeSettingsDto({ audit_retention_days: 0, audit_legal_hold: true })),
+    )
+    expect(wire).toMatchObject({ audit_retention_days: 0, audit_legal_hold: true })
   })
 
   it('never sends the env-managed map or the key-stored flags', () => {

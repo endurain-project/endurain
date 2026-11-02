@@ -10710,6 +10710,16 @@ export interface components {
              * @description Access token lifetime in minutes
              */
             access_token_expire_minutes: number;
+            /**
+             * Audit Legal Hold
+             * @description Suspend all pruning of the audit trail (true - yes, false - no)
+             */
+            audit_legal_hold: boolean;
+            /**
+             * Audit Retention Days
+             * @description Days after which audit trail partitions are dropped: 0 (never) or 30 to 36500
+             */
+            audit_retention_days: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
@@ -10890,6 +10900,16 @@ export interface components {
              * @description Access token lifetime in minutes
              */
             access_token_expire_minutes: number;
+            /**
+             * Audit Legal Hold
+             * @description Suspend all pruning of the audit trail (true - yes, false - no)
+             */
+            audit_legal_hold: boolean;
+            /**
+             * Audit Retention Days
+             * @description Days after which audit trail partitions are dropped: 0 (never) or 30 to 36500
+             */
+            audit_retention_days: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**

@@ -41,3 +41,16 @@ class SessionPolicy:
     refresh_token_ttl: timedelta
     idle_timeout: timedelta | None
     absolute_timeout: timedelta
+
+
+@dataclass(frozen=True)
+class AuditRetention:
+    """How long the audit trail is kept.
+
+    Attributes:
+        retention_days: Days after which audit trail partitions are dropped; 0 keeps everything.
+        legal_hold: Suspend all pruning of the audit trail.
+    """
+
+    retention_days: int
+    legal_hold: bool

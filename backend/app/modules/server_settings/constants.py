@@ -63,6 +63,12 @@ SESSION_ENV_VARS: dict[str, str] = {
     "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS",
 }
 
+#: The audit trail retention an administrator may set, besides 0 (keep everything): from the database-side floor
+#: of the audit trail (``core.config.AUDIT_RETENTION_FLOOR_DAYS``) to the substrate's maximum. The
+#: ``audit_retention_days_check`` constraint states the same range.
+AUDIT_RETENTION_MIN_DAYS = 30
+AUDIT_RETENTION_MAX_DAYS = 36500
+
 #: Read-notification retention field -> the deprecated environment variable that sets it.
 RETENTION_ENV_VARS: dict[str, str] = {"read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"}
 

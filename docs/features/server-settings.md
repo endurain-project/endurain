@@ -63,6 +63,8 @@ The refresh token lifetime is how long a login on a device stays valid. The idle
 
 How many days **read** notifications are kept before they are deleted, from 0 to 3650. 0 keeps them forever. Unread notifications are never deleted.
 
+How many days the [audit trail](../getting-started/advanced-setup.md#audit-trail) is kept, 90 by default: 0 keeps everything, otherwise at least 30 days, the floor the database enforces. The **legal hold** switch pauses all pruning of the audit trail while it is on, whatever the retention.
+
 ### Public sharing
 
 Public links and whether they show the owner. See [Sharing, privacy and followers](sharing-and-privacy.md#public-links).

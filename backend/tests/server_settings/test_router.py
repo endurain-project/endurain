@@ -55,6 +55,8 @@ class TestReadServerSettings:
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
             read_notification_retention_days=90,
+            audit_retention_days=90,
+            audit_legal_hold=False,
             geocoding_api_key_set=False,
             env_managed={},
         )
@@ -130,6 +132,8 @@ class TestEditServerSettings:
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
             read_notification_retention_days=90,
+            audit_retention_days=90,
+            audit_legal_hold=False,
             geocoding_api_key_set=False,
             env_managed={},
         )
@@ -168,6 +172,8 @@ class TestEditServerSettings:
                 "access_token_expire_minutes": 15,
                 "refresh_token_expire_days": 7,
                 "read_notification_retention_days": 90,
+                "audit_retention_days": 90,
+                "audit_legal_hold": False,
             },
         )
 
@@ -221,6 +227,8 @@ class TestEditServerSettings:
                 "access_token_expire_minutes": 15,
                 "refresh_token_expire_days": 7,
                 "read_notification_retention_days": 90,
+                "audit_retention_days": 90,
+                "audit_legal_hold": False,
             },
         )
 
@@ -236,45 +244,66 @@ class TestEditNeedsIfMatch:
         assert response.status_code == 428
 
 
+def _edit_body(**overrides) -> dict:
+    """A complete, valid edit body, the way the frontend sends it on every save."""
+    body = {
+        "units": "imperial",
+        "public_shareable_links": True,
+        "public_shareable_links_user_info": True,
+        "currency": "dollar",
+        "num_records_per_page": 50,
+        "signup_enabled": True,
+        "signup_require_admin_approval": False,
+        "signup_require_email_verification": True,
+        "sso_enabled": False,
+        "local_login_enabled": True,
+        "sso_auto_redirect": False,
+        "tileserver_url": "https://tiles.example.com/{z}/{x}/{y}.png",
+        "tileserver_attribution": "&copy; Example",
+        "map_background_color": "#000000",
+        "password_length_regular_users": 10,
+        "password_length_admin_users": 15,
+        "tileserver_regenerate_thumbnails_on_change": False,
+        "geocoding_service": "nominatim",
+        "geocoding_host": None,
+        "geocoding_use_https": True,
+        "geocoding_rate_limit": 1.0,
+        "session_idle_timeout_enabled": False,
+        "session_idle_timeout_hours": 1,
+        "session_absolute_timeout_hours": 24,
+        "access_token_expire_minutes": 15,
+        "refresh_token_expire_days": 7,
+        "read_notification_retention_days": 90,
+        "audit_retention_days": 90,
+        "audit_legal_hold": False,
+    }
+    body.update(overrides)
+    return body
+
+
 class TestEditRejectsReadOnlyFields:
     """The edit body must not accept fields the route does not own."""
 
     @pytest.mark.parametrize("field,value", [("id", 2), ("login_photo_set", False)])
     def test_read_only_fields_are_a_422(self, field, value, fast_api_client, fast_api_app):
-        body = {
-            "units": "imperial",
-            "public_shareable_links": True,
-            "public_shareable_links_user_info": True,
-            "currency": "dollar",
-            "num_records_per_page": 50,
-            "signup_enabled": True,
-            "signup_require_admin_approval": False,
-            "signup_require_email_verification": True,
-            "sso_enabled": False,
-            "local_login_enabled": True,
-            "sso_auto_redirect": False,
-            "tileserver_url": "https://tiles.example.com/{z}/{x}/{y}.png",
-            "tileserver_attribution": "&copy; Example",
-            "map_background_color": "#000000",
-            "password_length_regular_users": 10,
-            "password_length_admin_users": 15,
-            "tileserver_regenerate_thumbnails_on_change": False,
-            "geocoding_service": "nominatim",
-            "geocoding_host": None,
-            "geocoding_use_https": True,
-            "geocoding_rate_limit": 1.0,
-            "session_idle_timeout_enabled": False,
-            "session_idle_timeout_hours": 1,
-            "session_absolute_timeout_hours": 24,
-            "access_token_expire_minutes": 15,
-            "refresh_token_expire_days": 7,
-            "read_notification_retention_days": 90,
-            field: value,
-        }
+        body = _edit_body(**{field: value})
         response = fast_api_client.put(
             "/server_settings", headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'}, json=body
         )
         assert response.status_code == 422
+
+
+class TestEditValidatesAuditRetention:
+    @pytest.mark.parametrize("days", [1, 29])
+    def test_a_retention_below_the_floor_is_a_422_naming_the_rule(self, days, fast_api_client, fast_api_app):
+        response = fast_api_client.put(
+            "/server_settings",
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
+            json=_edit_body(audit_retention_days=days),
+        )
+
+        assert response.status_code == 422
+        assert "Audit trail retention must be 0 or between 30 and 36500 days" in response.text
 
 
 class TestUploadLoginPhoto:

@@ -46,8 +46,6 @@ MIN_SECRET_KEY_LENGTH = 32
 #: The youngest audit-trail partition the database lets anyone drop. Baked into the guard function when the
 #: substrate's audit migration first runs; a later change here does not alter an existing database.
 AUDIT_RETENTION_FLOOR_DAYS = 30
-#: The longest audit retention the substrate accepts.
-AUDIT_MAX_RETENTION_DAYS = 36500
 
 
 SERVER_IMAGES_URL_PATH = "server_images"
@@ -194,10 +192,8 @@ class Settings(BaseSettings):
 
     # --- Audit trail (jasil_audit_log) ---
     # Append-only record of security-relevant actions, written in the same
-    # transaction as the change it describes. Whole daily partitions older than
-    # this many days are dropped by the audit maintenance job. Set to 0 to keep
-    # every row; a positive value below AUDIT_RETENTION_FLOOR_DAYS is refused.
-    AUDIT_RETENTION_DAYS: int = 90
+    # transaction as the change it describes. Retention and legal hold are
+    # server settings an administrator edits at run time.
     # Optional write-once copy of every audit checkpoint, kept outside the
     # database: file:///absolute/directory or s3://bucket/prefix. The signing
     # key (AUDIT_SIGNING_KEY) is a secret and read separately via ``read_secret``.
@@ -324,16 +320,6 @@ class Settings(BaseSettings):
             )
             return 1
         return parsed if parsed >= 1 else 1
-
-    @field_validator("AUDIT_RETENTION_DAYS")
-    @classmethod
-    def _audit_retention_above_floor(cls, v: int) -> int:
-        """Refuse a positive retention the database guard would refuse to prune at, or one past 100 years."""
-        if 0 < v < AUDIT_RETENTION_FLOOR_DAYS or v > AUDIT_MAX_RETENTION_DAYS:
-            raise ValueError(
-                f"AUDIT_RETENTION_DAYS must be 0, or between {AUDIT_RETENTION_FLOOR_DAYS} and {AUDIT_MAX_RETENTION_DAYS}"
-            )
-        return v
 
     @field_validator("PHOTON_API_HOST", "NOMINATIM_API_HOST", mode="before")
     @classmethod

@@ -19,6 +19,7 @@ import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.network as core_network
 import modules.server_settings.constants as server_settings_constants
+import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.env_import_service as server_settings_env_import_service
 import modules.server_settings.login_photo_service as server_settings_login_photo_service
 import modules.server_settings.mail_service as server_settings_mail_service
@@ -60,6 +61,8 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         access_token_expire_minutes=15,
         refresh_token_expire_days=7,
         read_notification_retention_days=90,
+        audit_retention_days=90,
+        audit_legal_hold=False,
         geocoding_api_key=None,
     )
     values.update(overrides)
@@ -752,6 +755,46 @@ class TestRetention:
         assert import_env.write.call_args.args[0].read_notification_retention_days == 0
 
 
+class TestAuditRetention:
+    def test_the_stored_values_are_returned_by_the_integration_read(self, edit_env):
+        from modules.server_settings import integration_service
+
+        stored = edit_env.stored.model_copy(update={"audit_retention_days": 365, "audit_legal_hold": True})
+        with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=stored):
+            retention = integration_service.get_audit_retention(MagicMock())
+
+        assert retention == server_settings_contracts.AuditRetention(retention_days=365, legal_hold=True)
+
+    def test_the_integration_read_needs_the_settings_row(self):
+        from modules.server_settings import integration_service
+
+        with (
+            patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=None),
+            pytest.raises(core_exceptions.ServiceUnavailableError),
+        ):
+            integration_service.get_audit_retention(MagicMock())
+
+    def test_an_edit_with_the_current_version_writes_both_fields(self, edit_env):
+        db = MagicMock()
+
+        result = server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, audit_retention_days=0, audit_legal_hold=True), db, if_match='"1"'
+        )
+
+        written = edit_env.write.call_args.args[0]
+        assert (written.audit_retention_days, written.audit_legal_hold) == (0, True)
+        assert (result.audit_retention_days, result.audit_legal_hold) == (0, True)
+        db.commit.assert_called_once()
+
+    def test_a_stale_edit_is_refused(self, edit_env):
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, audit_legal_hold=True), MagicMock(), if_match='"2"'
+            )
+
+        edit_env.write.assert_not_called()
+
+
 class TestLoginPhoto:
     def test_upload_writes_the_blob_before_committing_the_flag(self):
         calls = []
@@ -1302,6 +1345,8 @@ class TestGetServerSettingsForPublic:
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
             read_notification_retention_days=90,
+            audit_retention_days=90,
+            audit_legal_hold=False,
             geocoding_api_key="encrypted-geo",
         )
 

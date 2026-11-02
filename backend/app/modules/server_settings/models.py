@@ -48,6 +48,8 @@ class ServerSettings(Base):
         access_token_expire_minutes: Access token lifetime in minutes.
         refresh_token_expire_days: Refresh token lifetime in days.
         read_notification_retention_days: Days after which read notifications are purged (0 - never).
+        audit_retention_days: Days after which audit trail partitions are dropped (0 - never).
+        audit_legal_hold: Suspend all pruning of the audit trail.
         version: Optimistic-concurrency counter, also sent as the ``ETag``.
     """
 
@@ -229,6 +231,18 @@ class ServerSettings(Base):
         nullable=False,
         comment="Days after which read notifications are purged (0 - never)",
     )
+    audit_retention_days: Mapped[int] = mapped_column(
+        default=90,
+        server_default=text("90"),
+        nullable=False,
+        comment="Days after which audit trail partitions are dropped (0 - never)",
+    )
+    audit_legal_hold: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        comment="Suspend all pruning of the audit trail (true - yes, false - no)",
+    )
 
     version: Mapped[int] = mapped_column(
         nullable=False,
@@ -245,6 +259,12 @@ class ServerSettings(Base):
         CheckConstraint("id = 1", name="single_row_check"),
         CheckConstraint(
             "read_notification_retention_days BETWEEN 0 AND 3650", name="read_notification_retention_days_check"
+        ),
+        CheckConstraint(
+            "audit_retention_days = 0 OR audit_retention_days BETWEEN "
+            f"{server_settings_constants.AUDIT_RETENTION_MIN_DAYS} AND "
+            f"{server_settings_constants.AUDIT_RETENTION_MAX_DAYS}",
+            name="audit_retention_days_check",
         ),
         CheckConstraint("session_idle_timeout_hours BETWEEN 1 AND 8760", name="session_idle_timeout_hours_check"),
         CheckConstraint(

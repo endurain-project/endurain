@@ -375,14 +375,14 @@ class TestDeploymentProfileEnforcement:
             )
         assert "STORAGE_URI must be set explicitly" in str(exc_info.value)
 
-    @pytest.mark.parametrize("days", [0, -1, core_config.AUDIT_RETENTION_FLOOR_DAYS, 365, 36500])
-    def test_audit_retention_accepts_zero_or_the_floor_and_above(self, days):
-        assert days == core_config.Settings(_env_file=None, AUDIT_RETENTION_DAYS=days).AUDIT_RETENTION_DAYS
+    def test_audit_retention_is_not_read_from_the_environment(self, monkeypatch):
+        """Retention is an administrator setting in the database; a leftover variable is ignored, not validated."""
+        monkeypatch.setenv("AUDIT_RETENTION_DAYS", "1")
 
-    @pytest.mark.parametrize("days", [1, core_config.AUDIT_RETENTION_FLOOR_DAYS - 1, 36501])
-    def test_audit_retention_refuses_below_the_floor_or_past_the_maximum(self, days):
-        with pytest.raises(ValidationError, match="AUDIT_RETENTION_DAYS"):
-            core_config.Settings(_env_file=None, AUDIT_RETENTION_DAYS=days)
+        settings = core_config.Settings(_env_file=None)
+
+        assert "AUDIT_RETENTION_DAYS" not in core_config.Settings.model_fields
+        assert not hasattr(settings, "AUDIT_RETENTION_DAYS")
 
     def test_web_workers_invalid_defaults_to_one(self):
         settings = core_config.Settings(_env_file=None, WEB_WORKERS="not-a-number")

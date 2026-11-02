@@ -471,16 +471,18 @@ def configure_application() -> None:
 
 
 def configure_audit() -> None:
-    """Register every module's audit actions and install the provider that says who is acting.
+    """Register every module's audit actions and install the providers audit writes and maintenance read.
 
     An action must be registered before a row can be written for it, wherever the row is written, so the API and
-    the worker both register the whole catalog. Only the API publishes it (``jasil.audit.sync_catalog``).
+    the worker both register the whole catalog. Only the API publishes it (``jasil.audit.sync_catalog``). Both
+    also install the retention source, because audit maintenance runs wherever the scheduler does.
     """
     catalog = jasil_audit.get_catalog()
     for module in MODULES:
         for action in module.audit_actions:
             catalog.register(action)
     jasil_audit.configure_provider(auth_dependencies.audit_context_from_request)
+    jasil_audit.configure_retention_source(_cached(_load_audit_retention))
 
 
 def configure_user_contributors() -> None:
@@ -559,6 +561,19 @@ def _load_geocoding_settings() -> jasil_settings.GeocodingSettings:
     """
     with core_database.SessionLocal() as db:
         return core_geocoding.to_geocoding_settings(server_settings_integration.get_geocoding_config(db))
+
+
+def _load_audit_retention() -> jasil_audit.AuditRetention:
+    """Read the operator-edited audit retention for audit maintenance to apply.
+
+    Reads and maps only: the substrate validates the result and decides what a failed read means.
+
+    Returns:
+        The stored retention and legal hold.
+    """
+    with core_database.SessionLocal() as db:
+        retention = server_settings_integration.get_audit_retention(db)
+    return jasil_audit.AuditRetention(retention_days=retention.retention_days, legal_hold=retention.legal_hold)
 
 
 def _cached[T](load: Callable[[], T]) -> Callable[[], T]:

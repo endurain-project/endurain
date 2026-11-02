@@ -1,6 +1,7 @@
 """Tests for the Endurain settings -> JasilSettings translation."""
 
 import jasil.profile as jasil_profile
+import jasil.settings as jasil_settings
 import pytest
 from pydantic import ValidationError
 
@@ -346,15 +347,21 @@ class TestAuditSettings:
         # A valid Ed25519 private key: base64 of 32 bytes.
         signing_key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
         monkeypatch.setenv("AUDIT_SIGNING_KEY", signing_key)
-        settings = core_config.Settings(
-            _env_file=None, AUDIT_RETENTION_DAYS=365, AUDIT_EXTERNAL_SINK_URI="file:///var/lib/endurain-audit"
-        )
+        settings = core_config.Settings(_env_file=None, AUDIT_EXTERNAL_SINK_URI="file:///var/lib/endurain-audit")
 
         result = _build(settings).audit
 
-        assert result.retention_days == 365
         assert result.signing_key == signing_key
         assert result.external_sink_uri == "file:///var/lib/endurain-audit"
+
+    def test_retention_comes_from_the_runtime_source_not_the_environment(self, monkeypatch):
+        """``AUDIT_RETENTION_DAYS`` is not mapped: the substrate default stands until the retention source answers."""
+        monkeypatch.setenv("AUDIT_RETENTION_DAYS", "365")
+
+        result = _build(core_config.Settings(_env_file=None)).audit
+
+        assert result.retention_days == jasil_settings.AuditSettings().retention_days
+        assert result.legal_hold is False
 
     def test_an_invalid_signing_key_fails_at_startup(self, monkeypatch):
         monkeypatch.setenv("AUDIT_SIGNING_KEY", "not-a-key")
