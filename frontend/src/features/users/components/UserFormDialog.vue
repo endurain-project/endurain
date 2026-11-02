@@ -126,7 +126,7 @@ function defaultValues(): UserFormValues {
 async function submitForm(formValues: UserFormValues): Promise<void> {
   const city = formValues.city.trim() ? formValues.city.trim() : null
   const birthdate = formValues.birthdate || null
-  const height = resolveHeightCm(formValues)
+  const height = resolveHeightCm(formValues, props.user?.height ?? null)
   // `v-model.number` leaves a stale '' in place instead of `null` when a
   // cleared field can't parse as a finite number.
   const maxHeartRate = toNumberOrNull(formValues.maxHeartRate ?? '')

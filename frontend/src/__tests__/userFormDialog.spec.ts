@@ -156,3 +156,27 @@ describe('UserFormDialog weight units', () => {
     expect(JSON.parse(String(init?.body))).toMatchObject({ weight_units: null })
   })
 })
+
+describe('UserFormDialog height', () => {
+  const unitsSelect = (wrapper: Awaited<ReturnType<typeof mountDialog>>) =>
+    wrapper
+      .findAll('select')
+      .find(
+        (select) =>
+          select.find('option[value="imperial"]').exists() &&
+          !select.find('option[value="default"]').exists(),
+      )!
+
+  it('keeps a height that is not a whole number of inches when only the units change', async () => {
+    // Regression: 172 cm displays as 5 ft 8 in, which converted back to 173 cm on save.
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountDialog(false, { ...user, height: 172 })
+
+    await unitsSelect(wrapper).setValue('imperial')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
+    expect(JSON.parse(String(init?.body))).toMatchObject({ units: 'imperial', height: 172 })
+  })
+})
