@@ -8,7 +8,7 @@
 import type { Schemas } from '@/types'
 
 import { toNumberOrNull } from '@/utils/number'
-import { feetAndInchesToCm } from '@/utils/units'
+import { cmToFeetInches, feetAndInchesToCm } from '@/utils/units'
 import type { Validator } from '@/utils/validators'
 
 /** Maximum length for free-text account fields (name, username, email, city). */
@@ -117,10 +117,19 @@ export interface HeightUnitFields {
  * leaves the raw (empty) string in place instead of `null` when a cleared
  * field fails to parse as a finite number.
  *
+ * The imperial fields show the stored height rounded to a whole inch, so
+ * converting them back would rewrite a height that was not edited (172 cm shows
+ * as 5 ft 8 in, which is 173 cm). Fields that still hold what the stored height
+ * displays as resolve to the stored height itself.
+ *
  * @param fields - The submitted height fields.
+ * @param storedCm - The height the account has stored, or `null` when it has none.
  * @returns Height in centimetres, or `null` when not provided.
  */
-export function resolveHeightCm(fields: HeightUnitFields): number | null {
+export function resolveHeightCm(
+  fields: HeightUnitFields,
+  storedCm: number | null = null,
+): number | null {
   if (fields.units === 'metric') {
     return toNumberOrNull(fields.heightCm ?? '')
   }
@@ -128,6 +137,12 @@ export function resolveHeightCm(fields: HeightUnitFields): number | null {
   const inches = toNumberOrNull(fields.heightInches ?? '')
   if (feet === null && inches === null) {
     return null
+  }
+  if (storedCm !== null) {
+    const stored = cmToFeetInches(storedCm)
+    if (feet === stored.feet && inches === stored.inches) {
+      return storedCm
+    }
   }
   return feetAndInchesToCm(feet ?? 0, inches ?? 0)
 }

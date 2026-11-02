@@ -70,6 +70,28 @@ describe('resolveHeightCm', () => {
     ).toBe(183)
   })
 
+  it('keeps the stored height when the feet and inches are the ones it displays as', () => {
+    // 172 cm displays as 5 ft 8 in (rounded to the inch); converting that back gives 173.
+    expect(
+      resolveHeightCm({ units: 'imperial', heightCm: 172, heightFeet: 5, heightInches: 8 }, 172),
+    ).toBe(172)
+  })
+
+  it('converts the feet and inches once they differ from the stored height', () => {
+    expect(
+      resolveHeightCm({ units: 'imperial', heightCm: 172, heightFeet: 5, heightInches: 9 }, 172),
+    ).toBe(175)
+  })
+
+  it('returns null when the stored height is cleared in imperial', () => {
+    expect(
+      resolveHeightCm(
+        { units: 'imperial', heightCm: 172, heightFeet: null, heightInches: null },
+        172,
+      ),
+    ).toBeNull()
+  })
+
   it("treats a cleared metric field as null even though it runtime-holds ''", () => {
     // Regression: same `v-model.number` quirk as above, applied to the height
     // fields. A cleared metric field must resolve to `null`, not `''`.

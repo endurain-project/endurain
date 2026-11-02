@@ -106,7 +106,7 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     units: values.units,
     weightUnits: values.weightUnits === 'default' ? null : values.weightUnits,
     currency: values.currency,
-    height: resolveHeightCm(values),
+    height: resolveHeightCm(values, props.profile.height),
     // `v-model.number` leaves a stale '' in place instead of `null` when a
     // cleared field can't parse as a finite number.
     maxHeartRate: toNumberOrNull(values.maxHeartRate ?? ''),
