@@ -8,6 +8,7 @@ state, which the client polls and which stops a user queueing the same sync twic
 
 from datetime import date
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
+import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.constants as strava_constants
 import modules.strava.event_publishers as strava_event_publishers
 import modules.strava.events as strava_events
@@ -121,8 +123,14 @@ def _queue(
     states: strava_sync_state_store.StravaSyncStateStore,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
     db: Session,
+    *,
+    audit: jasil_audit.AuditAction | None = None,
 ) -> strava_schema.StravaSyncStatus:
     """Hand a sync to a worker, or to the in-process pool without durable jobs.
+
+    With durable jobs the audit row of the request is staged in the transaction that commits the queued event; a
+    refused claim raises before that commit, so the row goes with it. Without durable jobs nothing is committed here,
+    so the row is written on its own once the pool has taken the sync.
 
     Args:
         user_id: The user to sync.
@@ -130,6 +138,7 @@ def _queue(
         states: Shared store of the sync's state.
         rate_limits: The shared Strava rate-limit state, for the in-process pool.
         db: Database session.
+        audit: The action recording that the user asked for this sync, if it is audited.
 
     Returns:
         The sync's initial status.
@@ -138,12 +147,17 @@ def _queue(
         ConflictError: When a sync of this kind is already pending for the user.
         PoolFullError: When the in-process pool is full.
     """
+    durable = core_config.settings.JOBS_ENABLED
+    target = {"target_type": "user", "target_id": str(user_id), "target_owner_id": str(user_id)}
+
+    if audit is not None and durable:
+        jasil_audit.stage(db, audit, **target)
     core_sync_runner.queue_sync(
         states,
         user_id,
         kind,
         "Strava",
-        durable=core_config.settings.JOBS_ENABLED,
+        durable=durable,
         publish=lambda: strava_event_publishers.publish_sync_requested(
             user_id, kind, db, commit=db.commit, source=strava_constants.SYNC_SOURCE_API
         ),
@@ -151,9 +165,11 @@ def _queue(
             run_sync, strava_events.SyncRequestedPayload(user_id=user_id, kind=kind), states, rate_limits
         ),
     )
+    if audit is not None and not durable:
+        jasil_audit.record_detached(audit, outcome=jasil_audit.Outcome.SUCCESS, **target)
     logger.info(
         "Strava sync queued",
-        extra=core_logger.context(user_id=user_id, kind=kind, durable=core_config.settings.JOBS_ENABLED),
+        extra=core_logger.context(user_id=user_id, kind=kind, durable=durable),
     )
     return strava_schema.StravaSyncStatus(kind=kind, status=strava_constants.SyncStatus.QUEUED)
 
@@ -186,6 +202,8 @@ def request_unlink(
 ) -> strava_schema.StravaSyncStatus:
     """Queue the unlinking of the user's Strava account and the deletion of what was imported from it.
 
+    The request is audited here, not the unlink job that follows.
+
     Args:
         user_id: The user to unlink.
         states: Shared store of the sync's state.
@@ -195,7 +213,14 @@ def request_unlink(
     Returns:
         The unlink's initial status.
     """
-    return _queue(user_id, strava_constants.SyncKind.UNLINK, states, rate_limits, db)
+    return _queue(
+        user_id,
+        strava_constants.SyncKind.UNLINK,
+        states,
+        rate_limits,
+        db,
+        audit=strava_audit_actions.ACCOUNT_UNLINK,
+    )
 
 
 def get_sync_status(

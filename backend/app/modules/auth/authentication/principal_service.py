@@ -5,12 +5,14 @@ from __future__ import annotations
 import hmac
 from datetime import UTC, datetime
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.api_keys.integration_service as api_keys_integration
+import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.service as authentication_service
 import modules.auth.sessions.integration_service as sessions_integration
@@ -111,6 +113,36 @@ def resolve_from_access_token(
     )
 
 
+def _refuse_api_key(
+    reason: authentication_audit_actions.ApiKeyRefusalReason,
+    outcome: jasil_audit.Outcome,
+    *,
+    api_key_id: str | None = None,
+    owner_id: int | None = None,
+) -> None:
+    """Record a refused API key on a transaction of its own, since the request answers with an error.
+
+    The key, its prefix and its hash are never recorded.
+
+    Args:
+        reason: Why the key was refused.
+        outcome: ``FAILURE`` for a key that is not valid, ``DENIED`` for a valid key that policy refuses.
+        api_key_id: The id of the key, when it was found.
+        owner_id: The owner of the key, when it was found.
+    """
+    target = (
+        {}
+        if api_key_id is None
+        else {"target_type": "api_key", "target_id": api_key_id, "target_owner_id": str(owner_id)}
+    )
+    jasil_audit.record_detached(
+        authentication_audit_actions.API_KEY_AUTHENTICATE,
+        outcome=outcome,
+        **target,
+        details=authentication_audit_actions.ApiKeyRefusalDetails(reason=reason),
+    )
+
+
 def resolve_from_api_key(
     raw_key: str,
     endpoint: str,
@@ -134,6 +166,10 @@ def resolve_from_api_key(
     Raises:
         UnauthenticatedError: If the key is not found,
             revoked, or expired.
+        PermissionDeniedError: If the key's owner is inactive.
+
+    Notes:
+        Every refusal is audited as ``auth.api_key.authenticate``.
     """
     computed_hash = api_keys_integration.hash_api_key(raw_key)
     db_key = api_keys_integration.get_api_key_by_hash(computed_hash, db)
@@ -145,6 +181,7 @@ def resolve_from_api_key(
         db_key = None
 
     if db_key is None:
+        _refuse_api_key(authentication_audit_actions.ApiKeyRefusalReason.UNKNOWN_KEY, jasil_audit.Outcome.FAILURE)
         logger.warning(
             "API key refused: unknown key",
             extra=core_logger.context(endpoint=endpoint, ip=ip_address),
@@ -152,9 +189,24 @@ def resolve_from_api_key(
         raise core_exceptions.UnauthenticatedError("Invalid API key", scheme="ApiKey")
 
     user = users_integration.require_user(db_key.user_id, db)
-    users_integration.require_active_user(user)
+    try:
+        users_integration.require_active_user(user)
+    except core_exceptions.PermissionDeniedError:
+        _refuse_api_key(
+            authentication_audit_actions.ApiKeyRefusalReason.OWNER_INACTIVE,
+            jasil_audit.Outcome.DENIED,
+            api_key_id=db_key.id,
+            owner_id=db_key.user_id,
+        )
+        raise
 
     if not db_key.is_active:
+        _refuse_api_key(
+            authentication_audit_actions.ApiKeyRefusalReason.REVOKED,
+            jasil_audit.Outcome.FAILURE,
+            api_key_id=db_key.id,
+            owner_id=db_key.user_id,
+        )
         logger.warning(
             "API key refused: key was revoked",
             extra=core_logger.context(
@@ -164,6 +216,12 @@ def resolve_from_api_key(
         raise core_exceptions.UnauthenticatedError("API key has been revoked", scheme="ApiKey")
 
     if db_key.expires_at is not None and datetime.now(UTC) > db_key.expires_at:
+        _refuse_api_key(
+            authentication_audit_actions.ApiKeyRefusalReason.EXPIRED,
+            jasil_audit.Outcome.FAILURE,
+            api_key_id=db_key.id,
+            owner_id=db_key.user_id,
+        )
         logger.warning(
             "API key refused: key has expired",
             extra=core_logger.context(

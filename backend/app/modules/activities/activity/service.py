@@ -17,6 +17,7 @@ one owner.
 import calendar
 from datetime import UTC, date, datetime, time, timedelta
 
+import jasil.audit as jasil_audit
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
@@ -664,6 +666,51 @@ def get_public_activity(activity_id: int, db: Session) -> activity_schema.Activi
     return _with_thumbnail_urls([activity])[0]
 
 
+def _is_visibility_field(field: str) -> bool:
+    """Return whether an activity field decides who can see the activity or a part of it.
+
+    Args:
+        field: The name of an activity field.
+
+    Returns:
+        True for ``visibility`` and every ``hide_*`` flag.
+    """
+    return field == "visibility" or field.startswith("hide_")
+
+
+def _stage_visibility_update(
+    activity_id: int,
+    user_id: int,
+    before: activity_schema.ActivityRead,
+    after: activity_schema.ActivityRead,
+    visibility_fields: list[str],
+    db: Session,
+) -> None:
+    """Stage the audit row of an edit that changed who can see an activity.
+
+    Nothing is staged when none of the submitted visibility fields changed value.
+
+    Args:
+        activity_id: ID of the edited activity.
+        user_id: ID of the owner.
+        before: The activity as it was before the edit.
+        after: The activity after the edit.
+        visibility_fields: The visibility and ``hide_*`` fields the edit submitted.
+        db: Database session.
+    """
+    changed = [field for field in visibility_fields if getattr(before, field) != getattr(after, field)]
+    if not changed:
+        return
+    jasil_audit.stage(
+        db,
+        activity_audit_actions.VISIBILITY_UPDATE,
+        target_type="activity",
+        target_id=str(activity_id),
+        target_owner_id=str(user_id),
+        details=activity_audit_actions.VisibilityUpdateDetails(changed_fields=changed),
+    )
+
+
 def edit_activity(
     activity_id: int,
     user_id: int,
@@ -703,7 +750,13 @@ def edit_activity(
         f"Activity {activity_id} not found",
     ):
         try:
+            visibility_fields = [field for field in changed_fields if _is_visibility_field(field)]
+            before = (
+                activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) if visibility_fields else None
+            )
             updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
+            if before is not None:
+                _stage_visibility_update(activity_id, user_id, before, updated, visibility_fields, db)
             activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
             db.commit()
         except IntegrityError:

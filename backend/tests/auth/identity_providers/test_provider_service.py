@@ -74,6 +74,7 @@ class TestSaveRefusesUnsafeUrls:
             patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
         ):
             crud.get_identity_provider_by_slug.return_value = None
+            crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
             provider_service.create_identity_provider(_create_data(issuer_url="http://idp.internal"), mock_db)
         crud.create_identity_provider.assert_called_once()
         mock_db.commit.assert_called_once()
@@ -87,6 +88,7 @@ class TestSaveRefusesUnsafeUrls:
             patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
         ):
             crud.get_identity_provider_by_slug.return_value = None
+            crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
             provider_service.create_identity_provider(
                 _create_data(issuer_url="https://idp.example.com", token_endpoint=""), mock_db
             )
@@ -163,7 +165,7 @@ class TestDiscoveryCacheEviction:
                 return_value=False,
             ),
         ):
-            crud.get_identity_provider.return_value = MagicMock(icon_uploaded=False)
+            crud.get_identity_provider.return_value = MagicMock(icon_uploaded=False, provider_type="oidc")
             crud.delete_identity_provider.return_value = True
             provider_service.delete_identity_provider(3, MagicMock(), oidc, mock_db, if_match='"1"')
         assert order.mock_calls == [call.commit(), call.forget(3)]

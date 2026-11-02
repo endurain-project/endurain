@@ -10,9 +10,12 @@ import logging
 import re
 from pathlib import Path
 
+import jasil.audit as jasil_audit
+
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.logs_schema as logs_schema
 
 logger = core_logger.get_logger(__name__)
@@ -43,6 +46,9 @@ def get_logs_status() -> logs_schema.LogsStatus:
 def get_log_file_path() -> Path:
     """Return the path of the log file for download.
 
+    The download is audited here, once the file is known to exist, because the log file is not
+    in the database and there is no transaction to join.
+
     Returns:
         The existing application log file.
 
@@ -54,6 +60,7 @@ def get_log_file_path() -> Path:
     path = Path(core_config.settings.LOGS_DIR) / LOG_FILE_NAME
     if not path.is_file():
         raise core_exceptions.NotFoundError("No log file has been written yet")
+    jasil_audit.record_detached(server_settings_audit_actions.LOGS_DOWNLOAD, outcome=jasil_audit.Outcome.SUCCESS)
     return path
 
 
@@ -130,6 +137,7 @@ def clear_logs(admin_id: int) -> None:
     if path.is_file():
         with path.open("r+b") as log_file:
             log_file.truncate(0)
+    jasil_audit.record_detached(server_settings_audit_actions.LOGS_CLEAR, outcome=jasil_audit.Outcome.SUCCESS)
     logger.warning("Server logs cleared", extra=core_logger.context(admin_id=admin_id))
 
 

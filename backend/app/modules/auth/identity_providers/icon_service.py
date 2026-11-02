@@ -1,11 +1,13 @@
 """The uploaded icon of an identity provider: upload, removal and serving."""
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.crud as idp_crud
 
@@ -15,6 +17,22 @@ logger = core_logger.get_logger(__name__)
 def _storage_key(idp_id: int) -> str:
     """Return the storage key of a provider's icon."""
     return str(idp_id)
+
+
+def _stage_icon_audit(idp_id: int, db: Session) -> None:
+    """Stage ``auth.identity_provider.update`` for an icon change, in the transaction that commits the flag.
+
+    Args:
+        idp_id: The provider whose icon changed.
+        db: Database session.
+    """
+    jasil_audit.stage(
+        db,
+        idp_audit_actions.IDENTITY_PROVIDER_UPDATE,
+        target_type="identity_provider",
+        target_id=str(idp_id),
+        details=idp_audit_actions.IdentityProviderUpdateDetails(changed_fields=["icon_uploaded"]),
+    )
 
 
 def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StorageProvider, db: Session) -> int:
@@ -52,6 +70,7 @@ def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StoragePro
         # The provider was deleted while the blob was being written.
         delete_blob(idp_id, storage)
         raise core_exceptions.NotFoundError("Identity provider not found")
+    _stage_icon_audit(idp_id, db)
     db.commit()
     logger.info("Identity provider icon uploaded", extra=core_logger.context(idp_id=idp_id))
     return version
@@ -74,6 +93,7 @@ def delete_icon(idp_id: int, storage: platform_providers.StorageProvider, db: Se
     """
     if idp_crud.set_icon_uploaded(idp_id, False, db) is None:
         raise core_exceptions.NotFoundError("Identity provider not found")
+    _stage_icon_audit(idp_id, db)
     db.commit()
     delete_blob(idp_id, storage)
     logger.info("Identity provider icon deleted", extra=core_logger.context(idp_id=idp_id))

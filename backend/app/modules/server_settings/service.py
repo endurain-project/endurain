@@ -3,6 +3,7 @@
 import os
 from datetime import timedelta
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -11,6 +12,7 @@ import core.exceptions as core_exceptions
 import core.geocoding as core_geocoding
 import core.logger as core_logger
 import core.network as core_network
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.change_utils as server_settings_change_utils
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.contracts as server_settings_contracts
@@ -302,6 +304,11 @@ def edit_server_settings(
     attributes = attributes.model_copy(update=stored_secrets)
 
     updated = server_settings_crud.edit_server_settings(attributes, db)
+    jasil_audit.stage(
+        db,
+        server_settings_audit_actions.SETTINGS_UPDATE,
+        details=server_settings_audit_actions.SettingsChangeDetails(changed_fields=sorted(changed_fields)),
+    )
     changed_map_fields = changed_fields & server_settings_constants.MAP_FIELDS
     if changed_map_fields:
         server_settings_publishers.publish_tile_settings_changed(

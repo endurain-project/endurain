@@ -11,6 +11,8 @@ import jasil.audit as jasil_audit
 from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
 
+import modules.auth.sessions.audit_actions as sessions_audit_actions
+
 
 class StepUpMethod(StrEnum):
     """How a step-up re-authentication was attempted; ``UNSPECIFIED`` when a lockout refused it before any method."""
@@ -26,20 +28,6 @@ class StepUpFailureReason(StrEnum):
 
     INVALID_CREDENTIALS = "invalid_credentials"
     LOCKED_OUT = "locked_out"
-
-
-class SessionsRevokedDetails(VersionedPayload):
-    """Details of an action that ends sessions.
-
-    Attributes:
-        sessions_revoked: How many sessions the action ended.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    SCHEMA_VERSION: ClassVar[int] = 1
-
-    sessions_revoked: int
 
 
 class BackupCodesDetails(VersionedPayload):
@@ -106,7 +94,7 @@ PASSWORD_CHANGE = jasil_audit.AuditAction(
     severity=jasil_audit.Severity.HIGH,
     description_key="audit.auth.password.change",
     description_default="A user changed their password",
-    details_model=SessionsRevokedDetails,
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
 PASSWORD_SET = jasil_audit.AuditAction(
@@ -115,7 +103,7 @@ PASSWORD_SET = jasil_audit.AuditAction(
     severity=jasil_audit.Severity.HIGH,
     description_key="audit.auth.password.set",
     description_default="An administrator set a user's password",
-    details_model=SessionsRevokedDetails,
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
 MFA_ENABLE = jasil_audit.AuditAction(
@@ -168,15 +156,6 @@ API_KEY_DELETE = jasil_audit.AuditAction(
     description_default="An API key was deleted",
 )
 
-SESSION_REVOKE = jasil_audit.AuditAction(
-    id="auth.session.revoke",
-    category=jasil_audit.Category.IDENTITY,
-    severity=jasil_audit.Severity.MEDIUM,
-    description_key="audit.auth.session.revoke",
-    description_default="Sessions were signed out",
-    details_model=SessionsRevokedDetails,
-)
-
 IDENTITY_LINK_UNLINK = jasil_audit.AuditAction(
     id="auth.identity_link.unlink",
     category=jasil_audit.Category.IDENTITY,
@@ -205,7 +184,6 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     API_KEY_CREATE,
     API_KEY_REVOKE,
     API_KEY_DELETE,
-    SESSION_REVOKE,
     IDENTITY_LINK_UNLINK,
     STEP_UP_VERIFY,
 )

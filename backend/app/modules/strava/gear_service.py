@@ -3,6 +3,7 @@
 import csv
 import tempfile
 
+import jasil.audit as jasil_audit
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from stravalib.client import Client
@@ -16,6 +17,7 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
+import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
@@ -30,6 +32,12 @@ _GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
 _CSV_COLUMNS = {
     gears_schema.GearType.BIKE: ("Bike Name", "Bike Brand", "Bike Model"),
     gears_schema.GearType.SHOES: ("Shoe Name", "Shoe Brand", "Shoe Model"),
+}
+
+# The export file each gear type is imported from, as the audit trail names it.
+_IMPORT_TYPES = {
+    gears_schema.GearType.BIKE: strava_audit_actions.GearImportType.BIKES,
+    gears_schema.GearType.SHOES: strava_audit_actions.GearImportType.SHOES,
 }
 
 
@@ -359,6 +367,14 @@ def import_gear(file: UploadFile, user_id: int, gear_type: gears_schema.GearType
             gears = transform_csv_shoe_gear_to_schema_gear(rows, user_id, db)
         if gears:
             gears_integration.create_multiple_gears(gears, user_id, db)
+            jasil_audit.stage(
+                db,
+                strava_audit_actions.GEAR_IMPORT,
+                target_type="user",
+                target_id=str(user_id),
+                target_owner_id=str(user_id),
+                details=strava_audit_actions.GearImportDetails(gear_type=_IMPORT_TYPES[gear_type], count=len(gears)),
+            )
             db.commit()
         logger.info("Strava gear import complete", extra=core_logger.context(gear_type=gear_type, count=len(gears)))
         return len(gears)

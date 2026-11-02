@@ -4,6 +4,7 @@ Ids are stable forever: rows outlive the code. ``details`` carry enumerated valu
 only, never a field's value.
 """
 
+from enum import StrEnum
 from typing import ClassVar
 
 import jasil.audit as jasil_audit
@@ -11,18 +12,36 @@ from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
 
 
+class UserCreateMethod(StrEnum):
+    """How an account came to exist.
+
+    Attributes:
+        ADMIN: An administrator created it.
+        SIGN_UP: The person signed up.
+        IDENTITY_PROVIDER: A sign-in provider created it on first sign-in.
+        ONBOARDING: It is the first administrator of a fresh installation.
+    """
+
+    ADMIN = "admin"
+    SIGN_UP = "sign_up"
+    IDENTITY_PROVIDER = "identity_provider"
+    ONBOARDING = "onboarding"
+
+
 class UserCreateDetails(VersionedPayload):
     """Details of ``users.user.create``.
 
     Attributes:
         access_type: The access tier the account was created with.
+        method: How the account was created.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 1
+    SCHEMA_VERSION: ClassVar[int] = 2
 
     access_type: str
+    method: UserCreateMethod
 
 
 class UserUpdateDetails(VersionedPayload):
@@ -73,5 +92,19 @@ USER_DELETE = jasil_audit.AuditAction(
     description_default="An account was deleted",
 )
 
+USER_EMAIL_CHANGE = jasil_audit.AuditAction(
+    id="users.email.change",
+    category=jasil_audit.Category.IDENTITY,
+    severity=jasil_audit.Severity.HIGH,
+    description_key="audit.users.email.change",
+    description_default="An account's email address was changed",
+)
+
 #: Every action this package writes, registered by the composition root.
-ACTIONS: tuple[jasil_audit.AuditAction, ...] = (USER_CREATE, USER_UPDATE, USER_APPROVE, USER_DELETE)
+ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
+    USER_CREATE,
+    USER_UPDATE,
+    USER_APPROVE,
+    USER_DELETE,
+    USER_EMAIL_CHANGE,
+)

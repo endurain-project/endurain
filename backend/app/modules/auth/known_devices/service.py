@@ -10,6 +10,7 @@ import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.known_devices.constants as known_devices_constants
+import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.known_devices.crud as known_devices_crud
 import modules.auth.known_devices.event_publishers as known_devices_event_publishers
 import modules.auth.known_devices.events as known_devices_events
@@ -48,7 +49,7 @@ def record_sign_in(
     user_agent: str,
     method: known_devices_events.SignInMethod,
     db: Session,
-) -> str | None:
+) -> known_devices_contracts.SignInRecord:
     """Stage a successful sign-in against the user's known devices; the caller commits.
 
     A web client is known by the device id its cookie carries. A device the user signed in from before is only
@@ -67,29 +68,30 @@ def record_sign_in(
         db: Database session.
 
     Returns:
-        The device id the browser must keep in its cookie, or None for a mobile client.
+        The device id the browser must keep in its cookie (None for a mobile client) and whether the sign-in was
+        announced as one from a new device.
     """
     signed_in_at = datetime.now(UTC)
     if client_type != "web":
         _publish_new_device_sign_in(user_id, ip_address, user_agent, method, signed_in_at, db)
-        return None
+        return known_devices_contracts.SignInRecord(device_id=None, new_device=True)
 
     if device_id is None:
         device_id = secrets.token_urlsafe(known_devices_constants.DEVICE_ID_BYTES)
     device_hash = core_hashing.sha256_hex(device_id)
     if known_devices_crud.touch_device(user_id, device_hash, signed_in_at, db):
-        return device_id
+        return known_devices_contracts.SignInRecord(device_id=device_id, new_device=False)
 
     first_device = not known_devices_crud.has_devices(user_id, db)
     try:
         known_devices_crud.create_device(user_id, device_hash, signed_in_at, db)
     except core_exceptions.ConflictError:
         # A concurrent sign-in from the same browser registered the device first and announces it.
-        return device_id
+        return known_devices_contracts.SignInRecord(device_id=device_id, new_device=False)
     logger.debug("Registered a new device for user <user_id>", extra=core_logger.context(user_id=user_id))
     if not first_device:
         _publish_new_device_sign_in(user_id, ip_address, user_agent, method, signed_in_at, db)
-    return device_id
+    return known_devices_contracts.SignInRecord(device_id=device_id, new_device=not first_device)
 
 
 def delete_unseen_devices(now: datetime, db: Session) -> int:

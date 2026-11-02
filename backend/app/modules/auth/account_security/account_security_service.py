@@ -23,6 +23,7 @@ import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.server_settings.integration_service as server_settings_integration
@@ -45,11 +46,11 @@ def _stage_sessions_revoked(user_id: int, revoked: int, db: Session) -> None:
     """
     jasil_audit.stage(
         db,
-        account_security_audit_actions.SESSION_REVOKE,
+        sessions_audit_actions.SESSION_REVOKE,
         target_type="user",
         target_id=str(user_id),
         target_owner_id=str(user_id),
-        details=account_security_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
     )
 
 
@@ -71,11 +72,11 @@ def delete_user_session(
     sessions_integration.delete_session(session_id, token_user_id, db)
     jasil_audit.stage(
         db,
-        account_security_audit_actions.SESSION_REVOKE,
+        sessions_audit_actions.SESSION_REVOKE,
         target_type="session",
         target_id=session_id,
         target_owner_id=str(token_user_id),
-        details=account_security_audit_actions.SessionsRevokedDetails(sessions_revoked=1),
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=1),
     )
     db.commit()
     # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.
@@ -168,7 +169,7 @@ def _stage_password_written(
         target_type="user",
         target_id=str(user_id),
         target_owner_id=str(user_id),
-        details=account_security_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
     )
     account_security_event_publishers.publish_account_security_changed(user_id, change, db)
 

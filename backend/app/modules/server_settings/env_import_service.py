@@ -1,11 +1,15 @@
 """Saving the deprecated environment variables into the database at startup."""
 
+from typing import NamedTuple
+
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.geocoding as core_geocoding
 import core.logger as core_logger
 import core.mail as core_mail
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.change_utils as server_settings_change_utils
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.crud as server_settings_crud
@@ -16,7 +20,19 @@ import modules.server_settings.service as server_settings_service
 logger = core_logger.get_logger(__name__)
 
 
-def _import_mail_env(db: Session) -> list[str]:
+class ImportResult(NamedTuple):
+    """What one import block found and changed.
+
+    Attributes:
+        env_names: The names of the deprecated variables that are set.
+        changed_fields: The names of the settings fields the import wrote.
+    """
+
+    env_names: list[str]
+    changed_fields: list[str]
+
+
+def _import_mail_env(db: Session) -> ImportResult:
     """Save the deprecated ``SMTP_*`` variables into the mail settings.
 
     Runs only when ``SMTP_HOST`` is set. Invalid values leave the stored settings
@@ -27,14 +43,14 @@ def _import_mail_env(db: Session) -> list[str]:
         db: Database session.
 
     Returns:
-        The names of the ``SMTP_*`` variables that are set; empty when mail is not
-        configured through the environment.
+        The names of the ``SMTP_*`` variables that are set, empty when mail is not
+        configured through the environment, and the mail fields written.
 
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
     """
     if not server_settings_service.env_var_is_set(server_settings_constants.MAIL_ENV_VARS["host"]):
-        return []
+        return ImportResult([], [])
     settings = core_config.settings
     names = [name for name in server_settings_constants.SMTP_ENV_VARS if server_settings_service.env_var_is_set(name)]
     password = core_config.read_secret("SMTP_PASSWORD")
@@ -61,7 +77,7 @@ def _import_mail_env(db: Session) -> list[str]:
             + "; ".join(problems),
             extra=core_logger.context(console=True),
         )
-        return names
+        return ImportResult(names, [])
 
     current = server_settings_mail_service.read_mail_settings(db, for_update=True)
     target = {
@@ -82,10 +98,10 @@ def _import_mail_env(db: Session) -> list[str]:
         logger.info(
             "Mail settings imported from the environment", extra=core_logger.context(changed_fields=sorted(changes))
         )
-    return names
+    return ImportResult(names, sorted(changes))
 
 
-def _import_geocoding_env(db: Session) -> list[str]:
+def _import_geocoding_env(db: Session) -> ImportResult:
     """Save the deprecated reverse-geocoding variables into the server settings.
 
     Runs only when at least one of them is set. An unknown provider leaves the stored
@@ -96,7 +112,7 @@ def _import_geocoding_env(db: Session) -> list[str]:
         db: Database session.
 
     Returns:
-        The names of the geocoding variables that are set; empty when none is.
+        The names of the geocoding variables that are set, empty when none is, and the fields written.
 
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
@@ -107,7 +123,7 @@ def _import_geocoding_env(db: Session) -> list[str]:
         if server_settings_service.env_var_is_set(name)
     ]
     if not names:
-        return []
+        return ImportResult([], [])
     settings = core_config.settings
     try:
         service = core_geocoding.GeocodingService(settings.REVERSE_GEO_PROVIDER)
@@ -117,7 +133,7 @@ def _import_geocoding_env(db: Session) -> list[str]:
             "unchanged",
             extra=core_logger.context(console=True),
         )
-        return names
+        return ImportResult(names, [])
 
     if service == core_geocoding.GeocodingService.GEOCODE:
         host, use_https = None, True
@@ -135,7 +151,7 @@ def _import_geocoding_env(db: Session) -> list[str]:
                 "geocoding settings were left unchanged",
                 extra=core_logger.context(console=True),
             )
-            return names
+            return ImportResult(names, [])
     api_key = None if settings.GEOCODES_MAPS_API == "changeme" else settings.GEOCODES_MAPS_API
 
     current = server_settings_service.get_server_settings(db, for_update=True)
@@ -161,10 +177,10 @@ def _import_geocoding_env(db: Session) -> list[str]:
             "Geocoding settings imported from the environment",
             extra=core_logger.context(changed_fields=sorted(changes)),
         )
-    return names
+    return ImportResult(names, sorted(changes))
 
 
-def _import_session_env(db: Session) -> list[str]:
+def _import_session_env(db: Session) -> ImportResult:
     """Save the deprecated session and token policy variables into the server settings.
 
     Each set variable is imported on its own, and only when it differs. Writes only the
@@ -174,7 +190,7 @@ def _import_session_env(db: Session) -> list[str]:
         db: Database session.
 
     Returns:
-        The names of the session policy variables that are set.
+        The names of the session policy variables that are set and the fields written.
 
     Raises:
         ValueError: If the resulting absolute session timeout is shorter than the idle
@@ -188,7 +204,7 @@ def _import_session_env(db: Session) -> list[str]:
         if server_settings_service.env_var_is_set(name)
     ]
     if not names:
-        return []
+        return ImportResult([], [])
     settings = core_config.settings
     current = server_settings_service.get_server_settings(db, for_update=True)
     targets = {
@@ -213,10 +229,10 @@ def _import_session_env(db: Session) -> list[str]:
             "Session policy imported from the environment",
             extra=core_logger.context(changed_fields=sorted(changes)),
         )
-    return names
+    return ImportResult(names, sorted(changes))
 
 
-def _import_retention_env(db: Session) -> list[str]:
+def _import_retention_env(db: Session) -> ImportResult:
     """Save the deprecated read-notification retention variable into the server settings.
 
     Writes only when the value differs; the caller commits.
@@ -225,7 +241,7 @@ def _import_retention_env(db: Session) -> list[str]:
         db: Database session.
 
     Returns:
-        The names of the retention variables that are set.
+        The names of the retention variables that are set and the fields written.
 
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
@@ -236,9 +252,10 @@ def _import_retention_env(db: Session) -> list[str]:
         if server_settings_service.env_var_is_set(name)
     ]
     if not names:
-        return []
+        return ImportResult([], [])
     current = server_settings_service.get_server_settings(db, for_update=True)
     days = core_config.settings.READ_NOTIFICATION_RETENTION_DAYS
+    changed_fields: list[str] = []
     if current.read_notification_retention_days != days:
         # The value was validated by the settings model.
         server_settings_crud.edit_server_settings(
@@ -248,15 +265,16 @@ def _import_retention_env(db: Session) -> list[str]:
             "Read-notification retention imported from the environment",
             extra=core_logger.context(changed_fields=["read_notification_retention_days"]),
         )
-    return names
+        changed_fields.append("read_notification_retention_days")
+    return ImportResult(names, changed_fields)
 
 
 def import_deprecated_env_settings(db: Session) -> None:
     """Save the deprecated environment variables into the database, once per start.
 
     A variable that is set overwrites the stored value only when it differs, and
-    makes its field env-managed. One warning names every variable found. This is a
-    unit of work: it commits.
+    makes its field env-managed. One warning names every variable found, and one audit row
+    names the fields written. This is a unit of work: it commits.
 
     Args:
         db: Database session.
@@ -264,12 +282,20 @@ def import_deprecated_env_settings(db: Session) -> None:
     Raises:
         ServiceUnavailableError: If a settings row does not exist.
     """
-    deprecated_names = [
-        *_import_mail_env(db),
-        *_import_geocoding_env(db),
-        *_import_session_env(db),
-        *_import_retention_env(db),
+    results = [
+        _import_mail_env(db),
+        _import_geocoding_env(db),
+        _import_session_env(db),
+        _import_retention_env(db),
     ]
+    deprecated_names = [name for result in results for name in result.env_names]
+    changed_fields = sorted({field for result in results for field in result.changed_fields})
+    if changed_fields:
+        jasil_audit.stage(
+            db,
+            server_settings_audit_actions.SETTINGS_IMPORT,
+            details=server_settings_audit_actions.SettingsChangeDetails(changed_fields=changed_fields),
+        )
     db.commit()
     if deprecated_names:
         logger.warning(

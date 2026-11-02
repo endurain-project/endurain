@@ -187,6 +187,7 @@ class TestUploadUserImage:
         assert response.status_code == 201
         assert response.json() == {"photo_path": "/users/1/photo?t=x"}
         mock_upload.assert_called_once()
+        assert mock_upload.call_args.kwargs == {"audit": True}
 
 
 class TestEditUserNeedsIfMatch:
@@ -273,6 +274,7 @@ class TestDeleteUserPhoto:
         assert response.status_code == 204
         assert mock_delete.call_args.args[0] == 1
         assert mock_delete.call_args.args[2] == mock_db
+        assert mock_delete.call_args.kwargs == {"audit": True}
 
 
 class TestDeleteUser:

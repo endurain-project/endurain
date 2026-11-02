@@ -10,6 +10,7 @@ from datetime import date
 
 import jasil.providers as platform_providers
 from fastapi import UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import modules.server_settings.schema as server_settings_schema
@@ -285,6 +286,20 @@ def edit_profile(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     return users_service.stage_profile_edit(user_id, profile, db, if_match=if_match)
+
+
+def changed_field_names(before: BaseModel, after: BaseModel, names: Collection[str]) -> list[str]:
+    """Name the fields, among those a write submitted, whose stored value differs after it.
+
+    Args:
+        before: The record before the write.
+        after: The record after the write.
+        names: The field names the write submitted.
+
+    Returns:
+        The submitted names whose value changed, in submission order.
+    """
+    return users_service.changed_field_names(before, after, names)
 
 
 def stage_email_change(user_id: int, email: str, db: Session) -> bool:

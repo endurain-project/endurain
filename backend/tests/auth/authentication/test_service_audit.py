@@ -10,10 +10,19 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.service as authentication_service
+import modules.auth.known_devices.contracts as known_devices_contracts
 
 _SERVICE = "modules.auth.authentication.service"
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
 _LOGIN = authentication_audit_actions.LOGIN.id
+
+
+@pytest.fixture(autouse=True)
+def _known_device():
+    """Answer every sign-in as one from a device the user already signs in from."""
+    record = known_devices_contracts.SignInRecord(device_id=None, new_device=False)
+    with patch(f"{_SERVICE}.known_devices_integration.record_sign_in", return_value=record):
+        yield
 
 
 def _login(db, *, failed_attempts=None, pending_mfa_store=None, username="alice", client_type="web", **kwargs):
@@ -48,7 +57,12 @@ class TestFailedPasswordSignIn:
             self._authenticate(mock_db, user=_USER)
 
         entry = audit.assert_audited(_LOGIN, outcome="failure", target_type="user", target_id="5", target_owner_id="5")
-        assert entry.details == {"method": "password", "mfa": False, "reason": "invalid_credentials"}
+        assert entry.details == {
+            "method": "password",
+            "mfa": False,
+            "reason": "invalid_credentials",
+            "new_device": False,
+        }
 
     def test_an_account_without_a_local_password_is_a_failure_that_targets_the_user(self, mock_db):
         with jasil_testing.capture_audit() as audit:
@@ -75,7 +89,7 @@ class TestRefusedPasswordSignIn:
             _login(mock_db, failed_attempts=failed_attempts)
 
         entry = audit.assert_audited(_LOGIN, outcome="denied")
-        assert entry.details == {"method": "password", "mfa": False, "reason": "locked_out"}
+        assert entry.details == {"method": "password", "mfa": False, "reason": "locked_out", "new_device": False}
         assert entry.target_id is None
 
     def test_an_inactive_account_is_denied_and_targets_the_user(self, mock_db):
@@ -142,7 +156,7 @@ class TestSuccessfulSignIn:
             _LOGIN, outcome="success", actor_type="user", actor_id="5", credential_type="password", target_id="5"
         )
         assert entry.target_owner_id == "5"
-        assert entry.details == {"method": "password", "mfa": False, "reason": None}
+        assert entry.details == {"method": "password", "mfa": False, "reason": None, "new_device": False}
 
     def test_a_mobile_pkce_sign_in_is_audited_too(self, mock_db):
         challenge = "a" * 43
@@ -196,7 +210,7 @@ class TestMfaSignIn:
             self._verify(mock_db, code_valid=False)
 
         entry = audit.assert_audited(_LOGIN, outcome="failure", target_id="5", target_owner_id="5")
-        assert entry.details == {"method": "password", "mfa": True, "reason": "invalid_mfa_code"}
+        assert entry.details == {"method": "password", "mfa": True, "reason": "invalid_mfa_code", "new_device": False}
 
     def test_a_locked_out_mfa_step_is_denied(self, mock_db):
         store = MagicMock()
@@ -223,14 +237,14 @@ class TestMfaSignIn:
             )
 
         entry = audit.assert_audited(_LOGIN, outcome="denied", target_id="5")
-        assert entry.details == {"method": "password", "mfa": True, "reason": "locked_out"}
+        assert entry.details == {"method": "password", "mfa": True, "reason": "locked_out", "new_device": False}
 
     def test_a_completed_mfa_sign_in_is_audited_with_the_second_factor(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._verify(mock_db, code_valid=True)
 
         entry = audit.assert_audited(_LOGIN, outcome="success", actor_id="5", credential_type="password", target_id="5")
-        assert entry.details == {"method": "password", "mfa": True, "reason": None}
+        assert entry.details == {"method": "password", "mfa": True, "reason": None, "new_device": False}
 
 
 class TestLogoutAndReuse:
@@ -372,7 +386,7 @@ class TestSsoSignIn:
         entry = audit.assert_audited(
             _LOGIN, outcome="success", actor_id="5", credential_type="oauth", target_type="user", target_id="5"
         )
-        assert entry.details == {"method": "identity_provider", "mfa": False, "reason": None}
+        assert entry.details == {"method": "identity_provider", "mfa": False, "reason": None, "new_device": False}
 
     def test_an_sso_sign_in_with_a_second_factor_records_it(self, mock_db):
         with jasil_testing.capture_audit() as audit:

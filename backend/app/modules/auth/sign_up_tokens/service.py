@@ -4,6 +4,7 @@ from collections.abc import Callable, Collection
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import jasil.audit as jasil_audit
 from jasil.providers import StateBackendUnavailableError, StateProvider
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sessions.integration_service as sessions_integration
+import modules.auth.sign_up_tokens.audit_actions as sign_up_audit_actions
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.email_messages as sign_up_email_messages
@@ -376,6 +378,10 @@ def verify_sign_up_token(token: str, db: Session) -> sign_up_contracts.SignUpTok
     """Stage consumption of a valid verification token and return what it proves."""
     claim = sign_up_crud.claim_sign_up_token(token_hashing.sha256_hex(token), db)
     if claim is None:
+        jasil_audit.record_detached(
+            sign_up_audit_actions.SIGN_UP_CONFIRM,
+            outcome=jasil_audit.Outcome.FAILURE,
+        )
         raise core_exceptions.InvalidInputError("Invalid or expired sign up token")
     return claim
 
@@ -530,6 +536,15 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
         credentials_integration.set_local_password_hash(user_id, hashed_password, db)
         sessions_integration.delete_sessions_by_user(user_id, db)
 
+    if claim.previous_email is None:
+        jasil_audit.stage(
+            db,
+            sign_up_audit_actions.SIGN_UP_CONFIRM,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+            details=sign_up_audit_actions.SignUpConfirmDetails(password_set=password is not None),
+        )
     users_integration.stage_email_verification(user_id, server_settings, db)
     if not is_sign_up:
         db.commit()

@@ -11,6 +11,7 @@ row with that batch, so no transaction holds a whole library. Only activities th
 visibility yet are touched, so every step can be repeated and a job a worker died in is simply run again.
 """
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -18,6 +19,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
+import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
 import modules.activities.activity.crud as activity_crud
@@ -46,6 +48,24 @@ def shutdown_pool(*, wait: bool = False) -> None:
         wait: Whether to wait for an edit still running.
     """
     _pool.shutdown(wait=wait)
+
+
+def _stage_visibility_request(user_id: int, visibility: int, db: Session) -> None:
+    """Stage the audit row of a bulk visibility edit in the transaction that queues it.
+
+    Args:
+        user_id: The user whose activities are to be edited.
+        visibility: The visibility to apply.
+        db: Database session.
+    """
+    jasil_audit.stage(
+        db,
+        activity_audit_actions.VISIBILITY_BULK_UPDATE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=activity_audit_actions.VisibilityBulkUpdateDetails(visibility=visibility),
+    )
 
 
 def request_visibility_edit(
@@ -77,9 +97,11 @@ def request_visibility_edit(
         raise core_exceptions.ConflictError("A bulk edit is already in progress")
 
     try:
+        _stage_visibility_request(user_id, visibility, db)
         if durable:
             activity_event_publishers.publish_visibility_edit_requested(user_id, visibility, db, commit=db.commit)
         else:
+            db.commit()
             _pool.submit(
                 run_visibility_edit,
                 activity_events.VisibilityEditRequestedPayload(user_id=user_id, visibility=visibility),

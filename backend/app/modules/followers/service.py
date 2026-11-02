@@ -17,11 +17,13 @@ lives in :mod:`modules.followers.integration_service`.
 import operator
 from collections.abc import Callable
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import modules.followers.audit_actions as followers_audit_actions
 import modules.followers.constants as followers_constants
 import modules.followers.contracts as followers_contracts
 import modules.followers.crud as followers_crud
@@ -314,7 +316,8 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
         requester_user_id: The authenticated caller, who must be one of the two.
         db: Database session.
 
-    Publishes ``follower.request_removed`` when the deleted row was still a pending request.
+    Publishes ``follower.request_removed`` when the deleted row was still a pending request and
+    stages a ``followers.follow.remove`` audit row when it was an accepted relationship.
 
     Raises:
         AccessConcealedError: When the caller is not part of the relationship; answered as a
@@ -329,6 +332,15 @@ def delete_relationship(followee_id: int, follower_id: int, requester_user_id: i
         )
         raise core_exceptions.AccessConcealedError("Follow relationship not found")
     deleted_status = followers_crud.delete_follower(follower_id, followee_id, db)
+    # Only an accepted relationship granted access; a pending request taken back never did.
+    if deleted_status == followers_constants.FollowStatus.ACCEPTED:
+        jasil_audit.stage(
+            db,
+            followers_audit_actions.FOLLOW_REMOVE,
+            target_type="user",
+            target_id=str(follower_id),
+            target_owner_id=str(followee_id),
+        )
     # Only a request that was still pending has a notification to take back.
     if deleted_status == followers_constants.FollowStatus.PENDING:
         followers_event_publishers.publish_follower_request_removed(
@@ -440,6 +452,13 @@ def accept_follow_request(
         )
         raise core_exceptions.ConflictError("This user already follows the maximum number of users")
     relationship = followers_crud.accept_follower(requester_user_id, follower_id, db)
+    jasil_audit.stage(
+        db,
+        followers_audit_actions.FOLLOW_ACCEPT,
+        target_type="user",
+        target_id=str(follower_id),
+        target_owner_id=str(requester_user_id),
+    )
     followers_event_publishers.publish_follower_accepted(requester_user_id, follower_id, db, commit=db.commit)
     logger.info(
         "Follow request accepted",

@@ -18,6 +18,7 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.mfa.schema as mfa_schema
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.users.users.schema as users_schema
 
 Change = account_security_events.AccountSecurityChange
@@ -259,7 +260,7 @@ class TestSessionAudit:
             account_security_service.delete_user_session("sess-1", 7, mock_db)
 
         entry = audit.assert_audited(
-            account_security_audit_actions.SESSION_REVOKE.id,
+            sessions_audit_actions.SESSION_REVOKE.id,
             target_type="session",
             target_id="sess-1",
             target_owner_id="7",
@@ -274,7 +275,7 @@ class TestSessionAudit:
             account_security_service.delete_other_user_sessions(7, "sess-1", mock_db)
 
         entry = audit.assert_audited(
-            account_security_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
         )
         assert entry.details == {"sessions_revoked": 4}
 
@@ -286,7 +287,7 @@ class TestSessionAudit:
             account_security_service.delete_all_user_sessions(7, mock_db)
 
         entry = audit.assert_audited(
-            account_security_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
         )
         assert entry.details == {"sessions_revoked": 5}
 

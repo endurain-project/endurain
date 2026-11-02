@@ -8,6 +8,7 @@ links) stay behind the auth boundary and are called straight from the router.
 from datetime import date
 from typing import TYPE_CHECKING
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ import modules.users.users.schema as users_schema
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
+import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.export_service as profile_export_service
@@ -168,7 +170,18 @@ def edit_profile(
     with core_etag.refuse_stale_write(
         db, "profile", lambda: users_integration.get_user(user_id, db) is not None, "User not found"
     ):
-        users_integration.edit_profile(user_id, profile, db, if_match=if_match)
+        before = users_integration.require_user(user_id, db)
+        updated = users_integration.edit_profile(user_id, profile, db, if_match=if_match)
+        changed_fields = users_integration.changed_field_names(before, updated, profile.model_dump(exclude_unset=True))
+        if changed_fields:
+            jasil_audit.stage(
+                db,
+                profile_audit_actions.PROFILE_UPDATE,
+                target_type="user",
+                target_id=str(user_id),
+                target_owner_id=str(user_id),
+                details=profile_audit_actions.ProfileUpdateDetails(changed_fields=changed_fields),
+            )
         db.commit()
     logger.info("Profile updated", extra=core_logger.context(user_id=user_id))
     return get_profile(user_id, db)
@@ -232,6 +245,16 @@ def change_email(
         raise
     if change.revoke_other_sessions:
         account_security_integration.delete_other_user_sessions(user_id, session_id, db)
+    jasil_audit.stage(
+        db,
+        profile_audit_actions.EMAIL_CHANGE_REQUEST,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=profile_audit_actions.EmailChangeRequestDetails(
+            confirmation_required=verification_queued, other_sessions_revoked=change.revoke_other_sessions
+        ),
+    )
     db.commit()
     logger.info("Email change requested", extra=core_logger.context(user_id=user_id))
     if not verification_queued:
@@ -298,9 +321,24 @@ def edit_privacy_settings(
         lambda: users_privacy_settings_integration.get_privacy_settings(user_id, db) is not None,
         "User privacy settings not found",
     ):
+        before = users_privacy_settings_integration.get_privacy_settings(user_id, db)
+        if before is None:
+            raise core_exceptions.NotFoundError("User privacy settings not found")
         updated = users_privacy_settings_integration.edit_privacy_settings(
             user_id, privacy_settings, db, if_match=if_match
         )
+        changed_fields = users_integration.changed_field_names(
+            before, updated, privacy_settings.model_dump(exclude_unset=True)
+        )
+        if changed_fields:
+            jasil_audit.stage(
+                db,
+                profile_audit_actions.PRIVACY_UPDATE,
+                target_type="user",
+                target_id=str(user_id),
+                target_owner_id=str(user_id),
+                details=profile_audit_actions.PrivacyUpdateDetails(changed_fields=changed_fields),
+            )
         db.commit()
     logger.info("Privacy settings updated", extra=core_logger.context(user_id=user_id))
     return updated

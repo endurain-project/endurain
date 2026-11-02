@@ -536,9 +536,11 @@ class TestCancelProfileEmailChange:
 class TestEditProfilePrivacySettings:
     """Tests for PATCH /profile/privacy — edit_profile_privacy_settings."""
 
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
-    def test_success(self, mock_edit, profile_client):
+    def test_success(self, mock_edit, mock_get, profile_client):
         """Happy path: update privacy settings, answering with the version the edit produced."""
+        mock_get.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(id=1, user_id=1, version=4)
         mock_edit.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(
             id=1,
             user_id=1,

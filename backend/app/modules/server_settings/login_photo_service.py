@@ -1,5 +1,6 @@
 """The login page photo: upload, removal and serving."""
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.schema as server_settings_schema
@@ -51,6 +53,7 @@ def upload_login_photo(
         media_type,
     )
     version = server_settings_crud.set_login_photo(True, db)
+    jasil_audit.stage(db, server_settings_audit_actions.LOGIN_PHOTO_UPDATE)
     db.commit()
     logger.info("Login photo uploaded")
     return server_settings_schema.LoginPhotoRead(version=version)
@@ -72,6 +75,7 @@ def delete_login_photo(storage: platform_providers.StorageProvider, db: Session)
         ServiceUnavailableError: If the settings row does not exist.
     """
     server_settings_crud.set_login_photo(False, db)
+    jasil_audit.stage(db, server_settings_audit_actions.LOGIN_PHOTO_DELETE)
     db.commit()
     try:
         storage.delete(

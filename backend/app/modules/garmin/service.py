@@ -10,11 +10,13 @@ from contextlib import contextmanager
 from typing import NamedTuple
 
 import garminconnect
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.rate_limit_store as garmin_rate_limit_store
 import modules.garmin.token_utils as garmin_token_utils
 import modules.notifications.integration_service as notifications_integration
@@ -32,6 +34,13 @@ def unlink_account(user_id: int, db: Session) -> None:
         db: Database session.
     """
     user_integrations_integration.unlink_garminconnect_account(user_id, db)
+    jasil_audit.stage(
+        db,
+        garmin_audit_actions.ACCOUNT_UNLINK,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+    )
     db.commit()
     logger.info(
         "Garmin Connect unlinked",
@@ -284,6 +293,13 @@ def unlink_expired_account(user_id: int, token: dict, db: Session) -> None:
         )
         return
     notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
+    jasil_audit.stage(
+        db,
+        garmin_audit_actions.ACCOUNT_REVOKE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+    )
     db.commit()
     notifications_integration.push_notification(user_id, notification, ws_message)
     logger.info(

@@ -81,6 +81,21 @@ def _may_reset_password(user: users_schema.UsersRead, db: Session) -> bool:
     )
 
 
+def _record_reset_request_denied(user_id: int) -> None:
+    """Record a reset request for an account that may not reset its password; the caller answers as usual.
+
+    Args:
+        user_id: The account the request named.
+    """
+    jasil_audit.record_detached(
+        password_reset_audit_actions.PASSWORD_RESET_REQUEST,
+        outcome=jasil_audit.Outcome.DENIED,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+    )
+
+
 def request_password_reset_email(email: str, state: StateProvider, db: Session) -> None:
     """Stage and commit a reset-email request without revealing account existence.
 
@@ -102,9 +117,16 @@ def request_password_reset_email(email: str, state: StateProvider, db: Session) 
     if not server_settings_integration.is_mail_configured(db):
         raise core_exceptions.ServiceUnavailableError("Email service is not configured")
     user = users_integration.get_user_by_email(email, db)
-    if not (user and user.active):
+    if user is None:
+        jasil_audit.record_detached(
+            password_reset_audit_actions.PASSWORD_RESET_REQUEST, outcome=jasil_audit.Outcome.FAILURE
+        )
+        return
+    if not user.active:
+        _record_reset_request_denied(user.id)
         return
     if not _may_reset_password(user, db):
+        _record_reset_request_denied(user.id)
         logger.warning(
             "Password-reset email not sent to user <user_id>: the account may not use a local password",
             extra=core_logger.context(user_id=user.id),
@@ -117,6 +139,13 @@ def request_password_reset_email(email: str, state: StateProvider, db: Session) 
         logger.error("Password-reset cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user.id))
         return
     password_reset_event_publishers.publish_password_reset_requested(user.id, db)
+    jasil_audit.stage(
+        db,
+        password_reset_audit_actions.PASSWORD_RESET_REQUEST,
+        target_type="user",
+        target_id=str(user.id),
+        target_owner_id=str(user.id),
+    )
     db.commit()
     logger.info("Password-reset email requested", extra=core_logger.context(user_id=user.id))
 

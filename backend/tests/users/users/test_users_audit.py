@@ -77,16 +77,16 @@ class TestAccountCreation:
         entry = audit.assert_audited(
             users_audit_actions.USER_CREATE.id, target_type="user", target_id="7", target_owner_id="7"
         )
-        assert entry.details == {"access_type": "regular"}
+        assert entry.details == {"access_type": "regular", "method": "admin"}
 
     def test_the_first_admin_is_audited(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._create(mock_db, first_admin=True)
 
         entry = audit.assert_audited(users_audit_actions.USER_CREATE.id, target_id="7")
-        assert entry.details == {"access_type": "admin"}
+        assert entry.details == {"access_type": "admin", "method": "onboarding"}
 
-    def test_a_sign_up_is_not_audited(self, mock_db):
+    def test_a_sign_up_is_audited_with_its_method(self, mock_db):
         with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
             crud.create_user.return_value = _user(7)
             users_service.create_signup_user(
@@ -95,7 +95,25 @@ class TestAccountCreation:
                 mock_db,
             )
 
-        audit.assert_not_audited(users_audit_actions.USER_CREATE.id)
+        entry = audit.assert_audited(
+            users_audit_actions.USER_CREATE.id, target_type="user", target_id="7", target_owner_id="7"
+        )
+        assert entry.details == {"access_type": "regular", "method": "sign_up"}
+
+    def test_an_identity_provider_account_is_audited_with_its_method(self, mock_db):
+        with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
+            crud.create_user.return_value = _user(8)
+            users_service.create_sso_user(
+                users_schema.UsersBase(name="N", username="sso", email="sso@example.com"),
+                MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False),
+                mock_db,
+                email_verified=True,
+            )
+
+        entry = audit.assert_audited(
+            users_audit_actions.USER_CREATE.id, target_type="user", target_id="8", target_owner_id="8"
+        )
+        assert entry.details == {"access_type": "regular", "method": "identity_provider"}
 
 
 class TestAdminEdit:

@@ -1,13 +1,17 @@
 """Administration of identity-provider configuration."""
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.cryptography as core_cryptography
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_providers.audit_actions as idp_audit_actions
+import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
@@ -62,6 +66,38 @@ def _reject_unsafe_urls(values: dict[str, object]) -> None:
             raise core_exceptions.InvalidInputError(f"{field}: {reason}")
 
 
+def _changed_fields(
+    before: identity_provider_contracts.IdentityProviderState,
+    after: identity_provider_contracts.IdentityProviderState,
+    requested: dict[str, object],
+) -> list[str]:
+    """Name the requested fields whose stored value differs between two states.
+
+    The client id is stored encrypted with a fresh nonce each time, so it is compared decrypted. The client secret
+    is never read back: it is never sent to a client, so a secret in the request is one the administrator set.
+
+    Args:
+        before: The provider as stored before the update.
+        after: The provider as stored after the update.
+        requested: The fields the client sent, by name.
+
+    Returns:
+        The names of the fields whose value changed, sorted.
+    """
+    changed: list[str] = []
+    for field, value in requested.items():
+        if field == "client_secret":
+            if value is not None:
+                changed.append(field)
+            continue
+        old, new = getattr(before, field), getattr(after, field)
+        if field == "client_id":
+            old, new = core_cryptography.decrypt_token_fernet(old), core_cryptography.decrypt_token_fernet(new)
+        if old != new:
+            changed.append(field)
+    return sorted(changed)
+
+
 def create_identity_provider(
     data: identity_provider_schema.IdentityProviderCreate, db: Session
 ) -> identity_provider_schema.IdentityProviderRead:
@@ -84,6 +120,13 @@ def create_identity_provider(
     if idp_crud.get_identity_provider_by_slug(slug, db) is not None:
         raise core_exceptions.ConflictError(f"Identity provider with slug '{slug}' already exists")
     state = idp_crud.create_identity_provider(data, db)
+    jasil_audit.stage(
+        db,
+        idp_audit_actions.IDENTITY_PROVIDER_CREATE,
+        target_type="identity_provider",
+        target_id=str(state.id),
+        details=idp_audit_actions.IdentityProviderDetails(provider_type=state.provider_type),
+    )
     db.commit()
     logger.info("Created identity provider", extra=core_logger.context(idp_id=state.id))
     return identity_provider_serializers.to_read_schema(state)
@@ -133,6 +176,15 @@ def update_identity_provider(
         state = idp_crud.update_identity_provider(idp_id, data, db, if_match=if_match)
         if state is None:
             raise core_exceptions.NotFoundError("Identity provider not found")
+        changed_fields = _changed_fields(current, state, values)
+        if changed_fields:
+            jasil_audit.stage(
+                db,
+                idp_audit_actions.IDENTITY_PROVIDER_UPDATE,
+                target_type="identity_provider",
+                target_id=str(idp_id),
+                details=idp_audit_actions.IdentityProviderUpdateDetails(changed_fields=changed_fields),
+            )
         db.commit()
     oidc.forget_discovery(idp_id)
     logger.info("Updated identity provider", extra=core_logger.context(idp_id=state.id))
@@ -174,6 +226,13 @@ def delete_identity_provider(
     ):
         if not idp_crud.delete_identity_provider(idp_id, db, if_match=if_match):
             raise core_exceptions.NotFoundError("Identity provider not found")
+        jasil_audit.stage(
+            db,
+            idp_audit_actions.IDENTITY_PROVIDER_DELETE,
+            target_type="identity_provider",
+            target_id=str(idp_id),
+            details=idp_audit_actions.IdentityProviderDetails(provider_type=current.provider_type),
+        )
         db.commit()
     oidc.forget_discovery(idp_id)
     if current.icon_uploaded:

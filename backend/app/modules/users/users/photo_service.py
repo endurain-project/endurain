@@ -5,6 +5,7 @@ The photo itself lives in the platform ``StorageProvider``; the user row holds o
 
 import os
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -13,6 +14,7 @@ import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
 import modules.users.users.signing as users_signing
@@ -133,7 +135,26 @@ def _delete_replaced_blob(
         )
 
 
-def delete_photo(user_id: int, storage: platform_providers.StorageProvider, db: Session) -> None:
+def _stage_photo_audit(user_id: int, db: Session) -> None:
+    """Stage ``users.user.update`` for an administrator's photo change, in the transaction that commits it.
+
+    Args:
+        user_id: The user whose photo changed.
+        db: Database session.
+    """
+    jasil_audit.stage(
+        db,
+        users_audit_actions.USER_UPDATE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=users_audit_actions.UserUpdateDetails(changed_fields=["photo_path"]),
+    )
+
+
+def delete_photo(
+    user_id: int, storage: platform_providers.StorageProvider, db: Session, *, audit: bool = False
+) -> None:
     """Clear a user's photo reference, commit, then delete the stored blob.
 
     The reference is committed first, so a failure never leaves a row pointing at a blob that
@@ -143,11 +164,15 @@ def delete_photo(user_id: int, storage: platform_providers.StorageProvider, db: 
         user_id: ID of the user whose photo to delete.
         storage: The platform storage provider.
         db: Database session.
+        audit: Record ``users.user.update`` when a photo was cleared; set by the administrator's route, since
+            a user's own photo is a personal record.
 
     Raises:
         NotFoundError: If the user does not exist.
     """
     replaced = users_crud.replace_photo_key(user_id, None, db)
+    if audit and replaced is not None:
+        _stage_photo_audit(user_id, db)
     db.commit()
     logger.debug("User photo removed", extra=core_logger.context(user_id=user_id))
 
@@ -160,6 +185,8 @@ def store_photo(
     data: bytes,
     storage: platform_providers.StorageProvider,
     db: Session,
+    *,
+    audit: bool = False,
 ) -> str:
     """Store a user's already validated photo, record its key and commit.
 
@@ -172,6 +199,8 @@ def store_photo(
         data: The validated image bytes.
         storage: The platform storage provider.
         db: Database session.
+        audit: Record ``users.user.update``; set by the administrator's route, since a user's own photo is a
+            personal record.
 
     Returns:
         The storage key of the saved photo.
@@ -192,6 +221,8 @@ def store_photo(
     storage.save(users_constants.USER_IMAGE_STORAGE_AREA, key, data, PHOTO_CONTENT_TYPES[extension])
 
     replaced = users_crud.replace_photo_key(user_id, key, db)
+    if audit:
+        _stage_photo_audit(user_id, db)
     db.commit()
     logger.debug("User photo saved", extra=core_logger.context(user_id=user_id))
 
@@ -204,6 +235,8 @@ def upload_photo(
     file: UploadFile,
     storage: platform_providers.StorageProvider,
     db: Session,
+    *,
+    audit: bool = False,
 ) -> str:
     """Validate and store a user's uploaded photo, then record its key and commit.
 
@@ -212,6 +245,8 @@ def upload_photo(
         file: The uploaded image.
         storage: The platform storage provider.
         db: Database session.
+        audit: Record ``users.user.update``; set by the administrator's route, since a user's own photo is a
+            personal record.
 
     Returns:
         The storage key of the saved photo.
@@ -234,7 +269,7 @@ def upload_photo(
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported user image file type")
 
     data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    return store_photo(user_id, file_extension, data, storage, db)
+    return store_photo(user_id, file_extension, data, storage, db, audit=audit)
 
 
 def read_photo(user_id: int, token: str, storage: platform_providers.StorageProvider, db: Session) -> tuple[bytes, str]:

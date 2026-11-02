@@ -3,9 +3,11 @@
 import json
 from unittest.mock import patch
 
+import jasil.testing as jasil_testing
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.logs_schema as logs_schema
 import modules.server_settings.logs_service as logs_service
 
@@ -174,3 +176,40 @@ class TestLogsRouteScopes:
         assert scopes("", "GET") == {"server_settings:logs"}
         assert scopes("/download", "GET") == {"server_settings:logs"}
         assert scopes("", "DELETE") == {"server_settings:logs_clear"}
+
+
+class TestLogsAudit:
+    """The log file is not in the database, so each row is written on its own once the operation succeeded."""
+
+    def test_clearing_the_logs_is_audited(self, logs_dir):
+        _write(logs_dir, [_json_line("INFO", "hello")])
+        with jasil_testing.capture_audit() as audit:
+            logs_service.clear_logs(7)
+
+        entry = audit.assert_audited(server_settings_audit_actions.LOGS_CLEAR.id)
+        assert entry.details is None
+
+    def test_a_refused_clear_is_not_audited(self, tmp_path):
+        with (
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+            patch("core.config.Settings.logs_viewer_enabled", False),
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            logs_service.clear_logs(7)
+
+        audit.assert_not_audited(server_settings_audit_actions.LOGS_CLEAR.id)
+
+    def test_a_download_is_audited_once_the_file_is_found(self, logs_dir):
+        _write(logs_dir, [_json_line("INFO", "hello")])
+        with jasil_testing.capture_audit() as audit:
+            logs_service.get_log_file_path()
+
+        entry = audit.assert_audited(server_settings_audit_actions.LOGS_DOWNLOAD.id)
+        assert entry.details is None
+
+    def test_a_download_with_no_log_file_is_not_audited(self, logs_dir):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
+            logs_service.get_log_file_path()
+
+        audit.assert_not_audited(server_settings_audit_actions.LOGS_DOWNLOAD.id)

@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -14,6 +15,7 @@ import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
 import modules.auth.sessions.schema as sessions_schema
@@ -169,8 +171,20 @@ def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
 
 
 def delete_session(session_id: str, user_id: int, db: Session) -> None:
-    """Delete a session with its token and OAuth state records and commit."""
+    """Delete a session with its token and OAuth state records, audit the revocation and commit.
+
+    Backs the administrator's route; logout and self-revocation stage the deletion through
+    ``stage_delete_session`` and write their own audit rows.
+    """
     stage_delete_session(session_id, user_id, db)
+    jasil_audit.stage(
+        db,
+        sessions_audit_actions.SESSION_REVOKE,
+        target_type="session",
+        target_id=session_id,
+        target_owner_id=str(user_id),
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=1),
+    )
     db.commit()
     logger.info(
         "Session deleted",
@@ -222,8 +236,17 @@ def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str |
 
 
 def delete_sessions_by_user_and_commit(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
-    """Delete a user's sessions and commit the standalone operation."""
+    """Delete a user's sessions, audit the revocation when any ended, and commit the standalone operation."""
     deleted_count = sessions_crud.delete_sessions_by_user(user_id, db, exclude_session_id)
+    if deleted_count:
+        jasil_audit.stage(
+            db,
+            sessions_audit_actions.SESSION_REVOKE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+            details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=deleted_count),
+        )
     db.commit()
     logger.info(
         "User sessions deleted",

@@ -7,7 +7,6 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import httpx2
-import jasil.audit as jasil_audit
 from authlib.integrations.base_client import OAuthError
 from authlib.integrations.httpx_client import OAuth2Client
 from sqlalchemy.orm import Session
@@ -506,6 +505,9 @@ class CallbackService:
                         )
                     else:
                         # Linked to a DIFFERENT user - security issue
+                        user_provisioning_service.record_identity_link_refused(
+                            link_user_id, idp.id, idp_audit_actions.IdentityLinkRefusal.LINKED_TO_ANOTHER_ACCOUNT
+                        )
                         raise core_exceptions.ConflictError(
                             f"This {idp.name} account is already linked to another user"
                         )
@@ -514,14 +516,7 @@ class CallbackService:
                 identity_provider_links_integration.create_user_identity_provider(
                     user_id=link_user_id, idp_id=idp.id, idp_subject=subject, db=db
                 )
-                jasil_audit.stage(
-                    db,
-                    idp_audit_actions.IDENTITY_LINK_LINK,
-                    target_type="user",
-                    target_id=str(link_user_id),
-                    target_owner_id=str(link_user_id),
-                    details=idp_audit_actions.IdentityLinkDetails(idp_id=idp.id),
-                )
+                user_provisioning_service.stage_identity_link(link_user_id, idp.id, db)
                 idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
 
                 # Update user info if sync is enabled

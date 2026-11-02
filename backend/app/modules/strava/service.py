@@ -2,6 +2,7 @@
 
 import secrets
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -9,6 +10,7 @@ import core.etag as core_etag
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
 import modules.gears.gear.integration_service as gears_integration
+import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
@@ -42,6 +44,13 @@ def set_client(user_id: int, credentials: strava_schema.StravaClientCredentials,
     ):
         user_integrations_integration.set_strava_client(
             user_id, str(credentials.client_id), credentials.client_secret.get_secret_value(), db, if_match=if_match
+        )
+        jasil_audit.stage(
+            db,
+            strava_audit_actions.CLIENT_UPDATE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
         )
         db.commit()
     logger.info("Strava client stored", extra=core_logger.context(user_id=user_id))

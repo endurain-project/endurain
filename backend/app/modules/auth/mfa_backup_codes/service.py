@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import secrets
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.mfa_backup_codes.audit_actions as mfa_backup_codes_audit_actions
 import modules.auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 
 # Backup-code alphabet: uppercase ASCII + digits with visually ambiguous
@@ -50,7 +52,7 @@ def verify_and_consume_backup_code(
 
     Verifies the supplied code against every one of the user's unused backup
     code hashes and, on a match, marks that code as consumed via
-    ``mark_backup_code_as_used``.
+    ``mark_backup_code_as_used``, and stages the use in the audit trail with the number of codes left.
 
     The loop deliberately does **not** short-circuit on the first match: it
     runs a verification for every stored hash so that the number of (slow,
@@ -68,7 +70,7 @@ def verify_and_consume_backup_code(
 
     Returns:
         ``True`` if the code matched an unused backup code and was consumed,
-        ``False`` otherwise.
+        ``False`` otherwise. The caller commits the consumption together with its audit row.
     """
     # Get all unused codes for this user
     unused_codes = mfa_backup_codes_crud.get_user_unused_backup_codes(user_id, db)
@@ -87,6 +89,14 @@ def verify_and_consume_backup_code(
             mfa_backup_codes_crud.mark_backup_code_as_used(matched_code_id, user_id, db)
         except core_exceptions.NotFoundError:
             return False
+        jasil_audit.stage(
+            db,
+            mfa_backup_codes_audit_actions.BACKUP_CODE_USE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+            details=mfa_backup_codes_audit_actions.BackupCodeUseDetails(remaining_codes=len(unused_codes) - 1),
+        )
         return True
 
     # No matching code found

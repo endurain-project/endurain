@@ -236,13 +236,20 @@ secrets:
 
 Endurain keeps an append-only record of security-relevant actions in the `jasil_audit_log` table:
 
-- sign-ins, successful and refused, and sign-outs;
-- password, two-step verification, backup code and API key changes, and sessions signed out;
-- sign-in providers linked and unlinked;
+- sign-ins, successful and refused, whether from a new device, sign-outs, lockouts, and refused session refreshes and API keys;
+- password changes and reset requests, two-step verification, backup codes issued and used, API key changes, and sessions signed out by the user or an administrator;
+- sign-in providers linked, refused or unlinked, and providers an administrator creates, changes or deletes;
 - failed identity confirmations before a sensitive action, and requests refused for a missing permission;
-- accounts created, changed or approved by an administrator, and accounts deleted.
+- accounts created (by an administrator, by sign-up, by a sign-in provider or at first-run setup), sign-ups confirmed, accounts changed or approved by an administrator, and accounts deleted;
+- your own profile, privacy and email address changes;
+- server and mail settings, the login photo, settings imported from deprecated environment variables at startup, and server logs cleared or downloaded;
+- Strava and Garmin Connect accounts linked, unlinked, or disconnected because the service rejected their token, and the Strava client stored;
+- data leaving or entering: profile exports and their downloads, profile imports, bulk activity imports and Strava gear imports;
+- who can see your data: activity visibility changes, single or bulk, and followers accepted or removed.
 
-Each row says who acted, from which address, on what, and how it ended. It never holds a password, token, code or key: only ids, counts and the names of the fields that changed. A row is written in the same transaction as the change it describes, so a change is never saved without its row. Endurain has no screen for the trail; query the table directly.
+Health entries, gear, goals, notifications, media, single activity uploads and deletes, and routine syncs are not recorded.
+
+Each row says who acted, from which address, on what, and how it ended. Work that runs in the background names the system as the actor, with the id of the request that started it. A row never holds a password, token, code, key or email address: only ids, counts, reasons and the names of the fields that changed. A row is written in the same transaction as the change it describes, so a change is never saved without its row. Endurain has no screen for the trail; query the table directly.
 
 **Retention.** An administrator sets how long the trail is kept, and whether a legal hold applies, in **Settings > Server > General**, under **Data retention**. The retention is 90 days by default; set it to `0` to keep everything, or to 30 days or more. 30 days is the floor: the database refuses to drop anything younger, whatever the setting. A maintenance job runs at startup and every 5 minutes. It creates the table's daily partitions a week ahead and drops those older than the retention, a whole day at a time. While the **legal hold** is on, it drops nothing. A change to either is itself recorded in the trail.
 

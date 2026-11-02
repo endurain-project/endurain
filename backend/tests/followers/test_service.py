@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.testing as jasil_testing
 import pytest
 
 
@@ -431,3 +432,93 @@ class TestStateChangesLogAtInfo:
             call(service, MagicMock())
 
         assert [(record.levelname, record.getMessage()) for record in caplog.records] == [("INFO", message)]
+
+
+class TestFollowAudit:
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_accepting_a_request_is_audited_with_the_follower_as_target(self, mock_crud, mock_pub):
+        from modules.followers.audit_actions import FOLLOW_ACCEPT
+        from modules.followers.service import accept_follow_request
+
+        mock_crud.count_following_by_user_id.return_value = 0
+        with jasil_testing.capture_audit() as audit:
+            accept_follow_request(1, 2, MagicMock())
+
+        entry = audit.assert_audited(FOLLOW_ACCEPT.id, target_type="user", target_id="2", target_owner_id="1")
+        assert entry.details is None
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_refused_acceptance_is_not_audited(self, mock_crud, mock_pub):
+        import core.exceptions as core_exceptions
+        from modules.followers.audit_actions import FOLLOW_ACCEPT
+        from modules.followers.constants import MAX_ACCEPTED_FOLLOWEES
+        from modules.followers.service import accept_follow_request
+
+        mock_crud.count_following_by_user_id.return_value = MAX_ACCEPTED_FOLLOWEES
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.ConflictError):
+            accept_follow_request(1, 2, MagicMock())
+
+        audit.assert_not_audited(FOLLOW_ACCEPT.id)
+
+    @pytest.mark.parametrize(
+        "followee_id,follower_id,caller",
+        [(2, 1, 1), (1, 2, 1)],
+        ids=["follower unfollows", "followed user removes the follower"],
+    )
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_removing_an_accepted_relationship_is_audited_from_either_side(
+        self, mock_crud, mock_pub, followee_id, follower_id, caller
+    ):
+        from modules.followers.audit_actions import FOLLOW_REMOVE
+        from modules.followers.constants import FollowStatus
+        from modules.followers.service import delete_relationship
+
+        mock_crud.delete_follower.return_value = FollowStatus.ACCEPTED
+        with jasil_testing.capture_audit() as audit:
+            delete_relationship(followee_id, follower_id, caller, MagicMock())
+
+        entry = audit.assert_audited(
+            FOLLOW_REMOVE.id,
+            target_type="user",
+            target_id=str(follower_id),
+            target_owner_id=str(followee_id),
+        )
+        assert entry.details is None
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_deleting_a_pending_request_is_not_audited(self, mock_crud, mock_pub):
+        from modules.followers.audit_actions import FOLLOW_REMOVE
+        from modules.followers.constants import FollowStatus
+        from modules.followers.service import delete_relationship
+
+        mock_crud.delete_follower.return_value = FollowStatus.PENDING
+        with jasil_testing.capture_audit() as audit:
+            delete_relationship(2, 1, 1, MagicMock())
+
+        audit.assert_not_audited(FOLLOW_REMOVE.id)
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_declining_a_request_is_not_audited(self, mock_crud, mock_pub):
+        from modules.followers.audit_actions import FOLLOW_REMOVE
+        from modules.followers.service import reject_follow_request
+
+        with jasil_testing.capture_audit() as audit:
+            reject_follow_request(1, 2, MagicMock())
+
+        audit.assert_not_audited(FOLLOW_REMOVE.id)
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_creating_a_request_is_not_audited(self, mock_crud, mock_pub):
+        from modules.followers.service import follow_user
+
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
+        with jasil_testing.capture_audit() as audit:
+            follow_user(1, 2, MagicMock())
+
+        assert audit.entries == []

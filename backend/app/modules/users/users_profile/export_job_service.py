@@ -11,6 +11,7 @@ a worker died is safe.
 
 from collections.abc import Generator
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,7 @@ import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.event_publishers as profile_event_publishers
 import modules.users.users_profile.events as profile_events
@@ -61,6 +63,13 @@ def request_export(
         raise core_exceptions.ConflictError("A profile export is already in progress")
 
     try:
+        jasil_audit.stage(
+            db,
+            profile_audit_actions.PROFILE_EXPORT_REQUEST,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
         profile_event_publishers.publish_export_requested(user_id, db, commit=db.commit)
     except BaseException:
         # The export never started, so nothing else would finish its claim.
@@ -137,6 +146,8 @@ def open_export(
 ) -> tuple[Generator[bytes], int]:
     """Open the user's finished export for download.
 
+    Records ``users.profile_export.download`` once the archive is found, since no transaction spans the stream.
+
     Args:
         user_id: The exporting user.
         states: Shared store of the export's state.
@@ -159,6 +170,14 @@ def open_export(
     except FileNotFoundError as err:
         logger.warning("The staged profile export is missing", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.NotFoundError("No finished profile export to download") from err
+
+    jasil_audit.record_detached(
+        profile_audit_actions.PROFILE_EXPORT_DOWNLOAD,
+        outcome=jasil_audit.Outcome.SUCCESS,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+    )
 
     def chunks() -> Generator[bytes]:
         with source:

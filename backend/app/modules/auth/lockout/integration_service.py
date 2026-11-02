@@ -2,9 +2,11 @@
 
 from collections.abc import Callable
 
+import jasil.audit as jasil_audit
 from jasil.providers import StateProvider
 
 import core.logger as core_logger
+import modules.auth.lockout.audit_actions as lockout_audit_actions
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.lockout_store as lockout_store
 
@@ -70,20 +72,37 @@ def report_lockout_applied(
     failed_attempts: int,
     *,
     username: str | None = None,
+    user_id: int | None = None,
 ) -> None:
-    """Log that a failed attempt closed the lockout gate.
+    """Log and audit that a failed attempt closed the lockout gate.
 
     A caller records a failure only while the key is not locked out, so a count at or above the first tier means this
-    attempt applied a lockout.
+    attempt applied a lockout. The counters live in the state provider, so the audit row is written on a transaction
+    of its own. It never holds the username.
 
     Args:
         store_name: Which counter locked (``login``, ``mfa`` or ``step_up``).
         tiers: The tiers of that counter.
         failed_attempts: The count returned by ``record_failed_attempt``.
-        username: Username the counter is keyed on, when it is one.
+        username: Username the counter is keyed on, when it is one; only its hash is logged.
+        user_id: The account the counter protects, when the caller knows it; the audit row targets it.
+
+    Raises:
+        ValueError: If ``store_name`` is not a known counter.
     """
     if not tiers or failed_attempts < tiers[0][0]:
         return
+    target = (
+        {} if user_id is None else {"target_type": "user", "target_id": str(user_id), "target_owner_id": str(user_id)}
+    )
+    jasil_audit.record_detached(
+        lockout_audit_actions.LOCKOUT_APPLY,
+        outcome=jasil_audit.Outcome.SUCCESS,
+        **target,
+        details=lockout_audit_actions.LockoutApplyDetails(
+            counter=lockout_audit_actions.LockoutCounter(store_name), failed_attempts=failed_attempts
+        ),
+    )
     logger.warning(
         "Progressive authentication lockout applied",
         extra=core_logger.context(

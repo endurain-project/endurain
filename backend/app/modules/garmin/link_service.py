@@ -7,11 +7,13 @@ Owns the dedicated login threads. Unlinking and the sessions a linked account's 
 import time
 
 import garminconnect
+import jasil.audit as jasil_audit
 
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
+import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.constants as garmin_constants
 import modules.garmin.link_state_store as garmin_link_state_store
 import modules.garmin.mfa_code_store as garmin_mfa_code_store
@@ -157,6 +159,13 @@ def link_garminconnect(
                 garmin_token_utils.serialize_garmin_token(garmin.client, is_cn),
                 db,
             )
+            jasil_audit.stage(
+                db,
+                garmin_audit_actions.ACCOUNT_LINK,
+                target_type="user",
+                target_id=str(user_id),
+                target_owner_id=str(user_id),
+            )
             db.commit()
     except garminconnect.GarminConnectAuthenticationError:
         # The library raises this for a refused password and for a refused MFA code alike.
@@ -170,6 +179,7 @@ def link_garminconnect(
             extra=core_logger.context(user_id=user_id, reason=reason),
         )
         link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, reason)
+        _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason(reason))
     except garminconnect.GarminConnectTooManyRequestsError:
         logger.warning(
             "Garmin Connect refused the link attempt: too many requests",
@@ -178,6 +188,7 @@ def link_garminconnect(
         link_states.set_status(
             user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.TOO_MANY_REQUESTS
         )
+        _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.TOO_MANY_REQUESTS)
     except Exception as err:
         logger.error(
             "Internal error while linking Garmin Connect", exc_info=err, extra=core_logger.context(user_id=user_id)
@@ -189,6 +200,23 @@ def link_garminconnect(
         mfa_codes.delete_code(user_id)
         # Whatever the outcome was, it is recorded by now.
         websocket_integration.push_job_changed(user_id, garmin_constants.LINK_JOB)
+
+
+def _record_refused_link(user_id: int, reason: garmin_audit_actions.LinkFailureReason) -> None:
+    """Record that Garmin Connect refused the link.
+
+    Args:
+        user_id: The user linking Garmin Connect.
+        reason: Why Garmin Connect refused it.
+    """
+    jasil_audit.record_detached(
+        garmin_audit_actions.ACCOUNT_LINK,
+        outcome=jasil_audit.Outcome.FAILURE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=garmin_audit_actions.LinkFailureDetails(reason=reason),
+    )
 
 
 def get_link_status(

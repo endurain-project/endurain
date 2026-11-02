@@ -2,9 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.testing as jasil_testing
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.identity_providers.icon_service as icon_service
@@ -160,3 +162,50 @@ class TestReadIcon:
         storage.get.return_value = None
 
         assert icon_service.read_icon(7, storage) is None
+
+
+class TestIconAudit:
+    def test_an_upload_is_audited_as_a_provider_update(self):
+        with (
+            patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            jasil_testing.capture_audit() as audit,
+        ):
+            icon_service.upload_icon(7, PNG, MagicMock(), MagicMock())
+
+        entry = audit.assert_audited(
+            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="7"
+        )
+        assert entry.details == {"changed_fields": ["icon_uploaded"]}
+
+    def test_a_refused_upload_is_not_audited(self):
+        with (
+            patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.UnsupportedMediaTypeError),
+        ):
+            icon_service.upload_icon(7, b"not an image", MagicMock(), MagicMock())
+
+        audit.assert_not_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
+
+    def test_a_removal_is_audited_as_a_provider_update(self):
+        with (
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            jasil_testing.capture_audit() as audit,
+        ):
+            icon_service.delete_icon(7, MagicMock(), MagicMock())
+
+        entry = audit.assert_audited(
+            idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="7"
+        )
+        assert entry.details == {"changed_fields": ["icon_uploaded"]}
+
+    def test_removing_from_a_missing_provider_is_not_audited(self):
+        with (
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=None),
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            icon_service.delete_icon(7, MagicMock(), MagicMock())
+
+        audit.assert_not_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)

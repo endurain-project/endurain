@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from datetime import date as datetime_date
 
 import jasil.audit as jasil_audit
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -328,11 +329,35 @@ def _stage_default_data(user_id: int, db: Session) -> None:
     mfa_integration.create_users_mfa_row(user_id, db)
 
 
-def _stage_user(user: users_schema.UsersCreate, db: Session) -> users_schema.UsersRead:
+def _stage_user_create_audit(
+    created: users_schema.UsersRead, access_type: str, method: users_audit_actions.UserCreateMethod, db: Session
+) -> None:
+    """Stage the audit row of a new account in the transaction that commits it.
+
+    Args:
+        created: The staged user.
+        access_type: The access tier the account was created with.
+        method: How the account is being created.
+        db: Database session.
+    """
+    jasil_audit.stage(
+        db,
+        users_audit_actions.USER_CREATE,
+        target_type="user",
+        target_id=str(created.id),
+        target_owner_id=str(created.id),
+        details=users_audit_actions.UserCreateDetails(access_type=access_type, method=method),
+    )
+
+
+def _stage_user(
+    user: users_schema.UsersCreate, method: users_audit_actions.UserCreateMethod, db: Session
+) -> users_schema.UsersRead:
     """Stage a user with their password and default data (flushed, not committed).
 
     Args:
         user: User creation data with a plain text password.
+        method: How the account is being created, for its audit row.
         db: Database session.
 
     Returns:
@@ -356,14 +381,7 @@ def _stage_user(user: users_schema.UsersCreate, db: Session) -> users_schema.Use
 
     credentials_integration.set_local_password_hash(created.id, hashed_password, db)
     _stage_default_data(created.id, db)
-    jasil_audit.stage(
-        db,
-        users_audit_actions.USER_CREATE,
-        target_type="user",
-        target_id=str(created.id),
-        target_owner_id=str(created.id),
-        details=users_audit_actions.UserCreateDetails(access_type=access_type),
-    )
+    _stage_user_create_audit(created, access_type, method, db)
     return created
 
 
@@ -385,7 +403,7 @@ def create_user(
         PasswordPolicyError: If the password fails the configured policy.
     """
     try:
-        created = _stage_user(user, db)
+        created = _stage_user(user, users_audit_actions.UserCreateMethod.ADMIN, db)
     except core_exceptions.ConflictError:
         db.rollback()
         raise
@@ -428,6 +446,7 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
             email_verified=True,
             pending_admin_approval=False,
         ),
+        users_audit_actions.UserCreateMethod.ONBOARDING,
         db,
     )
 
@@ -439,6 +458,7 @@ def _stage_signup_user(
     db: Session,
     *,
     email_verified: bool,
+    method: users_audit_actions.UserCreateMethod,
 ) -> users_schema.UsersRead:
     """Stage a user through sign-up or SSO, with their default data.
 
@@ -453,6 +473,7 @@ def _stage_signup_user(
         server_settings: Server config for sign-up requirements and default units and currency.
         db: Database session.
         email_verified: Whether the address is already proven.
+        method: How the account is being created, for its audit row.
 
     Returns:
         The created user.
@@ -492,6 +513,7 @@ def _stage_signup_user(
     if hashed_password is not None:
         credentials_integration.set_local_password_hash(created.id, hashed_password, db)
     _stage_default_data(created.id, db)
+    _stage_user_create_audit(created, users_schema.UserAccessType.REGULAR.value, method, db)
     return created
 
 
@@ -512,7 +534,14 @@ def create_signup_user(
         preferred_language=user.preferred_language,
     )
     try:
-        created = _stage_signup_user(profile, user.password, server_settings, db, email_verified=False)
+        created = _stage_signup_user(
+            profile,
+            user.password,
+            server_settings,
+            db,
+            email_verified=False,
+            method=users_audit_actions.UserCreateMethod.SIGN_UP,
+        )
     except core_exceptions.ConflictError as err:
         db.rollback()
         # Abstract message to reduce information leakage.
@@ -544,7 +573,14 @@ def create_sso_user(
         ConflictError: If the username or email is already taken.
     """
     try:
-        created = _stage_signup_user(profile, None, server_settings, db, email_verified=email_verified)
+        created = _stage_signup_user(
+            profile,
+            None,
+            server_settings,
+            db,
+            email_verified=email_verified,
+            method=users_audit_actions.UserCreateMethod.IDENTITY_PROVIDER,
+        )
     except core_exceptions.ConflictError as err:
         raise core_exceptions.ConflictError("Unable to create user.") from err
     logger.info("SSO user staged", extra=core_logger.context(user_id=created.id))
@@ -636,6 +672,20 @@ def stage_user_edit(
     return updated
 
 
+def changed_field_names(before: BaseModel, after: BaseModel, names: Collection[str]) -> list[str]:
+    """Name the fields, among those a write submitted, whose stored value differs after it.
+
+    Args:
+        before: The record before the write.
+        after: The record after the write.
+        names: The field names the write submitted.
+
+    Returns:
+        The submitted names whose value changed, in submission order.
+    """
+    return [name for name in names if getattr(before, name) != getattr(after, name)]
+
+
 def _stage_user_update_audit(
     before: users_schema.UsersRead, after: users_schema.UsersRead, requested: users_schema.UsersEdit, db: Session
 ) -> None:
@@ -651,7 +701,7 @@ def _stage_user_update_audit(
         db: Database session.
     """
     submitted = requested.model_dump(exclude_unset=True, exclude={"mfa_enabled", "photo_path"})
-    changed_fields = [name for name in submitted if getattr(before, name) != getattr(after, name)]
+    changed_fields = changed_field_names(before, after, submitted)
     if changed_fields:
         jasil_audit.stage(
             db,
@@ -889,6 +939,13 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
     normalized = email.lower()
     require_email_available(user_id, normalized, db)
     users_crud.update_user(user_id, {"email": normalized, "email_verified": True}, db)
+    jasil_audit.stage(
+        db,
+        users_audit_actions.USER_EMAIL_CHANGE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+    )
 
 
 def approve_user(user_id: int, db: Session) -> None:

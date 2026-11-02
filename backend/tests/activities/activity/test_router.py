@@ -367,7 +367,13 @@ class TestReadByID:
 
 class TestEdit:
     def test_success(self, mock_db):
-        with patch("modules.activities.activity.service.activity_crud.edit_activity") as m:
+        with (
+            patch("modules.activities.activity.service.activity_crud.edit_activity") as m,
+            patch(
+                "modules.activities.activity.service.activity_crud.get_activity_by_id_from_user_id",
+                return_value=_valid_activity(),
+            ),
+        ):
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
@@ -378,7 +384,13 @@ class TestEdit:
 
     def test_partial_update_single_field(self, mock_db):
         # A true PATCH: only the sent field is forwarded to crud.
-        with patch("modules.activities.activity.service.activity_crud.edit_activity") as m:
+        with (
+            patch("modules.activities.activity.service.activity_crud.edit_activity") as m,
+            patch(
+                "modules.activities.activity.service.activity_crud.get_activity_by_id_from_user_id",
+                return_value=_valid_activity(),
+            ),
+        ):
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
@@ -389,7 +401,13 @@ class TestEdit:
 
     def test_path_id_is_passed_to_crud(self, mock_db):
         # The activity id comes from the path (not the body) and is passed to crud.
-        with patch("modules.activities.activity.service.activity_crud.edit_activity") as m:
+        with (
+            patch("modules.activities.activity.service.activity_crud.edit_activity") as m,
+            patch(
+                "modules.activities.activity.service.activity_crud.get_activity_by_id_from_user_id",
+                return_value=_valid_activity(),
+            ),
+        ):
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/7",

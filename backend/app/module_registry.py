@@ -19,6 +19,7 @@ import core.local_pool as core_local_pool
 import core.logger as core_logger
 import core.mail as core_mail
 import core.scheduler as core_scheduler
+import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.subscriber_registry as activity_subscriber_registry
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
@@ -27,6 +28,7 @@ import modules.activities.activity_file_storage.scheduled_jobs as activity_file_
 import modules.activities.activity_file_storage.subscriber_registry as activity_file_storage_subscriber_registry
 import modules.activities.activity_geocoding.scheduled_jobs as activity_geocoding_scheduled_jobs
 import modules.activities.activity_geocoding.subscriber_registry as activity_geocoding_subscriber_registry
+import modules.activities.activity_ingestion.audit_actions as activity_ingestion_audit_actions
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.scheduled_jobs as activity_ingestion_scheduled_jobs
@@ -54,15 +56,21 @@ import modules.auth.identity_providers.audit_actions as identity_providers_audit
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.subscriber_registry as identity_providers_subscriber_registry
 import modules.auth.known_devices.scheduled_jobs as known_devices_scheduled_jobs
+import modules.auth.lockout.audit_actions as lockout_audit_actions
+import modules.auth.mfa_backup_codes.audit_actions as mfa_backup_codes_audit_actions
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.onboarding.scheduled_jobs as onboarding_scheduled_jobs
 import modules.auth.password_reset_tokens.audit_actions as password_reset_tokens_audit_actions
 import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_tokens_scheduled_jobs
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
 import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_refresh_tokens_scheduled_jobs
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.scheduled_jobs as auth_sessions_scheduled_jobs
+import modules.auth.sign_up_tokens.audit_actions as sign_up_tokens_audit_actions
 import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_tokens_scheduled_jobs
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
+import modules.followers.audit_actions as followers_audit_actions
+import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.integration_service as garmin_integration
 import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
 import modules.garmin.subscriber_registry as garmin_subscriber_registry
@@ -71,8 +79,10 @@ import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
+import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.integration_service as strava_integration
 import modules.strava.subscriber_registry as strava_subscriber_registry
 import modules.users.contributor_registry as users_contributor_registry
@@ -82,6 +92,7 @@ import modules.users.users.constants as users_constants
 import modules.users.users.integration_service as users_integration
 import modules.users.users.scheduled_jobs as users_scheduled_jobs
 import modules.users.users.subscriber_registry as users_subscriber_registry
+import modules.users.users_profile.audit_actions as users_profile_audit_actions
 import modules.users.users_profile.constants as users_profile_constants
 import modules.users.users_profile.integration_service as users_profile_integration
 import modules.users.users_profile.scheduled_jobs as users_profile_scheduled_jobs
@@ -226,6 +237,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         name="activity",
         register_durable=activity_subscriber_registry.register_durable_handlers,
         nets=activity_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        audit_actions=activity_audit_actions.ACTIONS,
         shutdown=activity_integration.shutdown_bulk_edit_pool,
     ),
     RuntimeModule(
@@ -287,6 +299,7 @@ MODULES: tuple[RuntimeModule, ...] = (
                 activity_ingestion_scheduled_jobs.schedule_provider_refresh,
             ),
         ),
+        audit_actions=activity_ingestion_audit_actions.ACTIONS,
         shutdown=activity_ingestion_integration.shutdown_background_ingestion,
     ),
     RuntimeModule(
@@ -301,9 +314,15 @@ MODULES: tuple[RuntimeModule, ...] = (
             ),
         ),
     ),
-    RuntimeModule(name="sessions", recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs),
+    RuntimeModule(
+        name="sessions",
+        recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs,
+        audit_actions=sessions_audit_actions.ACTIONS,
+    ),
     RuntimeModule(name="rotated_refresh_tokens", recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="known_devices", recurring_jobs=known_devices_scheduled_jobs.recurring_jobs),
+    RuntimeModule(name="lockout", audit_actions=lockout_audit_actions.ACTIONS),
+    RuntimeModule(name="mfa_backup_codes", audit_actions=mfa_backup_codes_audit_actions.ACTIONS),
     RuntimeModule(
         name="identity_providers",
         register_bus=identity_providers_subscriber_registry.register_bus_subscribers,
@@ -355,6 +374,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=sign_up_tokens_subscriber_registry.register_durable_handlers,
         nets=sign_up_tokens_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=sign_up_tokens_scheduled_jobs.recurring_jobs,
+        audit_actions=sign_up_tokens_audit_actions.ACTIONS,
         startup_tasks=(
             StartupTask(
                 "purge_expired_sign_up_tokens",
@@ -385,6 +405,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=users_profile_subscriber_registry.register_durable_handlers,
         nets=users_profile_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         recurring_jobs=users_profile_scheduled_jobs.recurring_jobs,
+        audit_actions=users_profile_audit_actions.ACTIONS,
         shutdown=users_profile_integration.shutdown_transfer_pool,
     ),
     RuntimeModule(
@@ -399,14 +420,18 @@ MODULES: tuple[RuntimeModule, ...] = (
                 garmin_scheduled_jobs.schedule_recent_health,
             ),
         ),
+        audit_actions=garmin_audit_actions.ACTIONS,
         shutdown=garmin_integration.shutdown_pools,
     ),
     RuntimeModule(
         name="strava",
         register_durable=strava_subscriber_registry.register_durable_handlers,
         nets=strava_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        audit_actions=strava_audit_actions.ACTIONS,
         shutdown=strava_integration.shutdown_pools,
     ),
+    RuntimeModule(name="server_settings", audit_actions=server_settings_audit_actions.ACTIONS),
+    RuntimeModule(name="followers", audit_actions=followers_audit_actions.ACTIONS),
     RuntimeModule(
         name="websocket",
         register_realtime=websocket_subscriber_registry.register_realtime_subscribers,

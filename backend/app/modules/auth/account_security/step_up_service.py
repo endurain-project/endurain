@@ -48,15 +48,18 @@ def _record_refusal(
     )
 
 
-def _record_failure(step_up_store: account_security_step_up_store.StepUpStore, key: str) -> None:
+def _record_failure(step_up_store: account_security_step_up_store.StepUpStore, key: str, user_id: int) -> None:
     """Record a failed step-up attempt and report a lockout it applies.
 
     Args:
         step_up_store: Step-up lockout store.
         key: Lockout key of the user.
+        user_id: Authenticated user ID, whom a lockout is audited against.
     """
     failed_attempts = step_up_store.record_failed_attempt(key)
-    lockout_integration.report_lockout_applied("step_up", lockout_contracts.STEP_UP_LOCKOUT_TIERS, failed_attempts)
+    lockout_integration.report_lockout_applied(
+        "step_up", lockout_contracts.STEP_UP_LOCKOUT_TIERS, failed_attempts, user_id=user_id
+    )
 
 
 def _refuse_step_up(
@@ -78,7 +81,7 @@ def _refuse_step_up(
     Raises:
         UnauthenticatedError: Always raised.
     """
-    _record_failure(step_up_store, key)
+    _record_failure(step_up_store, key, user_id)
     _record_refusal(user_id, method, account_security_audit_actions.StepUpFailureReason.INVALID_CREDENTIALS)
     logger.warning(
         "Step-up refused for user <user_id>: <detail>", extra=core_logger.context(user_id=user_id, detail=detail)
@@ -330,7 +333,7 @@ def verify_mfa_code(
     key = _step_up_key(user_id)
     _raise_if_locked_out(step_up_store, key, user_id, account_security_audit_actions.StepUpMethod.MFA_CODE)
     if not mfa_integration.verify_user_mfa(user_id, mfa_code, credentials_integration, db, replay_guard=step_up_store):
-        _record_failure(step_up_store, key)
+        _record_failure(step_up_store, key, user_id)
         _record_refusal(
             user_id,
             account_security_audit_actions.StepUpMethod.MFA_CODE,

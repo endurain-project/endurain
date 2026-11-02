@@ -35,6 +35,11 @@ def publish():
 
 
 def _record(db, *, user_id=1, client_type="web", device_id=None, method=_PASSWORD):
+    """Record a sign-in and return the device id it answers."""
+    return _sign_in(db, user_id=user_id, client_type=client_type, device_id=device_id, method=method).device_id
+
+
+def _sign_in(db, *, user_id=1, client_type="web", device_id=None, method=_PASSWORD):
     return known_devices_service.record_sign_in(
         user_id, client_type, device_id, "203.0.113.7", _FIREFOX_ON_LINUX, method, db
     )
@@ -54,10 +59,11 @@ class TestWebSignIn:
         old = datetime.now(UTC) - timedelta(days=30)
         known_devices_crud.create_device(1, core_hashing.sha256_hex(_DEVICE_ID), old, db)
 
-        issued = _record(db, device_id=_DEVICE_ID)
+        record = _sign_in(db, device_id=_DEVICE_ID)
 
-        assert issued == _DEVICE_ID
+        assert record.device_id == _DEVICE_ID
         publish.assert_not_called()
+        assert record.new_device is False
         model = known_devices_models.KnownDevice
         last_seen = db.execute(select(model.last_seen_at)).scalar_one().replace(tzinfo=UTC)
         assert last_seen > old + timedelta(days=29)
@@ -65,11 +71,12 @@ class TestWebSignIn:
     def test_a_cookie_new_to_the_user_is_registered_as_is_and_announced(self, db, publish):
         _known(db, 1, _OTHER_DEVICE_ID)
 
-        issued = _record(db, device_id=_DEVICE_ID)
+        record = _sign_in(db, device_id=_DEVICE_ID)
 
-        assert issued == _DEVICE_ID
+        assert record.device_id == _DEVICE_ID
         assert core_hashing.sha256_hex(_DEVICE_ID) in _hashes(db, 1)
         publish.assert_called_once()
+        assert record.new_device is True
 
     def test_another_users_browser_keeps_its_id_and_is_announced(self, db, publish):
         _known(db, 1, _OTHER_DEVICE_ID)
@@ -100,11 +107,12 @@ class TestWebSignIn:
     def test_the_first_device_of_a_user_is_registered_without_an_event(self, db, publish):
         _known(db, 2, _DEVICE_ID)
 
-        issued = _record(db, device_id=_DEVICE_ID)
+        record = _sign_in(db, device_id=_DEVICE_ID)
 
-        assert issued == _DEVICE_ID
+        assert record.device_id == _DEVICE_ID
         assert _hashes(db, 1) == {core_hashing.sha256_hex(_DEVICE_ID)}
         publish.assert_not_called()
+        assert record.new_device is False
 
     def test_a_concurrent_sign_in_that_registered_the_device_first_announces_it_alone(self, db, publish):
         _known(db, 1, _OTHER_DEVICE_ID)
@@ -112,10 +120,11 @@ class TestWebSignIn:
         with patch.object(
             known_devices_service.known_devices_crud, "create_device", side_effect=core_exceptions.ConflictError("x")
         ):
-            issued = _record(db, device_id=_DEVICE_ID)
+            record = _sign_in(db, device_id=_DEVICE_ID)
 
-        assert issued == _DEVICE_ID
+        assert record.device_id == _DEVICE_ID
         publish.assert_not_called()
+        assert record.new_device is False
 
     def test_nothing_is_committed(self, mock_db, publish):
         mock_db.execute.return_value.rowcount = 0
@@ -130,11 +139,12 @@ class TestMobileSignIn:
     def test_every_mobile_sign_in_is_announced_without_a_cookie_or_a_row(self, db, publish):
         _known(db, 1, _DEVICE_ID)
 
-        issued = _record(db, client_type="mobile", device_id=_DEVICE_ID)
+        record = _sign_in(db, client_type="mobile", device_id=_DEVICE_ID)
 
-        assert issued is None
+        assert record.device_id is None
         assert _hashes(db, 1) == {core_hashing.sha256_hex(_DEVICE_ID)}
         publish.assert_called_once()
+        assert record.new_device is True
 
     def test_a_mobile_sign_in_is_announced_for_a_user_with_no_known_device(self, db, publish):
         assert _record(db, client_type="mobile") is None

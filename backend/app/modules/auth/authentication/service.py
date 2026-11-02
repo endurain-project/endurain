@@ -101,6 +101,25 @@ def _refresh_token_context(user_id: int) -> AbstractContextManager[jasil_audit.A
     )
 
 
+def _record_refresh_refusal(
+    user_id: int, outcome: jasil_audit.Outcome, reason: authentication_audit_actions.RefreshRefusalReason
+) -> None:
+    """Record a refused session refresh, on its own transaction because the request answers with an error.
+
+    Args:
+        user_id: The user the signed refresh token names.
+        outcome: ``FAILURE`` for a token or session that is not valid, ``DENIED`` for a refusal by policy.
+        reason: Why the refresh was refused.
+    """
+    with _refresh_token_context(user_id):
+        jasil_audit.record_detached(
+            authentication_audit_actions.REFRESH,
+            outcome=outcome,
+            **_user_target(user_id),
+            details=authentication_audit_actions.RefreshRefusalDetails(reason=reason),
+        )
+
+
 def _refuse_credentials(
     username: str,
     user_id: int | None = None,
@@ -609,16 +628,21 @@ def _require_valid_mfa_code(
         ServiceUnavailableError: If the lockout store is down.
     """
     username_log_id = lockout_integration.username_log_identifier(username)
-    if not mfa_integration.verify_user_mfa(
-        user_id, mfa_code, credentials_integration, db, replay_guard=pending_mfa_store
+    # A backup code is audited as used by the user who presented it, who has no principal yet.
+    with jasil_audit.audit_context(
+        actor_type=jasil_audit.ActorType.USER, actor_id=str(user_id), credential_type="password"
     ):
+        code_is_valid = mfa_integration.verify_user_mfa(
+            user_id, mfa_code, credentials_integration, db, replay_guard=pending_mfa_store
+        )
+    if not code_is_valid:
         # Record failed attempt and apply lockout if threshold exceeded
         try:
             failed_count = pending_mfa_store.record_failed_attempt(username)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             _raise_auth_security_store_unavailable(err)
         lockout_integration.report_lockout_applied(
-            "mfa", lockout_contracts.MFA_LOCKOUT_TIERS, failed_count, username=username
+            "mfa", lockout_contracts.MFA_LOCKOUT_TIERS, failed_count, username=username, user_id=user_id
         )
         logger.warning(
             "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
@@ -670,6 +694,9 @@ def _finish_login(
         The outcome of :func:`complete_login` with the device id a web browser keeps, or the PKCE session body for
         a mobile PKCE client.
     """
+    sign_in = known_devices_integration.record_sign_in(
+        user.id, client_type, device_id, ip_address, user_agent, known_devices_events.SignInMethod.PASSWORD, db
+    )
     # The sign-in is audited in the transaction that the session creation below commits. The user has no
     # principal yet, so the context names them.
     with jasil_audit.audit_context(
@@ -680,12 +707,9 @@ def _finish_login(
             authentication_audit_actions.LOGIN,
             **_user_target(user.id),
             details=authentication_audit_actions.LoginDetails(
-                method=authentication_audit_actions.LoginMethod.PASSWORD, mfa=mfa
+                method=authentication_audit_actions.LoginMethod.PASSWORD, mfa=mfa, new_device=sign_in.new_device
             ),
         )
-    issued_device_id = known_devices_integration.record_sign_in(
-        user.id, client_type, device_id, ip_address, user_agent, known_devices_events.SignInMethod.PASSWORD, db
-    )
 
     # Mobile clients with PKCE use secure token exchange flow
     # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
@@ -699,7 +723,7 @@ def _finish_login(
 
     # Web clients and mobile without PKCE get tokens directly
     outcome = complete_login(ip_address, user_agent, user, client_type, password_hasher, token_manager, db)
-    return dataclasses.replace(outcome, device_id=issued_device_id)
+    return dataclasses.replace(outcome, device_id=sign_in.device_id)
 
 
 def login_for_access_token(
@@ -953,6 +977,12 @@ def verify_mfa_and_login(
         # wrong-code branch, where backup-code verification performs an Argon2 verify.
         password_hasher.dummy_verify()
         logger.warning("MFA verification refused: unknown or expired challenge")
+        _record_login_refusal(
+            authentication_audit_actions.LoginMethod.PASSWORD,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED,
+            mfa=True,
+        )
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
 
     user = users_integration.get_user(user_id, db)
@@ -974,6 +1004,13 @@ def verify_mfa_and_login(
         logger.warning(
             "Pending MFA login for <username_log_id> was already claimed",
             extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(user.username)),
+        )
+        _record_login_refusal(
+            password_method,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.LoginFailureReason.MFA_CHALLENGE_CLAIMED,
+            mfa=True,
+            user_id=user_id,
         )
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
 
@@ -1040,6 +1077,11 @@ def _replay_rotation(
             "Refresh token replay refused: no replacement stored for user <token_user_id>",
             extra=core_logger.context(token_user_id=token_user_id),
         )
+        _record_refresh_refusal(
+            token_user_id,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.RefreshRefusalReason.REPLAY_UNAVAILABLE,
+        )
         raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
     replay_refresh_token, replay_refresh_token_exp = replay
@@ -1052,9 +1094,18 @@ def _replay_rotation(
             "User ID <token_user_id> not found during token refresh replay",
             extra=core_logger.context(token_user_id=token_user_id),
         )
+        _record_refresh_refusal(
+            token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND
+        )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
-    users_integration.require_active_user(replay_user)
+    try:
+        users_integration.require_active_user(replay_user)
+    except core_exceptions.PermissionDeniedError:
+        _record_refresh_refusal(
+            token_user_id, jasil_audit.Outcome.DENIED, authentication_audit_actions.RefreshRefusalReason.USER_INACTIVE
+        )
+        raise
 
     # Mint a fresh, stateless access token (safe to re-issue every retry).
     replay_access_token_exp, replay_access_token = mint_access_token(replay_user, token_manager, session.id, policy)
@@ -1133,6 +1184,11 @@ def refresh_token(
 
     # Check if the session was found
     if session is None:
+        _record_refresh_refusal(
+            token_user_id,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.RefreshRefusalReason.SESSION_NOT_FOUND,
+        )
         raise core_exceptions.NotFoundError("Session not found")
 
     # Defense-in-depth: ensure the session belongs to the user named in
@@ -1147,11 +1203,24 @@ def refresh_token(
             "Refresh token session owner mismatch: token sub=<token_user_id>, session user_id=<user_id>",
             extra=core_logger.context(token_user_id=token_user_id, user_id=session.user_id),
         )
+        _record_refresh_refusal(
+            token_user_id,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.RefreshRefusalReason.SESSION_OWNER_MISMATCH,
+        )
         raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
     # Validate session hasn't exceeded idle or absolute timeout
     policy = server_settings_integration.get_session_policy(db)
-    sessions_integration.validate_session_timeout(session, policy)
+    try:
+        sessions_integration.validate_session_timeout(session, policy)
+    except core_exceptions.UnauthenticatedError:
+        _record_refresh_refusal(
+            token_user_id,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.RefreshRefusalReason.SESSION_EXPIRED,
+        )
+        raise
 
     # Verify CSRF token for web clients only
     # Mobile clients don't use CSRF tokens
@@ -1178,10 +1247,20 @@ def refresh_token(
             "Token refresh refused: invalid CSRF token for user <token_user_id>",
             extra=core_logger.context(token_user_id=token_user_id),
         )
+        _record_refresh_refusal(
+            token_user_id,
+            jasil_audit.Outcome.DENIED,
+            authentication_audit_actions.RefreshRefusalReason.INVALID_CSRF_TOKEN,
+        )
         raise core_exceptions.PermissionDeniedError("Invalid CSRF token")
 
     # Verify session has a refresh token (not pending PKCE exchange)
     if not session.refresh_token:
+        _record_refresh_refusal(
+            token_user_id,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.RefreshRefusalReason.TOKENS_NOT_EXCHANGED,
+        )
         raise core_exceptions.UnauthenticatedError(
             "Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.", scheme="Bearer"
         )
@@ -1220,6 +1299,9 @@ def refresh_token(
             "Token refresh refused: refresh token does not match session for user <token_user_id>",
             extra=core_logger.context(token_user_id=token_user_id),
         )
+        _record_refresh_refusal(
+            token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.INVALID_TOKEN
+        )
         raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
 
     # get user
@@ -1230,10 +1312,19 @@ def refresh_token(
             "User ID <token_user_id> not found during token refresh",
             extra=core_logger.context(token_user_id=token_user_id),
         )
+        _record_refresh_refusal(
+            token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND
+        )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
     # Check if the user is active
-    users_integration.require_active_user(user)
+    try:
+        users_integration.require_active_user(user)
+    except core_exceptions.PermissionDeniedError:
+        _record_refresh_refusal(
+            token_user_id, jasil_audit.Outcome.DENIED, authentication_audit_actions.RefreshRefusalReason.USER_INACTIVE
+        )
+        raise
 
     # Create the new token bundle first so the rotated record can persist the
     # replacement refresh token used for idempotent in-grace replay.
@@ -1519,18 +1610,7 @@ def exchange_tokens_for_session(
     if oauth_state.idp_id is not None:
         # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited, and its device
         # recorded, when its session was created.
-        with jasil_audit.audit_context(
-            actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="oauth"
-        ):
-            jasil_audit.stage(
-                db,
-                authentication_audit_actions.LOGIN,
-                **_user_target(user.id),
-                details=authentication_audit_actions.LoginDetails(
-                    method=authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER, mfa=mfa_verified
-                ),
-            )
-        issued_device_id = known_devices_integration.record_sign_in(
+        sign_in = known_devices_integration.record_sign_in(
             user.id,
             client_type,
             device_id,
@@ -1539,6 +1619,20 @@ def exchange_tokens_for_session(
             known_devices_events.SignInMethod.IDENTITY_PROVIDER,
             db,
         )
+        issued_device_id = sign_in.device_id
+        with jasil_audit.audit_context(
+            actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="oauth"
+        ):
+            jasil_audit.stage(
+                db,
+                authentication_audit_actions.LOGIN,
+                **_user_target(user.id),
+                details=authentication_audit_actions.LoginDetails(
+                    method=authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER,
+                    mfa=mfa_verified,
+                    new_device=sign_in.new_device,
+                ),
+            )
     db.commit()
 
     logger.info(

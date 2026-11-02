@@ -270,7 +270,7 @@ def upload_user_image(
     Returns:
         The servable URL of the new photo.
     """
-    users_photo_service.upload_photo(user_id, file, storage, db)
+    users_photo_service.upload_photo(user_id, file, storage, db, audit=True)
     return users_schema.UserPhotoRead(photo_path=users_service.require_user(user_id, db).photo_path)
 
 
@@ -385,7 +385,7 @@ def delete_user_photo(
     Returns:
         None
     """
-    users_photo_service.delete_photo(user_id, storage, db)
+    users_photo_service.delete_photo(user_id, storage, db, audit=True)
 
 
 @router.delete(

@@ -1,5 +1,6 @@
 """Mail settings, the email status and the test email."""
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,7 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import core.mail as core_mail
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.change_utils as server_settings_change_utils
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.crud as server_settings_crud
@@ -255,6 +257,11 @@ def edit_mail_settings(
         )
         attributes = attributes.model_copy(update={server_settings_constants.MAIL_CREDENTIAL_FIELD: stored_password})
     updated = server_settings_crud.edit_mail_settings(attributes, db)
+    jasil_audit.stage(
+        db,
+        server_settings_audit_actions.MAIL_UPDATE,
+        details=server_settings_audit_actions.SettingsChangeDetails(changed_fields=sorted(changed_fields)),
+    )
     db.commit()
     logger.info("Mail settings updated", extra=core_logger.context(changed_fields=sorted(changed_fields)))
     return _to_mail_admin_read(updated)

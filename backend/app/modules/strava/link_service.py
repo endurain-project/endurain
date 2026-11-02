@@ -1,10 +1,13 @@
 """Strava account linking: the OAuth state is checked on the request, the code exchange runs off it."""
 
+import jasil.audit as jasil_audit
+
 import core.cryptography as core_cryptography
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
+import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
@@ -82,6 +85,33 @@ def start_link(
     )
 
 
+def _record_refused_link(user_id: int, err: Exception) -> None:
+    """Record that Strava refused the link, when ``err`` is a refusal.
+
+    Any other error, such as a server error or a bug, is not Strava refusing the code and leaves no row.
+
+    Args:
+        user_id: The user linking Strava.
+        err: What the exchange raised.
+    """
+    if strava_client_service.is_strava_rate_limit_error(err):
+        reason = strava_audit_actions.LinkFailureReason.TOO_MANY_REQUESTS
+    elif strava_client_service.is_strava_unauthorized_error(err):
+        reason = strava_audit_actions.LinkFailureReason.UNAUTHORIZED
+    elif strava_client_service.is_strava_client_error(err):
+        reason = strava_audit_actions.LinkFailureReason.REJECTED
+    else:
+        return
+    jasil_audit.record_detached(
+        strava_audit_actions.ACCOUNT_LINK,
+        outcome=jasil_audit.Outcome.FAILURE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=strava_audit_actions.LinkFailureDetails(reason=reason),
+    )
+
+
 def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSyncStateStore) -> None:
     """Exchange an authorization code for tokens, store them and record the outcome.
 
@@ -106,9 +136,17 @@ def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSync
         )
         with core_database.SessionLocal() as db:
             user_integrations_integration.link_strava_account(user_id, tokens, db)
+            jasil_audit.stage(
+                db,
+                strava_audit_actions.ACCOUNT_LINK,
+                target_type="user",
+                target_id=str(user_id),
+                target_owner_id=str(user_id),
+            )
             db.commit()
     except Exception as err:
         logger.warning("Unable to link Strava account", extra=core_logger.context(user_id=user_id), exc_info=err)
+        _record_refused_link(user_id, err)
         states.set_status(user_id, kind, strava_constants.SyncStatus.FAILED)
         websocket_integration.push_job_changed(user_id, strava_constants.LINK_JOB)
         return

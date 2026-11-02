@@ -9,6 +9,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
+import jasil.testing as jasil_testing
 import pytest
 
 import core.config as core_config
@@ -18,6 +19,7 @@ import core.file_uploads as core_file_uploads
 import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.network as core_network
+import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.env_import_service as server_settings_env_import_service
@@ -467,11 +469,11 @@ class TestImportGeocodingEnv:
     def test_nothing_happens_without_a_geocoding_variable(self, import_geo):
         import_geo.set_vars = set()
 
-        assert server_settings_env_import_service._import_geocoding_env(MagicMock()) == []
+        assert server_settings_env_import_service._import_geocoding_env(MagicMock()).env_names == []
         import_geo.write.assert_not_called()
 
     def test_values_equal_to_the_stored_ones_write_nothing(self, import_geo):
-        names = server_settings_env_import_service._import_geocoding_env(MagicMock())
+        names = server_settings_env_import_service._import_geocoding_env(MagicMock()).env_names
 
         assert names == ["REVERSE_GEO_PROVIDER"]
         import_geo.write.assert_not_called()
@@ -527,7 +529,7 @@ class TestImportGeocodingEnv:
     def test_an_unknown_provider_leaves_the_stored_settings_and_does_not_raise(self, import_geo):
         import_geo.settings.REVERSE_GEO_PROVIDER = "bing"
 
-        names = server_settings_env_import_service._import_geocoding_env(MagicMock())
+        names = server_settings_env_import_service._import_geocoding_env(MagicMock()).env_names
 
         assert names == ["REVERSE_GEO_PROVIDER"]
         import_geo.write.assert_not_called()
@@ -536,9 +538,15 @@ class TestImportGeocodingEnv:
 class TestImportDeprecatedNamesBothBlocks:
     def test_the_warning_names_mail_and_geocoding_variables(self):
         with (
-            patch.object(server_settings_env_import_service, "_import_mail_env", return_value=["SMTP_HOST"]),
             patch.object(
-                server_settings_env_import_service, "_import_geocoding_env", return_value=["REVERSE_GEO_PROVIDER"]
+                server_settings_env_import_service,
+                "_import_mail_env",
+                return_value=server_settings_env_import_service.ImportResult(["SMTP_HOST"], []),
+            ),
+            patch.object(
+                server_settings_env_import_service,
+                "_import_geocoding_env",
+                return_value=server_settings_env_import_service.ImportResult(["REVERSE_GEO_PROVIDER"], []),
             ),
             patch.object(server_settings_env_import_service.logger, "warning") as warn,
         ):
@@ -634,13 +642,15 @@ def import_session(edit_env):
 
 class TestImportSessionEnv:
     def test_nothing_happens_without_a_session_variable(self, import_session):
-        assert server_settings_env_import_service._import_session_env(MagicMock()) == []
+        assert server_settings_env_import_service._import_session_env(MagicMock()).env_names == []
         import_session.write.assert_not_called()
 
     def test_values_equal_to_the_stored_ones_write_nothing(self, import_session):
         import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
 
-        assert server_settings_env_import_service._import_session_env(MagicMock()) == ["ACCESS_TOKEN_EXPIRE_MINUTES"]
+        assert server_settings_env_import_service._import_session_env(MagicMock()).env_names == [
+            "ACCESS_TOKEN_EXPIRE_MINUTES"
+        ]
         import_session.write.assert_not_called()
 
     def test_only_the_set_variables_are_imported_and_only_when_different(self, import_session):
@@ -729,11 +739,11 @@ class TestRetention:
     def test_nothing_happens_without_the_variable(self, import_env):
         import_env.is_set = False
 
-        assert server_settings_env_import_service._import_retention_env(MagicMock()) == []
+        assert server_settings_env_import_service._import_retention_env(MagicMock()).env_names == []
         import_env.write.assert_not_called()
 
     def test_an_equal_value_writes_nothing(self, import_env):
-        assert server_settings_env_import_service._import_retention_env(MagicMock()) == [
+        assert server_settings_env_import_service._import_retention_env(MagicMock()).env_names == [
             "READ_NOTIFICATION_RETENTION_DAYS"
         ]
         import_env.write.assert_not_called()
@@ -1209,14 +1219,14 @@ def import_env(mail_env):
 class TestImportMailEnv:
     def test_nothing_happens_without_smtp_host(self, mail_env):
         with patch.object(server_settings_service, "env_var_is_set", return_value=False):
-            names = server_settings_env_import_service._import_mail_env(MagicMock())
+            names = server_settings_env_import_service._import_mail_env(MagicMock()).env_names
 
         assert names == []
         mail_env.read.assert_not_called()
         mail_env.write.assert_not_called()
 
     def test_values_equal_to_the_stored_ones_write_nothing(self, import_env):
-        names = server_settings_env_import_service._import_mail_env(MagicMock())
+        names = server_settings_env_import_service._import_mail_env(MagicMock()).env_names
 
         import_env.mail.write.assert_not_called()
         assert "SMTP_HOST" in names and "SMTP_PASSWORD" in names
@@ -1225,10 +1235,11 @@ class TestImportMailEnv:
         core_config.settings.SMTP_PORT = 465
         core_config.settings.SMTP_SECURE_TYPE = "ssl"
 
-        server_settings_env_import_service._import_mail_env(MagicMock())
+        result = server_settings_env_import_service._import_mail_env(MagicMock())
 
         written = import_env.mail.write.call_args.args[0].model_dump(exclude_unset=True)
         assert written == {"port": 465, "security": "ssl"}
+        assert result.changed_fields == ["port", "security"]
 
     def test_a_different_password_is_encrypted_and_written(self, import_env):
         import_env.secret.return_value = "plain-new"
@@ -1254,7 +1265,7 @@ class TestImportMailEnv:
     def test_invalid_values_leave_the_stored_settings_and_do_not_raise(self, import_env, caplog):
         import_env.mail.problems.return_value = ["Username and password must be set together"]
 
-        names = server_settings_env_import_service._import_mail_env(MagicMock())
+        names = server_settings_env_import_service._import_mail_env(MagicMock()).env_names
 
         import_env.mail.read.assert_not_called()
         import_env.mail.write.assert_not_called()
@@ -1271,7 +1282,11 @@ class TestImportDeprecatedEnvSettings:
     def test_no_env_means_no_warning(self):
         db = MagicMock()
         with (
-            patch.object(server_settings_env_import_service, "_import_mail_env", return_value=[]),
+            patch.object(
+                server_settings_env_import_service,
+                "_import_mail_env",
+                return_value=server_settings_env_import_service.ImportResult([], []),
+            ),
             patch.object(server_settings_env_import_service.logger, "warning") as warn,
         ):
             server_settings_env_import_service.import_deprecated_env_settings(db)
@@ -1282,7 +1297,9 @@ class TestImportDeprecatedEnvSettings:
         db = MagicMock()
         with (
             patch.object(
-                server_settings_env_import_service, "_import_mail_env", return_value=["SMTP_HOST", "SMTP_PASSWORD"]
+                server_settings_env_import_service,
+                "_import_mail_env",
+                return_value=server_settings_env_import_service.ImportResult(["SMTP_HOST", "SMTP_PASSWORD"], []),
             ),
             patch.object(server_settings_env_import_service.logger, "warning") as warn,
         ):
@@ -1299,7 +1316,11 @@ class TestImportDeprecatedEnvSettings:
         order: list[str] = []
         db.commit.side_effect = lambda: order.append("commit")
         with (
-            patch.object(server_settings_env_import_service, "_import_mail_env", return_value=["SMTP_HOST"]),
+            patch.object(
+                server_settings_env_import_service,
+                "_import_mail_env",
+                return_value=server_settings_env_import_service.ImportResult(["SMTP_HOST"], []),
+            ),
             patch.object(
                 server_settings_env_import_service.logger, "warning", side_effect=lambda *a, **k: order.append("warn")
             ),
@@ -1400,3 +1421,137 @@ class TestEditMailSettingsLocking:
             )
 
         mail_env.write.assert_not_called()
+
+
+class TestSettingsAudit:
+    def test_a_changed_setting_stages_its_field_name_only(self, edit_env):
+        db = MagicMock()
+        with jasil_testing.capture_audit() as audit:
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, currency="dollar", tileserver_api_key="plain-new"), db, if_match="*"
+            )
+
+        entry = audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
+        assert entry.details == {"changed_fields": ["currency", "tileserver_api_key"]}
+
+    def test_the_row_is_staged_before_the_commit_of_a_tile_change(self, edit_env):
+        db = MagicMock()
+        with jasil_testing.capture_audit() as audit:
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, map_background_color="#000000"), db, if_match="*"
+            )
+
+        audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
+        edit_env.publish.assert_called_once()
+
+    def test_resending_the_unchanged_record_is_not_audited(self, edit_env):
+        with jasil_testing.capture_audit() as audit:
+            server_settings_service.edit_server_settings(_full_edit(edit_env.stored), MagicMock(), if_match="*")
+
+        audit.assert_not_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
+
+
+class TestMailSettingsAudit:
+    def test_a_changed_password_appears_as_its_field_name_only(self, mail_env):
+        with jasil_testing.capture_audit() as audit:
+            server_settings_mail_service.edit_mail_settings(
+                _mail_edit(mail_env.stored, port=465, password="plain-new"), MagicMock(), if_match="*"
+            )
+
+        entry = audit.assert_audited(server_settings_audit_actions.MAIL_UPDATE.id)
+        assert entry.details == {"changed_fields": ["password", "port"]}
+
+    def test_resending_the_unchanged_record_is_not_audited(self, mail_env):
+        with jasil_testing.capture_audit() as audit:
+            server_settings_mail_service.edit_mail_settings(_mail_edit(mail_env.stored), MagicMock(), if_match="*")
+
+        audit.assert_not_audited(server_settings_audit_actions.MAIL_UPDATE.id)
+
+
+class TestLoginPhotoAudit:
+    def test_an_upload_is_audited_without_a_file_name(self):
+        with (
+            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=4),
+            jasil_testing.capture_audit() as audit,
+        ):
+            server_settings_login_photo_service.upload_login_photo(MagicMock(), MagicMock(), MagicMock())
+
+        entry = audit.assert_audited(server_settings_audit_actions.LOGIN_PHOTO_UPDATE.id)
+        assert entry.details is None
+
+    def test_a_refused_upload_is_not_audited(self):
+        with (
+            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"),
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.UnsupportedMediaTypeError),
+        ):
+            server_settings_login_photo_service.upload_login_photo(MagicMock(), MagicMock(), MagicMock())
+
+        audit.assert_not_audited(server_settings_audit_actions.LOGIN_PHOTO_UPDATE.id)
+
+    def test_a_removal_is_audited_even_when_the_blob_cannot_be_deleted(self):
+        storage = MagicMock()
+        storage.delete.side_effect = RuntimeError("storage down")
+        with (
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
+            jasil_testing.capture_audit() as audit,
+        ):
+            server_settings_login_photo_service.delete_login_photo(storage, MagicMock())
+
+        entry = audit.assert_audited(server_settings_audit_actions.LOGIN_PHOTO_DELETE.id)
+        assert entry.details is None
+
+
+class TestEnvImportAudit:
+    @staticmethod
+    def _imported(env_names: list[str], changed_fields: list[str]):
+        return server_settings_env_import_service.ImportResult(env_names, changed_fields)
+
+    def test_the_changed_fields_of_every_block_are_one_sorted_row(self):
+        with (
+            patch.object(
+                server_settings_env_import_service,
+                "_import_mail_env",
+                return_value=self._imported(["SMTP_HOST"], ["port", "host"]),
+            ),
+            patch.object(
+                server_settings_env_import_service,
+                "_import_geocoding_env",
+                return_value=self._imported(["REVERSE_GEO_PROVIDER"], ["geocoding_service"]),
+            ),
+            patch.object(
+                server_settings_env_import_service, "_import_session_env", return_value=self._imported([], [])
+            ),
+            patch.object(
+                server_settings_env_import_service, "_import_retention_env", return_value=self._imported([], [])
+            ),
+            jasil_testing.capture_audit() as audit,
+        ):
+            server_settings_env_import_service.import_deprecated_env_settings(MagicMock())
+
+        entries = [e for e in audit.entries if e.action_id == server_settings_audit_actions.SETTINGS_IMPORT.id]
+        assert len(entries) == 1
+        assert entries[0].details == {"changed_fields": ["geocoding_service", "host", "port"]}
+
+    def test_variables_that_matched_the_stored_values_are_not_audited(self):
+        with (
+            patch.object(
+                server_settings_env_import_service,
+                "_import_mail_env",
+                return_value=self._imported(["SMTP_HOST"], []),
+            ),
+            patch.object(
+                server_settings_env_import_service, "_import_geocoding_env", return_value=self._imported([], [])
+            ),
+            patch.object(
+                server_settings_env_import_service, "_import_session_env", return_value=self._imported([], [])
+            ),
+            patch.object(
+                server_settings_env_import_service, "_import_retention_env", return_value=self._imported([], [])
+            ),
+            jasil_testing.capture_audit() as audit,
+        ):
+            server_settings_env_import_service.import_deprecated_env_settings(MagicMock())
+
+        audit.assert_not_audited(server_settings_audit_actions.SETTINGS_IMPORT.id)

@@ -30,6 +30,7 @@ import zipfile
 from collections.abc import Iterator
 from typing import Any
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -40,6 +41,7 @@ import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.local_pool as core_local_pool
 import core.logger as core_logger
+import modules.activities.activity_ingestion.audit_actions as activity_ingestion_audit_actions
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.crud as activity_ingestion_crud
@@ -194,6 +196,32 @@ def _ensure_none_running(user_id: int, db: Session) -> None:
         raise core_exceptions.ConflictError("A bulk import is already running")
 
 
+def _stage_import_request(
+    job_id: str,
+    user_id: int,
+    source: activity_ingestion_audit_actions.ImportSource,
+    file_count: int | None,
+    db: Session,
+) -> None:
+    """Stage the audit row of a bulk import request in the transaction that queues the job.
+
+    Args:
+        job_id: The queued bulk-import job.
+        user_id: The importing user.
+        source: Where the files come from.
+        file_count: How many importable files were found, or None when it is not known yet.
+        db: The session holding the staged job row.
+    """
+    jasil_audit.stage(
+        db,
+        activity_ingestion_audit_actions.IMPORT_REQUEST,
+        target_type="activity_ingestion_job",
+        target_id=job_id,
+        target_owner_id=str(user_id),
+        details=activity_ingestion_audit_actions.ImportRequestDetails(source=source, file_count=file_count),
+    )
+
+
 def accept_archive(
     user_id: int,
     filename: str | None,
@@ -266,6 +294,7 @@ def accept_archive(
             import_source=bulk_format.name,
             files_total=files_total,
         )
+        _stage_import_request(job_id, user_id, activity_ingestion_audit_actions.ImportSource.ARCHIVE, files_total, db)
         activity_ingestion_dispatch_service.commit_or_publish(
             db,
             publish=lambda commit: activity_ingestion_event_publishers.publish_bulk_import_continue(
@@ -334,6 +363,7 @@ def start_from_directory(
             db,
             import_source=bulk_format.name,
         )
+        _stage_import_request(job_id, user_id, activity_ingestion_audit_actions.ImportSource.SERVER_DIRECTORY, None, db)
         db.commit()
     except IntegrityError as err:
         db.rollback()

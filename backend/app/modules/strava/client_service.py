@@ -3,6 +3,7 @@
 import calendar
 from datetime import UTC, datetime, timedelta
 
+import jasil.audit as jasil_audit
 import requests
 from sqlalchemy.orm import Session
 from stravalib.client import Client as StravaClient
@@ -14,6 +15,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.notifications.integration_service as notifications_integration
+import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -74,6 +76,19 @@ def is_strava_rate_limit_error(err: Exception) -> bool:
     return isinstance(err, RateLimitExceeded) or _fault_status(err) == 429
 
 
+def is_strava_client_error(err: Exception) -> bool:
+    """Check if an exception is Strava refusing a request with a 4xx answer.
+
+    Args:
+        err: The exception to check.
+
+    Returns:
+        True if the error is a response with a 4xx status.
+    """
+    status = _fault_status(err)
+    return status is not None and 400 <= status < 500
+
+
 def is_strava_not_found_error(err: Exception) -> bool:
     """Check if an exception is a Strava 404 Not Found error.
 
@@ -130,6 +145,13 @@ def handle_rejected_token(user_id: int, refresh_token: str | None, err: Exceptio
             )
             return
         notification, ws_message = notifications_integration.create_strava_token_expired_notification(user_id, db)
+        jasil_audit.stage(
+            db,
+            strava_audit_actions.ACCOUNT_REVOKE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
         db.commit()
     notifications_integration.push_notification(user_id, notification, ws_message)
     logger.info("Rejected Strava account unlinked", extra=core_logger.context(user_id=user_id))

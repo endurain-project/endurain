@@ -19,6 +19,7 @@ import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_public_router as sso_public_router
 import modules.auth.credentials.password_hasher as auth_password_hasher
+import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 import modules.auth.known_devices.events as known_devices_events
 import modules.auth.mfa.dependencies as mfa_dependencies
@@ -33,6 +34,11 @@ _ISSUED = "n" * 43
 _LOGIN = authentication_audit_actions.LOGIN.id
 _PASSWORD = known_devices_events.SignInMethod.PASSWORD
 _IDENTITY_PROVIDER = known_devices_events.SignInMethod.IDENTITY_PROVIDER
+
+
+def _signed(device_id, new_device=False):
+    """Return what recording a sign-in answers."""
+    return known_devices_contracts.SignInRecord(device_id=device_id, new_device=new_device)
 
 
 @pytest.fixture
@@ -68,23 +74,36 @@ def _login(db, *, client_type="web", device_id=_DEVICE_ID, **kwargs):
 
 
 class TestPasswordSignIn:
-    def test_a_web_sign_in_records_the_device_after_the_audit_row_and_before_the_commit(
-        self, mock_db, password_sign_in
-    ):
+    def test_a_web_sign_in_records_the_device_before_the_audit_row_and_the_commit(self, mock_db, password_sign_in):
         steps = []
         mock_db.commit.side_effect = lambda: steps.append("commit")
         with jasil_testing.capture_audit() as audit, patch(_RECORD) as record:
-            record.side_effect = lambda *args: steps.append(("record", bool(audit.matching(_LOGIN)))) or _ISSUED
+            record.side_effect = lambda *args: (
+                steps.append(("record", bool(audit.matching(_LOGIN)))) or _signed(_ISSUED, True)
+            )
             outcome = _login(mock_db)
 
         record.assert_called_once_with(5, "web", _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
-        assert steps == [("record", True), "commit"]
+        assert steps == [("record", False), "commit"]
+        assert audit.matching(_LOGIN)
         assert outcome.device_id == _ISSUED
+        assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is True
+
+    def test_a_sign_in_from_a_known_device_is_not_flagged_as_new(self, mock_db, password_sign_in):
+        with jasil_testing.capture_audit() as audit, patch(_RECORD, return_value=_signed(_DEVICE_ID)):
+            _login(mock_db)
+
+        assert audit.assert_audited(_LOGIN, outcome="success").details == {
+            "method": "password",
+            "mfa": False,
+            "reason": None,
+            "new_device": False,
+        }
 
     def test_a_mobile_pkce_sign_in_is_recorded_without_a_device_id(self, mock_db, password_sign_in):
         with (
             patch(f"{_SERVICE}.create_mobile_pkce_session_response") as pkce,
-            patch(_RECORD, return_value=None) as record,
+            patch(_RECORD, return_value=_signed(None)) as record,
         ):
             outcome = _login(
                 mock_db, client_type="mobile", device_id=None, code_challenge="a" * 43, code_challenge_method="S256"
@@ -129,7 +148,7 @@ class TestPasswordSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.create_tokens", return_value=_TOKENS),
             patch(f"{_SERVICE}.sessions_integration.create_session"),
-            patch(_RECORD, return_value=_ISSUED) as record,
+            patch(_RECORD, return_value=_signed(_ISSUED)) as record,
         ):
             outcome = authentication_service.verify_mfa_and_login(
                 "203.0.113.7",
@@ -173,7 +192,7 @@ class TestSsoSignIn:
             if callable(record_returns):
                 record.side_effect = record_returns
             else:
-                record.return_value = record_returns
+                record.return_value = _signed(record_returns)
             outcome = authentication_service.exchange_tokens_for_session(
                 "sid",
                 "verifier",
@@ -189,19 +208,29 @@ class TestSsoSignIn:
             )
         return outcome, record
 
-    def test_an_sso_sign_in_records_the_device_after_the_audit_row_and_before_the_commit(self, mock_db):
+    def test_an_sso_sign_in_records_the_device_before_the_audit_row_and_the_commit(self, mock_db):
         steps = []
         mock_db.commit.side_effect = lambda: steps.append("commit")
         with jasil_testing.capture_audit() as audit:
             outcome, record = self._exchange(
                 mock_db,
                 idp_id=3,
-                record_returns=lambda *args: steps.append(("record", bool(audit.matching(_LOGIN)))) or _ISSUED,
+                record_returns=lambda *args: (
+                    steps.append(("record", bool(audit.matching(_LOGIN)))) or _signed(_ISSUED, True)
+                ),
             )
 
         record.assert_called_once_with(5, "web", _DEVICE_ID, "203.0.113.7", "agent", _IDENTITY_PROVIDER, mock_db)
-        assert steps == [("record", True), "commit"]
+        assert steps == [("record", False), "commit"]
+        assert audit.matching(_LOGIN)
         assert outcome.device_id == _ISSUED
+        assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is True
+
+    def test_an_sso_sign_in_from_a_known_device_is_not_flagged_as_new(self, mock_db):
+        with jasil_testing.capture_audit() as audit:
+            self._exchange(mock_db, idp_id=3)
+
+        assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is False
 
     def test_a_mobile_sso_sign_in_carries_no_device_id(self, mock_db):
         outcome, record = self._exchange(mock_db, idp_id=3, client_type="mobile", record_returns=None)
@@ -266,7 +295,7 @@ class TestLoginRoute:
         return client.post("/api/v1/auth/login", data={"username": "alice", "password": "secret"})
 
     def test_a_web_sign_in_sets_the_device_cookie(self, mock_db, password_sign_in, web_login_body):
-        with patch(_RECORD, return_value=_ISSUED):
+        with patch(_RECORD, return_value=_signed(_ISSUED)):
             response = self._post(_login_app(mock_db, "web"))
 
         assert response.status_code == 200, response.text
@@ -281,7 +310,7 @@ class TestLoginRoute:
     def test_the_cookie_the_browser_sent_reaches_the_service(self, mock_db, password_sign_in, web_login_body):
         client = _login_app(mock_db, "web")
         client.cookies.set("endurain_device", _DEVICE_ID)
-        with patch(_RECORD, return_value=_DEVICE_ID) as record:
+        with patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record:
             self._post(client)
 
         assert record.call_args.args[2] == _DEVICE_ID
@@ -289,7 +318,7 @@ class TestLoginRoute:
     def test_a_malformed_cookie_is_ignored(self, mock_db, password_sign_in, web_login_body):
         client = _login_app(mock_db, "web")
         client.cookies.set("endurain_device", "not-a-device-id")
-        with patch(_RECORD, return_value=_ISSUED) as record:
+        with patch(_RECORD, return_value=_signed(_ISSUED)) as record:
             self._post(client)
 
         assert record.call_args.args[2] is None
@@ -305,7 +334,7 @@ class TestLoginRoute:
         }
         with (
             patch(f"{_SERVICE}.complete_login", return_value=auth_schema.AuthOutcome(body)),
-            patch(_RECORD, return_value=None),
+            patch(_RECORD, return_value=_signed(None)),
         ):
             response = self._post(_login_app(mock_db, "mobile"))
 

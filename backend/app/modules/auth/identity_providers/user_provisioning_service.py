@@ -3,11 +3,13 @@
 import secrets as secrets_module
 from typing import Any
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.claim_mapping as claim_mapping
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.lockout.integration_service as lockout_integration
@@ -34,6 +36,42 @@ class SsoSignInRefusedError(core_exceptions.PermissionDeniedError):
         """
         super().__init__(detail)
         self.login_error = login_error
+
+
+def stage_identity_link(user_id: int, idp_id: int, db: Session) -> None:
+    """Stage the audit row of a provider linked to an account, in the transaction that commits the link.
+
+    Args:
+        user_id: The account the provider was linked to.
+        idp_id: The provider that was linked.
+        db: Database session.
+    """
+    jasil_audit.stage(
+        db,
+        idp_audit_actions.IDENTITY_LINK_LINK,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=idp_audit_actions.IdentityLinkDetails(idp_id=idp_id),
+    )
+
+
+def record_identity_link_refused(user_id: int, idp_id: int, reason: idp_audit_actions.IdentityLinkRefusal) -> None:
+    """Record a refused link in its own transaction, since the refused request rolls back.
+
+    Args:
+        user_id: The account the provider was to be linked to.
+        idp_id: The provider that was to be linked.
+        reason: Why the link was refused.
+    """
+    jasil_audit.record_detached(
+        idp_audit_actions.IDENTITY_LINK_LINK,
+        outcome=jasil_audit.Outcome.DENIED,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=idp_audit_actions.IdentityLinkDetails(idp_id=idp_id, reason=reason),
+    )
 
 
 def find_or_create_user(
@@ -101,6 +139,9 @@ def find_or_create_user(
         user = users_integration.get_user_by_email(email, db)
         if user:
             if not claim_mapping.is_email_verified(userinfo):
+                record_identity_link_refused(
+                    user.id, idp.id, idp_audit_actions.IdentityLinkRefusal.PROVIDER_EMAIL_UNVERIFIED
+                )
                 logger.warning(
                     "Refusing to link IdP <name> to existing account <username_log_id>: "
                     "provider did not assert a verified email",
@@ -117,6 +158,9 @@ def find_or_create_user(
             # An unverified local address can be claimed by anyone who set it on their own account, so
             # the IdP's assertion proves nothing about who owns this account.
             if not user.email_verified:
+                record_identity_link_refused(
+                    user.id, idp.id, idp_audit_actions.IdentityLinkRefusal.ACCOUNT_EMAIL_UNVERIFIED
+                )
                 logger.warning(
                     "Refusing to link IdP <name> to account <username_log_id>: the account email is not verified",
                     extra=core_logger.context(
@@ -131,6 +175,7 @@ def find_or_create_user(
 
             # Link existing account to IdP
             identity_provider_links_integration.create_user_identity_provider(user.id, idp.id, subject, db)
+            stage_identity_link(user.id, idp.id, db)
 
             logger.info(
                 "Linked existing user <username_log_id> to IdP <name>",
@@ -216,6 +261,7 @@ def create_user_from_idp(
 
     # Create the IdP link
     identity_provider_links_integration.create_user_identity_provider(created_user.id, idp.id, subject, db)
+    stage_identity_link(created_user.id, idp.id, db)
 
     logger.info(
         "Created new user <username_log_id> from IdP <name>",
