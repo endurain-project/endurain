@@ -4,7 +4,6 @@ from datetime import UTC, date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.testclient import TestClient
@@ -51,8 +50,14 @@ class TestHealth:
 
     @pytest.fixture(autouse=True)
     def _healthy_audit(self):
-        with patch("jasil.audit.get_audit_health", return_value=self._audit_health()) as healthy:
+        settings = MagicMock()
+        settings.audit.enabled = True
+        with (
+            patch("jasil.settings.get_settings", return_value=settings),
+            patch("jasil.audit.get_audit_health", return_value=self._audit_health()) as healthy,
+        ):
             self.healthy = healthy
+            self.settings = settings
             yield
 
     @staticmethod
@@ -160,11 +165,9 @@ class TestHealth:
 
     def test_a_disabled_audit_trail_is_ok_and_is_not_read(self):
         self.healthy.return_value = self._audit_health(furthest_partition_date=None)
-        settings = MagicMock()
-        settings.audit.enabled = False
+        self.settings.audit.enabled = False
 
-        with patch("jasil.settings.get_settings", return_value=settings):
-            response = self._get(MagicMock(), MagicMock())
+        response = self._get(MagicMock(), MagicMock())
 
         assert response.json() == {"status": "ok", "state": "ok", "audit": "ok"}
         self.healthy.assert_not_called()

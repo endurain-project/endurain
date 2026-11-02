@@ -1235,15 +1235,15 @@ export interface paths {
          *     backend that does not answer does not fail it: the process still serves most
          *     routes (rate limits fall back to per-process counters), and restarting or
          *     de-routing replicas would not bring the backend back. It answers 200 with
-         *     ``degraded`` so a monitor can alert on the body.
+         *     ``degraded`` so a monitor can alert on the body. An unhealthy audit trail does the same.
          *
          *     Args:
          *         db: Database session.
          *         state: The platform state provider.
          *
          *     Returns:
-         *         ``ok`` when the database and the state backend answer, ``degraded`` when only the state
-         *         backend does not.
+         *         ``ok`` when the database and the state backend answer and the audit trail is healthy,
+         *         ``degraded`` when only the state backend or the audit trail is not.
          *
          *     Raises:
          *         HTTPException: 503 when no connection can be obtained or the query fails.
@@ -7663,10 +7663,18 @@ export interface components {
          * @description Health of the dependencies this process needs.
          *
          *     Attributes:
-         *         status: ``ok``, or ``degraded`` when only the shared state backend is unreachable.
+         *         status: ``ok``, or ``degraded`` when the shared state backend is unreachable or the audit trail
+         *             is unhealthy.
          *         state: Whether the shared state backend (rate limits, claims, tickets) answers.
+         *         audit: Whether the audit trail is healthy: tomorrow's partition exists, the latest checkpoint is
+         *             recent and no audit record failed to write recently.
          */
         HealthResponse: {
+            /**
+             * Audit
+             * @enum {string}
+             */
+            audit: "ok" | "degraded";
             /**
              * State
              * @enum {string}
