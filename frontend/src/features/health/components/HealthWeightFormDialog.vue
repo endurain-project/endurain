@@ -93,6 +93,11 @@ function massToKg(raw: string | number): number {
   return Math.round(kg * 1000) / 1000
 }
 
+/** Like {@link massToKg}, but a blank optional field stays `null` instead of becoming 0 kg. */
+function optionalMassToKg(raw: string | number): number | null {
+  return toNumberOrNull(raw) === null ? null : massToKg(raw)
+}
+
 /** Converts the string-based form values into the clean {@link WeightEntryInput}. */
 function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
@@ -106,8 +111,8 @@ function buildInput(values: WeightFormValues): WeightEntryInput {
     ),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
-    boneMassKg: massToKg(values.boneMass),
-    muscleMassKg: massToKg(values.muscleMass),
+    boneMassKg: optionalMassToKg(values.boneMass),
+    muscleMassKg: optionalMassToKg(values.muscleMass),
   }
 }
 

@@ -121,4 +121,27 @@ describe('HealthWeightFormDialog submit', () => {
 
     expect((await save(wrapper)).bmi).toBe(25.5)
   })
+
+  it('sends no bone or muscle mass when those fields are blank', async () => {
+    const wrapper = await openDialog()
+
+    await inputs(wrapper)[1]!.setValue('77.2')
+
+    const body = await save(wrapper)
+    expect(body.bone_mass).toBeNull()
+    expect(body.muscle_mass).toBeNull()
+  })
+
+  it('sends bone and muscle mass in kilograms', async () => {
+    const wrapper = await openDialog({ weightUnits: 'imperial' })
+
+    await inputs(wrapper)[1]!.setValue('170')
+    await inputs(wrapper)[5]!.setValue('6.6')
+    await inputs(wrapper)[6]!.setValue('66')
+
+    const body = await save(wrapper)
+    expect(body.weight).toBeCloseTo(77.111, 3)
+    expect(body.bone_mass).toBeCloseTo(2.994, 3)
+    expect(body.muscle_mass).toBeCloseTo(29.937, 3)
+  })
 })
