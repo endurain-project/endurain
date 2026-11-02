@@ -547,3 +547,76 @@ class TestARejectedTokenUnlinksTheAccount:
             )
 
         assert calls == [1]
+
+
+class _StravaClient:
+    """A Strava client that answers from real stravalib models instead of the network."""
+
+    def __init__(self, detailed_activity, streams: dict[str, list[float]]) -> None:
+        self._detailed_activity = detailed_activity
+        self._streams = streams
+
+    def get_activity(self, _activity_id):
+        return self._detailed_activity
+
+    def get_activity_streams(self, _activity_id, **_kwargs):
+        from stravalib.model import Stream
+
+        return {name: Stream(type=name, data=data) for name, data in self._streams.items()}
+
+    def get_activity_laps(self, _activity_id):
+        return []
+
+
+class TestParseActivity:
+    """A detailed activity Strava returns with fields missing is refused or completed, never crashes the window."""
+
+    @pytest.fixture(autouse=True)
+    def _database(self, monkeypatch):
+        from tests._helpers.db import create_sqlite_session_factory, ensure_user
+
+        factory = create_sqlite_session_factory()
+        ensure_user(factory, 1)
+        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", factory)
+        yield
+        factory.kw["bind"].dispose()
+
+    def _parse(self, rate_limits, *, streams=None, **fields):
+        from stravalib.model import DetailedActivity
+
+        import modules.users.users_integrations.schema as integrations_schema
+        import modules.users.users_privacy_settings.schema as privacy_schema
+
+        detailed = {
+            "id": 42,
+            "name": "Morning Run",
+            "sport_type": "Run",
+            "start_date": "2026-01-01T07:00:00Z",
+            "elapsed_time": 1800,
+            "moving_time": 1700,
+            "distance": 5000.0,
+        }
+        detailed.update(fields)
+        return activity_utils.parse_activity(
+            Mock(id=42),
+            1,
+            privacy_schema.UsersPrivacySettingsRead(id=1, user_id=1),
+            "UTC",
+            _StravaClient(DetailedActivity.model_validate(detailed), streams or {"time": [0, 1]}),
+            integrations_schema.UsersIntegrationsRead(id=1, user_id=1, strava_client_id="app-a"),
+            rate_limits,
+        )
+
+    def test_an_activity_without_a_sport_type_is_refused_as_a_strava_failure(self, rate_limits):
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            self._parse(rate_limits, sport_type=None)
+
+    def test_an_activity_without_a_name_is_stored_as_a_workout(self, rate_limits):
+        parsed = self._parse(rate_limits, name=None)
+
+        assert parsed["activity_to_store"].name == "Workout"
+
+    def test_a_fractional_max_cadence_is_rounded(self, rate_limits):
+        parsed = self._parse(rate_limits, streams={"time": [0, 1, 2], "cadence": [80, 87.6, 85]})
+
+        assert parsed["activity_to_store"].max_cad == 88

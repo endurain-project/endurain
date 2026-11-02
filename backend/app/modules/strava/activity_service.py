@@ -127,7 +127,8 @@ def parse_activity(
 
     Raises:
         TooManyRequestsError: When Strava's rate limit is active or was just hit.
-        DependencyFailedError: When Strava cannot return the activity.
+        DependencyFailedError: When Strava cannot return the activity, or returns it without a start date or
+            sport type.
     """
     client_id = strava_client_service.get_client_id(user_integrations)
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
@@ -155,6 +156,15 @@ def parse_activity(
             extra=core_logger.context(user_id=user_id, strava_activity_id=activity.id),
         )
         raise core_exceptions.DependencyFailedError("Strava activity has no start date")
+
+    # stravalib types sport_type as optional too; without it the activity has no type to be stored as.
+    if detailed_activity.sport_type is None:
+        logger.warning(
+            "Strava activity has no sport type, skipping",
+            extra=core_logger.context(user_id=user_id, strava_activity_id=activity.id),
+        )
+        raise core_exceptions.DependencyFailedError("Strava activity has no sport type")
+    sport_type = detailed_activity.sport_type.root
 
     # Ensure activity.elapsed_time is a numerical value
     total_elapsed_time = (
@@ -276,7 +286,7 @@ def parse_activity(
             gear_id = gear.id
 
     # Activity type
-    activity_type = activity_constants.define_activity_type(detailed_activity.sport_type.root)
+    activity_type = activity_constants.define_activity_type(sport_type)
 
     if gear_id is None:
         with core_database.SessionLocal() as db:
@@ -292,7 +302,8 @@ def parse_activity(
     # Create the activity object
     activity_to_store = activity_contracts.ActivityCore(
         user_id=user_id,
-        name=detailed_activity.name,
+        # A file with no title is stored as a "Workout"; an untitled Strava activity is named the same way.
+        name=detailed_activity.name or "Workout",
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
         description=detailed_activity.description,
         activity_type=activity_type,
@@ -315,7 +326,7 @@ def parse_activity(
         average_hr=round(avg_hr) if avg_hr else None,
         max_hr=max_hr,
         average_cad=round(avg_cadence) if avg_cadence else None,
-        max_cad=max_cadence,
+        max_cad=round(max_cadence) if max_cadence else None,
         calories=round(detailed_activity.calories) if detailed_activity.calories is not None else None,
         gear_id=gear_id,
         strava_gear_id=detailed_activity.gear_id,
