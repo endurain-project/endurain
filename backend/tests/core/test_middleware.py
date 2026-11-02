@@ -66,6 +66,10 @@ def app_with_csrf():
     async def test_onboarding():
         return {"message": "Onboarding success"}
 
+    @app.post("/api/v1/sign-up/resend")
+    async def test_sign_up_resend():
+        return {"message": "Resend success"}
+
     return app
 
 
@@ -242,6 +246,12 @@ class TestCSRFMiddlewareExemptPaths:
         response = client.post("/api/v1/public/idp/session/test/callback", headers={"X-Client-Type": "web"})
         assert response.status_code == 200
         assert response.json() == {"message": "Public success"}
+
+    def test_sign_up_resend_exempt_no_csrf_required(self, client):
+        """A visitor who is not signed in has no CSRF token, so the sign-up resend route is exempt."""
+        response = client.post("/api/v1/sign-up/resend", headers={"X-Client-Type": "web"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "Resend success"}
 
     def test_onboarding_exempt_no_csrf_required(self, client):
         """

@@ -273,9 +273,18 @@ onMounted(async () => {
           </div>
 
           <div class="flex flex-col gap-1.5">
-            <Label for="login-password">
-              {{ t('login.password') }}
-            </Label>
+            <div class="flex items-center justify-between gap-2">
+              <Label for="login-password">
+                {{ t('login.password') }}
+              </Label>
+              <button
+                type="button"
+                class="text-meta text-muted-foreground hover:text-foreground"
+                @click="isForgotPasswordOpen = true"
+              >
+                {{ t('login.forgotPassword') }}
+              </button>
+            </div>
             <PasswordInput
               id="login-password"
               v-model="password"
@@ -307,15 +316,6 @@ onMounted(async () => {
           <LoaderCircle v-if="isLoading" class="size-4 animate-spin" aria-hidden="true" />
           <span>{{ isLoading ? statusText : submitText }}</span>
         </Button>
-
-        <button
-          v-if="!isMfaStep"
-          type="button"
-          class="self-center text-meta text-muted-foreground hover:text-foreground"
-          @click="isForgotPasswordOpen = true"
-        >
-          {{ t('login.forgotPassword') }}
-        </button>
 
         <RouterLink
           v-if="showSignUpLink"

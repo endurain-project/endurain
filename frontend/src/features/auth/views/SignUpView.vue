@@ -290,6 +290,14 @@ onMounted(async () => {
         >
           {{ t('signup.alreadyHaveAccount') }}
         </RouterLink>
+
+        <RouterLink
+          v-if="!passwordRequired"
+          :to="{ name: 'verify-email' }"
+          class="self-center text-meta text-muted-foreground hover:text-foreground"
+        >
+          {{ t('login.resendVerification') }}
+        </RouterLink>
       </div>
     </form>
   </AuthScreenLayout>

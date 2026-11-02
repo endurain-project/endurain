@@ -92,6 +92,19 @@ describe('SignUpView', () => {
     expect(requestSignUp.mock.calls[0]?.[0]).toMatchObject({ password: 'long-enough-pass' })
   })
 
+  it.each([
+    [true, true],
+    [false, false],
+  ])(
+    'offers a new verification email only when verification is required (%s)',
+    async (required, shown) => {
+      requireVerification.value = required
+      const wrapper = await mountFilled()
+
+      expect(wrapper.text().includes(i18n.global.t('login.resendVerification'))).toBe(shown)
+    },
+  )
+
   it('asks only for the account fields', async () => {
     requireVerification.value = true
     const wrapper = await mountFilled()
