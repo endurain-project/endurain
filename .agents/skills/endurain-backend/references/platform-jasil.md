@@ -15,9 +15,10 @@ The application wires it once in `core/platform_settings.py` (settings) and `mai
 | Payload schemas + parsing | `jasil.event_versioning` (`VersionedPayload`, `parse_payload`) |
 | Durable handler registration | `jasil.jobs.registry` (`JobHandlerRegistry`) |
 | Reconciliation nets | `jasil.jobs.reconciliation` (`DurableSubscriberNet`) |
+| Audit trail (declare actions, write rows) | `jasil.audit` (`docs/developer-guide/audit-trail.md`) |
 
 Forbidden (enforced by `tests/architecture/test_jasil_boundary.py`):
-`jasil._core`, `jasil.backends`, `jasil.jobs.crud`, `jasil.event_log.crud`.
+`jasil._core`, `jasil.backends`, `jasil.jobs.crud`, `jasil.event_log.crud`, `jasil.audit._postgres`.
 `core` and `jasil` never import `modules`.
 
 ## Storage

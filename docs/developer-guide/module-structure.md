@@ -76,7 +76,7 @@ rather than that its name is on a list. Ending a transaction (`commit`,
 | `constants.py` | contract | Domain constants and mapping tables. |
 | `events.py` | contract | Event-type names and validated payload models. |
 | `event_publishers.py` | application | Publishes this package's domain events. |
-| `audit_actions.py` | **composition surface** | The package's audit actions (`jasil.audit.AuditAction`) and their `details` models. Registered in the audit catalog by `app/module_registry.py`; the package's own services write the rows. |
+| `audit_actions.py` | **composition surface** | The package's audit actions (`jasil.audit.AuditAction`) and their `details` models. Registered in the audit catalog by `app/module_registry.py`; the package's own services write the rows ([Audit trail](audit-trail.md)). |
 | `subscribers.py` | application | Handles events. Registered from `subscriber_registry`. |
 | `integration_service.py` | **module surface** | The curated set of operations other modules may call. |
 | `contributors.py` | **namespace contract** | Typed callbacks installed by app composition for generic ingestion/profile orchestration. |

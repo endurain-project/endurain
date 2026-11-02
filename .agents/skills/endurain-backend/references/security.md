@@ -29,6 +29,7 @@
 - Provider tokens are stored encrypted; if a provider rotates a refresh token, a failed write of the new one is logged at `error` because the old one is already invalid.
 - New session identifier on login; cookies `HttpOnly`, `Secure`, `SameSite=Strict`.
 - Rate limit and lock out auth and password-reset flows.
+- Record auth changes and refusals in the audit trail (`docs/developer-guide/audit-trail.md`); a row holds ids and field names, never an email, username, token or secret.
 
 ## Abuse and resource limits
 - Bound every request: body size, page size, result size and fan-out; never return an unpaginated list of data that grows with use.

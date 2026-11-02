@@ -134,6 +134,7 @@ nav:
     - Events and subscribers: developer-guide/events-and-subscribers.md
     - Versioned writes (ETag and If-Match): developer-guide/optimistic-concurrency.md
     - Auth boundary: developer-guide/auth-boundary.md
+    - Audit trail: developer-guide/audit-trail.md
     - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
     - Suggesting a login photo: developer-guide/login-photos.md
     - Writing the documentation: developer-guide/writing-docs.md

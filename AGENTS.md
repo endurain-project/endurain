@@ -19,6 +19,7 @@ Deployment: Docker multi-stage image (amd64, arm64).
 | Identity and auth boundary | `docs/developer-guide/auth-boundary.md` |
 | Events, subscribers and reconciliation nets | `docs/developer-guide/events-and-subscribers.md` |
 | Versioned writes (`ETag`, `If-Match`) | `docs/developer-guide/optimistic-concurrency.md` |
+| Audit trail (what to record and how) | `docs/developer-guide/audit-trail.md` |
 | Activity ingestion pipeline | `docs/developer-guide/activity-ingestion.md` |
 | Visual design | `docs/developer-guide/brand-and-ux-guidelines.md` |
 | Scaling, jobs, storage settings | `docs/getting-started/scaling-and-background-jobs.md` |
@@ -108,6 +109,7 @@ npm run gen:api      # after backend API changes
 - Nothing blocks an API request: provider calls, large uploads, exports and bulk deletes run as a job or bounded pool and answer 202, and no database session stays open across a network call.
 - A route that names another user (`{user_id}`) requires an admin scope or checks ownership against `CurrentUserId`; `users:read` and `profile` belong to every user.
 - State shared across requests or replicas (rate limits, OAuth state, tickets, claims) goes through the platform `StateProvider`, never a module-level dict, lock or cache; review against `.agents/skills/endurain-backend/references/scaling-review.md`.
+- A security-relevant change or refusal (auth, credentials, admin actions, integrations, data leaving or entering, who can see data) writes an audit row as `docs/developer-guide/audit-trail.md` says; `details` never hold a value or a secret.
 - A provider rate-limit response becomes `TooManyRequestsError` with `retry_at`, so ingestion defers the work instead of burning retries.
 - Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them on converted modules).
 
