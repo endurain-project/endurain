@@ -18,6 +18,10 @@ import {
   refreshActivities,
 } from '@/features/activities/services/activities'
 import { fetchGoalResults } from '@/features/goals/services/goals'
+import {
+  floatPinnedActivities,
+  refreshPinnedActivities,
+} from '@/features/upload/composables/usePinnedActivities'
 import { pollIngestionJob } from '@/features/upload/composables/useUpload'
 import type { ActivityIngestionJob } from '@/features/upload/types'
 
@@ -50,14 +54,26 @@ export function useUserActivitiesFeed(
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.userFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) => fetchUserActivities(pageParam, pageSize, signal),
+    queryFn: async ({ pageParam, signal }) => {
+      const page = await fetchUserActivities(pageParam, pageSize, signal)
+      if (pageParam === 1) {
+        await refreshPinnedActivities()
+      }
+      return page
+    },
     initialPageParam: 1,
     getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
       lastPage.length < pageSize ? undefined : lastPageParam + 1,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
+
+  // Activities uploaded this session stay on top through any refetch. Derived
+  // here rather than with `select` so a refreshed pin shows even when the
+  // refetch returned the same pages.
+  const data = computed(() => floatPinnedActivities(query.data.value))
+  return { ...query, data }
 }
 
 /**

@@ -8,6 +8,10 @@ import {
 import { fetchActivity } from '@/features/activities/services/activities'
 import type { Activity } from '@/features/activities/types'
 import {
+  pinActivities,
+  updatePinnedActivities,
+} from '@/features/upload/composables/usePinnedActivities'
+import {
   clearAwaitingThumbnail,
   markAwaitingThumbnail,
 } from '@/features/upload/composables/usePendingThumbnails'
@@ -171,6 +175,7 @@ export function replaceActivitiesInFeed(
  * @returns Nothing.
  */
 function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
+  updatePinnedActivities(activities)
   queryClient.setQueriesData<InfiniteData<Activity[]>>(
     {
       queryKey: queryKeys.activities.lists(),
@@ -210,9 +215,13 @@ async function backfillMissingThumbnails(
         )
       ).filter((activity): activity is Activity => activity !== null)
 
+      // Patch every re-read row, not only the ones with a map: the location is
+      // filled in by a separate background job and may land first.
+      if (refreshed.length > 0) {
+        patchUserFeed(queryClient, refreshed)
+      }
       const ready = refreshed.filter((activity) => activity.mapThumbnailUrl !== null)
       if (ready.length > 0) {
-        patchUserFeed(queryClient, ready)
         const readyIds = ready.map((activity) => activity.id)
         clearAwaitingThumbnail(readyIds)
         const resolved = new Set(readyIds)
@@ -282,7 +291,10 @@ export function useUploadActivityFileMutation() {
         return
       }
       // Pin the new activities to the top of the viewer's own feed ("user-feed"
-      // scope). The followers feed never contains the viewer's own uploads.
+      // scope). The followers feed never contains the viewer's own uploads. The
+      // pin outlives the cache write: the feed query floats pinned activities
+      // above whatever a refetch returns (see `floatPinnedActivities`).
+      pinActivities(created)
       queryClient.setQueriesData<InfiniteData<Activity[]>>(
         {
           queryKey: queryKeys.activities.lists(),

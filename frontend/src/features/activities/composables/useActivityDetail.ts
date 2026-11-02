@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { fetchGearsByType } from '@/features/gears/services/gears'
 import { fetchActivityOwner } from '@/features/activities/services/activityOwner'
+import { unpinActivity } from '@/features/upload/composables/usePinnedActivities'
 import {
   deleteActivity,
   editActivity,
@@ -351,6 +352,7 @@ export function useDeleteActivityMutation() {
     mutationFn: ({ id, version }) => deleteActivity(id, version),
     onSuccess: (_data, { id }) => {
       client.removeQueries({ queryKey: queryKeys.activities.detail(id) })
+      unpinActivity(id)
     },
     onSettled: () => {
       invalidateActivityAggregates(client)
