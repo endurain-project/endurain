@@ -302,8 +302,7 @@ def parse_activity(
     # Create the activity object
     activity_to_store = activity_contracts.ActivityCore(
         user_id=user_id,
-        # A file with no title is stored as a "Workout"; an untitled Strava activity is named the same way.
-        name=detailed_activity.name or "Workout",
+        name=detailed_activity.name or activity_constants.DEFAULT_ACTIVITY_NAME,
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
         description=detailed_activity.description,
         activity_type=activity_type,

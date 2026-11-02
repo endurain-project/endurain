@@ -22,6 +22,10 @@ class ActivityVisibilityLevel(IntEnum):
     PRIVATE = 2
 
 
+#: The name an activity is stored under when its file or provider gives it none.
+DEFAULT_ACTIVITY_NAME = "Workout"
+
+
 # Global Activity Type Mappings (ID to Name)
 ACTIVITY_ID_TO_NAME = {
     1: "Run",

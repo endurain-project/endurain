@@ -102,7 +102,7 @@ def parse_frame_workout(frame):
         The workout name, or ``Workout`` when absent.
     """
     # Return the extracted name
-    return get_value_from_frame(frame, "wkt_name", "Workout")
+    return get_value_from_frame(frame, "wkt_name", activity_constants.DEFAULT_ACTIVITY_NAME)
 
 
 def parse_frame_record(frame):

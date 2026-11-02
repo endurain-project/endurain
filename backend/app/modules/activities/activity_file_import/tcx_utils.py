@@ -401,7 +401,7 @@ def parse_tcx_file(
         city: str | None = None
         town: str | None = None
         country: str | None = None
-        activity_name = activity_name_input if activity_name_input else "Workout"
+        activity_name = activity_name_input if activity_name_input else activity_constants.DEFAULT_ACTIVITY_NAME
         avg_power: float | None = None
         max_power: float | None = None
         norm_power: float | None = None

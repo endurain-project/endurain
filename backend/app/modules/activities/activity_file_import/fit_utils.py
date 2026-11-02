@@ -99,7 +99,7 @@ def create_activity_objects(
         for session_record in sessions_records:
             # Define default values
             activity_type = 10
-            activity_name = "Workout"
+            activity_name = activity_constants.DEFAULT_ACTIVITY_NAME
             pace = 0
             # Resolve each session's timezone from scratch. Reusing the loop
             # variable let a session with neither GPS nor a time offset inherit
@@ -111,7 +111,10 @@ def create_activity_objects(
                 # Set the activity type based on the session record
                 activity_type = activity_constants.define_activity_type(session_record["session"]["activity_type"])
 
-            if session_record["activity_name"] and session_record["activity_name"] != "Workout":
+            if (
+                session_record["activity_name"]
+                and session_record["activity_name"] != activity_constants.DEFAULT_ACTIVITY_NAME
+            ):
                 activity_name = session_record["activity_name"]
 
             # Resolve the summary distance. FIT stores it on the session frame,
@@ -524,7 +527,7 @@ class FitParseState:
     cursors used to compute instant speed.
     """
 
-    activity_name: str = "Workout"
+    activity_name: str = activity_constants.DEFAULT_ACTIVITY_NAME
     time_offset: int = 0
     activity_time_offset: int | None = None
     last_waypoint_time: datetime | None = None
@@ -866,7 +869,7 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
     try:
         logger.debug("FIT parse start", extra=core_logger.context(file=Path(file).name))
         state = FitParseState(
-            activity_name=activity_name_input or "Workout",
+            activity_name=activity_name_input or activity_constants.DEFAULT_ACTIVITY_NAME,
         )
 
         with open(file, "rb") as fit_file:
