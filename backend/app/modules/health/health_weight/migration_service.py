@@ -33,4 +33,5 @@ def edit_health_weight(
     Returns:
         The updated record.
     """
-    return health_weight_service.edit_health_weight(user_id, health_weight_id, health_weight, db)
+    # A migration overwrites whatever the row holds, so it names no version.
+    return health_weight_service.edit_health_weight(user_id, health_weight_id, health_weight, db, if_match="*")
