@@ -31,8 +31,18 @@ class _DatedRecord(Protocol):
     date: date | None
 
 
-def commit_write[ResultT](
-    spec: health_record_crud.RecordSpec,
+class _DatedInput(Protocol):
+    """A record to store once per day; without a date it is stored for the user's local today."""
+
+    date: date | None
+
+    def model_dump(self) -> dict[str, object]:
+        """Return the record's fields."""
+        ...
+
+
+def commit_write[ModelT: health_record_crud.Row, ReadT: BaseModel, ResultT](
+    spec: health_record_crud.RecordSpec[ModelT, ReadT],
     record_id: int,
     user_id: int,
     write: Callable[[], ResultT],
@@ -115,7 +125,7 @@ def list_page[RecordT](
     return core_pagination.Page.build(fetch(since), count(since), page_number, num_records)
 
 
-def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedRecord, UpdateT: BaseModel](
+def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedInput, UpdateT: BaseModel](
     user_id: int,
     record: CreateT,
     to_update: type[UpdateT],

@@ -239,6 +239,10 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.ruff.lint.pep8-naming]
+# SQLAlchemy's declared_attr is called with the mapped class, so its methods take cls.
+classmethod-decorators = ["sqlalchemy.orm.declared_attr"]
+
 [tool.ruff.lint.per-file-ignores]
 # Docstring rules apply to every module; only application composition, runtime data, and tests are exempt.
 "app/api.py" = ["D"]

@@ -11,8 +11,8 @@ from datetime import date, timedelta
 from typing import Protocol
 
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, Date, Select, cast, desc, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import Date, Select, cast, desc, func, select
+from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
@@ -25,10 +25,22 @@ class _HasId(Protocol):
     id: int
 
 
-class _OwnedRecord(_HasId, Protocol):
-    """A stored record that belongs to a user."""
+class OwnedRecord(Protocol):
+    """The ORM class of a stored record that belongs to a user.
 
-    user_id: int
+    The columns are declared as SQLAlchemy declares a mixin's, so on the class they are SQL expressions and
+    on a row their values.
+    """
+
+    @declared_attr
+    def id(cls) -> Mapped[int]:
+        """The record's primary key."""
+        ...
+
+    @declared_attr
+    def user_id(cls) -> Mapped[int]:
+        """The record's owner."""
+        ...
 
 
 def to_read_schema[SchemaT: BaseModel](schema: type[SchemaT], row: object) -> SchemaT:
@@ -107,7 +119,9 @@ def interval_start(interval: health_constants.Interval | None, today: Callable[[
     return get_start_date_for_interval(interval.value, today())
 
 
-def owned_record_statement(model: type[_OwnedRecord], record_id: int, user_id: int) -> Select:
+def owned_record_statement[ModelT: OwnedRecord](
+    model: type[ModelT], record_id: int, user_id: int
+) -> Select[tuple[ModelT]]:
     """Build the query for a user's record by id.
 
     Args:
@@ -121,7 +135,9 @@ def owned_record_statement(model: type[_OwnedRecord], record_id: int, user_id: i
     return select(model).where(model.id == record_id, model.user_id == user_id)
 
 
-def owned_record_exists_statement(model: type[_OwnedRecord], record_id: int, user_id: int) -> Select:
+def owned_record_exists_statement[ModelT: OwnedRecord](
+    model: type[ModelT], record_id: int, user_id: int
+) -> Select[tuple[bool]]:
     """Build the query that reports whether a user has a record.
 
     Args:
@@ -135,9 +151,9 @@ def owned_record_exists_statement(model: type[_OwnedRecord], record_id: int, use
     return select(select(model.id).where(model.id == record_id, model.user_id == user_id).exists())
 
 
-def user_record_count_statement(
-    model: type[_OwnedRecord], user_id: int, since_column: ColumnElement, since: date | None
-) -> Select:
+def user_record_count_statement[ModelT: OwnedRecord](
+    model: type[ModelT], user_id: int, since_column: QueryableAttribute[date], since: date | None
+) -> Select[tuple[int]]:
     """Build the query that counts a user's records.
 
     Args:
@@ -155,15 +171,15 @@ def user_record_count_statement(
     return stmt
 
 
-def user_records_statement(
-    model: type[_OwnedRecord],
+def user_records_statement[ModelT: OwnedRecord](
+    model: type[ModelT],
     user_id: int,
-    order_column: ColumnElement,
-    since_column: ColumnElement,
+    order_column: QueryableAttribute[date],
+    since_column: QueryableAttribute[date],
     since: date | None,
     page_number: int | None,
     num_records: int | None,
-) -> Select:
+) -> Select[tuple[ModelT]]:
     """Build the query for a user's records, newest first, optionally bounded and paginated.
 
     Args:

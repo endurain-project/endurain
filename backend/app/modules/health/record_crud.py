@@ -11,9 +11,9 @@ from datetime import date
 from typing import Protocol
 
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
@@ -23,16 +23,30 @@ import modules.health.computation as health_computation
 DATE_TAKEN_MESSAGE = "Another record already exists for that date"
 
 
-class _Row(Protocol):
-    """A stored, versioned record that belongs to a user."""
+class Row(health_computation.OwnedRecord, Protocol):
+    """The ORM class of a stored, versioned record that belongs to a user."""
 
-    id: int
-    user_id: int
-    version: int
+    @declared_attr
+    def version(cls) -> Mapped[int]:
+        """The record's optimistic-concurrency counter."""
+        ...
+
+    def __init__(self, **kwargs: object) -> None:
+        """Build a row from its column values."""
+        ...
+
+
+class _DatedRow(Row, Protocol):
+    """The ORM class of a record a user has at most one of per day."""
+
+    @declared_attr
+    def date(cls) -> Mapped[date]:
+        """The record's day."""
+        ...
 
 
 @dataclass(frozen=True)
-class RecordSpec:
+class RecordSpec[ModelT: Row, ReadT: BaseModel]:
     """What the shared steps need to know about one record type.
 
     Attributes:
@@ -42,8 +56,8 @@ class RecordSpec:
         etag_label: How a stale ``If-Match`` names the record.
     """
 
-    model: type[_Row]
-    read_schema: type[BaseModel]
+    model: type[ModelT]
+    read_schema: type[ReadT]
     not_found: str
     etag_label: str
 
@@ -60,7 +74,9 @@ def duplicate_date_message(day: date | None) -> str:
     return f"Duplicate entry error. Check if there is already an entry created for {day}"
 
 
-def get_owned(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> _Row:
+def get_owned[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+) -> ModelT:
     """Load a user's row by id.
 
     Args:
@@ -81,7 +97,9 @@ def get_owned(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> _R
     return row
 
 
-def exists(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> bool:
+def exists[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+) -> bool:
     """Report whether a user has a record.
 
     Args:
@@ -96,7 +114,9 @@ def exists(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> bool:
     return bool(db.execute(health_computation.owned_record_exists_statement(spec.model, record_id, user_id)).scalar())
 
 
-def find_by_id(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> BaseModel | None:
+def find_by_id[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+) -> ReadT | None:
     """Retrieve a user's record by id.
 
     Args:
@@ -113,7 +133,9 @@ def find_by_id(spec: RecordSpec, record_id: int, user_id: int, db: Session) -> B
     return health_computation.to_read_schema(spec.read_schema, row) if row else None
 
 
-def find_by_date(spec: RecordSpec, user_id: int, day: str, db: Session) -> BaseModel | None:
+def find_by_date[ModelT: _DatedRow, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], user_id: int, day: str, db: Session
+) -> ReadT | None:
     """Retrieve a user's record for a date, for a record type that has one per day.
 
     Args:
@@ -130,7 +152,13 @@ def find_by_date(spec: RecordSpec, user_id: int, day: str, db: Session) -> BaseM
     return health_computation.to_read_schema(spec.read_schema, row) if row else None
 
 
-def count(spec: RecordSpec, user_id: int, since_column: ColumnElement, since: date | None, db: Session) -> int:
+def count[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT],
+    user_id: int,
+    since_column: QueryableAttribute[date],
+    since: date | None,
+    db: Session,
+) -> int:
     """Count a user's records.
 
     Args:
@@ -147,16 +175,16 @@ def count(spec: RecordSpec, user_id: int, since_column: ColumnElement, since: da
     return db.execute(stmt).scalar_one()
 
 
-def list_page(
-    spec: RecordSpec,
+def list_page[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT],
     user_id: int,
-    order_column: ColumnElement,
-    since_column: ColumnElement,
+    order_column: QueryableAttribute[date],
+    since_column: QueryableAttribute[date],
     since: date | None,
     page_number: int | None,
     num_records: int | None,
     db: Session,
-) -> list:
+) -> list[ReadT]:
     """Retrieve a user's records, newest first, optionally paginated and bounded.
 
     Args:
@@ -178,7 +206,9 @@ def list_page(
     return health_computation.to_read_schemas(spec.read_schema, list(db.execute(stmt).scalars().all()))
 
 
-def save(spec: RecordSpec, row: _Row, db: Session, *, conflict: str | None = None) -> BaseModel:
+def save[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], row: ModelT, db: Session, *, conflict: str | None = None
+) -> ReadT:
     """Flush a changed row and read it back.
 
     Args:
@@ -204,7 +234,9 @@ def save(spec: RecordSpec, row: _Row, db: Session, *, conflict: str | None = Non
     return health_computation.to_read_schema(spec.read_schema, row)
 
 
-def create(spec: RecordSpec, user_id: int, record: BaseModel, db: Session, *, conflict: str) -> BaseModel:
+def create[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], user_id: int, record: BaseModel, db: Session, *, conflict: str
+) -> ReadT:
     """Stage a new record for a user.
 
     Args:
@@ -223,7 +255,9 @@ def create(spec: RecordSpec, user_id: int, record: BaseModel, db: Session, *, co
     return add(spec, spec.model(**record.model_dump(exclude_none=False), user_id=user_id), db, conflict=conflict)
 
 
-def add(spec: RecordSpec, row: _Row, db: Session, *, conflict: str) -> BaseModel:
+def add[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], row: ModelT, db: Session, *, conflict: str
+) -> ReadT:
     """Stage a new row.
 
     Args:
@@ -242,9 +276,15 @@ def add(spec: RecordSpec, row: _Row, db: Session, *, conflict: str) -> BaseModel
     return save(spec, row, db, conflict=conflict)
 
 
-def edit_row(
-    spec: RecordSpec, row: _Row, changes: BaseModel, db: Session, *, if_match: str, conflict: str | None = None
-) -> BaseModel:
+def edit_row[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT],
+    row: ModelT,
+    changes: BaseModel,
+    db: Session,
+    *,
+    if_match: str,
+    conflict: str | None = None,
+) -> ReadT:
     """Stage the set fields of an update on a loaded row.
 
     Args:
@@ -269,8 +309,8 @@ def edit_row(
     return save(spec, row, db, conflict=conflict)
 
 
-def edit(
-    spec: RecordSpec,
+def edit[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT],
     record_id: int,
     user_id: int,
     changes: BaseModel,
@@ -278,7 +318,7 @@ def edit(
     *,
     if_match: str,
     conflict: str | None = None,
-) -> BaseModel:
+) -> ReadT:
     """Stage an update to a user's record.
 
     Args:
@@ -303,7 +343,9 @@ def edit(
     return edit_row(spec, row, changes, db, if_match=if_match, conflict=conflict)
 
 
-def delete(spec: RecordSpec, record_id: int, user_id: int, db: Session, *, if_match: str) -> None:
+def delete[ModelT: Row, ReadT: BaseModel](
+    spec: RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session, *, if_match: str
+) -> None:
     """Stage the deletion of a user's record.
 
     Args:
