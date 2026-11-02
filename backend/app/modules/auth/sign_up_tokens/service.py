@@ -411,7 +411,7 @@ def signup(
     state: StateProvider,
     db: Session,
 ) -> sign_up_schema.SignUpRead:
-    """Create a user and stage the configured verification event.
+    """Create a user and its configured verification event in one commit.
 
     A sign-up with an email address that already has an account answers exactly like a new
     account, so the endpoint does not reveal which addresses are registered; the address's owner
@@ -446,8 +446,9 @@ def signup(
         raise core_exceptions.InvalidInputError("A password is required")
 
     try:
-        created_user = users_integration.create_signup_user(user, server_settings, db)
+        created_user = users_integration.stage_signup_user(user, server_settings, db)
     except core_exceptions.ConflictError:
+        db.rollback()
         existing = users_integration.get_user_by_email(user.email, db)
         if existing is None:
             raise core_exceptions.ConflictError("That username is already taken") from None
@@ -458,7 +459,8 @@ def signup(
 
     if server_settings.signup_require_email_verification:
         request_sign_up_verification_email(created_user.id, db)
-        db.commit()
+    db.commit()
+    logger.info("User signed up", extra=core_logger.context(user_id=created_user.id))
     return _signup_response(server_settings)
 
 

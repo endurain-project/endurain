@@ -24,7 +24,7 @@ class TestUsePasswordResetToken:
     def test_password_and_sessions_commit_before_pending_mfa_is_cleared(
         self, claim, set_password, mark_tokens, delete_sessions, clear_pending, mock_db
     ):
-        user = MagicMock(access_type="regular", username="alice", email="alice@example.com")
+        user = MagicMock(active=True, access_type="regular", username="alice", email="alice@example.com")
         settings = MagicMock(local_login_enabled=True)
         claim.return_value = 42
         order = MagicMock()
@@ -62,6 +62,29 @@ class TestUsePasswordResetToken:
             "clear_pending",
         ]
         clear_pending.assert_called_once_with(42)
+
+    @patch("modules.auth.password_reset_tokens.service.jasil_audit.record_detached")
+    @patch("modules.auth.password_reset_tokens.service.sessions_integration.delete_sessions_by_user")
+    @patch("modules.auth.password_reset_tokens.service.credentials_integration.set_local_password_hash")
+    @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=42)
+    def test_an_inactive_account_cannot_reset_its_password(
+        self, _claim, set_password, delete_sessions, record, mock_db
+    ):
+        user = MagicMock(active=False, access_type="regular", username="alice", email="alice@example.com")
+        with (
+            patch(
+                "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
+                return_value=MagicMock(local_login_enabled=True),
+            ),
+            patch("modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=user),
+            pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired"),
+        ):
+            password_reset_service.use_password_reset_token("plain", "new password", mock_db)
+
+        set_password.assert_not_called()
+        delete_sessions.assert_not_called()
+        record.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     @patch(
         "modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=None

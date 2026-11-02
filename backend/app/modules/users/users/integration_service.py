@@ -179,12 +179,12 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
     return users_service.stage_first_admin(admin, db)
 
 
-def create_signup_user(
+def stage_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
 ) -> users_schema.UsersRead:
-    """Create a user through sign-up, with their default data, and commit.
+    """Stage a user through sign-up, with their default data; the caller commits.
 
     Args:
         user: User sign-up data.
@@ -197,7 +197,7 @@ def create_signup_user(
     Raises:
         ConflictError: If the username or email is already taken.
     """
-    return users_service.create_signup_user(user, server_settings, db)
+    return users_service.stage_signup_user(user, server_settings, db)
 
 
 def create_sso_user(

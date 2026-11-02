@@ -98,7 +98,7 @@ class TestSignupEndpoint:
     """Tests for POST /sign-up/sign-up/request."""
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.create_signup_user")
+    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_signup_success_no_verification_no_approval(
         self,
@@ -137,7 +137,7 @@ class TestSignupEndpoint:
         assert data["admin_approval_required"] is None
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.create_signup_user")
+    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_signup_success_email_verification_required(
         self,
@@ -217,7 +217,7 @@ class TestSignupEndpoint:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    @patch("modules.auth.sign_up_tokens.service.users_integration.create_signup_user")
+    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     def test_signup_with_profile_fields_returns_422(self, mock_create_user, signup_client) -> None:
         """Sign-up takes only the account fields; profile details are set after signing in."""
         response = signup_client.post(
@@ -234,7 +234,7 @@ class TestSignupEndpoint:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         mock_create_user.assert_not_called()
 
-    @patch("modules.auth.sign_up_tokens.service.users_integration.create_signup_user")
+    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_signup_duplicate_user_propagates_conflict(
         self,
@@ -244,7 +244,7 @@ class TestSignupEndpoint:
     ) -> None:
         """
         Propagates 409 (or other HTTP error) raised by
-        create_signup_user when username/email already exists.
+        stage_signup_user when username/email already exists.
         """
         mock_settings.return_value = MagicMock(
             signup_enabled=True,
@@ -270,7 +270,7 @@ class TestSignupEndpoint:
         assert response.status_code == status.HTTP_409_CONFLICT
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.create_signup_user")
+    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_signup_admin_approval_required_returns_flag(
         self,
@@ -306,7 +306,7 @@ class TestSignupEndpoint:
         assert data["admin_approval_required"] is True
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.create_signup_user")
+    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_signup_propagates_503_when_request_verification_email_raises(
         self,
@@ -726,7 +726,7 @@ class TestVerifyEmailEndpoint:
 class TestSignUpPasswordOverHttp:
     """The password rides the verification step, never the sign-up request, when verification is required."""
 
-    @patch("modules.auth.sign_up_tokens.service.users_integration.create_signup_user")
+    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_a_password_in_the_sign_up_request_is_refused_when_verification_is_required(
         self, mock_settings, mock_create_user, signup_client

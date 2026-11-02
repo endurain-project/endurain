@@ -89,7 +89,7 @@ class TestAccountCreation:
     def test_a_sign_up_is_audited_with_its_method(self, mock_db):
         with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
             crud.create_user.return_value = _user(7)
-            users_service.create_signup_user(
+            users_service.stage_signup_user(
                 users_schema.UsersSignup(name="N", username="NewUser", email="n@example.com", password="SecurePass1!"),
                 MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False),
                 mock_db,

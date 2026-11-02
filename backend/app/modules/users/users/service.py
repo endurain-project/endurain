@@ -517,12 +517,12 @@ def _stage_signup_user(
     return created
 
 
-def create_signup_user(
+def stage_signup_user(
     user: users_schema.UsersSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
 ) -> users_schema.UsersRead:
-    """Create a user through sign-up and commit the staged defaults.
+    """Stage a user through sign-up with their default data (flushed, not committed).
 
     The profile starts from the defaults with the chosen language. The address is not proven yet: the
     verification link proves it. A local credential is stored only when the sign-up carries a password.
@@ -543,11 +543,8 @@ def create_signup_user(
             method=users_audit_actions.UserCreateMethod.SIGN_UP,
         )
     except core_exceptions.ConflictError as err:
-        db.rollback()
         # Abstract message to reduce information leakage.
         raise core_exceptions.ConflictError("Unable to create user.") from err
-    db.commit()
-    logger.info("User signed up", extra=core_logger.context(user_id=created.id))
     return created
 
 

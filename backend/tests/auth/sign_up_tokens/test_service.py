@@ -53,10 +53,10 @@ class TestSignupWithATakenEmail:
             patch(f"{_MODULE}.sign_up_event_publishers"),
         ):
             body = _signup_user(with_password=not verification)
-            users.create_signup_user.return_value = MagicMock(id=7)
+            users.stage_signup_user.return_value = MagicMock(id=7)
             created = sign_up_service.signup(body, state, mock_db)
 
-            users.create_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
+            users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
             users.get_user_by_email.return_value = MagicMock(id=3)
             taken = sign_up_service.signup(body, state, mock_db)
 
@@ -69,7 +69,7 @@ class TestSignupWithATakenEmail:
             patch(f"{_MODULE}.users_integration") as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
-            users.create_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
+            users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
             users.get_user_by_email.return_value = MagicMock(id=3)
 
             sign_up_service.signup(_signup_user(), state, mock_db)
@@ -77,6 +77,7 @@ class TestSignupWithATakenEmail:
         users.get_user_by_email.assert_called_once_with("test@example.com", mock_db)
         publishers.publish_sign_up_existing_account.assert_called_once_with(3, mock_db)
         publishers.publish_sign_up_verification_requested.assert_not_called()
+        mock_db.rollback.assert_called_once()
         mock_db.commit.assert_called_once()
 
     def test_without_mail_there_is_no_notice_but_the_answer_is_the_same(self, mock_db, state):
@@ -86,13 +87,39 @@ class TestSignupWithATakenEmail:
             patch(f"{_MODULE}.users_integration") as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
-            users.create_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
+            users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
             users.get_user_by_email.return_value = MagicMock(id=3)
 
             result = sign_up_service.signup(_signup_user(), state, mock_db)
 
         publishers.publish_sign_up_existing_account.assert_not_called()
         assert result.message
+
+
+class TestSignupCommitsTheAccountAndItsEventTogether:
+    @pytest.mark.parametrize("verification", [True, False])
+    def test_one_commit_follows_the_staged_account_and_event(self, mock_db, state, verification):
+        order = MagicMock()
+        with (
+            patch(
+                f"{_MODULE}.server_settings_integration.get_server_settings",
+                return_value=_settings(verification=verification),
+            ),
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
+            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
+        ):
+            users.stage_signup_user.return_value = MagicMock(id=7)
+            order.attach_mock(users.stage_signup_user, "user")
+            order.attach_mock(publishers.publish_sign_up_verification_requested, "event")
+            order.attach_mock(mock_db.commit, "commit")
+
+            sign_up_service.signup(_signup_user(with_password=not verification), state, mock_db)
+
+        names = [call[0] for call in order.mock_calls]
+        assert names[-1] == "commit"
+        assert names.count("commit") == 1
+        assert ("event" in names) is verification
 
 
 class TestExistingAccountNoticeCooldown:
@@ -103,7 +130,7 @@ class TestExistingAccountNoticeCooldown:
             patch(f"{_MODULE}.users_integration") as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
         ):
-            users.create_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
+            users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
             users.get_user_by_email.return_value = MagicMock(id=owner_id)
             result = sign_up_service.signup(_signup_user(), state, db)
         return result, publishers
@@ -140,7 +167,7 @@ class TestSignupWithATakenUsername:
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            users.create_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
+            users.stage_signup_user.side_effect = core_exceptions.ConflictError("Unable to create user.")
             users.get_user_by_email.return_value = None
 
             sign_up_service.signup(_signup_user(), state, mock_db)
@@ -177,7 +204,7 @@ class TestSignupPasswordPolicy:
         ):
             sign_up_service.signup(_signup_user(), state, mock_db)
 
-        users.create_signup_user.assert_not_called()
+        users.stage_signup_user.assert_not_called()
 
     def test_a_missing_password_is_refused_when_verification_is_off(self, mock_db, state):
         with (
@@ -187,7 +214,7 @@ class TestSignupPasswordPolicy:
         ):
             sign_up_service.signup(_signup_user(with_password=False), state, mock_db)
 
-        users.create_signup_user.assert_not_called()
+        users.stage_signup_user.assert_not_called()
 
     def test_a_disabled_registration_is_refused_before_the_password_is_judged(self, mock_db, state):
         settings = _settings(verification=True)
@@ -206,10 +233,10 @@ class TestSignupPasswordPolicy:
             patch(f"{_MODULE}.users_integration") as users,
             patch(f"{_MODULE}.request_sign_up_verification_email"),
         ):
-            users.create_signup_user.return_value = MagicMock(id=7)
+            users.stage_signup_user.return_value = MagicMock(id=7)
             sign_up_service.signup(_signup_user(with_password=False), state, mock_db)
 
-        assert users.create_signup_user.call_args.args[0].password is None
+        assert users.stage_signup_user.call_args.args[0].password is None
 
 
 def _claim(*, previous_email=None):

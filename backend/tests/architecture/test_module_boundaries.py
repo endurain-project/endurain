@@ -421,11 +421,6 @@ def _excepted(importer: str, imported: str) -> bool:
 #: surface write **stages** and its caller commits; what is listed here is
 #: deliberately a self-contained unit of work, with the reason it has to be.
 _SURFACE_UNITS_OF_WORK: dict[str, str] = {
-    "users.integration_service.create_signup_user": (
-        "Creates the user row, the auth-owned password hash and MFA row, and every default row as one "
-        "commit, so an account never exists without its credential or MFA row; a caller composing the "
-        "steps itself could commit between them."
-    ),
     "users.integration_service.request_user_deletion": (
         "Deactivates the account and stages users.deletion_requested in one commit, so the account is never "
         "deactivated without the job that erases it, nor queued for erasure while still active; without durable "

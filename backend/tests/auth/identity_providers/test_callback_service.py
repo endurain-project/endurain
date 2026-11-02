@@ -241,6 +241,32 @@ class TestHandleCallback:
         assert result["user"] is user
         assert oauth_client.fetch_token.call_args.kwargs["code_verifier"] is oauth_state.idp_code_verifier
 
+    @pytest.mark.parametrize(("active", "stored"), [(True, 1), (False, 0)])
+    def test_idp_tokens_are_stored_only_for_an_active_account(self, service, active, stored):
+        idp = MagicMock(
+            issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp", provider_type="oauth2"
+        )
+        idp.name = "Pocket ID"
+        oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = {"access_token": "at"}
+        user = MagicMock(id=1, username="alice", active=active)
+        db = MagicMock()
+
+        with (
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            patch.object(service._oidc, "get_userinfo", return_value={"sub": "user-1"}),
+            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=user),
+            patch.object(service._tokens, "store_idp_tokens") as store,
+        ):
+            service.handle_callback(idp, "code", "state", oauth_state, db)
+
+        assert store.call_count == stored
+        db.commit.assert_called_once()
+
     def test_the_database_is_not_touched_until_the_identity_provider_has_answered(self, service):
         """The session holds a pooled connection once it is used, so no network call may run after that."""
         idp = MagicMock(

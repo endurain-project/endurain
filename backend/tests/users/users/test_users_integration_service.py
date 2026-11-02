@@ -52,7 +52,7 @@ def test_decisions_reach_the_service():
         patch.object(service, "stage_profile_edit") as profile,
         patch.object(service, "stage_email_verification") as verify,
         patch.object(service, "stage_confirmed_email_change") as confirmed,
-        patch.object(service, "create_signup_user") as signup,
+        patch.object(service, "stage_signup_user") as signup,
     ):
         users_integration.require_user(1, db)
         users_integration.require_active_user("user")
@@ -61,7 +61,7 @@ def test_decisions_reach_the_service():
         users_integration.edit_profile(1, "profile", db, if_match="*")
         users_integration.stage_email_verification(1, "settings", db)
         users_integration.stage_confirmed_email_change(1, "new@example.com", db)
-        users_integration.create_signup_user("signup", "settings", db)
+        users_integration.stage_signup_user("signup", "settings", db)
 
     require_user.assert_called_once_with(1, db)
     require_active.assert_called_once_with("user")

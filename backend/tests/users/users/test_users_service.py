@@ -522,6 +522,16 @@ class TestAccountCreationIsOneUnit:
         assert names.count("commit") == 1
         assert {"user", "credential", "integrations", "gear", "mfa"} <= set(names[:-1])
 
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_CRUD)
+    def test_a_sign_up_stages_the_account_and_leaves_the_commit_to_the_caller(self, mock_crud, _defaults, mock_db):
+        mock_crud.create_user.return_value = _user(3)
+        settings = MagicMock(signup_require_email_verification=True, signup_require_admin_approval=False)
+
+        users_service.stage_signup_user(_signup(with_password=False), settings, mock_db)
+
+        mock_db.commit.assert_not_called()
+
     @patch("modules.users.users.service._stage_default_data", side_effect=RuntimeError("mfa down"))
     @patch(_CRUD)
     def test_a_failed_part_commits_nothing(self, mock_crud, _defaults, mock_db):
@@ -529,7 +539,7 @@ class TestAccountCreationIsOneUnit:
         settings = MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False)
 
         with pytest.raises(RuntimeError):
-            users_service.create_signup_user(_signup(), settings, mock_db)
+            users_service.stage_signup_user(_signup(), settings, mock_db)
 
         mock_db.commit.assert_not_called()
 
@@ -564,7 +574,7 @@ class TestCreateSignupUser:
         """
         mock_crud.create_user.return_value = _user(3)
 
-        users_service.create_signup_user(_signup(), self._settings(verification, approval), mock_db)
+        users_service.stage_signup_user(_signup(), self._settings(verification, approval), mock_db)
 
         fields = mock_crud.create_user.call_args.args[0]
         assert (fields["active"], fields["email_verified"], fields["pending_admin_approval"]) == (
@@ -593,7 +603,7 @@ class TestCreateSignupUser:
         identity.validate_and_hash_password_for_user.return_value = "hashed"
         mock_crud.create_user.return_value = _user(3)
 
-        users_service.create_signup_user(_signup(), self._settings(False, False), mock_db)
+        users_service.stage_signup_user(_signup(), self._settings(False, False), mock_db)
 
         identity.set_local_password_hash.assert_called_once()
         assert identity.set_local_password_hash.call_args.args[:2] == (3, "hashed")
@@ -604,7 +614,7 @@ class TestCreateSignupUser:
         identity = _identity()
         mock_crud.create_user.return_value = _user(3)
 
-        users_service.create_signup_user(_signup(with_password=False), self._settings(True, False), mock_db)
+        users_service.stage_signup_user(_signup(with_password=False), self._settings(True, False), mock_db)
 
         identity.validate_and_hash_password_for_user.assert_not_called()
         identity.set_local_password_hash.assert_not_called()
@@ -637,7 +647,7 @@ class TestCreateSignupUser:
     def test_a_sign_up_starts_from_the_default_profile_and_the_server_units(self, mock_crud, _defaults, mock_db):
         mock_crud.create_user.return_value = _user(3)
 
-        users_service.create_signup_user(_signup(), self._settings(False, False), mock_db)
+        users_service.stage_signup_user(_signup(), self._settings(False, False), mock_db)
 
         fields = mock_crud.create_user.call_args.args[0]
         assert (fields["units"], fields["currency"]) == ("imperial", "dollar")
@@ -668,10 +678,10 @@ class TestCreateSignupUser:
         mock_crud.create_user.side_effect = core_exceptions.ConflictError("email taken")
 
         with pytest.raises(core_exceptions.ConflictError) as exc:
-            users_service.create_signup_user(_signup(), self._settings(False, False), mock_db)
+            users_service.stage_signup_user(_signup(), self._settings(False, False), mock_db)
 
         assert exc.value.detail == "Unable to create user."
-        mock_db.rollback.assert_called_once()
+        mock_db.rollback.assert_not_called()
 
 
 class TestStageDefaultData:

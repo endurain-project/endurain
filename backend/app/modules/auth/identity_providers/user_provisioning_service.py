@@ -97,9 +97,11 @@ def find_or_create_user(
         db (Session): Database session.
 
     Returns:
-        users_schema.UsersRead: The found or newly created user instance.
+        users_schema.UsersRead: The found or newly created user instance. A newly created account is inactive while
+            the server's sign-up policy requires email verification or admin approval.
 
     Raises:
+        PermissionDeniedError: If the existing account is inactive. Nothing is written for it.
         domain error: If an existing account matches the email but the IdP
             did not assert a verified email or the account's email is not verified (403), or if user creation is
             disabled for the identity provider and no existing user is found.
@@ -114,6 +116,7 @@ def find_or_create_user(
         user = users_integration.get_user(link.user_id, db)
         if user is None:
             raise core_exceptions.NotFoundError("User not found")
+        users_integration.require_active_user(user)
         # Update last login timestamp
         identity_provider_links_integration.update_user_identity_provider_last_login(link.user_id, idp.id, db)
 
@@ -172,6 +175,8 @@ def find_or_create_user(
                     "account because the account email is not verified. "
                     "Verify the email address and try again."
                 )
+
+            users_integration.require_active_user(user)
 
             # Link existing account to IdP
             identity_provider_links_integration.create_user_identity_provider(user.id, idp.id, subject, db)

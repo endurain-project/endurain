@@ -549,8 +549,10 @@ class CallbackService:
                 # LOGIN MODE: Find or create user and establish session
                 user = user_provisioning_service.find_or_create_user(idp, subject, userinfo, db)
 
-                # Store IdP tokens for future session renewal
-                self._tokens.store_idp_tokens(user.id, idp.id, token_response, db)
+                # A new account awaiting verification or approval has no session to renew; it is committed so the
+                # administrator sees it, and the sign-in is refused when the session is created.
+                if user.active:
+                    self._tokens.store_idp_tokens(user.id, idp.id, token_response, db)
 
                 db.commit()
                 logger.info(

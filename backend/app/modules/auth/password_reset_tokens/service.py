@@ -192,7 +192,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
         db: Database session.
 
     Raises:
-        InvalidInputError: If the token is invalid or expired, or the account may not reset its password.
+        InvalidInputError: If the token is invalid or expired, or the account is inactive or may not reset its password.
         PasswordPolicyError: If the password is too short, too common or matches the account's details.
     """
     token_user_id = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
@@ -202,9 +202,9 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
 
     server_settings = server_settings_integration.get_server_settings(db)
     user = users_integration.require_user(token_user_id, db)
-    if not _may_reset_password(user, db):
+    if not (user.active and _may_reset_password(user, db)):
         logger.warning(
-            "Password reset refused for user <user_id>: the account may not use a local password",
+            "Password reset refused for user <user_id>: the account is inactive or may not use a local password",
             extra=core_logger.context(user_id=token_user_id),
         )
         jasil_audit.record_detached(
