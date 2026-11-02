@@ -37,7 +37,7 @@ TokenType = access_tokens_contracts.TokenType
 
 JWT_ALLOWED_ALGORITHMS: Final[frozenset[str]] = core_jwt_keys.ALLOWED_ALGORITHMS
 JWT_ALGORITHM: Final[str] = core_jwt_keys.ALGORITHM
-JWT_SECRET_KEY: Final[str | None] = core_jwt_keys.SECRET_KEY
+JWT_SECRET_KEY: Final[str | None] = core_jwt_keys.SIGNING_KEY
 
 if not JWT_SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is required")

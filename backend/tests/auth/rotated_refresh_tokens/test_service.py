@@ -12,27 +12,33 @@ class TestHmacHashToken:
     """Tests for keyed hashing of refresh tokens."""
 
     def test_hmac_hash_token_success(self):
-        with patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", "test-secret-key"):
+        with patch(
+            "modules.auth.access_tokens.integration_service.core_key_derivation.derive_key", return_value="k" * 64
+        ):
             result = rotated_token_utils.hmac_hash_token("test-refresh-token")
         assert isinstance(result, str)
         assert len(result) == 64
 
     def test_hmac_hash_token_deterministic(self):
-        with patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", "test-secret-key"):
+        with patch(
+            "modules.auth.access_tokens.integration_service.core_key_derivation.derive_key", return_value="k" * 64
+        ):
             result1 = rotated_token_utils.hmac_hash_token("test-refresh-token")
             result2 = rotated_token_utils.hmac_hash_token("test-refresh-token")
         assert result1 == result2
 
     def test_hmac_hash_token_different_tokens(self):
-        with patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", "test-secret-key"):
+        with patch(
+            "modules.auth.access_tokens.integration_service.core_key_derivation.derive_key", return_value="k" * 64
+        ):
             hash1 = rotated_token_utils.hmac_hash_token("token-one")
             hash2 = rotated_token_utils.hmac_hash_token("token-two")
         assert hash1 != hash2
 
     def test_hmac_hash_token_no_secret(self):
         with (
-            patch("modules.auth.access_tokens.service.JWT_SECRET_KEY", None),
-            pytest.raises(ValueError, match="JWT_SECRET_KEY"),
+            patch("modules.auth.access_tokens.integration_service.core_key_derivation.derive_key", return_value=None),
+            pytest.raises(ValueError, match="SECRET_KEY"),
         ):
             rotated_token_utils.hmac_hash_token("test-refresh-token")
 

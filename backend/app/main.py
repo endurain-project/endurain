@@ -2,7 +2,6 @@ import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import cast
 
 # Silence stravalib token warnings as early as
 # possible: this env var is consulted at import time by
@@ -20,12 +19,10 @@ import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 
 import core.async_bridge as core_async_bridge
 import core.config as core_config
 import core.database as core_database
-import core.environment as core_environment
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
@@ -346,7 +343,6 @@ def create_app() -> FastAPI:
 
     is_development = core_config.settings.ENVIRONMENT == "development"
     is_development_or_demo = core_config.settings.ENVIRONMENT in {"development", "demo"}
-    is_deployed = core_environment.is_deployed_environment(core_config.settings.ENVIRONMENT)
     docs_url = f"{core_config.ROOT_PATH}/docs" if is_development_or_demo else None
     redoc_url = f"{core_config.ROOT_PATH}/redoc" if is_development_or_demo else None
 
@@ -368,16 +364,6 @@ def create_app() -> FastAPI:
     # The security-headers middleware reads the CSP tile domains from app.state, so
     # seed the built-in providers here; startup replaces them with the configured list.
     fastapi_app.state.allowed_tile_domains = server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
-
-    # Add session middleware for OAuth state management
-    fastapi_app.add_middleware(
-        SessionMiddleware,
-        secret_key=cast(str, core_config.read_secret("SECRET_KEY")),
-        session_cookie="endurain_session",
-        max_age=3600,  # 1 hour session timeout
-        same_site="lax",
-        https_only=is_deployed,
-    )
 
     # Refuse an oversized body before anything reads it. Added before CORS, so the 413 still carries CORS headers.
     fastapi_app.add_middleware(core_middleware_body_limit.BodySizeLimitMiddleware)

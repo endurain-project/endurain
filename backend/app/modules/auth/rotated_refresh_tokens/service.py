@@ -21,7 +21,7 @@ TOKEN_REUSE_GRACE_PERIOD_SECONDS: int = 10
 def hmac_hash_token(token: str) -> str:
     """Compute HMAC-SHA256 hash of a token for secure lookup.
 
-    Uses the server's SECRET_KEY as the HMAC key, providing
+    Uses the key derived for token digests as the HMAC key, providing
     defense-in-depth: even if the database is compromised,
     an attacker cannot verify stolen tokens without the key.
 
@@ -32,7 +32,7 @@ def hmac_hash_token(token: str) -> str:
         Hex-encoded HMAC-SHA256 hash of the token.
 
     Raises:
-        ValueError: If JWT_SECRET_KEY is not configured.
+        ValueError: If SECRET_KEY is not configured.
     """
     return access_tokens_integration.hmac_sha256(token)
 

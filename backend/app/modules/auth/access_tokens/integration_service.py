@@ -1,5 +1,6 @@
 """Operations exposed by the access-token package to auth peers."""
 
+import core.key_derivation as core_key_derivation
 import modules.auth.access_tokens.contracts as access_tokens_contracts
 import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.computation as auth_computation
@@ -14,10 +15,10 @@ def get_token_manager() -> access_tokens_service.TokenManager:
 
 
 def hmac_sha256(value: str) -> str:
-    """Hash a value with the configured JWT secret."""
-    secret_key = access_tokens_service.JWT_SECRET_KEY
+    """Hash a value with the key derived for token digests."""
+    secret_key = core_key_derivation.derive_key(core_key_derivation.TOKEN_HMAC)
     if secret_key is None:
-        raise ValueError("JWT_SECRET_KEY is not configured")
+        raise ValueError("SECRET_KEY is not configured")
     return auth_computation.hmac_sha256(value, secret_key)
 
 

@@ -8,7 +8,7 @@ modules so the choice is made in one place and cannot drift:
   link tokens). These are 256-bit ``secrets.token_urlsafe(32)`` values, so a
   slow KDF (Argon2/bcrypt) is unnecessary; SHA-256 is the standard choice for
   hashing tokens of this entropy level.
-- :func:`hmac_sha256` — keyed HMAC-SHA256 using the server ``JWT_SECRET_KEY``.
+- :func:`hmac_sha256` — keyed HMAC-SHA256 using the key derived for token digests.
   Used for refresh-token reuse detection and CSRF tokens, where a keyed MAC
   adds defense-in-depth: even with database read access an attacker cannot
   verify stolen tokens without the server secret.

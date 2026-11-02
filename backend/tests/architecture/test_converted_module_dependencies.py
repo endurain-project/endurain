@@ -40,6 +40,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.http_cache": "The browser cache lifetime of a signed photo, thumbnail or media URL.",
     "core.i18n": "Localises the test email.",
     "core.local_pool": "The bounded in-process pool background work runs on when no durable worker does.",
+    "core.key_derivation": "The per-purpose key behind the token digests.",
     "core.jwt_keys": "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate limiter.",
     "core.logger": "Structured logging.",
     "core.mail": "The mail configuration shape the settings store, and its validation wording.",

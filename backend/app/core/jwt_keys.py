@@ -13,18 +13,19 @@ from joserfc.jwk import OctKey
 from joserfc.jwt import Token
 
 import core.config as core_config
+import core.key_derivation as core_key_derivation
 
 ALLOWED_ALGORITHMS: Final[frozenset[str]] = frozenset({"HS256"})
 ALGORITHM: Final[str] = core_config.read_secret("ALGORITHM", "HS256") or "HS256"
 if ALGORITHM not in ALLOWED_ALGORITHMS:
     raise ValueError(f"ALGORITHM={ALGORITHM!r} is not in the allow-list {sorted(ALLOWED_ALGORITHMS)}.")
-SECRET_KEY: Final[str | None] = core_config.read_secret("SECRET_KEY")
+SIGNING_KEY: Final[str | None] = core_key_derivation.derive_key(core_key_derivation.JWT)
 
 
 @functools.cache
 def verification_key() -> OctKey | None:
     """Return the key that signs and verifies tokens, or ``None`` when no secret is set."""
-    return OctKey.import_key(SECRET_KEY) if SECRET_KEY else None
+    return OctKey.import_key(SIGNING_KEY) if SIGNING_KEY else None
 
 
 def decode(token: str, key: OctKey, algorithm: str = ALGORITHM) -> Token:

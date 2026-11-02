@@ -1,4 +1,4 @@
-"""Signed capability tokens derived from the server ``SECRET_KEY``.
+"""Signed capability tokens keyed from the server ``SECRET_KEY``.
 
 A capability URL carries its own authorization: the token is unforgeable, bound
 to a specific value, and travels in the URL so it works in contexts that cannot
@@ -31,6 +31,7 @@ import jasil.runtime as platform_runtime
 from itsdangerous import BadData, URLSafeTimedSerializer
 
 import core.config as core_config
+import core.key_derivation as core_key_derivation
 
 #: How long a capability token stays valid. Every blob signer used to declare
 #: this itself, each with a comment saying it was "kept identical for
@@ -48,7 +49,7 @@ DEFAULT_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
 
 @functools.cache
 def _serializer(salt: str) -> URLSafeTimedSerializer:
-    """Return the process-wide signer for a salt (secret read once per salt).
+    """Return the process-wide signer for a salt (key derived once per salt).
 
     Args:
         salt: Namespace for this family of tokens.
@@ -59,10 +60,10 @@ def _serializer(salt: str) -> URLSafeTimedSerializer:
     Raises:
         RuntimeError: When ``SECRET_KEY`` is not configured.
     """
-    secret = core_config.read_secret("SECRET_KEY")
-    if not secret:
+    key = core_key_derivation.derive_key(core_key_derivation.CAPABILITY_URLS)
+    if not key:
         raise RuntimeError("SECRET_KEY is not configured; cannot sign capability tokens")
-    return URLSafeTimedSerializer(secret, salt=salt)
+    return URLSafeTimedSerializer(key, salt=salt)
 
 
 def sign_token(salt: str, value: object) -> str:
