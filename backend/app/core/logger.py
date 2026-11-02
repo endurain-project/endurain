@@ -52,6 +52,8 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+import jasil.correlation as jasil_correlation
+
 # NOTE: ``core.config`` is intentionally NOT imported at module top level.
 # ``core.config`` depends on this module to emit warnings from its settings
 # validators (e.g. invalid SMTP_SECURE_TYPE, memory-backed rate limiting in
@@ -63,7 +65,6 @@ from typing import Any
 # import time. The two functions below that genuinely need ``settings``
 # import it locally, after both modules have finished initializing.
 import core.environment as core_environment
-import core.middleware_request_id as core_middleware_request_id
 
 # The single configured application logger. Every logger handed out by
 # :func:`get_logger` is a child of it, so they inherit its level and handlers.
@@ -101,10 +102,11 @@ class RequestIdFilter(logging.Filter):
     """
     Inject the current request ID into every log record.
 
-    Reads the value from
-    :func:`core_middleware_request_id.get_request_id`
+    Reads the value from :func:`jasil.correlation.get_correlation_id`
     and stores it as ``record.request_id`` so formatters
-    can reference ``%(request_id)s``.
+    can reference ``%(request_id)s``. Inside a request that is the
+    middleware's id; inside a durable background job it is the id of
+    the request that queued the job.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -117,9 +119,7 @@ class RequestIdFilter(logging.Filter):
         Returns:
             Always True so the record is never suppressed.
         """
-        record.request_id = (  # type: ignore[attr-defined]
-            core_middleware_request_id.get_request_id()
-        )
+        record.request_id = jasil_correlation.get_correlation_id() or ""  # type: ignore[attr-defined]
         return True
 
 

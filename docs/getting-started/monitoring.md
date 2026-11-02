@@ -51,7 +51,7 @@ Set the level with `LOG_LEVEL` (`critical`, `error`, `warning`, `info`, `debug`,
 
 ### Finding one request
 
-Every response carries an `X-Request-ID` header, and every error body carries the same value as `request_id`. Logs written while handling that request, including those of the background work it started, carry it too. Ask the user for the id, then search for it.
+Every response carries an `X-Request-ID` header, and every error body carries the same value as `request_id`. Logs written while handling that request carry it too. A durable background job's log lines carry the id of the request that queued it, so one id finds both the request and its background work. Without durable jobs, work handed to a local pool runs with the context of the request that started it, so its log lines carry the same id. Ask the user for the id, then search for it.
 
 ```bash
 docker compose logs endurain | grep <request_id>

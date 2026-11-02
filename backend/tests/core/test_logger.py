@@ -5,15 +5,26 @@ import logging
 import sys
 from unittest.mock import MagicMock, patch
 
+import jasil.correlation as jasil_correlation
+import pytest
+
 import core.logger as core_logger
+import core.middleware_request_id as core_middleware_request_id
 
 
 class TestRequestIdFilter:
     """Tests for RequestIdFilter class."""
 
-    def test_adds_request_id_to_record(self):
-        filter_ = core_logger.RequestIdFilter()
-        record = logging.LogRecord(
+    @pytest.fixture(autouse=True)
+    def _isolated_correlation(self):
+        jasil_correlation.reset()
+        jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
+        yield
+        jasil_correlation.reset()
+
+    @staticmethod
+    def _record() -> logging.LogRecord:
+        return logging.LogRecord(
             name="test",
             level=logging.INFO,
             pathname="/f.py",
@@ -22,10 +33,43 @@ class TestRequestIdFilter:
             args=(),
             exc_info=None,
         )
-        with patch("core.logger.core_middleware_request_id.get_request_id", return_value="req-abc"):
-            result = filter_.filter(record)
+
+    def test_adds_request_id_to_record(self):
+        record = self._record()
+        token = core_middleware_request_id.request_id_ctx.set("req-abc")
+        try:
+            result = core_logger.RequestIdFilter().filter(record)
+        finally:
+            core_middleware_request_id.request_id_ctx.reset(token)
         assert result is True
         assert record.request_id == "req-abc"
+
+    def test_correlation_scope_wins_over_the_request_id(self):
+        record = self._record()
+        token = core_middleware_request_id.request_id_ctx.set("req-abc")
+        try:
+            with jasil_correlation.correlation_scope("abc"):
+                core_logger.RequestIdFilter().filter(record)
+        finally:
+            core_middleware_request_id.request_id_ctx.reset(token)
+        assert record.request_id == "abc"
+
+    def test_correlation_scope_without_a_request(self):
+        record = self._record()
+        with jasil_correlation.correlation_scope("abc"):
+            core_logger.RequestIdFilter().filter(record)
+        assert record.request_id == "abc"
+
+    def test_empty_without_a_request_or_scope(self):
+        record = self._record()
+        core_logger.RequestIdFilter().filter(record)
+        assert record.request_id == ""
+
+    def test_empty_when_no_provider_is_installed(self):
+        jasil_correlation.reset()
+        record = self._record()
+        core_logger.RequestIdFilter().filter(record)
+        assert record.request_id == ""
 
 
 class TestJsonFormatter:
