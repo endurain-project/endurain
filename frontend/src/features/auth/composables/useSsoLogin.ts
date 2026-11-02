@@ -7,6 +7,7 @@ import { useAuthStore } from '@/features/auth/stores/auth'
 import { generateCodeChallenge, generateCodeVerifier } from '@/features/auth/utils/pkce'
 import { HttpError } from '@/services/http'
 import { exchangeSessionForTokens, getIdentityProviderLoginUrl } from '@/services/identityProviders'
+import { dropQueryParam } from '@/composables/useRouteQuery'
 import { getQueryString, useSafeRedirect } from '@/composables/useSafeRedirect'
 import { useTelemetry } from '@/composables/useTelemetry'
 
@@ -206,6 +207,8 @@ export function useSsoLogin() {
       if (!sessionId) {
         throw new Error('Invalid session ID')
       }
+      // The session id is single-use and already held here, so it does not stay in the history.
+      dropQueryParam(route, router, 'session_id')
 
       // The flag comes from the URL, so it alone grants nothing: only the app's own
       // deep-link scheme may be navigated to with the session ID. Anything else

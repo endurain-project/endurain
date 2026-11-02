@@ -397,6 +397,22 @@ class TestSecurityHeadersMiddleware:
         assert "Strict-Transport-Security" not in response.headers
         assert "Server" not in response.headers
 
+    @pytest.mark.parametrize("path", ["/login", "/reset-password", "/verify-email"])
+    def test_pages_whose_url_carries_a_credential_send_no_referrer(self, path):
+        """A reset token, verification token or SSO session id in the URL never reaches another page as a Referer."""
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get(path)
+        async def page():
+            return {"message": "ok"}
+
+        response = TestClient(app).get(path)
+
+        assert response.headers["Referrer-Policy"] == "no-referrer"
+
     def test_hsts_header_present_in_production(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient

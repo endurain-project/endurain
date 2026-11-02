@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import AppLogo from '@/components/AppLogo.vue'
+import { useQueryCredential } from '@/composables/useRouteQuery'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
@@ -19,13 +20,12 @@ import {
 import { HttpError } from '@/services/http'
 import { confirmPasswordReset } from '@/features/auth/services/passwordReset'
 
-const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { load } = usePublicServerSettings()
 
 /** Reset token from the emailed link; empty when absent or malformed. */
-const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
+const token = ref(useQueryCredential('token'))
 
 const password = ref('')
 const confirmPassword = ref('')

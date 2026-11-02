@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import AppLogo from '@/components/AppLogo.vue'
+import { useQueryCredential } from '@/composables/useRouteQuery'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
@@ -33,7 +34,6 @@ interface ChoosePasswordValues {
   confirmPassword: string
 }
 
-const route = useRoute()
 const { t } = useI18n()
 
 const status = ref<Status>('pending')
@@ -41,7 +41,7 @@ const errorMessage = ref('')
 const adminApprovalRequired = ref(false)
 
 /** Verification token from the emailed link; empty when absent or malformed. */
-const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
+const token = ref(useQueryCredential('token'))
 
 // The account tier is unknown before submitting, so the regular policy applies;
 // a stricter server-side policy answers 422 (see `submitPassword`).

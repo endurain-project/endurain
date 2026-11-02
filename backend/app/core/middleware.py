@@ -21,6 +21,10 @@ logger = core_logger.get_logger(__name__)
 
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
+#: Pages whose URL carries a one-time credential: a reset token, a verification token or an SSO session id.
+#: They send no Referer at all. Other pages keep the default, because map tile servers can rely on it.
+_NO_REFERRER_PATHS = frozenset({"/login", "/reset-password", "/verify-email"})
+
 #: gzip level. The moderate level: the library default, 9, spends several times the CPU for a few percent
 #: more. The library compresses chunks of 128 KiB or more in a worker thread and smaller ones inline.
 COMPRESSION_LEVEL = 5
@@ -127,7 +131,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "0"
 
         # Control referrer information leakage
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Referrer-Policy"] = (
+            "no-referrer" if request.url.path in _NO_REFERRER_PATHS else "strict-origin-when-cross-origin"
+        )
 
         # Disable unnecessary browser features
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"

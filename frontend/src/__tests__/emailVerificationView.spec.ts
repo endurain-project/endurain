@@ -6,14 +6,16 @@ import i18n from '@/i18n'
 import EmailVerificationView from '@/features/auth/views/EmailVerificationView.vue'
 import { HttpError } from '@/services/http'
 
-const { confirmSignUp, resendSignUpVerification, toastSuccess } = vi.hoisted(() => ({
+const { confirmSignUp, resendSignUpVerification, toastSuccess, routerReplace } = vi.hoisted(() => ({
+  routerReplace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
   confirmSignUp: vi.fn<(request: unknown) => Promise<unknown>>(),
   resendSignUpVerification: vi.fn<(request: unknown) => Promise<unknown>>(),
   toastSuccess: vi.fn<(message: string) => void>(),
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: { token: 'tok' } }),
+  useRoute: () => ({ query: { token: 'tok', other: 'kept' } }),
+  useRouter: () => ({ replace: routerReplace }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
 vi.mock('@/features/auth/services/signUp', () => ({ confirmSignUp, resendSignUpVerification }))
@@ -44,6 +46,7 @@ describe('EmailVerificationView', () => {
     confirmSignUp.mockReset()
     resendSignUpVerification.mockReset()
     toastSuccess.mockReset()
+    routerReplace.mockClear()
   })
 
   it('confirms on mount and shows success without a password form', async () => {
@@ -53,6 +56,22 @@ describe('EmailVerificationView', () => {
     expect(confirmSignUp).toHaveBeenCalledWith({ token: 'tok' })
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.successTitle'))
     expect(wrapper.find('input[name="new-password"]').exists()).toBe(false)
+  })
+
+  it('removes the token from the address bar and still confirms with it, even on a retry', async () => {
+    confirmSignUp.mockRejectedValueOnce(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
+    confirmSignUp.mockResolvedValueOnce({ admin_approval_required: false })
+    const wrapper = await mountView()
+
+    expect(routerReplace).toHaveBeenCalledWith(
+      expect.objectContaining({ query: { other: 'kept' } }),
+    )
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(confirmSignUp).toHaveBeenLastCalledWith({ token: 'tok' })
   })
 
   it('asks for a password when required, resubmits token and password, then succeeds', async () => {

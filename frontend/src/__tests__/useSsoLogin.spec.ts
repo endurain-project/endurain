@@ -277,6 +277,17 @@ describe('processSsoCallback', () => {
     })
   })
 
+  it('removes the session id from the address bar once it holds it, keeping the rest of the query', async () => {
+    mocks.route.query = { sso: 'success', session_id: 'sso-session', redirect: '/activities' }
+
+    const { processSsoCallback } = useSsoLogin()
+    await processSsoCallback()
+
+    expect(mocks.routerReplace).toHaveBeenCalledWith(
+      expect.objectContaining({ query: { sso: 'success', redirect: '/activities' } }),
+    )
+  })
+
   describe('mobile app handoff (external_redirect)', () => {
     it('forwards the session_id to the app scheme without touching the browser session', async () => {
       mocks.route.query = {
@@ -292,7 +303,7 @@ describe('processSsoCallback', () => {
       expect(result).toEqual({ status: 'completed' })
       expect(window.location.href).toBe('endurain://native-callback?session_id=sso-session')
       expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
-      expect(mocks.routerReplace).not.toHaveBeenCalled()
+      expect(mocks.routerReplace).not.toHaveBeenCalledWith({ name: 'home' })
     })
 
     it('never navigates the browser to an internal path just because the URL says external_redirect', async () => {

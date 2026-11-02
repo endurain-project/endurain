@@ -1,5 +1,11 @@
 import { watch, type ComputedRef } from 'vue'
-import { useRouter, type LocationQueryRaw } from 'vue-router'
+import {
+  useRoute,
+  useRouter,
+  type LocationQueryRaw,
+  type RouteLocationNormalizedLoaded,
+  type Router,
+} from 'vue-router'
 
 /**
  * Resolves a route query value to its first string value.
@@ -20,6 +26,39 @@ export function getQueryString(value: unknown): string {
  */
 export function getScalarQueryString(value: unknown): string {
   return typeof value === 'string' ? value : ''
+}
+
+/**
+ * Removes one query parameter from the address bar and the history entry, keeping the others.
+ *
+ * @param route - The current route.
+ * @param router - The router that replaces the entry.
+ * @param key - The query parameter to remove.
+ */
+export function dropQueryParam(
+  route: RouteLocationNormalizedLoaded,
+  router: Router,
+  key: string,
+): void {
+  const { [key]: _dropped, ...query } = route.query
+  void router.replace({ query, hash: route.hash })
+}
+
+/**
+ * Reads a one-time credential from the URL once and removes it from the address bar, so it does not stay in
+ * the history, a bookmark or a shared screenshot.
+ *
+ * @param key - The query parameter that carries the credential.
+ * @returns The credential, or an empty string when absent or malformed.
+ */
+export function useQueryCredential(key: string): string {
+  const route = useRoute()
+  const router = useRouter()
+  const value = getScalarQueryString(route.query[key])
+  if (value) {
+    dropQueryParam(route, router, key)
+  }
+  return value
 }
 
 /**
