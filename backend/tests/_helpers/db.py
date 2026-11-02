@@ -184,7 +184,7 @@ def ensure_user(factory: sessionmaker[Session], user_id: int) -> None:
                     name=f"User {user_id}",
                     username=f"user{user_id}",
                     email=f"user{user_id}@example.com",
-                    preferred_language="us",
+                    preferred_language="en",
                     access_type="regular",
                 )
             )

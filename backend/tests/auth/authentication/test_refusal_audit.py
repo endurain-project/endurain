@@ -8,6 +8,7 @@ import jasil.testing as jasil_testing
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.principal_service as principal_service
 import modules.auth.authentication.service as authentication_service
@@ -25,13 +26,14 @@ def _db_key(**overrides):
     values = {
         "id": "key-1",
         "user_id": 5,
-        "key_hash": _KEY_HASH,
+        "name": "CLI",
         "key_prefix": "abcd1234",
         "is_active": True,
         "expires_at": None,
+        "created_at": datetime.now(UTC),
         "scopes": "[]",
     }
-    return SimpleNamespace(**{**values, **overrides})
+    return api_keys_schema.UsersApiKeyRead(**{**values, **overrides})
 
 
 def _resolve(db_key, *, user=_USER):

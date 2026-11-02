@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hmac
 from datetime import UTC, datetime
 
 import jasil.audit as jasil_audit
@@ -171,15 +170,8 @@ def resolve_from_api_key(
     Notes:
         Every refusal is audited as ``auth.api_key.authenticate``.
     """
-    computed_hash = api_keys_integration.hash_api_key(raw_key)
-    db_key = api_keys_integration.get_api_key_by_hash(computed_hash, db)
-
-    # Constant-time comparison prevents timing attacks
-    # even when the key is not found.
-    stored_hash = db_key.key_hash if db_key else ("0" * 64)
-    if not hmac.compare_digest(stored_hash, computed_hash):
-        db_key = None
-
+    # The key is looked up by its SHA-256 digest, so a found row is the key and a missing one is refused.
+    db_key = api_keys_integration.get_api_key_by_hash(api_keys_integration.hash_api_key(raw_key), db)
     if db_key is None:
         _refuse_api_key(authentication_audit_actions.ApiKeyRefusalReason.UNKNOWN_KEY, jasil_audit.Outcome.FAILURE)
         logger.warning(
