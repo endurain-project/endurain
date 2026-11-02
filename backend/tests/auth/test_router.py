@@ -686,7 +686,7 @@ class TestMFAVerifyEndpoint:
         mock_backup_verify.assert_called_once_with(
             1,
             "A3K9-7BDF",
-            auth_credentials_crud,
+            auth_credentials_crud.get_password_hasher(),
             mock_db,
         )
 

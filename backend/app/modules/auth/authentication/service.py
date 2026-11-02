@@ -609,6 +609,7 @@ def _require_valid_mfa_code(
     method: authentication_audit_actions.LoginMethod,
     mfa_code: str,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
+    password_hasher: credentials_integration.PasswordHasher,
     db: Session,
 ) -> None:
     """Check a TOTP or backup code, counting a failure toward the MFA lockout.
@@ -621,6 +622,7 @@ def _require_valid_mfa_code(
         method: How the sign-in being completed started, for the audit trail.
         mfa_code: The submitted TOTP or backup code.
         pending_mfa_store: Store for pending MFA logins, the MFA lockout and the TOTP replay guard.
+        password_hasher: Verifies a backup code against its stored hash.
         db: Database session.
 
     Raises:
@@ -633,7 +635,7 @@ def _require_valid_mfa_code(
         actor_type=jasil_audit.ActorType.USER, actor_id=str(user_id), credential_type="password"
     ):
         code_is_valid = mfa_integration.verify_user_mfa(
-            user_id, mfa_code, credentials_integration, db, replay_guard=pending_mfa_store
+            user_id, mfa_code, password_hasher, db, replay_guard=pending_mfa_store
         )
     if not code_is_valid:
         # Record failed attempt and apply lockout if threshold exceeded
@@ -994,7 +996,9 @@ def verify_mfa_and_login(
 
     password_method = authentication_audit_actions.LoginMethod.PASSWORD
     _refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store)
-    _require_valid_mfa_code(user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, db)
+    _require_valid_mfa_code(
+        user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, password_hasher, db
+    )
 
     try:
         claimed_user_id = pending_mfa_store.claim_pending_login(mfa_request.mfa_challenge)
@@ -1586,7 +1590,7 @@ def exchange_tokens_for_session(
             raise core_exceptions.MfaRequiredError()
         sso_method = authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER
         _refuse_while_mfa_locked_out(user.username, user.id, sso_method, pending_mfa_store)
-        _require_valid_mfa_code(user.username, user.id, sso_method, mfa_code, pending_mfa_store, db)
+        _require_valid_mfa_code(user.username, user.id, sso_method, mfa_code, pending_mfa_store, password_hasher, db)
         try:
             pending_mfa_store.reset_attempts(user.username)
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:

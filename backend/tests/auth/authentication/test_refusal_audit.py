@@ -331,7 +331,9 @@ class TestMfaChallengeRefusal:
 
 
 class TestLockoutAppliedByFailedCodes:
-    def test_a_wrong_mfa_code_that_locks_the_account_audits_the_lockout_against_the_user(self, mock_db):
+    def test_a_wrong_mfa_code_that_locks_the_account_audits_the_lockout_against_the_user(
+        self, mock_db, password_hasher
+    ):
         store = MagicMock()
         store.record_failed_attempt.return_value = 5
         with (
@@ -340,7 +342,13 @@ class TestLockoutAppliedByFailedCodes:
             pytest.raises(core_exceptions.InvalidMfaCodeError),
         ):
             authentication_service._require_valid_mfa_code(
-                "alice", 5, authentication_audit_actions.LoginMethod.PASSWORD, "123456", store, mock_db
+                "alice",
+                5,
+                authentication_audit_actions.LoginMethod.PASSWORD,
+                "123456",
+                store,
+                password_hasher,
+                mock_db,
             )
 
         entry = audit.assert_audited(

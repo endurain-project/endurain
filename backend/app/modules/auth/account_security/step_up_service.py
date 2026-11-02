@@ -253,7 +253,7 @@ def verify_step_up_credentials(
                 account_security_audit_actions.StepUpMethod.MFA_CODE,
             )
         if not mfa_integration.verify_user_mfa(
-            user_id, mfa_code, credentials_integration, db, replay_guard=step_up_store
+            user_id, mfa_code, credentials_integration.get_password_hasher(), db, replay_guard=step_up_store
         ):
             _refuse_step_up(
                 step_up_store,
@@ -332,7 +332,9 @@ def verify_mfa_code(
     """
     key = _step_up_key(user_id)
     _raise_if_locked_out(step_up_store, key, user_id, account_security_audit_actions.StepUpMethod.MFA_CODE)
-    if not mfa_integration.verify_user_mfa(user_id, mfa_code, credentials_integration, db, replay_guard=step_up_store):
+    if not mfa_integration.verify_user_mfa(
+        user_id, mfa_code, credentials_integration.get_password_hasher(), db, replay_guard=step_up_store
+    ):
         _record_failure(step_up_store, key, user_id)
         _record_refusal(
             user_id,

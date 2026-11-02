@@ -53,7 +53,7 @@ class SupportsHashPassword(Protocol):
 class SupportsVerifyPassword(Protocol):
     """Structural protocol for objects that can verify a password against a hash."""
 
-    def verify_password(self, password: str, password_hash: str) -> bool:
+    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Implement the verify password operation."""
         ...
 

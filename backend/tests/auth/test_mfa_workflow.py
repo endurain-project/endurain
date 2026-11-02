@@ -388,7 +388,9 @@ class TestVerifyMfa:
         with patch(self._VERIFY, return_value=True) as mock_verify:
             result = mfa_workflow.verify_mfa(self._request(), 7, step_up_store, mock_db)
 
-        mock_verify.assert_called_once_with(7, "123456", credentials_integration, mock_db, replay_guard=step_up_store)
+        mock_verify.assert_called_once_with(
+            7, "123456", credentials_integration.get_password_hasher(), mock_db, replay_guard=step_up_store
+        )
         step_up_store.reset_attempts.assert_called_once_with("user:7")
         assert isinstance(result, mfa_schema.MFAVerifyRead)
         assert result.model_dump() == {"message": "MFA code verified successfully"}
