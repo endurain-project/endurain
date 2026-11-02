@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import jasil.audit as jasil_audit
 from jasil.providers import StateBackendUnavailableError, StateProvider
 from sqlalchemy.orm import Session
 
@@ -12,9 +13,11 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.password_reset_tokens.audit_actions as password_reset_audit_actions
 import modules.auth.password_reset_tokens.crud as password_reset_crud
 import modules.auth.password_reset_tokens.email_messages as password_reset_email_messages
 import modules.auth.password_reset_tokens.event_publishers as password_reset_event_publishers
@@ -165,6 +168,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     """
     token_user_id = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
     if token_user_id is None:
+        jasil_audit.record_detached(password_reset_audit_actions.PASSWORD_RESET, outcome=jasil_audit.Outcome.FAILURE)
         raise core_exceptions.InvalidInputError("Invalid or expired password reset token")
 
     server_settings = server_settings_integration.get_server_settings(db)
@@ -173,6 +177,13 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
         logger.warning(
             "Password reset refused for user <user_id>: the account may not use a local password",
             extra=core_logger.context(user_id=token_user_id),
+        )
+        jasil_audit.record_detached(
+            password_reset_audit_actions.PASSWORD_RESET,
+            outcome=jasil_audit.Outcome.DENIED,
+            target_type="user",
+            target_id=str(token_user_id),
+            target_owner_id=str(token_user_id),
         )
         raise core_exceptions.InvalidInputError("Invalid or expired password reset token")
     hashed_password = credentials_integration.validate_and_hash_password_for_user(
@@ -187,6 +198,14 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     credentials_integration.set_local_password_hash(token_user_id, hashed_password, db)
     password_reset_crud.mark_user_password_reset_tokens_used(token_user_id, db)
     sessions_integration.delete_sessions_by_user(token_user_id, db)
+    jasil_audit.stage(
+        db,
+        password_reset_audit_actions.PASSWORD_RESET,
+        target_type="user",
+        target_id=str(token_user_id),
+        target_owner_id=str(token_user_id),
+    )
+    account_security_integration.stage_password_reset(token_user_id, db)
     db.commit()
     mfa_integration.clear_pending_mfa_for_user(token_user_id)
     logger.info("Password reset completed", extra=core_logger.context(user_id=token_user_id))

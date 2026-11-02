@@ -19,6 +19,9 @@ What is private, and why:
     Both reach a model at import time (so importing one before
     ``jasil.orm.map_models`` has run raises) and both commit whatever session
     they are handed, including a caller's own uncommitted work.
+``jasil.audit._postgres``
+    The audit trail's PostgreSQL internals; ``jasil.audit`` exports its whole
+    public surface.
 """
 
 import ast
@@ -33,6 +36,7 @@ _PRIVATE_SURFACE = (
     "jasil.backends",
     "jasil.jobs.crud",
     "jasil.event_log.crud",
+    "jasil.audit._postgres",
 )
 
 

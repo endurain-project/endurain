@@ -199,3 +199,23 @@ class Principal:
         if isinstance(self.credential, OAuthCred):
             return f"{self.credential.provider}:{self.credential.external_id}"
         return None
+
+    def credential_type(self) -> str:
+        """Return a stable name for how this principal authenticated.
+
+        The returned value is suitable for audit logging, next to
+        :meth:`credential_id`.
+
+        Returns:
+            str: ``"access_token"``, ``"session_cookie"``,
+                ``"api_key"``, ``"oauth"`` or ``"password"``.
+        """
+        if isinstance(self.credential, AccessTokenCred):
+            return "access_token"
+        if isinstance(self.credential, SessionCookieCred):
+            return "session_cookie"
+        if isinstance(self.credential, ApiKeyCred):
+            return "api_key"
+        if isinstance(self.credential, OAuthCred):
+            return "oauth"
+        return "password"

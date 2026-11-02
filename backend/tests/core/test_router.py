@@ -1,7 +1,9 @@
 """Tests for core.router — metadata and static-fallback routes."""
 
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.testclient import TestClient
@@ -36,6 +38,29 @@ class TestHealth:
     """Tests for GET {ROOT_PATH}/health — database-backed liveness and the state backend."""
 
     @staticmethod
+    def _audit_health(**overrides):
+        now = datetime.now(UTC)
+        health = {
+            "write_failures": 0,
+            "last_failure_at": None,
+            "furthest_partition_date": now.date() + timedelta(days=7),
+            "last_checkpoint_at": now - timedelta(minutes=10),
+        }
+        return {**health, **overrides}
+
+    @pytest.fixture(autouse=True)
+    def _healthy_audit(self):
+        settings = MagicMock()
+        settings.audit.enabled = True
+        with (
+            patch("jasil.settings.get_settings", return_value=settings),
+            patch("jasil.audit.get_audit_health", return_value=self._audit_health()) as healthy,
+        ):
+            self.healthy = healthy
+            self.settings = settings
+            yield
+
+    @staticmethod
     def _get(db, state):
         app.dependency_overrides[get_db] = lambda: db
         app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
@@ -49,7 +74,7 @@ class TestHealth:
         response = self._get(MagicMock(), MagicMock())
 
         assert response.status_code == 200
-        assert response.json() == {"status": "ok", "state": "ok"}
+        assert response.json() == {"status": "ok", "state": "ok", "audit": "ok"}
 
     def test_returns_503_when_database_fails(self):
         db = MagicMock()
@@ -65,7 +90,7 @@ class TestHealth:
             response = self._get(MagicMock(), state)
 
         assert response.status_code == 200
-        assert response.json() == {"status": "degraded", "state": "unavailable"}
+        assert response.json() == {"status": "degraded", "state": "unavailable", "audit": "ok"}
         assert "health probe" in caplog.text
 
     def test_the_probe_only_reads(self):
@@ -83,6 +108,86 @@ class TestHealth:
         state.get.side_effect = StateBackendUnavailableError("redis down")
 
         assert self._get(db, state).status_code == 503
+
+    def test_a_healthy_probe_does_not_log(self, caplog):
+        with caplog.at_level("WARNING"):
+            self._get(MagicMock(), MagicMock())
+
+        assert caplog.text == ""
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({"furthest_partition_date": None}, id="no-partition"),
+            pytest.param(
+                {"furthest_partition_date": datetime.now(UTC).date()},
+                id="no-partition-for-tomorrow",
+            ),
+            pytest.param({"furthest_partition_date": date(2000, 1, 1)}, id="old-partition"),
+            pytest.param(
+                {"last_checkpoint_at": datetime.now(UTC) - timedelta(hours=1, minutes=1)},
+                id="stale-checkpoint",
+            ),
+            pytest.param(
+                {"last_failure_at": datetime.now(UTC) - timedelta(minutes=5), "write_failures": 1},
+                id="recent-write-failure",
+            ),
+        ],
+    )
+    def test_an_audit_problem_is_degraded_but_still_200(self, overrides, caplog):
+        self.healthy.return_value = self._audit_health(**overrides)
+
+        with caplog.at_level("WARNING"):
+            response = self._get(MagicMock(), MagicMock())
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "degraded", "state": "ok", "audit": "degraded"}
+        assert "audit" in caplog.text.lower()
+
+    def test_a_partition_for_tomorrow_is_enough(self):
+        self.healthy.return_value = self._audit_health(
+            furthest_partition_date=datetime.now(UTC).date() + timedelta(days=1)
+        )
+
+        assert self._get(MagicMock(), MagicMock()).json()["audit"] == "ok"
+
+    def test_a_failure_older_than_an_hour_is_ok(self):
+        self.healthy.return_value = self._audit_health(
+            last_failure_at=datetime.now(UTC) - timedelta(hours=1, minutes=1), write_failures=3
+        )
+
+        assert self._get(MagicMock(), MagicMock()).json()["audit"] == "ok"
+
+    def test_a_checkpoint_that_was_never_sealed_is_not_flagged(self):
+        self.healthy.return_value = self._audit_health(last_checkpoint_at=None)
+
+        assert self._get(MagicMock(), MagicMock()).json()["audit"] == "ok"
+
+    def test_a_disabled_audit_trail_is_ok_and_is_not_read(self):
+        self.healthy.return_value = self._audit_health(furthest_partition_date=None)
+        self.settings.audit.enabled = False
+
+        response = self._get(MagicMock(), MagicMock())
+
+        assert response.json() == {"status": "ok", "state": "ok", "audit": "ok"}
+        self.healthy.assert_not_called()
+
+    def test_an_unreadable_audit_health_is_degraded_not_a_failure(self, caplog):
+        self.healthy.side_effect = RuntimeError("no sessionmaker")
+
+        with caplog.at_level("WARNING"):
+            response = self._get(MagicMock(), MagicMock())
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "degraded", "state": "ok", "audit": "degraded"}
+        assert "audit" in caplog.text.lower()
+
+    def test_a_database_failure_does_not_read_the_audit_health(self):
+        db = MagicMock()
+        db.execute.side_effect = TimeoutError("pool exhausted")
+
+        assert self._get(db, MagicMock()).status_code == 503
+        self.healthy.assert_not_called()
 
 
 class _FileResponseTestMixin:

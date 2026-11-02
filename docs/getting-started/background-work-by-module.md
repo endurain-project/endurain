@@ -187,6 +187,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Remove staged profile imports and exports | 6 h each | yes | Cleanup |
 | Purge read notifications past retention | 24 h | yes | Retention |
 | Authentication clean-ups (reset and sign-up tokens, OAuth states, link tokens, sessions, rotated tokens) | 1 to 60 min | no | Delete what has expired |
+| Prune known devices unseen for 400 days | 24 h | yes | Retention, in batches |
 | Refresh trusted-proxy hostnames | 1 min | no | Keeps `TRUSTED_PROXIES` names current |
 | Prune event log, outbox and job bookkeeping | 24 h | yes | Retention |
 
@@ -312,6 +313,12 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_sign_up_approved_email` | `auth.sign_up_approved` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_sign_up_existing_account_email` | `auth.sign_up_existing_account` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_password_reset_email` | `auth.password_reset_requested` | Bus | The user requests another reset | Nothing |
+| `auth.notify_idp_linked` | `auth.idp_linked` | Bus | Nothing, by design | Nothing |
+| `auth.notify_account_security_changed` | `auth.account_security_changed` | Bus | Nothing, by design | Nothing |
+| `auth.send_account_security_changed_email` | `auth.account_security_changed` | Bus | Nothing: the change is stored and audited | Nothing |
+| `auth.send_idp_linked_email` | `auth.idp_linked` | Bus | Nothing: the change is stored and audited | Nothing |
+| `auth.notify_new_device_sign_in` | `auth.new_device_sign_in` | Bus | Nothing, by design | Nothing |
+| `auth.send_new_device_sign_in_email` | `auth.new_device_sign_in` | Bus | Nothing: the sign-in is audited | Nothing |
 | `users.profile_import_requested` | `users.profile_import_requested` | Bus, then the profile transfer pool | The user starts again | Import state closed as failed |
 | `users.profile_export_requested` | `users.profile_export_requested` | Bus, then the profile transfer pool | The user starts again | Export state closed as failed |
 | `activity_ingestion.uploaded_file` | `activity.file_uploaded` | Ingestion command pool | The user uploads again | Job marked failed |

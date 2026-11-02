@@ -325,3 +325,39 @@ class TestHostCheckIsStrictlyStronger:
         assert result.resolved_storage_uri == "local://"
         assert result.resolved_events_uri == "memory://"
         assert result.resolved_lock_uri == "postgres-advisory://"
+
+
+class TestAuditSettings:
+    def test_defaults_mapped(self, monkeypatch):
+        monkeypatch.delenv("AUDIT_SIGNING_KEY", raising=False)
+        monkeypatch.delenv("AUDIT_SIGNING_KEY_FILE", raising=False)
+
+        result = _build(core_config.Settings(_env_file=None)).audit
+
+        assert result.enabled is True
+        assert result.retention_days == 90
+        assert result.retention_floor_days == core_config.AUDIT_RETENTION_FLOOR_DAYS
+        assert result.signing_key is None
+        assert result.external_sink_uri is None
+        assert result.app_name == "endurain"
+        assert result.app_version == core_config.API_VERSION
+
+    def test_overrides_mapped(self, monkeypatch):
+        # A valid Ed25519 private key: base64 of 32 bytes.
+        signing_key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+        monkeypatch.setenv("AUDIT_SIGNING_KEY", signing_key)
+        settings = core_config.Settings(
+            _env_file=None, AUDIT_RETENTION_DAYS=365, AUDIT_EXTERNAL_SINK_URI="file:///var/lib/endurain-audit"
+        )
+
+        result = _build(settings).audit
+
+        assert result.retention_days == 365
+        assert result.signing_key == signing_key
+        assert result.external_sink_uri == "file:///var/lib/endurain-audit"
+
+    def test_an_invalid_signing_key_fails_at_startup(self, monkeypatch):
+        monkeypatch.setenv("AUDIT_SIGNING_KEY", "not-a-key")
+
+        with pytest.raises(ValueError, match="signing_key"):
+            _build(core_config.Settings(_env_file=None))

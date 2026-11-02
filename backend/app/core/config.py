@@ -43,6 +43,12 @@ ROOT_PATH = "/api/v1"
 #: The shortest ``SECRET_KEY`` accepted; ``openssl rand -hex 32``, which the docs prescribe, gives 64.
 MIN_SECRET_KEY_LENGTH = 32
 
+#: The youngest audit-trail partition the database lets anyone drop. Baked into the guard function when the
+#: substrate's audit migration first runs; a later change here does not alter an existing database.
+AUDIT_RETENTION_FLOOR_DAYS = 30
+#: The longest audit retention the substrate accepts.
+AUDIT_MAX_RETENTION_DAYS = 36500
+
 
 SERVER_IMAGES_URL_PATH = "server_images"
 
@@ -186,6 +192,17 @@ class Settings(BaseSettings):
     # status. Set to 0 (or negative) to disable pruning and keep rows forever.
     EVENT_LOG_RETENTION_DAYS: int = 90
 
+    # --- Audit trail (jasil_audit_log) ---
+    # Append-only record of security-relevant actions, written in the same
+    # transaction as the change it describes. Whole daily partitions older than
+    # this many days are dropped by the audit maintenance job. Set to 0 to keep
+    # every row; a positive value below AUDIT_RETENTION_FLOOR_DAYS is refused.
+    AUDIT_RETENTION_DAYS: int = 90
+    # Optional write-once copy of every audit checkpoint, kept outside the
+    # database: file:///absolute/directory or s3://bucket/prefix. The signing
+    # key (AUDIT_SIGNING_KEY) is a secret and read separately via ``read_secret``.
+    AUDIT_EXTERNAL_SINK_URI: str | None = None
+
     # --- Coordination lock (scheduler/backfill single-runner) ---
     # noop:// always acquires (single process); postgres-advisory:// uses
     # pg_try_advisory_lock on the main database so only one replica runs a
@@ -307,6 +324,16 @@ class Settings(BaseSettings):
             )
             return 1
         return parsed if parsed >= 1 else 1
+
+    @field_validator("AUDIT_RETENTION_DAYS")
+    @classmethod
+    def _audit_retention_above_floor(cls, v: int) -> int:
+        """Refuse a positive retention the database guard would refuse to prune at, or one past 100 years."""
+        if 0 < v < AUDIT_RETENTION_FLOOR_DAYS or v > AUDIT_MAX_RETENTION_DAYS:
+            raise ValueError(
+                f"AUDIT_RETENTION_DAYS must be 0, or between {AUDIT_RETENTION_FLOOR_DAYS} and {AUDIT_MAX_RETENTION_DAYS}"
+            )
+        return v
 
     @field_validator("PHOTON_API_HOST", "NOMINATIM_API_HOST", mode="before")
     @classmethod
@@ -741,9 +768,9 @@ class Settings(BaseSettings):
         substrate's can never be the one that fires. ``tests/core`` pins that —
         anything ``Settings`` accepts, the substrate must resolve.
 
-        ``development`` is never fatal, and the ``custom`` profile is exempt from
-        the consistency rules (it promises no defaults, so nothing can contradict
-        one) though not from naming its capabilities. Multi-worker ``local``
+        ``development`` is never fatal. The ``custom`` profile promises no
+        defaults, but a process-local backend still contradicts the processes it
+        declares, so it is held to the same rules. Multi-worker ``local``
         keeps local storage (shared host disk) but still needs a shared lock. The
         ``distributed`` profile also requires ``JOBS_ENABLED``: best-effort Redis
         delivery can lose events when a consumer crashes.

@@ -16,10 +16,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import jasil.audit as jasil_audit
+from jasil.event_versioning import VersionedPayload
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.auth.account_security.audit_actions as account_security_audit_actions
+import modules.auth.account_security.event_publishers as account_security_event_publishers
+import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.credentials.integration_service as credentials_integration
@@ -33,6 +38,29 @@ import modules.users.users.schema as users_schema
 from modules.auth.mfa.contracts import MFASecretStoreBackend
 
 logger = core_logger.get_logger(__name__)
+
+
+def _stage_security_change(
+    action: jasil_audit.AuditAction,
+    change: account_security_events.AccountSecurityChange,
+    user_id: int,
+    db: Session,
+    *,
+    details: VersionedPayload | None = None,
+) -> None:
+    """Stage the audit row and the event of a change to a user's second factor.
+
+    Args:
+        action: The audit action to record.
+        change: The change the event reports.
+        user_id: ID of the user whose account changed.
+        db: SQLAlchemy session.
+        details: The row's details, when the action declares any.
+    """
+    jasil_audit.stage(
+        db, action, target_type="user", target_id=str(user_id), target_owner_id=str(user_id), details=details
+    )
+    account_security_event_publishers.publish_account_security_changed(user_id, change, db)
 
 
 def get_mfa_status(
@@ -130,6 +158,12 @@ def enable_mfa(
             credentials_integration.get_password_hasher(),
             db,
         )
+        _stage_security_change(
+            account_security_audit_actions.MFA_ENABLE,
+            account_security_events.AccountSecurityChange.MFA_ENABLED,
+            token_user_id,
+            db,
+        )
         db.commit()
         mfa_secret_store.delete_secret(token_user_id)
         logger.info(
@@ -163,6 +197,12 @@ def disable_mfa(
         action=identity_providers_constants.StepUpAction.MFA_DISABLE,
     )
     mfa_integration.disable_user_mfa(token_user_id, db)
+    _stage_security_change(
+        account_security_audit_actions.MFA_DISABLE,
+        account_security_events.AccountSecurityChange.MFA_DISABLED,
+        token_user_id,
+        db,
+    )
     db.commit()
     logger.info(
         "User <token_user_id> disabled MFA (step-up verified)", extra=core_logger.context(token_user_id=token_user_id)
@@ -216,6 +256,13 @@ def generate_backup_codes(
         token_user_id,
         credentials_integration.get_password_hasher(),
         db,
+    )
+    _stage_security_change(
+        account_security_audit_actions.BACKUP_CODES_GENERATE,
+        account_security_events.AccountSecurityChange.BACKUP_CODES_GENERATED,
+        token_user_id,
+        db,
+        details=account_security_audit_actions.BackupCodesDetails(count=len(codes)),
     )
     db.commit()
 

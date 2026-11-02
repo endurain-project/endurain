@@ -3,6 +3,8 @@ import {
   Bell,
   CopyCheck,
   KeyRound,
+  LockKeyhole,
+  LogIn,
   ShieldAlert,
   UserCheck,
   Unplug,
@@ -28,8 +30,26 @@ const NOTIFICATION_TYPE = {
   GARMIN_TOKEN_EXPIRED: 21,
   STRAVA_TOKEN_EXPIRED: 22,
   IDP_LINKED: 31,
+  ACCOUNT_SECURITY_CHANGED: 32,
+  NEW_DEVICE_SIGN_IN: 33,
   ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: 101,
 } as const
+
+/**
+ * i18n key segment of each account-security change the backend reports in the
+ * notification's `change` option. A change missing here renders the generic
+ * message.
+ */
+const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
+  password_changed: 'passwordChanged',
+  password_reset: 'passwordReset',
+  password_set_by_admin: 'passwordSetByAdmin',
+  mfa_enabled: 'mfaEnabled',
+  mfa_disabled: 'mfaDisabled',
+  backup_codes_generated: 'backupCodesGenerated',
+  api_key_created: 'apiKeyCreated',
+  identity_provider_unlinked: 'identityProviderUnlinked',
+}
 
 /**
  * Everything a notification row needs to render, derived purely from the
@@ -175,6 +195,35 @@ export function presentNotification(
         // A provider deleted since the link has no name, so the generic body applies.
         bodyKey: name ? `${base}.idpLinked.body` : `${base}.idpLinked.bodyGeneric`,
         bodyParams: { name },
+        to: { name: 'settings-security' },
+      }
+    }
+    case NOTIFICATION_TYPE.ACCOUNT_SECURITY_CHANGED: {
+      const changeKey = ACCOUNT_SECURITY_CHANGE_KEY[readString(options, 'change')]
+      const prefix = `${base}.accountSecurityChanged.${changeKey ?? 'unknown'}`
+      const name = readString(options, 'idp_name')
+      return {
+        icon: LockKeyhole,
+        titleKey: `${prefix}.title`,
+        // A provider deleted since the unlink has no name, so the generic body applies.
+        bodyKey:
+          changeKey === 'identityProviderUnlinked' && !name
+            ? `${prefix}.bodyGeneric`
+            : `${prefix}.body`,
+        bodyParams: { name },
+        to: { name: 'settings-security' },
+      }
+    }
+    case NOTIFICATION_TYPE.NEW_DEVICE_SIGN_IN: {
+      return {
+        icon: LogIn,
+        titleKey: `${base}.newDeviceSignIn.title`,
+        bodyKey: `${base}.newDeviceSignIn.body`,
+        bodyParams: {
+          browser: readString(options, 'browser'),
+          os: readString(options, 'operating_system'),
+          ip: readString(options, 'ip_address'),
+        },
         to: { name: 'settings-security' },
       }
     }

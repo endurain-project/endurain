@@ -57,6 +57,7 @@ class TestPasswordLogin:
                     MagicMock(),
                     MagicMock(),
                     MagicMock(),
+                    device_id=None,
                 )
             except core_exceptions.UnauthenticatedError as err:
                 return err, failed_attempts, finish
@@ -178,5 +179,15 @@ class TestTokenExchange:
             pytest.raises(core_exceptions.NotFoundError),
         ):
             authentication_service.exchange_tokens_for_session(
-                "session-id", "v" * 43, None, None, MagicMock(), MagicMock(), MagicMock(), MagicMock()
+                "session-id",
+                "v" * 43,
+                None,
+                None,
+                "1.2.3.4",
+                "ua",
+                MagicMock(),
+                MagicMock(),
+                MagicMock(),
+                MagicMock(),
+                device_id=None,
             )

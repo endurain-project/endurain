@@ -54,6 +54,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.database": "Session dependency and declarative ``Base``; the metadata is still shared.",
     "core.dependencies": "``get_storage`` and id/type validators, resolved at the router edge.",
     "core.rate_limit": "Route-level rate limiting declared by routers.",
+    "core.request_context": "The request being served, read by the audit context provider to name the actor.",
     "core.route_map": "Route-map render request used by thumbnail rendering.",
     "core.scheduler": "``ScheduledJob`` value type published by ``scheduled_jobs``.",
 }

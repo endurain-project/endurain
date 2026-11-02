@@ -14,6 +14,7 @@ that can fail runs while the row still marks the deletion, so the stalled-deleti
 
 from datetime import timedelta
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ import core.logger as core_logger
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.users.contributor_registry as users_contributor_registry
+import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
 import modules.users.users.deletion_state_store as users_deletion_state_store
@@ -105,6 +107,13 @@ def request_deletion(
         account_security_integration.delete_all_user_sessions(user_id, db)
         sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
         users_crud.stage_deletion_request(user_id, db)
+        jasil_audit.stage(
+            db,
+            users_audit_actions.USER_DELETE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
         _dispatch(user_id, states, storage, db, source=users_constants.DELETION_SOURCE_API)
     except BaseException:
         # The deletion never started, so nothing else would finish its claim.

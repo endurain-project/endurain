@@ -16,6 +16,7 @@ from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+import jasil.audit as jasil_audit
 import jasil.retention as platform_retention
 import jasil.runtime as platform_runtime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -230,6 +231,14 @@ def platform_jobs() -> tuple[ScheduledJob, ...]:
             1440,
             "prune expired platform bookkeeping records",
         ),
+        # Creates the audit trail's daily partitions ahead of time (an audited write into a day with no partition
+        # fails), seals the tamper-evidence checkpoints and applies the audit retention. Single-runner through its
+        # own lock, so it runs on every scheduler.
+        ScheduledJob(
+            jasil_audit.run_audit_maintenance,
+            5,
+            "maintain the audit trail",
+        ),
     )
 
 
@@ -264,6 +273,12 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
         platform_retention.prune_expired_records,
         job_id="endurain_prune_expired_records_oneshot",
         description="retention prune",
+    )
+    # After a downtime longer than the partitions made ahead, today's audit partition is missing until this runs.
+    run_once(
+        jasil_audit.run_audit_maintenance,
+        job_id="endurain_audit_maintenance_oneshot",
+        description="audit trail maintenance",
     )
 
 

@@ -43,10 +43,21 @@ def _publish_local_platform(tmp_path):
     other process-wide slot JASIL installs so one test cannot leak into the next.
     The ORM mapping is deliberately left alone — ``core.database`` maps it once
     at import and the model modules capture the base then.
+
+    The audit catalog is registered as the entrypoints register it, with writes
+    off: ``jasil.testing.capture_audit`` still sees every row, and no test needs
+    the audit tables or a database for its own session.
     """
+    import jasil.settings as jasil_settings
     import jasil.testing as jasil_testing
 
-    yield jasil_testing.install_test_platform(tmp_path)
+    import module_registry as runtime_module_registry
+
+    platform = jasil_testing.install_test_platform(
+        tmp_path, settings=jasil_settings.JasilSettings(audit=jasil_settings.AuditSettings(enabled=False))
+    )
+    runtime_module_registry.configure_audit()
+    yield platform
     jasil_testing.reset_all()
 
 

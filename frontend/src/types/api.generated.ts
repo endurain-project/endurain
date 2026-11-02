@@ -659,6 +659,7 @@ export interface paths {
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
+         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one
          *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
          *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
          *
@@ -748,6 +749,7 @@ export interface paths {
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
+         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one
          *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
          *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
          *
@@ -1235,15 +1237,15 @@ export interface paths {
          *     backend that does not answer does not fail it: the process still serves most
          *     routes (rate limits fall back to per-process counters), and restarting or
          *     de-routing replicas would not bring the backend back. It answers 200 with
-         *     ``degraded`` so a monitor can alert on the body.
+         *     ``degraded`` so a monitor can alert on the body. An unhealthy audit trail does the same.
          *
          *     Args:
          *         db: Database session.
          *         state: The platform state provider.
          *
          *     Returns:
-         *         ``ok`` when the database and the state backend answer, ``degraded`` when only the state
-         *         backend does not.
+         *         ``ok`` when the database and the state backend answer and the audit trail is healthy,
+         *         ``degraded`` when only the state backend or the audit trail is not.
          *
          *     Raises:
          *         HTTPException: 503 when no connection can be obtained or the query fails.
@@ -4158,13 +4160,14 @@ export interface paths {
          *
          *     Args:
          *         session_id: Session created by the identity-provider callback.
-         *         request: Incoming request, read for the ``X-Client-Type`` header.
-         *         response: Response that receives the refresh cookie for web clients.
+         *         request: Incoming request, read for the ``X-Client-Type`` header, the client address and the user agent.
+         *         response: Response that receives the refresh and device cookies for web clients.
          *         token_exchange: Body carrying the PKCE code verifier and, when MFA applies, the MFA code.
          *         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
          *         password_hasher: Hasher for the stored refresh token.
          *         token_manager: Token manager that signs the tokens.
          *         db: Database session.
+         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one.
          *
          *     Returns:
          *         The access token and, per client type, the CSRF token or the refresh token.
@@ -7663,10 +7666,18 @@ export interface components {
          * @description Health of the dependencies this process needs.
          *
          *     Attributes:
-         *         status: ``ok``, or ``degraded`` when only the shared state backend is unreachable.
+         *         status: ``ok``, or ``degraded`` when the shared state backend is unreachable or the audit trail
+         *             is unhealthy.
          *         state: Whether the shared state backend (rate limits, claims, tickets) answers.
+         *         audit: Whether the audit trail is healthy: tomorrow's partition exists, the latest checkpoint is
+         *             recent and no audit record failed to write recently.
          */
         HealthResponse: {
+            /**
+             * Audit
+             * @enum {string}
+             */
+            audit: "ok" | "degraded";
             /**
              * State
              * @enum {string}

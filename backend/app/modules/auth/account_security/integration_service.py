@@ -77,6 +77,11 @@ def change_managed_user_password(
     account_security_service.change_managed_user_password(user_id, new_password, db)
 
 
+def stage_password_reset(user_id: int, db: Session) -> None:
+    """Stage the event of a password set through an emailed reset link; the caller commits."""
+    account_security_service.stage_password_reset_event(user_id, db)
+
+
 def delete_all_user_sessions(user_id: int, db: Session) -> None:
     """Stage the revocation of every session belonging to a user."""
     account_security_service.delete_all_user_sessions(user_id, db)

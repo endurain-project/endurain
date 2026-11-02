@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
+import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
+import core.i18n as core_i18n
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.timezone as core_timezone
+import modules.auth.account_security.audit_actions as account_security_audit_actions
+import modules.auth.account_security.email_messages as account_security_email_messages
+import modules.auth.account_security.event_publishers as account_security_event_publishers
+import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sessions.schema as auth_sessions_schema
@@ -23,6 +33,24 @@ logger = core_logger.get_logger(__name__)
 
 if TYPE_CHECKING:
     import modules.auth.account_security.step_up_store as account_security_step_up_store
+
+
+def _stage_sessions_revoked(user_id: int, revoked: int, db: Session) -> None:
+    """Stage the audit row of several sessions a user lost at once.
+
+    Args:
+        user_id: ID of the user whose sessions ended.
+        revoked: How many sessions ended.
+        db: SQLAlchemy session.
+    """
+    jasil_audit.stage(
+        db,
+        account_security_audit_actions.SESSION_REVOKE,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=account_security_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
+    )
 
 
 def list_user_sessions(
@@ -41,6 +69,14 @@ def delete_user_session(
 ) -> None:
     """Delete one authenticated user's session."""
     sessions_integration.delete_session(session_id, token_user_id, db)
+    jasil_audit.stage(
+        db,
+        account_security_audit_actions.SESSION_REVOKE,
+        target_type="session",
+        target_id=session_id,
+        target_owner_id=str(token_user_id),
+        details=account_security_audit_actions.SessionsRevokedDetails(sessions_revoked=1),
+    )
     db.commit()
     # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.
     logger.info(
@@ -52,6 +88,7 @@ def delete_user_session(
 def delete_all_user_sessions(user_id: int, db: Session) -> int:
     """Stage the revocation of every session belonging to a user; the caller commits."""
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
+    _stage_sessions_revoked(user_id, revoked, db)
     logger.info("Revoked a user's sessions", extra=core_logger.context(user_id=user_id, revoked=revoked))
     return revoked
 
@@ -76,11 +113,13 @@ def stage_delete_other_user_sessions(
     Returns:
         Number of sessions revoked.
     """
-    return sessions_integration.delete_sessions_by_user(
+    revoked = sessions_integration.delete_sessions_by_user(
         token_user_id,
         db,
         exclude_session_id=current_session_id,
     )
+    _stage_sessions_revoked(token_user_id, revoked, db)
+    return revoked
 
 
 def delete_other_user_sessions(
@@ -105,6 +144,33 @@ def delete_other_user_sessions(
         extra=core_logger.context(token_user_id=token_user_id, revoked=revoked),
     )
     return revoked
+
+
+def _stage_password_written(
+    action: jasil_audit.AuditAction,
+    change: account_security_events.AccountSecurityChange,
+    user_id: int,
+    revoked: int,
+    db: Session,
+) -> None:
+    """Stage the audit row and the event of a password that was just written.
+
+    Args:
+        action: The audit action naming who wrote the password.
+        change: The change the event reports.
+        user_id: ID of the user whose password changed.
+        revoked: How many sessions the change ended.
+        db: SQLAlchemy session.
+    """
+    jasil_audit.stage(
+        db,
+        action,
+        target_type="user",
+        target_id=str(user_id),
+        target_owner_id=str(user_id),
+        details=account_security_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
+    )
+    account_security_event_publishers.publish_account_security_changed(user_id, change, db)
 
 
 def stage_change_own_password(
@@ -174,6 +240,7 @@ def stage_change_own_password(
     credentials_integration.set_local_password_hash(user_id, hashed_password, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
 
+    revoked = 0
     if revoke_other_sessions:
         revoked = sessions_integration.delete_sessions_by_user(
             user_id,
@@ -185,7 +252,26 @@ def stage_change_own_password(
             extra=core_logger.context(user_id=user_id, revoked=revoked),
         )
 
+    _stage_password_written(
+        account_security_audit_actions.PASSWORD_CHANGE,
+        account_security_events.AccountSecurityChange.PASSWORD_CHANGED,
+        user_id,
+        revoked,
+        db,
+    )
     logger.info("User <user_id> changed password (step-up verified)", extra=core_logger.context(user_id=user_id))
+
+
+def stage_password_reset_event(user_id: int, db: Session) -> None:
+    """Stage the event of a password set through an emailed reset link; the caller commits.
+
+    Args:
+        user_id: ID of the user whose password was reset.
+        db: SQLAlchemy session.
+    """
+    account_security_event_publishers.publish_account_security_changed(
+        user_id, account_security_events.AccountSecurityChange.PASSWORD_RESET, db
+    )
 
 
 def change_managed_user_password(
@@ -221,7 +307,92 @@ def change_managed_user_password(
     credentials_integration.set_local_password_hash(user_id, hashed_password, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
+    _stage_password_written(
+        account_security_audit_actions.PASSWORD_SET,
+        account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN,
+        user_id,
+        revoked,
+        db,
+    )
     logger.info(
         "Changed a managed user's password and revoked sessions",
         extra=core_logger.context(user_id=user_id, revoked=revoked),
+    )
+
+
+def prepare_security_change_email(
+    user_id: int,
+    change: str,
+    idp_id: int | None,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the notice of an account-security change for delivery after the database session closes.
+
+    Args:
+        user_id: The user whose account security changed.
+        change: The kind of change, an ``AccountSecurityChange`` value or ``IDENTITY_PROVIDER_LINKED``.
+        idp_id: The identity provider concerned by a link or unlink.
+        frontend_host: Base URL of the frontend.
+        db: Database session.
+
+    Returns:
+        The recipient, subject, HTML and text, or None when the user is missing or inactive.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None or not user.active:
+        return None
+    idp = identity_providers_integration.get_identity_provider(idp_id, db) if idp_id is not None else None
+    locale = core_i18n.normalize_locale(user.preferred_language)
+    return (
+        user.email,
+        *account_security_email_messages.get_account_security_changed_email(
+            user.name, change, idp.name if idp is not None else None, frontend_host, locale
+        ),
+    )
+
+
+def prepare_new_device_sign_in_email(
+    user_id: int,
+    browser: str,
+    operating_system: str,
+    ip_address: str,
+    method: str,
+    signed_in_at: datetime,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the notice of a sign-in from a new device for delivery after the database session closes.
+
+    The time is given in the user's timezone, or the server's when the user has none.
+
+    Args:
+        user_id: The user who signed in.
+        browser: The browser family the sign-in's user agent names.
+        operating_system: The operating-system family the sign-in's user agent names.
+        ip_address: The client address of the sign-in.
+        method: How the user signed in, a ``SignInMethod`` value.
+        signed_in_at: When the sign-in happened.
+        frontend_host: Base URL of the frontend.
+        db: Database session.
+
+    Returns:
+        The recipient, subject, HTML and text, or None when the user is missing or inactive.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None or not user.active:
+        return None
+    local_time = signed_in_at.astimezone(ZoneInfo(core_timezone.or_default(user.timezone)))
+    return (
+        user.email,
+        *account_security_email_messages.get_new_device_sign_in_email(
+            user.name,
+            browser,
+            operating_system,
+            ip_address,
+            method,
+            local_time,
+            frontend_host,
+            core_i18n.normalize_locale(user.preferred_language),
+        ),
     )

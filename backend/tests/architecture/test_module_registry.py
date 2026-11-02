@@ -124,11 +124,34 @@ class TestConfigureApplication:
             patch.object(runtime_module_registry, "configure_user_contributors") as users,
             patch.object(runtime_module_registry.strava_integration, "register_activity_provider") as strava,
             patch.object(runtime_module_registry.garmin_integration, "register_activity_provider") as garmin,
+            patch.object(runtime_module_registry, "configure_audit") as audit,
         ):
             runtime_module_registry.configure_application()
 
-        for installed in (activity, gear, users, strava, garmin):
+        for installed in (activity, gear, users, strava, garmin, audit):
             installed.assert_called_once_with()
+
+
+class TestConfigureAudit:
+    """Every module's audit actions are registered, and the auth provider says who is acting."""
+
+    def test_registers_every_declared_action_and_installs_the_provider(self):
+        import jasil.audit as jasil_audit
+        import jasil.testing as jasil_testing
+
+        jasil_testing.reset_all()
+        runtime_module_registry.configure_audit()
+
+        catalog = jasil_audit.get_catalog()
+        for module in runtime_module_registry.MODULES:
+            for action in module.audit_actions:
+                assert catalog.get(action.id) == action
+        # The installed provider answers; outside a request the system is acting.
+        assert jasil_audit.get_context().actor_type is jasil_audit.ActorType.SYSTEM
+
+    def test_action_ids_are_unique_across_modules(self):
+        ids = [action.id for module in runtime_module_registry.MODULES for action in module.audit_actions]
+        assert len(ids) == len(set(ids))
 
 
 class TestDeferredSubscriptions:

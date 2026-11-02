@@ -108,15 +108,31 @@ class TestStartScheduler:
             start_scheduler()
             mock_add_job.assert_not_called()
 
-    def test_queues_the_one_shot_retention_prune(self):
+    def test_queues_the_one_shot_retention_prune_and_audit_maintenance(self):
         with patch("core.scheduler.scheduler") as mock_scheduler:
             mock_scheduler.running = True
+            import jasil.audit as jasil_audit
             import jasil.retention as platform_retention
 
             from core.scheduler import start_scheduler
 
             start_scheduler()
-            assert mock_scheduler.add_job.call_args.args[0] is platform_retention.prune_expired_records
+            queued = [call.args[0] for call in mock_scheduler.add_job.call_args_list]
+            assert queued == [platform_retention.prune_expired_records, jasil_audit.run_audit_maintenance]
+
+
+class TestPlatformJobs:
+    """Tests for platform_jobs."""
+
+    def test_maintains_the_audit_trail_every_five_minutes(self):
+        import jasil.audit as jasil_audit
+
+        from core.scheduler import platform_jobs
+
+        jobs = {job.func: job for job in platform_jobs()}
+        assert jobs[jasil_audit.run_audit_maintenance].minutes == 5
+        # The substrate takes its own lock; a scheduler lock would only add a second one.
+        assert jobs[jasil_audit.run_audit_maintenance].lock_name is None
 
 
 class TestAddSchedulerJob:
