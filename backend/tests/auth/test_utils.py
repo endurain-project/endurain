@@ -550,6 +550,20 @@ class TestCompleteLogin:
         assert result1["csrf_token"] != result2["csrf_token"]
 
 
+class TestDeliverAuthOutcome:
+    """Test deliver_auth_outcome function."""
+
+    def test_marks_token_response_as_not_cacheable(self):
+        """Token responses carry Cache-Control: no-store and Pragma: no-cache (RFC 6749 5.1)."""
+        response = Response()
+        outcome = auth_schema.AuthOutcome(body={"access_token": "token"})
+
+        authentication_dependencies.deliver_auth_outcome(response, outcome)
+
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["pragma"] == "no-cache"
+
+
 class TestIsSecureCookieEnvironment:
     """Tests for secure_cookie."""
 

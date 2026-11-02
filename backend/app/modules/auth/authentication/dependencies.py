@@ -52,6 +52,9 @@ def set_refresh_token_cookie(
 def deliver_auth_outcome(response: Response, outcome: auth_schema.AuthOutcome) -> Any:
     """Set the outcome's refresh and device cookies on the response and return its body.
 
+    The response carries ``Cache-Control: no-store`` and ``Pragma: no-cache`` so no cache keeps the tokens
+    (RFC 6749 section 5.1).
+
     Args:
         response: Response that receives the cookies.
         outcome: Result of an authentication workflow.
@@ -59,6 +62,8 @@ def deliver_auth_outcome(response: Response, outcome: auth_schema.AuthOutcome) -
     Returns:
         The outcome's response body.
     """
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
     if outcome.refresh_cookie is not None:
         set_refresh_token_cookie(
             response,
