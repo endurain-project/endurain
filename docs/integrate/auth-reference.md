@@ -54,7 +54,7 @@ For web clients, the refresh token cookie is configured with:
 |-----------|-------|---------|
 | **HttpOnly** | `true` | Prevents JavaScript access (XSS protection) |
 | **Secure** | `true` when `ENVIRONMENT=production` or `demo`; applies consistently to login, refresh, and OAuth/SSO token exchange | Only sent over HTTPS |
-| **SameSite** | `Strict` | Prevents CSRF attacks |
+| **SameSite** | `Strict` | The browser does not send the cookie on cross-site requests, which is the main CSRF defence for it |
 | **Path** | `/api/v1/auth` | Sent only to auth endpoints that need the refresh token |
 | **Expires** | 7 days (default) | Matches refresh token lifetime |
 
@@ -83,7 +83,7 @@ All errors, including authentication and authorization failures, use one problem
 4. **Always include required headers:**
     - `Authorization: Bearer {access_token}` for all authenticated requests
     - `X-Client-Type: web` for all requests
-    - `X-CSRF-Token: {csrf_token}` for protected POST/PUT/DELETE/PATCH requests, except `/auth/refresh` bootstrap. Protected web writes require the header; `/auth/refresh` also validates the token value when supplied and bound to the session
+    - `X-CSRF-Token: {csrf_token}` for protected POST/PUT/DELETE/PATCH requests, except `/auth/refresh` bootstrap. Protected web writes require the header, though the server checks only that it is present; `/auth/refresh` also validates the token value when supplied and bound to the session
 5. **Handle page reload gracefully** - Call `/auth/refresh` on app initialization to restore in-memory tokens
 6. **Clear tokens on logout** - The httpOnly cookie is cleared by the backend
 

@@ -173,7 +173,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 class CSRFMiddleware(BaseHTTPMiddleware):
     """
-    Require CSRF headers for browser state-changing requests.
+    Require the ``X-CSRF-Token`` header on browser state-changing requests.
+
+    This is a defence-in-depth check, not the CSRF defence. It only tests that the header is present, never its
+    value, and it applies only to requests that declare ``X-Client-Type: web``, which the client chooses. A custom
+    header makes a cross-origin browser request preflighted, so CORS decides whether it is sent. What actually keeps
+    a cross-site page from acting as the user is that protected routes read the access token from the
+    ``Authorization`` header, which a browser never attaches by itself, and that the refresh cookie is
+    ``SameSite=Strict`` and scoped to ``/api/v1/auth``. The token value is checked against the session only by
+    ``/auth/refresh``.
 
     Attributes:
         exempt_paths: Exact paths skipped by CSRF checks.
@@ -203,7 +211,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         """
-        Enforce CSRF header presence for web clients.
+        Require the CSRF header on state-changing requests that declare a web client.
 
         Args:
             request: Incoming HTTP request.

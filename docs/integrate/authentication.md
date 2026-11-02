@@ -7,7 +7,7 @@ Endurain supports integration with other apps through a comprehensive OAuth 2.1 
 - **Client Type Header:** Most protected JWT requests must include an `X-Client-Type` header with either `web` or `mobile` as the value. Authentication, public, browser-redirect, API-key, and activity-upload unified-auth flows follow the endpoint-specific requirements below.
 - **OAuth/PKCE Client Type Binding:** For `/public/idp/login/{idp_slug}` and password PKCE login, the backend records a `client_type` on the PKCE/OAuth state. During `/public/idp/session/{session_id}/tokens`, that stored value controls the response shape. The token-exchange `X-Client-Type` header is optional, but if provided it must match the stored value; otherwise the exchange returns `400` with `client_type does not match the OAuth state`.
 - **Authorization:** Most protected JWT requests must include an `Authorization: Bearer <access token>` header with a valid access token. Login, MFA verification, OAuth initiation/callback/token exchange, password reset, sign-up, and activity uploads authenticated with an API key are exceptions.
-- **CSRF Protection (Web Only):** State-changing protected web requests (`POST`, `PUT`, `DELETE`, `PATCH`) must include an `X-CSRF-Token` header. This custom header requirement prevents simple cross-site form submissions and is combined with short-lived in-memory access tokens, `SameSite=Strict` refresh cookies, and CORS controls. `/auth/refresh` supports a bootstrap refresh without this header after page reload; if the header is provided and the session has a stored CSRF binding, the token value must be valid.
+- **CSRF Protection (Web Only):** State-changing protected web requests (`POST`, `PUT`, `DELETE`, `PATCH`) must include an `X-CSRF-Token` header. The server checks only that the header is present, and only for requests that send `X-Client-Type: web`, so it is a defence in depth rather than the CSRF defence. A custom header makes a cross-origin browser request preflighted, so CORS decides whether it is sent. The protection that matters is that protected routes read the access token from the `Authorization` header, which a browser never sends on its own, and that the refresh cookie is `SameSite=Strict` and limited to `/api/v1/auth`. `/auth/refresh` supports a bootstrap refresh without this header after page reload; if the header is provided and the session has a stored CSRF binding, the token value must be valid.
 
 !!! note "API Key Authentication"
     Certain endpoints support API key authentication as an alternative to Bearer + `X-Client-Type` headers. API key requests do not require the `X-Client-Type` header or a CSRF token. See [API Key Authentication](api-keys.md) for details.
@@ -28,14 +28,14 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 | Token | Storage Location | Lifetime | Security Purpose |
 |-------|------------------|----------|------------------|
 | **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, XSS-resistant (not persisted) |
-| **Refresh Token** | httpOnly cookie | 7 days | CSRF-protected, auto-sent by browser |
-| **CSRF Token** | In-memory (JavaScript) | Session | Prevents CSRF attacks on state-changing requests |
+| **Refresh Token** | httpOnly cookie | 7 days | `SameSite=Strict`, sent only to `/api/v1/auth` |
+| **CSRF Token** | In-memory (JavaScript) | Session | Sent as `X-CSRF-Token` on state-changing requests; its value is checked only by `/auth/refresh` |
 | **Device id** | httpOnly cookie (`endurain_device`, path `/api/v1`, `SameSite=Strict`) | 400 days from the last sign-in | Recognises the browser, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications). Not a credential; the server stores only its SHA-256 hash |
 
 **Security Properties:**
 
 - **XSS Protection:** Access tokens stored in memory cannot be exfiltrated via XSS attacks
-- **CSRF Protection:** Refresh token in an httpOnly `SameSite=Strict` cookie plus the web-only CSRF header requirement prevents simple cross-site state changes. `/auth/refresh` also validates the CSRF token value when the client sends it and the session has a stored CSRF binding.
+- **CSRF Protection:** Protected routes authenticate with the `Authorization` header, which a browser never sends on its own, and the refresh token is an httpOnly `SameSite=Strict` cookie limited to `/api/v1/auth`. The `X-CSRF-Token` header is a presence check on top of that, and `/auth/refresh` also validates its value when the client sends it and the session has a stored CSRF binding.
 - **Session Persistence:** Page reload triggers `/auth/refresh` with httpOnly cookie to restore tokens
 - **Multi-tab Support:** httpOnly cookie shared across browser tabs
 
